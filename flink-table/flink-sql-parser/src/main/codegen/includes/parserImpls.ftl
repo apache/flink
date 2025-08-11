@@ -396,6 +396,7 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
     boolean ifNotExists = false;
     boolean isSystemFunction = false;
     SqlNodeList resourceInfos = SqlNodeList.EMPTY;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlParserPos functionLanguagePos = null;
 }
 {
@@ -466,6 +467,10 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
         )*
         {  resourceInfos = new SqlNodeList(resourceList, s.pos()); }
     ]
+    [
+        <WITH>
+        propertyList = Properties()
+    ]
     {
         return new SqlCreateFunction(
                     s.pos(),
@@ -475,7 +480,8 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
                     ifNotExists,
                     isTemporary,
                     isSystemFunction,
-                    resourceInfos);
+                    resourceInfos,
+                    propertyList);
     }
 }
 

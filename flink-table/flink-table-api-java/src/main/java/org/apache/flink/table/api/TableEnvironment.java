@@ -562,6 +562,21 @@ public interface TableEnvironment {
     void createFunction(String path, String className, List<ResourceUri> resourceUris);
 
     /**
+     * Creates a catalog function in the given path described by a {@link FunctionDescriptor}.
+     *
+     * <p>Compared to system functions with a globally defined name, catalog functions are always
+     * (implicitly or explicitly) identified by a catalog and database.
+     *
+     * <p>There must not be another function (temporary or permanent) registered under the same
+     * path.
+     *
+     * @param path The path under which the function will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param functionDescriptor The descriptor of the function to create.
+     */
+    void createFunction(String path, FunctionDescriptor functionDescriptor);
+
+    /**
      * Registers a {@link UserDefinedFunction} class as a catalog function in the given path by the
      * specific class name and user defined resource uri.
      *
@@ -586,6 +601,23 @@ public interface TableEnvironment {
      */
     void createFunction(
             String path, String className, List<ResourceUri> resourceUris, boolean ignoreIfExists);
+
+    /**
+     * Creates a catalog function in the given path described by a {@link FunctionDescriptor}.
+     *
+     * <p>Compared to system functions with a globally defined name, catalog functions are always
+     * (implicitly or explicitly) identified by a catalog and database.
+     *
+     * <p>There must not be another function (temporary or permanent) registered under the same
+     * path.
+     *
+     * @param path The path under which the function will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param functionDescriptor The descriptor of the function to create.
+     * @param ignoreIfExists If a function exists under the given path and this flag is set, no
+     *     operation is executed. An exception is thrown otherwise.
+     */
+    void createFunction(String path, FunctionDescriptor functionDescriptor, boolean ignoreIfExists);
 
     /**
      * Registers a {@link UserDefinedFunction} class as a temporary catalog function.
@@ -652,6 +684,24 @@ public interface TableEnvironment {
     void createTemporaryFunction(String path, String className, List<ResourceUri> resourceUris);
 
     /**
+     * Creates a temporary catalog function using a {@link FunctionDescriptor} to describe the
+     * function.
+     *
+     * <p>Compared to {@link #createTemporarySystemFunction(String, String, List)} with a globally
+     * defined name, catalog functions are always (implicitly or explicitly) identified by a catalog
+     * and database.
+     *
+     * <p>Temporary functions can shadow permanent ones. If a permanent function under a given name
+     * exists, it will be inaccessible in the current session. To make the permanent function
+     * available again one can drop the corresponding temporary function.
+     *
+     * @param path The path under which the function will be registered. See also the {@link
+     *     TableEnvironment} class description for the format of the path.
+     * @param functionDescriptor The descriptor of the function to create.
+     */
+    void createTemporaryFunction(String path, FunctionDescriptor functionDescriptor);
+
+    /**
      * Registers a {@link UserDefinedFunction} class as a temporary system function by the specific
      * class name and user defined resource uri.
      *
@@ -671,6 +721,19 @@ public interface TableEnvironment {
      */
     void createTemporarySystemFunction(
             String name, String className, List<ResourceUri> resourceUris);
+
+    /**
+     * Creates a temporary system function using a {@link FunctionDescriptor} to describe the
+     * function.
+     *
+     * <p>Temporary functions can shadow permanent ones. If a permanent function under a given name
+     * exists, it will be inaccessible in the current session. To make the permanent function
+     * available again one can drop the corresponding temporary system function.
+     *
+     * @param name The name under which the function will be registered globally.
+     * @param functionDescriptor The descriptor of the function to create.
+     */
+    void createTemporarySystemFunction(String name, FunctionDescriptor functionDescriptor);
 
     /**
      * Drops a catalog function registered in the given path.
