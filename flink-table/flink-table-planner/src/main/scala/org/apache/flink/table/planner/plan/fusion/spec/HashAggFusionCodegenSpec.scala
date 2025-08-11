@@ -166,7 +166,8 @@ class HashAggFusionCodegenSpec(
        """.stripMargin)
 
     // close aggregate map and release memory segments
-    opCodegenCtx.addReusableCloseStatement(s"$aggregateMapTerm.free();")
+    opCodegenCtx.addReusableCloseStatement(
+      s"if ($aggregateMapTerm != null) $aggregateMapTerm.free();")
 
     val Seq(currentKeyTerm, currentKeyWriterTerm) =
       newNames(opCodegenCtx, "currentKey", "currentKeyWriter")

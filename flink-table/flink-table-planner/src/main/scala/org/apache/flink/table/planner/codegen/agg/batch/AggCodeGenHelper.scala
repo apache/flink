@@ -113,7 +113,8 @@ object AggCodeGenHelper {
          |$handler.open(new ${classOf[ExecutionContextImpl].getCanonicalName}(
          |  this, getRuntimeContext()));
        """.stripMargin)
-    ctx.addReusableCloseStatement(s"$handler.close();")
+    ctx.addReusableCloseStatement(s"if ($handler != null) $handler.close();")
+
     handler
   }
 
