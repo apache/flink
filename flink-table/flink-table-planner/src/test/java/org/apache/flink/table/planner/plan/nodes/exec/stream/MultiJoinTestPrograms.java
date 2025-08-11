@@ -1031,4 +1031,75 @@ public class MultiJoinTestPrograms {
                                     + "LEFT JOIN Payments p ON ue.user_id = p.user_id "
                                     + "GROUP BY ue.user_id, us.name")
                     .build();
+
+    public static final TableTestProgram MULTI_JOIN_LEFT_OUTER_WITH_NULL_KEYS =
+            TableTestProgram.of(
+                            "three-way-left-outer-with-null-keys",
+                            "left outer join with NULL keys on multiple inputs")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupSql(
+                            "CREATE VIEW UsersNulls AS SELECT * FROM (VALUES "
+                                    + "('1','Gus'),"
+                                    + "(CAST(NULL AS STRING), 'NullUser')"
+                                    + ") AS T(user_id, name)")
+                    .setupSql(
+                            "CREATE VIEW OrdersNulls AS SELECT * FROM (VALUES "
+                                    + "('1','order1'),"
+                                    + "(CAST(NULL AS STRING), 'nullOrder')"
+                                    + ") AS T(user_id, order_id)")
+                    .setupSql(
+                            "CREATE VIEW PaymentsNulls AS SELECT * FROM (VALUES "
+                                    + "('1','payment1'),"
+                                    + "('1','payment3'),"
+                                    + "(CAST(NULL AS STRING), 'paymentNull')"
+                                    + ") AS T(user_id, payment_id)")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "user_id STRING",
+                                            "name STRING",
+                                            "order_id STRING",
+                                            "payment_id STRING")
+                                    .consumedValues(
+                                            "+I[1, Gus, order1, payment1]",
+                                            "+I[1, Gus, order1, payment3]",
+                                            "+I[null, NullUser, null, null]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT u.user_id, u.name, o.order_id, p.payment_id "
+                                    + "FROM UsersNulls u "
+                                    + "LEFT JOIN OrdersNulls o ON u.user_id = o.user_id "
+                                    + "LEFT JOIN PaymentsNulls p ON u.user_id = p.user_id")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_NULL_SAFE_JOIN_WITH_NULL_KEYS =
+            TableTestProgram.of(
+                            "null-safe-join-with-null-keys",
+                            "join with IS NOT DISTINCT FROM to match NULL keys")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupSql(
+                            "CREATE VIEW UsersNullSafe AS SELECT * FROM (VALUES "
+                                    + "('1','Gus'),"
+                                    + "(CAST(NULL AS STRING), 'NullUser')"
+                                    + ") AS T(user_id, name)")
+                    .setupSql(
+                            "CREATE VIEW OrdersNullSafe AS SELECT * FROM (VALUES "
+                                    + "('1','order1'),"
+                                    + "(CAST(NULL AS STRING), 'nullOrder')"
+                                    + ") AS T(user_id, order_id)")
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("user_id STRING", "name STRING", "order_id STRING")
+                                    .consumedValues(
+                                            "+I[1, Gus, order1]", "+I[null, NullUser, nullOrder]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT u.user_id, u.name, o.order_id "
+                                    + "FROM UsersNullSafe u "
+                                    + "INNER JOIN OrdersNullSafe o ON u.user_id IS NOT DISTINCT FROM o.user_id")
+                    .build();
 }
