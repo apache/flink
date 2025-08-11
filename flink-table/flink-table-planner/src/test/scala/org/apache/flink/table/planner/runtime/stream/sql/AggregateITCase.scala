@@ -2123,11 +2123,71 @@ class AggregateITCase(
   @TestTemplate
   def testLastValueInSeparatedRow(): Unit = {
     val empsData = List(
-      (100L, "Fred", 10, null, null, 40L, 25, true, false, ("extra1", 1)),
-      (100L, "Eric", 20, "M", "San Francisco", 3L, 80, null, false, ("extra2", 2)),
-      (120L, "John", 40, "M", "Vancouver", 2L, null, false, true, ("extra3", 3)),
-      (120L, "Wilma", 20, "F", null, 1L, 5, null, true, ("extra4", 4)),
-      (120L, "Alice", 40, "F", "Vancouver", 2L, null, false, true, ("extra5", 5))
+      (
+        100L,
+        "Fred",
+        10,
+        null,
+        null,
+        40L,
+        25,
+        true,
+        false,
+        ("extra1", 1),
+        Array("item1", "item2"),
+        Map("key1" -> "value1")),
+      (
+        100L,
+        "Eric",
+        20,
+        "M",
+        "San Francisco",
+        3L,
+        80,
+        null,
+        false,
+        ("extra2", 2),
+        Array("item3", "item4"),
+        Map("key2" -> "value2")),
+      (
+        120L,
+        "John",
+        40,
+        "M",
+        "Vancouver",
+        2L,
+        null,
+        false,
+        true,
+        ("extra3", 3),
+        Array("item5"),
+        Map("key3" -> "value3")),
+      (
+        120L,
+        "Wilma",
+        20,
+        "F",
+        null,
+        1L,
+        5,
+        null,
+        true,
+        ("extra4", 4),
+        Array("item6"),
+        Map("key4" -> "value4")),
+      (
+        120L,
+        "Alice",
+        40,
+        "F",
+        "Vancouver",
+        2L,
+        null,
+        false,
+        true,
+        ("extra5", 5),
+        Array("item7", "item8"),
+        Map("key5" -> "value5"))
     )
 
     val t = failingDataSource(empsData)
@@ -2142,7 +2202,9 @@ class AggregateITCase(
         'age,
         'slacker,
         'manager,
-        'extra_info)
+        'extra_row,
+        'extra_array,
+        'extra_map)
 
     tEnv.createTemporaryView("emps", t)
 
@@ -2154,7 +2216,9 @@ class AggregateITCase(
          |  LAST_VALUE(gender) AS last_gender,
          |  LAST_VALUE(city) AS last_city,
          |  LAST_VALUE(manager) AS last_manager,
-         |  LAST_VALUE(extra_info) AS last_extra_info
+         |  LAST_VALUE(extra_row) AS last_extra_row,
+         |  LAST_VALUE(extra_array) AS last_extra_array,
+         |  LAST_VALUE(extra_map) AS last_extra_map
          |FROM emps
          |GROUP BY empno
          |""".stripMargin
@@ -2162,9 +2226,10 @@ class AggregateITCase(
     val sink = new TestingRetractSink
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
+
     val expected = List(
-      "100,Eric,M,San Francisco,false,+I[extra2, 2]",
-      "120,Alice,F,Vancouver,true,+I[extra5, 5]"
+      "100,Eric,M,San Francisco,false,+I[extra2, 2],[item3, item4],Map(key2 -> value2)",
+      "120,Alice,F,Vancouver,true,+I[extra5, 5],[item7, item8],Map(key5 -> value5)"
     )
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
@@ -2172,11 +2237,71 @@ class AggregateITCase(
   @TestTemplate
   def testLastValueInRow(): Unit = {
     val empsData = List(
-      (100L, "Fred", 10, null, null, 40L, 25, true, false, ("extra1", 1)),
-      (100L, "Eric", 20, "M", "San Francisco", 3L, 80, null, false, ("extra2", 2)),
-      (120L, "John", 40, "M", "Vancouver", 2L, null, false, true, ("extra3", 3)),
-      (120L, "Wilma", 20, "F", null, 1L, 5, null, true, ("extra4", 4)),
-      (120L, "Alice", 40, "F", "Vancouver", 2L, null, false, true, ("extra5", 5))
+      (
+        100L,
+        "Fred",
+        10,
+        null,
+        null,
+        40L,
+        25,
+        true,
+        false,
+        ("extra1", 1),
+        Array("item1", "item2"),
+        Map("key1" -> "value1")),
+      (
+        100L,
+        "Eric",
+        20,
+        "M",
+        "San Francisco",
+        3L,
+        80,
+        null,
+        false,
+        ("extra2", 2),
+        Array("item3", "item4"),
+        Map("key2" -> "value2")),
+      (
+        120L,
+        "John",
+        40,
+        "M",
+        "Vancouver",
+        2L,
+        null,
+        false,
+        true,
+        ("extra3", 3),
+        Array("item5"),
+        Map("key3" -> "value3")),
+      (
+        120L,
+        "Wilma",
+        20,
+        "F",
+        null,
+        1L,
+        5,
+        null,
+        true,
+        ("extra4", 4),
+        Array("item6"),
+        Map("key4" -> "value4")),
+      (
+        120L,
+        "Alice",
+        40,
+        "F",
+        "Vancouver",
+        2L,
+        null,
+        false,
+        true,
+        ("extra5", 5),
+        Array("item7", "item8"),
+        Map("key5" -> "value5"))
     )
 
     val t = failingDataSource(empsData)
@@ -2191,7 +2316,9 @@ class AggregateITCase(
         'age,
         'slacker,
         'manager,
-        'extra_info)
+        'extra_row,
+        'extra_array,
+        'extra_map)
 
     tEnv.createTemporaryView("emps", t)
 
@@ -2209,7 +2336,9 @@ class AggregateITCase(
          |            age,
          |            slacker,
          |            manager,
-         |            extra_info
+         |            extra_row,
+         |            extra_array,
+         |            extra_map
          |        )
          |    ) AS row_data
          |FROM emps group by empno
@@ -2219,8 +2348,10 @@ class AggregateITCase(
     tEnv.sqlQuery(sql).toRetractStream[Row].addSink(sink).setParallelism(1)
     env.execute()
     val expected = List(
-      "100,+I[Eric, 20, M, San Francisco, 3, 80, null, false, +I[extra2, 2]]",
-      "120,+I[Alice, 40, F, Vancouver, 2, null, false, true, +I[extra5, 5]]"
+      "100,+I[Eric, 20, M, San Francisco, 3, 80, null, false, " +
+        "+I[extra2, 2], [item3, item4], Map(key2 -> value2)]",
+      "120,+I[Alice, 40, F, Vancouver, 2, null, false, true, " +
+        "+I[extra5, 5], [item7, item8], Map(key5 -> value5)]"
     )
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
