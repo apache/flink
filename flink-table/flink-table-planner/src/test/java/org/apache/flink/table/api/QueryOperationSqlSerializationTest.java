@@ -148,6 +148,7 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
     @Override
     public EnumSet<TestKind> supportedSetupSteps() {
         return EnumSet.of(
+                TestKind.CONFIG,
                 TestKind.SQL,
                 TestKind.FUNCTION,
                 TestKind.SOURCE_WITH_DATA,
