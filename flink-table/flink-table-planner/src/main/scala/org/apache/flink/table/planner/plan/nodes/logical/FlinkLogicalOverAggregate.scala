@@ -61,6 +61,16 @@ class FlinkLogicalOverAggregate(
       windowGroups)
   }
 
+
+  override def copy(windowConstants: JList[RexLiteral]): Window = {
+    new FlinkLogicalOverAggregate(
+      cluster,
+      traitSet,
+      input,
+      windowConstants,
+      getRowType,
+      windowGroups)
+  }
 }
 
 class FlinkLogicalOverAggregateConverter(config: Config) extends ConverterRule(config) {

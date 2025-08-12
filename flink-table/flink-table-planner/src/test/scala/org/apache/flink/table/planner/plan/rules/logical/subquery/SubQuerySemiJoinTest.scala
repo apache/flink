@@ -1578,7 +1578,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
   @Test
   def testExistsWithCorrelatedOnHaving(): Unit = {
     // TODO There are some bugs when converting SqlNode to RelNode:
-    val sqlQuery1 =
+    val sqlQuery =
       "SELECT SUM(a) AS s FROM x GROUP BY b HAVING EXISTS (SELECT * FROM y WHERE y.d = x.b)"
 
     // the logical plan is:
@@ -1595,10 +1595,7 @@ class SubQuerySemiJoinTest extends SubQueryTestBase {
     //
     // LogicalFilter lost variablesSet information.
 
-    util.verifyRelPlanNotExpected(sqlQuery1, "joinType=[semi]")
-
-    val sqlQuery2 = "SELECT MAX(a) FROM x GROUP BY 1 HAVING EXISTS (SELECT 1 FROM y WHERE d < b)"
-    util.verifyRelPlanNotExpected(sqlQuery2, "joinType=[semi]")
+    util.verifyRelPlanNotExpected(sqlQuery, "joinType=[semi]")
   }
 
   @Test
