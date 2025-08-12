@@ -340,11 +340,18 @@ object BuiltInMethods {
     classOf[TimestampData],
     classOf[TimeZone])
 
+  val TIMESTAMP_WITHOUT_LOCAL_TIME_ZONE_TO_TIME = Types.lookupMethod(
+    classOf[DateTimeUtils],
+    "timestampWithoutLocalZoneToTime",
+    classOf[TimestampData],
+    classOf[Int])
+
   val TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_TIME = Types.lookupMethod(
     classOf[DateTimeUtils],
     "timestampWithLocalZoneToTime",
     classOf[TimestampData],
-    classOf[TimeZone])
+    classOf[TimeZone],
+    classOf[Int])
 
   val DATE_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE = Types.lookupMethod(
     classOf[DateTimeUtils],
@@ -536,7 +543,11 @@ object BuiltInMethods {
     Types.lookupMethod(classOf[BinaryStringDataUtil], "toDate", classOf[BinaryStringData])
 
   val STRING_DATA_TO_TIME =
-    Types.lookupMethod(classOf[BinaryStringDataUtil], "toTime", classOf[BinaryStringData])
+    Types.lookupMethod(
+      classOf[BinaryStringDataUtil],
+      "toTime",
+      classOf[BinaryStringData],
+      classOf[Int])
 
   val STRING_DATA_TO_TIMESTAMP = Types.lookupMethod(
     classOf[BinaryStringDataUtil],

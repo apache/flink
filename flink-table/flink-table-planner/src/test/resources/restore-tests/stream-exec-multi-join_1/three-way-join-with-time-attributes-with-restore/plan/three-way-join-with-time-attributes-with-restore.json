@@ -1,7 +1,7 @@
 {
-  "flinkVersion" : "2.1",
+  "flinkVersion" : "2.2",
   "nodes" : [ {
-    "id" : 47,
+    "id" : 48,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -44,43 +44,6 @@
     "outputType" : "ROW<`user_id_0` VARCHAR(2147483647) NOT NULL, `name` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, UsersWithProctime]], fields=[user_id_0, name])"
   }, {
-    "id" : 48,
-    "type" : "stream-exec-calc_1",
-    "projection" : [ {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 0,
-      "type" : "VARCHAR(2147483647) NOT NULL"
-    }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 1,
-      "type" : "VARCHAR(2147483647)"
-    }, {
-      "kind" : "CALL",
-      "internalName" : "$PROCTIME_MATERIALIZE$1",
-      "operands" : [ {
-        "kind" : "CALL",
-        "internalName" : "$PROCTIME$1",
-        "operands" : [ ],
-        "type" : {
-          "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-          "nullable" : false,
-          "precision" : 3,
-          "kind" : "PROCTIME"
-        }
-      } ],
-      "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL"
-    } ],
-    "condition" : null,
-    "inputProperties" : [ {
-      "requiredDistribution" : {
-        "type" : "UNKNOWN"
-      },
-      "damBehavior" : "PIPELINED",
-      "priority" : 0
-    } ],
-    "outputType" : "ROW<`user_id_0` VARCHAR(2147483647) NOT NULL, `name` VARCHAR(2147483647), `proctime` TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL>",
-    "description" : "Calc(select=[user_id_0, name, PROCTIME_MATERIALIZE(PROCTIME()) AS proctime])"
-  }, {
     "id" : 49,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
@@ -91,7 +54,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`user_id_0` VARCHAR(2147483647) NOT NULL, `name` VARCHAR(2147483647), `proctime` TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL>",
+    "outputType" : "ROW<`user_id_0` VARCHAR(2147483647) NOT NULL, `name` VARCHAR(2147483647)>",
     "description" : "Exchange(distribution=[hash[user_id_0]])"
   }, {
     "id" : 50,
@@ -245,22 +208,31 @@
             }
           }
         }
-      }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 1 ], [ 2 ] ],
+        "producedType" : "ROW<`price` INT, `user_id_2` VARCHAR(2147483647)> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`price` INT, `user_id_2` VARCHAR(2147483647)> NOT NULL"
+      } ]
     },
-    "outputType" : "ROW<`payment_id` VARCHAR(2147483647) NOT NULL, `price` INT, `user_id_2` VARCHAR(2147483647)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])"
+    "outputType" : "ROW<`price` INT, `user_id_2` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Payments, project=[price, user_id_2], metadata=[]]], fields=[price, user_id_2])"
   }, {
     "id" : 55,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
-        "keys" : [ 2 ]
+        "keys" : [ 1 ]
       },
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`payment_id` VARCHAR(2147483647) NOT NULL, `price` INT, `user_id_2` VARCHAR(2147483647)>",
+    "outputType" : "ROW<`price` INT, `user_id_2` VARCHAR(2147483647)>",
     "description" : "Exchange(distribution=[hash[user_id_2]])"
   }, {
     "id" : 56,
@@ -280,7 +252,7 @@
         "type" : "VARCHAR(2147483647) NOT NULL"
       }, {
         "kind" : "INPUT_REF",
-        "inputIndex" : 4,
+        "inputIndex" : 3,
         "type" : "VARCHAR(2147483647)"
       } ],
       "type" : "BOOLEAN"
@@ -294,7 +266,7 @@
         "type" : "VARCHAR(2147483647) NOT NULL"
       }, {
         "kind" : "INPUT_REF",
-        "inputIndex" : 8,
+        "inputIndex" : 6,
         "type" : "VARCHAR(2147483647)"
       } ],
       "type" : "BOOLEAN"
@@ -313,7 +285,7 @@
           "type" : "VARCHAR(2147483647) NOT NULL"
         }, {
           "kind" : "INPUT_REF",
-          "inputIndex" : 8,
+          "inputIndex" : 6,
           "type" : "VARCHAR(2147483647)"
         } ],
         "type" : "BOOLEAN"
@@ -327,7 +299,7 @@
           "type" : "VARCHAR(2147483647) NOT NULL"
         }, {
           "kind" : "INPUT_REF",
-          "inputIndex" : 4,
+          "inputIndex" : 3,
           "type" : "VARCHAR(2147483647)"
         } ],
         "type" : "BOOLEAN"
@@ -345,10 +317,10 @@
         "leftInputId" : 0,
         "leftFieldIndex" : 0,
         "rightInputId" : 2,
-        "rightFieldIndex" : 2
+        "rightFieldIndex" : 1
       } ]
     },
-    "inputUpsertKeys" : [ [ [ 0 ] ], [ ], [ ] ],
+    "inputUniqueKeys" : [ [ [ 0 ] ], [ [ 0 ] ], [ ] ],
     "state" : [ {
       "index" : 0,
       "ttl" : "0 ms",
@@ -379,13 +351,13 @@
     }, {
       "requiredDistribution" : {
         "type" : "HASH",
-        "keys" : [ 2 ]
+        "keys" : [ 1 ]
       },
       "damBehavior" : "PIPELINED",
       "priority" : 2
     } ],
-    "outputType" : "ROW<`user_id_0` VARCHAR(2147483647) NOT NULL, `name` VARCHAR(2147483647), `proctime` TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL, `order_id` VARCHAR(2147483647) NOT NULL, `user_id_1` VARCHAR(2147483647), `rowtime` TIMESTAMP(3), `payment_id` VARCHAR(2147483647) NOT NULL, `price` INT, `user_id_2` VARCHAR(2147483647)>",
-    "description" : "MultiJoin(joinFilter=[AND(=($0, $8), =($0, $4))], joinTypes=[[INNER, INNER, INNER]], joinConditions=[[true, =($0, $4), =($0, $8)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:1;], 2=[LeftInputId:0;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:2;]}], select=[user_id_0,name,proctime,order_id,user_id_1,rowtime,payment_id,price,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) proctime, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, TIMESTAMP(3) rowtime, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2)])"
+    "outputType" : "ROW<`user_id_0` VARCHAR(2147483647) NOT NULL, `name` VARCHAR(2147483647), `order_id` VARCHAR(2147483647) NOT NULL, `user_id_1` VARCHAR(2147483647), `rowtime` TIMESTAMP(3), `price` INT, `user_id_2` VARCHAR(2147483647)>",
+    "description" : "MultiJoin(joinFilter=[AND(=($0, $6), =($0, $3))], joinTypes=[[INNER, INNER, INNER]], joinConditions=[[true, =($0, $3), =($0, $6)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:1;], 2=[LeftInputId:0;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:1;]}], select=[user_id_0,name,order_id,user_id_1,rowtime,price,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, TIMESTAMP(3) rowtime, INTEGER price, VARCHAR(2147483647) user_id_2)])"
   }, {
     "id" : 57,
     "type" : "stream-exec-calc_1",
@@ -395,15 +367,15 @@
       "type" : "VARCHAR(2147483647)"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 3,
+      "inputIndex" : 2,
       "type" : "VARCHAR(2147483647) NOT NULL"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 5,
+      "inputIndex" : 4,
       "type" : "TIMESTAMP(3)"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 7,
+      "inputIndex" : 5,
       "type" : "INT"
     } ],
     "condition" : null,
@@ -460,13 +432,6 @@
     "description" : "Sink(table=[default_catalog.default_database.sink], fields=[name, order_id, rowtime, price])"
   } ],
   "edges" : [ {
-    "source" : 47,
-    "target" : 48,
-    "shuffle" : {
-      "type" : "FORWARD"
-    },
-    "shuffleMode" : "PIPELINED"
-  }, {
     "source" : 48,
     "target" : 49,
     "shuffle" : {

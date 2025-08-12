@@ -1,5 +1,5 @@
 {
-  "flinkVersion" : "2.1",
+  "flinkVersion" : "2.2",
   "nodes" : [ {
     "id" : 19,
     "type" : "stream-exec-table-source-scan_1",
@@ -103,22 +103,31 @@
             }
           }
         }
-      }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ], [ 2 ] ],
+        "producedType" : "ROW<`order_id` VARCHAR(2147483647) NOT NULL, `user_id_1` VARCHAR(2147483647)> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`order_id` VARCHAR(2147483647) NOT NULL, `user_id_1` VARCHAR(2147483647)> NOT NULL"
+      } ]
     },
-    "outputType" : "ROW<`order_id` VARCHAR(2147483647) NOT NULL, `product` VARCHAR(2147483647), `user_id_1` VARCHAR(2147483647)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[order_id, product, user_id_1])"
+    "outputType" : "ROW<`order_id` VARCHAR(2147483647) NOT NULL, `user_id_1` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])"
   }, {
     "id" : 24,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
-        "keys" : [ 2 ]
+        "keys" : [ 1 ]
       },
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`order_id` VARCHAR(2147483647) NOT NULL, `product` VARCHAR(2147483647), `user_id_1` VARCHAR(2147483647)>",
+    "outputType" : "ROW<`order_id` VARCHAR(2147483647) NOT NULL, `user_id_1` VARCHAR(2147483647)>",
     "description" : "Exchange(distribution=[hash[user_id_1]])"
   }, {
     "id" : 25,
@@ -214,7 +223,7 @@
         "type" : "VARCHAR(2147483647) NOT NULL"
       }, {
         "kind" : "INPUT_REF",
-        "inputIndex" : 5,
+        "inputIndex" : 4,
         "type" : "VARCHAR(2147483647)"
       } ],
       "type" : "BOOLEAN"
@@ -232,7 +241,7 @@
           "type" : "VARCHAR(2147483647) NOT NULL"
         }, {
           "kind" : "INPUT_REF",
-          "inputIndex" : 6,
+          "inputIndex" : 5,
           "type" : "VARCHAR(2147483647)"
         } ],
         "type" : "BOOLEAN"
@@ -250,7 +259,7 @@
             "type" : "INT"
           }, {
             "kind" : "INPUT_REF",
-            "inputIndex" : 8,
+            "inputIndex" : 7,
             "type" : "INT"
           } ],
           "type" : "BOOLEAN"
@@ -260,7 +269,7 @@
           "internalName" : "$<$1",
           "operands" : [ {
             "kind" : "INPUT_REF",
-            "inputIndex" : 8,
+            "inputIndex" : 7,
             "type" : "INT"
           }, {
             "kind" : "LITERAL",
@@ -278,11 +287,11 @@
       "internalName" : "$=$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
-        "inputIndex" : 6,
+        "inputIndex" : 5,
         "type" : "VARCHAR(2147483647)"
       }, {
         "kind" : "INPUT_REF",
-        "inputIndex" : 10,
+        "inputIndex" : 9,
         "type" : "VARCHAR(2147483647)"
       } ],
       "type" : "BOOLEAN"
@@ -301,7 +310,7 @@
           "type" : "VARCHAR(2147483647) NOT NULL"
         }, {
           "kind" : "INPUT_REF",
-          "inputIndex" : 6,
+          "inputIndex" : 5,
           "type" : "VARCHAR(2147483647)"
         } ],
         "type" : "BOOLEAN"
@@ -319,7 +328,7 @@
             "type" : "INT"
           }, {
             "kind" : "INPUT_REF",
-            "inputIndex" : 8,
+            "inputIndex" : 7,
             "type" : "INT"
           } ],
           "type" : "BOOLEAN"
@@ -329,7 +338,7 @@
           "internalName" : "$<$1",
           "operands" : [ {
             "kind" : "INPUT_REF",
-            "inputIndex" : 8,
+            "inputIndex" : 7,
             "type" : "INT"
           }, {
             "kind" : "LITERAL",
@@ -347,7 +356,7 @@
         "leftInputId" : 0,
         "leftFieldIndex" : 1,
         "rightInputId" : 1,
-        "rightFieldIndex" : 2
+        "rightFieldIndex" : 1
       } ],
       "2" : [ {
         "leftInputId" : 0,
@@ -362,7 +371,7 @@
         "rightFieldIndex" : 1
       } ]
     },
-    "inputUpsertKeys" : [ [ [ 1 ] ], [ ], [ ], [ ] ],
+    "inputUniqueKeys" : [ [ [ 1 ] ], [ [ 0 ] ], [ [ 1 ] ], [ ] ],
     "state" : [ {
       "index" : 0,
       "ttl" : "0 ms",
@@ -390,7 +399,7 @@
     }, {
       "requiredDistribution" : {
         "type" : "HASH",
-        "keys" : [ 2 ]
+        "keys" : [ 1 ]
       },
       "damBehavior" : "PIPELINED",
       "priority" : 1
@@ -409,8 +418,8 @@
       "damBehavior" : "PIPELINED",
       "priority" : 3
     } ],
-    "outputType" : "ROW<`name` VARCHAR(2147483647), `user_id_0` VARCHAR(2147483647) NOT NULL, `cash` INT, `order_id` VARCHAR(2147483647), `product` VARCHAR(2147483647), `user_id_1` VARCHAR(2147483647), `user_id_2` VARCHAR(2147483647), `payment_id` VARCHAR(2147483647) NOT NULL, `price` INT, `location` VARCHAR(2147483647), `user_id_3` VARCHAR(2147483647)>",
-    "description" : "MultiJoin(joinFilter=[AND(=($1, $6), OR(>=($2, $8), <($8, 0)))], joinTypes=[[INNER, LEFT, INNER, LEFT]], joinConditions=[[true, =($1, $5), AND(=($1, $6), OR(>=($2, $8), <($8, 0))), =($6, $10)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:1;RightInputId:1;RightFieldIndex:2;], 2=[LeftInputId:0;LeftFieldIndex:1;RightInputId:2;RightFieldIndex:0;], 3=[LeftInputId:2;LeftFieldIndex:0;RightInputId:3;RightFieldIndex:1;]}], select=[name,user_id_0,cash,order_id,product,user_id_1,user_id_2,payment_id,price,location,user_id_3], rowType=[RecordType(VARCHAR(2147483647) name, VARCHAR(2147483647) user_id_0, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) product, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) user_id_2, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) location, VARCHAR(2147483647) user_id_3)])"
+    "outputType" : "ROW<`name` VARCHAR(2147483647), `user_id_0` VARCHAR(2147483647) NOT NULL, `cash` INT, `order_id` VARCHAR(2147483647), `user_id_1` VARCHAR(2147483647), `user_id_2` VARCHAR(2147483647), `payment_id` VARCHAR(2147483647) NOT NULL, `price` INT, `location` VARCHAR(2147483647), `user_id_3` VARCHAR(2147483647)>",
+    "description" : "MultiJoin(joinFilter=[AND(=($1, $5), OR(>=($2, $7), <($7, 0)))], joinTypes=[[INNER, LEFT, INNER, LEFT]], joinConditions=[[true, =($1, $4), AND(=($1, $5), OR(>=($2, $7), <($7, 0))), =($5, $9)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:1;RightInputId:1;RightFieldIndex:1;], 2=[LeftInputId:0;LeftFieldIndex:1;RightInputId:2;RightFieldIndex:0;], 3=[LeftInputId:2;LeftFieldIndex:0;RightInputId:3;RightFieldIndex:1;]}], select=[name,user_id_0,cash,order_id,user_id_1,user_id_2,payment_id,price,location,user_id_3], rowType=[RecordType(VARCHAR(2147483647) name, VARCHAR(2147483647) user_id_0, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) user_id_2, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) location, VARCHAR(2147483647) user_id_3)])"
   }, {
     "id" : 30,
     "type" : "stream-exec-calc_1",
@@ -428,11 +437,11 @@
       "type" : "VARCHAR(2147483647)"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 7,
+      "inputIndex" : 6,
       "type" : "VARCHAR(2147483647) NOT NULL"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 9,
+      "inputIndex" : 8,
       "type" : "VARCHAR(2147483647)"
     } ],
     "condition" : null,

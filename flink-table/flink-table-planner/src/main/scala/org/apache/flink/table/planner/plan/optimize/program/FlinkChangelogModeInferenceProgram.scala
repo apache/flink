@@ -1052,33 +1052,29 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       val inputChangelogMode =
         ChangelogPlanUtils.getChangelogMode(sink.getInput.asInstanceOf[StreamPhysicalRel]).get
       val primaryKeys = sink.contextResolvedTable.getResolvedSchema.getPrimaryKeyIndexes
-      val upsertMaterialize =
-        tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE) match {
-          case UpsertMaterialize.FORCE => primaryKeys.nonEmpty
-          case UpsertMaterialize.NONE => false
-          case UpsertMaterialize.AUTO =>
-            val sinkAcceptInsertOnly = sink.tableSink
-              .getChangelogMode(inputChangelogMode)
-              .containsOnly(RowKind.INSERT)
-            val inputInsertOnly = inputChangelogMode.containsOnly(RowKind.INSERT)
+      val sinkChangelogMode = sink.tableSink.getChangelogMode(inputChangelogMode)
+      val inputIsAppend = inputChangelogMode.containsOnly(RowKind.INSERT)
+      val sinkIsAppend = sinkChangelogMode.containsOnly(RowKind.INSERT)
+      val sinkIsRetract = sinkChangelogMode.contains(RowKind.UPDATE_BEFORE)
 
-            if (!sinkAcceptInsertOnly && !inputInsertOnly && primaryKeys.nonEmpty) {
-              val pks = ImmutableBitSet.of(primaryKeys: _*)
-              val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
-              val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
-              // if input has update and primary key != upsert key (upsert key can be null) we should
-              // enable upsertMaterialize. An optimize is: do not enable upsertMaterialize when sink
-              // pk(s) contains input changeLogUpsertKeys
-              if (changeLogUpsertKeys == null || !changeLogUpsertKeys.exists(pks.contains)) {
-                true
-              } else {
-                false
-              }
-            } else {
-              false
-            }
-        }
-      upsertMaterialize
+      tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE) match {
+        case UpsertMaterialize.FORCE => primaryKeys.nonEmpty && !sinkIsRetract
+        case UpsertMaterialize.NONE => false
+        case UpsertMaterialize.AUTO =>
+          if (inputIsAppend || sinkIsAppend || sinkIsRetract) {
+            return false
+          }
+          if (primaryKeys.isEmpty) {
+            return false
+          }
+          val pks = ImmutableBitSet.of(primaryKeys: _*)
+          val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
+          val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
+          // if input has updates and primary key != upsert key (upsert key can be null) we should
+          // enable upsertMaterialize. An optimize is: do not enable upsertMaterialize when sink
+          // pk(s) contains input changeLogUpsertKeys
+          changeLogUpsertKeys == null || !changeLogUpsertKeys.exists(pks.contains)
+      }
     }
   }
 

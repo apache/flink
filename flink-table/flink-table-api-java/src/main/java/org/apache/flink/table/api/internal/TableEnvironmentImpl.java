@@ -32,6 +32,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.Expressions;
+import org.apache.flink.table.api.FunctionDescriptor;
 import org.apache.flink.table.api.ModelDescriptor;
 import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.ResultKind;
@@ -417,7 +418,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public void createTemporarySystemFunction(
             String name, String className, List<ResourceUri> resourceUris) {
-        functionCatalog.registerTemporarySystemFunction(name, className, resourceUris);
+        createTemporarySystemFunction(
+                name,
+                FunctionDescriptor.forClassName(className).resourceUris(resourceUris).build());
+    }
+
+    @Override
+    public void createTemporarySystemFunction(String name, FunctionDescriptor functionDescriptor) {
+        functionCatalog.registerTemporarySystemFunction(name, functionDescriptor, false);
     }
 
     @Override
@@ -435,9 +443,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             String path,
             Class<? extends UserDefinedFunction> functionClass,
             boolean ignoreIfExists) {
-        final UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
-        functionCatalog.registerCatalogFunction(
-                unresolvedIdentifier, functionClass, ignoreIfExists);
+        createFunction(
+                path, FunctionDescriptor.forFunctionClass(functionClass).build(), ignoreIfExists);
     }
 
     @Override
@@ -448,9 +455,27 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public void createFunction(
             String path, String className, List<ResourceUri> resourceUris, boolean ignoreIfExists) {
+        createFunction(
+                path,
+                FunctionDescriptor.forClassName(className)
+                        .language(FunctionLanguage.JAVA)
+                        .resourceUris(resourceUris)
+                        .build(),
+                ignoreIfExists);
+    }
+
+    @Override
+    public void createFunction(String path, FunctionDescriptor functionDescriptor) {
+        createFunction(path, functionDescriptor, false);
+    }
+
+    @Override
+    public void createFunction(
+            String path, FunctionDescriptor functionDescriptor, boolean ignoreIfExists) {
+
         final UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
         functionCatalog.registerCatalogFunction(
-                unresolvedIdentifier, className, resourceUris, ignoreIfExists);
+                unresolvedIdentifier, functionDescriptor, ignoreIfExists);
     }
 
     @Override
@@ -477,9 +502,23 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public void createTemporaryFunction(
             String path, String className, List<ResourceUri> resourceUris) {
+        createTemporaryFunction(
+                path,
+                FunctionDescriptor.forClassName(className)
+                        .language(FunctionLanguage.JAVA)
+                        .resourceUris(resourceUris)
+                        .build());
+    }
+
+    @Override
+    public void createTemporaryFunction(String path, FunctionDescriptor functionDescriptor) {
         final UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(path);
         final CatalogFunction catalogFunction =
-                new CatalogFunctionImpl(className, FunctionLanguage.JAVA, resourceUris);
+                new CatalogFunctionImpl(
+                        functionDescriptor.getClassName(),
+                        functionDescriptor.getLanguage(),
+                        functionDescriptor.getResourceUris(),
+                        functionDescriptor.getOptions());
         functionCatalog.registerTemporaryCatalogFunction(
                 unresolvedIdentifier, catalogFunction, false);
     }

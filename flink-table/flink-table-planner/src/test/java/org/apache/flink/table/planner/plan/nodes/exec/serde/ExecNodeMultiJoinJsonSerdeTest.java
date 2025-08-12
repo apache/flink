@@ -101,7 +101,7 @@ class ExecNodeMultiJoinJsonSerdeTest {
         // MultiJoin specific fields
         JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "joinTypes");
         JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "joinAttributeMap");
-        JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "inputUpsertKeys");
+        JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "inputUniqueKeys");
         JsonSerdeTestUtil.assertThatJsonContains(jsonNode, "nodes", "0", "joinConditions");
 
         // Verify specific field values
@@ -112,8 +112,8 @@ class ExecNodeMultiJoinJsonSerdeTest {
         assertThat(node.get("joinTypes"))
                 .containsExactly(new TextNode("INNER"), new TextNode("INNER"));
         assertThat(node.get("joinAttributeMap").isObject()).isTrue();
-        assertThat(node.get("inputUpsertKeys").isArray()).isTrue();
-        assertThat(node.get("inputUpsertKeys")).hasSize(2);
+        assertThat(node.get("inputUniqueKeys").isArray()).isTrue();
+        assertThat(node.get("inputUniqueKeys")).hasSize(2);
         assertThat(node.get("joinConditions").isArray()).isTrue();
         assertThat(node.get("joinConditions")).hasSize(2);
         assertThat(node.get("inputProperties").isArray()).isTrue();

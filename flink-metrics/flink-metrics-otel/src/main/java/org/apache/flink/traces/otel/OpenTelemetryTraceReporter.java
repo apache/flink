@@ -20,6 +20,7 @@ package org.apache.flink.traces.otel;
 
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.otel.OpenTelemetryReporterBase;
+import org.apache.flink.metrics.otel.OpenTelemetryReporterOptions;
 import org.apache.flink.metrics.otel.VariableNameUtil;
 import org.apache.flink.traces.Span;
 import org.apache.flink.traces.reporter.TraceReporter;
@@ -28,6 +29,8 @@ import io.opentelemetry.api.trace.SpanBuilder;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.TracerProvider;
 import io.opentelemetry.context.Context;
+import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
+import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporterBuilder;
 import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
 import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporterBuilder;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
@@ -36,6 +39,7 @@ import io.opentelemetry.sdk.trace.export.SpanExporter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
@@ -56,10 +60,33 @@ public class OpenTelemetryTraceReporter extends OpenTelemetryReporterBase implem
     public void open(MetricConfig metricConfig) {
         LOG.info("Starting OpenTelemetryTraceReporter");
         super.open(metricConfig);
-        OtlpGrpcSpanExporterBuilder builder = OtlpGrpcSpanExporter.builder();
-        tryConfigureEndpoint(metricConfig, builder::setEndpoint);
-        tryConfigureTimeout(metricConfig, builder::setTimeout);
-        spanExporter = builder.build();
+
+        final String protocol =
+                Optional.ofNullable(
+                                metricConfig.getProperty(
+                                        OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key()))
+                        .orElse("");
+
+        switch (protocol.toLowerCase()) {
+            case "http":
+                OtlpHttpSpanExporterBuilder httpBuilder = OtlpHttpSpanExporter.builder();
+                tryConfigureEndpoint(metricConfig, httpBuilder::setEndpoint);
+                tryConfigureTimeout(metricConfig, httpBuilder::setTimeout);
+                spanExporter = httpBuilder.build();
+                break;
+            default:
+                LOG.warn(
+                        "Unknown protocol '{}' for OpenTelemetryTraceReporter, defaulting to gRPC",
+                        protocol);
+            // Fall through to the "gRPC" case
+            case "grpc":
+                OtlpGrpcSpanExporterBuilder grpcBuilder = OtlpGrpcSpanExporter.builder();
+                tryConfigureEndpoint(metricConfig, grpcBuilder::setEndpoint);
+                tryConfigureTimeout(metricConfig, grpcBuilder::setTimeout);
+                spanExporter = grpcBuilder.build();
+                break;
+        }
+
         spanProcessor = BatchSpanProcessor.builder(spanExporter).build();
         tracerProvider =
                 SdkTracerProvider.builder()

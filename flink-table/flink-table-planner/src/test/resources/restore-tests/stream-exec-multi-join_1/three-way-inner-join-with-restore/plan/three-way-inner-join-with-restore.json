@@ -1,5 +1,5 @@
 {
-  "flinkVersion" : "2.1",
+  "flinkVersion" : "2.2",
   "nodes" : [ {
     "id" : 1,
     "type" : "stream-exec-table-source-scan_1",
@@ -188,7 +188,7 @@
         "rightFieldIndex" : 0
       } ]
     },
-    "inputUpsertKeys" : [ [ ], [ ], [ ] ],
+    "inputUniqueKeys" : [ [ ], [ ], [ ] ],
     "state" : [ {
       "index" : 0,
       "ttl" : "0 ms",

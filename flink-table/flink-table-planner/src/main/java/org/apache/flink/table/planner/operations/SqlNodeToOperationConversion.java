@@ -558,20 +558,29 @@ public class SqlNodeToOperationConversion {
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlCreateFunction.getFunctionIdentifier());
         List<ResourceUri> resourceUris = getFunctionResources(sqlCreateFunction.getResourceInfos());
+        final Map<String, String> options =
+                sqlCreateFunction.getPropertyList().getList().stream()
+                        .map(SqlTableOption.class::cast)
+                        .collect(
+                                Collectors.toMap(
+                                        SqlTableOption::getKeyString,
+                                        SqlTableOption::getValueString));
         if (sqlCreateFunction.isSystemFunction()) {
             return new CreateTempSystemFunctionOperation(
                     unresolvedIdentifier.getObjectName(),
                     sqlCreateFunction.getFunctionClassName().getValueAs(String.class),
                     sqlCreateFunction.isIfNotExists(),
                     parseLanguage(sqlCreateFunction.getFunctionLanguage()),
-                    resourceUris);
+                    resourceUris,
+                    options);
         } else {
             FunctionLanguage language = parseLanguage(sqlCreateFunction.getFunctionLanguage());
             CatalogFunction catalogFunction =
                     new CatalogFunctionImpl(
                             sqlCreateFunction.getFunctionClassName().getValueAs(String.class),
                             language,
-                            resourceUris);
+                            resourceUris,
+                            options);
             ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
             return new CreateCatalogFunctionOperation(

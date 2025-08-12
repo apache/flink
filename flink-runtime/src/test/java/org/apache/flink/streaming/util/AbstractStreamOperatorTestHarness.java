@@ -99,6 +99,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.streaming.api.operators.StreamOperatorUtils.setProcessingTimeService;
@@ -186,6 +187,9 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
     private volatile boolean wasFailedExternally = false;
 
     private long restoredCheckpointId = 0;
+
+    private Function<TypeSerializer<OUT>, Output<StreamRecord<OUT>>> outputCreator =
+            MockOutput::new;
 
     public AbstractStreamOperatorTestHarness(
             StreamOperator<OUT> operator, int maxParallelism, int parallelism, int subtaskIndex)
@@ -364,6 +368,11 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
         }
     }
 
+    public void setOutputCreator(
+            Function<TypeSerializer<OUT>, Output<StreamRecord<OUT>>> outputCreator) {
+        this.outputCreator = outputCreator;
+    }
+
     public void setCheckpointStorage(CheckpointStorage storage) {
         if (stateBackend instanceof CheckpointStorage) {
             return;
@@ -469,7 +478,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
                                         factory,
                                         mockTask,
                                         config,
-                                        new MockOutput(outputSerializer),
+                                        outputCreator.apply(outputSerializer),
                                         new OperatorEventDispatcherImpl(
                                                 this.getClass().getClassLoader(),
                                                 new NoOpTaskOperatorEventGateway()))
@@ -482,7 +491,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
                             (AbstractStreamOperator) operator,
                             mockTask,
                             config,
-                            new MockOutput(outputSerializer));
+                            outputCreator.apply(outputSerializer));
                 }
             }
             setupCalled = true;

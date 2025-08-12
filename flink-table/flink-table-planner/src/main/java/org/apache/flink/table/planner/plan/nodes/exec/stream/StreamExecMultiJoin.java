@@ -58,6 +58,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -81,7 +82,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     private static final String FIELD_NAME_JOIN_TYPES = "joinTypes";
     private static final String FIELD_NAME_JOIN_CONDITIONS = "joinConditions";
     private static final String FIELD_NAME_JOIN_ATTRIBUTE_MAP = "joinAttributeMap";
-    private static final String FIELD_NAME_INPUT_UPSERT_KEYS = "inputUpsertKeys";
+    private static final String FIELD_NAME_INPUT_UNIQUE_KEYS = "inputUniqueKeys";
     private static final String FIELD_NAME_MULTI_JOIN_CONDITION = "multiJoinCondition";
 
     @JsonProperty(FIELD_NAME_JOIN_TYPES)
@@ -99,12 +100,13 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     private final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;
 
-    @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEYS)
+    // Why List<List<int[]>> as a type
+    // Each unique key can be also a composite key with multiple fields, thus -> int[].
+    // Theoretically, each input can have multiple unique keys, thus -> List<int[]>
+    // Since we have multiple inputs -> List<List<int[]>>
+    @JsonProperty(FIELD_NAME_INPUT_UNIQUE_KEYS)
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
-    // List of upsert keys for each input, where each inner list corresponds to an input
-    // The reason it's a List<List<int[]>> is that SQL allows only one primary key but
-    // multiple upsert (unique) keys per input
-    private final List<List<int[]>> inputUpsertKeys;
+    private final List<List<int[]>> inputUniqueKeys;
 
     @JsonProperty(FIELD_NAME_STATE)
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -116,7 +118,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             final List<? extends @Nullable RexNode> joinConditions,
             @Nullable final RexNode multiJoinCondition,
             final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
-            final List<List<int[]>> inputUpsertKeys,
+            final List<List<int[]>> inputUniqueKeys,
             final Map<Integer, Long> stateTtlFromHint,
             final List<InputProperty> inputProperties,
             final RowType outputType,
@@ -129,7 +131,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                 joinConditions,
                 multiJoinCondition,
                 joinAttributeMap,
-                inputUpsertKeys,
+                inputUniqueKeys,
                 StateMetadata.getMultiInputOperatorDefaultMeta(
                         stateTtlFromHint, tableConfig, generateStateNames(inputProperties.size())),
                 inputProperties,
@@ -149,18 +151,18 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                     final RexNode multiJoinCondition,
             @JsonProperty(FIELD_NAME_JOIN_ATTRIBUTE_MAP)
                     final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
-            @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEYS) final List<List<int[]>> inputUpsertKeys,
+            @JsonProperty(FIELD_NAME_INPUT_UNIQUE_KEYS) final List<List<int[]>> inputUniqueKeys,
             @Nullable @JsonProperty(FIELD_NAME_STATE) final List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) final List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) final RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) final String description) {
         super(id, context, persistedConfig, inputProperties, outputType, description);
-        validateInputs(inputProperties, joinTypes, joinConditions, inputUpsertKeys);
+        validateInputs(inputProperties, joinTypes, joinConditions, inputUniqueKeys);
         this.joinTypes = checkNotNull(joinTypes);
         this.joinConditions = checkNotNull(joinConditions);
+        this.inputUniqueKeys = checkNotNull(inputUniqueKeys);
         this.multiJoinCondition = multiJoinCondition;
-        this.joinAttributeMap = checkNotNull(joinAttributeMap);
-        this.inputUpsertKeys = checkNotNull(inputUpsertKeys);
+        this.joinAttributeMap = Objects.requireNonNullElseGet(joinAttributeMap, Map::of);
         this.stateMetadataList = stateMetadataList;
     }
 
@@ -168,7 +170,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             final List<InputProperty> inputProperties,
             final List<FlinkJoinType> joinTypes,
             final List<? extends @Nullable RexNode> joinConditions,
-            final List<List<int[]>> inputUpsertKeys) {
+            final List<List<int[]>> inputUniqueKeys) {
         checkArgument(
                 inputProperties.size() >= 2, "Multi-input join operator needs at least 2 inputs.");
         checkArgument(
@@ -178,8 +180,8 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                 joinConditions.size() == inputProperties.size(),
                 "Size of joinConditions must match the number of inputs.");
         checkArgument(
-                inputUpsertKeys.size() == inputProperties.size(),
-                "Size of inputUpsertKeys must match the number of inputs.");
+                inputUniqueKeys.size() == inputProperties.size(),
+                "Size of inputUniqueKeys must match the number of inputs.");
     }
 
     private static String[] generateStateNames(int numInputs) {
@@ -219,7 +221,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                             planner.getFlinkContext().getClassLoader(),
                             inputTypeInfos.get(i),
                             keyExtractor.getJoinKeyIndices(i),
-                            inputUpsertKeys.get(i)));
+                            inputUniqueKeys.get(i)));
         }
 
         final GeneratedJoinCondition[] generatedJoinConditions =

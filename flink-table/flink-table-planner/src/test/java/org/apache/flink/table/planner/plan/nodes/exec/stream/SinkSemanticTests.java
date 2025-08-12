@@ -23,23 +23,13 @@ import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.List;
 
-/** Semantic tests for {@link StreamExecMultiJoin}. */
-public class MultiJoinSemanticTests extends SemanticTestBase {
+/** Semantic tests for {@link StreamExecSink}. */
+public class SinkSemanticTests extends SemanticTestBase {
 
     @Override
     public List<TableTestProgram> programs() {
         return List.of(
-                MultiJoinTestPrograms.MULTI_JOIN_THREE_WAY_INNER_JOIN,
-                MultiJoinTestPrograms.MULTI_JOIN_THREE_WAY_LEFT_OUTER_JOIN,
-                MultiJoinTestPrograms.MULTI_JOIN_THREE_WAY_LEFT_OUTER_JOIN_UPDATING,
-                MultiJoinTestPrograms.MULTI_JOIN_THREE_WAY_LEFT_OUTER_JOIN_WITH_WHERE,
-                MultiJoinTestPrograms.MULTI_JOIN_FOUR_WAY_COMPLEX,
-                MultiJoinTestPrograms.MULTI_JOIN_WITH_TIME_ATTRIBUTES_MATERIALIZATION,
-                MultiJoinTestPrograms.MULTI_JOIN_THREE_WAY_INNER_JOIN_NO_JOIN_KEY,
-                MultiJoinTestPrograms.MULTI_JOIN_FOUR_WAY_NO_COMMON_JOIN_KEY,
-                MultiJoinTestPrograms.MULTI_JOIN_THREE_WAY_LEFT_OUTER_JOIN_WITH_CTE,
-                MultiJoinTestPrograms.MULTI_JOIN_MIXED_CHANGELOG_MODES,
-                MultiJoinTestPrograms.MULTI_JOIN_LEFT_OUTER_WITH_NULL_KEYS,
-                MultiJoinTestPrograms.MULTI_JOIN_NULL_SAFE_JOIN_WITH_NULL_KEYS);
+                SinkTestPrograms.INSERT_RETRACT_WITHOUT_PK,
+                SinkTestPrograms.INSERT_RETRACT_WITH_PK);
     }
 }
