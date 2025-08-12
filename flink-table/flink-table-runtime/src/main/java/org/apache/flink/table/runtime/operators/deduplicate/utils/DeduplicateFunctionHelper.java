@@ -294,11 +294,10 @@ public class DeduplicateFunctionHelper {
 
     private static boolean areRowsWithSameContent(
             RecordEqualiser equaliser, RowData prevRow, RowData currentRow) {
-        final RowKind prevRowKind = prevRow.getRowKind();
         final RowKind currentRowKind = currentRow.getRowKind();
-        if (prevRowKind == RowKind.INSERT && currentRowKind == RowKind.UPDATE_AFTER) {
+        if (currentRowKind == RowKind.UPDATE_AFTER) {
             // setting row kind to prevRowKind to check whether the row content is the same
-            currentRow.setRowKind(prevRowKind);
+            currentRow.setRowKind(RowKind.INSERT);
             final boolean result = equaliser.equals(prevRow, currentRow);
             currentRow.setRowKind(currentRowKind);
             return result;
