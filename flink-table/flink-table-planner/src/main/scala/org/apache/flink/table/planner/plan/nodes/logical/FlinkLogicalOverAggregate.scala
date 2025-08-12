@@ -61,7 +61,6 @@ class FlinkLogicalOverAggregate(
       windowGroups)
   }
 
-
   override def copy(windowConstants: JList[RexLiteral]): Window = {
     new FlinkLogicalOverAggregate(
       cluster,

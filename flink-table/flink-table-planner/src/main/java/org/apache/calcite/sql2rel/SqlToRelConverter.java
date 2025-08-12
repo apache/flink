@@ -248,18 +248,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 685 ~ 702
- *   <li>Added in Flink-24024: Lines 1452 ~ 1458
- *   <li>Added in Flink-24024: Lines 1472 ~ 1511
- *   <li>Added in Flink-37269: Lines 2249 ~ 2271
- *   <li>Added in FLINK-28682: Lines 2382 ~ 2399
- *   <li>Added in FLINK-28682: Lines 2436 ~ 2464
- *   <li>Added in FLINK-32474: Lines 2521 ~ 2523
- *   <li>Added in FLINK-32474: Lines 2527 ~ 2529
- *   <li>Added in FLINK-32474: Lines 2545 ~ 2547
- *   <li>Added in FLINK-32474: Lines 2960 ~ 2972
- *   <li>Added in FLINK-32474: Lines 3073 ~ 3107
- *   <li>Added in FLINK-34312: Lines 5937 ~ 5948
+ *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 688 ~ 705
+ *   <li>Added in Flink-24024: Lines 1455 ~ 1461
+ *   <li>Added in Flink-24024: Lines 1475 ~ 1514
+ *   <li>Added in Flink-37269: Lines 2252 ~ 2274
+ *   <li>Added in FLINK-28682: Lines 2416 ~ 2433
+ *   <li>Added in FLINK-28682: Lines 2470 ~ 2498
+ *   <li>Added in FLINK-32474: Lines 2555 ~ 2561
+ *   <li>Added in FLINK-32474: Lines 2561 ~ 2563
+ *   <li>Added in FLINK-32474: Lines 2579 ~ 2581
+ *   <li>Added in FLINK-32474: Lines 2994 ~ 3006
+ *   <li>Added in FLINK-32474: Lines 3107 ~ 3141
+ *   <li>Added in FLINK-34312: Lines 5994 ~ 6005
  * </ol>
  *
  * <p>In official extension point (i.e. {@link #convertExtendedExpression(SqlNode, Blackboard)}):
@@ -2278,7 +2278,7 @@ public class SqlToRelConverter {
     /**
      * Converts a lambda expression to a RexNode.
      *
-     * @param bb   Blackboard
+     * @param bb Blackboard
      * @param node Lambda expression
      * @return Relational expression
      */
@@ -5619,7 +5619,8 @@ public class SqlToRelConverter {
                             }
                             final ImmutableList<RexNode> list = builder.build();
                             RelNode rel = root.rel;
-                            // Fix the correlation namespaces and de-duplicate the correlation variables.
+                            // Fix the correlation namespaces and de-duplicate the correlation
+                            // variables.
                             CorrelationUse correlationUse = getCorrelationUse(this, root.rel);
                             if (correlationUse != null) {
                                 rel = correlationUse.r;
@@ -5630,13 +5631,10 @@ public class SqlToRelConverter {
                                     return RexSubQuery.in(rel, list);
                                 case NOT_IN:
                                     return rexBuilder.makeCall(
-                                            SqlStdOperatorTable.NOT,
-                                            RexSubQuery.in(rel, list));
+                                            SqlStdOperatorTable.NOT, RexSubQuery.in(rel, list));
                                 case SOME:
                                     return RexSubQuery.some(
-                                            rel,
-                                            list,
-                                            (SqlQuantifyOperator) call.getOperator());
+                                            rel, list, (SqlQuantifyOperator) call.getOperator());
                                 case ALL:
                                     return rexBuilder.makeCall(
                                             SqlStdOperatorTable.NOT,
@@ -5657,7 +5655,8 @@ public class SqlToRelConverter {
                         query = Iterables.getOnlyElement(call.getOperandList());
                         root = convertQueryRecursive(query, false, null);
                         RelNode rel = root.rel;
-                        // Fix the correlation namespaces and de-duplicate the correlation variables.
+                        // Fix the correlation namespaces and de-duplicate the correlation
+                        // variables.
                         CorrelationUse correlationUse = getCorrelationUse(this, root.rel);
                         if (correlationUse != null) {
                             rel = correlationUse.r;
@@ -5682,7 +5681,8 @@ public class SqlToRelConverter {
                         query = Iterables.getOnlyElement(call.getOperandList());
                         root = convertQueryRecursive(query, false, null);
                         rel = root.rel;
-                        // Fix the correlation namespaces and de-duplicate the correlation variables.
+                        // Fix the correlation namespaces and de-duplicate the correlation
+                        // variables.
                         correlationUse = getCorrelationUse(this, root.rel);
                         if (correlationUse != null) {
                             rel = correlationUse.r;

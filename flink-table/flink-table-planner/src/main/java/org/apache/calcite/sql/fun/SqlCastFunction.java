@@ -227,8 +227,10 @@ public class SqlCastFunction extends SqlFunction {
     public boolean checkOperandTypes(SqlCallBinding callBinding, boolean throwOnFailure) {
         final SqlNode left = callBinding.operand(0);
         final SqlNode right = callBinding.operand(1);
-        final SqlLiteral format = callBinding.getOperandCount() > 2
-                ? (SqlLiteral) callBinding.operand(2) : SqlLiteral.createNull(SqlParserPos.ZERO);
+        final SqlLiteral format =
+                callBinding.getOperandCount() > 2
+                        ? (SqlLiteral) callBinding.operand(2)
+                        : SqlLiteral.createNull(SqlParserPos.ZERO);
 
         if (SqlUtil.isNullLiteral(left, false) || left instanceof SqlDynamicParam) {
             return true;

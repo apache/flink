@@ -68,15 +68,14 @@ public enum SqlTypeName {
     DOUBLE(PrecScale.NO_NO, false, Types.DOUBLE, SqlTypeFamily.NUMERIC),
     DATE(PrecScale.NO_NO, false, Types.DATE, SqlTypeFamily.DATE),
     TIME(PrecScale.NO_NO | PrecScale.YES_NO, false, Types.TIME, SqlTypeFamily.TIME),
-    TIME_WITH_LOCAL_TIME_ZONE(PrecScale.NO_NO | PrecScale.YES_NO, false, Types.TIME,
-            SqlTypeFamily.TIME),
-    TIME_TZ(PrecScale.NO_NO | PrecScale.YES_NO, false, Types.TIME,
-            SqlTypeFamily.TIME),
+    TIME_WITH_LOCAL_TIME_ZONE(
+            PrecScale.NO_NO | PrecScale.YES_NO, false, Types.TIME, SqlTypeFamily.TIME),
+    TIME_TZ(PrecScale.NO_NO | PrecScale.YES_NO, false, Types.TIME, SqlTypeFamily.TIME),
     TIMESTAMP(PrecScale.NO_NO | PrecScale.YES_NO, false, Types.TIMESTAMP, SqlTypeFamily.TIMESTAMP),
     TIMESTAMP_WITH_LOCAL_TIME_ZONE(
             PrecScale.NO_NO | PrecScale.YES_NO, false, Types.TIMESTAMP, SqlTypeFamily.TIMESTAMP),
-    TIMESTAMP_TZ(PrecScale.NO_NO | PrecScale.YES_NO, false,
-            Types.TIMESTAMP, SqlTypeFamily.TIMESTAMP),
+    TIMESTAMP_TZ(
+            PrecScale.NO_NO | PrecScale.YES_NO, false, Types.TIMESTAMP, SqlTypeFamily.TIMESTAMP),
     INTERVAL_YEAR(PrecScale.NO_NO, false, Types.OTHER, SqlTypeFamily.INTERVAL_YEAR_MONTH),
     INTERVAL_YEAR_MONTH(PrecScale.NO_NO, false, Types.OTHER, SqlTypeFamily.INTERVAL_YEAR_MONTH),
     INTERVAL_MONTH(PrecScale.NO_NO, false, Types.OTHER, SqlTypeFamily.INTERVAL_YEAR_MONTH),
@@ -261,13 +260,22 @@ public enum SqlTypeName {
     public static final List<SqlTypeName> GEOMETRY_TYPES = ImmutableList.of(GEOMETRY);
 
     public static final List<SqlTypeName> DATETIME_TYPES =
-            ImmutableList.of(DATE, TIME, TIME_WITH_LOCAL_TIME_ZONE, TIME_TZ,
-                    TIMESTAMP, TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_TZ);
+            ImmutableList.of(
+                    DATE,
+                    TIME,
+                    TIME_WITH_LOCAL_TIME_ZONE,
+                    TIME_TZ,
+                    TIMESTAMP,
+                    TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                    TIMESTAMP_TZ);
 
     /** Types that contain time zone information. */
     public static final List<SqlTypeName> TZ_TYPES =
-            ImmutableList.of(TIME_WITH_LOCAL_TIME_ZONE, TIME_TZ,
-                    TIMESTAMP_WITH_LOCAL_TIME_ZONE, TIMESTAMP_TZ);
+            ImmutableList.of(
+                    TIME_WITH_LOCAL_TIME_ZONE,
+                    TIME_TZ,
+                    TIMESTAMP_WITH_LOCAL_TIME_ZONE,
+                    TIMESTAMP_TZ);
 
     public static final Set<SqlTypeName> YEAR_INTERVAL_TYPES =
             Sets.immutableEnumSet(
@@ -409,11 +417,10 @@ public enum SqlTypeName {
      * <ul>
      *   <li><code>Varchar.allowsPrecScale(true, false)</code> returns <code>
      * true</code>, because the VARCHAR type allows a precision parameter, as in <code>VARCHAR(10)
-     * false</code>, because the VARCHAR type does not allow a precision and a
-     *       </code>.
+     * false</code>, because the VARCHAR type does not allow a precision and a </code>.
      *   <li><code>Varchar.allowsPrecScale(true, true)</code> returns <code>
-     * false</code>, because the VARCHAR type does not allow a precision and a scale parameter, as in
-     *       <code>VARCHAR(10, 4)</code>.
+     * false</code>, because the VARCHAR type does not allow a precision and a scale parameter, as
+     *       in <code>VARCHAR(10, 4)</code>.
      *   <li><code>allowsPrecScale(false, true)</code> returns <code>false</code> for every type.
      * </ul>
      *
@@ -864,12 +871,12 @@ public enum SqlTypeName {
         }
     }
 
-        /**
-         * Returns the minimum scale (or fractional second precision in the case of intervals) allowed
-         * for this type, or -1 if precision/length are not applicable for this type.
-         *
-         * @return Minimum allowed scale
-         */
+    /**
+     * Returns the minimum scale (or fractional second precision in the case of intervals) allowed
+     * for this type, or -1 if precision/length are not applicable for this type.
+     *
+     * @return Minimum allowed scale
+     */
     public int getMinScale() {
         switch (this) {
             // TODO: Minimum numeric scale for decimal

@@ -17,7 +17,6 @@
 
 package org.apache.calcite.sql;
 
-import com.google.common.base.Preconditions;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.util.SqlString;
@@ -29,7 +28,6 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import static java.util.Objects.requireNonNull;
 
 /** Parse tree node representing a {@code JOIN} clause. */
