@@ -84,7 +84,8 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
             boolean produceUpdates,
             long allowedLateness,
             ZoneId shiftTimeZone,
-            int inputCountIndex) {
+            int inputCountIndex,
+            long stateRetentionTime) {
         super(
                 windowAggregator,
                 windowAssigner,
@@ -98,7 +99,8 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
                 produceUpdates,
                 allowedLateness,
                 shiftTimeZone,
-                inputCountIndex);
+                inputCountIndex,
+                stateRetentionTime);
         this.aggWindowAggregator = windowAggregator;
         this.equaliser = checkNotNull(equaliser);
     }
@@ -117,7 +119,8 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
             boolean sendRetraction,
             long allowedLateness,
             ZoneId shiftTimeZone,
-            int inputCountIndex) {
+            int inputCountIndex,
+            long stateRetentionTime) {
         super(
                 windowAssigner,
                 trigger,
@@ -130,7 +133,8 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
                 sendRetraction,
                 allowedLateness,
                 shiftTimeZone,
-                inputCountIndex);
+                inputCountIndex,
+                stateRetentionTime);
         this.generatedAggWindowAggregator = generatedAggWindowAggregator;
         this.generatedEqualiser = checkNotNull(generatedEqualiser);
     }
@@ -171,7 +175,7 @@ public class AggregateWindowOperator<K, W extends Window> extends WindowOperator
                 // has emitted result for the window
                 if (previousAggResult != null) {
                     // current agg is not equal to the previous emitted, should emit retract
-                    if (!equaliser.equals(aggResult, previousAggResult)) {
+                    if (stateRetentionTime > 0 || !equaliser.equals(aggResult, previousAggResult)) {
                         // send UPDATE_BEFORE
                         collect(
                                 RowKind.UPDATE_BEFORE,

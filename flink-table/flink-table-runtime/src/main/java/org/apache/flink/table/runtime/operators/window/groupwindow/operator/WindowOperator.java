@@ -148,6 +148,9 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
     /** Used to count the number of added and retracted input records. */
     protected final RecordCounter recordCounter;
 
+    /** State idle retention time which unit is MILLISECONDS. */
+    protected final long stateRetentionTime;
+
     // --------------------------------------------------------------------------------
 
     protected NamespaceAggsHandleFunctionBase<W> windowAggregator;
@@ -188,7 +191,8 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
             boolean produceUpdates,
             long allowedLateness,
             ZoneId shiftTimeZone,
-            int inputCountIndex) {
+            int inputCountIndex,
+            long stateRetentionTime) {
         checkArgument(allowedLateness >= 0);
         this.windowAggregator = checkNotNull(windowAggregator);
         this.windowAssigner = checkNotNull(windowAssigner);
@@ -206,6 +210,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         this.rowtimeIndex = rowtimeIndex;
         this.shiftTimeZone = shiftTimeZone;
         this.recordCounter = RecordCounter.of(inputCountIndex);
+        this.stateRetentionTime = stateRetentionTime;
     }
 
     @Override
@@ -225,7 +230,8 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
             boolean produceUpdates,
             long allowedLateness,
             ZoneId shiftTimeZone,
-            int inputCountIndex) {
+            int inputCountIndex,
+            long stateRetentionTime) {
         checkArgument(allowedLateness >= 0);
         this.windowAssigner = checkNotNull(windowAssigner);
         this.trigger = checkNotNull(trigger);
@@ -242,6 +248,7 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         this.rowtimeIndex = rowtimeIndex;
         this.shiftTimeZone = shiftTimeZone;
         this.recordCounter = RecordCounter.of(inputCountIndex);
+        this.stateRetentionTime = stateRetentionTime;
     }
 
     protected abstract void compileGeneratedCode();
