@@ -50,7 +50,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                             Row.ofKind(RowKind.UPDATE_AFTER, "three", 3, "ccc"),
                                             Row.ofKind(RowKind.INSERT, "one", 4, "aaaa"),
                                             Row.ofKind(RowKind.UPDATE_AFTER, "one", 4, "aaaa"),
-                                            Row.ofKind(RowKind.DELETE, "three", 3, "ccc"))
+                                            Row.ofKind(RowKind.DELETE, "three", 5, "ccc"))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
@@ -60,12 +60,9 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                             "+I[one, 1, a]",
                                             "-U[one, 1, a]",
                                             "+U[one, 2, bb]",
-                                            "-U[one, 2, bb]",
-                                            "+I[three, 3, ccc]",
-                                            "+U[one, 4, aaaa]",
-                                            "-D[three, 3, ccc]")
+                                            "-D[one, 2, bb]")
                                     .build())
-                    .runSql("INSERT INTO sink_t SELECT a, b, c FROM source_t WHERE b < 10")
+                    .runSql("INSERT INTO sink_t SELECT a, b, c FROM source_t WHERE b < 3")
                     .build();
 
     static final TableTestProgram UPSERT_SOURCE_WITH_KEY_FILTER =
