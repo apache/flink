@@ -167,12 +167,10 @@ public abstract class TableTestStep implements TestStep {
             this.options.put("connector", "values");
             this.options.put("changelog-mode", "I,UA,D");
             this.options.put("sink-changelog-mode-enforced", "I,UA,D");
-            this.options.put(
-                    "source.produces-delete-by-key",
-                    Boolean.valueOf(withPartialDeleteOnly).toString());
-            this.options.put(
-                    "sink.supports-delete-by-key",
-                    Boolean.valueOf(withPartialDeleteOnly).toString());
+            final String withPartialDeleteOnlyStr =
+                    Boolean.valueOf(withPartialDeleteOnly).toString();
+            this.options.put("source.produces-delete-by-key", withPartialDeleteOnlyStr);
+            this.options.put("sink.supports-delete-by-key", withPartialDeleteOnlyStr);
             return (SpecificBuilder) this;
         }
 
@@ -184,12 +182,10 @@ public abstract class TableTestStep implements TestStep {
             this.options.put("connector", "values");
             this.options.put("changelog-mode", "I,UB,UA,D");
             this.options.put("sink-changelog-mode-enforced", "I,UB,UA,D");
-            this.options.put(
-                    "source.produces-delete-by-key",
-                    Boolean.valueOf(withPartialDeleteOnly).toString());
-            this.options.put(
-                    "sink.supports-delete-by-key",
-                    Boolean.valueOf(withPartialDeleteOnly).toString());
+            final String withPartialDeleteOnlyStr =
+                    Boolean.valueOf(withPartialDeleteOnly).toString();
+            this.options.put("source.produces-delete-by-key", withPartialDeleteOnlyStr);
+            this.options.put("sink.supports-delete-by-key", withPartialDeleteOnlyStr);
             return (SpecificBuilder) this;
         }
     }
