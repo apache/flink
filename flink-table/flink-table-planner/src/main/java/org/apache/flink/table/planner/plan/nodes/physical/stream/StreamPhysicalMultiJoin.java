@@ -79,6 +79,10 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
     private final @Nullable RexNode postJoinFilter;
     private final List<RelHint> hints;
 
+    // Cached derived properties to avoid recomputation
+    private @Nullable RexNode multiJoinCondition;
+    private @Nullable List<List<int[]>> inputUniqueKeys;
+
     public StreamPhysicalMultiJoin(
             final RelOptCluster cluster,
             final RelTraitSet traitSet,
@@ -101,6 +105,8 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         this.postJoinFilter = postJoinFilter;
         this.hints = hints;
         this.keyExtractor = keyExtractor;
+        this.multiJoinCondition = getMultiJoinCondition();
+        this.inputUniqueKeys = getUniqueKeysForInputs();
     }
 
     @Override
@@ -119,6 +125,9 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         final List<RelNode> newInputs = new ArrayList<>(inputs);
         newInputs.set(ordinalInParent, p);
         this.inputs = List.copyOf(newInputs);
+        // Invalidate cached derived properties since inputs changed
+        this.multiJoinCondition = null;
+        this.inputUniqueKeys = null;
         recomputeDigest();
     }
 
@@ -166,8 +175,8 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
 
     @Override
     public ExecNode<?> translateToExecNode() {
-        final RexNode multiJoinCondition = createMultiJoinCondition();
-        final List<List<int[]>> inputUniqueKeys = getUniqueKeysForInputs();
+        final RexNode multijoinCondition = getMultiJoinCondition();
+        final List<List<int[]>> localInputUniqueKeys = getUniqueKeysForInputs();
         final List<FlinkJoinType> execJoinTypes = getExecJoinTypes();
         final List<InputProperty> inputProperties = createInputProperties();
 
@@ -175,9 +184,9 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
                 unwrapTableConfig(this),
                 execJoinTypes,
                 joinConditions,
-                multiJoinCondition,
+                multijoinCondition,
                 joinAttributeMap,
-                inputUniqueKeys,
+                localInputUniqueKeys,
                 Collections.emptyMap(), // TODO Enable hint-based state ttl. See ticket
                 // TODO https://issues.apache.org/jira/browse/FLINK-37936
                 inputProperties,
@@ -187,34 +196,56 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
 
     private RexNode createMultiJoinCondition() {
         final List<RexNode> conjunctions = new ArrayList<>();
+
+        for (RexNode joinCondition : joinConditions) {
+            if (joinCondition != null) {
+                conjunctions.add(joinCondition);
+            }
+        }
+
         conjunctions.add(joinFilter);
+
         if (postJoinFilter != null) {
             conjunctions.add(postJoinFilter);
         }
+
         return RexUtil.composeConjunction(getCluster().getRexBuilder(), conjunctions, true);
     }
 
-    private List<List<int[]>> getUniqueKeysForInputs() {
-        return inputs.stream()
-                .map(
-                        input -> {
-                            final Set<ImmutableBitSet> uniqueKeys = getUniqueKeys(input);
+    public List<List<int[]>> getUniqueKeysForInputs() {
+        if (inputUniqueKeys == null) {
+            final List<List<int[]>> computed =
+                    inputs.stream()
+                            .map(
+                                    input -> {
+                                        final Set<ImmutableBitSet> uniqueKeys =
+                                                getUniqueKeys(input);
 
-                            if (uniqueKeys == null) {
-                                return Collections.<int[]>emptyList();
-                            }
+                                        if (uniqueKeys == null) {
+                                            return Collections.<int[]>emptyList();
+                                        }
 
-                            return uniqueKeys.stream()
-                                    .map(ImmutableBitSet::toArray)
-                                    .collect(Collectors.toList());
-                        })
-                .collect(Collectors.toList());
+                                        return uniqueKeys.stream()
+                                                .map(ImmutableBitSet::toArray)
+                                                .collect(Collectors.toList());
+                                    })
+                            .collect(Collectors.toList());
+            inputUniqueKeys = Collections.unmodifiableList(computed);
+        }
+        return inputUniqueKeys;
     }
 
     private @Nullable Set<ImmutableBitSet> getUniqueKeys(RelNode input) {
         final FlinkRelMetadataQuery fmq =
                 FlinkRelMetadataQuery.reuseOrCreate(input.getCluster().getMetadataQuery());
         return fmq.getUniqueKeys(input);
+    }
+
+    public RexNode getMultiJoinCondition() {
+        if (multiJoinCondition == null) {
+            multiJoinCondition = createMultiJoinCondition();
+        }
+        return multiJoinCondition;
     }
 
     private List<FlinkJoinType> getExecJoinTypes() {
@@ -256,8 +287,8 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
      */
     public boolean inputUniqueKeyContainsCommonJoinKey(int inputId) {
         final RelNode input = getInputs().get(inputId);
-        final Set<ImmutableBitSet> inputUniqueKeys = getUniqueKeys(input);
-        if (inputUniqueKeys == null || inputUniqueKeys.isEmpty()) {
+        final Set<ImmutableBitSet> inputUniqueKeysSet = getUniqueKeys(input);
+        if (inputUniqueKeysSet == null || inputUniqueKeysSet.isEmpty()) {
             return false;
         }
 
@@ -267,7 +298,8 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         }
 
         final ImmutableBitSet commonJoinKeys = ImmutableBitSet.of(commonJoinKeyIndices);
-        return inputUniqueKeys.stream().anyMatch(uniqueKey -> uniqueKey.contains(commonJoinKeys));
+        return inputUniqueKeysSet.stream()
+                .anyMatch(uniqueKey -> uniqueKey.contains(commonJoinKeys));
     }
 
     private List<InputProperty> createInputProperties() {
