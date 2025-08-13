@@ -20,7 +20,7 @@ echo "Detected OS: ${sys_os}"
 sys_machine=$(uname -m)
 echo "Detected machine: ${sys_machine}"
 
-wget "https://github.com/astral-sh/uv/releases/download/0.5.23/uv-installer.sh" -O "uv-installer.sh"
+wget "https://github.com/astral-sh/uv/releases/download/0.8.9/uv-installer.sh" -O "uv-installer.sh"
 chmod +x uv-installer.sh
 
 UV_UNMANAGED_INSTALL="uv-bin" ./uv-installer.sh

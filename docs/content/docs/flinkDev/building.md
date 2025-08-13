@@ -81,7 +81,7 @@ The `fast` and `skip-webui-build` profiles have a significant impact on the buil
 
 3. Uv for building, installing and managing Python environments (optional)
 
-    The tool [uv](https://docs.astral.sh/uv/) is a useful Python package and environment manager that can make building and installing PyFlink from source much easier.
+    The tool [uv](https://docs.astral.sh/uv/) is a Python package and project manager that can make building and installing PyFlink from source much easier.
     To verify that it is installed:
 
     ```shell
@@ -118,7 +118,7 @@ To build and install the `apache-flink` and `apache-flink-libraries` packages wi
 cd flink-python; uv build; uv build apache-flink-libraries --sdist;
 ```
 
-The sdist package of `apache-flink-libraries` will be found under `./flink-python/apache-flink-libraries/dist/`. It could be installed as following:
+The sdist package of `apache-flink-libraries` will be found under `./flink-python/apache-flink-libraries/dist/`. It can be installed as follows:
 
 ```bash
 uv pip install apache-flink-libraries/dist/*.tar.gz
@@ -138,7 +138,7 @@ To build and install the `apache-flink` and `apache-flink-libraries` packages wi
 cd flink-python; python setup.py sdist bdist_wheel; cd apache-flink-libraries; python setup.py sdist; cd ..;
 ```
 
-The sdist package of `apache-flink-libraries` will be found under `./flink-python/apache-flink-libraries/dist/`. It could be installed as following:
+The sdist package of `apache-flink-libraries` will be found under `./flink-python/apache-flink-libraries/dist/`. It can be installed as follows:
 
 ```bash
 python -m pip install apache-flink-libraries/dist/*.tar.gz
