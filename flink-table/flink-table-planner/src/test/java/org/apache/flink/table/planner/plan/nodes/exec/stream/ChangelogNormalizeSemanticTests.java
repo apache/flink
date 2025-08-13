@@ -32,8 +32,8 @@ public class ChangelogNormalizeSemanticTests extends SemanticTestBase {
                 ChangelogNormalizeSemanticTestPrograms.CHANGELOG_NORMALIZE,
                 ChangelogNormalizeSemanticTestPrograms.CHANGELOG_NORMALIZE_WITH_FILTER,
                 ChangelogNormalizeSemanticTestPrograms.CHANGELOG_NORMALIZE_WITH_KEY_FILTER,
-                ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE,
                 ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE_WITH_FILTER,
-                ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE_WITH_KEY_FILTER);
+                ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE_WITH_KEY_FILTER,
+                ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE_WITH_RETRACT_SINK);
     }
 }

@@ -151,5 +151,19 @@ public abstract class TableTestStep implements TestStep {
             this.partitionKeys.addAll(Arrays.asList(partitionKeys));
             return (SpecificBuilder) this;
         }
+
+        public SpecificBuilder enforceAppendOnly() {
+            this.options.put("connector", "values");
+            this.options.put("changelog-mode", "I");
+            this.options.put("sink-enforce-changelog-mode", "I");
+            return (SpecificBuilder) this;
+        }
+
+        public SpecificBuilder enforceUpsert() {
+            this.options.put("connector", "values");
+            this.options.put("changelog-mode", "I,UA,PD");
+            this.options.put("sink-enforce-changelog-mode", "I");
+            return (SpecificBuilder) this;
+        }
     }
 }
