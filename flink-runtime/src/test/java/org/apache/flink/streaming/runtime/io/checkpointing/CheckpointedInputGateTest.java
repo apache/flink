@@ -37,7 +37,7 @@ import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfOutputChannelStateEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
@@ -86,7 +86,7 @@ class CheckpointedInputGateTest {
                 enqueueEndOfState(gate, channelIndex);
                 Optional<BufferOrEvent> bufferOrEvent = gate.pollNext();
                 while (bufferOrEvent.isPresent()
-                        && bufferOrEvent.get().getEvent() instanceof EndOfChannelStateEvent
+                        && bufferOrEvent.get().getEvent() instanceof EndOfOutputChannelStateEvent
                         && !gate.allChannelsRecovered()) {
                     bufferOrEvent = gate.pollNext();
                 }
@@ -97,7 +97,7 @@ class CheckpointedInputGateTest {
             Optional<BufferOrEvent> polled = gate.pollNext();
             assertThat(polled).isPresent();
             assertThat(polled.get().isEvent()).isTrue();
-            assertThat(polled.get().getEvent()).isEqualTo(EndOfChannelStateEvent.INSTANCE);
+            assertThat(polled.get().getEvent()).isEqualTo(EndOfOutputChannelStateEvent.INSTANCE);
             assertThat(resumeCounter.getNumResumed()).isEqualTo(numberOfChannels);
             assertThat(gate.pollNext())
                     .as("should only be a single event no matter of what is the number of channels")
@@ -282,7 +282,7 @@ class CheckpointedInputGateTest {
 
     private void enqueueEndOfState(CheckpointedInputGate checkpointedInputGate, int channelIndex)
             throws IOException {
-        enqueue(checkpointedInputGate, channelIndex, EndOfChannelStateEvent.INSTANCE);
+        enqueue(checkpointedInputGate, channelIndex, EndOfOutputChannelStateEvent.INSTANCE);
     }
 
     private void enqueueEndOfPartition(
