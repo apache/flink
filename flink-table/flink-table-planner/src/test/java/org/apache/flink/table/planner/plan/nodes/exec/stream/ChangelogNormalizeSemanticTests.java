@@ -29,7 +29,11 @@ public class ChangelogNormalizeSemanticTests extends SemanticTestBase {
     @Override
     public List<TableTestProgram> programs() {
         return List.of(
-                ChangelogNormalizeSemanticTestProgram.UPSERT_SOURCE,
-                ChangelogNormalizeSemanticTestProgram.UPSERT_SOURCE_WITH_FILTER);
+                ChangelogNormalizeSemanticTestPrograms.CHANGELOG_NORMALIZE,
+                ChangelogNormalizeSemanticTestPrograms.CHANGELOG_NORMALIZE_WITH_FILTER,
+                ChangelogNormalizeSemanticTestPrograms.CHANGELOG_NORMALIZE_WITH_KEY_FILTER,
+                ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE,
+                ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE_WITH_FILTER,
+                ChangelogNormalizeSemanticTestPrograms.UPSERT_SOURCE_WITH_KEY_FILTER);
     }
 }
