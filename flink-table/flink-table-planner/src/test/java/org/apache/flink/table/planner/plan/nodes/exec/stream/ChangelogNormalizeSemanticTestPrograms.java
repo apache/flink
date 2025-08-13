@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -41,26 +40,31 @@ public class ChangelogNormalizeSemanticTestPrograms {
             TableTestProgram.of("upsert-with-filter", "validates upsert with filter")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .addOption("changelog-mode", "UA,D")
+                                    .enforceUpsert()
                                     .addSchema(SOURCE_SCHEMA)
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "one", 1, "a"),
                                             Row.ofKind(RowKind.UPDATE_AFTER, "one", 2, "bb"),
                                             Row.ofKind(RowKind.UPDATE_AFTER, "three", 3, "ccc"),
                                             Row.ofKind(RowKind.UPDATE_AFTER, "three", 3, "ccc"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "two", 0, "dd"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "two", 1, "dd"),
                                             Row.ofKind(RowKind.INSERT, "one", 4, "aaaa"),
                                             Row.ofKind(RowKind.UPDATE_AFTER, "one", 4, "aaaa"),
                                             Row.ofKind(RowKind.DELETE, "three", 5, "ccc"))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
-                                    .addOption("sink-changelog-mode-enforced", "I,UB,UA,D")
+                                    .enforceRetract()
                                     .addSchema(SINK_SCHEMA)
                                     .consumedValues(
                                             "+I[one, 1, a]",
                                             "-U[one, 1, a]",
                                             "+U[one, 2, bb]",
-                                            "-D[one, 2, bb]")
+                                            "-D[one, 2, bb]",
+                                            "+I[two, 0, dd]",
+                                            "-U[two, 0, dd]",
+                                            "+U[two, 1, dd]")
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT a, b, c FROM source_t WHERE b < 3")
                     .build();
@@ -69,7 +73,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
             TableTestProgram.of("upsert-key-filter", "validates upsert with key filter")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .addOption("changelog-mode", "UA,D")
+                                    .enforceUpsert()
                                     .addSchema(SOURCE_SCHEMA)
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "one", 1, "a"),
@@ -85,7 +89,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
-                                    .addOption("sink-changelog-mode-enforced", "I,UB,UA,D")
+                                    .enforceRetract()
                                     .addSchema(SINK_SCHEMA)
                                     .consumedValues(
                                             "+I[one, 1, a]",
@@ -103,7 +107,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
             TableTestProgram.of("upsert-with-retract-sink", "validates changelog normalize")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .addOption("changelog-mode", "UA,D")
+                                    .enforceUpsert()
                                     .addSchema(SOURCE_SCHEMA)
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "one", 1, "a"),
@@ -116,7 +120,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
-                                    .addOption("sink-changelog-mode-enforced", "I,UB,UA,D")
+                                    .enforceRetract()
                                     .addSchema(SINK_SCHEMA)
                                     .consumedValues(
                                             "+I[one, 1, a]",
@@ -134,15 +138,9 @@ public class ChangelogNormalizeSemanticTestPrograms {
             TableTestProgram.of(
                             "changelog-normalize-filter",
                             "validates changelog normalize with filter")
-                    .setupConfig(
-                            // for ChangelogNormalize either should be upsert source or this config
-                            // option should be enabled,
-                            // see DynamicSourceUtils#changelogNormalizeEnabled and
-                            // DynamicSourceUtils#isSourceChangeEventsDuplicate
-                            ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .addOption("changelog-mode", "I,UB,UA,D")
+                                    .enforceRetract()
                                     .addSchema(SOURCE_SCHEMA)
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "one", 1, "a"),
@@ -151,15 +149,18 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                             Row.ofKind(RowKind.UPDATE_AFTER, "three", 3, "ccc"),
                                             Row.ofKind(RowKind.INSERT, "one", 4, "aaaa"),
                                             Row.ofKind(RowKind.UPDATE_AFTER, "one", 4, "aaaa"),
-                                            Row.ofKind(RowKind.DELETE, "three", 3, "cc"))
+                                            Row.ofKind(RowKind.DELETE, "three", 3, "ccc"))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
                                     .addSchema(SINK_SCHEMA)
+                                    .enforceRetract()
                                     .consumedValues(
                                             "+I[one, 1, a]",
                                             "+U[one, 2, bb]",
-                                            "+I[three, 3, ccc]",
+                                            "+U[three, 3, ccc]",
+                                            "+U[three, 3, ccc]",
+                                            "+I[one, 4, aaaa]",
                                             "+U[one, 4, aaaa]",
                                             "-D[three, 3, ccc]")
                                     .build())
@@ -170,15 +171,9 @@ public class ChangelogNormalizeSemanticTestPrograms {
             TableTestProgram.of(
                             "changelog-normalize-key-filter",
                             "validates changelog normalize with key filter")
-                    .setupConfig(
-                            // for ChangelogNormalize either should be upsert source or this config
-                            // option should be enabled,
-                            // see DynamicSourceUtils#changelogNormalizeEnabled and
-                            // DynamicSourceUtils#isSourceChangeEventsDuplicate
-                            ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .addOption("changelog-mode", "I,UB,UA,D")
+                                    .enforceRetract()
                                     .addSchema(SOURCE_SCHEMA)
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "one", 1, "a"),
@@ -195,11 +190,14 @@ public class ChangelogNormalizeSemanticTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
                                     .addSchema(SINK_SCHEMA)
+                                    .enforceRetract()
                                     .consumedValues(
                                             "+I[one, 1, a]",
                                             "+U[one, 2, bb]",
+                                            "+I[one, 4, aaaa]",
                                             "+U[one, 4, aaaa]",
                                             "+I[two, 1, d]",
+                                            "+U[two, 1, d]",
                                             "-D[two, 1, d]")
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT a, b, c FROM source_t WHERE a <> 'three'")
@@ -207,15 +205,9 @@ public class ChangelogNormalizeSemanticTestPrograms {
 
     static final TableTestProgram CHANGELOG_NORMALIZE =
             TableTestProgram.of("changelog-normalize", "validates changelog normalize")
-                    .setupConfig(
-                            // for ChangelogNormalize either should be upsert source or this config
-                            // option should be enabled,
-                            // see DynamicSourceUtils#changelogNormalizeEnabled and
-                            // DynamicSourceUtils#isSourceChangeEventsDuplicate
-                            ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .addOption("changelog-mode", "I,UB,UA,D")
+                                    .enforceRetract()
                                     .addSchema(SOURCE_SCHEMA)
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "one", 1, "a"),
@@ -224,16 +216,19 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                             Row.ofKind(RowKind.UPDATE_AFTER, "three", 3, "ccc"),
                                             Row.ofKind(RowKind.INSERT, "one", 4, "aaaa"),
                                             Row.ofKind(RowKind.UPDATE_AFTER, "one", 4, "aaaa"),
-                                            Row.ofKind(RowKind.DELETE, "three", 3, "cc"))
+                                            Row.ofKind(RowKind.DELETE, "three", 3, "ccc"))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
+                                    .enforceRetract()
                                     .addSchema(SINK_SCHEMA)
                                     .consumedValues(
                                             "+I[one, 1, a]",
                                             "+U[one, 2, bb]",
-                                            "+I[three, 3, ccc]",
+                                            "+U[three, 3, ccc]",
+                                            "+I[one, 4, aaaa]",
                                             "+U[one, 4, aaaa]",
+                                            "+U[three, 3, ccc]",
                                             "-D[three, 3, ccc]")
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT a, b, c FROM source_t")

@@ -151,5 +151,46 @@ public abstract class TableTestStep implements TestStep {
             this.partitionKeys.addAll(Arrays.asList(partitionKeys));
             return (SpecificBuilder) this;
         }
+
+        public SpecificBuilder enforceAppendOnly() {
+            this.options.put("connector", "values");
+            this.options.put("changelog-mode", "I");
+            this.options.put("sink-changelog-mode-enforced", "I");
+            return (SpecificBuilder) this;
+        }
+
+        public SpecificBuilder enforceUpsert() {
+            return enforceUpsert(false);
+        }
+
+        public SpecificBuilder enforceUpsert(boolean withPartialDeleteOnly) {
+            this.options.put("connector", "values");
+            this.options.put("changelog-mode", "I,UA,D");
+            this.options.put("sink-changelog-mode-enforced", "I,UA,D");
+            this.options.put(
+                    "source.produces-delete-by-key",
+                    Boolean.valueOf(withPartialDeleteOnly).toString());
+            this.options.put(
+                    "sink.supports-delete-by-key",
+                    Boolean.valueOf(withPartialDeleteOnly).toString());
+            return (SpecificBuilder) this;
+        }
+
+        public SpecificBuilder enforceRetract() {
+            return enforceRetract(false);
+        }
+
+        public SpecificBuilder enforceRetract(boolean withPartialDeleteOnly) {
+            this.options.put("connector", "values");
+            this.options.put("changelog-mode", "I,UB,UA,D");
+            this.options.put("sink-changelog-mode-enforced", "I,UB,UA,D");
+            this.options.put(
+                    "source.produces-delete-by-key",
+                    Boolean.valueOf(withPartialDeleteOnly).toString());
+            this.options.put(
+                    "sink.supports-delete-by-key",
+                    Boolean.valueOf(withPartialDeleteOnly).toString());
+            return (SpecificBuilder) this;
+        }
     }
 }
