@@ -1,7 +1,7 @@
 {
   "flinkVersion" : "2.1",
   "nodes" : [ {
-    "id" : 10,
+    "id" : 13,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -22,7 +22,7 @@
     "outputType" : "ROW<`user_id` VARCHAR(2147483647), `name` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id, name])"
   }, {
-    "id" : 11,
+    "id" : 14,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -35,7 +35,7 @@
     "outputType" : "ROW<`user_id` VARCHAR(2147483647), `name` VARCHAR(2147483647)>",
     "description" : "Exchange(distribution=[hash[user_id]])"
   }, {
-    "id" : 12,
+    "id" : 15,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -56,7 +56,7 @@
     "outputType" : "ROW<`user_id` VARCHAR(2147483647), `order_id` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[user_id, order_id])"
   }, {
-    "id" : 13,
+    "id" : 16,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -69,7 +69,80 @@
     "outputType" : "ROW<`user_id` VARCHAR(2147483647), `order_id` VARCHAR(2147483647)>",
     "description" : "Exchange(distribution=[hash[user_id]])"
   }, {
-    "id" : 14,
+    "id" : 17,
+    "type" : "stream-exec-join_1",
+    "joinSpec" : {
+      "joinType" : "LEFT",
+      "leftKeys" : [ 0 ],
+      "rightKeys" : [ 0 ],
+      "filterNulls" : [ true ],
+      "nonEquiCondition" : null
+    },
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "leftState"
+    }, {
+      "index" : 1,
+      "ttl" : "0 ms",
+      "name" : "rightState"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` VARCHAR(2147483647), `name` VARCHAR(2147483647), `user_id0` VARCHAR(2147483647), `order_id` VARCHAR(2147483647)>",
+    "description" : "Join(joinType=[LeftOuterJoin], where=[(user_id = user_id0)], select=[user_id, name, user_id0, order_id], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])"
+  }, {
+    "id" : 18,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` VARCHAR(2147483647), `name` VARCHAR(2147483647), `order_id` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[user_id, name, order_id])"
+  }, {
+    "id" : 19,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` VARCHAR(2147483647), `name` VARCHAR(2147483647), `order_id` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[user_id]])"
+  }, {
+    "id" : 20,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -90,7 +163,7 @@
     "outputType" : "ROW<`user_id` VARCHAR(2147483647), `payment_id` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[user_id, payment_id])"
   }, {
-    "id" : 15,
+    "id" : 21,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -103,96 +176,41 @@
     "outputType" : "ROW<`user_id` VARCHAR(2147483647), `payment_id` VARCHAR(2147483647)>",
     "description" : "Exchange(distribution=[hash[user_id]])"
   }, {
-    "id" : 16,
-    "type" : "stream-exec-multi-join_1",
-    "joinTypes" : [ "INNER", "LEFT", "LEFT" ],
-    "joinConditions" : [ {
-      "kind" : "LITERAL",
-      "value" : true,
-      "type" : "BOOLEAN NOT NULL"
-    }, {
-      "kind" : "CALL",
-      "syntax" : "BINARY",
-      "internalName" : "$=$1",
-      "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 0,
-        "type" : "VARCHAR(2147483647)"
-      }, {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 2,
-        "type" : "VARCHAR(2147483647)"
-      } ],
-      "type" : "BOOLEAN"
-    }, {
-      "kind" : "CALL",
-      "syntax" : "BINARY",
-      "internalName" : "$=$1",
-      "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 0,
-        "type" : "VARCHAR(2147483647)"
-      }, {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 4,
-        "type" : "VARCHAR(2147483647)"
-      } ],
-      "type" : "BOOLEAN"
-    } ],
-    "joinAttributeMap" : {
-      "1" : [ {
-        "leftInputId" : 0,
-        "leftFieldIndex" : 0,
-        "rightInputId" : 1,
-        "rightFieldIndex" : 0
-      } ],
-      "2" : [ {
-        "leftInputId" : 0,
-        "leftFieldIndex" : 0,
-        "rightInputId" : 2,
-        "rightFieldIndex" : 0
-      } ]
+    "id" : 22,
+    "type" : "stream-exec-join_1",
+    "joinSpec" : {
+      "joinType" : "LEFT",
+      "leftKeys" : [ 0 ],
+      "rightKeys" : [ 0 ],
+      "filterNulls" : [ true ],
+      "nonEquiCondition" : null
     },
-    "inputUniqueKeys" : [ [ ], [ ], [ ] ],
     "state" : [ {
       "index" : 0,
       "ttl" : "0 ms",
-      "name" : "input-state-0"
+      "name" : "leftState"
     }, {
       "index" : 1,
       "ttl" : "0 ms",
-      "name" : "input-state-1"
-    }, {
-      "index" : 2,
-      "ttl" : "0 ms",
-      "name" : "input-state-2"
+      "name" : "rightState"
     } ],
     "inputProperties" : [ {
       "requiredDistribution" : {
-        "type" : "HASH",
-        "keys" : [ 0 ]
+        "type" : "UNKNOWN"
       },
       "damBehavior" : "PIPELINED",
       "priority" : 0
     }, {
       "requiredDistribution" : {
-        "type" : "HASH",
-        "keys" : [ 0 ]
+        "type" : "UNKNOWN"
       },
       "damBehavior" : "PIPELINED",
-      "priority" : 1
-    }, {
-      "requiredDistribution" : {
-        "type" : "HASH",
-        "keys" : [ 0 ]
-      },
-      "damBehavior" : "PIPELINED",
-      "priority" : 2
+      "priority" : 0
     } ],
-    "outputType" : "ROW<`user_id` VARCHAR(2147483647), `name` VARCHAR(2147483647), `user_id0` VARCHAR(2147483647), `order_id` VARCHAR(2147483647), `user_id1` VARCHAR(2147483647), `payment_id` VARCHAR(2147483647)>",
-    "description" : "MultiJoin(joinFilter=[true], joinTypes=[[INNER, LEFT, LEFT]], joinConditions=[[true, =($0, $2), =($0, $4)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:0;], 2=[LeftInputId:0;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:0;]}], select=[user_id,name,user_id0,order_id,user_id1,payment_id], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id1, VARCHAR(2147483647) payment_id)])"
+    "outputType" : "ROW<`user_id` VARCHAR(2147483647), `name` VARCHAR(2147483647), `order_id` VARCHAR(2147483647), `user_id0` VARCHAR(2147483647), `payment_id` VARCHAR(2147483647)>",
+    "description" : "Join(joinType=[LeftOuterJoin], where=[(user_id = user_id0)], select=[user_id, name, order_id, user_id0, payment_id], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])"
   }, {
-    "id" : 17,
+    "id" : 23,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -204,11 +222,11 @@
       "type" : "VARCHAR(2147483647)"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 3,
+      "inputIndex" : 2,
       "type" : "VARCHAR(2147483647)"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 5,
+      "inputIndex" : 4,
       "type" : "VARCHAR(2147483647)"
     } ],
     "condition" : null,
@@ -222,7 +240,7 @@
     "outputType" : "ROW<`user_id` VARCHAR(2147483647), `name` VARCHAR(2147483647), `order_id` VARCHAR(2147483647), `payment_id` VARCHAR(2147483647)>",
     "description" : "Calc(select=[user_id, name, order_id, payment_id])"
   }, {
-    "id" : 18,
+    "id" : 24,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -265,36 +283,8 @@
     "description" : "Sink(table=[default_catalog.default_database.sink], fields=[user_id, name, order_id, payment_id])"
   } ],
   "edges" : [ {
-    "source" : 10,
-    "target" : 11,
-    "shuffle" : {
-      "type" : "FORWARD"
-    },
-    "shuffleMode" : "PIPELINED"
-  }, {
-    "source" : 12,
-    "target" : 13,
-    "shuffle" : {
-      "type" : "FORWARD"
-    },
-    "shuffleMode" : "PIPELINED"
-  }, {
-    "source" : 14,
-    "target" : 15,
-    "shuffle" : {
-      "type" : "FORWARD"
-    },
-    "shuffleMode" : "PIPELINED"
-  }, {
-    "source" : 11,
-    "target" : 16,
-    "shuffle" : {
-      "type" : "FORWARD"
-    },
-    "shuffleMode" : "PIPELINED"
-  }, {
     "source" : 13,
-    "target" : 16,
+    "target" : 14,
     "shuffle" : {
       "type" : "FORWARD"
     },
@@ -302,6 +292,13 @@
   }, {
     "source" : 15,
     "target" : 16,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 14,
+    "target" : 17,
     "shuffle" : {
       "type" : "FORWARD"
     },
@@ -316,6 +313,48 @@
   }, {
     "source" : 17,
     "target" : 18,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 18,
+    "target" : 19,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 20,
+    "target" : 21,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 19,
+    "target" : 22,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 21,
+    "target" : 22,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 22,
+    "target" : 23,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 23,
+    "target" : 24,
     "shuffle" : {
       "type" : "FORWARD"
     },
