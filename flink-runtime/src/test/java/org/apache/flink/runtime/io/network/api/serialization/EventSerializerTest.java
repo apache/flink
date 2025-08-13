@@ -38,6 +38,8 @@ import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.SubtaskConnectionDescriptor;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfInputChannelStateEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfOutputChannelStateEvent;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 
@@ -120,6 +122,9 @@ class EventSerializerTest {
         new RecoveryMetadata(3),
         new WatermarkEvent(new LongWatermark(42L, "test"), false),
         new WatermarkEvent(new BoolWatermark(true, "test"), true),
+        new WatermarkEvent(new BoolWatermark(true, "test"), true),
+        EndOfInputChannelStateEvent.INSTANCE,
+        EndOfOutputChannelStateEvent.INSTANCE,
     };
 
     @Test
@@ -161,6 +166,9 @@ class EventSerializerTest {
                     assertThat(bufferConsumer.build().getDataType())
                             .isEqualTo(Buffer.DataType.UNALIGNED_WATERMARK_EVENT);
                 }
+            } else if (evt instanceof EndOfOutputChannelStateEvent) {
+                assertThat(bufferConsumer.build().getDataType())
+                        .isEqualTo(Buffer.DataType.RECOVERY_COMPLETION);
             } else {
                 assertThat(bufferConsumer.build().getDataType())
                         .isEqualTo(Buffer.DataType.EVENT_BUFFER);
@@ -191,6 +199,8 @@ class EventSerializerTest {
                     assertThat(buffer.getDataType())
                             .isEqualTo(Buffer.DataType.UNALIGNED_WATERMARK_EVENT);
                 }
+            } else if (evt instanceof EndOfOutputChannelStateEvent) {
+                assertThat(buffer.getDataType()).isEqualTo(Buffer.DataType.RECOVERY_COMPLETION);
             } else {
                 assertThat(buffer.getDataType()).isEqualTo(Buffer.DataType.EVENT_BUFFER);
             }

@@ -22,20 +22,16 @@ import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.event.RuntimeEvent;
 
-/**
- * Marks the end of recovered state of {@link RecoveredInputChannel} of this subtask or {@link
- * org.apache.flink.runtime.io.network.partition.ResultSubpartition ResultSubpartition} on the
- * upstream.
- */
-public class EndOfChannelStateEvent extends RuntimeEvent {
+/** Marks the end of recovered state of {@link RecoveredInputChannel} of this subtask. */
+public class EndOfInputChannelStateEvent extends RuntimeEvent {
 
     /** The singleton instance of this event. */
-    public static final EndOfChannelStateEvent INSTANCE = new EndOfChannelStateEvent();
+    public static final EndOfInputChannelStateEvent INSTANCE = new EndOfInputChannelStateEvent();
 
     // ------------------------------------------------------------------------
 
     // not instantiable
-    private EndOfChannelStateEvent() {}
+    private EndOfInputChannelStateEvent() {}
 
     // ------------------------------------------------------------------------
 
@@ -53,12 +49,12 @@ public class EndOfChannelStateEvent extends RuntimeEvent {
 
     @Override
     public int hashCode() {
-        return 1965146670;
+        return 20250813;
     }
 
     @Override
     public boolean equals(Object obj) {
-        return obj != null && obj.getClass() == EndOfChannelStateEvent.class;
+        return obj != null && obj.getClass() == EndOfInputChannelStateEvent.class;
     }
 
     @Override
