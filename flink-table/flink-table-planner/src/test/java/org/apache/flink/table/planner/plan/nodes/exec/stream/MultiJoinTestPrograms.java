@@ -36,7 +36,6 @@ import static org.apache.flink.table.planner.plan.nodes.exec.stream.MultiJoinTes
 public class MultiJoinTestPrograms {
     public static final TableTestProgram MULTI_JOIN_THREE_WAY_LEFT_OUTER_JOIN =
             TableTestProgram.of("three-way-left-outer-join", "three way left outer join")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(USERS_SOURCE)
                     .setupTableSource(ORDERS_SOURCE)
                     .setupTableSource(PAYMENTS_SOURCE)
@@ -67,7 +66,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-left-outer-join-updating",
                             "three way left outer join updating")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema(
@@ -110,7 +108,6 @@ public class MultiJoinTestPrograms {
 
     public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_JOIN =
             TableTestProgram.of("three-way-inner-join", "three way inner join")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(USERS_SOURCE)
                     .setupTableSource(ORDERS_SOURCE)
                     .setupTableSource(PAYMENTS_SOURCE)
@@ -140,7 +137,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-inner-join-with-where",
                             "three way inner join with where clause")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(USERS_SOURCE)
                     .setupTableSource(ORDERS_SOURCE)
                     .setupTableSource(PAYMENTS_SOURCE)
@@ -169,7 +165,6 @@ public class MultiJoinTestPrograms {
 
     public static final TableTestProgram MULTI_JOIN_FOUR_WAY_COMPLEX =
             TableTestProgram.of("four-way-complex-updating-join", "four way complex updating join")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema(
@@ -281,7 +276,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-left-outer-join-with-restore",
                             "three way left outer join with restore")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema("user_id STRING", "name STRING")
@@ -335,7 +329,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-inner-join-with-restore",
                             "three way inner join with restore")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema("user_id STRING", "name STRING")
@@ -388,7 +381,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-inner-join-no-join-key",
                             "three way inner join with no join key")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(USERS_SOURCE)
                     .setupTableSource(ORDERS_SOURCE)
                     .setupTableSource(PAYMENTS_SOURCE)
@@ -462,7 +454,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "four-way-join-no-common-join-key-with-restore",
                             "four way join no common join key with restore")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupConfig(TableConfigOptions.PLAN_FORCE_RECOMPILE, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
@@ -572,7 +563,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "four-way-no-common-join-key-updating-join",
                             "four way no common join key updating join")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema(
@@ -675,7 +665,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "four-way-complex-updating-join-with-restore",
                             "four way complex updating join with restore")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupConfig(TableConfigOptions.PLAN_FORCE_RECOMPILE, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
@@ -784,7 +773,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-join-with-time-attributes",
                             "three way join with time attributes materialization")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("UsersWithProctime")
                                     .addSchema(
@@ -912,7 +900,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-mixed-changelog-modes",
                             "three way join with mixed changelog modes and primary key configurations")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("AppendTable")
                                     .addSchema("id STRING PRIMARY KEY NOT ENFORCED, val STRING")
@@ -972,7 +959,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "left-outer-join-with-cte",
                             "CTE with three-way left outer join and aggregation")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(USERS_SOURCE)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Orders")
@@ -1036,7 +1022,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-left-outer-with-null-keys",
                             "left outer join with NULL keys on multiple inputs")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupSql(
                             "CREATE VIEW UsersNulls AS SELECT * FROM (VALUES "
                                     + "('1','Gus'),"
@@ -1078,7 +1063,6 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "null-safe-join-with-null-keys",
                             "join with IS NOT DISTINCT FROM to match NULL keys")
-                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupSql(
                             "CREATE VIEW UsersNullSafe AS SELECT * FROM (VALUES "
                                     + "('1','Gus'),"

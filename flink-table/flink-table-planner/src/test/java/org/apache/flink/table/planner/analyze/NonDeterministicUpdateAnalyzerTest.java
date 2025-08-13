@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.analyze;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions.NonDeterministicUpdateStrategy;
@@ -34,6 +35,7 @@ import org.junit.jupiter.api.Test;
 
 import scala.Enumeration;
 
+import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static scala.runtime.BoxedUnit.UNIT;
@@ -41,6 +43,7 @@ import static scala.runtime.BoxedUnit.UNIT;
 /** Test for {@link NonDeterministicUpdateAnalyzer}. */
 class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
 
+    private TableEnvironment tEnv;
     private final StreamTableTestUtil util = streamTestUtil(TableConfig.getDefault());
 
     private static final String expectedOverAggNduErrorMsg =
@@ -52,67 +55,63 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
 
     @BeforeEach
     void before() {
-        util.getTableEnv()
-                .executeSql(
-                        "create temporary table cdc (\n"
-                                + "  a int,\n"
-                                + "  b bigint,\n"
-                                + "  c string,\n"
-                                + "  d bigint,\n"
-                                + "  primary key (a) not enforced\n"
-                                + ") with (\n"
-                                + "  'connector' = 'values',\n"
-                                + "  'changelog-mode' = 'I,UA,UB,D'\n"
-                                + ")");
-        util.getTableEnv()
-                .executeSql(
-                        "create temporary table cdc_with_meta (\n"
-                                + "  a int,\n"
-                                + "  b bigint,\n"
-                                + "  c string,\n"
-                                + "  d boolean,\n"
-                                + "  metadata_1 int metadata,\n"
-                                + "  metadata_2 string metadata,\n"
-                                + "  metadata_3 bigint metadata,\n"
-                                + "  primary key (a) not enforced\n"
-                                + ") with (\n"
-                                + "  'connector' = 'values',\n"
-                                + "  'changelog-mode' = 'I,UA,UB,D',\n"
-                                + "  'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'\n"
-                                + ")");
-        util.getTableEnv()
-                .executeSql(
-                        "create temporary table sink_with_pk (\n"
-                                + "  a int,\n"
-                                + "  b bigint,\n"
-                                + "  c string,\n"
-                                + "  primary key (a) not enforced\n"
-                                + ") with (\n"
-                                + "  'connector' = 'values',\n"
-                                + "  'sink-insert-only' = 'false'\n"
-                                + ")");
-        util.getTableEnv()
-                .executeSql(
-                        "create temporary table sink_without_pk (\n"
-                                + "  a int,\n"
-                                + "  b bigint,\n"
-                                + "  c string\n"
-                                + ") with (\n"
-                                + "  'connector' = 'values',\n"
-                                + "  'sink-insert-only' = 'false'\n"
-                                + ")");
-        util.getTableEnv()
-                .executeSql(
-                        "create temporary table dim_with_pk (\n"
-                                + " a int,\n"
-                                + " b bigint,\n"
-                                + " c string,\n"
-                                + " primary key (a) not enforced\n"
-                                + ") with (\n"
-                                + " 'connector' = 'values'\n"
-                                + ")");
+        tEnv = util.getTableEnv();
+        tEnv.executeSql(
+                "create temporary table cdc (\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string,\n"
+                        + "  d bigint,\n"
+                        + "  primary key (a) not enforced\n"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'changelog-mode' = 'I,UA,UB,D'\n"
+                        + ")");
+        tEnv.executeSql(
+                "create temporary table cdc_with_meta (\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string,\n"
+                        + "  d boolean,\n"
+                        + "  metadata_1 int metadata,\n"
+                        + "  metadata_2 string metadata,\n"
+                        + "  metadata_3 bigint metadata,\n"
+                        + "  primary key (a) not enforced\n"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'changelog-mode' = 'I,UA,UB,D',\n"
+                        + "  'readable-metadata' = 'metadata_1:INT, metadata_2:STRING, metadata_3:BIGINT'\n"
+                        + ")");
+        tEnv.executeSql(
+                "create temporary table sink_with_pk (\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string,\n"
+                        + "  primary key (a) not enforced\n"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'sink-insert-only' = 'false'\n"
+                        + ")");
+        tEnv.executeSql(
+                "create temporary table sink_without_pk (\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string\n"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'sink-insert-only' = 'false'\n"
+                        + ")");
+        tEnv.executeSql(
+                "create temporary table dim_with_pk (\n"
+                        + " a int,\n"
+                        + " b bigint,\n"
+                        + " c string,\n"
+                        + " primary key (a) not enforced\n"
+                        + ") with (\n"
+                        + " 'connector' = 'values'\n"
+                        + ")");
         // custom ND function
-        util.getTableEnv().createTemporaryFunction("ndFunc", new TestNonDeterministicUdf());
+        tEnv.createTemporaryFunction("ndFunc", new TestNonDeterministicUdf());
 
         String sourceTable =
                 "CREATE TABLE source_t(\n"
@@ -123,7 +122,7 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
                         + "  'connector' = 'values',\n"
                         + "  'bounded' = 'false',\n"
                         + "  'changelog-mode' = 'I,UB,UA')";
-        util.getTableEnv().executeSql(sourceTable);
+        tEnv.executeSql(sourceTable);
 
         String sinkTable =
                 "CREATE TABLE sink_t(\n"
@@ -136,39 +135,37 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
                         + "  'bounded' = 'false',\n"
                         + "  'sink-insert-only' = 'false',\n"
                         + "  'changelog-mode' = 'I,UB,UA')";
-        util.getTableEnv().executeSql(sinkTable);
+        tEnv.executeSql(sinkTable);
     }
 
     @Test
     void testCdcWithMetaRenameSinkWithCompositePk() {
         // from NonDeterministicDagTest#testCdcWithMetaRenameSinkWithCompositePk
-        util.getTableEnv()
-                .executeSql(
-                        "create temporary table cdc_with_meta_rename (\n"
-                                + "  a int,\n"
-                                + "  b bigint,\n"
-                                + "  c string,\n"
-                                + "  d boolean,\n"
-                                + "  metadata_3 bigint metadata,\n"
-                                + "  e as metadata_3,\n"
-                                + "  primary key (a) not enforced\n"
-                                + ") with (\n"
-                                + "  'connector' = 'values',\n"
-                                + "  'changelog-mode' = 'I,UA,UB,D',\n"
-                                + "  'readable-metadata' = 'metadata_3:BIGINT'\n"
-                                + ")");
-        util.getTableEnv()
-                .executeSql(
-                        "create temporary table sink_with_composite_pk (\n"
-                                + "  a int,\n"
-                                + "  b bigint,\n"
-                                + "  c string,\n"
-                                + "  d bigint,\n"
-                                + "  primary key (a,d) not enforced\n"
-                                + ") with (\n"
-                                + "  'connector' = 'values',\n"
-                                + "  'sink-insert-only' = 'false'\n"
-                                + ")");
+        tEnv.executeSql(
+                "create temporary table cdc_with_meta_rename (\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string,\n"
+                        + "  d boolean,\n"
+                        + "  metadata_3 bigint metadata,\n"
+                        + "  e as metadata_3,\n"
+                        + "  primary key (a) not enforced\n"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'changelog-mode' = 'I,UA,UB,D',\n"
+                        + "  'readable-metadata' = 'metadata_3:BIGINT'\n"
+                        + ")");
+        tEnv.executeSql(
+                "create temporary table sink_with_composite_pk (\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string,\n"
+                        + "  d bigint,\n"
+                        + "  primary key (a,d) not enforced\n"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'sink-insert-only' = 'false'\n"
+                        + ")");
         util.doVerifyPlanInsert(
                 "insert into sink_with_composite_pk\n"
                         + "select a, b, c, e from cdc_with_meta_rename",
@@ -180,20 +177,19 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
     @Test
     void testCdcSourceWithoutPkSinkWithoutPk() {
         // from NonDeterministicDagTest#testCdcSourceWithoutPkSinkWithoutPk
-        util.getTableEnv()
-                .executeSql(
-                        "create temporary table cdc_without_pk (\n"
-                                + " a int,\n"
-                                + " b bigint,\n"
-                                + " c string,\n"
-                                + " d boolean,\n"
-                                + " metadata_1 int metadata,\n"
-                                + " metadata_2 string metadata\n"
-                                + ") with (\n"
-                                + " 'connector' = 'values',\n"
-                                + " 'changelog-mode' = 'I,UA,UB,D',\n"
-                                + " 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING'\n"
-                                + ")");
+        tEnv.executeSql(
+                "create temporary table cdc_without_pk (\n"
+                        + " a int,\n"
+                        + " b bigint,\n"
+                        + " c string,\n"
+                        + " d boolean,\n"
+                        + " metadata_1 int metadata,\n"
+                        + " metadata_2 string metadata\n"
+                        + ") with (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'changelog-mode' = 'I,UA,UB,D',\n"
+                        + " 'readable-metadata' = 'metadata_1:INT, metadata_2:STRING'\n"
+                        + ")");
 
         util.doVerifyPlanInsert(
                 "insert into sink_without_pk\n"
@@ -207,19 +203,18 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
     @Test
     void testSourceWithComputedColumnSinkWithPk() {
         // from NonDeterministicDagTest#testSourceWithComputedColumnSinkWithPk
-        util.getTableEnv()
-                .executeSql(
-                        "create temporary table cdc_with_computed_col (\n"
-                                + "  a int,\n"
-                                + "  b bigint,\n"
-                                + "  c string,\n"
-                                + "  d int,\n"
-                                + "  `day` as DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd'),\n"
-                                + "  primary key(a, c) not enforced\n"
-                                + ") with (\n"
-                                + " 'connector' = 'values',\n"
-                                + " 'changelog-mode' = 'I,UA,UB,D'\n"
-                                + ")");
+        tEnv.executeSql(
+                "create temporary table cdc_with_computed_col (\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string,\n"
+                        + "  d int,\n"
+                        + "  `day` as DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd'),\n"
+                        + "  primary key(a, c) not enforced\n"
+                        + ") with (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'changelog-mode' = 'I,UA,UB,D'\n"
+                        + ")");
         util.doVerifyPlanInsert(
                 "insert into sink_with_pk\n"
                         + "select a, b, `day`\n"
@@ -274,68 +269,63 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
     @Test
     void testMultiSinkOnJoinedView() {
         // from NonDeterministicDagTest#testMultiSinkOnJoinedView
-        util.getTableEnv()
-                .executeSql(
-                        "create temporary table src1 (\n"
-                                + "  a int,\n"
-                                + "  b bigint,\n"
-                                + "  c string,\n"
-                                + "  d int,\n"
-                                + "  primary key(a, c) not enforced\n"
-                                + ") with (\n"
-                                + " 'connector' = 'values',\n"
-                                + " 'changelog-mode' = 'I,UA,UB,D'\n"
-                                + ")");
-        util.getTableEnv()
-                .executeSql(
-                        "create temporary table src2 (\n"
-                                + "  a int,\n"
-                                + "  b bigint,\n"
-                                + "  c string,\n"
-                                + "  d int,\n"
-                                + "  primary key(a, c) not enforced\n"
-                                + ") with (\n"
-                                + " 'connector' = 'values',\n"
-                                + " 'changelog-mode' = 'I,UA,UB,D'\n"
-                                + ")");
-        util.getTableEnv()
-                .executeSql(
-                        "create temporary table sink1 (\n"
-                                + "  a int,\n"
-                                + "  b string,\n"
-                                + "  c bigint,\n"
-                                + "  d bigint\n"
-                                + ") with (\n"
-                                + " 'connector' = 'values',\n"
-                                + " 'sink-insert-only' = 'false'\n"
-                                + ")");
-        util.getTableEnv()
-                .executeSql(
-                        "create temporary table sink2 (\n"
-                                + "  a int,\n"
-                                + "  b string,\n"
-                                + "  c bigint,\n"
-                                + "  d string\n"
-                                + ") with (\n"
-                                + " 'connector' = 'values',\n"
-                                + " 'sink-insert-only' = 'false'\n"
-                                + ")");
-        util.getTableEnv()
-                .executeSql(
-                        "create temporary view v1 as\n"
-                                + "select\n"
-                                + "  t1.a as a, t1.`day` as `day`, t2.b as b, t2.c as c\n"
-                                + "from (\n"
-                                + "  select a, b, DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd') as `day`\n"
-                                + "  from src1\n"
-                                + " ) t1\n"
-                                + "join (\n"
-                                + "  select b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd')) as `day`, c, d\n"
-                                + "  from src2\n"
-                                + ") t2\n"
-                                + " on t1.a = t2.d");
+        tEnv.executeSql(
+                "create temporary table src1 (\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string,\n"
+                        + "  d int,\n"
+                        + "  primary key(a, c) not enforced\n"
+                        + ") with (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'changelog-mode' = 'I,UA,UB,D'\n"
+                        + ")");
+        tEnv.executeSql(
+                "create temporary table src2 (\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string,\n"
+                        + "  d int,\n"
+                        + "  primary key(a, c) not enforced\n"
+                        + ") with (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'changelog-mode' = 'I,UA,UB,D'\n"
+                        + ")");
+        tEnv.executeSql(
+                "create temporary table sink1 (\n"
+                        + "  a int,\n"
+                        + "  b string,\n"
+                        + "  c bigint,\n"
+                        + "  d bigint\n"
+                        + ") with (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'sink-insert-only' = 'false'\n"
+                        + ")");
+        tEnv.executeSql(
+                "create temporary table sink2 (\n"
+                        + "  a int,\n"
+                        + "  b string,\n"
+                        + "  c bigint,\n"
+                        + "  d string\n"
+                        + ") with (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'sink-insert-only' = 'false'\n"
+                        + ")");
+        tEnv.executeSql(
+                "create temporary view v1 as\n"
+                        + "select\n"
+                        + "  t1.a as a, t1.`day` as `day`, t2.b as b, t2.c as c\n"
+                        + "from (\n"
+                        + "  select a, b, DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd') as `day`\n"
+                        + "  from src1\n"
+                        + " ) t1\n"
+                        + "join (\n"
+                        + "  select b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd')) as `day`, c, d\n"
+                        + "  from src2\n"
+                        + ") t2\n"
+                        + " on t1.a = t2.d");
 
-        StatementSet stmtSet = util.getTableEnv().createStatementSet();
+        StatementSet stmtSet = tEnv.createStatementSet();
         stmtSet.addInsertSql(
                 "insert into sink1\n"
                         + "  select a, `day`, sum(b), count(distinct c)\n"
@@ -346,6 +336,87 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
                         + "  select a, `day`, b, c\n"
                         + "  from v1\n"
                         + "  where b > 100");
+        util.doVerifyPlan(
+                stmtSet,
+                new ExplainDetail[] {ExplainDetail.PLAN_ADVICE},
+                false,
+                new Enumeration.Value[] {PlanKind.OPT_REL_WITH_ADVICE()},
+                () -> UNIT,
+                false,
+                false);
+    }
+
+    @Test
+    void testMultiSinkOnMultiJoinedView() {
+        tEnv.getConfig().set(TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true);
+        tEnv.executeSql(
+                "create temporary table src1 (\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string,\n"
+                        + "  d int,\n"
+                        + "  primary key(a, c) not enforced\n"
+                        + ") with (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'changelog-mode' = 'I,UA,UB,D'\n"
+                        + ")");
+        tEnv.executeSql(
+                "create temporary table src2 (\n"
+                        + "  a int,\n"
+                        + "  b bigint,\n"
+                        + "  c string,\n"
+                        + "  d int,\n"
+                        + "  primary key(a, c) not enforced\n"
+                        + ") with (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'changelog-mode' = 'I,UA,UB,D'\n"
+                        + ")");
+        tEnv.executeSql(
+                "create temporary table sink1 (\n"
+                        + "  a int,\n"
+                        + "  b string,\n"
+                        + "  c bigint,\n"
+                        + "  d bigint\n"
+                        + ") with (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'sink-insert-only' = 'false'\n"
+                        + ")");
+        tEnv.executeSql(
+                "create temporary table sink2 (\n"
+                        + "  a int,\n"
+                        + "  b string,\n"
+                        + "  c bigint,\n"
+                        + "  d string\n"
+                        + ") with (\n"
+                        + " 'connector' = 'values',\n"
+                        + " 'sink-insert-only' = 'false'\n"
+                        + ")");
+        tEnv.executeSql(
+                "create temporary view v1 as\n"
+                        + "select\n"
+                        + "  t1.a as a, t1.`day` as `day`, t2.b as b, t2.c as c\n"
+                        + "from (\n"
+                        + "  select a, b, DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd') as `day`\n"
+                        + "  from src1\n"
+                        + " ) t1\n"
+                        + "join (\n"
+                        + "  select b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd')) as `day`, c, d\n"
+                        + "  from src2\n"
+                        + ") t2\n"
+                        + " on t1.a = t2.d");
+
+        StatementSet stmtSet = tEnv.createStatementSet();
+        stmtSet.addInsertSql(
+                "insert into sink1\n"
+                        + "  select a, `day`, sum(b), count(distinct c)\n"
+                        + "  from v1\n"
+                        + "  group by a, `day`");
+        stmtSet.addInsertSql(
+                "insert into sink2\n"
+                        + "  select a, `day`, b, c\n"
+                        + "  from v1\n"
+                        + "  where b > 100");
+
         util.doVerifyPlan(
                 stmtSet,
                 new ExplainDetail[] {ExplainDetail.PLAN_ADVICE},
@@ -373,8 +444,7 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
 
     @Test
     void testOverAggregateWithNonDeterminismInPartitionBy() {
-        util.getTableEnv()
-                .getConfig()
+        tEnv.getConfig()
                 .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
                         NonDeterministicUpdateStrategy.TRY_RESOLVE);
@@ -395,8 +465,7 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
 
     @Test
     void testOverAggregateWithNonDeterminismInOrderBy() {
-        util.getTableEnv()
-                .getConfig()
+        tEnv.getConfig()
                 .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
                         NonDeterministicUpdateStrategy.TRY_RESOLVE);
@@ -417,8 +486,7 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
 
     @Test
     void testOverAggregateWithNonDeterminismInProjection() {
-        util.getTableEnv()
-                .getConfig()
+        tEnv.getConfig()
                 .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
                         NonDeterministicUpdateStrategy.TRY_RESOLVE);
