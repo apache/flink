@@ -310,6 +310,20 @@
           "type" : "VARCHAR(2147483647) NOT NULL"
         }, {
           "kind" : "INPUT_REF",
+          "inputIndex" : 4,
+          "type" : "VARCHAR(2147483647)"
+        } ],
+        "type" : "BOOLEAN"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 1,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
           "inputIndex" : 5,
           "type" : "VARCHAR(2147483647)"
         } ],
@@ -346,6 +360,20 @@
             "type" : "INT NOT NULL"
           } ],
           "type" : "BOOLEAN"
+        } ],
+        "type" : "BOOLEAN"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 5,
+          "type" : "VARCHAR(2147483647)"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 9,
+          "type" : "VARCHAR(2147483647)"
         } ],
         "type" : "BOOLEAN"
       } ],

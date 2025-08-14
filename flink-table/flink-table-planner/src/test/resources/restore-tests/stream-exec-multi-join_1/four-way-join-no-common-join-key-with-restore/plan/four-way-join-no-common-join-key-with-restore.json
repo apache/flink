@@ -229,15 +229,35 @@
     "multiJoinCondition" : {
       "kind" : "CALL",
       "syntax" : "BINARY",
-      "internalName" : "$=$1",
+      "internalName" : "$AND$1",
       "operands" : [ {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 1,
-        "type" : "VARCHAR(2147483647) NOT NULL"
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 1,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 3,
+          "type" : "VARCHAR(2147483647)"
+        } ],
+        "type" : "BOOLEAN"
       }, {
-        "kind" : "INPUT_REF",
-        "inputIndex" : 4,
-        "type" : "VARCHAR(2147483647)"
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 1,
+          "type" : "VARCHAR(2147483647) NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 4,
+          "type" : "VARCHAR(2147483647)"
+        } ],
+        "type" : "BOOLEAN"
       } ],
       "type" : "BOOLEAN"
     },
@@ -393,6 +413,21 @@
       } ],
       "type" : "BOOLEAN"
     } ],
+    "multiJoinCondition" : {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$=$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 3,
+        "type" : "VARCHAR(2147483647) NOT NULL"
+      }, {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 5,
+        "type" : "VARCHAR(2147483647)"
+      } ],
+      "type" : "BOOLEAN"
+    },
     "joinAttributeMap" : {
       "1" : [ {
         "leftInputId" : 0,
