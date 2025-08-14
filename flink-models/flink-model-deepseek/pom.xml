@@ -13,9 +13,7 @@
 	<name>Flink : Models : DeepSeek</name>
 
 	<properties>
-		<okhttp.version>4.12.0</okhttp.version>
-		<jackson.version>2.18.2</jackson.version>
-		<json.version>2.10.1</json.version>
+		<openai.version>1.6.1</openai.version>
 	</properties>
 	<dependencies>
 		<!-- Flink Core Dependencies -->
@@ -37,19 +35,6 @@
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
-		<!-- HTTP Client -->
-		<dependency>
-			<groupId>com.squareup.okhttp3</groupId>
-			<artifactId>okhttp</artifactId>
-			<version>${okhttp.version}</version>
-		</dependency>
-
-		<!-- JSON Processing -->
-		<dependency>
-			<groupId>com.fasterxml.jackson.core</groupId>
-			<artifactId>jackson-databind</artifactId>
-			<version>${jackson.version}</version>
-		</dependency>
 
 		<!-- Test Dependencies -->
 		<dependency>
@@ -58,11 +43,7 @@
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
-		<dependency>
-			<groupId>com.google.code.gson</groupId>
-			<artifactId>gson</artifactId>
-			<version>${json.version}</version>
-		</dependency>
+
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter-api</artifactId>
@@ -75,7 +56,12 @@
 			<version>${okhttp.version}</version>
 			<scope>test</scope>
 		</dependency>
-
+		<dependency>
+			<groupId>com.openai</groupId>
+			<artifactId>openai-java</artifactId>
+			<version>${openai.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
 	</dependencies>
 
 	<build>

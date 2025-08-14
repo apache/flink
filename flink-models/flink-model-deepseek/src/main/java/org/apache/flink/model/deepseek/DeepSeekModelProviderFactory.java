@@ -41,13 +41,7 @@ public class DeepSeekModelProviderFactory implements ModelProviderFactory {
         String endpoint = config.get(AbstractDeepSeekModelFunction.ENDPOINT);
         String apiKey = config.get(AbstractDeepSeekModelFunction.API_KEY);
         endpoint = endpoint.replaceAll("/*$", "").toLowerCase();
-
-        AsyncPredictFunction function;
-        if (endpoint.endsWith(DeepSeekChatAndEmbeddingModelFunction.ENDPOINT_SUFFIX)) {
-            function = new DeepSeekChatAndEmbeddingModelFunction(context, config,endpoint,apiKey);
-        } else {
-            throw new UnsupportedOperationException("Unsupported endpoint: " + endpoint);
-        }
+        AsyncPredictFunction function = new DeepSeekChatAndEmbeddingModelFunction(context, config);
         return new Provider(function);
     }
 
@@ -58,25 +52,25 @@ public class DeepSeekModelProviderFactory implements ModelProviderFactory {
 
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
-        Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(AbstractDeepSeekModelFunction.ENDPOINT);
-        options.add(AbstractDeepSeekModelFunction.API_KEY);
-        options.add(AbstractDeepSeekModelFunction.MODEL);
-        return options;
+        Set<ConfigOption<?>> set = new HashSet<>();
+        set.add(DeepSeekChatAndEmbeddingModelFunction.ENDPOINT);
+        set.add(DeepSeekChatAndEmbeddingModelFunction.API_KEY);
+        set.add(DeepSeekChatAndEmbeddingModelFunction.MODEL);
+        return set;
     }
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(DeepSeekChatAndEmbeddingModelFunction.SYSTEM_PROMPT);
-        options.add(DeepSeekChatAndEmbeddingModelFunction.TEMPERATURE);
-        options.add(DeepSeekChatAndEmbeddingModelFunction.TOP_P);
-        options.add(DeepSeekChatAndEmbeddingModelFunction.STOP);
-        options.add(DeepSeekChatAndEmbeddingModelFunction.MAX_TOKENS);
-        return options;
+        Set<ConfigOption<?>> set = new HashSet<>();
+        set.add(DeepSeekChatAndEmbeddingModelFunction.SYSTEM_PROMPT);
+        set.add(DeepSeekChatAndEmbeddingModelFunction.TEMPERATURE);
+        set.add(DeepSeekChatAndEmbeddingModelFunction.TOP_P);
+        set.add(DeepSeekChatAndEmbeddingModelFunction.STOP);
+        set.add(DeepSeekChatAndEmbeddingModelFunction.MAX_TOKENS);
+        return set;
     }
 
-    /** {@link ModelProvider} for deepseek model functions. */
+    /** {@link ModelProvider} for DeepSeek model functions. */
     public static class Provider implements AsyncPredictRuntimeProvider {
         private final AsyncPredictFunction function;
 

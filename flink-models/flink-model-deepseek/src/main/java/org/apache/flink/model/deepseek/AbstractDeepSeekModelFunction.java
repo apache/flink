@@ -18,8 +18,6 @@
 
 package org.apache.flink.model.deepseek;
 
-import okhttp3.OkHttpClient;
-
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
@@ -33,6 +31,7 @@ import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
 
+import com.openai.client.OpenAIClientAsync;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,8 +52,7 @@ public abstract class AbstractDeepSeekModelFunction extends AsyncPredictFunction
                             Description.builder()
                                     .text(
                                             "Full URL of the DeepSeek API endpoint, e.g., %s or %s",
-                                            code("https://api.deepseek.com/v1/chat/completions"),
-                                            code("https://api.deepseek.com/v1/embeddings"))
+                                            code("https://api.deepseek.com/v1"))
                                     .build());
 
     public static final ConfigOption<String> API_KEY = 
@@ -74,7 +72,7 @@ public abstract class AbstractDeepSeekModelFunction extends AsyncPredictFunction
                                             code("deepseek-chat"), code("deepseek-reasoner"))
                                     .build());
 
-    protected transient OkHttpClient client;
+    protected transient OpenAIClientAsync client;
 
     private final int numRetry;
     private final String baseUrl;
@@ -82,8 +80,7 @@ public abstract class AbstractDeepSeekModelFunction extends AsyncPredictFunction
 
     public AbstractDeepSeekModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
-        String endpoint = config.get(ENDPOINT);
-        this.baseUrl = endpoint.replaceAll(String.format("/%s/*$", getEndpointSuffix()), "");
+        this.baseUrl = config.get(ENDPOINT);
         this.apiKey = config.get(API_KEY);
         // The model service enforces rate-limiting constraints, necessitating retry mechanisms in
         // most operational scenarios. Within the asynchronous operator framework, the system is
@@ -93,7 +90,7 @@ public abstract class AbstractDeepSeekModelFunction extends AsyncPredictFunction
         // requests, a dynamic retry strategy is implemented where the maximum retry count is
         // directly proportional to the configured parallelism level, ensuring robust error
         // resilience while maintaining throughput efficiency.
-        this.numRetry = 
+        this.numRetry =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY) * 10;
 
         validateSingleColumnSchema(
@@ -105,8 +102,8 @@ public abstract class AbstractDeepSeekModelFunction extends AsyncPredictFunction
     @Override
     public void open(FunctionContext context) throws Exception {
         super.open(context);
-        LOG.debug("Creating a DeepSeek client.");
-        this.client = DeepSeekUtils.createClient(baseUrl, apiKey);
+        LOG.debug("Creating an DeepSeek client.");
+        this.client = DeepSeekUtils.createAsyncClient(baseUrl, apiKey, numRetry);
     }
 
     @Override
@@ -114,12 +111,10 @@ public abstract class AbstractDeepSeekModelFunction extends AsyncPredictFunction
         super.close();
         if (this.client != null) {
             LOG.debug("Releasing the DeepSeek client.");
-            DeepSeekUtils.releaseClient();
+            DeepSeekUtils.releaseAsyncClient(baseUrl, apiKey);
             client = null;
         }
     }
-
-    protected abstract String getEndpointSuffix();
 
     protected void validateSingleColumnSchema(
             ResolvedSchema schema, LogicalType expectedType, String inputOrOutput) {

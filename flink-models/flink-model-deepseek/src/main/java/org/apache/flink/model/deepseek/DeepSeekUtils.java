@@ -17,13 +17,17 @@
 
 package org.apache.flink.model.deepseek;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
 
-import okhttp3.OkHttpClient;
+import com.openai.client.OpenAIClientAsync;
+import com.openai.client.okhttp.OpenAIOkHttpClientAsync;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Utility class for managing DeepSeek clients. */
@@ -32,76 +36,79 @@ public class DeepSeekUtils {
 
     private static final Object LOCK = new Object();
 
-    private static ReferenceValue client;
+    private static final Map<ReferenceKey, ReferenceValue> cache = new HashMap<>();
 
-    public static OkHttpClient createClient(String baseUrl, String apiKey) {
+    public static OpenAIClientAsync createAsyncClient(String baseUrl, String apiKey, int numRetry) {
         synchronized (LOCK) {
-            if (client != null) {
+            ReferenceKey key = new ReferenceKey(baseUrl, apiKey);
+            ReferenceValue value = cache.get(key);
+            if (value != null) {
                 LOG.debug("Returning an existing DeepSeek client.");
-                client.referenceCount.incrementAndGet();
-                return client.client;
+                value.referenceCount.incrementAndGet();
+                return value.client;
             }
-            return new OkHttpClient.Builder()
-                    .connectTimeout(Duration.ofSeconds(30))
-                    .readTimeout(Duration.ofSeconds(30))
-                    .writeTimeout(Duration.ofSeconds(30))
-                    .addInterceptor(chain -> {
-                        okhttp3.Request original = chain.request();
-                        okhttp3.Request request = original.newBuilder()
-                                .header("Authorization", "Bearer " + apiKey)
-                                .header("Content-Type", "application/json")
-                                .method(original.method(), original.body())
-                                .build();
-                        return chain.proceed(request);
-                    })
-                    .build();
+
+            LOG.debug("Building a new DeepSeek client.");
+            OpenAIClientAsync client =
+                    OpenAIOkHttpClientAsync.builder()
+                            .apiKey(apiKey)
+                            .baseUrl(baseUrl)
+                            .maxRetries(numRetry)
+                            .build();
+            cache.put(key, new ReferenceValue(client));
+            return client;
         }
     }
 
-
-
-    /**
-     * Releases a DeepSeek client instance. If the reference count reaches zero, the client is closed
-     * and removed from the cache.
-     *
-     */
-    public static void releaseClient() {
+    public static void releaseAsyncClient(String baseUrl, String apiKey) {
         synchronized (LOCK) {
+            ReferenceKey key = new ReferenceKey(baseUrl, apiKey);
+            ReferenceValue value = cache.get(key);
             Preconditions.checkNotNull(
-                    client, "The creation and release of DeepSeek client does not match.");
-            int count = client.referenceCount.decrementAndGet();
+                    value, "The creation and release of DeepSeek client does not match.");
+            int count = value.referenceCount.decrementAndGet();
             if (count == 0) {
                 LOG.debug("Closing the DeepSeek client.");
-                client = null;
+                cache.remove(key);
+                value.client.close();
             }
         }
     }
 
-    private OkHttpClient createNewClient(String baseUrl, String apiKey) {
-        return new OkHttpClient.Builder()
-                .connectTimeout(Duration.ofSeconds(30))
-                .readTimeout(Duration.ofSeconds(30))
-                .writeTimeout(Duration.ofSeconds(30))
-                .addInterceptor(chain -> {
-                    okhttp3.Request original = chain.request();
-                    okhttp3.Request request = original.newBuilder()
-                            .header("Authorization", "Bearer " + apiKey)
-                            .header("Content-Type", "application/json")
-                            .method(original.method(), original.body())
-                            .build();
-                    return chain.proceed(request);
-                })
-                .build();
-    }
-
-    /** Value stored in the cache, containing the client and reference count. */
     private static class ReferenceValue {
-        private final OkHttpClient client;
+        private final OpenAIClientAsync client;
         private final AtomicInteger referenceCount;
 
-        private ReferenceValue(OkHttpClient client) {
+        private ReferenceValue(OpenAIClientAsync client) {
             this.client = client;
-            this.referenceCount = new AtomicInteger(0);
+            this.referenceCount = new AtomicInteger(1);
         }
+    }
+
+    private static class ReferenceKey {
+        private final String baseUrl;
+        private final String apiKey;
+
+        private ReferenceKey(String baseUrl, String apiKey) {
+            this.baseUrl = baseUrl;
+            this.apiKey = apiKey;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(baseUrl, apiKey);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof ReferenceKey
+                    && Objects.equals(baseUrl, ((ReferenceKey) obj).baseUrl)
+                    && Objects.equals(apiKey, ((ReferenceKey) obj).apiKey);
+        }
+    }
+
+    @VisibleForTesting
+    static Map<ReferenceKey, ReferenceValue> getCache() {
+        return cache;
     }
 }

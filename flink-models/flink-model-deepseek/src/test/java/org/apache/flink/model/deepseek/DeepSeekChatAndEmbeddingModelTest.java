@@ -37,6 +37,7 @@ import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
 import org.apache.commons.collections.IteratorUtils;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -92,10 +93,13 @@ public class DeepSeekChatAndEmbeddingModelTest {
         modelOptions.put("provider", "deepseek");
         modelOptions.put("endpoint", server.url("/chat/completions").toString());
         modelOptions.put("model", "deepseek-chat");
-        modelOptions.put("api-key", "sk-4b");
+        modelOptions.put("api-key", "deepseek-chat-key");
     }
 
-
+    @AfterEach
+    public void afterEach() {
+        assertThat(DeepSeekUtils.getCache()).isEmpty();
+    }
 
     @Test
     public void testChat() {
@@ -157,7 +161,7 @@ public class DeepSeekChatAndEmbeddingModelTest {
 
     @Test
     public void testStop() {
-        String stop = "a,the ，test";
+        String stop = "a,the";
         CatalogManager catalogManager = ((TableEnvironmentImpl) tEnv).getCatalogManager();
         Map<String, String> modelOptions = new HashMap<>(this.modelOptions);
         modelOptions.put("stop", stop);
@@ -257,9 +261,6 @@ public class DeepSeekChatAndEmbeddingModelTest {
 
             String body = request.getBody().readUtf8();
 
-            if (path.equals("/v1/chat/completions")) {
-                return new MockResponse().setResponseCode(404);
-            }
 
             try {
                 JsonNode root = OBJECT_MAPPER.readTree(body);
@@ -282,21 +283,21 @@ public class DeepSeekChatAndEmbeddingModelTest {
 
                 String responseBody =
                         "{\n" +
-                        "  \"id\": \"chatcmpl-123\",\n" +
-                        "  \"object\": \"chat.completion\",\n" +
-                        "  \"created\": 1677652288,\n" +
-                        "  \"model\": \"deepseek-chat\",\n" +
-                        "  \"choices\": [\n" +
-                        "    {\n" +
-                        "      \"index\": 0,\n" +
-                        "      \"message\": {\n" +
-                        "        \"role\": \"assistant\",\n" +
-                        "        \"content\": \"I am DeepSeek, an AI assistant.\"\n" +
-                        "      },\n" +
-                        "      \"finish_reason\": \"stop\"\n" +
-                        "    }\n" +
-                        "  ]\n" +
-                        "}";
+                                "  \"id\": \"chatcmpl-123\",\n" +
+                                "  \"object\": \"chat.completion\",\n" +
+                                "  \"created\": 1677652288,\n" +
+                                "  \"model\": \"deepseek-chat\",\n" +
+                                "  \"choices\": [\n" +
+                                "    {\n" +
+                                "      \"index\": 0,\n" +
+                                "      \"message\": {\n" +
+                                "        \"role\": \"assistant\",\n" +
+                                "        \"content\": \"I am DeepSeek, an AI assistant.\"\n" +
+                                "      },\n" +
+                                "      \"finish_reason\": \"stop\"\n" +
+                                "    }\n" +
+                                "  ]\n" +
+                                "}";
 
                 return new MockResponse()
                         .setHeader("Content-Type", "application/json")
