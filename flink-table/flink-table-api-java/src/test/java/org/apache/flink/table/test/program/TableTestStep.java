@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.TableDistribution;
+import org.apache.flink.table.connector.ChangelogMode;
 
 import javax.annotation.Nullable;
 
@@ -34,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /** Abstract class for {@link SourceTestStep} and {@link SinkTestStep}. */
 public abstract class TableTestStep implements TestStep {
@@ -159,33 +161,21 @@ public abstract class TableTestStep implements TestStep {
             return (SpecificBuilder) this;
         }
 
-        public SpecificBuilder enforceUpsert() {
-            return enforceUpsert(false);
-        }
-
-        public SpecificBuilder enforceUpsert(boolean withPartialDeleteOnly) {
+        public SpecificBuilder inMode(ChangelogMode mode) {
             this.options.put("connector", "values");
-            this.options.put("changelog-mode", "I,UA,D");
-            this.options.put("sink-changelog-mode-enforced", "I,UA,D");
-            final String withPartialDeleteOnlyStr =
-                    Boolean.valueOf(withPartialDeleteOnly).toString();
-            this.options.put("source.produces-delete-by-key", withPartialDeleteOnlyStr);
-            this.options.put("sink.supports-delete-by-key", withPartialDeleteOnlyStr);
-            return (SpecificBuilder) this;
-        }
-
-        public SpecificBuilder enforceRetract() {
-            return enforceRetract(false);
-        }
-
-        public SpecificBuilder enforceRetract(boolean withPartialDeleteOnly) {
-            this.options.put("connector", "values");
-            this.options.put("changelog-mode", "I,UB,UA,D");
-            this.options.put("sink-changelog-mode-enforced", "I,UB,UA,D");
-            final String withPartialDeleteOnlyStr =
-                    Boolean.valueOf(withPartialDeleteOnly).toString();
-            this.options.put("source.produces-delete-by-key", withPartialDeleteOnlyStr);
-            this.options.put("sink.supports-delete-by-key", withPartialDeleteOnlyStr);
+            final String changelogsStr =
+                    mode.getContainedKinds().stream()
+                            .map(
+                                    t ->
+                                            Stream.of(t.name().split("_"))
+                                                    .map(name -> name.substring(0, 1))
+                                                    .collect(Collectors.joining()))
+                            .collect(Collectors.joining(","));
+            this.options.put("changelog-mode", changelogsStr);
+            this.options.put("sink-changelog-mode-enforced", changelogsStr);
+            final String keyOnlyDeleteStr = Boolean.valueOf(mode.keyOnlyDeletes()).toString();
+            this.options.put("source.produces-delete-by-key", keyOnlyDeleteStr);
+            this.options.put("sink.supports-delete-by-key", keyOnlyDeleteStr);
             return (SpecificBuilder) this;
         }
     }

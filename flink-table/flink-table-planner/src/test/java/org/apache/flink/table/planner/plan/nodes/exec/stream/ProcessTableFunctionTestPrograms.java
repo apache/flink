@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.AtomicTypeWrappingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedReceivingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedSendingFunction;
@@ -477,7 +478,7 @@ public class ProcessTableFunctionTestPrograms {
                                     .addSchema(
                                             "name STRING PRIMARY KEY NOT ENFORCED",
                                             "score INT NOT NULL")
-                                    .enforceUpsert(true)
+                                    .inMode(ChangelogMode.upsert(false))
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "Bob", 5),
                                             Row.ofKind(RowKind.INSERT, "Alice", 2),
@@ -510,7 +511,7 @@ public class ProcessTableFunctionTestPrograms {
                                     .addSchema(
                                             "name STRING PRIMARY KEY NOT ENFORCED",
                                             "score INT NOT NULL")
-                                    .enforceUpsert(true)
+                                    .inMode(ChangelogMode.upsert())
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "Bob", 5),
                                             Row.ofKind(RowKind.INSERT, "Alice", 2),
@@ -581,7 +582,7 @@ public class ProcessTableFunctionTestPrograms {
                             SourceTestStep.newBuilder("t")
                                     .addSchema(
                                             "name STRING PRIMARY KEY NOT ENFORCED", "EXPR$1 BIGINT")
-                                    .enforceUpsert()
+                                    .inMode(ChangelogMode.upsert())
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "Bob", 1L),
                                             Row.ofKind(RowKind.INSERT, "Alice", 1L))
@@ -596,7 +597,7 @@ public class ProcessTableFunctionTestPrograms {
                                             "`name0` STRING",
                                             "`count` BIGINT",
                                             "`mode` STRING")
-                                    .enforceUpsert()
+                                    .inMode(ChangelogMode.upsert())
                                     .consumedBeforeRestore(
                                             "+I[Bob, Bob, 1, upsert-full-delete]",
                                             "+I[Alice, Alice, 1, upsert-full-delete]")
@@ -617,7 +618,7 @@ public class ProcessTableFunctionTestPrograms {
                                     .addSchema(
                                             "`name` STRING PRIMARY KEY NOT ENFORCED",
                                             "`score` BIGINT")
-                                    .enforceUpsert(true)
+                                    .inMode(ChangelogMode.upsert(false))
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "Alice", 1L),
                                             Row.ofKind(RowKind.INSERT, "Bob", 2L),
@@ -652,7 +653,7 @@ public class ProcessTableFunctionTestPrograms {
                                     .addSchema(
                                             "`name` STRING PRIMARY KEY NOT ENFORCED",
                                             "`score` BIGINT")
-                                    .enforceUpsert()
+                                    .inMode(ChangelogMode.upsert())
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "Alice", 1L),
                                             Row.ofKind(RowKind.INSERT, "Bob", 2L),
@@ -666,7 +667,7 @@ public class ProcessTableFunctionTestPrograms {
                                             "`name0` STRING",
                                             "`count` BIGINT",
                                             "`mode` STRING")
-                                    .enforceUpsert()
+                                    .inMode(ChangelogMode.upsert())
                                     .consumedValues(
                                             "+I[Alice, Alice, 1, upsert-full-delete]",
                                             "+I[Bob, Bob, 2, upsert-full-delete]",
@@ -1451,7 +1452,7 @@ public class ProcessTableFunctionTestPrograms {
                                     .addSchema(
                                             "name STRING PRIMARY KEY NOT ENFORCED",
                                             "score INT NOT NULL")
-                                    .enforceUpsert(true)
+                                    .inMode(ChangelogMode.upsert(false))
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "Bob", 5),
                                             Row.ofKind(RowKind.INSERT, "Alice", 2),
@@ -1465,7 +1466,7 @@ public class ProcessTableFunctionTestPrograms {
                                     .addSchema(
                                             "name STRING PRIMARY KEY NOT ENFORCED",
                                             "city STRING NOT NULL")
-                                    .enforceUpsert(true)
+                                    .inMode(ChangelogMode.upsert(false))
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "Bob", "London"),
                                             Row.ofKind(RowKind.INSERT, "Alice", "Zurich"),
