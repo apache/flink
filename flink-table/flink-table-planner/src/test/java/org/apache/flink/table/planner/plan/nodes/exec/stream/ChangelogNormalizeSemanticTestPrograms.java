@@ -161,7 +161,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                             Row.ofKind(RowKind.UPDATE_AFTER, "two", 1, "dd"),
                                             Row.ofKind(RowKind.INSERT, "one", 4, "aaaa"),
                                             Row.ofKind(RowKind.UPDATE_AFTER, "one", 4, "aaaa"),
-                                            Row.ofKind(RowKind.DELETE, "three", 5, "ccc"))
+                                            Row.ofKind(RowKind.DELETE, "three", null, null))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
@@ -196,8 +196,8 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                             Row.ofKind(RowKind.UPDATE_AFTER, "one", 4, "aaaa"),
                                             Row.ofKind(RowKind.INSERT, "two", 1, "d"),
                                             Row.ofKind(RowKind.UPDATE_AFTER, "two", 1, "d"),
-                                            Row.ofKind(RowKind.DELETE, "three", 3, "ccc"),
-                                            Row.ofKind(RowKind.DELETE, "two", 1, "d"))
+                                            Row.ofKind(RowKind.DELETE, "three", null, null),
+                                            Row.ofKind(RowKind.DELETE, "two", null, null))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
@@ -230,7 +230,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                             Row.ofKind(RowKind.UPDATE_AFTER, "three", 3, "ccc"),
                                             Row.ofKind(RowKind.INSERT, "one", 4, "aaaa"),
                                             Row.ofKind(RowKind.UPDATE_AFTER, "one", 4, "aaaa"),
-                                            Row.ofKind(RowKind.DELETE, "three", 3, "cc"))
+                                            Row.ofKind(RowKind.DELETE, "three", null, null))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
