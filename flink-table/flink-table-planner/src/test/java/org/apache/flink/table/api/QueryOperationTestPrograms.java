@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedReceivingFunction;
@@ -1026,6 +1027,11 @@ public class QueryOperationTestPrograms {
 
     public static final TableTestProgram ROW_SEMANTIC_TABLE_PTF =
             TableTestProgram.of("process-row-table-api", "table with row semantics")
+                    // TODO [FLINK-38233]: Remove this config when PTF support in
+                    //  StreamNonDeterministicUpdatePlanVisitor is added.
+                    .setupConfig(
+                            OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                            OptimizerConfigOptions.NonDeterministicUpdateStrategy.IGNORE)
                     .setupTemporarySystemFunction("f", RowSemanticTableFunction.class)
                     .setupSql(BASIC_VALUES)
                     .setupTableSink(
@@ -1051,6 +1057,11 @@ public class QueryOperationTestPrograms {
 
     static final TableTestProgram SET_SEMANTIC_TABLE_PTF =
             TableTestProgram.of("partitioned-ptf", "verifies SQL serialization")
+                    // TODO [FLINK-38233]: Remove this config when PTF support in
+                    //  StreamNonDeterministicUpdatePlanVisitor is added.
+                    .setupConfig(
+                            OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                            OptimizerConfigOptions.NonDeterministicUpdateStrategy.IGNORE)
                     .setupTemporarySystemFunction("f1", ChainedSendingFunction.class)
                     .setupTemporarySystemFunction("f2", ChainedReceivingFunction.class)
                     .setupTableSource(TIMED_SOURCE)
