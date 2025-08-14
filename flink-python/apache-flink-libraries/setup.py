@@ -215,27 +215,11 @@ run sdist.
         PACKAGE_DATA['pyflink.licenses'] = ['*']
 
     setup(
-        name='apache-flink-libraries',
         version=VERSION,
         packages=PACKAGES,
         include_package_data=True,
         package_dir=PACKAGE_DIR,
         package_data=PACKAGE_DATA,
-        url='https://flink.apache.org',
-        license='https://www.apache.org/licenses/LICENSE-2.0',
-        author='Apache Software Foundation',
-        author_email='dev@flink.apache.org',
-        python_requires='>=3.9',
-        description='Apache Flink Libraries',
-        long_description=long_description,
-        long_description_content_type='text/markdown',
-        classifiers=[
-            'Development Status :: 5 - Production/Stable',
-            'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 3.9',
-            'Programming Language :: Python :: 3.10',
-            'Programming Language :: Python :: 3.11',
-            'Programming Language :: Python :: 3.12'],
     )
 finally:
     if in_flink_source:

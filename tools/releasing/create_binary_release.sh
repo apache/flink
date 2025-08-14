@@ -92,7 +92,7 @@ make_python_release() {
 
   # build apache-flink-libraries sdist
   pushd apache-flink-libraries
-  python setup.py sdist
+  uv build --sdist
   pushd dist/
   apache_flink_libraries_actual_name=`echo *.tar.gz`
   apache_flink_libraries_release_name="apache_flink_libraries-${PYFLINK_VERSION}.tar.gz"
@@ -108,7 +108,7 @@ make_python_release() {
 
   popd
 
-  python setup.py sdist
+  uv build --sdist
   deactivate
   cd dist/
   pyflink_actual_name=`echo *.tar.gz`
