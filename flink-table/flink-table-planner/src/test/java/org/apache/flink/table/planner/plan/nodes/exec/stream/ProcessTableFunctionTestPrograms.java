@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.AtomicTypeWrappingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedReceivingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedSendingFunction;
@@ -148,7 +147,7 @@ public class ProcessTableFunctionTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("t")
                                     .addSchema(MULTI_VALUES_SOURCE_SCHEMA)
-                                    .enforceAppendOnly()
+                                    .addOption("changelog-mode", "I")
                                     .producedBeforeRestore(Row.ofKind(RowKind.INSERT, "Bob", 12))
                                     .producedAfterRestore(Row.ofKind(RowKind.INSERT, "Alice", 42))
                                     .build())
@@ -478,7 +477,8 @@ public class ProcessTableFunctionTestPrograms {
                                     .addSchema(
                                             "name STRING PRIMARY KEY NOT ENFORCED",
                                             "score INT NOT NULL")
-                                    .inMode(ChangelogMode.upsert(false))
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "Bob", 5),
                                             Row.ofKind(RowKind.INSERT, "Alice", 2),
@@ -511,7 +511,8 @@ public class ProcessTableFunctionTestPrograms {
                                     .addSchema(
                                             "name STRING PRIMARY KEY NOT ENFORCED",
                                             "score INT NOT NULL")
-                                    .inMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "Bob", 5),
                                             Row.ofKind(RowKind.INSERT, "Alice", 2),
@@ -582,7 +583,7 @@ public class ProcessTableFunctionTestPrograms {
                             SourceTestStep.newBuilder("t")
                                     .addSchema(
                                             "name STRING PRIMARY KEY NOT ENFORCED", "EXPR$1 BIGINT")
-                                    .inMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "Bob", 1L),
                                             Row.ofKind(RowKind.INSERT, "Alice", 1L))
@@ -597,7 +598,7 @@ public class ProcessTableFunctionTestPrograms {
                                             "`name0` STRING",
                                             "`count` BIGINT",
                                             "`mode` STRING")
-                                    .inMode(ChangelogMode.upsert())
+                                    .addOption("sink-changelog-mode-enforced", "I,UA,D")
                                     .consumedBeforeRestore(
                                             "+I[Bob, Bob, 1, upsert-full-delete]",
                                             "+I[Alice, Alice, 1, upsert-full-delete]")
@@ -618,7 +619,8 @@ public class ProcessTableFunctionTestPrograms {
                                     .addSchema(
                                             "`name` STRING PRIMARY KEY NOT ENFORCED",
                                             "`score` BIGINT")
-                                    .inMode(ChangelogMode.upsert(false))
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "Alice", 1L),
                                             Row.ofKind(RowKind.INSERT, "Bob", 2L),
@@ -653,7 +655,8 @@ public class ProcessTableFunctionTestPrograms {
                                     .addSchema(
                                             "`name` STRING PRIMARY KEY NOT ENFORCED",
                                             "`score` BIGINT")
-                                    .inMode(ChangelogMode.upsert())
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "false")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "Alice", 1L),
                                             Row.ofKind(RowKind.INSERT, "Bob", 2L),
@@ -667,7 +670,8 @@ public class ProcessTableFunctionTestPrograms {
                                             "`name0` STRING",
                                             "`count` BIGINT",
                                             "`mode` STRING")
-                                    .inMode(ChangelogMode.upsert())
+                                    .addOption("sink-changelog-mode-enforced", "I,UA,D")
+                                    .addOption("sink.supports-delete-by-key", "false")
                                     .consumedValues(
                                             "+I[Alice, Alice, 1, upsert-full-delete]",
                                             "+I[Bob, Bob, 2, upsert-full-delete]",
@@ -1452,7 +1456,8 @@ public class ProcessTableFunctionTestPrograms {
                                     .addSchema(
                                             "name STRING PRIMARY KEY NOT ENFORCED",
                                             "score INT NOT NULL")
-                                    .inMode(ChangelogMode.upsert(false))
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "Bob", 5),
                                             Row.ofKind(RowKind.INSERT, "Alice", 2),
@@ -1466,7 +1471,8 @@ public class ProcessTableFunctionTestPrograms {
                                     .addSchema(
                                             "name STRING PRIMARY KEY NOT ENFORCED",
                                             "city STRING NOT NULL")
-                                    .inMode(ChangelogMode.upsert(false))
+                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addOption("source.produces-delete-by-key", "true")
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "Bob", "London"),
                                             Row.ofKind(RowKind.INSERT, "Alice", "Zurich"),

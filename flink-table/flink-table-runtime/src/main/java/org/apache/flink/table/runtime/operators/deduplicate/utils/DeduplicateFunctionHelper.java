@@ -292,6 +292,11 @@ public class DeduplicateFunctionHelper {
         }
     }
 
+    /**
+     * Important: the method assumes that {@code currentRow} comes either with {@code
+     * RowKind.UPDATE_AFTER} or with {@code RowKind.INSERT}. It is not designed to be used for other
+     * cases.
+     */
     private static boolean areRowsWithSameContent(
             RecordEqualiser equaliser, RowData prevRow, RowData currentRow) {
         final RowKind currentRowKind = currentRow.getRowKind();

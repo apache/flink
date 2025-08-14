@@ -42,7 +42,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
             ChangelogMode.newBuilder()
                     .addContainedKind(RowKind.UPDATE_AFTER)
                     .addContainedKind(RowKind.DELETE)
-                    .keyOnlyDeletes(false)
+                    .keyOnlyDeletes(true)
                     .build();
 
     static final TableTestProgram UPSERT_SOURCE_WITH_NON_KEY_FILTER =
@@ -50,7 +50,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                             "upsert-with-non-key-filter", "validates upsert with non key filter")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .inMode(ChangelogMode.upsert())
+                                    .addMode(ChangelogMode.upsert())
                                     .addSchema(SOURCE_SCHEMA)
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "one", 1, "a"),
@@ -65,7 +65,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
-                                    .inMode(ChangelogMode.all())
+                                    .addMode(ChangelogMode.all())
                                     .addSchema(SINK_SCHEMA)
                                     .consumedValues(
                                             "+I[one, 1, a]",
@@ -83,7 +83,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
             TableTestProgram.of("upsert-with-key-filter", "validates upsert with key filter")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .inMode(ChangelogMode.upsert())
+                                    .addMode(ChangelogMode.upsert())
                                     .addSchema(SOURCE_SCHEMA)
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "one", 1, "a"),
@@ -99,7 +99,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
-                                    .inMode(ChangelogMode.all())
+                                    .addMode(ChangelogMode.all())
                                     .addSchema(SINK_SCHEMA)
                                     .consumedValues(
                                             "+I[one, 1, a]",
@@ -117,7 +117,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
             TableTestProgram.of("upsert-with-no-filter", "validates upsert with no filter")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .inMode(ChangelogMode.upsert())
+                                    .addMode(ChangelogMode.upsert())
                                     .addSchema(SOURCE_SCHEMA)
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "one", 1, "a"),
@@ -130,7 +130,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
-                                    .inMode(ChangelogMode.all())
+                                    .addMode(ChangelogMode.all())
                                     .addSchema(SINK_SCHEMA)
                                     .consumedValues(
                                             "+I[one, 1, a]",
@@ -150,7 +150,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                             "validates kafka source (with partial deletes) with non key filter")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .inMode(KAFKA_WITH_PARTIAL_DELETES_CHANGELOG)
+                                    .addMode(KAFKA_WITH_PARTIAL_DELETES_CHANGELOG)
                                     .addSchema(SOURCE_SCHEMA)
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "one", 1, "a"),
@@ -165,7 +165,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
-                                    .inMode(ChangelogMode.all())
+                                    .addMode(ChangelogMode.all())
                                     .addSchema(SINK_SCHEMA)
                                     .consumedValues(
                                             "+I[one, 1, a]",
@@ -185,7 +185,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                             "validates kafka source (with partial deletes) with key filter")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .inMode(KAFKA_WITH_PARTIAL_DELETES_CHANGELOG)
+                                    .addMode(KAFKA_WITH_PARTIAL_DELETES_CHANGELOG)
                                     .addSchema(SOURCE_SCHEMA)
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "one", 1, "a"),
@@ -201,7 +201,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
-                                    .inMode(ChangelogMode.all())
+                                    .addMode(ChangelogMode.all())
                                     .addSchema(SINK_SCHEMA)
                                     .consumedValues(
                                             "+I[one, 1, a]",
@@ -221,7 +221,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                             "validates kafka source (with partial deletes) with no filter")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .inMode(KAFKA_WITH_PARTIAL_DELETES_CHANGELOG)
+                                    .addMode(KAFKA_WITH_PARTIAL_DELETES_CHANGELOG)
                                     .addSchema(SOURCE_SCHEMA)
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "one", 1, "a"),
@@ -234,7 +234,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
-                                    .inMode(ChangelogMode.all())
+                                    .addMode(ChangelogMode.all())
                                     .addSchema(SINK_SCHEMA)
                                     .consumedValues(
                                             "+I[one, 1, a]",
@@ -254,7 +254,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                             "validates retract source with non filter")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .inMode(ChangelogMode.all())
+                                    .addMode(ChangelogMode.all())
                                     .addSchema(SOURCE_SCHEMA)
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "one", 1, "a"),
@@ -268,7 +268,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
                                     .addSchema(SINK_SCHEMA)
-                                    .inMode(ChangelogMode.all())
+                                    .addMode(ChangelogMode.all())
                                     .consumedValues(
                                             "+I[one, 1, a]",
                                             "+U[one, 2, bb]",
@@ -287,7 +287,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                             "validates retract source with key filter")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .inMode(ChangelogMode.all())
+                                    .addMode(ChangelogMode.all())
                                     .addSchema(SOURCE_SCHEMA)
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "one", 1, "a"),
@@ -304,7 +304,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
                                     .addSchema(SINK_SCHEMA)
-                                    .inMode(ChangelogMode.all())
+                                    .addMode(ChangelogMode.all())
                                     .consumedValues(
                                             "+I[one, 1, a]",
                                             "+U[one, 2, bb]",
@@ -323,7 +323,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                             "validates retract source with no filter")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .inMode(ChangelogMode.all())
+                                    .addMode(ChangelogMode.all())
                                     .addSchema(SOURCE_SCHEMA)
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "one", 1, "a"),
@@ -336,7 +336,7 @@ public class ChangelogNormalizeSemanticTestPrograms {
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
-                                    .inMode(ChangelogMode.all())
+                                    .addMode(ChangelogMode.all())
                                     .addSchema(SINK_SCHEMA)
                                     .consumedValues(
                                             "+I[one, 1, a]",
