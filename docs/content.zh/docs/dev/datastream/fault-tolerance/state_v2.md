@@ -578,7 +578,7 @@ public class BufferingSink
     }
 
     @Override
-    public void invoke(Tuple2<String, Integer> value, Context contex) throws Exception {
+    public void invoke(Tuple2<String, Integer> value, Context context) throws Exception {
         bufferedElements.add(value);
         if (bufferedElements.size() >= threshold) {
             for (Tuple2<String, Integer> element: bufferedElements) {
