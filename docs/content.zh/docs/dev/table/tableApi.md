@@ -410,7 +410,7 @@ Table result = orders.as("x, y, z, t");
 ```
 {{< /tab >}}
 {{< tab "scala" >}}
-```java
+```scala
 val orders: Table = tableEnv.from("Orders").as("x", "y", "z", "t")
 ```
 {{< /tab >}}
@@ -1132,9 +1132,10 @@ tableEnv.createTemporarySystemFunction("rates", rates);
 Table orders = tableEnv.from("Orders");
 Table result = orders
     .joinLateral(call("rates", $("o_proctime")), $("o_currency").isEqual($("r_currency")));
+```
 {{< /tab >}}
-{{< tabs "Scala" >}}
-​```scala
+{{< tab "Scala" >}}
+```scala
 val ratesHistory = tableEnv.from("RatesHistory")
 
 // 注册带有时间属性和主键的 temporal table function
@@ -1145,7 +1146,7 @@ val orders = tableEnv.from("Orders")
 val result = orders
     .joinLateral(rates($"o_rowtime"), $"r_currency" === $"o_currency")
 ```
-{{< /tabs >}}
+{{< /tab >}}
 {{< tab "Python" >}}
 目前不支持 Python 的 Table API。
 {{< /tab >}}
@@ -1363,7 +1364,7 @@ left.minus_all(right)
 {{< tabs "in" >}}
 {{< tab "Java" >}}
 ```java
-Table left = tableEnv.from("Orders1")
+Table left = tableEnv.from("Orders1");
 Table right = tableEnv.from("Orders2");
 
 Table result = left.select($("a"), $("b"), $("c")).where($("a").in(right));

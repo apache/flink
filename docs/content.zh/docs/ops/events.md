@@ -50,7 +50,7 @@ public class MyClass {
         metricGroup.addEvent(
                 Event.builder(MyClass.class, "SomeEvent")
                         .setObservedTsMillis(observedTs) // Optional
-                        .setAttribute("foo", "bar"); // Optional
+                        .setAttribute("foo", "bar")); // Optional
     }
 }
 ```
