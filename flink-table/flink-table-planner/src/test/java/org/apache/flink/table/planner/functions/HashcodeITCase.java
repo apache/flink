@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.planner.functions;
 
-import org.apache.flink.legacy.table.connector.source.SourceFunctionProvider;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
+import org.apache.flink.connector.datagen.source.GeneratorFunction;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -27,6 +28,7 @@ import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.connector.sink.SinkV2Provider;
+import org.apache.flink.table.connector.source.SourceProvider;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.MapData;
 import org.apache.flink.table.data.RowData;
@@ -158,16 +160,18 @@ public class HashcodeITCase {
 
         @Override
         public ScanRuntimeProvider getScanRuntimeProvider(ScanContext context) {
-            return SourceFunctionProvider.of(new TestSourceFunction(), false);
+            return SourceProvider.of(
+                    new DataGeneratorSource<>(
+                            new TestGeneratorFunction(),
+                            1L, // Generate exactly 1 element
+                            TypeInformation.of(RowData.class)));
         }
     }
 
-    private static class TestSourceFunction implements SourceFunction<RowData> {
-
-        public TestSourceFunction() {}
+    private static class TestGeneratorFunction implements GeneratorFunction<Long, RowData> {
 
         @Override
-        public void run(SourceContext<RowData> ctx) {
+        public RowData map(Long index) throws Exception {
             final BinaryRowData row = new BinaryRowData(4);
             final BinaryRowWriter writer = new BinaryRowWriter(row);
             writer.writeInt(0, 42);
@@ -196,11 +200,7 @@ public class HashcodeITCase {
                     new MapDataSerializer(new DoubleType(), new BigIntType()));
             writer.complete();
 
-            ctx.collect(row);
-            ctx.close();
+            return row;
         }
-
-        @Override
-        public void cancel() {}
     }
 }
