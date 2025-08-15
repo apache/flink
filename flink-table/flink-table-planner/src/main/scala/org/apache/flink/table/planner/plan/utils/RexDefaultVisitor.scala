@@ -61,5 +61,9 @@ abstract class RexDefaultVisitor[R] extends RexVisitor[R] {
   override def visitLiteral(literal: RexLiteral): R =
     visitNode(literal)
 
+  override def visitLambda(lambda: RexLambda): R = visitNode(lambda)
+
+  override def visitLambdaRef(lambdaRef: RexLambdaRef): R = visitNode(lambdaRef)
+
   def visitNode(rexNode: RexNode): R
 }
