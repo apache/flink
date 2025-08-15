@@ -43,7 +43,9 @@ import org.apache.flink.runtime.scheduler.DefaultExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.DefaultSlotSharingStrategy;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingStrategy;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -123,7 +125,8 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
                         jobMasterConfiguration.get(StateRecoveryOptions.LOCAL_RECOVERY),
                         jobMasterConfiguration.get(DeploymentOptions.TARGET),
                         jobMasterConfiguration.get(
-                                JobManagerOptions.SCHEDULER_PREFER_MINIMAL_TASKMANAGERS_ENABLED));
+                                JobManagerOptions.SCHEDULER_PREFER_MINIMAL_TASKMANAGERS_ENABLED),
+                        DefaultSlotSharingStrategy.INSTANCE);
 
         final ExecutionGraphFactory executionGraphFactory =
                 new DefaultExecutionGraphFactory(
@@ -169,13 +172,15 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
             DeclarativeSlotPool declarativeSlotPool,
             boolean localRecoveryEnabled,
             @Nullable String executionTarget,
-            boolean minimalTaskManagerPreferred) {
+            boolean minimalTaskManagerPreferred,
+            SlotSharingStrategy slotSharingStrategy) {
         return SlotSharingSlotAllocator.createSlotSharingSlotAllocator(
                 declarativeSlotPool::reserveFreeSlot,
                 declarativeSlotPool::freeReservedSlot,
                 declarativeSlotPool::containsFreeSlot,
                 localRecoveryEnabled,
                 executionTarget,
-                minimalTaskManagerPreferred);
+                minimalTaskManagerPreferred,
+                slotSharingStrategy);
     }
 }
