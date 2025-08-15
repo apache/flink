@@ -19,7 +19,7 @@ limitations under the License.
   <TestCase name="testAggregate[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)])
    +- LogicalProject(a=[$0], b=[$1], c=[$2])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -28,7 +28,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, 
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
 +- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS EXPR$1, SUM(c) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
       +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
@@ -40,7 +40,7 @@ Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2]
   <TestCase name="testAppendOnlySinkWithPk[testSinkWithPk = false]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.append_only_sink_with_pk], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.pk_append_sink], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
@@ -48,7 +48,7 @@ LogicalSink(table=[default_catalog.default_database.append_only_sink_with_pk], f
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.append_only_sink_with_pk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_append_sink], fields=[a, b, c], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
       +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
@@ -76,7 +76,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
   <TestCase name="testCalc[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
@@ -84,7 +84,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
       +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[ALLOW])
@@ -113,7 +113,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
   <TestCase name="testCalcWithNestedNonDeterministicFilter[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[<($2, CAST(CAST(NOW()):INTEGER NOT NULL):BIGINT NOT NULL)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -122,7 +122,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], where=[<(c, CAST(CAST(NOW() AS INTEGER) AS BIGINT))], duplicateChanges=[ALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
       +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
@@ -150,7 +150,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, EXPR$2], 
   <TestCase name="testCalcWithNestedNonDeterministicProjection[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2])
 +- LogicalProject(a=[$0], b=[$1], EXPR$2=[CAST(CAST(NOW()):INTEGER NOT NULL):BIGINT NOT NULL])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
@@ -158,7 +158,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
 +- Calc(select=[a, b, CAST(CAST(NOW() AS INTEGER) AS BIGINT) AS EXPR$2], duplicateChanges=[ALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
       +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
@@ -187,7 +187,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
   <TestCase name="testCalcWithNonDeterministicFilter1[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[<($2, CAST(NOW()):BIGINT NOT NULL)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -196,7 +196,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], where=[<(c, CAST(NOW() AS BIGINT))], duplicateChanges=[ALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
       +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
@@ -225,7 +225,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
   <TestCase name="testCalcWithNonDeterministicFilter2[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[AND(<>($0, 1), <($2, CAST(NOW()):BIGINT NOT NULL))])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -234,7 +234,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], where=[AND(<>(a, 1), <(c, CAST(NOW() AS BIGINT)))], duplicateChanges=[ALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
       +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
@@ -262,7 +262,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, EXPR$2], 
   <TestCase name="testCalcWithNonDeterministicProjection[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2])
 +- LogicalProject(a=[$0], b=[$1], EXPR$2=[CAST(NOW()):BIGINT NOT NULL])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
@@ -270,7 +270,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
 +- Calc(select=[a, b, CAST(NOW() AS BIGINT) AS EXPR$2], duplicateChanges=[ALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
       +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
@@ -280,7 +280,7 @@ Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2], dup
   <TestCase name="testChangelogNormalize[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.pk_retract_snk], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, upsert_src]])
@@ -288,8 +288,8 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
-+- ChangelogNormalize(key=[a], duplicateChanges=[ALLOW])
+Sink(table=[default_catalog.default_database.pk_retract_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- ChangelogNormalize(key=[a], duplicateChanges=[DISALLOW])
    +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
       +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
          +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
@@ -300,7 +300,7 @@ Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicat
   <TestCase name="testDropUpdateBefore[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, retract_src]])
@@ -308,17 +308,18 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
-      +- TableSourceScan(table=[[default_catalog, default_database, retract_src]], fields=[a, b, c, rt], duplicateChanges=[ALLOW])
+      +- DropUpdateBefore(duplicateChanges=[ALLOW])
+         +- TableSourceScan(table=[[default_catalog, default_database, retract_src]], fields=[a, b, c, rt], duplicateChanges=[ALLOW])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testExpandAndIncrementalAggregate[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[COUNT(DISTINCT $2)])
    +- LogicalProject(a=[$0], b=[$1], c=[$2])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -327,7 +328,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, 
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, $f1, $f2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, $f1, $f2], duplicateChanges=[NONE])
 +- Calc(select=[a, CAST($f1 AS VARCHAR(2147483647)) AS $f1, $f2], duplicateChanges=[ALLOW])
    +- GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, MAX(max$0) AS $f1, $SUM0(count$1) AS $f2], duplicateChanges=[ALLOW])
       +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
@@ -346,7 +347,7 @@ Sink(table=[default_catalog.default_database.pk_snk], fields=[a, $f1, $f2], dupl
   <TestCase name="testIntervalJoin[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$5], c=[$2])
    +- LogicalJoin(condition=[AND(=($0, $4), >($3, -($7, 60000:INTERVAL MINUTE)), <($3, +($7, 60000:INTERVAL MINUTE)))], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -357,7 +358,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
    +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-59999, leftUpperBound=59999, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(a, a0), >(rt, -(rt0, 60000:INTERVAL MINUTE)), <(rt, +(rt0, 60000:INTERVAL MINUTE)))], select=[a, c, rt, a0, b, rt0], duplicateChanges=[ALLOW])
       :- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
@@ -400,7 +401,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
   <TestCase name="testJoin[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$5], c=[$2])
    +- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
       :- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -411,7 +412,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
    +- Join(joinType=[InnerJoin], where=[=(a, a0)], select=[a, c, a0, b], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], duplicateChanges=[ALLOW])
       :- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
@@ -449,7 +450,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
   <TestCase name="testLimit[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
 +- LogicalSort(fetch=[10])
    +- LogicalProject(a=[$0], b=[$1], c=[$2])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -458,7 +459,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
    +- Limit(offset=[0], fetch=[10], duplicateChanges=[ALLOW])
       +- Exchange(distribution=[single], duplicateChanges=[DISALLOW])
@@ -495,7 +496,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
   <TestCase name="testLookupJoin[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3], pt=[PROCTIME()])
@@ -508,7 +509,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
    +- LookupJoin(table=[default_catalog.default_database.dim_src], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a0], duplicateChanges=[ALLOW])
       +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
@@ -520,7 +521,7 @@ Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicat
   <TestCase name="testMiniBatchTwoStageAggregate[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)])
    +- LogicalProject(a=[$0], b=[$1], c=[$2])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -529,7 +530,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, 
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
 +- GlobalGroupAggregate(groupBy=[a], select=[a, MAX(max$0) AS EXPR$1, SUM(sum$1) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
       +- LocalGroupAggregate(groupBy=[a], select=[a, MAX(b) AS max$0, SUM(c) AS sum$1], duplicateChanges=[DISALLOW])
@@ -543,13 +544,13 @@ Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2]
   <TestCase name="testMultiSink1[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2])
 +- LogicalProject(a=[$0], b=[$1], EXPR$2=[/($2, 2)])
    +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 
-LogicalSink(table=[default_catalog.default_database.pk_snk2], fields=[a, EXPR$1, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)])
    +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -558,13 +559,13 @@ LogicalSink(table=[default_catalog.default_database.pk_snk2], fields=[a, EXPR$1,
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
 +- Calc(select=[a, b, /(c, 2) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
       +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
          +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
 
-Sink(table=[default_catalog.default_database.pk_snk2], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
 +- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS EXPR$1, SUM(c) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
       +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
@@ -576,13 +577,13 @@ Sink(table=[default_catalog.default_database.pk_snk2], fields=[a, EXPR$1, EXPR$2
   <TestCase name="testMultiSink2[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)])
    +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 
-LogicalSink(table=[default_catalog.default_database.pk_snk2], fields=[a, b, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, b, EXPR$2])
 +- LogicalProject(a=[$0], b=[$1], EXPR$2=[/($2, 2)])
    +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -591,14 +592,14 @@ LogicalSink(table=[default_catalog.default_database.pk_snk2], fields=[a, b, EXPR
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
 +- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS EXPR$1, SUM(c) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
       +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
          +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
             +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
 
-Sink(table=[default_catalog.default_database.pk_snk2], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
 +- Calc(select=[a, b, /(c, 2) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
       +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
@@ -609,13 +610,13 @@ Sink(table=[default_catalog.default_database.pk_snk2], fields=[a, b, EXPR$2], du
   <TestCase name="testMultiSink3[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2])
 +- LogicalProject(a=[$0], b=[$1], EXPR$2=[/($2, 3)])
    +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 
-LogicalSink(table=[default_catalog.default_database.pk_snk2], fields=[a, b, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, b, EXPR$2])
 +- LogicalProject(a=[$0], b=[$1], EXPR$2=[/($2, 2)])
    +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -624,13 +625,13 @@ LogicalSink(table=[default_catalog.default_database.pk_snk2], fields=[a, b, EXPR
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
 +- Calc(select=[a, b, /(c, 3) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[ALLOW])
       +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
          +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[ALLOW])
 
-Sink(table=[default_catalog.default_database.pk_snk2], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
 +- Calc(select=[a, b, /(c, 2) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[ALLOW])
       +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
@@ -641,13 +642,13 @@ Sink(table=[default_catalog.default_database.pk_snk2], fields=[a, b, EXPR$2], du
   <TestCase name="testMultiSink4[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)], EXPR$2=[SUM($2)])
    +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
          +- LogicalTableScan(table=[[default_catalog, default_database, append_src1]])
 
-LogicalSink(table=[default_catalog.default_database.pk_snk2], fields=[a, EXPR$1, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, EXPR$1, EXPR$2])
 +- LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)], EXPR$2=[MAX($2)])
    +- LogicalProject(a=[$0], b=[$1], c=[+($2, 1)])
       +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -656,14 +657,14 @@ LogicalSink(table=[default_catalog.default_database.pk_snk2], fields=[a, EXPR$1,
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
 +- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS EXPR$1, SUM(c) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
       +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
          +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
             +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
 
-Sink(table=[default_catalog.default_database.pk_snk2], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
 +- GroupAggregate(groupBy=[a], select=[a, MIN(b) AS EXPR$1, MAX(c) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
       +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
@@ -699,7 +700,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, EXPR$1, EXPR
   <TestCase name="testOneStageWindowAggregate[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2])
 +- LogicalProject(a=[$0], EXPR$1=[$3], EXPR$2=[$4])
    +- LogicalAggregate(group=[{0, 1, 2}], EXPR$1=[MAX($3)], EXPR$2=[MAX($4)])
       +- LogicalProject(a=[$0], window_start=[$4], window_end=[$5], b=[$1], c=[$2])
@@ -711,7 +712,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, 
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
 +- Calc(select=[a, EXPR$1, EXPR$2], duplicateChanges=[ALLOW])
    +- WindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rt], size=[1 min])], select=[a, MAX(b) AS EXPR$1, MAX(c) AS EXPR$2, start('w$) AS window_start, end('w$) AS window_end], duplicateChanges=[ALLOW])
       +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
@@ -723,7 +724,7 @@ Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2]
   <TestCase name="testRank[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalFilter(condition=[<=($3, 1)])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
@@ -733,7 +734,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[c DESC], select=[a, b, c], duplicateChanges=[ALLOW])
    +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
       +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
@@ -742,10 +743,10 @@ Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicat
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSinkWithMaterialize[testSinkWithPk = true]">
+  <TestCase name="testRetractSink[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.another_pk_snk], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.pk_retract_snk], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, retract_src]])
@@ -753,10 +754,28 @@ LogicalSink(table=[default_catalog.default_database.another_pk_snk], fields=[a, 
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.another_pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
-+- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
-   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
-      +- TableSourceScan(table=[[default_catalog, default_database, retract_src]], fields=[a, b, c, rt], duplicateChanges=[ALLOW])
+Sink(table=[default_catalog.default_database.pk_retract_snk], fields=[a, b, c], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, retract_src]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSinkWithMaterialize[testSinkWithPk = true]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.another_pk_upsert_snk], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, retract_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.another_pk_upsert_snk], fields=[a, b, c], upsertMaterialize=[true], duplicateChanges=[NONE])
++- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
+   +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
+      +- TableSourceScan(table=[[default_catalog, default_database, retract_src]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
 ]]>
     </Resource>
   </TestCase>
@@ -794,7 +813,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
   <TestCase name="testTemporalJoin[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 4}])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3], pt=[PROCTIME()])
@@ -808,7 +827,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
    +- TemporalJoin(joinType=[InnerJoin], where=[AND(=(a, a0), __TEMPORAL_JOIN_CONDITION(pt, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(a0), __TEMPORAL_JOIN_LEFT_KEY(a), __TEMPORAL_JOIN_RIGHT_KEY(a0)))], select=[a, b, c, pt, a0], duplicateChanges=[ALLOW])
       :- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
@@ -850,7 +869,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, EXPR$1, EXPR
   <TestCase name="testTwoStageWindowAggregate[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2])
 +- LogicalProject(a=[$0], EXPR$1=[$3], EXPR$2=[$4])
    +- LogicalAggregate(group=[{0, 1, 2}], EXPR$1=[MAX($3)], EXPR$2=[MAX($4)])
       +- LogicalProject(a=[$0], window_start=[$4], window_end=[$5], b=[$1], c=[$2])
@@ -862,7 +881,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, 
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
 +- Calc(select=[a, EXPR$1, EXPR$2], duplicateChanges=[ALLOW])
    +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[1 min])], select=[a, MAX(max$0) AS EXPR$1, MAX(max$1) AS EXPR$2, start('w$) AS window_start, end('w$) AS window_end], duplicateChanges=[ALLOW])
       +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
@@ -901,7 +920,7 @@ Sink(table=[default_catalog.default_database.no_pk_snk], fields=[a, b, c], dupli
   <TestCase name="testUnion[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
 +- LogicalUnion(all=[true])
    :- LogicalProject(a=[$0], b=[$1], c=[$2])
    :  +- LogicalWatermarkAssigner(rowtime=[rt], watermark=[-($3, 1000:INTERVAL SECOND)])
@@ -913,7 +932,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
 +- Union(all=[true], union=[a, b, c], duplicateChanges=[ALLOW])
    :- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
    :  +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
@@ -927,7 +946,7 @@ Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicat
   <TestCase name="testWindowTVF[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk_with_time_col], fields=[a, b, c, window_start, window_end])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk_with_time_col], fields=[a, b, c, window_start, window_end])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], window_start=[$4], window_end=[$5])
    +- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'rt'), 60000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) b, BIGINT c, TIMESTAMP(3) *ROWTIME* rt, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) *ROWTIME* window_time)])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3])
@@ -937,7 +956,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk_with_time_col], field
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk_with_time_col], fields=[a, b, c, window_start, window_end], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk_with_time_col], fields=[a, b, c, window_start, window_end], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c, window_start, window_end], duplicateChanges=[ALLOW])
    +- WindowTableFunction(window=[TUMBLE(time_col=[rt], size=[1 min])], duplicateChanges=[ALLOW])
       +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
@@ -948,7 +967,7 @@ Sink(table=[default_catalog.default_database.pk_snk_with_time_col], fields=[a, b
   <TestCase name="testWindowJoin[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c])
 +- LogicalProject(a=[$0], b=[$8], c=[$2])
    +- LogicalJoin(condition=[AND(=($0, $7), =($4, $11), =($5, $12))], joinType=[inner])
       :- LogicalProject(a=[$0], b=[$1], c=[$2], rt=[$3], window_start=[$4], window_end=[$5], window_time=[$6])
@@ -965,7 +984,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
    +- WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[1 min])], rightWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[1 min])], joinType=[InnerJoin], where=[=(a, a0)], select=[a, c, window_start, window_end, a0, b, window_start0, window_end0], duplicateChanges=[ALLOW])
       :- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
@@ -984,7 +1003,7 @@ Sink(table=[default_catalog.default_database.pk_snk], fields=[a, b, c], duplicat
   <TestCase name="testWindowRank[testSinkWithPk = true]">
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.pk_snk_with_time_col], fields=[a, b, c, window_start, window_end])
+LogicalSink(table=[default_catalog.default_database.pk_upsert_snk_with_time_col], fields=[a, b, c, window_start, window_end])
 +- LogicalProject(a=[$0], b=[$1], c=[$2], window_start=[$3], window_end=[$4])
    +- LogicalFilter(condition=[<=($5, 1)])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], window_start=[$4], window_end=[$5], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0, $4, $5 ORDER BY $2 DESC NULLS LAST)])
@@ -996,7 +1015,7 @@ LogicalSink(table=[default_catalog.default_database.pk_snk_with_time_col], field
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_snk_with_time_col], fields=[a, b, c, window_start, window_end], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk_with_time_col], fields=[a, b, c, window_start, window_end], duplicateChanges=[NONE])
 +- WindowRank(window=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[1 min])], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[c DESC], select=[a, b, c, window_start, window_end], duplicateChanges=[ALLOW])
    +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
       +- Calc(select=[a, b, c, window_start, window_end], duplicateChanges=[DISALLOW])

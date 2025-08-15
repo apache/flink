@@ -42,7 +42,7 @@ class DeltaJoinTest extends TableTestBase {
     options.put("connector", "values")
     options.put("bounded", "false")
     options.put("sink-insert-only", "false")
-    options.put("sink-changelog-mode-enforced", "I,UA,UB,D")
+    options.put("sink-changelog-mode-enforced", "I,UA,D")
     options.put("async", "true")
     options
   }
@@ -254,11 +254,37 @@ class DeltaJoinTest extends TableTestBase {
   }
 
   @Test
-  def testMultiRootsWithoutReusingDeltaJoin(): Unit = {
+  def testMultiRootsWithoutReusingDeltaJoin1(): Unit = {
+    // one sink has pk but another doesn't
     util.tableEnv.executeSql(
       "create table snk2 like snk(" +
         "  EXCLUDING CONSTRAINTS" +
         ")")
+
+    val stmt = tEnv.createStatementSet()
+    stmt.addInsertSql(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2")
+
+    stmt.addInsertSql(
+      "insert into snk2 select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2")
+
+    util.verifyExecPlan(stmt)
+  }
+
+  @Test
+  def testMultiRootsWithoutReusingDeltaJoin2(): Unit = {
+    // one sink is an upsert sink but another is a retract sink
+    util.tableEnv
+      .executeSql(
+        "CREATE TABLE snk2 WITH (\n"
+          + "  'sink-changelog-mode-enforced' = 'I,UA,UB,D'"
+          + ") LIKE snk (\n"
+          + "  OVERWRITING OPTIONS\n"
+          + ")")
 
     val stmt = tEnv.createStatementSet()
     stmt.addInsertSql(
@@ -543,6 +569,39 @@ class DeltaJoinTest extends TableTestBase {
 
     // no joins on this query
     util.verifyRelPlanInsert("insert into tmp_snk select a0, a1 from src1")
+  }
+
+  @Test
+  def testRetractSink(): Unit = {
+    util.tableEnv
+      .executeSql(
+        "CREATE TABLE retract_snk WITH (\n"
+          + "  'sink-changelog-mode-enforced' = 'I,UA,UB,D'"
+          + ") LIKE snk (\n"
+          + "  OVERWRITING OPTIONS\n"
+          + ")")
+
+    util.verifyRelPlanInsert(
+      "insert into retract_snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2")
+  }
+
+  @Test
+  def testAppendSink(): Unit = {
+    util.tableEnv
+      .executeSql(
+        "CREATE TABLE append_snk WITH (\n"
+          + "  'sink-insert-only' = 'true',\n"
+          + "  'sink-changelog-mode-enforced' = 'I'\n"
+          + ") LIKE snk (\n"
+          + "  OVERWRITING OPTIONS\n"
+          + ")")
+
+    util.verifyRelPlanInsert(
+      "insert into append_snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2")
   }
 
   private def addTable(
