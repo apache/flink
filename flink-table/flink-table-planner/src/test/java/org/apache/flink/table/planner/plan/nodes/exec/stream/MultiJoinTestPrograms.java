@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
-import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -276,6 +275,7 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-left-outer-join-with-restore",
                             "three way left outer join with restore")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema("user_id STRING", "name STRING")
@@ -329,6 +329,7 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-inner-join-with-restore",
                             "three way inner join with restore")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema("user_id STRING", "name STRING")
@@ -454,7 +455,7 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "four-way-join-no-common-join-key-with-restore",
                             "four way join no common join key with restore")
-                    .setupConfig(TableConfigOptions.PLAN_FORCE_RECOMPILE, true)
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema(
@@ -665,7 +666,7 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "four-way-complex-updating-join-with-restore",
                             "four way complex updating join with restore")
-                    .setupConfig(TableConfigOptions.PLAN_FORCE_RECOMPILE, true)
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema(

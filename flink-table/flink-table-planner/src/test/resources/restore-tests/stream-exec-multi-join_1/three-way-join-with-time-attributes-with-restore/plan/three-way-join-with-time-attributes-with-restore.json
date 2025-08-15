@@ -285,7 +285,7 @@
           "type" : "VARCHAR(2147483647) NOT NULL"
         }, {
           "kind" : "INPUT_REF",
-          "inputIndex" : 6,
+          "inputIndex" : 3,
           "type" : "VARCHAR(2147483647)"
         } ],
         "type" : "BOOLEAN"
@@ -299,7 +299,7 @@
           "type" : "VARCHAR(2147483647) NOT NULL"
         }, {
           "kind" : "INPUT_REF",
-          "inputIndex" : 3,
+          "inputIndex" : 6,
           "type" : "VARCHAR(2147483647)"
         } ],
         "type" : "BOOLEAN"
