@@ -40,7 +40,6 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -112,8 +111,7 @@ public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
                 ConfigUtils.decodeListFromConfig(
                         configuration, PipelineOptions.CLASSPATHS, URL::new);
         classpath.addAll(program.getClasspaths());
-        return Collections.unmodifiableList(
-                classpath.stream().distinct().collect(Collectors.toList()));
+        return classpath.stream().distinct().collect(Collectors.toUnmodifiableList());
     }
 
     @Override
