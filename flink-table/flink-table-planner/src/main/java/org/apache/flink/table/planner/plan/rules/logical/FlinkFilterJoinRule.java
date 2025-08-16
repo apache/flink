@@ -144,7 +144,8 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
         // filters. They can be pushed down if they are not on the NULL
         // generating side.
         boolean filterPushed = false;
-        if (RelOptUtil.classifyFilters(
+
+        if (classifyFilters(
                 join,
                 aboveFilters,
                 joinType.canPushIntoFromAbove(),
@@ -183,7 +184,7 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
         // The semantic would change if join condition $2 is pushed into left,
         // that is, the result set may be smaller. The right can not be pushed
         // into for the same reason.
-        if (RelOptUtil.classifyFilters(
+        if (classifyFilters(
                 join,
                 joinFilters,
                 false,
@@ -281,6 +282,55 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
     }
 
     /**
+     * Encapsulate the `RelOptUtil.classifyFilters` method to check for the existence of
+     * nonDeterministicCall before calling, in order to prevent filter with nonDeterministicCall
+     * from being pushed down downstream.
+     *
+     * @param joinRel – join node
+     * @param filters – filters to be classified
+     * @param pushInto – whether filters can be pushed into the join
+     * @param pushLeft – true if filters can be pushed to the left
+     * @param pushRight – true if filters can be pushed to the right
+     * @param joinFilters – list of filters to push to the join
+     * @param leftFilters – list of filters to push to the left child
+     * @param rightFilters – list of filters to push to the right child
+     * @return whether at least one filter was pushed
+     */
+    private boolean classifyFilters(
+            RelNode joinRel,
+            List<RexNode> filters,
+            boolean pushInto,
+            boolean pushLeft,
+            boolean pushRight,
+            List<RexNode> joinFilters,
+            List<RexNode> leftFilters,
+            List<RexNode> rightFilters) {
+        List<RexNode> nonDeterministicCalls = new ArrayList<>();
+        filters.removeIf(
+                f -> {
+                    boolean isNonDeterministic = !RexUtil.isDeterministic(f);
+                    if (isNonDeterministic) {
+                        nonDeterministicCalls.add(f);
+                    }
+                    return isNonDeterministic;
+                });
+
+        boolean res =
+                RelOptUtil.classifyFilters(
+                        joinRel,
+                        filters,
+                        pushInto,
+                        pushLeft,
+                        pushRight,
+                        joinFilters,
+                        leftFilters,
+                        rightFilters);
+
+        filters.addAll(nonDeterministicCalls);
+        return res;
+    }
+
+    /**
      * Get conjunctions of filter's condition but with collapsed {@code IS NOT DISTINCT FROM}
      * expressions if needed.
      *
@@ -335,6 +385,28 @@ public abstract class FlinkFilterJoinRule<C extends FlinkFilterJoinRule.Config> 
     }
 
     private void pushFiltersToAnotherSide(
+            Join joinRel,
+            JoinRelType joinType,
+            List<RexNode> filtersToPush,
+            @Nullable RexNode joinFilter,
+            List<RexNode> leftFilters,
+            List<RexNode> rightFilters,
+            List<JoinRelType> expectedJoinTypes) {
+        List<RexNode> filtersWithDeterministic =
+                filtersToPush.stream()
+                        .filter(RexUtil::isDeterministic)
+                        .collect(Collectors.toList());
+        pushFiltersToAnotherSideInternal(
+                joinRel,
+                joinType,
+                filtersWithDeterministic,
+                joinFilter,
+                leftFilters,
+                rightFilters,
+                expectedJoinTypes);
+    }
+
+    private void pushFiltersToAnotherSideInternal(
             Join joinRel,
             JoinRelType joinType,
             List<RexNode> filtersToPush,
