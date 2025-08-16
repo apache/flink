@@ -62,7 +62,8 @@ public class TestSplitEnumerator<EnumChkptState>
 
     @Override
     public void addReader(int subtaskId) {
-        // No-op implementation
+        // Signal no more splits to ensure proper bounded completion
+        context.signalNoMoreSplits(subtaskId);
     }
 
     @Override
