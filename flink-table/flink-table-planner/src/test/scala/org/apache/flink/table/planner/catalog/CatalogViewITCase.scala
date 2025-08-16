@@ -28,15 +28,13 @@ import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedT
 import org.apache.flink.types.Row
 import org.apache.flink.util.CollectionUtil
 
-import com.google.common.collect.Lists
-import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.assertj.core.api.Assertions.{assertThatList, assertThatThrownBy}
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.util
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 /** Test cases for view related DDLs. */
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
@@ -82,7 +80,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       toRow(1, "2", 2),
       toRow(2, "3000", 3))
 
-    TestCollectionTableFactory.initData(sourceData)
+    TestCollectionTableFactory.initData(sourceData.asJava)
 
     val sourceDDL =
       """
@@ -124,7 +122,8 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql(viewWith2ColumnDDL)
 
     tableEnv.sqlQuery(query).executeInsert("T2").await()
-    assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
+    assertThatList(sourceData.asJava).containsExactlyInAnyOrderElementsOf(
+      TestCollectionTableFactory.RESULT)
   }
 
   @TestTemplate
@@ -136,7 +135,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       toRow(1, "2", 2),
       toRow(2, "3000", 3))
 
-    TestCollectionTableFactory.initData(sourceData)
+    TestCollectionTableFactory.initData(sourceData.asJava)
 
     val sourceDDL =
       """
@@ -172,7 +171,8 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql(viewDDL)
 
     tableEnv.sqlQuery(query).executeInsert("T2").await()
-    assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
+    assertThatList(sourceData.asJava).containsExactlyInAnyOrderElementsOf(
+      TestCollectionTableFactory.RESULT)
   }
 
   @TestTemplate
@@ -184,7 +184,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       toRow(1, "2", 2),
       toRow(2, "3000", 3))
 
-    TestCollectionTableFactory.initData(sourceData)
+    TestCollectionTableFactory.initData(sourceData.asJava)
 
     val sourceDDL =
       """
@@ -220,7 +220,8 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql(viewDDL)
 
     tableEnv.sqlQuery(query).executeInsert("T2").await()
-    assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
+    assertThatList(sourceData.asJava).containsExactlyInAnyOrderElementsOf(
+      TestCollectionTableFactory.RESULT)
   }
 
   @TestTemplate
@@ -283,16 +284,17 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql(permanentView)
     tableEnv.executeSql(temporaryView)
 
-    TestCollectionTableFactory.initData(sourceData)
+    TestCollectionTableFactory.initData(sourceData.asJava)
 
     val query = "SELECT * FROM T3"
 
     tableEnv.sqlQuery(query).executeInsert("T2").await()
     // temporary view T3 masks permanent view T3
-    assertEquals(temporaryViewData.sorted, TestCollectionTableFactory.RESULT.sorted)
+    assertThatList(temporaryViewData.asJava).containsExactlyInAnyOrderElementsOf(
+      TestCollectionTableFactory.RESULT)
 
     TestCollectionTableFactory.reset()
-    TestCollectionTableFactory.initData(sourceData)
+    TestCollectionTableFactory.initData(sourceData.asJava)
 
     val dropTemporaryView =
       """
@@ -301,7 +303,8 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql(dropTemporaryView)
     tableEnv.sqlQuery(query).executeInsert("T2").await()
     // now we only have permanent view T3
-    assertEquals(permanentViewData.sorted, TestCollectionTableFactory.RESULT.sorted)
+    assertThatList(permanentViewData.asJava).containsExactlyInAnyOrderElementsOf(
+      TestCollectionTableFactory.RESULT)
   }
 
   private def buildTableDescriptor(): TableDescriptor = {
@@ -344,19 +347,16 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         .executeSql("show create view t_v1")
         .collect()
     )
-    assertEquals(
-      tView1ShowCreateResult,
-      Lists.newArrayList(
-        Row.of(
-          s"""CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`t_v1` (
-             |  `a`,
-             |  `b`,
-             |  `c`
-             |)
-             |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
-             |FROM `default_catalog`.`default_database`.`T1`
-             |""".stripMargin
-        )
+    assertThatList(tView1ShowCreateResult).containsExactly(
+      Row.of(
+        s"""CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`t_v1` (
+           |  `a`,
+           |  `b`,
+           |  `c`
+           |)
+           |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
+           |FROM `default_catalog`.`default_database`.`T1`
+           |""".stripMargin
       )
     )
 
@@ -367,19 +367,16 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         .executeSql("show create view t_v2")
         .collect()
     )
-    assertEquals(
-      tView2ShowCreateResult,
-      Lists.newArrayList(
-        Row.of(
-          s"""CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`t_v2` (
-             |  `d`,
-             |  `e`,
-             |  `f`
-             |)
-             |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
-             |FROM `default_catalog`.`default_database`.`T1`
-             |""".stripMargin
-        )
+    assertThatList(tView2ShowCreateResult).containsExactly(
+      Row.of(
+        s"""CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`t_v2` (
+           |  `d`,
+           |  `e`,
+           |  `f`
+           |)
+           |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
+           |FROM `default_catalog`.`default_database`.`T1`
+           |""".stripMargin
       )
     )
   }
@@ -396,9 +393,8 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         .executeSql("show create view v1")
         .collect()
     )
-    assertEquals(
-      view1ShowCreateResult,
-      Lists.newArrayList(
+    assertThatList(view1ShowCreateResult)
+      .containsExactly(
         Row.of(
           s"""CREATE VIEW `default_catalog`.`default_database`.`v1` (
              |  `a`,
@@ -410,7 +406,6 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
              |""".stripMargin
         )
       )
-    )
 
     val view2DDL: String = "CREATE VIEW v2(x, y, z) AS SELECT a, b, c FROM T1"
     tableEnv.executeSql(view2DDL)
@@ -419,19 +414,16 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         .executeSql("show create view v2")
         .collect()
     )
-    assertEquals(
-      view2ShowCreateResult,
-      Lists.newArrayList(
-        Row.of(
-          s"""CREATE VIEW `default_catalog`.`default_database`.`v2` (
-             |  `x`,
-             |  `y`,
-             |  `z`
-             |)
-             |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
-             |FROM `default_catalog`.`default_database`.`T1`
-             |""".stripMargin
-        )
+    assertThatList(view2ShowCreateResult).containsExactly(
+      Row.of(
+        s"""CREATE VIEW `default_catalog`.`default_database`.`v2` (
+           |  `x`,
+           |  `y`,
+           |  `z`
+           |)
+           |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
+           |FROM `default_catalog`.`default_database`.`T1`
+           |""".stripMargin
       )
     )
   }
@@ -451,18 +443,15 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         .executeSql("show create view viewLeftJoinGroupBy")
         .collect()
     )
-    assertEquals(
-      showCreateLeftJoinGroupByViewResult,
-      Lists.newArrayList(
-        Row.of(
-          s"""CREATE VIEW `default_catalog`.`default_database`.`viewLeftJoinGroupBy` (
-             |  `max_value`
-             |)
-             |AS SELECT MAX(`t1`.`a`) AS `max_value`
-             |FROM `default_catalog`.`default_database`.`t1`
-             |LEFT JOIN `default_catalog`.`default_database`.`t2` ON `t1`.`c` = `t2`.`c`
-             |""".stripMargin
-        )
+    assertThatList(showCreateLeftJoinGroupByViewResult).containsExactly(
+      Row.of(
+        s"""CREATE VIEW `default_catalog`.`default_database`.`viewLeftJoinGroupBy` (
+           |  `max_value`
+           |)
+           |AS SELECT MAX(`t1`.`a`) AS `max_value`
+           |FROM `default_catalog`.`default_database`.`t1`
+           |LEFT JOIN `default_catalog`.`default_database`.`t2` ON `t1`.`c` = `t2`.`c`
+           |""".stripMargin
       )
     )
   }
@@ -487,20 +476,17 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         .executeSql("show create view viewWithCrossJoin")
         .collect()
     )
-    assertEquals(
-      showCreateCrossJoinViewResult,
-      Lists.newArrayList(
-        Row.of(
-          s"""CREATE VIEW `default_catalog`.`default_database`.`viewWithCrossJoin` (
-             |  `a`,
-             |  `a1`,
-             |  `b2`
-             |)
-             |AS SELECT `udfEqualsOne`() AS `a`, `t1`.`a` AS `a1`, `t2`.`b` AS `b2`
-             |FROM `default_catalog`.`default_database`.`t1`
-             |CROSS JOIN `default_catalog`.`default_database`.`t2`
-             |""".stripMargin
-        )
+    assertThatList(showCreateCrossJoinViewResult).containsExactly(
+      Row.of(
+        s"""CREATE VIEW `default_catalog`.`default_database`.`viewWithCrossJoin` (
+           |  `a`,
+           |  `a1`,
+           |  `b2`
+           |)
+           |AS SELECT `udfEqualsOne`() AS `a`, `t1`.`a` AS `a1`, `t2`.`b` AS `b2`
+           |FROM `default_catalog`.`default_database`.`t1`
+           |CROSS JOIN `default_catalog`.`default_database`.`t2`
+           |""".stripMargin
       )
     )
   }
@@ -521,19 +507,16 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         .executeSql("show create view innerJoinView")
         .collect()
     )
-    assertEquals(
-      showCreateInnerJoinViewResult,
-      Lists.newArrayList(
-        Row.of(
-          s"""CREATE VIEW `default_catalog`.`default_database`.`innerJoinView` (
-             |  `a1`,
-             |  `b2`
-             |)
-             |AS SELECT `t1`.`a` AS `a1`, `t2`.`b` AS `b2`
-             |FROM `default_catalog`.`default_database`.`t1`
-             |INNER JOIN `default_catalog`.`default_database`.`t2` ON `t1`.`c` = `t2`.`c`
-             |""".stripMargin
-        )
+    assertThatList(showCreateInnerJoinViewResult).containsExactly(
+      Row.of(
+        s"""CREATE VIEW `default_catalog`.`default_database`.`innerJoinView` (
+           |  `a1`,
+           |  `b2`
+           |)
+           |AS SELECT `t1`.`a` AS `a1`, `t2`.`b` AS `b2`
+           |FROM `default_catalog`.`default_database`.`t1`
+           |INNER JOIN `default_catalog`.`default_database`.`t2` ON `t1`.`c` = `t2`.`c`
+           |""".stripMargin
       )
     )
   }
