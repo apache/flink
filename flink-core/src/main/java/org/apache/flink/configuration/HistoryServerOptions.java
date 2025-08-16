@@ -22,9 +22,12 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.description.Description;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /** The set of configuration options relating to the HistoryServer. */
 @PublicEvolving
@@ -126,6 +129,11 @@ public class HistoryServerOptions {
                             "Enable HTTPs access to the HistoryServer web frontend. This is applicable only when the"
                                     + " global SSL flag security.ssl.enabled is set to true.");
 
+    /**
+     * @deprecated Use {@link HistoryServerOptions#HISTORY_SERVER_RETAINED_JOBS_MODE and
+     *     HistoryServerOptions#HISTORY_SERVER_RETAINED_JOBS_MODE_TTL_THRESHOLDS} to instead.
+     */
+    @Deprecated
     public static final ConfigOption<Integer> HISTORY_SERVER_RETAINED_JOBS =
             key("historyserver.archive.retained-jobs")
                     .intType()
@@ -142,6 +150,94 @@ public class HistoryServerOptions {
                                             "If set to `0` or less than `-1` HistoryServer will throw an %s. ",
                                             code("IllegalConfigurationException"))
                                     .build());
+
+    public static final ConfigOption<JobArchivedRetainedMode> HISTORY_SERVER_RETAINED_JOBS_MODE =
+            key("historyserver.archive.retained-jobs.mode")
+                    .enumType(JobArchivedRetainedMode.class)
+                    .defaultValue(JobArchivedRetainedMode.None)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            String.format(
+                                                    "The mode to retain the jobs archived in each archive directory defined by `%s`. ",
+                                                    HISTORY_SERVER_ARCHIVE_DIRS.key()))
+                                    .list(
+                                            text(
+                                                    "The %s mode will retain all jobs archived in each archive directory.",
+                                                    code(JobArchivedRetainedMode.None.name())),
+                                            text(
+                                                    "The %s mode will retain the jobs archived whose modification time is not out of the configured time to live in each archive directory.",
+                                                    code(JobArchivedRetainedMode.Ttl.name())),
+                                            text(
+                                                    "The %s mode will retain the jobs archived whose modification index is smaller than the configured quantity in each archive directory.",
+                                                    code(JobArchivedRetainedMode.Quantity.name())),
+                                            text(
+                                                    "The %s mode will retain the jobs archived whose conditions are both met with %s rule and %s rule in each archive directory.",
+                                                    code(
+                                                            JobArchivedRetainedMode.TtlAndQuantity
+                                                                    .name()),
+                                                    code(JobArchivedRetainedMode.Ttl.name()),
+                                                    code(JobArchivedRetainedMode.Quantity.name())),
+                                            text(
+                                                    "The %s mode will retain the jobs archived whose conditions are met with %s rule or %s rule in each archive directory.",
+                                                    code(
+                                                            JobArchivedRetainedMode.TtlOrQuantity
+                                                                    .name()),
+                                                    code(JobArchivedRetainedMode.Ttl.name()),
+                                                    code(JobArchivedRetainedMode.Quantity.name())))
+                                    .build());
+
+    public static final ConfigOption<Map<String, String>>
+            HISTORY_SERVER_RETAINED_JOBS_MODE_THRESHOLDS =
+                    key("historyserver.archive.retained-jobs.thresholds")
+                            .mapType()
+                            .defaultValue(
+                                    new HashMap<>() {
+                                        {
+                                            put("ttl", "0ms");
+                                            put("quantity", "-1");
+                                        }
+                                    })
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    String.format(
+                                                            "When the parameter `%s` is enabled, the value of the current configuration item will take effect. ",
+                                                            HISTORY_SERVER_RETAINED_JOBS_MODE
+                                                                    .key()))
+                                            .list(
+                                                    text(
+                                                            "The 'ttl' sub-option represents the time to live for the jobs archived in each archive directory. "
+                                                                    + "The default value is `0 ms`, "
+                                                                    + "which means that when the TTL-based retention policy is enabled, all jobs archived will be retained. "),
+                                                    text(
+                                                            "The 'quantity' sub-option represents the quantity of the jobs archived in each archive directory "
+                                                                    + "based on the descending job archived modification time. "
+                                                                    + "The default value is `-1`, "
+                                                                    + "which means that when the quantity-based retention policy is enabled, all jobs archived will be retained. "))
+                                            .build());
+
+    public enum JobArchivedRetainedMode {
+        /** Keep all jobs archive files. */
+        None,
+        /** Keep the jobs archive files whose modified time in the time to live duration. */
+        Ttl,
+        /**
+         * Keep the jobs archive files whose ordered index based on modified time is smaller or
+         * equals to the quantity threshold.
+         */
+        Quantity,
+        /**
+         * Keep the jobs archive files whose conditions are meet with {@link
+         * JobArchivedRetainedMode#Ttl} and {@link JobArchivedRetainedMode#Quantity}.
+         */
+        TtlAndQuantity,
+        /**
+         * Keep the jobs archive files whose conditions are meet with {@link
+         * JobArchivedRetainedMode#Ttl} or {@link JobArchivedRetainedMode#Quantity}.
+         */
+        TtlOrQuantity
+    }
 
     private HistoryServerOptions() {}
 }

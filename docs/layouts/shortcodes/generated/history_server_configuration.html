@@ -27,10 +27,16 @@
             <td>Interval for refreshing the archived job directories.</td>
         </tr>
         <tr>
-            <td><h5>historyserver.archive.retained-jobs</h5></td>
-            <td style="word-wrap: break-word;">-1</td>
-            <td>Integer</td>
-            <td>The maximum number of jobs to retain in each archive directory defined by `historyserver.archive.fs.dir`. If set to `-1`(default), there is no limit to the number of archives. If set to `0` or less than `-1` HistoryServer will throw an <code class="highlighter-rouge">IllegalConfigurationException</code>. </td>
+            <td><h5>historyserver.archive.retained-jobs.mode</h5></td>
+            <td style="word-wrap: break-word;">None</td>
+            <td><p>Enum</p></td>
+            <td>The mode to retain the jobs archived in each archive directory defined by `historyserver.archive.fs.dir`. <ul><li>The <code class="highlighter-rouge">None</code> mode will retain all jobs archived in each archive directory.</li><li>The <code class="highlighter-rouge">Ttl</code> mode will retain the jobs archived whose modification time is not out of the configured time to live in each archive directory.</li><li>The <code class="highlighter-rouge">Quantity</code> mode will retain the jobs archived whose modification index is smaller than the configured quantity in each archive directory.</li><li>The <code class="highlighter-rouge">TtlAndQuantity</code> mode will retain the jobs archived whose conditions are both met with <code class="highlighter-rouge">Ttl</code> rule and <code class="highlighter-rouge">Quantity</code> rule in each archive directory.</li><li>The <code class="highlighter-rouge">TtlOrQuantity</code> mode will retain the jobs archived whose conditions are met with <code class="highlighter-rouge">Ttl</code> rule or <code class="highlighter-rouge">Quantity</code> rule in each archive directory.</li></ul><br /><br />Possible values:<ul><li>"None"</li><li>"Ttl"</li><li>"Quantity"</li><li>"TtlAndQuantity"</li><li>"TtlOrQuantity"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>historyserver.archive.retained-jobs.thresholds</h5></td>
+            <td style="word-wrap: break-word;">quantity:-1,ttl:0ms</td>
+            <td>Map</td>
+            <td>When the parameter `historyserver.archive.retained-jobs.mode` is enabled, the value of the current configuration item will take effect. <ul><li>The 'ttl' sub-option represents the time to live for the jobs archived in each archive directory. The default value is `0 ms`, which means that when the TTL-based retention policy is enabled, all jobs archived will be retained. </li><li>The 'quantity' sub-option represents the quantity of the jobs archived in each archive directory based on the descending job archived modification time. The default value is `-1`, which means that when the quantity-based retention policy is enabled, all jobs archived will be retained. </li></ul></td>
         </tr>
         <tr>
             <td><h5>historyserver.log.jobmanager.url-pattern</h5></td>
