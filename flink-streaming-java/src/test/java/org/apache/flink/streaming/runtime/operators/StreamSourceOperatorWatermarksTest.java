@@ -18,17 +18,26 @@
 
 package org.apache.flink.streaming.runtime.operators;
 
+import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.jobgraph.OperatorID;
-import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.StreamSource;
-import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.tasks.SourceStreamTask;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
+import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
 import org.apache.flink.streaming.runtime.tasks.StreamTaskTestHarness;
+import org.apache.flink.test.util.source.AbstractTestSource;
+import org.apache.flink.test.util.source.TestSourceReader;
+import org.apache.flink.test.util.source.TestSplit;
+import org.apache.flink.test.util.source.TestSplitEnumerator;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.jupiter.api.Test;
@@ -36,47 +45,57 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for {@link StreamSource} operators. */
-@SuppressWarnings("serial")
+/** Tests for Source V2 operators. */
 class StreamSourceOperatorWatermarksTest {
 
     @Test
     void testEmitMaxWatermarkForFiniteSource() throws Exception {
-        StreamSource<String, ?> sourceOperator = new StreamSource<>(new FiniteSource<>());
+        SourceOperatorFactory<String> factory =
+                new SourceOperatorFactory<>(
+                        finiteSource(), WatermarkStrategy.noWatermarks(), false, 1);
         StreamTaskTestHarness<String> testHarness =
-                setupSourceStreamTask(sourceOperator, BasicTypeInfo.STRING_TYPE_INFO);
+                setupSourceOperatorTask(factory, BasicTypeInfo.STRING_TYPE_INFO);
 
         testHarness.invoke();
         testHarness.waitForTaskCompletion();
 
         assertThat(testHarness.getOutput()).hasSize(1);
-        assertThat(testHarness.getOutput().peek()).isEqualTo(Watermark.MAX_WATERMARK);
+        assertThat(testHarness.getOutput().peek())
+                .isEqualTo(new org.apache.flink.streaming.api.watermark.Watermark(Long.MAX_VALUE));
     }
 
     @Test
     void testDisabledProgressiveWatermarksForFiniteSource() throws Exception {
-        StreamSource<String, ?> sourceOperator =
-                new StreamSource<>(new FiniteSourceWithWatermarks<>(), false);
+        SourceOperatorFactory<String> factory =
+                new SourceOperatorFactory<>(
+                        finiteSourceWithSelfEmittedWMs(),
+                        WatermarkStrategy.noWatermarks(),
+                        true,
+                        1);
         StreamTaskTestHarness<String> testHarness =
-                setupSourceStreamTask(sourceOperator, BasicTypeInfo.STRING_TYPE_INFO);
+                setupSourceOperatorTask(factory, BasicTypeInfo.STRING_TYPE_INFO);
 
         testHarness.invoke();
         testHarness.waitForTaskCompletion();
 
         // sent by source function
-        assertThat(testHarness.getOutput().poll()).isEqualTo(Watermark.MAX_WATERMARK);
+        assertThat(testHarness.getOutput().poll())
+                .isEqualTo(new org.apache.flink.streaming.api.watermark.Watermark(Long.MAX_VALUE));
 
         // sent by framework
-        assertThat(testHarness.getOutput().poll()).isEqualTo(Watermark.MAX_WATERMARK);
+        assertThat(testHarness.getOutput().poll())
+                .isEqualTo(new org.apache.flink.streaming.api.watermark.Watermark(Long.MAX_VALUE));
 
         assertThat(testHarness.getOutput()).isEmpty();
     }
 
     @Test
     void testNoMaxWatermarkOnImmediateCancel() throws Exception {
-        StreamSource<String, ?> sourceOperator = new StreamSource<>(new InfiniteSource<>());
+        SourceOperatorFactory<String> factory =
+                new SourceOperatorFactory<>(
+                        infiniteSource(), WatermarkStrategy.noWatermarks(), false, 1);
         StreamTaskTestHarness<String> testHarness =
-                setupSourceStreamTask(sourceOperator, BasicTypeInfo.STRING_TYPE_INFO, true);
+                setupSourceOperatorTask(factory, BasicTypeInfo.STRING_TYPE_INFO, true);
 
         testHarness.invoke();
         assertThatThrownBy(testHarness::waitForTaskCompletion)
@@ -87,9 +106,11 @@ class StreamSourceOperatorWatermarksTest {
 
     @Test
     void testNoMaxWatermarkOnAsyncCancel() throws Exception {
-        StreamSource<String, ?> sourceOperator = new StreamSource<>(new InfiniteSource<>());
+        SourceOperatorFactory<String> factory =
+                new SourceOperatorFactory<>(
+                        infiniteSource(), WatermarkStrategy.noWatermarks(), false, 1);
         StreamTaskTestHarness<String> testHarness =
-                setupSourceStreamTask(sourceOperator, BasicTypeInfo.STRING_TYPE_INFO);
+                setupSourceOperatorTask(factory, BasicTypeInfo.STRING_TYPE_INFO);
 
         testHarness.invoke();
         testHarness.waitForTaskRunning();
@@ -107,80 +128,132 @@ class StreamSourceOperatorWatermarksTest {
 
     // ------------------------------------------------------------------------
 
-    private static <T> StreamTaskTestHarness<T> setupSourceStreamTask(
-            StreamSource<T, ?> sourceOperator, TypeInformation<T> outputType) {
-
-        return setupSourceStreamTask(sourceOperator, outputType, false);
+    private static <T> StreamTaskTestHarness<T> setupSourceOperatorTask(
+            SourceOperatorFactory<T> factory, TypeInformation<T> outputType) {
+        return setupSourceOperatorTask(factory, outputType, false);
     }
 
-    private static <T> StreamTaskTestHarness<T> setupSourceStreamTask(
-            StreamSource<T, ?> sourceOperator,
+    private static <T> StreamTaskTestHarness<T> setupSourceOperatorTask(
+            SourceOperatorFactory<T> factory,
             TypeInformation<T> outputType,
-            final boolean cancelImmediatelyAfterCreation) {
+            boolean cancelImmediately) {
 
         final StreamTaskTestHarness<T> testHarness =
                 new StreamTaskTestHarness<>(
                         (env) -> {
-                            SourceStreamTask<T, ?, ?> sourceTask = new SourceStreamTask<>(env);
-                            if (cancelImmediatelyAfterCreation) {
-                                try {
-                                    sourceTask.cancel();
-                                } catch (Exception e) {
-                                    throw new RuntimeException(e);
-                                }
+                            SourceOperatorStreamTask<T> sourceOperatorStreamTask =
+                                    new SourceOperatorStreamTask<>(env);
+                            if (cancelImmediately) {
+                                sourceOperatorStreamTask.cancel();
                             }
-                            return sourceTask;
+                            return sourceOperatorStreamTask;
                         },
                         outputType);
         testHarness.setupOutputForSingletonOperatorChain();
 
-        StreamConfig streamConfig = testHarness.getStreamConfig();
-        streamConfig.setStreamOperator(sourceOperator);
-        streamConfig.setOperatorID(new OperatorID());
-
+        StreamConfig cfg = testHarness.getStreamConfig();
+        cfg.setStreamOperatorFactory(factory);
+        cfg.setOperatorID(new OperatorID());
         return testHarness;
     }
 
-    // ------------------------------------------------------------------------
+    /**
+     * Creates a simple split enumerator that assigns one split and optionally signals completion.
+     */
+    private static SplitEnumerator<TestSplit, Void> createSimpleEnumerator(
+            SplitEnumeratorContext<TestSplit> context, boolean signalNoMoreSplits) {
+        return new TestSplitEnumerator<>(context, null) {
+            private boolean assigned = false;
 
-    private static final class FiniteSource<T> extends RichSourceFunction<T> {
-
-        @Override
-        public void run(SourceContext<T> ctx) {}
-
-        @Override
-        public void cancel() {}
+            @Override
+            public void addReader(int subtaskId) {
+                if (!assigned) {
+                    context.assignSplit(TestSplit.INSTANCE, subtaskId);
+                    assigned = true;
+                }
+                if (signalNoMoreSplits) {
+                    context.signalNoMoreSplits(subtaskId);
+                }
+            }
+        };
     }
 
-    private static final class FiniteSourceWithWatermarks<T> extends RichSourceFunction<T> {
+    /** Finite (bounded) source → framework emits MAX_WM. */
+    private static AbstractTestSource<String> finiteSource() {
+        return new AbstractTestSource<>() {
+            @Override
+            public SourceReader<String, TestSplit> createReader(SourceReaderContext ctx) {
+                return new TestSourceReader<>(ctx) {
+                    private boolean done = false;
 
-        @Override
-        public void run(SourceContext<T> ctx) {
-            synchronized (ctx.getCheckpointLock()) {
-                ctx.emitWatermark(new Watermark(1000));
-                ctx.emitWatermark(new Watermark(2000));
-                ctx.emitWatermark(Watermark.MAX_WATERMARK);
+                    @Override
+                    public InputStatus pollNext(ReaderOutput<String> out) {
+                        if (!done) {
+                            done = true;
+                            return InputStatus.END_OF_INPUT;
+                        }
+                        return InputStatus.NOTHING_AVAILABLE;
+                    }
+                };
             }
-        }
 
-        @Override
-        public void cancel() {}
+            @Override
+            public SplitEnumerator<TestSplit, Void> createEnumerator(
+                    SplitEnumeratorContext<TestSplit> context) {
+                return createSimpleEnumerator(context, true);
+            }
+        };
     }
 
-    private static final class InfiniteSource<T> implements SourceFunction<T> {
+    /** Finite source that self-emits WM_MAX (then framework also emits MAX_WM). */
+    private static AbstractTestSource<String> finiteSourceWithSelfEmittedWMs() {
+        return new AbstractTestSource<>() {
+            @Override
+            public SourceReader<String, TestSplit> createReader(SourceReaderContext ctx) {
+                return new TestSourceReader<String>(ctx) {
+                    private int step = 0;
 
-        private volatile boolean running = true;
-
-        @Override
-        public void run(SourceContext<T> ctx) throws Exception {
-            while (running) {
-                Thread.sleep(20);
+                    @Override
+                    public InputStatus pollNext(ReaderOutput<String> out) {
+                        if (step == 0) {
+                            out.emitWatermark(new Watermark(Long.MAX_VALUE));
+                            step = 1;
+                            return InputStatus.NOTHING_AVAILABLE;
+                        } else if (step == 1) {
+                            step = 2;
+                            return InputStatus.END_OF_INPUT; // bounded completion
+                        }
+                        return InputStatus.NOTHING_AVAILABLE;
+                    }
+                };
             }
-        }
 
-        @Override
-        public void cancel() {
-            running = false;
-        }
+            @Override
+            public SplitEnumerator<TestSplit, Void> createEnumerator(
+                    SplitEnumeratorContext<TestSplit> context) {
+                return createSimpleEnumerator(context, true); // bounded → framework MAX_WM too
+            }
+        };
+    }
+
+    /** Infinite (unbounded) source → no framework MAX_WM on cancel. */
+    private static AbstractTestSource<String> infiniteSource() {
+        return new AbstractTestSource<>() {
+            @Override
+            public SourceReader<String, TestSplit> createReader(SourceReaderContext ctx) {
+                return new TestSourceReader<>(ctx) {
+                    @Override
+                    public InputStatus pollNext(ReaderOutput<String> out) {
+                        return InputStatus.NOTHING_AVAILABLE; // idle forever until cancel
+                    }
+                };
+            }
+
+            @Override
+            public SplitEnumerator<TestSplit, Void> createEnumerator(
+                    SplitEnumeratorContext<TestSplit> context) {
+                return createSimpleEnumerator(context, false); // unbounded → no signalNoMoreSplits
+            }
+        };
     }
 }

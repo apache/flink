@@ -20,8 +20,15 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.security.FlinkSecurityManager;
 import org.apache.flink.core.security.UserSystemExitException;
 import org.apache.flink.runtime.broadcast.BroadcastVariableManager;
@@ -58,12 +65,15 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
-import org.apache.flink.streaming.api.operators.StreamOperator;
-import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
+import org.apache.flink.test.util.source.AbstractTestSource;
+import org.apache.flink.test.util.source.SingleSplitEnumerator;
+import org.apache.flink.test.util.source.TestSourceReader;
+import org.apache.flink.test.util.source.TestSplit;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.Executors;
 
@@ -142,22 +152,25 @@ class StreamTaskSystemExitTest {
 
     @Test
     void testStreamSourceSystemExitStreamTask() throws Exception {
-        final TestStreamSource<String, SystemExitSourceFunction> testStreamSource =
-                new TestStreamSource<>(new SystemExitSourceFunction());
+        SourceOperatorFactory<String> factory =
+                new SourceOperatorFactory<>(
+                        systemExitSource(), WatermarkStrategy.<String>noWatermarks(), false, 1);
         Task task =
-                createSystemExitTask(SystemExitSourceStreamTask.class.getName(), testStreamSource);
+                createSystemExitTask(SystemExitSourceOperatorStreamTask.class.getName(), factory);
         task.run();
         assertThat(task.getFailureCause())
                 .isNotNull()
                 .isExactlyInstanceOf(UserSystemExitException.class);
     }
 
-    private Task createSystemExitTask(final String invokableClassName, StreamOperator<?> operator)
-            throws Exception {
+    private Task createSystemExitTask(
+            final String invokableClassName, StreamOperatorFactory<?> factory) throws Exception {
         final Configuration taskConfiguration = new Configuration();
         final StreamConfig streamConfig = new StreamConfig(taskConfiguration);
         streamConfig.setOperatorID(new OperatorID());
-        streamConfig.setStreamOperator(operator);
+        if (factory != null) {
+            streamConfig.setStreamOperatorFactory(factory);
+        }
         streamConfig.serializeAllConfigs();
 
         final JobInformation jobInformation =
@@ -280,37 +293,33 @@ class StreamTaskSystemExitTest {
         }
     }
 
-    /**
-     * SourceStreamTask emulating system exit behavior in run function by {@link
-     * SystemExitSourceFunction}.
-     */
-    public static class SystemExitSourceStreamTask
-            extends SourceStreamTask<
-                    String,
-                    SystemExitSourceFunction,
-                    StreamTaskTest.TestStreamSource<String, SystemExitSourceFunction>> {
+    /** SourceOperatorStreamTask emulating system exit behavior in Source V2. */
+    public static class SystemExitSourceOperatorStreamTask
+            extends SourceOperatorStreamTask<String> {
 
-        public SystemExitSourceStreamTask(Environment env) throws Exception {
+        public SystemExitSourceOperatorStreamTask(Environment env) throws Exception {
             super(env);
         }
     }
 
-    private static class SystemExitSourceFunction implements SourceFunction<String> {
+    private static AbstractTestSource<String> systemExitSource() {
+        return new AbstractTestSource<>() {
+            @Override
+            public SourceReader<String, TestSplit> createReader(SourceReaderContext ctx) {
+                return new TestSourceReader<>(ctx) {
+                    @Override
+                    public InputStatus pollNext(ReaderOutput<String> out) {
+                        systemExit();
+                        return InputStatus.END_OF_INPUT;
+                    }
+                };
+            }
 
-        @Override
-        public void run(SourceContext<String> ctx) {
-            systemExit();
-        }
-
-        @Override
-        public void cancel() {}
-    }
-
-    static class TestStreamSource<OUT, SRC extends SourceFunction<OUT>>
-            extends StreamSource<OUT, SRC> {
-
-        public TestStreamSource(SRC sourceFunction) {
-            super(sourceFunction);
-        }
+            @Override
+            public SplitEnumerator<TestSplit, Void> createEnumerator(
+                    SplitEnumeratorContext<TestSplit> context) {
+                return new SingleSplitEnumerator(context);
+            }
+        };
     }
 }

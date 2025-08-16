@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
@@ -49,14 +50,14 @@ import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.CompletingCheckpointResponder;
+import org.apache.flink.test.util.source.AbstractTestSource;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.junit.jupiter.api.Test;
@@ -453,12 +454,17 @@ class StreamTaskFinalCheckpointsTest {
                 };
 
         try (StreamTaskMailboxTestHarness<String> testHarness =
-                new StreamTaskMailboxTestHarnessBuilder<>(SourceStreamTask::new, STRING_TYPE_INFO)
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                SourceOperatorStreamTask::new, STRING_TYPE_INFO)
                         .addJobConfig(
                                 CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .setCheckpointResponder(checkpointResponder)
                         .setupOutputForSingletonOperatorChain(
-                                new StreamSource<>(new ImmediatelyFinishingSource()))
+                                new SourceOperatorFactory<>(
+                                        new ImmediatelyFinishingSource(),
+                                        WatermarkStrategy.<String>noWatermarks(),
+                                        false,
+                                        1))
                         .build()) {
             checkpointResponder.setHandlers(
                     testHarness.streamTask::notifyCheckpointCompleteAsync,
@@ -906,18 +912,7 @@ class StreamTaskFinalCheckpointsTest {
         }
     }
 
-    private static class ImmediatelyFinishingSource implements SourceFunction<String> {
-
-        @Override
-        public void run(SourceContext<String> ctx) throws Exception {
-            // just finish
-        }
-
-        @Override
-        public void cancel() {
-            // just finish
-        }
-    }
+    private static class ImmediatelyFinishingSource extends AbstractTestSource<String> {}
 
     private static class EmptyOperator extends AbstractStreamOperator<String>
             implements OneInputStreamOperator<String, String> {
