@@ -23,9 +23,11 @@ import org.apache.flink.runtime.security.modules.SecurityModuleFactory;
 import org.apache.flink.util.Preconditions;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ServiceLoader;
+import java.util.Set;
 
 /**
  * The Service provider discovery for searching suitable security factory.
@@ -35,7 +37,7 @@ import java.util.ServiceLoader;
  */
 public class SecurityFactoryServiceLoader {
 
-    /** Find a suitable {@link SecurityModuleFactory} based on canonical name. */
+    /** Find a suitable {@link SecurityModuleFactory}s based on canonical name. */
     public static SecurityModuleFactory findModuleFactory(String securityModuleFactoryClass)
             throws NoMatchSecurityFactoryException {
         return findFactoryInternal(
@@ -80,8 +82,52 @@ public class SecurityFactoryServiceLoader {
             throw new NoMatchSecurityFactoryException(
                     "zero or more than one security factory found",
                     factoryClassCanonicalName,
-                    matchingFactories);
+                    matchingFactories,
+                    null);
         }
         return matchingFactories.get(0);
+    }
+
+    /** Find suitable {@link SecurityModuleFactory}s based on canonical names. */
+    public static List<SecurityModuleFactory> findModuleFactory(
+            List<String> securityModuleFactoryClasses) throws NoMatchSecurityFactoryException {
+        return findFactoryInternal(
+                securityModuleFactoryClasses,
+                SecurityModuleFactory.class,
+                SecurityModuleFactory.class.getClassLoader());
+    }
+
+    private static <T> List<T> findFactoryInternal(
+            List<String> factoryClassCanonicalNames, Class<T> factoryClass, ClassLoader classLoader)
+            throws NoMatchSecurityFactoryException {
+        Preconditions.checkArgument(!factoryClassCanonicalNames.isEmpty());
+        factoryClassCanonicalNames.forEach(className -> Preconditions.checkNotNull(className));
+
+        ServiceLoader<T> serviceLoader;
+        if (classLoader != null) {
+            serviceLoader = ServiceLoader.load(factoryClass, classLoader);
+        } else {
+            serviceLoader = ServiceLoader.load(factoryClass);
+        }
+
+        Set<String> factoriesSet = new HashSet<>(factoryClassCanonicalNames);
+        List<T> matchingFactories = new ArrayList<>();
+        Iterator<T> classFactoryIterator = serviceLoader.iterator();
+        classFactoryIterator.forEachRemaining(
+                classFactory -> {
+                    String factoryClassCanonicalName = classFactory.getClass().getCanonicalName();
+                    if (factoriesSet.contains(factoryClassCanonicalName)) {
+                        matchingFactories.add(classFactory);
+                        factoriesSet.remove(factoryClassCanonicalName);
+                    }
+                });
+
+        if (matchingFactories.size() != factoryClassCanonicalNames.size()) {
+            throw new NoMatchSecurityFactoryException(
+                    "zero or more than one security factory found",
+                    factoriesSet,
+                    matchingFactories);
+        }
+        return matchingFactories;
     }
 }
