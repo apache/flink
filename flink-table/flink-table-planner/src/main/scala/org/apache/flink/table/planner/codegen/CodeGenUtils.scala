@@ -361,7 +361,6 @@ object CodeGenUtils {
         val genHash =
           HashCodeGenerator.generateMapHash(subCtx, keyType, valueType, "SubHashMap")
         genHashFunction(ctx, subCtx, genHash, term)
-      case INTERVAL_DAY_TIME => s"${className[JLong]}.hashCode($term)"
       case ROW | STRUCTURED_TYPE =>
         val fieldCount = getFieldCount(t)
         val subCtx = new CodeGeneratorContext(ctx.tableConfig, ctx.classLoader, ctx)
