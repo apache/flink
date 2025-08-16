@@ -88,7 +88,7 @@ DataStream<WordWithCount> windowCounts = text
                 .stream(line.split("\\s"))
                 .forEach(collector::collect)).returns(String.class)
         .map(word -> new WordWithCount(word, 1)).returns(TypeInformation.of(WordWithCount.class))
-        .keyBy(wordWintCount -> wordWintCount.word)
+        .keyBy(wordWithCount -> wordWithCount.word)
         .sum("count").returns(TypeInformation.of(WordWithCount.class));
 
 windowCounts.print();
