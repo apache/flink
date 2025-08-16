@@ -34,9 +34,8 @@ import org.apache.flink.testutils.junit.utils.TempDirUtils
 import org.apache.flink.types.Row
 import org.apache.flink.util.{FileUtils, UserClassLoaderJarTestUtils}
 
-import org.assertj.core.api.Assertions.{assertThatExceptionOfType, assertThatThrownBy}
+import org.assertj.core.api.Assertions.{assertThat, assertThatExceptionOfType, assertThatList, assertThatThrownBy, fail}
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
-import org.junit.jupiter.api.Assertions.{assertEquals, fail}
 import org.junit.jupiter.api.extension.ExtendWith
 
 import java.io.File
@@ -45,7 +44,7 @@ import java.net.URI
 import java.util
 import java.util.UUID
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.util.Random
 
 /** Test cases for catalog table. */
@@ -111,7 +110,8 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       """.stripMargin
     tableEnv.executeSql(sinkDDL)
     tableEnv.executeSql(s"insert into sinkT select ${funcPrefix}myfunc(cast(1 as bigint))").await()
-    assertEquals(Seq(toRow(2L)), TestCollectionTableFactory.RESULT.sorted)
+    assertThatList(TestCollectionTableFactory.RESULT)
+      .containsExactlyInAnyOrderElementsOf(Seq(toRow(2L)).asJava)
   }
 
   @TestTemplate
@@ -149,7 +149,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       toRow(3, "2000", 4, new JBigDecimal("10.001")),
       toRow(1, "2", 2, new JBigDecimal("10.001")),
       toRow(2, "3000", 3, new JBigDecimal("10.001"))
-    )
+    ).asJava
     TestCollectionTableFactory.initData(sourceData)
     val sourceDDL =
       """
@@ -181,7 +181,8 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql(sourceDDL)
     tableEnv.executeSql(sinkDDL)
     tableEnv.executeSql(query).await()
-    assertEquals(sourceData.sorted, TestCollectionTableFactory.RESULT.sorted)
+    assertThatList(sourceData).containsExactlyInAnyOrderElementsOf(
+      TestCollectionTableFactory.RESULT)
   }
 
   @TestTemplate
@@ -245,7 +246,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     val expected =
       "2019-12-12 00:00:05.0,2019-12-12 00:00:04.004001,3,50.00\n" +
         "2019-12-12 00:00:10.0,2019-12-12 00:00:06.006001,2,5.33\n"
-    assertEquals(expected, FileUtils.readFileUtf8(new File(new URI(sinkFilePath))))
+    assertThat(expected).isEqualTo(FileUtils.readFileUtf8(new File(new URI(sinkFilePath))))
   }
 
   @TestTemplate
@@ -307,7 +308,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     val expected =
       "2019-12-12 00:00:05.0|2019-12-12 00:00:04.004001|3|50.00\n" +
         "2019-12-12 00:00:10.0|2019-12-12 00:00:06.006001|2|5.33\n"
-    assertEquals(expected, FileUtils.readFileUtf8(new File(new URI(sinkFilePath))))
+    assertThat(expected).isEqualTo(FileUtils.readFileUtf8(new File(new URI(sinkFilePath))))
   }
 
   @TestTemplate
@@ -318,14 +319,14 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       toRow(3, "2000"),
       toRow(1, "2"),
       toRow(2, "3000")
-    )
+    ).asJava
     val expected = List(
       toRow(1, "1000", 2),
       toRow(2, "1", 3),
       toRow(3, "2000", 4),
       toRow(1, "2", 2),
       toRow(2, "3000", 3)
-    )
+    ).asJava
     TestCollectionTableFactory.initData(sourceData)
     val sourceDDL =
       """
@@ -355,7 +356,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql(sourceDDL)
     tableEnv.executeSql(sinkDDL)
     tableEnv.executeSql(query).await()
-    assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
+    assertThatList(expected).containsExactlyInAnyOrderElementsOf(TestCollectionTableFactory.RESULT)
   }
 
   // Test the computation expression in front of referenced columns.
@@ -367,14 +368,14 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       toRow(3, "2000"),
       toRow(2, "2"),
       toRow(2, "3000")
-    )
+    ).asJava
     val expected = List(
       toRow(101, 1, "1000"),
       toRow(102, 2, "1"),
       toRow(103, 3, "2000"),
       toRow(102, 2, "2"),
       toRow(102, 2, "3000")
-    )
+    ).asJava
     TestCollectionTableFactory.initData(sourceData)
     val sourceDDL =
       """
@@ -404,7 +405,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql(sourceDDL)
     tableEnv.executeSql(sinkDDL)
     tableEnv.executeSql(query).await()
-    assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
+    assertThatList(expected).containsExactlyInAnyOrderElementsOf(TestCollectionTableFactory.RESULT)
   }
 
   @TestTemplate
@@ -415,14 +416,14 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       toRow(3, "2019-09-10 09:23:42"),
       toRow(1, "2019-09-10 09:23:43"),
       toRow(2, "2019-09-10 09:23:44")
-    )
+    ).asJava
     val expected = List(
       toRow(1, "1990-02-10 12:34:56", localDateTime("1990-02-10 12:34:56")),
       toRow(2, "2019-09-10 09:23:41", localDateTime("2019-09-10 09:23:41")),
       toRow(3, "2019-09-10 09:23:42", localDateTime("2019-09-10 09:23:42")),
       toRow(1, "2019-09-10 09:23:43", localDateTime("2019-09-10 09:23:43")),
       toRow(2, "2019-09-10 09:23:44", localDateTime("2019-09-10 09:23:44"))
-    )
+    ).asJava
     TestCollectionTableFactory.initData(sourceData)
     val sourceDDL =
       """
@@ -452,7 +453,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql(sourceDDL)
     tableEnv.executeSql(sinkDDL)
     tableEnv.executeSql(query).await()
-    assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
+    assertThatList(expected).containsExactlyInAnyOrderElementsOf(TestCollectionTableFactory.RESULT)
   }
 
   @TestTemplate
@@ -463,14 +464,14 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       toRow(3, "2019-09-10 9:23:42"),
       toRow(1, "2019-09-10 9:23:43"),
       toRow(2, "2019-09-10 9:23:44")
-    )
+    ).asJava
     val expected = List(
       toRow(1, "1990-02-10 12:34:56", 1, "1990-02-10 12:34:56"),
       toRow(2, "2019-09-10 9:23:41", 2, "2019-09-10 9:23:41"),
       toRow(3, "2019-09-10 9:23:42", 3, "2019-09-10 9:23:42"),
       toRow(1, "2019-09-10 9:23:43", 1, "2019-09-10 9:23:43"),
       toRow(2, "2019-09-10 9:23:44", 2, "2019-09-10 9:23:44")
-    )
+    ).asJava
     TestCollectionTableFactory.initData(sourceData)
     tableEnv.createTemporarySystemFunction("my_udf", Func0)
     val sourceDDL =
@@ -503,7 +504,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql(sourceDDL)
     tableEnv.executeSql(sinkDDL)
     tableEnv.executeSql(query).await()
-    assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
+    assertThatList(expected).containsExactlyInAnyOrderElementsOf(TestCollectionTableFactory.RESULT)
   }
 
   @TestTemplate
@@ -514,14 +515,14 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       toRow(3, "2000"),
       toRow(1, "2"),
       toRow(2, "3000")
-    )
+    ).asJava
     val expected = List(
       toRow(1, 2),
       toRow(1, 2),
       toRow(2, 3),
       toRow(2, 3),
       toRow(3, 4)
-    )
+    ).asJava
     TestCollectionTableFactory.initData(sourceData)
     val sourceDDL =
       """
@@ -551,7 +552,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql(sourceDDL)
     tableEnv.executeSql(sinkDDL)
     tableEnv.executeSql(query).await()
-    assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
+    assertThatList(expected).containsExactlyInAnyOrderElementsOf(TestCollectionTableFactory.RESULT)
   }
 
   @TestTemplate
@@ -562,7 +563,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       toRow(3, "2000"),
       toRow(1, "2"),
       toRow(2, "3000")
-    )
+    ).asJava
     TestCollectionTableFactory.initData(sourceData)
     val sourceDDL =
       """
@@ -605,14 +606,14 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       toRow(3, 2000, 4),
       toRow(1, 2, 2),
       toRow(2, 3000, 3)
-    )
+    ).asJava
 
     val expected = List(
       toRow(1, 1000, 2, 1),
       toRow(1, 2, 2, 1),
       toRow(2, 1, 1, 2),
       toRow(2, 3000, 1, 2)
-    )
+    ).asJava
     TestCollectionTableFactory.initData(sourceData)
     val sourceDDL =
       """
@@ -646,7 +647,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql(sourceDDL)
     tableEnv.executeSql(sinkDDL)
     tableEnv.executeSql(query).await()
-    assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
+    assertThatList(expected).containsExactlyInAnyOrderElementsOf(TestCollectionTableFactory.RESULT)
   }
 
   @TestTemplate
@@ -660,13 +661,13 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       toRow(3, 2000, 4),
       toRow(4, 2000, 5),
       toRow(5, 3000, 6)
-    )
+    ).asJava
 
     val expected = List(
       toRow(3, 1000),
       toRow(5, 3000),
       toRow(7, 2000)
-    )
+    ).asJava
     TestCollectionTableFactory.initData(sourceData)
     val sourceDDL =
       """
@@ -695,7 +696,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql(sourceDDL)
     tableEnv.executeSql(sinkDDL)
     tableEnv.executeSql(query).await()
-    assertEquals(expected.sorted, TestCollectionTableFactory.RESULT.sorted)
+    assertThatList(expected).containsExactlyInAnyOrderElementsOf(TestCollectionTableFactory.RESULT)
   }
 
   @TestTemplate
@@ -705,7 +706,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       toRow(2, "1", 3),
       toRow(3, "2000", 4),
       toRow(1, "2", 2),
-      toRow(2, "3000", 3))
+      toRow(2, "3000", 3)).asJava
 
     val permanentTable =
       """
@@ -746,14 +747,14 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       toRow(2, "1", 3),
       toRow(3, "2000", 4),
       toRow(1, "2", 2),
-      toRow(2, "3000", 3))
+      toRow(2, "3000", 3)).asJava
 
     val temporaryData = List(
       toRow(1, "1000", 3),
       toRow(2, "1", 4),
       toRow(3, "2000", 5),
       toRow(1, "2", 3),
-      toRow(2, "3000", 4))
+      toRow(2, "3000", 4)).asJava
 
     tableEnv.executeSql(permanentTable)
     tableEnv.executeSql(temporaryTable)
@@ -764,7 +765,8 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     val query = "SELECT a, b, d FROM T1"
     tableEnv.sqlQuery(query).executeInsert("T2").await()
     // temporary table T1 masks permanent table T1
-    assertEquals(temporaryData.sorted, TestCollectionTableFactory.RESULT.sorted)
+    assertThatList(temporaryData).containsExactlyInAnyOrderElementsOf(
+      TestCollectionTableFactory.RESULT)
 
     TestCollectionTableFactory.reset()
     TestCollectionTableFactory.initData(sourceData)
@@ -776,7 +778,8 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql(dropTemporaryTable)
     tableEnv.sqlQuery(query).executeInsert("T2").await()
     // now we only have permanent view T1
-    assertEquals(permanentData.sorted, TestCollectionTableFactory.RESULT.sorted)
+    assertThatList(permanentData).containsExactlyInAnyOrderElementsOf(
+      TestCollectionTableFactory.RESULT)
   }
 
   @TestTemplate
@@ -803,9 +806,10 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
 
     tableEnv.executeSql(ddl1)
     tableEnv.executeSql(ddl2)
-    assert(tableEnv.listTables().sameElements(Array[String]("t1", "t2")))
+    assertThat(tableEnv.listTables())
+      .containsExactlyInAnyOrderElementsOf(Seq[String]("t1", "t2").asJava)
     tableEnv.executeSql("DROP TABLE default_catalog.default_database.t2")
-    assert(tableEnv.listTables().sameElements(Array("t1")))
+    assertThat(tableEnv.listTables()).containsExactly("t1")
   }
 
   @TestTemplate
@@ -832,10 +836,11 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
 
     tableEnv.executeSql(ddl1)
     tableEnv.executeSql(ddl2)
-    assert(tableEnv.listTables().sameElements(Array[String]("t1", "t2")))
+    assertThat(tableEnv.listTables())
+      .containsExactlyInAnyOrderElementsOf(Seq[String]("t1", "t2").asJava)
     tableEnv.executeSql("DROP TABLE default_database.t2")
     tableEnv.executeSql("DROP TABLE t1")
-    assert(tableEnv.listTables().isEmpty)
+    assertThat(tableEnv.listTables()).isEmpty()
   }
 
   @TestTemplate
@@ -852,7 +857,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       """.stripMargin
 
     tableEnv.executeSql(ddl1)
-    assert(tableEnv.listTables().sameElements(Array[String]("t1")))
+    assertThat(tableEnv.listTables()).containsExactly("t1")
     assertThatExceptionOfType(classOf[ValidationException])
       .isThrownBy(() => tableEnv.executeSql("DROP TABLE catalog1.database1.t1"))
   }
@@ -871,9 +876,9 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       """.stripMargin
 
     tableEnv.executeSql(ddl1)
-    assert(tableEnv.listTables().sameElements(Array[String]("t1")))
+    assertThat(tableEnv.listTables()).containsExactly("t1")
     tableEnv.executeSql("DROP TABLE IF EXISTS catalog1.database1.t1")
-    assert(tableEnv.listTables().sameElements(Array[String]("t1")))
+    assertThat(tableEnv.listTables()).containsExactly("t1")
   }
 
   @TestTemplate
@@ -943,7 +948,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       """.stripMargin
     tableEnv.executeSql(createTable1)
     tableEnv.executeSql("drop view if exists t1")
-    assert(tableEnv.listTables().sameElements(Array("t1")))
+    assertThat(tableEnv.listTables()).containsExactly("t1")
   }
 
   @TestTemplate
@@ -963,7 +968,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
 
     // alter table rename
     tableEnv.executeSql("alter table t1 rename to t2")
-    assert(tableEnv.listTables().sameElements(Array[String]("t2")))
+    assertThat(tableEnv.listTables()).containsExactly("t2")
 
     // alter table options
     tableEnv.executeSql("alter table t2 set ('k1' = 'a', 'k2' = 'b')")
@@ -971,34 +976,37 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     expectedOptions.put("connector", "COLLECTION")
     expectedOptions.put("k1", "a")
     expectedOptions.put("k2", "b")
-    assertEquals(expectedOptions, getTableOptions("t2"))
+    assertThat(expectedOptions).isEqualTo(getTableOptions("t2"))
 
     tableEnv.executeSql("alter table t2 reset ('k1')")
     expectedOptions.remove("k1")
-    assertEquals(expectedOptions, getTableOptions("t2"))
+    assertThat(expectedOptions).isEqualTo(getTableOptions("t2"))
 
     // alter table add constraint
     val currentCatalog = tableEnv.getCurrentCatalog
     val currentDB = tableEnv.getCurrentDatabase
     tableEnv.executeSql("alter table t2 add constraint ct1 primary key(a) not enforced")
-    val tableSchema1 = tableEnv
+    val primaryKey = tableEnv
       .getCatalog(currentCatalog)
       .get()
       .getTable(ObjectPath.fromString(s"$currentDB.t2"))
-      .getSchema
-    assert(tableSchema1.getPrimaryKey.isPresent)
-    assertEquals(
-      "CONSTRAINT ct1 PRIMARY KEY (a)",
-      tableSchema1.getPrimaryKey.get().asSummaryString())
+      .asInstanceOf[ResolvedCatalogTable]
+      .getResolvedSchema
+      .getPrimaryKey
+    assertThat(primaryKey).isPresent
+    assertThat(primaryKey.get().asSummaryString())
+      .isEqualTo("CONSTRAINT `ct1` PRIMARY KEY (`a`) NOT ENFORCED")
 
     // alter table drop constraint
     tableEnv.executeSql("alter table t2 drop constraint ct1")
-    val tableSchema2 = tableEnv
+    val primaryKey2 = tableEnv
       .getCatalog(currentCatalog)
       .get()
       .getTable(ObjectPath.fromString(s"$currentDB.t2"))
-      .getSchema
-    assertEquals(false, tableSchema2.getPrimaryKey.isPresent)
+      .asInstanceOf[ResolvedCatalogTable]
+      .getResolvedSchema
+      .getPrimaryKey
+    assertThat(primaryKey2).isNotPresent
   }
 
   @TestTemplate
@@ -1054,7 +1062,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         |""".stripMargin
     tableEnv.executeSql(executedDDL)
     val row = tableEnv.executeSql("SHOW CREATE TABLE `TBL1`").collect().next()
-    assertEquals(expectedDDL, row.getField(0))
+    assertThat(row.getField(0)).isEqualTo(expectedDDL)
 
     assertThatExceptionOfType(classOf[ValidationException])
       .isThrownBy(() => tableEnv.executeSql("SHOW CREATE TABLE `tmp`"))
@@ -1117,7 +1125,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         |""".stripMargin
     tableEnv.executeSql(executedDDL)
     val row = tableEnv.executeSql("SHOW CREATE TABLE `TBL1`").collect().next()
-    assertEquals(expectedDDL, row.getField(0).toString)
+    assertThat(row.getField(0)).hasToString(expectedDDL)
   }
 
   @TestTemplate
@@ -1153,7 +1161,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         |""".stripMargin
     tableEnv.executeSql(executedDDL)
     val row = tableEnv.executeSql("SHOW CREATE TABLE `TBL1`").collect().next()
-    assertEquals(expectedDDL, row.getField(0))
+    assertThat(row.getField(0)).isEqualTo(expectedDDL)
   }
 
   @TestTemplate
@@ -1182,6 +1190,13 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         "SHOW CREATE TABLE is only supported for tables, " +
           "but `default_catalog`.`default_database`.`tmp` is a view. " +
           "Please use SHOW CREATE VIEW instead.")
+
+    assertThatExceptionOfType(classOf[TableException])
+      .isThrownBy(() => tableEnv.executeSql("SHOW CREATE VIEW `source`"))
+      .withMessageContaining(
+        "SHOW CREATE VIEW is only supported for views, " +
+          "but `default_catalog`.`default_database`.`source` is a table. " +
+          "Please use SHOW CREATE TABLE instead.")
   }
 
   @TestTemplate
@@ -1196,7 +1211,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql("CREATE VIEW V AS SELECT * FROM T")
 
     tableEnv.executeSql("ALTER VIEW V RENAME TO V2")
-    assert(tableEnv.listViews().sameElements(Array[String]("V2")))
+    assertThat(tableEnv.listViews()).containsExactly("V2")
   }
 
   @TestTemplate
@@ -1219,7 +1234,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       .get()
       .getTable(objectPath)
       .asInstanceOf[CatalogView]
-    assertEquals("SELECT `b`\nFROM `T`", view.getOriginalQuery)
+    assertThat(view.getOriginalQuery).isEqualTo("SELECT `b`\nFROM `T`")
   }
 
   @TestTemplate
@@ -1227,10 +1242,10 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.registerCatalog("cat1", new GenericInMemoryCatalog("cat1"))
     tableEnv.registerCatalog("cat2", new GenericInMemoryCatalog("cat2"))
     tableEnv.executeSql("use catalog cat1")
-    assertEquals("cat1", tableEnv.getCurrentCatalog)
+    assertThat(tableEnv.getCurrentCatalog).isEqualTo("cat1")
     tableEnv.executeSql("use catalog cat2")
-    assertEquals("cat2", tableEnv.getCurrentCatalog)
-    assertEquals("+I[cat2]", tableEnv.executeSql("show current catalog").collect().next().toString)
+    assertThat(tableEnv.getCurrentCatalog).isEqualTo("cat2")
+    assertThat(tableEnv.executeSql("show current catalog").collect().next()).hasToString("+I[cat2]")
   }
 
   @TestTemplate
@@ -1242,13 +1257,13 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     catalog.createDatabase("db1", catalogDB1, true)
     catalog.createDatabase("db2", catalogDB2, true)
     tableEnv.executeSql("use cat1.db1")
-    assertEquals("db1", tableEnv.getCurrentDatabase)
+    assertThat(tableEnv.getCurrentDatabase).isEqualTo("db1")
     var currentDatabase = tableEnv.executeSql("show current database").collect().next().toString
-    assertEquals("+I[db1]", currentDatabase)
+    assertThat(currentDatabase).isEqualTo("+I[db1]")
     tableEnv.executeSql("use db2")
-    assertEquals("db2", tableEnv.getCurrentDatabase)
+    assertThat(tableEnv.getCurrentDatabase).isEqualTo("db2")
     currentDatabase = tableEnv.executeSql("show current database").collect().next().toString
-    assertEquals("+I[db2]", currentDatabase)
+    assertThat(currentDatabase).isEqualTo("+I[db2]")
   }
 
   @TestTemplate
@@ -1268,12 +1283,12 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       "create database cat2.db1 comment 'test_comment'" +
         " with ('k1' = 'v1', 'k2' = 'v2')")
     val database = tableEnv.getCatalog("cat2").get().getDatabase("db1")
-    assertEquals("test_comment", database.getComment)
-    assertEquals(2, database.getProperties.size())
+    assertThat(database.getComment).isEqualTo("test_comment")
+    assertThat(database.getProperties).hasSize(2)
     val expectedProperty = new util.HashMap[String, String]()
     expectedProperty.put("k1", "v1")
     expectedProperty.put("k2", "v2")
-    assertEquals(expectedProperty, database.getProperties)
+    assertThat(database.getProperties).isEqualTo(expectedProperty)
   }
 
   @TestTemplate
@@ -1334,12 +1349,12 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql("create database db1 comment 'db1_comment' with ('k1' = 'v1')")
     tableEnv.executeSql("alter database db1 set ('k1' = 'a', 'k2' = 'b')")
     val database = tableEnv.getCatalog("cat1").get().getDatabase("db1")
-    assertEquals("db1_comment", database.getComment)
-    assertEquals(2, database.getProperties.size())
+    assertThat(database.getComment).isEqualTo("db1_comment")
+    assertThat(database.getProperties).hasSize(2)
     val expectedProperty = new util.HashMap[String, String]()
     expectedProperty.put("k1", "a")
     expectedProperty.put("k2", "b")
-    assertEquals(expectedProperty, database.getProperties)
+    assertThat(database.getProperties).isEqualTo(expectedProperty)
   }
 
   @TestTemplate
@@ -1347,7 +1362,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.registerCatalog("cat2", new TestValuesCatalog("cat2", "default", true))
     tableEnv.executeSql("use catalog cat2")
     // test load customer function packaged in a jar
-    val random = new Random();
+    val random = new Random()
     val udfClassName = GENERATED_LOWER_UDF_CLASS + random.nextInt(50)
     val jarPath = UserClassLoaderJarTestUtils
       .createJarFile(
@@ -1361,7 +1376,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     tableEnv.executeSql(s"""create function lowerUdf as '$udfClassName' using jar '$jarPath'""")
 
     TestCollectionTableFactory.reset()
-    TestCollectionTableFactory.initData(List(Row.of("BoB")))
+    TestCollectionTableFactory.initData(List(Row.of("BoB")).asJava)
     val ddl1 =
       """
         |create table t1(
@@ -1371,9 +1386,8 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
         |)
       """.stripMargin
     tableEnv.executeSql(ddl1)
-    assertEquals(
-      "+I[bob]",
-      tableEnv.executeSql("select lowerUdf(a) from t1").collect().next().toString)
+    assertThat(tableEnv.executeSql("select lowerUdf(a) from t1").collect().next())
+      .hasToString("+I[bob]")
   }
 
   @TestTemplate
