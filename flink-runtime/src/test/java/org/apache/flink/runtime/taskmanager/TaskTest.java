@@ -51,6 +51,7 @@ import org.apache.flink.runtime.taskexecutor.PartitionProducerStateChecker;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.WrappingRuntimeException;
@@ -124,6 +125,31 @@ public class TaskTest extends TestLogger {
         if (shuffleEnvironment != null) {
             shuffleEnvironment.close();
         }
+    }
+
+    @Test
+    public void testTaskFailedWithCleanupCancelledExternally() throws Exception {
+        testTaskFailedWithCleanupFailingExternally(false);
+    }
+
+    @Test
+    public void testTaskFailedWithCleanupFailingExternally() throws Exception {
+        testTaskFailedWithCleanupFailingExternally(true);
+    }
+
+    public void testTaskFailedWithCleanupFailingExternally(boolean cancelled) throws Exception {
+        Task task =
+                createTaskBuilder()
+                        .setInvokable(
+                                cancelled
+                                        ? InvokableWithExceptionAndCleanUpFailingExternallyWithCancel
+                                                .class
+                                        : InvokableWithExceptionAndCleanUpFailingExternally.class)
+                        .build(Executors.directExecutor());
+        task.run();
+
+        assertEquals(ExecutionState.FAILED, task.getExecutionState());
+        ExceptionUtils.assertThrowable(task.getFailureCause(), ExpectedTestException.class);
     }
 
     @Test
@@ -450,6 +476,7 @@ public class TaskTest extends TestLogger {
 
         task.cancelExecution();
         assertTrue(
+                task.getExecutionState().toString(),
                 task.getExecutionState() == ExecutionState.CANCELING
                         || task.getExecutionState() == ExecutionState.CANCELED);
 
@@ -480,6 +507,7 @@ public class TaskTest extends TestLogger {
 
         task.cancelExecution();
         assertTrue(
+                task.getExecutionState().toString(),
                 task.getExecutionState() == ExecutionState.CANCELING
                         || task.getExecutionState() == ExecutionState.CANCELED);
 
@@ -1383,6 +1411,43 @@ public class TaskTest extends TestLogger {
         @Override
         public void cleanUp(Throwable throwable) throws Exception {
             wasCleanedUp = true;
+            super.cleanUp(throwable);
+        }
+    }
+
+    private static final class InvokableWithExceptionAndCleanUpFailingExternallyWithCancel
+            extends AbstractInvokable {
+        public InvokableWithExceptionAndCleanUpFailingExternallyWithCancel(
+                Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public void invoke() throws Exception {
+            throw new ExpectedTestException("THIS!");
+        }
+
+        @Override
+        public void cleanUp(Throwable throwable) throws Exception {
+            getEnvironment().failExternally(new CancelTaskException("NOT THIS!"));
+            super.cleanUp(throwable);
+        }
+    }
+
+    private static final class InvokableWithExceptionAndCleanUpFailingExternally
+            extends AbstractInvokable {
+        public InvokableWithExceptionAndCleanUpFailingExternally(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public void invoke() throws Exception {
+            throw new ExpectedTestException("THIS!");
+        }
+
+        @Override
+        public void cleanUp(Throwable throwable) throws Exception {
+            getEnvironment().failExternally(new Exception("NOT THIS!"));
             super.cleanUp(throwable);
         }
     }

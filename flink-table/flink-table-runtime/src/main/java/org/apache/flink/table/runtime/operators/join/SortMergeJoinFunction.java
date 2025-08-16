@@ -572,6 +572,8 @@ public class SortMergeJoinFunction implements Serializable {
         if (this.sorter2 != null) {
             this.sorter2.close();
         }
-        condFunc.close();
+        if (condFunc != null) {
+            condFunc.close();
+        }
     }
 }
