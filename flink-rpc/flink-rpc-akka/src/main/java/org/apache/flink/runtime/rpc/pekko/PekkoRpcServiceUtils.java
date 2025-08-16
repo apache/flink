@@ -322,6 +322,7 @@ public class PekkoRpcServiceUtils {
             return this;
         }
 
+        @Override
         public PekkoRpcService createAndStart() throws Exception {
             return createAndStart(PekkoRpcService::new);
         }
