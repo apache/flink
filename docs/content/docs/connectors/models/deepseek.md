@@ -1,5 +1,5 @@
 ---
-title: "OpenAI"
+title: "DeepSeek"
 weight: 1
 type: docs
 ---
