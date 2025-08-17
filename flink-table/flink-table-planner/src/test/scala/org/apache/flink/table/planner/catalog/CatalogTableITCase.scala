@@ -1375,6 +1375,67 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends TableITCaseBase {
       "+I[bob]",
       tableEnv.executeSql("select lowerUdf(a) from t1").collect().next().toString)
   }
+
+  @TestTemplate
+  def testSensitiveInfoMasking(): Unit = {
+    // Create a table with sensitive information
+    val tableDDL =
+      """
+        |create table t1(
+        |  a bigint,
+        |  b varchar,
+        |  c int
+        |) with (
+        |  'connector' = 'values',
+        |  'password' = 'Secret1',
+        |  'secret' = 'Secret2',
+        |  'fs.azure.account.key' = 'Secret3',
+        |  'apikey' =  'Secret4',
+        |  'api-key' = 'Secret5',
+        |  'auth-params' = 'Secret6',
+        |  'service-key' = 'Secret7',
+        |  'token' = 'Secret8',
+        |  'basic-auth' = 'Secret9',
+        |  'jaas.config' = 'Secret10',
+        |  'http-headers' = '{"Authorization": "Secret11"}'
+        |)
+    """.stripMargin
+
+    tableEnv.executeSql(tableDDL)
+
+    // Extract a generic validation function
+    def validateSensitiveInfoMasking(sql: String, tableType: String): Unit = {
+      try {
+        tableEnv.executeSql(sql)
+        fail(s"Expected ValidationException for $tableType table")
+      } catch {
+        case e: ValidationException =>
+          val errorMsg = e.getMessage
+          // Verify sensitive information is masked
+          assert(!errorMsg.contains("Secret"))
+
+          // Verify all sensitive fields are replaced with '******'
+          assert(errorMsg.contains("'password'='******'"))
+          assert(errorMsg.contains("'secret'='******'"))
+          assert(errorMsg.contains("'fs.azure.account.key'='******'"))
+          assert(errorMsg.contains("'apikey'='******'"))
+          assert(errorMsg.contains("'api-key'='******'"))
+          assert(errorMsg.contains("'auth-params'='******'"))
+          assert(errorMsg.contains("'service-key'='******'"))
+          assert(errorMsg.contains("'token'='******'"))
+          assert(errorMsg.contains("'basic-auth'='******'"))
+          assert(errorMsg.contains("'jaas.config'='******'"))
+          assert(errorMsg.contains("'http-headers'='******'"))
+      }
+    }
+
+    // Test source table (SELECT)
+    validateSensitiveInfoMasking("select * from t1", "source")
+
+    // Test sink table (INSERT)
+    validateSensitiveInfoMasking("insert into t1 select 1, 'test', 1", "sink")
+  }
+
 }
 
 object CatalogTableITCase {
