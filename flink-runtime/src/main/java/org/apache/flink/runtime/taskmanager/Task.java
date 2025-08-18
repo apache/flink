@@ -852,8 +852,8 @@ public class Task
 
     /**
      * Transition into our final state in case of failure. We should be either in DEPLOYING,
-     * INITIALIZING, RUNNING, CANCELING, or FAILED loop for multiple retries during concurrent state
-     * changes via calls to cancel() or to failExternally()
+     * INITIALIZING, RUNNING, CANCELING, or FAILED. Loop for multiple retries in case of concurrent
+     * state changes via calls to cancel() or to failExternally()
      */
     private void transitionStateOnFailure(
             Throwable t, AutoCloseableRegistry postFailureCleanUpRegistry) throws IOException {
