@@ -255,7 +255,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             writer.keyword("IF NOT EXISTS");
         }
         tableName.unparse(writer, leftPrec, rightPrec);
-        if (columnList.size() > 0 || tableConstraints.size() > 0 || watermark != null) {
+        if (!columnList.isEmpty() || !tableConstraints.isEmpty() || watermark != null) {
             SqlUnparseUtils.unparseTableSchema(
                     writer, leftPrec, rightPrec, columnList, tableConstraints, watermark);
         }
@@ -267,19 +267,20 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
         }
 
         if (this.distribution != null) {
+            writer.newlineAndIndent();
             distribution.unparse(writer, leftPrec, rightPrec);
         }
 
-        if (this.partitionKeyList.size() > 0) {
+        if (!this.partitionKeyList.isEmpty()) {
             writer.newlineAndIndent();
             writer.keyword("PARTITIONED BY");
             SqlWriter.Frame partitionedByFrame = writer.startList("(", ")");
             this.partitionKeyList.unparse(writer, leftPrec, rightPrec);
             writer.endList(partitionedByFrame);
-            writer.newlineAndIndent();
         }
 
-        if (this.propertyList.size() > 0) {
+        if (!this.propertyList.isEmpty()) {
+            writer.newlineAndIndent();
             writer.keyword("WITH");
             SqlWriter.Frame withFrame = writer.startList("(", ")");
             for (SqlNode property : propertyList) {
