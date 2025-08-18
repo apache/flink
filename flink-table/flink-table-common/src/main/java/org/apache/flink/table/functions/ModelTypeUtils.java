@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.functions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.api.ValidationException;
@@ -40,6 +41,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Internal
 public class ModelTypeUtils {
 
     public static final InputTypeStrategy ML_PREDICT_INPUT_TYPE_STRATEGY =
