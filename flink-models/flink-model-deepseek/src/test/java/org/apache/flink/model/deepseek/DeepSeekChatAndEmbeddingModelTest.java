@@ -277,21 +277,29 @@ public class DeepSeekChatAndEmbeddingModelTest {
                 }
 
                 String responseBody =
-                        "{\n"
+                        "{"
                                 + "  \"id\": \"chatcmpl-123\",\n"
-                                + "  \"object\": \"chat.completion\",\n"
-                                + "  \"created\": 1677652288,\n"
+                                + "  \"object\": \"chat.completion\","
+                                + "  \"created\": 1717029203,"
                                 + "  \"model\": \"deepseek-chat\",\n"
-                                + "  \"choices\": [\n"
-                                + "    {\n"
-                                + "      \"index\": 0,\n"
-                                + "      \"message\": {\n"
-                                + "        \"role\": \"assistant\",\n"
-                                + "        \"content\": \"I am DeepSeek, an AI assistant.\"\n"
-                                + "      },\n"
-                                + "      \"finish_reason\": \"stop\"\n"
-                                + "    }\n"
-                                + "  ]\n"
+                                + "  \"choices\": [{"
+                                + "    \"index\": 0,"
+                                + "    \"message\": {"
+                                + "      \"role\": \"assistant\","
+                                + "      \"content\": \""
+                                + contentBuilder
+                                + "\""
+                                + "    },"
+                                + "    \"finish_reason\": \"stop\""
+                                + "  }],"
+                                + "  \"usage\": {"
+                                + "    \"prompt_tokens\": 9,"
+                                + "    \"completion_tokens\": "
+                                + Math.min(maxTokens, 100)
+                                + ","
+                                + "    \"total_tokens\": "
+                                + (9 + Math.min(maxTokens, 100))
+                                + "  }"
                                 + "}";
 
                 return new MockResponse()
