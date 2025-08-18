@@ -38,6 +38,8 @@ import org.apache.flink.util.Preconditions;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.FutureTask;
 
 /**
  * Utility class that contains helper methods to work with Flink Streaming {@link Function
@@ -157,6 +159,31 @@ public final class StreamingFunctionUtils {
         }
 
         return false;
+    }
+
+    public static FutureTask<Void> getAsyncOperateFunctionStateFuture(
+            StateSnapshotContext context, Function userFunction) throws Exception {
+        Preconditions.checkNotNull(context);
+
+        while (true) {
+            if (userFunction instanceof WrappingFunction) {
+                userFunction = ((WrappingFunction<?>) userFunction).getWrappedFunction();
+            } else {
+                break;
+            }
+        }
+
+        Function finalUserFunction = userFunction;
+        return new FutureTask<Void>(
+                new Callable<Void>() {
+                    @Override
+                    public Void call() throws Exception {
+                        if (finalUserFunction instanceof CheckpointedFunction) {
+                            ((CheckpointedFunction) finalUserFunction).asyncOperate(context);
+                        }
+                        return null;
+                    }
+                });
     }
 
     public static void restoreFunctionState(
