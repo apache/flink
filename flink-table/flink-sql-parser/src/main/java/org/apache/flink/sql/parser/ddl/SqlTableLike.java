@@ -89,6 +89,10 @@ import static java.util.Collections.singletonList;
  * }</pre>
  */
 public class SqlTableLike extends SqlCall implements ExtendedSqlNode {
+
+    public static final String INVALID_STRATEGY_MSG_PATTERN =
+            "Illegal merging strategy '%s' for '%s' option.";
+
     /**
      * A strategy that describes how the features of the parent source table should be merged with
      * the features of the newly created table.
@@ -218,8 +222,9 @@ public class SqlTableLike extends SqlCall implements ExtendedSqlNode {
                 throw new SqlValidateException(
                         pos,
                         String.format(
-                                "Illegal merging strategy '%s' for '%s' option.",
-                                option.getMergingStrategy(), option.getFeatureOption()));
+                                INVALID_STRATEGY_MSG_PATTERN,
+                                option.getMergingStrategy(),
+                                option.getFeatureOption()));
             }
         }
     }
