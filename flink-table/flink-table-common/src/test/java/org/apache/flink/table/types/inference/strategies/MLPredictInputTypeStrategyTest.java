@@ -160,6 +160,6 @@ class MLPredictInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithModelSemanticsAt(
                                 1, new ModelSemanticsMock(MODEL_INPUT_TYPE, MODEL_OUTPUT_TYPE))
                         .expectErrorMessage(
-                                "Third argument must be a descriptor with column names for ML_PREDICT function."));
+                                "Third argument must be a descriptor with simple column names for ML_PREDICT function."));
     }
 }
