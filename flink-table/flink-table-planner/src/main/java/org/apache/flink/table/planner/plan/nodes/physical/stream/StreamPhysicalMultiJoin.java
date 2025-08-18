@@ -52,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -229,7 +230,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
 
     public List<List<int[]>> getUniqueKeysForInputs() {
         if (inputUniqueKeys == null) {
-            final List<List<int[]>> computed =
+            inputUniqueKeys =
                     inputs.stream()
                             .map(
                                     input -> {
@@ -244,8 +245,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
                                                 .map(ImmutableBitSet::toArray)
                                                 .collect(Collectors.toList());
                                     })
-                            .collect(Collectors.toList());
-            inputUniqueKeys = Collections.unmodifiableList(computed);
+                            .collect(Collectors.toUnmodifiableList());
         }
         return inputUniqueKeys;
     }
@@ -303,7 +303,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         }
 
         if (commonJoinKey.isEmpty()) {
-            commonJoinKey.add("noCommonJoinKey");
+            return "noCommonJoinKey";
         }
 
         return String.join(", ", commonJoinKey);
@@ -336,28 +336,19 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
      * @return formatted join conditions string with field names
      */
     private String formatJoinConditionsWithFieldNames(final RelWriter pw) {
-        if (joinConditions.isEmpty()) {
-            return "";
-        }
-
-        final List<String> formattedConditions = new ArrayList<>();
-        for (final RexNode condition : joinConditions) {
-            if (condition != null) {
-                formattedConditions.add(formatExpressionWithFieldNames(condition, pw));
-            }
-        }
-
-        return String.join(", ", formattedConditions);
+        return joinConditions.stream()
+                .filter(Objects::nonNull)
+                .map(condition -> formatExpressionWithFieldNames(condition, pw))
+                .collect(Collectors.joining(", "));
     }
 
     private String formatInputUniqueKeysWithFieldNames() {
         final List<String> inputUniqueKeyStrings = new ArrayList<>();
-        for (int i = 0; i < inputs.size(); i++) {
-            final RelNode input = inputs.get(i);
-            final List<String> fieldNames = input.getRowType().getFieldNames();
+        for (final RelNode input : inputs) {
             final Set<ImmutableBitSet> uniqueKeys = getUniqueKeys(input);
 
             if (uniqueKeys != null && !uniqueKeys.isEmpty()) {
+                final List<String> fieldNames = input.getRowType().getFieldNames();
                 final List<String> uniqueKeyStrings = new ArrayList<>();
                 for (final ImmutableBitSet uniqueKey : uniqueKeys) {
                     final List<String> keyFieldNames = new ArrayList<>();
@@ -370,9 +361,8 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
                         uniqueKeyStrings.add("(" + String.join(", ", keyFieldNames) + ")");
                     }
                 }
-                if (!uniqueKeyStrings.isEmpty()) {
-                    inputUniqueKeyStrings.add(String.join(", ", uniqueKeyStrings));
-                }
+
+                inputUniqueKeyStrings.add(String.join(", ", uniqueKeyStrings));
             } else {
                 inputUniqueKeyStrings.add("noUniqueKey");
             }
