@@ -113,6 +113,14 @@ under the License.
 									<shadedPattern>org.apache.flink.model.deepseek.com.fasterxml.jackson</shadedPattern>
 								</relocation>
 							</relocations>
+							<filters>
+								<filter>
+									<artifact>*</artifact>
+									<excludes>
+										<exclude>okhttp3/internal/publicsuffix/NOTICE</exclude>
+									</excludes>
+								</filter>
+							</filters>
 						</configuration>
 					</execution>
 				</executions>
