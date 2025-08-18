@@ -19,6 +19,7 @@
 package org.apache.flink.datastream.api.stream;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.dsv2.Sink;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.datastream.api.function.OneInputStreamProcessFunction;
@@ -36,6 +37,20 @@ public interface GlobalStream<T> extends DataStream {
      */
     <OUT> ProcessConfigurableAndGlobalStream<OUT> process(
             OneInputStreamProcessFunction<T, OUT> processFunction);
+
+    /**
+     * Adds a type information hint about the return type of this operator. This method can be used
+     * in cases where Flink cannot determine automatically what the produced type of a function is.
+     * That can be the case if the function uses generic type variables in the return type that
+     * cannot be inferred from the input type.
+     *
+     * <p>In most cases, the methods {@link #returns(Class)} and {@link #returns(TypeHint)} are
+     * preferable.
+     *
+     * @param typeInfo type information as a return type hint
+     * @return This operator with a given return type hint.
+     */
+    GlobalStream<T> returns(TypeInformation<T> typeInfo);
 
     /**
      * Apply a two output operation to this {@link GlobalStream}.
