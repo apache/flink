@@ -65,6 +65,7 @@ import org.apache.flink.sql.parser.dql.SqlLoadModule;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
 import org.apache.flink.sql.parser.dql.SqlRichExplain;
 import org.apache.flink.sql.parser.dql.SqlShowColumns;
+import org.apache.flink.sql.parser.dql.SqlShowCreateMaterializedTable;
 import org.apache.flink.sql.parser.dql.SqlShowCreateTable;
 import org.apache.flink.sql.parser.dql.SqlShowCreateView;
 import org.apache.flink.sql.parser.dql.SqlShowCurrentCatalog;
@@ -122,6 +123,7 @@ import org.apache.flink.table.operations.ModifyType;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ShowColumnsOperation;
+import org.apache.flink.table.operations.ShowCreateMaterializedTableOperation;
 import org.apache.flink.table.operations.ShowCreateTableOperation;
 import org.apache.flink.table.operations.ShowCreateViewOperation;
 import org.apache.flink.table.operations.ShowCurrentCatalogOperation;
@@ -320,6 +322,10 @@ public class SqlNodeToOperationConversion {
             return Optional.of(converter.convertAlterFunction((SqlAlterFunction) validated));
         } else if (validated instanceof SqlShowCreateTable) {
             return Optional.of(converter.convertShowCreateTable((SqlShowCreateTable) validated));
+        } else if (validated instanceof SqlShowCreateMaterializedTable) {
+            return Optional.of(
+                    converter.convertShowCreateMaterializedTable(
+                            (SqlShowCreateMaterializedTable) validated));
         } else if (validated instanceof SqlShowCreateView) {
             return Optional.of(converter.convertShowCreateView((SqlShowCreateView) validated));
         } else if (validated instanceof SqlRichExplain) {
@@ -882,6 +888,16 @@ public class SqlNodeToOperationConversion {
                 UnresolvedIdentifier.of(sqlShowCreateTable.getFullTableName());
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
         return new ShowCreateTableOperation(identifier);
+    }
+
+    /** Convert SHOW CREATE MATERIALIZED TABLE statement. */
+    private Operation convertShowCreateMaterializedTable(
+            SqlShowCreateMaterializedTable sqlShowCreateMaterializedTable) {
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(
+                        sqlShowCreateMaterializedTable.getFullMaterializedTableName());
+        ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        return new ShowCreateMaterializedTableOperation(identifier);
     }
 
     /** Convert SHOW CREATE VIEW statement. */

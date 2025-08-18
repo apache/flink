@@ -22,10 +22,16 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogDescriptor;
+import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedCatalogView;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -52,6 +58,8 @@ public class ShowCreateUtilTest {
             ObjectIdentifier.of("catalogName", "dbName", "tableName");
     private static final ObjectIdentifier VIEW_IDENTIFIER =
             ObjectIdentifier.of("catalogName", "dbName", "viewName");
+    private static final ObjectIdentifier MATERIALIZED_TABLE_IDENTIFIER =
+            ObjectIdentifier.of("catalogName", "dbName", "materializedTableName");
 
     private static final ResolvedSchema ONE_COLUMN_SCHEMA =
             ResolvedSchema.of(Column.physical("id", DataTypes.INT()));
@@ -76,6 +84,16 @@ public class ShowCreateUtilTest {
         final String createViewString =
                 ShowCreateUtil.buildShowCreateViewRow(resolvedCatalogView, VIEW_IDENTIFIER, false);
         assertThat(createViewString).isEqualTo(expected);
+    }
+
+    @ParameterizedTest(name = "{index}: {1}")
+    @MethodSource("argsForShowCreateMaterializedTable")
+    void showCreateMaterializedTable(
+            ResolvedCatalogMaterializedTable materializedTable, String expected) {
+        final String createMaterializedTableString =
+                ShowCreateUtil.buildShowCreateMaterializedTableRow(
+                        materializedTable, MATERIALIZED_TABLE_IDENTIFIER, false);
+        assertThat(createMaterializedTableString).isEqualTo(expected);
     }
 
     @ParameterizedTest(name = "{index}: {1}")
@@ -241,6 +259,46 @@ public class ShowCreateUtilTest {
         return argList;
     }
 
+    private static Collection<Arguments> argsForShowCreateMaterializedTable() {
+        Collection<Arguments> argList = new ArrayList<>();
+        argList.add(
+                Arguments.of(
+                        createResolvedMaterialized(
+                                ONE_COLUMN_SCHEMA,
+                                null,
+                                List.of(),
+                                IntervalFreshness.ofMinute("1"),
+                                RefreshMode.CONTINUOUS,
+                                "SELECT 1"),
+                        "CREATE MATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
+                                + "  `id` INT\n"
+                                + ")\n"
+                                + "FRESHNESS = INTERVAL '1' MINUTE\n"
+                                + "REFRESH_MODE = CONTINUOUS\n"
+                                + "AS SELECT 1\n"));
+
+        argList.add(
+                Arguments.of(
+                        createResolvedMaterialized(
+                                TWO_COLUMNS_SCHEMA,
+                                "Materialized table comment",
+                                List.of("id"),
+                                IntervalFreshness.ofMinute("3"),
+                                RefreshMode.FULL,
+                                "SELECT id, name FROM tbl_a"),
+                        "CREATE MATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
+                                + "  `id` INT,\n"
+                                + "  `name` VARCHAR(2147483647)\n"
+                                + ")\n"
+                                + "COMMENT 'Materialized table comment'\n"
+                                + "PARTITION BY (`id`)\n"
+                                + "FRESHNESS = INTERVAL '3' MINUTE\n"
+                                + "REFRESH_MODE = FULL\n"
+                                + "AS SELECT id, name FROM tbl_a\n"));
+
+        return argList;
+    }
+
     private static ResolvedCatalogTable createResolvedTable(
             ResolvedSchema resolvedSchema,
             Map<String, String> options,
@@ -271,6 +329,27 @@ public class ShowCreateUtilTest {
                         originalQuery,
                         expandedQuery,
                         Collections.emptyMap()),
+                resolvedSchema);
+    }
+
+    private static ResolvedCatalogMaterializedTable createResolvedMaterialized(
+            ResolvedSchema resolvedSchema,
+            String comment,
+            List<String> partitionBy,
+            IntervalFreshness freshness,
+            RefreshMode refreshMode,
+            String definitionQuery) {
+        return new ResolvedCatalogMaterializedTable(
+                CatalogMaterializedTable.newBuilder()
+                        .comment(comment)
+                        .partitionKeys(partitionBy)
+                        .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema).build())
+                        .freshness(freshness)
+                        .refreshMode(refreshMode)
+                        .definitionQuery(definitionQuery)
+                        .logicalRefreshMode(LogicalRefreshMode.AUTOMATIC)
+                        .refreshStatus(RefreshStatus.ACTIVATED)
+                        .build(),
                 resolvedSchema);
     }
 }
