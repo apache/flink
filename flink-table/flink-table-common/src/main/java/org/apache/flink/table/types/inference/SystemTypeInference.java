@@ -544,7 +544,6 @@ public class SystemTypeInference {
             try {
                 checkTableArgs(staticArgs, callContext);
                 if (allowSystemArgs) {
-                    // Check that the static arguments are valid
                     checkUidArg(callContext);
                 }
             } catch (ValidationException e) {
