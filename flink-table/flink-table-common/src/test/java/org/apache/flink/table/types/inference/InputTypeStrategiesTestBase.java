@@ -58,12 +58,6 @@ public abstract class InputTypeStrategiesTestBase {
     @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("testData")
     void testStrategy(TestSpec testSpec) {
-        /*
-        if (!testSpec.description.contains("Descriptor column not found in table")
-                && !testSpec.description.contains("Descriptor column count")) {
-            return;
-        }
-         */
         if (testSpec.expectedSignature != null) {
             assertThat(generateSignature(testSpec)).isEqualTo(testSpec.expectedSignature);
         }

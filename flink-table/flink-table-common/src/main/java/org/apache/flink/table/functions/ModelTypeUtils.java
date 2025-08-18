@@ -118,9 +118,8 @@ public class ModelTypeUtils {
             return Optional.empty();
         }
 
-        // TODO: validate config map
-        // Optional<Map> map = callContext.getArgumentValue(3, Map.class);
-
+        // Config map validation is done in StreamPhysicalMLPredictTableFunctionRule since
+        // we are not able to get map literal here.
         return Optional.of(callContext.getArgumentDataTypes());
     }
 
