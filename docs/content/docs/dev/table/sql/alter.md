@@ -411,13 +411,13 @@ ALTER TABLE MyTable ADD PARTITION (p1=1,p2='a') with ('k1'='v1') PARTITION (p1=1
 ALTER TABLE MyTable ADD DISTRIBUTION BY HASH(uid) INTO 4 BUCKETS;
 
 -- add new distribution on uid into 4 buckets
-CREATE TABLE MyTable ADD DISTRIBUTION BY (uid) INTO 4 BUCKETS;
+ALTER TABLE MyTable ADD DISTRIBUTION BY (uid) INTO 4 BUCKETS;
 
 -- add new distribution on uid.
-CREATE TABLE MyTable ADD DISTRIBUTION BY (uid);
+ALTER TABLE MyTable ADD DISTRIBUTION BY (uid);
 
 -- add new distribution into 4 buckets
-CREATE TABLE MyTable ADD DISTRIBUTION INTO 4 BUCKETS;
+ALTER TABLE MyTable ADD DISTRIBUTION INTO 4 BUCKETS;
 ```
 <span class="label label-danger">Note</span> Add a column to be primary key will change the column's nullability to false implicitly.
 
