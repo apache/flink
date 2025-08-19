@@ -54,7 +54,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link DeepSeekChatAndEmbeddingModelFunction}. */
 public class DeepSeekChatAndEmbeddingModelTest {
-
     private static final String MODEL_NAME = "m";
 
     private static final Schema INPUT_SCHEMA =
@@ -256,7 +255,13 @@ public class DeepSeekChatAndEmbeddingModelTest {
 
         @Override
         public MockResponse dispatch(RecordedRequest request) {
+            String path = request.getRequestUrl().encodedPath();
+
             String body = request.getBody().readUtf8();
+
+            if (!path.endsWith("/chat/completions")) {
+                return new MockResponse().setResponseCode(404);
+            }
 
             try {
                 JsonNode root = OBJECT_MAPPER.readTree(body);
@@ -279,10 +284,10 @@ public class DeepSeekChatAndEmbeddingModelTest {
 
                 String responseBody =
                         "{"
-                                + "  \"id\": \"chatcmpl-123\",\n"
+                                + "  \"id\": \"chatcmpl-1234567890ABCD\","
                                 + "  \"object\": \"chat.completion\","
                                 + "  \"created\": 1717029203,"
-                                + "  \"model\": \"deepseek-chat\",\n"
+                                + "  \"model\": \"deepseek-chat\","
                                 + "  \"choices\": [{"
                                 + "    \"index\": 0,"
                                 + "    \"message\": {"

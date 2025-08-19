@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.model.qwen;
+package org.apache.flink.model.deepseek;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
@@ -23,11 +23,13 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.openai.sdk.OpenAICompatibleModelFunction;
 import org.apache.flink.table.factories.ModelProviderFactory;
+import org.apache.flink.table.functions.AsyncPredictFunction;
 
 import static org.apache.flink.configuration.description.TextElement.code;
 
-/** {@link AbstractQwenModelFunction} for Qwen chat completion task. */
-public abstract class AbstractQwenModelFunction extends OpenAICompatibleModelFunction {
+/** {@link AsyncPredictFunction} for DeepSeek chat completion task. */
+public abstract class AbstractDeepSeekModelFunction extends OpenAICompatibleModelFunction {
+    private static final long serialVersionUID = 1L;
 
     public static final ConfigOption<String> ENDPOINT =
             ConfigOptions.key("endpoint")
@@ -36,16 +38,15 @@ public abstract class AbstractQwenModelFunction extends OpenAICompatibleModelFun
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Full URL of the Qwen API endpoint, e.g., %s or %s",
-                                            code(
-                                                    "https://dashscope.aliyuncs.com/compatible-mode/v1"))
+                                            "Full URL of the DeepSeek API endpoint, e.g., %s or %s",
+                                            code("https://api.deepseek.com/v1"))
                                     .build());
 
     public static final ConfigOption<String> API_KEY =
             ConfigOptions.key("api-key")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Qwen API key for authentication.");
+                    .withDescription("DeepSeek API key for authentication.");
 
     public static final ConfigOption<String> MODEL =
             ConfigOptions.key("model")
@@ -55,10 +56,10 @@ public abstract class AbstractQwenModelFunction extends OpenAICompatibleModelFun
                             Description.builder()
                                     .text(
                                             "Model name, e.g., %s, %s.",
-                                            code("text-embedding-v4"), code("qwen-plus"))
+                                            code("deepseek-chat"), code("deepseek-reasoner"))
                                     .build());
 
-    public AbstractQwenModelFunction(
+    public AbstractDeepSeekModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
         super(factoryContext, config);
     }
