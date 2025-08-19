@@ -27,14 +27,19 @@ under the License.
 		<version>2.2-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>flink-model-openai-sdk-shaded</artifactId>
-	<name>Flink : Models : OpenAI SDK</name>
+	<artifactId>flink-model-qwen</artifactId>
+	<name>Flink : Models : Qwen</name>
 
 	<properties>
 		<openai.version>1.6.1</openai.version>
 		<okhttp.version>4.12.0</okhttp.version>
 	</properties>
 	<dependencies>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-model-openai-sdk-shaded</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 		<!-- Flink Core Dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -62,11 +67,30 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-api</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>com.squareup.okhttp3</groupId>
+			<artifactId>mockwebserver</artifactId>
+			<version>${okhttp.version}</version>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>com.openai</groupId>
 			<artifactId>openai-java</artifactId>
 			<version>${openai.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-model-openai-sdk-shaded</artifactId>
+			<version>2.2-SNAPSHOT</version>
+			<scope>compile</scope>
 		</dependency>
 	</dependencies>
 	<repositories>
@@ -84,7 +108,7 @@ under the License.
 				<artifactId>maven-shade-plugin</artifactId>
 				<executions>
 					<execution>
-						<id>shade-openai-sdk</id>
+						<id>shade-deepseek</id>
 						<phase>package</phase>
 						<goals>
 							<goal>shade</goal>

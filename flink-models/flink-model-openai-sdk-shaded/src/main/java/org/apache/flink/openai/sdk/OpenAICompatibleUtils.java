@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/** Utility class for managing DeepSeek clients. */
+/** Utility class for managing OpenAICompatible clients. */
 public class OpenAICompatibleUtils {
     private static final Logger LOG = LoggerFactory.getLogger(OpenAICompatibleUtils.class);
 
@@ -43,12 +43,12 @@ public class OpenAICompatibleUtils {
             ReferenceKey key = new ReferenceKey(baseUrl, apiKey);
             ReferenceValue value = cache.get(key);
             if (value != null) {
-                LOG.debug("Returning an existing DeepSeek client.");
+                LOG.debug("Returning an existing OpenAICompatible client.");
                 value.referenceCount.incrementAndGet();
                 return value.client;
             }
 
-            LOG.debug("Building a new DeepSeek client.");
+            LOG.debug("Building a new OpenAICompatible client.");
             OpenAIClientAsync client =
                     OpenAIOkHttpClientAsync.builder()
                             .apiKey(apiKey)
@@ -65,10 +65,10 @@ public class OpenAICompatibleUtils {
             ReferenceKey key = new ReferenceKey(baseUrl, apiKey);
             ReferenceValue value = cache.get(key);
             Preconditions.checkNotNull(
-                    value, "The creation and release of DeepSeek client does not match.");
+                    value, "The creation and release of OpenAICompatible client does not match.");
             int count = value.referenceCount.decrementAndGet();
             if (count == 0) {
-                LOG.debug("Closing the DeepSeek client.");
+                LOG.debug("Closing the OpenAICompatible client.");
                 cache.remove(key);
                 value.client.close();
             }

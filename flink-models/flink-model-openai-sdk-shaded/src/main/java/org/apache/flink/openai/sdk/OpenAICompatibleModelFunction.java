@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/** Abstract parent class for {@link AsyncPredictFunction}s for DeepSeek API. */
+/** Abstract parent class for {@link AsyncPredictFunction}s for OpenAICompatible API. */
 public abstract class OpenAICompatibleModelFunction extends AsyncPredictFunction {
     private static final Logger LOG = LoggerFactory.getLogger(OpenAICompatibleModelFunction.class);
 
@@ -83,7 +83,7 @@ public abstract class OpenAICompatibleModelFunction extends AsyncPredictFunction
     @Override
     public void open(FunctionContext context) throws Exception {
         super.open(context);
-        LOG.debug("Creating an DeepSeek client.");
+        LOG.debug("Creating an OpenAICompatible client.");
         this.client = OpenAICompatibleUtils.createAsyncClient(baseUrl, apiKey, numRetry);
     }
 
@@ -91,7 +91,7 @@ public abstract class OpenAICompatibleModelFunction extends AsyncPredictFunction
     public void close() throws Exception {
         super.close();
         if (this.client != null) {
-            LOG.debug("Releasing the DeepSeek client.");
+            LOG.debug("Releasing the OpenAICompatible client.");
             OpenAICompatibleUtils.releaseAsyncClient(baseUrl, apiKey);
             client = null;
         }
