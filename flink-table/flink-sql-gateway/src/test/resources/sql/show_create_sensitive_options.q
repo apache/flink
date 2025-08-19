@@ -20,7 +20,7 @@
 # ==========================================================================
 
 # test create jdbc catalog
-CREATE CATALOG my_jdbc_catalog WITH (
+CREATE CATALOG my_catalog WITH (
   'type' = 'test-catalog',
   'username' = 'myuser',
   'password' = 'mypassword'
@@ -35,9 +35,9 @@ CREATE CATALOG my_jdbc_catalog WITH (
 !ok
 
 # show jdbc catalog with masked password
-SHOW CREATE CATALOG my_jdbc_catalog;
+SHOW CREATE CATALOG my_catalog;
 !output
-CREATE CATALOG `my_jdbc_catalog`
+CREATE CATALOG `my_catalog`
 WITH (
   'password' = '****',
   'type' = 'test-catalog',
@@ -47,7 +47,7 @@ WITH (
 
 # test create table with sensitive option
 CREATE TABLE IF NOT EXISTS users (
- `user` BIGINT NOT NULL,
+ `id` BIGINT NOT NULL,
  name VARCHAR(32)
 ) with (
    'connector' = 'jdbc',
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS users (
 SHOW CREATE TABLE users;
 !output
 CREATE TABLE `default_catalog`.`default_database`.`users` (
-  `user` BIGINT NOT NULL,
+  `id` BIGINT NOT NULL,
   `name` VARCHAR(32)
 )
 WITH (

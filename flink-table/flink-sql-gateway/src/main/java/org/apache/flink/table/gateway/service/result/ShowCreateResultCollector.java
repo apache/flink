@@ -29,7 +29,7 @@ import org.apache.flink.util.CollectionUtil;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.Arrays;
-import java.util.List;q
+import java.util.List;
 import java.util.Spliterators;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
