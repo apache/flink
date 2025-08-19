@@ -20,6 +20,8 @@ package org.apache.flink.model.deepseek;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.configuration.description.Description;
+import org.apache.flink.openai.sdk.OpenAICompatibleModelFunction;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryStringData;
@@ -38,9 +40,39 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.configuration.description.TextElement.code;
+
 /** {@link AsyncPredictFunction} for DeepSeek chat completion task. */
-public class DeepSeekChatAndEmbeddingModelFunction extends AbstractDeepSeekModelFunction {
+public class DeepSeekChatAndEmbeddingModelFunction extends OpenAICompatibleModelFunction {
     private static final long serialVersionUID = 1L;
+
+    public static final ConfigOption<String> ENDPOINT =
+            ConfigOptions.key("endpoint")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Full URL of the DeepSeek API endpoint, e.g., %s or %s",
+                                            code("https://api.deepseek.com/v1"))
+                                    .build());
+
+    public static final ConfigOption<String> API_KEY =
+            ConfigOptions.key("api-key")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("DeepSeek API key for authentication.");
+
+    public static final ConfigOption<String> MODEL =
+            ConfigOptions.key("model")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Model name, e.g., %s, %s.",
+                                            code("deepseek-chat"), code("deepseek-reasoner"))
+                                    .build());
 
     public static final ConfigOption<String> SYSTEM_PROMPT =
             ConfigOptions.key("system-prompt")

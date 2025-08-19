@@ -16,12 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.model.deepseek;
+package org.apache.flink.openai.sdk;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.configuration.description.Description;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -38,39 +37,21 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.configuration.description.TextElement.code;
-
 /** Abstract parent class for {@link AsyncPredictFunction}s for DeepSeek API. */
-public abstract class AbstractDeepSeekModelFunction extends AsyncPredictFunction {
-    private static final Logger LOG = LoggerFactory.getLogger(AbstractDeepSeekModelFunction.class);
+public abstract class OpenAICompatibleModelFunction extends AsyncPredictFunction {
+    private static final Logger LOG = LoggerFactory.getLogger(OpenAICompatibleModelFunction.class);
 
     public static final ConfigOption<String> ENDPOINT =
             ConfigOptions.key("endpoint")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Full URL of the DeepSeek API endpoint, e.g., %s or %s",
-                                            code("https://api.deepseek.com/v1"))
-                                    .build());
+                    .withDescription("The endpoint URL for the OpenAI-compatible API.");
 
     public static final ConfigOption<String> API_KEY =
             ConfigOptions.key("api-key")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("DeepSeek API key for authentication.");
-
-    public static final ConfigOption<String> MODEL =
-            ConfigOptions.key("model")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Model name, e.g., %s, %s.",
-                                            code("deepseek-chat"), code("deepseek-reasoner"))
-                                    .build());
+                    .withDescription("The API key for authentication.");
 
     protected transient OpenAIClientAsync client;
 
@@ -78,7 +59,7 @@ public abstract class AbstractDeepSeekModelFunction extends AsyncPredictFunction
     private final String baseUrl;
     private final String apiKey;
 
-    public AbstractDeepSeekModelFunction(
+    public OpenAICompatibleModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
         this.baseUrl = config.get(ENDPOINT);
         this.apiKey = config.get(API_KEY);
@@ -103,7 +84,7 @@ public abstract class AbstractDeepSeekModelFunction extends AsyncPredictFunction
     public void open(FunctionContext context) throws Exception {
         super.open(context);
         LOG.debug("Creating an DeepSeek client.");
-        this.client = DeepSeekUtils.createAsyncClient(baseUrl, apiKey, numRetry);
+        this.client = OpenAICompatibleUtils.createAsyncClient(baseUrl, apiKey, numRetry);
     }
 
     @Override
@@ -111,7 +92,7 @@ public abstract class AbstractDeepSeekModelFunction extends AsyncPredictFunction
         super.close();
         if (this.client != null) {
             LOG.debug("Releasing the DeepSeek client.");
-            DeepSeekUtils.releaseAsyncClient(baseUrl, apiKey);
+            OpenAICompatibleUtils.releaseAsyncClient(baseUrl, apiKey);
             client = null;
         }
     }

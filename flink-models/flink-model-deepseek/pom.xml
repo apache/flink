@@ -35,6 +35,11 @@ under the License.
 		<okhttp.version>4.12.0</okhttp.version>
 	</properties>
 	<dependencies>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-model-openai-sdk-shaded</artifactId>
+			<version>${project.version}</version>
+		</dependency>
 		<!-- Flink Core Dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -80,6 +85,12 @@ under the License.
 			<artifactId>openai-java</artifactId>
 			<version>${openai.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-model-openai-sdk-shaded</artifactId>
+			<version>2.2-SNAPSHOT</version>
+			<scope>compile</scope>
 		</dependency>
 	</dependencies>
 	<repositories>

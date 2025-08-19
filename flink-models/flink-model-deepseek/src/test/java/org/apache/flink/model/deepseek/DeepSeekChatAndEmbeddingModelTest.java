@@ -18,6 +18,7 @@
 package org.apache.flink.model.deepseek;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.openai.sdk.OpenAICompatibleUtils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableEnvironment;
@@ -96,7 +97,7 @@ public class DeepSeekChatAndEmbeddingModelTest {
 
     @AfterEach
     public void afterEach() {
-        assertThat(DeepSeekUtils.getCache()).isEmpty();
+        assertThat(OpenAICompatibleUtils.getCache()).isEmpty();
     }
 
     @Test

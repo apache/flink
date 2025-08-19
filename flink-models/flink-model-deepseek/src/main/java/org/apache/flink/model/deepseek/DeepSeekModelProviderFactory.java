@@ -38,9 +38,6 @@ public class DeepSeekModelProviderFactory implements ModelProviderFactory {
                 FactoryUtil.createModelProviderFactoryHelper(this, context);
         helper.validate();
         ReadableConfig config = helper.getOptions();
-        String endpoint = config.get(AbstractDeepSeekModelFunction.ENDPOINT);
-        String apiKey = config.get(AbstractDeepSeekModelFunction.API_KEY);
-        endpoint = endpoint.replaceAll("/*$", "").toLowerCase();
         AsyncPredictFunction function = new DeepSeekChatAndEmbeddingModelFunction(context, config);
         return new Provider(function);
     }

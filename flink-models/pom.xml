@@ -36,6 +36,7 @@ under the License.
 	<modules>
 		<module>flink-model-openai</module>
 		<module>flink-model-deepseek</module>
+		<module>flink-model-openai-sdk-shaded</module>
 	</modules>
 
 	<dependencies>

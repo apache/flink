@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.model.deepseek;
+package org.apache.flink.openai.sdk;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.Preconditions;
@@ -31,8 +31,8 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Utility class for managing DeepSeek clients. */
-public class DeepSeekUtils {
-    private static final Logger LOG = LoggerFactory.getLogger(DeepSeekUtils.class);
+public class OpenAICompatibleUtils {
+    private static final Logger LOG = LoggerFactory.getLogger(OpenAICompatibleUtils.class);
 
     private static final Object LOCK = new Object();
 
@@ -108,7 +108,7 @@ public class DeepSeekUtils {
     }
 
     @VisibleForTesting
-    static Map<ReferenceKey, ReferenceValue> getCache() {
+    public static Map<ReferenceKey, ReferenceValue> getCache() {
         return cache;
     }
 }
