@@ -19,7 +19,7 @@
 # test create catalog and table with sensitive options
 # ==========================================================================
 
-# test create jdbc catalog
+# test create catalog with sensitive option
 CREATE CATALOG my_catalog WITH (
   'type' = 'test-catalog',
   'username' = 'myuser',
