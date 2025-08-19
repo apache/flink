@@ -100,13 +100,9 @@ class ShowCreateResultCollectorTest {
 
     @Test
     void testFilterEmptyOptionNames() {
-        var collector = new ShowCreateResultCollector(true, new String[] {""});
-        var tableResult = createShowCreateTableResult("CREATE TABLE t WITH ('any' = 'value')");
-
-        var actual = collector.collect(tableResult);
-
-        assertThat(actual.get(0).getString(0).toString())
-                .isEqualTo("CREATE TABLE t WITH ('any' = 'value')");
+        assertThatThrownBy(() -> new ShowCreateResultCollector(true, new String[] {"", "  "}))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Sensitive options not set");
     }
 
     @Test
