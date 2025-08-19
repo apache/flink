@@ -262,6 +262,18 @@ $ ./sql-gateway -Dkey=value
             <td>Integer</td>
             <td>The minimum number of worker threads for sql gateway service.</td>
         </tr>
+        <tr>
+            <td><h5>sql-gateway.security.redact-sensitive-options.enabled</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Masks sensitive option values (e.g., passwords or tokens) in SHOW CREATE results to prevent accidental exposure.</td>
+        </tr>
+        <tr>
+            <td><h5>sql-gateway.security.redact-sensitive-options.names</h5></td>
+            <td style="word-wrap: break-word;">pass,secret,key,token,credentials,sas</td>
+            <td>String</td>
+            <td>Comma-separated table or catalog option names to mask. Any option whose name contains a listed value will be masked, e.g., 'pass' will match 'pass', 'password', 'properties.password', etc.</td>
+        </tr>
     </tbody>
 </table>
 
