@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.table.gateway.service.result;
 
 import org.apache.flink.core.execution.JobClient;
@@ -44,20 +62,42 @@ class ShowCreateResultCollectorTest {
         var collector = new ShowCreateResultCollector(false, new String[] {"password"});
         var result = createShowCreateTableResult("CREATE TABLE t WITH ('password' = 'secret')");
 
-        List<RowData> actual = collector.collect(result);
+        var actual = collector.collect(result);
 
         assertThat(actual.get(0).getString(0).toString())
                 .isEqualTo("CREATE TABLE t WITH ('password' = 'secret')");
     }
 
     @Test
+    void testQuotePatternsInNames() {
+        var collector = new ShowCreateResultCollector(false, new String[] {".*"});
+        var tableResult = createShowCreateTableResult("CREATE TABLE t WITH ('any' = 'value')");
+
+        var actual = collector.collect(tableResult);
+
+        assertThat(actual.get(0).getString(0).toString())
+                .isEqualTo("CREATE TABLE t WITH ('any' = 'value')");
+    }
+
+    @Test
+    void testFilterEmptyOptionNames() {
+        var collector = new ShowCreateResultCollector(false, new String[] {""});
+        var tableResult = createShowCreateTableResult("CREATE TABLE t WITH ('any' = 'value')");
+
+        var actual = collector.collect(tableResult);
+
+        assertThat(actual.get(0).getString(0).toString())
+                .isEqualTo("CREATE TABLE t WITH ('any' = 'value')");
+    }
+
+    @Test
     void testMatchOptionUsingContains() {
         var collector = new ShowCreateResultCollector(true, new String[] {"pass"});
-
-        TableResultInternal result =
+        TableResultInternal tableResult =
                 createShowCreateTableResult(
                         "CREATE TABLE t WITH ('properties.password' = 'secret', 'properties.username' = 'pass')");
-        List<RowData> actual = collector.collect(result);
+
+        var actual = collector.collect(tableResult);
 
         assertThat(actual.get(0).getString(0).toString())
                 .isEqualTo(
@@ -73,9 +113,9 @@ class ShowCreateResultCollectorTest {
                         .column("f1", DataTypes.STRING())
                         .build()
                         .resolve(new TestSchemaResolver());
-        var result = new ShowCreateTableResult("dummy", schema);
+        var tableResult = new ShowCreateTableResult("dummy", schema);
 
-        assertThatThrownBy(() -> collector.collect(result))
+        assertThatThrownBy(() -> collector.collect(tableResult))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("not supported for multiple columns");
     }
@@ -89,9 +129,9 @@ class ShowCreateResultCollectorTest {
                         .column("f0", DataTypes.BIGINT())
                         .build()
                         .resolve(new TestSchemaResolver());
-        var result = new ShowCreateTableResult("dummy", schema);
+        var tableResult = new ShowCreateTableResult("dummy", schema);
 
-        assertThatThrownBy(() -> collector.collect(result))
+        assertThatThrownBy(() -> collector.collect(tableResult))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Operation supported only for text column");
     }

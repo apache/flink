@@ -26,8 +26,10 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.util.CollectionUtil;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.util.Arrays;
-import java.util.List;
+import java.util.List;q
 import java.util.Spliterators;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -55,7 +57,10 @@ public class ShowCreateResultCollector {
 
     private static Pattern createPattern(String[] sensitiveOptions) {
         String[] optionsQuoted =
-                Arrays.stream(sensitiveOptions).map(Pattern::quote).toArray(String[]::new);
+                Arrays.stream(sensitiveOptions)
+                        .filter(StringUtils::isNoneBlank)
+                        .map(Pattern::quote)
+                        .toArray(String[]::new);
         var pattern = "[^']*" + String.join("[^']*|[^']*", optionsQuoted) + "[^']*";
         return Pattern.compile("'(" + pattern + ")'\\s*=\\s*'[^']*'", Pattern.CASE_INSENSITIVE);
     }
