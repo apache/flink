@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.SemanticTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
@@ -25,6 +27,16 @@ import java.util.List;
 
 /** Semantic tests for {@link StreamExecProcessTableFunction}. */
 public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
+
+    // TODO [FLINK-38233]: Remove this override when PTF support in
+    //  StreamNonDeterministicUpdatePlanVisitor is added.
+    @Override
+    protected void applyDefaultEnvironmentOptions(TableConfig config) {
+        super.applyDefaultEnvironmentOptions(config);
+        config.set(
+                OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                OptimizerConfigOptions.NonDeterministicUpdateStrategy.IGNORE);
+    }
 
     @Override
     public List<TableTestProgram> programs() {

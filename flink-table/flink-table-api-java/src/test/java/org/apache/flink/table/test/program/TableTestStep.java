@@ -23,12 +23,15 @@ import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.TableDistribution;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.types.RowKind;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +40,18 @@ import java.util.stream.Collectors;
 
 /** Abstract class for {@link SourceTestStep} and {@link SinkTestStep}. */
 public abstract class TableTestStep implements TestStep {
+
+    private static final Map<RowKind, String> ROWKIND_TO_STRING_MAP =
+            new EnumMap<>(
+                    Map.of(
+                            RowKind.INSERT,
+                            "I",
+                            RowKind.UPDATE_BEFORE,
+                            "UB",
+                            RowKind.UPDATE_AFTER,
+                            "UA",
+                            RowKind.DELETE,
+                            "D"));
 
     public final String name;
     public final List<String> schemaComponents;
@@ -149,6 +164,20 @@ public abstract class TableTestStep implements TestStep {
 
         public SpecificBuilder addPartitionKeys(String... partitionKeys) {
             this.partitionKeys.addAll(Arrays.asList(partitionKeys));
+            return (SpecificBuilder) this;
+        }
+
+        public SpecificBuilder addMode(ChangelogMode mode) {
+            this.options.put("connector", "values");
+            final String changelogsStr =
+                    mode.getContainedKinds().stream()
+                            .map(ROWKIND_TO_STRING_MAP::get)
+                            .collect(Collectors.joining(","));
+            this.options.put("changelog-mode", changelogsStr);
+            this.options.put("sink-changelog-mode-enforced", changelogsStr);
+            final String keyOnlyDeleteStr = Boolean.valueOf(mode.keyOnlyDeletes()).toString();
+            this.options.put("source.produces-delete-by-key", keyOnlyDeleteStr);
+            this.options.put("sink.supports-delete-by-key", keyOnlyDeleteStr);
             return (SpecificBuilder) this;
         }
     }

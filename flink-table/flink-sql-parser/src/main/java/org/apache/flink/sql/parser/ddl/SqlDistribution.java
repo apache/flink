@@ -70,24 +70,18 @@ public class SqlDistribution extends SqlCall {
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        unparse(writer, leftPrec, rightPrec, "DISTRIBUTED", true);
+        unparse(writer, leftPrec, rightPrec, "DISTRIBUTED");
     }
 
     public void unparseAlter(SqlWriter writer, int leftPrec, int rightPrec) {
-        unparse(writer, leftPrec, rightPrec, "DISTRIBUTION", false);
+        unparse(writer, leftPrec, rightPrec, "DISTRIBUTION");
     }
 
-    private void unparse(
-            SqlWriter writer, int leftPrec, int rightPrec, String keyword, boolean printNewlines) {
-        if (printNewlines) {
-            writer.newlineAndIndent();
-        }
-
-        if (bucketColumns.size() == 0 && bucketCount != null) {
+    private void unparse(SqlWriter writer, int leftPrec, int rightPrec, String keyword) {
+        if (bucketColumns.isEmpty() && bucketCount != null) {
             writer.keyword(keyword + " INTO");
             bucketCount.unparse(writer, leftPrec, rightPrec);
             writer.keyword("BUCKETS");
-            writer.newlineAndIndent();
             return;
         }
 
@@ -103,9 +97,6 @@ public class SqlDistribution extends SqlCall {
             writer.keyword("INTO");
             bucketCount.unparse(writer, leftPrec, rightPrec);
             writer.keyword("BUCKETS");
-        }
-        if (printNewlines) {
-            writer.newlineAndIndent();
         }
     }
 

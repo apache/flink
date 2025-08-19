@@ -162,16 +162,16 @@ public class SqlCreateMaterializedTable extends SqlCreate {
             comment.unparse(writer, leftPrec, rightPrec);
         }
 
-        if (partitionKeyList.size() > 0) {
+        if (!partitionKeyList.isEmpty()) {
             writer.newlineAndIndent();
             writer.keyword("PARTITIONED BY");
             SqlWriter.Frame partitionedByFrame = writer.startList("(", ")");
             partitionKeyList.unparse(writer, leftPrec, rightPrec);
             writer.endList(partitionedByFrame);
-            writer.newlineAndIndent();
         }
 
-        if (propertyList.size() > 0) {
+        if (!propertyList.isEmpty()) {
+            writer.newlineAndIndent();
             writer.keyword("WITH");
             SqlWriter.Frame withFrame = writer.startList("(", ")");
             for (SqlNode property : propertyList) {

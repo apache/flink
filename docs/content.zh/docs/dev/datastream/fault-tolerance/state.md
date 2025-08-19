@@ -320,7 +320,7 @@ ttl_config = StateTtlConfig \
 
 可以按照如下所示配置更细粒度的后台清理策略。当前的实现中 `HeapStateBackend` 依赖增量数据清理，`RocksDBStateBackend` 利用压缩过滤器进行后台清理。
 
-#### 全量快照时进行清理
+##### 全量快照时进行清理
 
 另外，你可以启用全量快照时进行清理的策略，这可以减少整个快照的大小。当前实现中不会清理本地的状态，但从上次快照恢复时，不会恢复那些已经删除的过期数据。
 该策略可以通过 `StateTtlConfig` 配置进行配置：
@@ -520,7 +520,7 @@ public class BufferingSink
     }
 
     @Override
-    public void invoke(Tuple2<String, Integer> value, Context contex) throws Exception {
+    public void invoke(Tuple2<String, Integer> value, Context context) throws Exception {
         bufferedElements.add(value);
         if (bufferedElements.size() >= threshold) {
             for (Tuple2<String, Integer> element: bufferedElements) {

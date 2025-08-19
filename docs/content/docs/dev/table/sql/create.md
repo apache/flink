@@ -819,7 +819,7 @@ Check out more details at [Catalogs]({{< ref "docs/dev/table/catalogs" >}}).
 ```sql
 CREATE DATABASE [IF NOT EXISTS] [catalog_name.]db_name
   [COMMENT database_comment]
-  WITH (key1=val1, key2=val2, ...)
+  [WITH (key1=val1, key2=val2, ...)]
 ```
 
 Create a database with the given database properties. If a database with the same name already exists in the catalog, an exception is thrown.

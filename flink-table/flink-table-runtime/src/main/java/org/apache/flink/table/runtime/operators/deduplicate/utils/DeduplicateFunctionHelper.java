@@ -117,7 +117,7 @@ public class DeduplicateFunctionHelper {
                 currentRow.setRowKind(RowKind.INSERT);
                 out.collect(currentRow);
             } else {
-                if (!isStateTtlEnabled && equaliser.equals(preRow, currentRow)) {
+                if (!isStateTtlEnabled && areRowsWithSameContent(equaliser, preRow, currentRow)) {
                     // currentRow is the same as preRow and state cleaning is not enabled.
                     // We do not emit retraction and update message.
                     // If state cleaning is enabled, we have to emit messages to prevent too early
@@ -176,7 +176,7 @@ public class DeduplicateFunctionHelper {
                     return;
                 }
             } else {
-                if (!isStateTtlEnabled && equaliser.equals(preRow, currentRow)) {
+                if (!isStateTtlEnabled && areRowsWithSameContent(equaliser, preRow, currentRow)) {
                     // currentRow is the same as preRow and state cleaning is not enabled.
                     // We do not emit retraction and update message.
                     // If state cleaning is enabled, we have to emit messages to prevent too early
@@ -290,6 +290,24 @@ public class DeduplicateFunctionHelper {
             return preRow == null
                     || getRowtime(currentRow, rowtimeIndex) < getRowtime(preRow, rowtimeIndex);
         }
+    }
+
+    /**
+     * Important: the method assumes that {@code currentRow} comes either with {@code
+     * RowKind.UPDATE_AFTER} or with {@code RowKind.INSERT}. It is not designed to be used for other
+     * cases.
+     */
+    private static boolean areRowsWithSameContent(
+            RecordEqualiser equaliser, RowData prevRow, RowData currentRow) {
+        final RowKind currentRowKind = currentRow.getRowKind();
+        if (currentRowKind == RowKind.UPDATE_AFTER) {
+            // setting row kind to prevRowKind to check whether the row content is the same
+            currentRow.setRowKind(RowKind.INSERT);
+            final boolean result = equaliser.equals(prevRow, currentRow);
+            currentRow.setRowKind(currentRowKind);
+            return result;
+        }
+        return equaliser.equals(prevRow, currentRow);
     }
 
     private static long getRowtime(RowData input, int rowtimeIndex) {

@@ -531,6 +531,8 @@ class DataStreamJavaITCase {
                         output(RowKind.INSERT, "alice", 1),
                         // --
                         input(RowKind.INSERT, "alice", 1), // no impact
+                        input(RowKind.UPDATE_AFTER, "alice", 1), // no impact
+                        input(RowKind.UPDATE_AFTER, "alice", 1), // no impact
                         // --
                         input(RowKind.UPDATE_AFTER, "alice", 2),
                         output(RowKind.UPDATE_BEFORE, "alice", 1),
@@ -569,6 +571,8 @@ class DataStreamJavaITCase {
                         output(RowKind.INSERT, "alice", 1),
                         // --
                         input(RowKind.INSERT, "alice", 1), // no impact
+                        input(RowKind.UPDATE_AFTER, "alice", 1), // no impact
+                        input(RowKind.UPDATE_AFTER, "alice", 1), // no impact
                         // --
                         input(RowKind.UPDATE_AFTER, "alice", 2),
                         output(RowKind.UPDATE_AFTER, "alice", 2),
