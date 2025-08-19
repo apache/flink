@@ -31,13 +31,12 @@ import org.apache.commons.lang3.StringUtils;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Spliterators;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SECURITY_REDACT_SENSITIVE_OPTIONS_ENABLED;
-import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SECURITY_REDACT_SENSITIVE_OPTIONS_NAMES;
+import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SECURITY_MASK_SENSITIVE_OPTIONS_ENABLED;
+import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_SECURITY_MASK_SENSITIVE_OPTIONS_NAMES;
 
 public class ShowCreateResultCollector {
 
@@ -46,8 +45,8 @@ public class ShowCreateResultCollector {
 
     public ShowCreateResultCollector(Configuration configuration) {
         this(
-                configuration.get(SQL_GATEWAY_SECURITY_REDACT_SENSITIVE_OPTIONS_ENABLED),
-                configuration.get(SQL_GATEWAY_SECURITY_REDACT_SENSITIVE_OPTIONS_NAMES).split(","));
+                configuration.get(SQL_GATEWAY_SECURITY_MASK_SENSITIVE_OPTIONS_ENABLED),
+                configuration.get(SQL_GATEWAY_SECURITY_MASK_SENSITIVE_OPTIONS_NAMES).split(","));
     }
 
     ShowCreateResultCollector(Boolean enabled, String[] sensitiveOptions) {
@@ -56,11 +55,14 @@ public class ShowCreateResultCollector {
     }
 
     private static Pattern createPattern(String[] sensitiveOptions) {
-        String[] optionsQuoted =
+        var optionsQuoted =
                 Arrays.stream(sensitiveOptions)
                         .filter(StringUtils::isNoneBlank)
                         .map(Pattern::quote)
                         .toArray(String[]::new);
+        if (optionsQuoted.length == 0) {
+            throw new IllegalArgumentException("Sensitive options not set");
+        }
         var pattern = "[^']*" + String.join("[^']*|[^']*", optionsQuoted) + "[^']*";
         return Pattern.compile("'(" + pattern + ")'\\s*=\\s*'[^']*'", Pattern.CASE_INSENSITIVE);
     }
@@ -89,7 +91,7 @@ public class ShowCreateResultCollector {
     }
 
     private String maskSensitive(String ddl) {
-        Matcher matcher = sensitiveOptions.matcher(ddl);
+        var matcher = sensitiveOptions.matcher(ddl);
         return matcher.replaceAll("'$1' = '****'");
     }
 }

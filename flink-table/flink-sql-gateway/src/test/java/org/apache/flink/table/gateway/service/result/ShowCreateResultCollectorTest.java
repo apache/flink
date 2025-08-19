@@ -70,7 +70,7 @@ class ShowCreateResultCollectorTest {
 
     @Test
     void testQuotePatternsInNames() {
-        var collector = new ShowCreateResultCollector(false, new String[] {".*"});
+        var collector = new ShowCreateResultCollector(true, new String[] {".*"});
         var tableResult = createShowCreateTableResult("CREATE TABLE t WITH ('any' = 'value')");
 
         var actual = collector.collect(tableResult);
@@ -80,8 +80,27 @@ class ShowCreateResultCollectorTest {
     }
 
     @Test
+    void testCaseInsensitiveMatch() {
+        var collector = new ShowCreateResultCollector(true, new String[] {"accesskey"});
+        var tableResult =
+                createShowCreateTableResult("CREATE TABLE t WITH ('accessKey' = 'secret')");
+
+        var actual = collector.collect(tableResult);
+
+        assertThat(actual.get(0).getString(0).toString())
+                .isEqualTo("CREATE TABLE t WITH ('accessKey' = '****')");
+    }
+
+    @Test
+    void testFailWhenSensitiveOptionsNotSetAndMaskIsEnabled() {
+        assertThatThrownBy(() -> new ShowCreateResultCollector(true, new String[0]))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Sensitive options not set");
+    }
+
+    @Test
     void testFilterEmptyOptionNames() {
-        var collector = new ShowCreateResultCollector(false, new String[] {""});
+        var collector = new ShowCreateResultCollector(true, new String[] {""});
         var tableResult = createShowCreateTableResult("CREATE TABLE t WITH ('any' = 'value')");
 
         var actual = collector.collect(tableResult);
