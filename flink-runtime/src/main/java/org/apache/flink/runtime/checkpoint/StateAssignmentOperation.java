@@ -382,6 +382,9 @@ public class StateAssignmentOperation {
         // Parallelism of this vertex changed, distribute ResultSubpartitionStateHandle
         // according to output mapping.
         for (int partitionIndex = 0; partitionIndex < outputs.size(); partitionIndex++) {
+            if (!assignment.hasInFlightDataForResultPartition(partitionIndex)) {
+                continue;
+            }
             final List<List<ResultSubpartitionStateHandle>> partitionState =
                     outputs.size() == 1
                             ? outputOperatorState
@@ -462,6 +465,9 @@ public class StateAssignmentOperation {
         // subtask 0 recovers data from old subtask 0 + 1 and subtask 1 recovers data from old
         // subtask 1 + 2
         for (int gateIndex = 0; gateIndex < inputs.size(); gateIndex++) {
+            if (!stateAssignment.hasInFlightDataForInputGate(gateIndex)) {
+                continue;
+            }
             final RescaleMappings mapping =
                     stateAssignment.getInputMapping(gateIndex).getRescaleMappings();
 
