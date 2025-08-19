@@ -53,7 +53,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link QwenChatModelFunction}. */
-public class OpenAIChatModelTest {
+public class QwenChatModelTest {
     private static final String MODEL_NAME = "m";
 
     private static final Schema INPUT_SCHEMA =
@@ -88,7 +88,7 @@ public class OpenAIChatModelTest {
                 "CREATE TABLE MyTable(input STRING, invalid_input DOUBLE) WITH ( 'connector' = 'datagen', 'number-of-rows' = '10')");
 
         modelOptions = new HashMap<>();
-        modelOptions.put("provider", "openai");
+        modelOptions.put("provider", "qianwen");
         modelOptions.put("endpoint", server.url("/chat/completions").toString());
         modelOptions.put("model", "qwen-turbo");
         modelOptions.put("api-key", "foobar");

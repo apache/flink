@@ -54,7 +54,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link QwenEmbeddingModelFunction}. */
-public class OpenAIEmbeddingModelTest {
+public class QwenEmbeddingModelTest {
 
     private static final String MODEL_NAME = "m";
 
@@ -90,7 +90,7 @@ public class OpenAIEmbeddingModelTest {
                 "CREATE TABLE MyTable(input STRING, invalid_input DOUBLE) WITH ( 'connector' = 'datagen', 'number-of-rows' = '10')");
 
         modelOptions = new HashMap<>();
-        modelOptions.put("provider", "openai");
+        modelOptions.put("provider", "qiwen");
         modelOptions.put("endpoint", server.url("/embeddings").toString());
         modelOptions.put("model", "text-embedding-v3");
         modelOptions.put("api-key", "foobar");
