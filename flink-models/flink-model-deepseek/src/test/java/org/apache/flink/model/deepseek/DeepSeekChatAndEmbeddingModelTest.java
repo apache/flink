@@ -17,8 +17,18 @@
 
 package org.apache.flink.model.deepseek;
 
+import okhttp3.mockwebserver.Dispatcher;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
+import org.apache.commons.collections.IteratorUtils;
+
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.openai.sdk.OpenAICompatibleUtils;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableEnvironment;
@@ -28,15 +38,6 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.types.Row;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-
-import okhttp3.mockwebserver.Dispatcher;
-import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.MockWebServer;
-import okhttp3.mockwebserver.RecordedRequest;
-import org.apache.commons.collections.IteratorUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -91,7 +92,7 @@ public class DeepSeekChatAndEmbeddingModelTest {
         modelOptions.put("provider", "deepseek");
         modelOptions.put("endpoint", server.url("/chat/completions").toString());
         modelOptions.put("model", "deepseek-chat");
-        modelOptions.put("api-key", "deepseek-chat-key");
+        modelOptions.put("api-key", "foobar");
     }
 
     @AfterEach
