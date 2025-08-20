@@ -484,8 +484,8 @@ class SlotSharingSlotAllocatorTest {
                 set.add(id.getJobVertexId());
             }
         }
-        assertThat(allocated.get(allocation1)).contains(vertex1.getJobVertexID());
-        assertThat(allocated.get(allocation1)).contains(vertex2.getJobVertexID());
+        assertThat(allocated.get(allocation1))
+                .contains(vertex1.getJobVertexID(), vertex2.getJobVertexID());
         assertThat(allocated.get(allocation2)).contains(vertex3.getJobVertexID());
     }
 }
