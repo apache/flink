@@ -56,7 +56,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Test for {@link QwenEmbeddingModelFunction}. */
 public class QwenEmbeddingModelTest {
 
-    private static final String MODEL_NAME = "m";
+    private static final String MODEL_NAME = "text-embedding";
 
     private static final Schema INPUT_SCHEMA =
             Schema.newBuilder().column("input", DataTypes.STRING()).build();
@@ -91,7 +91,7 @@ public class QwenEmbeddingModelTest {
 
         modelOptions = new HashMap<>();
         modelOptions.put("provider", "qiwen");
-        modelOptions.put("endpoint", server.url("/embeddings").toString());
+        modelOptions.put("endpoint", server.url("/compatible-mode/v1").toString());
         modelOptions.put("model", "text-embedding-v3");
         modelOptions.put("api-key", "foobar");
     }

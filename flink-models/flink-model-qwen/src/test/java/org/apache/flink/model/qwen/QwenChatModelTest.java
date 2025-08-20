@@ -54,7 +54,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link QwenChatModelFunction}. */
 public class QwenChatModelTest {
-    private static final String MODEL_NAME = "m";
+    private static final String MODEL_NAME = "qwen-plus";
 
     private static final Schema INPUT_SCHEMA =
             Schema.newBuilder().column("input", DataTypes.STRING()).build();
@@ -89,8 +89,8 @@ public class QwenChatModelTest {
 
         modelOptions = new HashMap<>();
         modelOptions.put("provider", "qianwen");
-        modelOptions.put("endpoint", server.url("/chat/completions").toString());
-        modelOptions.put("model", "qwen-turbo");
+        modelOptions.put("endpoint", server.url("/compatible-mode/v1").toString());
+        modelOptions.put("model", "qwen-plus");
         modelOptions.put("api-key", "foobar");
     }
 
