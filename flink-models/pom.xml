@@ -34,7 +34,10 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
+		<module>flink-model-openai-sdk-shaded</module>
 		<module>flink-model-openai</module>
+		<module>flink-model-deepseek</module>
+		<module>flink-model-qwen</module>
 	</modules>
 
 	<dependencies>
