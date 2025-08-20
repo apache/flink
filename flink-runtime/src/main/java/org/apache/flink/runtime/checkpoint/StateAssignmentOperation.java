@@ -360,7 +360,7 @@ public class StateAssignmentOperation {
     public void reDistributeResultSubpartitionStates(TaskStateAssignment assignment) {
         // FLINK-31963: We can skip this phase if there is no output state AND downstream has no
         // input states
-        if (!assignment.hasOutputState && !assignment.hasDownstreamInputStates()) {
+        if (!assignment.hasOutputState() && !assignment.hasDownstreamInputStates()) {
             return;
         }
 
@@ -409,7 +409,7 @@ public class StateAssignmentOperation {
     public void reDistributeInputChannelStates(TaskStateAssignment stateAssignment) {
         // FLINK-31963: We can skip this phase only if there is no input state AND upstream has no
         // output states
-        if (!stateAssignment.hasInputState && !stateAssignment.hasUpstreamOutputStates()) {
+        if (!stateAssignment.hasInputState() && !stateAssignment.hasUpstreamOutputStates()) {
             return;
         }
 
