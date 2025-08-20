@@ -31,10 +31,7 @@ under the License.
 	<name>Flink : Models : Qwen</name>
 
 	<properties>
-		<openai.version>1.6.1</openai.version>
-		<openai.kotlin.version>1.9.10</openai.kotlin.version>
 		<okhttp.version>4.12.0</okhttp.version>
-		<test.gson.version>2.11.0</test.gson.version>
 	</properties>
 	<dependencies>
 		<dependency>
