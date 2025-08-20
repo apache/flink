@@ -42,26 +42,38 @@ under the License.
 				<groupId>org.jetbrains.kotlin</groupId>
 				<artifactId>kotlin-stdlib</artifactId>
 				<version>${openai.kotlin.version}</version>
+				<optional>${flink.markBundledAsOptional}</optional>
+
 			</dependency>
 			<dependency>
 				<groupId>org.jetbrains.kotlin</groupId>
 				<artifactId>kotlin-stdlib-jdk8</artifactId>
 				<version>${openai.kotlin.version}</version>
+				<optional>${flink.markBundledAsOptional}</optional>
 			</dependency>
 			<dependency>
 				<groupId>org.jetbrains.kotlin</groupId>
 				<artifactId>kotlin-stdlib-jdk7</artifactId>
 				<version>${openai.kotlin.version}</version>
+				<optional>${flink.markBundledAsOptional}</optional>
 			</dependency>
 			<dependency>
 				<groupId>org.jetbrains.kotlin</groupId>
 				<artifactId>kotlin-reflect</artifactId>
 				<version>${openai.kotlin.version}</version>
+				<optional>${flink.markBundledAsOptional}</optional>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
 	<dependencies>
+		<dependency>
+			<groupId>com.openai</groupId>
+			<artifactId>openai-java</artifactId>
+			<version>${openai.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+
 		<!-- Flink Core Dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -89,12 +101,7 @@ under the License.
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
-		<dependency>
-			<groupId>com.openai</groupId>
-			<artifactId>openai-java</artifactId>
-			<version>${openai.version}</version>
-			<optional>${flink.markBundledAsOptional}</optional>
-		</dependency>
+
 	</dependencies>
 	<repositories>
 		<!-- openai-java is not yet available in redhat or google mirrors -->
