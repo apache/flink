@@ -26,9 +26,9 @@ import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.runtime.dispatcher.DefaultDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
-import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
@@ -72,7 +72,7 @@ public class ApplicationClusterEntryPoint extends ClusterEntrypoint {
         return new DefaultDispatcherResourceManagerComponentFactory(
                 new DefaultDispatcherRunnerFactory(
                         ApplicationDispatcherLeaderProcessFactoryFactory.create(
-                                configuration, SessionDispatcherFactory.INSTANCE, program)),
+                                configuration, DefaultDispatcherFactory.INSTANCE, program)),
                 resourceManagerFactory,
                 ApplicationRestEndpointFactory.INSTANCE);
     }
