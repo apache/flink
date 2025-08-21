@@ -36,7 +36,7 @@ public abstract class AbstractQwenModelFunction extends OpenAICompatibleModelFun
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Full URL of the Qwen API endpoint, e.g., %s or %s",
+                                            "Full URL of the Qwen API endpoint, e.g., %s", // 只剩一个占位符
                                             code(
                                                     "https://dashscope.aliyuncs.com/compatible-mode/v1"))
                                     .build());

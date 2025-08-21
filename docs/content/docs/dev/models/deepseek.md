@@ -24,6 +24,8 @@ under the License.
 
 The DeepSeek Model Function allows Flink SQL to call [DeepSeek API](https://api-docs.deepseek.com/) for inference tasks.
 
+## Overview
+
 deepseek-chat: generate a model response from a list of messages comprising a conversation.
 deepseek-reasoner: get a vector representation of a given input that can be easily consumed by machine learning models and algorithms.
 
@@ -47,7 +49,7 @@ WITH (
 );
 ```
 
-Assuming the following data is stored in a table named 'user_info', the prediction results will be stored in a table named 'print_stink':
+Assuming the following data is stored in a table named `user_info`, the prediction results will be stored in a table named `print_sink`:
 
 ```sql
 CREATE TEMPORARY VIEW user_info(id, user_name,  info, actual_label)
@@ -190,7 +192,7 @@ FROM ML_PREDICT(
 
 The total length of input tokens and generated tokens is limited by the model's context length.
 
-If max_tokens is not specified, the default value 4096 is used.. See <a href="https://platform.openai.com/docs/api-reference/chat/create#chat-create-max_tokens">max tokens</a></td>
+If max_tokens is not specified, the default value 4096 is used. See <a href="https://platform.openai.com/docs/api-reference/chat/create#chat-create-max_tokens">max tokens</a></td>
         </tr>
     </tbody>
 </table>
@@ -215,7 +217,7 @@ If max_tokens is not specified, the default value 4096 is used.. See <a href="ht
                 <td>optional</td>
                 <td style="word-wrap: break-word;">null</td>
                 <td>Long</td>
-                <td>The maximum output length (including the COT part). Default to 32K, maximum to 64K.. See <a href="https://api-docs.deepseek.com/guides/reasoning_model">max tokens</a></td>
+                <td>The maximum output length (including the Chain of Thought part). Default to 32K, maximum to 64K. See <a href="https://api-docs.deepseek.com/guides/reasoning_model">max tokens</a></td>
     </tr>
     </tbody>
 </table>

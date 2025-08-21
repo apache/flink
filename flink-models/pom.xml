@@ -40,6 +40,10 @@ under the License.
 		<module>flink-model-qwen</module>
 	</modules>
 
+	<properties>
+		<okhttp.version>4.12.0</okhttp.version>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.slf4j</groupId>

@@ -38,7 +38,7 @@ public abstract class AbstractDeepSeekModelFunction extends OpenAICompatibleMode
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Full URL of the DeepSeek API endpoint, e.g., %s or %s",
+                                            "Full URL of the DeepSeek API endpoint, e.g., %s",
                                             code("https://api.deepseek.com/v1"))
                                     .build());
 
