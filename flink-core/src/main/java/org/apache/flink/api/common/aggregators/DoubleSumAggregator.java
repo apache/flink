@@ -26,7 +26,7 @@ import org.apache.flink.types.DoubleValue;
 @PublicEvolving
 public class DoubleSumAggregator implements Aggregator<DoubleValue> {
 
-    private DoubleValue wrapper = new DoubleValue();
+    private final DoubleValue wrapper = new DoubleValue();
     private double sum;
 
     @Override

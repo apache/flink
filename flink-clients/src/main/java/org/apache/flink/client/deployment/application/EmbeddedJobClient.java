@@ -138,8 +138,7 @@ public class EmbeddedJobClient implements JobClient, CoordinationRequestGateway 
         final Duration retryPeriod = Duration.ofMillis(100L);
         return JobStatusPollingUtils.getJobResult(
                         dispatcherGateway, jobId, retryExecutor, timeout, retryPeriod)
-                .thenApply(
-                        (jobResult) -> {
+                .thenApply(jobResult -> {
                             try {
                                 return jobResult.toJobExecutionResult(classLoader);
                             } catch (Throwable t) {
