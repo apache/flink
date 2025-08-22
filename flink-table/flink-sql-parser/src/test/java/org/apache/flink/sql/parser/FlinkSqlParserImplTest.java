@@ -72,6 +72,9 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     void testMapQueryConstructor() {}
 
     @Test
+    void testMultisetQueryConstructor() {}
+
+    @Test
     void testShowCatalogs() {
         sql("show catalogs").ok("SHOW CATALOGS");
 
