@@ -26,7 +26,7 @@ import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -39,13 +39,13 @@ import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUt
 import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.generatePartitionableStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewInputChannelStateHandle;
 import static org.apache.flink.runtime.checkpoint.StateHandleDummyUtil.createNewResultSubpartitionStateHandle;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link OperatorSubtaskState} test. */
-public class OperatorSubtaskStateTest {
+class OperatorSubtaskStateTest {
+
     @Test
-    public void testDiscardDuplicatedDelegatesOnce() {
+    void testDiscardDuplicatedDelegatesOnce() {
         StreamStateHandle delegate = new DiscardOnceStreamStateHandle();
         OperatorSubtaskState.builder()
                 .setInputChannelState(
@@ -63,7 +63,7 @@ public class OperatorSubtaskStateTest {
     }
 
     @Test
-    public void testToBuilderCorrectness() throws IOException {
+    void testToBuilderCorrectness() throws IOException {
         // given: Initialized operator subtask state.
         JobVertexID jobVertexID = new JobVertexID();
         int index = 0;
@@ -101,7 +101,7 @@ public class OperatorSubtaskStateTest {
         OperatorSubtaskState operatorSubtaskStateCopy = operatorSubtaskState.toBuilder().build();
 
         // then: It should be equal to original one.
-        assertTrue(reflectionEquals(operatorSubtaskState, operatorSubtaskStateCopy));
+        assertThat(reflectionEquals(operatorSubtaskState, operatorSubtaskStateCopy)).isTrue();
     }
 
     private ResultSubpartitionStateHandle buildSubpartitionHandle(
@@ -128,7 +128,7 @@ public class OperatorSubtaskStateTest {
         @Override
         public void discardState() {
             super.discardState();
-            assertFalse("state was discarded twice", discarded);
+            assertThat(discarded).as("state was discarded twice").isFalse();
             discarded = true;
         }
     }
