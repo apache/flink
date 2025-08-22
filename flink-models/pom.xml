@@ -41,7 +41,9 @@ under the License.
 	</modules>
 
 	<properties>
+		<openai.version>1.6.1</openai.version>
 		<okhttp.version>4.12.0</okhttp.version>
+		<openai.kotlin.version>1.9.10</openai.kotlin.version>
 	</properties>
 
 	<dependencies>

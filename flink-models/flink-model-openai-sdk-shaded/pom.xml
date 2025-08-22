@@ -30,12 +30,6 @@ under the License.
 	<artifactId>flink-model-openai-sdk-shaded</artifactId>
 	<name>Flink : Models : OpenAI SDK</name>
 
-	<properties>
-		<openai.version>1.6.1</openai.version>
-		<okhttp.version>4.12.0</okhttp.version>
-		<openai.kotlin.version>1.9.10</openai.kotlin.version>
-	</properties>
-
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
