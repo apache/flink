@@ -83,7 +83,7 @@ class NestedLoopJoinCodeGenerator(
       if (leftIsBuild) initSerializer(1) else initSerializer(2)
 
       addReusableResettableExternalBuffer(buffer, serializer)
-      ctx.addReusableCloseStatement(s"$buffer.close();")
+      ctx.addReusableCloseStatement(s"if ($buffer != null) $buffer.close();")
 
       val iterTerm = classOf[ResettableExternalBuffer#BufferIterator].getCanonicalName
       ctx.addReusableMember(s"$iterTerm $iter = null;")
