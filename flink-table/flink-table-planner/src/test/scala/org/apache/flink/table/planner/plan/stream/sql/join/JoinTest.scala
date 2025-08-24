@@ -686,4 +686,92 @@ class JoinTest extends TableTestBase {
         "Key: 'table.exec.mini-batch.size' , default: -1 (fallback keys: []) must be > 0.")
       .isInstanceOf[IllegalArgumentException]
   }
+
+  @Test
+  def testCalcWithNonDeterministicFilterAfterJoin1(): Unit = {
+    util.addTableSource[(Int, Int, String)]("MyTable1", 'a1, 'b1, 'c1)
+    util.addTableSource[(Int, Int, String)]("MyTable2", 'a2, 'b2, 'c2)
+    val sqlQuery =
+      """
+        |SELECT a1
+        |FROM (
+        |  SELECT a1,
+        |         c1,
+        |         c2
+        |  FROM  MyTable1
+        |  JOIN  MyTable2
+        |  ON    b1 = b2
+        |)
+        |WHERE TO_TIMESTAMP(c1, 'yyyy-MM-dd HH:mm:ss') <
+        |      TIMESTAMPADD(HOUR, -2, NOW())
+        |  AND c2 > '2022-01-01 00:00:00'
+        |""".stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testCalcWithNonDeterministicFilterAfterJoin2(): Unit = {
+    util.addTableSource[(Int, Int, String)]("MyTable1", 'a1, 'b1, 'c1)
+    util.addTableSource[(Int, Int, String)]("MyTable2", 'a2, 'b2, 'c2)
+    // test other non-deterministic func
+    val sqlQuery =
+      """
+        |SELECT a1
+        |FROM (
+        |  SELECT a1,
+        |         c1,
+        |         c2
+        |  FROM  MyTable1
+        |  JOIN  MyTable2
+        |  ON    b1 = b2
+        |)
+        |WHERE TO_TIMESTAMP(c1, 'yyyy-MM-dd HH:mm:ss')
+        |      < TIMESTAMPADD(HOUR, -2, CAST(CURRENT_TIME AS TIMESTAMP(3)))
+        |  AND c2 > '2022-01-01 00:00:00'
+        |""".stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testCalcWithNonDeterministicFilterAfterJoin3(): Unit = {
+    util.addTableSource[(Int, Int, String)]("MyTable1", 'a1, 'b1, 'c1)
+    util.addTableSource[(Int, Int, String)]("MyTable2", 'a2, 'b2, 'c2)
+    // test when columns used in non-deterministic filter are used as joinKeys
+    val sqlQuery =
+      """
+        |SELECT a1
+        |FROM (
+        |  SELECT a1,
+        |         c1,
+        |         c2
+        |  FROM  MyTable1
+        |  JOIN  MyTable2
+        |  ON    b1 = b2
+        |  AND   c1 = c2
+        |)
+        |WHERE TO_TIMESTAMP(c1, 'yyyy-MM-dd HH:mm:ss') <
+        |      TIMESTAMPADD(HOUR, -2, NOW())
+        |  AND c2 > '2022-01-01 00:00:00'
+        |""".stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testCalcWithNonDeterministicFilterAfterJoin4(): Unit = {
+    util.addTableSource[(Int, Int, String)]("MyTable1", 'a1, 'b1, 'c1)
+    util.addTableSource[(Int, Int, String)]("MyTable2", 'a2, 'b2, 'c2)
+    // test joinInfo with non-deterministic semantic
+    val sqlQuery =
+      """
+        |  SELECT a1,
+        |         b1,
+        |         c2
+        |  FROM  MyTable1
+        |  JOIN  MyTable2
+        |  ON    b1 = b2
+        |  AND   c1 < TIMESTAMPADD(HOUR, -2, NOW())
+        |  AND   c2 > '2022-01-01 00:00:00'
+        |""".stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
 }

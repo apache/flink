@@ -22,6 +22,7 @@ import org.apache.flink.table.api.bridge.scala._
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
+import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
@@ -1652,6 +1653,117 @@ class JoinITCase(miniBatch: MiniBatchMode, state: StateBackendMode, enableAsyncS
         row(null, null, null, 4, 1.0, 1),
         row(null, null, null, null, 5.0, 2))
     )
+  }
+
+  @TestTemplate
+  def testCalcWithNonDeterministicFilterAfterJoin2(): Unit = {
+    val data1 = new mutable.MutableList[(Int, Int, String)]
+    data1.+=((1, 1, String.valueOf("2022-01-01 11:11:11")))
+    data1.+=((3, 3, String.valueOf("2022-01-01 11:11:13")))
+    // will not match
+    data1.+=((2, 2, String.valueOf("2022-01-01 11:11:12")))
+    data1.+=((4, 44, String.valueOf("2022-01-01 11:11:14")))
+    data1.+=((5, 5, String.valueOf("2077-01-01 11:11:15")))
+
+    val data2 = new mutable.MutableList[(Int, Int, String)]
+    data2.+=((1, 1, String.valueOf("2022-01-01 11:11:11")))
+    data2.+=((3, 3, String.valueOf("2022-01-01 11:11:13")))
+    // will not match
+    data2.+=((2, 2, String.valueOf("2012-01-01 11:11:12")))
+    data2.+=((4, 4, String.valueOf("2022-01-01 11:11:14")))
+    data2.+=((5, 5, String.valueOf("2077-01-01 11:11:15")))
+
+    val t1 = failingDataSource(data1).toTable(tEnv, 'a1, 'b1, 'c1)
+    val t2 = failingDataSource(data2).toTable(tEnv, 'a2, 'b2, 'c2)
+    tEnv.createTemporaryView("MyTable1", t1)
+    tEnv.createTemporaryView("MyTable2", t2)
+
+    val sqlQuery =
+      """
+        |  SELECT a1,
+        |         b1,
+        |         c2
+        |  FROM  MyTable1
+        |  JOIN  MyTable2
+        |  ON    b1 = b2
+        |  AND   c1 < TIMESTAMPADD(HOUR, -2, NOW())
+        |  AND   c2 > '2022-01-01 00:00:00'
+        |""".stripMargin
+
+    val sink = new TestingRetractSink
+    tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink).setParallelism(1)
+    env.execute()
+
+    val expected = Seq("1,1,2022-01-01 11:11:11", "3,3,2022-01-01 11:11:13")
+    assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testCalcWithNonDeterministicFilterAfterJoin(): Unit = {
+    val data1 = List(
+      changelogRow("+I", Int.box(1), Int.box(1), String.valueOf("2022-01-01 11:11:11")),
+      changelogRow("+I", Int.box(3), Int.box(3), String.valueOf("2022-01-01 11:11:13")),
+      // will not match
+      changelogRow("+I", Int.box(2), Int.box(2), String.valueOf("2022-01-01 11:11:12")),
+      changelogRow("+I", Int.box(4), Int.box(44), String.valueOf("2022-01-01 11:11:14")),
+      changelogRow("+I", Int.box(5), Int.box(5), String.valueOf("2077-01-01 11:11:15"))
+    )
+    val data2 = List(
+      changelogRow("+I", Int.box(1), Int.box(1), String.valueOf("2022-01-01 11:11:11")),
+      changelogRow("+I", Int.box(3), Int.box(3), String.valueOf("2022-01-01 11:11:13")),
+      // will not match
+      changelogRow("+I", Int.box(2), Int.box(2), String.valueOf("2012-01-01 11:11:12")),
+      changelogRow("+I", Int.box(4), Int.box(4), String.valueOf("2022-01-01 11:11:14")),
+      changelogRow("+I", Int.box(5), Int.box(5), String.valueOf("2022-01-01 11:11:15"))
+    )
+
+    tEnv.executeSql(s"""
+                       |create table MyTable1(
+                       |  a1 int,
+                       |  b1 int,
+                       |  c1 string
+                       |) with (
+                       |  'connector' = 'values',
+                       |  'bounded' = 'false',
+                       |  'data-id' = '${TestValuesTableFactory.registerData(data1)}'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""
+                       |create table MyTable2(
+                       |  a2 int,
+                       |  b2 int,
+                       |  c2 string
+                       |) with (
+                       |  'connector' = 'values',
+                       |  'bounded' = 'false',
+                       |  'data-id' = '${TestValuesTableFactory.registerData(data2)}'
+                       |)
+                       |""".stripMargin)
+
+    val sqlQuery =
+      """
+        |SELECT a1
+        |FROM (
+        |  SELECT a1,
+        |         c1,
+        |         c2
+        |  FROM  MyTable1
+        |  JOIN  MyTable2
+        |  ON    b1 = b2
+        |)
+        |WHERE TO_TIMESTAMP(c1, 'yyyy-MM-dd HH:mm:ss') <
+        |      TIMESTAMPADD(HOUR, -2, NOW())
+        |  AND c2 > '2022-01-01 00:00:00'
+        |""".stripMargin
+
+    val result = tEnv.sqlQuery(sqlQuery)
+    val sink = new TestingAppendSink
+    tEnv.toDataStream(result, DataTypes.ROW(DataTypes.INT())).addSink(sink)
+    env.execute()
+
+    val expected = List("1", "3")
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
 
   private def checkResult(sql: String, expected: Seq[Row]): Unit = {
