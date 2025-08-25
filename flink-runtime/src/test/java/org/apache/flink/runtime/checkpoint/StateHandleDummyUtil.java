@@ -144,16 +144,26 @@ public class StateHandleDummyUtil {
 
     public static InputChannelStateHandle createNewInputChannelStateHandle(
             int numNamedStates, Random random) {
+        return createNewInputChannelStateHandle(numNamedStates, 0, random);
+    }
+
+    public static InputChannelStateHandle createNewInputChannelStateHandle(
+            int numNamedStates, int gateIndex, Random random) {
         return new InputChannelStateHandle(
-                new InputChannelInfo(0, random.nextInt()),
+                new InputChannelInfo(gateIndex, random.nextInt()),
                 createStreamStateHandle(numNamedStates, random),
                 genOffsets(numNamedStates, random));
     }
 
     public static ResultSubpartitionStateHandle createNewResultSubpartitionStateHandle(
             int numNamedStates, Random random) {
+        return createNewResultSubpartitionStateHandle(numNamedStates, 0, random);
+    }
+
+    public static ResultSubpartitionStateHandle createNewResultSubpartitionStateHandle(
+            int numNamedStates, int partitionIndex, Random random) {
         return new ResultSubpartitionStateHandle(
-                new ResultSubpartitionInfo(random.nextInt(), random.nextInt()),
+                new ResultSubpartitionInfo(partitionIndex, random.nextInt()),
                 createStreamStateHandle(numNamedStates, random),
                 genOffsets(numNamedStates, random));
     }

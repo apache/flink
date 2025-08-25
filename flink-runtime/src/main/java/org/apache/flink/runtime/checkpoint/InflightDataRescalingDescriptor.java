@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 
@@ -45,11 +46,11 @@ public class InflightDataRescalingDescriptor implements Serializable {
     }
 
     public int[] getOldSubtaskIndexes(int gateOrPartitionIndex) {
-        return gateOrPartitionDescriptors[gateOrPartitionIndex].oldSubtaskIndexes;
+        return gateOrPartitionDescriptors[gateOrPartitionIndex].getOldSubtaskInstances();
     }
 
     public RescaleMappings getChannelMapping(int gateOrPartitionIndex) {
-        return gateOrPartitionDescriptors[gateOrPartitionIndex].rescaledChannelsMappings;
+        return gateOrPartitionDescriptors[gateOrPartitionIndex].getRescaleMappings();
     }
 
     public boolean isAmbiguous(int gateOrPartitionIndex, int oldSubtaskIndex) {
@@ -112,6 +113,28 @@ public class InflightDataRescalingDescriptor implements Serializable {
      */
     public static class InflightDataGateOrPartitionRescalingDescriptor implements Serializable {
 
+        public static final InflightDataGateOrPartitionRescalingDescriptor NO_STATE =
+                new InflightDataGateOrPartitionRescalingDescriptor(
+                        new int[0],
+                        RescaleMappings.identity(0, 0),
+                        Collections.emptySet(),
+                        MappingType.IDENTITY) {
+
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public int[] getOldSubtaskInstances() {
+                        throw new UnsupportedOperationException(
+                                "Cannot get old subtasks from a descriptor that represents no state.");
+                    }
+
+                    @Override
+                    public RescaleMappings getRescaleMappings() {
+                        throw new UnsupportedOperationException(
+                                "Cannot get rescale mappings from a descriptor that represents no state.");
+                    }
+                };
+
         private static final long serialVersionUID = 1L;
 
         /** Set when several operator instances are merged into one. */
@@ -143,6 +166,14 @@ public class InflightDataRescalingDescriptor implements Serializable {
             this.rescaledChannelsMappings = rescaledChannelsMappings;
             this.ambiguousSubtaskIndexes = ambiguousSubtaskIndexes;
             this.mappingType = mappingType;
+        }
+
+        public int[] getOldSubtaskInstances() {
+            return oldSubtaskIndexes;
+        }
+
+        public RescaleMappings getRescaleMappings() {
+            return rescaledChannelsMappings;
         }
 
         public boolean isIdentity() {
