@@ -24,7 +24,6 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.OperatorIDPair;
-import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTest.OperatorSubtaskStateMock;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.StringSerializer;
 import org.apache.flink.runtime.checkpoint.PendingCheckpoint.TaskAcknowledgeResult;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
@@ -36,6 +35,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorInfo;
 import org.apache.flink.runtime.operators.coordination.TestingOperatorInfo;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -44,6 +44,7 @@ import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mockito;
 
 import javax.annotation.Nullable;
 
@@ -65,7 +66,11 @@ import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.cr
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.powermock.api.mockito.PowerMockito.when;
 
@@ -225,10 +230,8 @@ class PendingCheckpointTest {
                         false, CheckpointType.CHECKPOINT, false, false, false, false, false, false);
         QueueExecutor executor = new QueueExecutor();
 
-        OperatorState state = new OperatorState(new OperatorID(), 1, 256);
-        OperatorSubtaskStateMock subtaskStateMock = new OperatorSubtaskStateMock();
-        OperatorSubtaskState subtaskState = subtaskStateMock.getSubtaskState();
-        state.putState(0, subtaskState);
+        OperatorState state = mock(OperatorState.class);
+        doNothing().when(state).registerSharedStates(any(SharedStateRegistry.class), eq(0L));
 
         // Abort declined
         PendingCheckpoint pending = createPendingCheckpoint(props, executor);
@@ -237,10 +240,10 @@ class PendingCheckpointTest {
         abort(pending, CheckpointFailureReason.CHECKPOINT_DECLINED);
         // execute asynchronous discard operation
         executor.runQueuedCommands();
-        subtaskStateMock.verifyDiscard();
+        verify(state, times(1)).discardState();
 
         // Abort error
-        subtaskStateMock.reset();
+        Mockito.reset(state);
 
         pending = createPendingCheckpoint(props, executor);
         setTaskState(pending, state);
@@ -248,10 +251,10 @@ class PendingCheckpointTest {
         abort(pending, CheckpointFailureReason.CHECKPOINT_DECLINED);
         // execute asynchronous discard operation
         executor.runQueuedCommands();
-        subtaskStateMock.verifyDiscard();
+        verify(state, times(1)).discardState();
 
         // Abort expired
-        subtaskStateMock.reset();
+        Mockito.reset(state);
 
         pending = createPendingCheckpoint(props, executor);
         setTaskState(pending, state);
@@ -259,10 +262,10 @@ class PendingCheckpointTest {
         abort(pending, CheckpointFailureReason.CHECKPOINT_EXPIRED);
         // execute asynchronous discard operation
         executor.runQueuedCommands();
-        subtaskStateMock.verifyDiscard();
+        verify(state, times(1)).discardState();
 
         // Abort subsumed
-        subtaskStateMock.reset();
+        Mockito.reset(state);
 
         pending = createPendingCheckpoint(props, executor);
         setTaskState(pending, state);
@@ -270,7 +273,7 @@ class PendingCheckpointTest {
         abort(pending, CheckpointFailureReason.CHECKPOINT_SUBSUMED);
         // execute asynchronous discard operation
         executor.runQueuedCommands();
-        subtaskStateMock.verifyDiscard();
+        verify(state, times(1)).discardState();
     }
 
     /**

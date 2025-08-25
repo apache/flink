@@ -34,7 +34,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -280,7 +279,7 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
     /**
      * A test {@link CompletedCheckpoint}. We want to verify that the correct class loader is used
      * when discarding. Spying on a regular {@link CompletedCheckpoint} instance with Mockito
-     * doesn't work, because it breaks serializability.
+     * doesn't work, because it it breaks serializability.
      */
     protected static class TestCompletedCheckpoint extends CompletedCheckpoint {
 
@@ -335,12 +334,8 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
 
             TestCompletedCheckpoint that = (TestCompletedCheckpoint) o;
 
@@ -358,15 +353,6 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
             @Override
             public void discard() throws Exception {
                 super.discard();
-                updateDiscards();
-            }
-
-            @Override
-            public CompletableFuture<Void> discardAsync(Executor executor) {
-                return super.discardAsync(executor).thenRun(this::updateDiscards);
-            }
-
-            private void updateDiscards() {
                 if (!isDiscarded) {
                     isDiscarded = true;
 
