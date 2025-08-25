@@ -42,7 +42,6 @@ import org.apache.flink.types.RowKind;
 import org.junit.Test;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -212,7 +211,58 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         testHarness.processElement(insertRecord("key1", 4L, 400L));
 
         List<RowData> expectedRows =
-                Arrays.asList(
+                List.of(
+                        outputRecord(RowKind.INSERT, "key1", 1L, 100L, 1L),
+                        outputRecord(RowKind.INSERT, "key1", 2L, 200L, 3L),
+                        outputRecord(RowKind.INSERT, "key1", 5L, 500L, 8L),
+                        outputRecord(RowKind.INSERT, "key1", 6L, 600L, 14L),
+                        outputRecord(RowKind.INSERT, "key2", 1L, 100L, 1L),
+                        outputRecord(RowKind.INSERT, "key2", 2L, 200L, 3L),
+                        outputRecord(RowKind.INSERT, "key1", 4L, 400L, 7L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 5L, 500L, 8L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 5L, 500L, 12L),
+                        outputRecord(RowKind.UPDATE_BEFORE, "key1", 6L, 600L, 14L),
+                        outputRecord(RowKind.UPDATE_AFTER, "key1", 6L, 600L, 18L));
+
+        List<RowData> actualRows = testHarness.extractOutputValues();
+
+        validateRows(actualRows, expectedRows);
+    }
+
+    @Test
+    public void testInsertOnlyRecordsWithCustomSortKeyAndLongSumAgg() throws Exception {
+        NonTimeRangeUnboundedPrecedingFunction<RowData> function =
+                new NonTimeRangeUnboundedPrecedingFunction<RowData>(
+                        0,
+                        aggsSumLongHandleFunction,
+                        GENERATED_ROW_VALUE_EQUALISER,
+                        GENERATED_SORT_KEY_EQUALISER,
+                        GENERATED_SORT_KEY_COMPARATOR_ASC,
+                        accTypes,
+                        inputFieldTypes,
+                        SORT_KEY_TYPES,
+                        SORT_KEY_SELECTOR) {};
+        KeyedProcessOperator<RowData, RowData, RowData> operator =
+                new KeyedProcessOperator<>(function);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+
+        testHarness.open();
+
+        // put some records
+        testHarness.processElement(insertRecord("key1", 1L, 100L));
+        testHarness.processElement(insertRecord("key1", 2L, 200L));
+        testHarness.processElement(insertRecord("key1", 5L, 500L));
+        testHarness.processElement(insertRecord("key1", 6L, 600L));
+        testHarness.processElement(insertRecord("key2", 1L, 100L));
+        testHarness.processElement(insertRecord("key2", 2L, 200L));
+
+        // out of order record should trigger updates for all records after its inserted position
+        testHarness.processElement(insertRecord("key1", 4L, 400L));
+
+        List<RowData> expectedRows =
+                List.of(
                         outputRecord(RowKind.INSERT, "key1", 1L, 100L, 1L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 200L, 3L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 500L, 8L),
@@ -267,7 +317,7 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         testHarness.processElement(insertRecord("key1", 4L, 400L));
 
         List<RowData> expectedRows =
-                Arrays.asList(
+                List.of(
                         outputRecord(RowKind.INSERT, "key1", 1L, 100L, 1L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 200L, 3L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 500L, 8L),
@@ -356,7 +406,7 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         testHarness.processElement(updateAfterRecord("key1", 3L, 300L));
 
         List<RowData> expectedRows =
-                Arrays.asList(
+                List.of(
                         outputRecord(RowKind.INSERT, "key1", 1L, 100L, 1L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 200L, 3L),
                         outputRecord(RowKind.INSERT, "key1", 5L, 500L, 8L),
@@ -430,7 +480,7 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         testHarness.processElement(updateBeforeRecord("key1", 5L, 500L));
 
         List<RowData> expectedRows =
-                Arrays.asList(
+                List.of(
                         outputRecord(RowKind.INSERT, "key1", 1L, 100L, 1L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 200L, 3L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 200L, 3L),
@@ -490,7 +540,7 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         testHarness.processElement(updateBeforeRecord("key1", 5L, 502L));
 
         List<RowData> expectedRows =
-                Arrays.asList(
+                List.of(
                         outputRecord(RowKind.INSERT, "key1", 1L, 100L, 1L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 200L, 3L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 200L, 3L),
@@ -550,7 +600,7 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         testHarness.processElement(updateBeforeRecord("key1", 5L, 501L));
 
         List<RowData> expectedRows =
-                Arrays.asList(
+                List.of(
                         outputRecord(RowKind.INSERT, "key1", 1L, 100L, 1L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 200L, 3L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 2L, 200L, 3L),
@@ -608,7 +658,7 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         testHarness.processElement(updateBeforeRecord("key1", 2L, 200L));
 
         List<RowData> expectedRows =
-                Arrays.asList(
+                List.of(
                         outputRecord(RowKind.INSERT, "key1", 1L, 100L, 1L),
                         outputRecord(RowKind.INSERT, "key1", 2L, 200L, 2L),
                         outputRecord(RowKind.UPDATE_BEFORE, "key1", 1L, 100L, 1L),
@@ -679,7 +729,7 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends RowTimeOverWindo
         testHarness.processElement(updateBeforeRecord("key1", 0L, 100L));
 
         List<RowData> expectedRows =
-                Arrays.asList(
+                List.of(
                         outputRecord(RowKind.INSERT, "key1", 0L, 100L, 0L),
                         outputRecord(RowKind.INSERT, "key1", 0L, 101L, 0L),
                         outputRecord(RowKind.INSERT, "key1", 0L, 102L, 0L),
