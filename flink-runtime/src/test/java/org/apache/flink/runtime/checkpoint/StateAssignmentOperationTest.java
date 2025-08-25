@@ -47,6 +47,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -160,6 +161,23 @@ class StateAssignmentOperationTest {
                 1, OperatorSubtaskState.builder().setManagedOperatorState(osh2).build());
 
         verifyOneKindPartitionableStateRescale(operatorState, operatorID);
+    }
+
+    @Test
+    public void testPartiallyReported() {
+        RoundRobinOperatorStateRepartitioner.StateEntry stateEntry =
+                new RoundRobinOperatorStateRepartitioner.StateEntry(0, 5);
+        stateEntry.addEntry(0, null);
+        stateEntry.addEntry(1, null);
+        stateEntry.addEntry(3, null);
+
+        // assert partially report
+        Assertions.assertTrue(stateEntry.isPartiallyReported());
+
+        // assert fully report
+        stateEntry.addEntry(2, null);
+        stateEntry.addEntry(4, null);
+        Assertions.assertFalse(stateEntry.isPartiallyReported());
     }
 
     @Test
