@@ -53,6 +53,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -71,16 +72,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * HistoryServerOptions#HISTORY_SERVER_CLEANUP_EXPIRED_JOBS} or {@link
  * HistoryServerOptions#HISTORY_SERVER_RETAINED_JOBS}.
  */
-class HistoryServerArchiveFetcher {
+public class HistoryServerArchiveFetcher {
 
     /** Possible job archive operations in history-server. */
     public enum ArchiveEventType {
         /** Job archive was found in one refresh location and created in history server. */
         CREATED,
-        /**
-         * Job archive was deleted from one of refresh locations and deleted from history server.
-         */
-        DELETED
+        /** Job archive was deleted from one of cache locations. */
+        DELETED,
+        /** Job archive was deleted from the remote location. */
+        DELETED_FROM_REMOTE
     }
 
     /** Representation of job archive event. */
@@ -102,6 +103,21 @@ class HistoryServerArchiveFetcher {
         }
     }
 
+    /** Maintains a LRU cache of a given capacity. */
+    public class MostRecentlyViewedCache extends LinkedHashMap<String, String> {
+        private int maxSize;
+
+        public MostRecentlyViewedCache(int capacity) {
+            super(capacity, 0.75f, true);
+            this.maxSize = capacity;
+        }
+
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
+            return this.size() > maxSize;
+        }
+    }
+
     private static final Logger LOG = LoggerFactory.getLogger(HistoryServerArchiveFetcher.class);
 
     private static final JsonFactory jacksonFactory = new JsonFactory();
@@ -113,31 +129,58 @@ class HistoryServerArchiveFetcher {
     private final Consumer<ArchiveEvent> jobArchiveEventListener;
     private final boolean processExpiredArchiveDeletion;
     private final boolean processBeyondLimitArchiveDeletion;
+    private final boolean processBeyondLimitLocalCacheDeletion;
     private final int maxHistorySize;
 
-    /** Cache of all available jobs identified by their id. */
+    /**
+     * Number of retained jobs in the local cache based on the asynchronous fetch, which is based on
+     * most recently run jobs.
+     */
+    private final int generalCachedJobSize;
+
+    private final boolean remoteFetchEnabled;
+
+    /** Cache of all available jobs identified by their id and refresh directory. */
     private final Map<Path, Set<String>> cachedArchivesPerRefreshDirectory;
+
+    /** Cache of all available jobs by id. */
+    private final Set<String> cachedArchives;
+
+    private final MostRecentlyViewedCache mostRecentlyViewedCache;
 
     private final File webDir;
     private final File webJobDir;
     private final File webOverviewDir;
 
-    HistoryServerArchiveFetcher(
+    public HistoryServerArchiveFetcher(
             List<HistoryServer.RefreshLocation> refreshDirs,
             File webDir,
             Consumer<ArchiveEvent> jobArchiveEventListener,
             boolean cleanupExpiredArchives,
-            int maxHistorySize)
+            int maxHistorySize,
+            int generalCachedJobSize,
+            boolean remoteFetchEnabled,
+            int numCachedMostRecentlyViewedJobs)
             throws IOException {
         this.refreshDirs = checkNotNull(refreshDirs);
         this.jobArchiveEventListener = jobArchiveEventListener;
         this.processExpiredArchiveDeletion = cleanupExpiredArchives;
         this.maxHistorySize = maxHistorySize;
+        this.remoteFetchEnabled = remoteFetchEnabled;
+        if (this.remoteFetchEnabled) {
+            this.mostRecentlyViewedCache =
+                    new MostRecentlyViewedCache(numCachedMostRecentlyViewedJobs);
+        } else {
+            this.mostRecentlyViewedCache = null;
+        }
+        this.generalCachedJobSize = generalCachedJobSize;
         this.processBeyondLimitArchiveDeletion = this.maxHistorySize > 0;
+        this.processBeyondLimitLocalCacheDeletion = generalCachedJobSize > 0;
         this.cachedArchivesPerRefreshDirectory = new HashMap<>();
         for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
             cachedArchivesPerRefreshDirectory.put(refreshDir.getPath(), new HashSet<>());
         }
+        this.cachedArchives = new HashSet<>();
         this.webDir = checkNotNull(webDir);
         this.webJobDir = new File(webDir, "jobs");
         Files.createDirectories(webJobDir.toPath());
@@ -152,14 +195,59 @@ class HistoryServerArchiveFetcher {
         }
     }
 
+    void fetchArchiveByJobId(String jobID) throws IOException {
+        if (remoteFetchEnabled) {
+            boolean jobIdFound = false;
+            if (cachedArchives.contains(jobID)) {
+                mostRecentlyViewedCache.put(jobID, jobID);
+            } else {
+                for (HistoryServer.RefreshLocation refreshLocation : refreshDirs) {
+                    Path refreshDir = refreshLocation.getPath();
+                    Path jobArchivePath = new Path(refreshDir, jobID);
+                    LOG.info(
+                            String.format(
+                                    "Fetching JobId archive %s from %s.", jobID, jobArchivePath));
+                    if (jobArchivePath.getFileSystem().exists(jobArchivePath)) {
+                        LOG.info("Processing archive {}.", jobArchivePath);
+                        try {
+                            processArchive(jobID, jobArchivePath);
+                            cachedArchives.add(jobID);
+                            cachedArchivesPerRefreshDirectory.get(refreshDir).add(jobID);
+                            LOG.info("Processing archive {} finished.", jobArchivePath);
+                        } catch (IOException e) {
+                            LOG.error(
+                                    "Failure while fetching/processing job archive for job {}.",
+                                    jobID,
+                                    e);
+                            deleteJobFiles(jobID);
+                            throw e;
+                        }
+                        jobIdFound = true;
+                        mostRecentlyViewedCache.put(jobID, jobID);
+                        break;
+                    }
+                }
+                if (!jobIdFound) {
+                    LOG.warn("Unable to find archive in remote job archives for job {}.", jobID);
+                }
+            }
+        } else {
+            LOG.warn("Unable to fetch jobs from remote archives as this feature is not enabled");
+        }
+    }
+
     void fetchArchives() {
         try {
             LOG.debug("Starting archive fetching.");
             List<ArchiveEvent> events = new ArrayList<>();
-            Map<Path, Set<String>> jobsToRemove = new HashMap<>();
+            Map<Path, Set<String>> expiredJobsToRemove = new HashMap<>();
             cachedArchivesPerRefreshDirectory.forEach(
-                    (path, archives) -> jobsToRemove.put(path, new HashSet<>(archives)));
-            Map<Path, Set<Path>> archivesBeyondSizeLimit = new HashMap<>();
+                    (path, archives) -> expiredJobsToRemove.put(path, new HashSet<>(archives)));
+
+            Set<Path> remoteJobArchivesToRemove = new HashSet<>();
+            Map<Path, Set<String>> cachedJobArchivesToRemove = new HashMap<>();
+
+            int generalCachedJobCount = 0;
             for (HistoryServer.RefreshLocation refreshLocation : refreshDirs) {
                 Path refreshDir = refreshLocation.getPath();
                 LOG.debug("Checking archive directory {}.", refreshDir);
@@ -172,7 +260,7 @@ class HistoryServerArchiveFetcher {
                     LOG.error("Failed to access job archive location for path {}.", refreshDir, e);
                     // something went wrong, potentially due to a concurrent deletion
                     // do not remove any jobs now; we will retry later
-                    jobsToRemove.remove(refreshDir);
+                    expiredJobsToRemove.remove(refreshDir);
                     continue;
                 }
 
@@ -184,44 +272,87 @@ class HistoryServerArchiveFetcher {
                         continue;
                     }
 
-                    jobsToRemove.get(refreshDir).remove(jobID);
+                    expiredJobsToRemove.get(refreshDir).remove(jobID);
 
                     historySize++;
-                    if (historySize > maxHistorySize && processBeyondLimitArchiveDeletion) {
-                        archivesBeyondSizeLimit
-                                .computeIfAbsent(refreshDir, ignored -> new HashSet<>())
-                                .add(jobArchivePath);
-                        continue;
+
+                    if (!remoteFetchEnabled
+                            || (remoteFetchEnabled
+                                    && !mostRecentlyViewedCache.containsKey(jobID))) {
+                        generalCachedJobCount++;
                     }
 
-                    if (cachedArchivesPerRefreshDirectory.get(refreshDir).contains(jobID)) {
-                        LOG.trace(
-                                "Ignoring archive {} because it was already fetched.",
-                                jobArchivePath);
-                    } else {
-                        LOG.info("Processing archive {}.", jobArchivePath);
-                        try {
-                            processArchive(jobID, jobArchivePath);
-                            events.add(new ArchiveEvent(jobID, ArchiveEventType.CREATED));
-                            cachedArchivesPerRefreshDirectory.get(refreshDir).add(jobID);
-                            LOG.info("Processing archive {} finished.", jobArchivePath);
-                        } catch (IOException e) {
-                            LOG.error(
-                                    "Failure while fetching/processing job archive for job {}.",
-                                    jobID,
-                                    e);
-                            deleteJobFiles(jobID);
+                    boolean processJob = true;
+                    boolean remoteArchiveDeletion =
+                            historySize > maxHistorySize && processBeyondLimitArchiveDeletion;
+                    boolean localCacheDeletion =
+                            generalCachedJobCount > generalCachedJobSize
+                                    && processBeyondLimitLocalCacheDeletion;
+
+                    if (remoteArchiveDeletion) {
+                        remoteJobArchivesToRemove.add(jobArchivePath);
+                        processJob = false;
+                    }
+
+                    if (remoteArchiveDeletion || localCacheDeletion) {
+                        if ((!remoteFetchEnabled
+                                        || (remoteFetchEnabled
+                                                && !mostRecentlyViewedCache.containsKey(jobID)))
+                                && cachedArchives.contains(jobID)) {
+                            cachedJobArchivesToRemove
+                                    .computeIfAbsent(refreshDir, ignored -> new HashSet<>())
+                                    .add(jobID);
+                        }
+                        processJob = false;
+                    }
+
+                    if (processJob) {
+                        if (cachedArchives.contains(jobID)) {
+                            LOG.trace(
+                                    "Ignoring archive {} because it was already fetched.",
+                                    jobArchivePath);
+                        } else {
+                            LOG.info("Processing archive {}.", jobArchivePath);
+                            try {
+                                processArchive(jobID, jobArchivePath);
+                                events.add(new ArchiveEvent(jobID, ArchiveEventType.CREATED));
+                                cachedArchives.add(jobID);
+                                cachedArchivesPerRefreshDirectory.get(refreshDir).add(jobID);
+                                LOG.info("Processing archive {} finished.", jobArchivePath);
+                            } catch (IOException e) {
+                                LOG.error(
+                                        "Failure while fetching/processing job archive for job {}.",
+                                        jobID,
+                                        e);
+                                deleteJobFiles(jobID);
+                            }
                         }
                     }
                 }
             }
 
-            if (jobsToRemove.values().stream().flatMap(Set::stream).findAny().isPresent()
+            // Remove any expired jobs before cleaning up any other local cached jobs
+            if (expiredJobsToRemove.values().stream().flatMap(Set::stream).findAny().isPresent()
                     && processExpiredArchiveDeletion) {
-                events.addAll(cleanupExpiredJobs(jobsToRemove));
+                events.addAll(cleanupCachedJobs(expiredJobsToRemove));
             }
-            if (!archivesBeyondSizeLimit.isEmpty() && processBeyondLimitArchiveDeletion) {
-                events.addAll(cleanupJobsBeyondSizeLimit(archivesBeyondSizeLimit));
+
+            int numCurrentCachedMostRecentlyViewedJobs =
+                    remoteFetchEnabled ? mostRecentlyViewedCache.size() : 0;
+
+            boolean localCacheDeletion =
+                    !cachedJobArchivesToRemove.isEmpty()
+                            && cachedArchives.size() - numCurrentCachedMostRecentlyViewedJobs
+                                    > generalCachedJobSize
+                            && processBeyondLimitLocalCacheDeletion;
+            boolean remoteArchiveDeletion =
+                    !remoteJobArchivesToRemove.isEmpty() && processBeyondLimitArchiveDeletion;
+
+            if (localCacheDeletion || remoteArchiveDeletion) {
+                events.addAll(cleanupCachedJobs(cachedJobArchivesToRemove));
+            }
+            if (remoteArchiveDeletion) {
+                events.addAll(cleanupRemoteJobs(remoteJobArchivesToRemove));
             }
             if (!events.isEmpty()) {
                 updateJobOverview(webOverviewDir, webDir);
@@ -233,8 +364,7 @@ class HistoryServerArchiveFetcher {
         }
     }
 
-    private static FileStatus[] listArchives(FileSystem refreshFS, Path refreshDir)
-            throws IOException {
+    static FileStatus[] listArchives(FileSystem refreshFS, Path refreshDir) throws IOException {
         // contents of /:refreshDir
         FileStatus[] jobArchives = refreshFS.listStatus(refreshDir);
         if (jobArchives == null) {
@@ -303,35 +433,31 @@ class HistoryServerArchiveFetcher {
         }
     }
 
-    private List<ArchiveEvent> cleanupJobsBeyondSizeLimit(
-            Map<Path, Set<Path>> jobArchivesToRemove) {
-        Map<Path, Set<String>> allJobIdsToRemoveFromOverview = new HashMap<>();
+    private List<ArchiveEvent> cleanupRemoteJobs(Set<Path> jobArchivesToRemove) {
 
-        for (Map.Entry<Path, Set<Path>> pathSetEntry : jobArchivesToRemove.entrySet()) {
-            HashSet<String> jobIdsToRemoveFromOverview = new HashSet<>();
-
-            for (Path archive : pathSetEntry.getValue()) {
-                jobIdsToRemoveFromOverview.add(archive.getName());
-                try {
-                    archive.getFileSystem().delete(archive, false);
-                } catch (IOException ioe) {
-                    LOG.warn("Could not delete old archive " + archive, ioe);
-                }
+        List<ArchiveEvent> deleteFromRemoteLog = new ArrayList<>();
+        for (Path archive : jobArchivesToRemove) {
+            try {
+                archive.getFileSystem().delete(archive, false);
+                deleteFromRemoteLog.add(
+                        new ArchiveEvent(archive.getName(), ArchiveEventType.DELETED_FROM_REMOTE));
+            } catch (IOException ioe) {
+                LOG.warn("Could not delete old archive " + archive, ioe);
             }
-            allJobIdsToRemoveFromOverview.put(pathSetEntry.getKey(), jobIdsToRemoveFromOverview);
         }
-
-        return cleanupExpiredJobs(allJobIdsToRemoveFromOverview);
+        return deleteFromRemoteLog;
     }
 
-    private List<ArchiveEvent> cleanupExpiredJobs(Map<Path, Set<String>> jobsToRemove) {
+    private List<ArchiveEvent> cleanupCachedJobs(Map<Path, Set<String>> jobsToRemove) {
 
         List<ArchiveEvent> deleteLog = new ArrayList<>();
-        LOG.info("Archive directories for jobs {} were deleted.", jobsToRemove);
 
         jobsToRemove.forEach(
                 (refreshDir, archivesToRemove) -> {
-                    cachedArchivesPerRefreshDirectory.get(refreshDir).removeAll(archivesToRemove);
+                    for (String jobID : archivesToRemove) {
+                        cachedArchivesPerRefreshDirectory.get(refreshDir).remove(jobID);
+                        cachedArchives.remove(jobID);
+                    }
                 });
         jobsToRemove.values().stream()
                 .flatMap(Set::stream)
