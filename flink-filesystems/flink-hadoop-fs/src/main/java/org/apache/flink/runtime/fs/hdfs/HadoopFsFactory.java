@@ -20,6 +20,7 @@ package org.apache.flink.runtime.fs.hdfs;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.core.fs.FileSystemContext;
 import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.core.fs.LimitedConnectionsFileSystem;
 import org.apache.flink.core.fs.LimitedConnectionsFileSystem.ConnectionLimitingSettings;
@@ -176,6 +177,9 @@ public class HadoopFsFactory implements FileSystemFactory {
             }
 
             HadoopFileSystem fs = new HadoopFileSystem(hadoopFs);
+            if (hadoopConfig.getBoolean("hadoop.caller.context.enabled", false)) {
+                fs = (HadoopFileSystem) FileSystemContext.addContext(fs);
+            }
 
             // create the Flink file system, optionally limiting the open connections
             if (flinkConfig != null) {
