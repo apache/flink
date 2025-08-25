@@ -51,6 +51,22 @@ under the License.
 	<!-- Common dependency setup for all filesystems -->
 	<dependencies>
 
+		<!-- The filesystems are an extension to the flink-core, which would already be provided -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<!-- for the behavior test suite -->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+			<type>test-jar</type>
+		</dependency>
+
 		<!-- The filesystems are extensions that can assume logger and JSR to be already provided -->
 		<dependency>
 			<groupId>org.slf4j</groupId>

@@ -42,13 +42,6 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-hadoop-fs</artifactId>
 			<version>${project.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
@@ -88,15 +81,6 @@ under the License.
 			<artifactId>azure</artifactId>
 			<version>${fs.azure.sdk.version}</version>
 			<scope>test</scope>
-		</dependency>
-
-		<!-- for the behavior test suite -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
 		</dependency>
 
 	</dependencies>

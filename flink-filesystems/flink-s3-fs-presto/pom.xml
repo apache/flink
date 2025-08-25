@@ -40,14 +40,6 @@ under the License.
 	</properties>
 
 	<dependencies>
-
-		<!-- Flink's file system abstraction (compiled against, not bundled) -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
 		
 		<!-- S3 base (bundled) -->
 		<dependency>
@@ -333,15 +325,6 @@ under the License.
 			<version>${jaxb.api.version}</version>
 			<!-- packaged as an optional dependency that is only accessible on Java 11+ -->
 			<scope>provided</scope>
-		</dependency>
-
-		<!-- for the behavior test suite -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
 		</dependency>
 
 		<dependency>

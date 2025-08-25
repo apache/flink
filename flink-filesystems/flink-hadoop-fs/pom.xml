@@ -43,6 +43,8 @@ under the License.
 	</properties>
 
 	<dependencies>
+
+		<!-- Provided to the rest of the filesystems for runtime -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-core</artifactId>
@@ -104,16 +106,6 @@ under the License.
 					<artifactId>slf4j-reload4j</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
-		
-
-		<!-- for the behavior test suite -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
 		</dependency>
 
 		<!-- for the HDFS mini cluster test suite -->

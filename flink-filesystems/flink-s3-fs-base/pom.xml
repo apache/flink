@@ -41,14 +41,6 @@ under the License.
 
 	<dependencies>
 
-		<!-- Flink's file system abstraction (only compiled against, not bundled) -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
 		<!-- Hadoop's file system abstraction (bundled) -->
 		<dependency>
 			<groupId>org.apache.hadoop</groupId>
