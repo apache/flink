@@ -401,6 +401,16 @@ public class FileSystemStatisticsReportTest extends StatisticsReportTestBase {
     }
 
     @Test
+    public void testNoPartitionFilterReportStatisticsDisabled() {
+        tEnv.getConfig()
+                .set(
+                        OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_REPORT_STATISTICS_ENABLED,
+                        false);
+        FlinkStatistic statistic = getStatisticsFromOptimizedPlan("select * from PartTable");
+        assertThat(statistic.getTableStats()).isEqualTo(TableStats.UNKNOWN);
+    }
+
+    @Test
     public void testFileSystemSourceWithoutData() {
         FlinkStatistic statistic = getStatisticsFromOptimizedPlan("select * from emptyTable");
         assertThat(statistic.getTableStats()).isEqualTo(TableStats.UNKNOWN);
