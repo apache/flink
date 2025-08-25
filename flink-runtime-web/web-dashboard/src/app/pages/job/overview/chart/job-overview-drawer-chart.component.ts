@@ -24,7 +24,8 @@ import {
   OnDestroy,
   OnInit,
   QueryList,
-  ViewChildren
+  ViewChildren,
+  AfterViewInit
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
@@ -43,12 +44,23 @@ import { JobLocalService } from '../../job-local.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NgIf, NzSelectModule, FormsModule, NgForOf, JobChartComponent]
 })
-export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
+export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy, AfterViewInit {
   public data = [];
   public listOfMetricName: string[] = [];
   public listOfSelectedMetric: string[] = [];
   public listOfUnselectedMetric: string[] = [];
   public cacheMetricKey: string;
+  public dropdownWidth: number = 300; // Default width
+
+  // Computed dropdown styles to ensure reactivity
+  public get dropdownStyles(): { [key: string]: string } {
+    return {
+      'min-width': `${this.dropdownWidth}px`,
+      'max-width': '80vw',
+      width: `${this.dropdownWidth}px`,
+      'box-sizing': 'border-box'
+    };
+  }
 
   @ViewChildren(JobChartComponent) private readonly listOfJobChartComponent: QueryList<JobChartComponent>;
 
@@ -87,6 +99,11 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
       });
   }
 
+  public ngAfterViewInit(): void {
+    // Calculate optimal dropdown width after view is initialized
+    this.calculateOptimalDropdownWidth();
+  }
+
   public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
@@ -98,6 +115,7 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
       this.listOfMetricName = data.map(item => item.id);
       this.listOfSelectedMetric = this.jobLocalService.metricsCacheMap.get(this.cacheMetricKey) || [];
       this.updateUnselectedMetricList();
+      this.calculateOptimalDropdownWidth();
       this.cdr.markForCheck();
     });
   }
@@ -106,15 +124,58 @@ export class JobOverviewDrawerChartComponent implements OnInit, OnDestroy {
     this.listOfSelectedMetric = [...this.listOfSelectedMetric, metric];
     this.jobLocalService.metricsCacheMap.set(this.cacheMetricKey, this.listOfSelectedMetric);
     this.updateUnselectedMetricList();
+    this.calculateOptimalDropdownWidth();
   }
 
   public closeMetric(metric: string): void {
     this.listOfSelectedMetric = this.listOfSelectedMetric.filter(item => item !== metric);
     this.jobLocalService.metricsCacheMap.set(this.cacheMetricKey, this.listOfSelectedMetric);
     this.updateUnselectedMetricList();
+    this.calculateOptimalDropdownWidth();
   }
 
   public updateUnselectedMetricList(): void {
     this.listOfUnselectedMetric = this.listOfMetricName.filter(item => this.listOfSelectedMetric.indexOf(item) === -1);
+  }
+
+  private calculateOptimalDropdownWidth(): void {
+    if (this.listOfUnselectedMetric.length === 0) {
+      this.dropdownWidth = 300; // Default width when no metrics
+      this.cdr.markForCheck(); // Force change detection
+      return;
+    }
+
+    // Create a temporary element to measure text width
+    const tempElement = document.createElement('span');
+    tempElement.style.visibility = 'hidden';
+    tempElement.style.position = 'absolute';
+    tempElement.style.whiteSpace = 'nowrap';
+    tempElement.style.fontSize = '12px'; // Match NG-ZORRO small size
+    tempElement.style.fontFamily = 'inherit';
+    document.body.appendChild(tempElement);
+
+    let maxWidth = 0;
+    const padding = 32; // Base padding for comfortable spacing
+
+    // Find the longest metric name using getBoundingClientRect().width
+    this.listOfUnselectedMetric.forEach(metricName => {
+      tempElement.textContent = metricName;
+      const textWidth = tempElement.getBoundingClientRect().width;
+      maxWidth = Math.max(maxWidth, textWidth);
+    });
+
+    // Clean up
+    document.body.removeChild(tempElement);
+
+    // Set dropdown width to fit the longest metric name with comfortable padding
+    const calculatedWidth = Math.ceil(maxWidth + padding + 60); // Extra padding for comfort and breathing room
+
+    // Only cap at viewport width, no artificial minimum
+    const maxDropdownWidth = Math.min(window.innerWidth * 0.8, 1200); // Allow wider for long metrics
+
+    this.dropdownWidth = Math.min(calculatedWidth, maxDropdownWidth);
+
+    // Force change detection when width changes
+    this.cdr.markForCheck();
   }
 }
