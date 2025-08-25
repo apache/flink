@@ -38,6 +38,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
+import org.apache.flink.table.functions.ModelSemantics;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
@@ -649,6 +650,12 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
                             DataTypeUtils.removeTimeAttribute(tableRef.getOutputDataType()),
                             staticArg);
             return Optional.of(semantics);
+        }
+
+        @Override
+        public Optional<ModelSemantics> getModelSemantics(int pos) {
+            // TODO: Add ModelReferenceExpression checks and TableApiModelSemantics
+            return Optional.empty();
         }
 
         @Override
