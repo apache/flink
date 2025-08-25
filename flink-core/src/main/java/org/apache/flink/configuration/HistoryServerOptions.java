@@ -25,6 +25,7 @@ import java.time.Duration;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /** The set of configuration options relating to the HistoryServer. */
 @PublicEvolving
@@ -141,6 +142,30 @@ public class HistoryServerOptions {
                                     .text(
                                             "If set to `0` or less than `-1` HistoryServer will throw an %s. ",
                                             code("IllegalConfigurationException"))
+                                    .build());
+
+    public static final ConfigOption<Duration> HISTORY_SERVER_RETAINED_TTL =
+            key("historyserver.archive.retained-ttl")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            String.format(
+                                                    "The time-to-live duration to retain the jobs archived in each archive directory defined by `%s`. ",
+                                                    HISTORY_SERVER_ARCHIVE_DIRS.key()))
+                                    .text(
+                                            "Note, when there are multiple history server instances with different configurations, "
+                                                    + "they are working independently today and may have conflict configs. "
+                                                    + "This is an existing problem. "
+                                                    + "For the configuration, when there are multiple history servers instances. You can enable the configuration option like following: ")
+                                    .list(
+                                            text(
+                                                    "Using the same `%s` directory as the refresh directories, "
+                                                            + "you should enable and configure this feature in only one HistoryServer instance to avoid errors caused by multiple instances simultaneously cleaning up remote files,",
+                                                    code(HISTORY_SERVER_ARCHIVE_DIRS.key())),
+                                            text(
+                                                    "Or you can keep the value of this configuration consistent across them."))
                                     .build());
 
     private HistoryServerOptions() {}
