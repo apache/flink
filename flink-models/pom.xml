@@ -34,8 +34,17 @@ under the License.
 	<packaging>pom</packaging>
 
 	<modules>
+		<module>flink-model-openai-sdk-shaded</module>
 		<module>flink-model-openai</module>
+		<module>flink-model-deepseek</module>
+		<module>flink-model-qwen</module>
 	</modules>
+
+	<properties>
+		<openai.version>1.6.1</openai.version>
+		<okhttp.version>4.12.0</okhttp.version>
+		<openai.kotlin.version>1.9.10</openai.kotlin.version>
+	</properties>
 
 	<dependencies>
 		<dependency>
