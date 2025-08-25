@@ -29,6 +29,7 @@ import org.apache.flink.runtime.history.FsJobArchivist;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.messages.JobsOverviewHeaders;
+import org.apache.flink.runtime.webmonitor.history.retaining.JobArchivesRetainedStrategy;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
@@ -112,8 +113,7 @@ class HistoryServerArchiveFetcher {
     private final List<HistoryServer.RefreshLocation> refreshDirs;
     private final Consumer<ArchiveEvent> jobArchiveEventListener;
     private final boolean processExpiredArchiveDeletion;
-    private final boolean processBeyondLimitArchiveDeletion;
-    private final int maxHistorySize;
+    private final JobArchivesRetainedStrategy jobRetainedStrategy;
 
     /** Cache of all available jobs identified by their id. */
     private final Map<Path, Set<String>> cachedArchivesPerRefreshDirectory;
@@ -127,13 +127,12 @@ class HistoryServerArchiveFetcher {
             File webDir,
             Consumer<ArchiveEvent> jobArchiveEventListener,
             boolean cleanupExpiredArchives,
-            int maxHistorySize)
+            JobArchivesRetainedStrategy jobRetainedStrategy)
             throws IOException {
         this.refreshDirs = checkNotNull(refreshDirs);
         this.jobArchiveEventListener = jobArchiveEventListener;
         this.processExpiredArchiveDeletion = cleanupExpiredArchives;
-        this.maxHistorySize = maxHistorySize;
-        this.processBeyondLimitArchiveDeletion = this.maxHistorySize > 0;
+        this.jobRetainedStrategy = checkNotNull(jobRetainedStrategy);
         this.cachedArchivesPerRefreshDirectory = new HashMap<>();
         for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
             cachedArchivesPerRefreshDirectory.put(refreshDir.getPath(), new HashSet<>());
@@ -176,7 +175,7 @@ class HistoryServerArchiveFetcher {
                     continue;
                 }
 
-                int historySize = 0;
+                int fileOrderedIndexOnModifiedTime = 0;
                 for (FileStatus jobArchive : jobArchives) {
                     Path jobArchivePath = jobArchive.getPath();
                     String jobID = jobArchivePath.getName();
@@ -186,8 +185,9 @@ class HistoryServerArchiveFetcher {
 
                     jobsToRemove.get(refreshDir).remove(jobID);
 
-                    historySize++;
-                    if (historySize > maxHistorySize && processBeyondLimitArchiveDeletion) {
+                    fileOrderedIndexOnModifiedTime++;
+                    if (!jobRetainedStrategy.shouldRetain(
+                            jobArchive, fileOrderedIndexOnModifiedTime)) {
                         archivesBeyondSizeLimit
                                 .computeIfAbsent(refreshDir, ignored -> new HashSet<>())
                                 .add(jobArchivePath);
@@ -220,7 +220,7 @@ class HistoryServerArchiveFetcher {
                     && processExpiredArchiveDeletion) {
                 events.addAll(cleanupExpiredJobs(jobsToRemove));
             }
-            if (!archivesBeyondSizeLimit.isEmpty() && processBeyondLimitArchiveDeletion) {
+            if (!archivesBeyondSizeLimit.isEmpty()) {
                 events.addAll(cleanupJobsBeyondSizeLimit(archivesBeyondSizeLimit));
             }
             if (!events.isEmpty()) {
