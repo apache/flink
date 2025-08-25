@@ -1144,7 +1144,7 @@ class StateAssignmentOperationTest {
                                 operatorID -> {
                                     OperatorState state =
                                             new OperatorState(
-                                                    "", "", operatorID, numSubTasks, MAX_P);
+                                                    operatorID, numSubTasks, MAX_P);
                                     for (int i = 0; i < numSubTasks; i++) {
                                         OperatorSubtaskState.Builder builder =
                                                 OperatorSubtaskState.builder()
@@ -1367,7 +1367,7 @@ class StateAssignmentOperationTest {
         Random random = new Random();
 
         // Source has output state only for partition 1 (hash exchange)
-        OperatorState sourceState = new OperatorState("", "", operatorIds.get(0), 2, MAX_P);
+        OperatorState sourceState = new OperatorState(operatorIds.get(0), 2, MAX_P);
         for (int i = 0; i < 2; i++) {
             sourceState.putState(
                     i,
@@ -1384,14 +1384,14 @@ class StateAssignmentOperationTest {
         states.put(operatorIds.get(0), sourceState);
 
         // Map1 (forward) has no input state
-        OperatorState map1State = new OperatorState("", "", operatorIds.get(1), 2, MAX_P);
+        OperatorState map1State = new OperatorState(operatorIds.get(1), 2, MAX_P);
         for (int i = 0; i < 2; i++) {
             map1State.putState(i, OperatorSubtaskState.builder().build());
         }
         states.put(operatorIds.get(1), map1State);
 
         // Map2 (hash) has input state
-        OperatorState map2State = new OperatorState("", "", operatorIds.get(2), 2, MAX_P);
+        OperatorState map2State = new OperatorState(operatorIds.get(2), 2, MAX_P);
         for (int i = 0; i < 2; i++) {
             map2State.putState(
                     i,
@@ -1439,14 +1439,14 @@ class StateAssignmentOperationTest {
         Random random = new Random();
 
         // Upstream1 - no output state
-        OperatorState upstream1State = new OperatorState("", "", operatorIds.get(0), 3, MAX_P);
+        OperatorState upstream1State = new OperatorState(operatorIds.get(0), 3, MAX_P);
         for (int i = 0; i < 3; i++) {
             upstream1State.putState(i, OperatorSubtaskState.builder().build());
         }
         states.put(operatorIds.get(0), upstream1State);
 
         // Upstream2 - has output state
-        OperatorState upstream2State = new OperatorState("", "", operatorIds.get(1), 3, MAX_P);
+        OperatorState upstream2State = new OperatorState(operatorIds.get(1), 3, MAX_P);
         for (int i = 0; i < 3; i++) {
             upstream2State.putState(
                     i,
@@ -1461,14 +1461,14 @@ class StateAssignmentOperationTest {
         states.put(operatorIds.get(1), upstream2State);
 
         // Upstream3 - no output state
-        OperatorState upstream3State = new OperatorState("", "", operatorIds.get(2), 3, MAX_P);
+        OperatorState upstream3State = new OperatorState(operatorIds.get(2), 3, MAX_P);
         for (int i = 0; i < 3; i++) {
             upstream3State.putState(i, OperatorSubtaskState.builder().build());
         }
         states.put(operatorIds.get(2), upstream3State);
 
         // Downstream - has input state only for gate 1 (from upstream2)
-        OperatorState downstreamState = new OperatorState("", "", operatorIds.get(3), 3, MAX_P);
+        OperatorState downstreamState = new OperatorState(operatorIds.get(3), 3, MAX_P);
         for (int i = 0; i < 3; i++) {
             downstreamState.putState(
                     i,
@@ -1518,7 +1518,7 @@ class StateAssignmentOperationTest {
         Map<OperatorID, OperatorState> states = new HashMap<>();
         Random random = new Random();
 
-        OperatorState sourceState = new OperatorState("", "", operatorIds.get(0), 4, MAX_P);
+        OperatorState sourceState = new OperatorState(operatorIds.get(0), 4, MAX_P);
         for (int i = 0; i < 4; i++) {
             sourceState.putState(
                     i,
@@ -1533,7 +1533,7 @@ class StateAssignmentOperationTest {
         states.put(operatorIds.get(0), sourceState);
 
         // Sink has input state
-        OperatorState sinkState = new OperatorState("", "", operatorIds.get(1), 4, MAX_P);
+        OperatorState sinkState = new OperatorState(operatorIds.get(1), 4, MAX_P);
         for (int i = 0; i < 4; i++) {
             sinkState.putState(
                     i,
