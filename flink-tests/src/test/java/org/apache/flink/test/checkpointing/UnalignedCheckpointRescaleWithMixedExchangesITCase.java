@@ -231,7 +231,7 @@ public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogg
 
         sourceStream1
                 .rebalance()
-                .connect(forwardedStream)
+                .connect(forwardedStream.rebalance())
                 .map(new SleepingCoMap())
                 .name("Co-Map")
                 .setParallelism(getRandomParallelism());
@@ -308,7 +308,7 @@ public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogg
         DataStream<Long> multiInputMap =
                 sourceStream1
                         .rebalance()
-                        .connect(forwardedStream)
+                        .connect(forwardedStream.rebalance())
                         .map(new SleepingCoMap())
                         .name("Co-Map")
                         .setParallelism(getRandomParallelism());
