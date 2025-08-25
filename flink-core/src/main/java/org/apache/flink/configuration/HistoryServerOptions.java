@@ -25,6 +25,7 @@ import java.time.Duration;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.code;
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /** The set of configuration options relating to the HistoryServer. */
 @PublicEvolving
@@ -126,8 +127,21 @@ public class HistoryServerOptions {
                             "Enable HTTPs access to the HistoryServer web frontend. This is applicable only when the"
                                     + " global SSL flag security.ssl.enabled is set to true.");
 
+    private static final String HISTORY_SERVER_RETAINED_JOBS_KEY =
+            "historyserver.archive.retained-jobs";
+    private static final String HISTORY_SERVER_RETAINED_TTL_KEY =
+            "historyserver.archive.retained-ttl";
+    private static final String DESC_FORMAT =
+            "When this option is enabled together with the `%s` option, the job archive will be removed if its TTL has expired or the retained job count has been reached. ";
+    private static final String NOTE_MESSAGE =
+            "Note, when there are multiple history server instances, please enable the configuration option like following: ";
+    private static final String CONFIGURE_SINGLE_INSTANCE =
+            "Enable this feature in only one HistoryServer instance to avoid errors caused by multiple instances simultaneously cleaning up remote files, ";
+    private static final String CONFIGURE_CONSISTENT =
+            "Or you can keep the value of this configuration consistent across them. ";
+
     public static final ConfigOption<Integer> HISTORY_SERVER_RETAINED_JOBS =
-            key("historyserver.archive.retained-jobs")
+            key(HISTORY_SERVER_RETAINED_JOBS_KEY)
                     .intType()
                     .defaultValue(-1)
                     .withDescription(
@@ -137,10 +151,36 @@ public class HistoryServerOptions {
                                                     "The maximum number of jobs to retain in each archive directory defined by `%s`. ",
                                                     HISTORY_SERVER_ARCHIVE_DIRS.key()))
                                     .text(
+                                            String.format(
+                                                    DESC_FORMAT, HISTORY_SERVER_RETAINED_TTL_KEY))
+                                    .text(
                                             "If set to `-1`(default), there is no limit to the number of archives. ")
                                     .text(
                                             "If set to `0` or less than `-1` HistoryServer will throw an %s. ",
                                             code("IllegalConfigurationException"))
+                                    .text(NOTE_MESSAGE)
+                                    .list(
+                                            text(CONFIGURE_SINGLE_INSTANCE),
+                                            text(CONFIGURE_CONSISTENT))
+                                    .build());
+
+    public static final ConfigOption<Duration> HISTORY_SERVER_RETAINED_TTL =
+            key(HISTORY_SERVER_RETAINED_TTL_KEY)
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            String.format(
+                                                    "The time-to-live duration to retain the jobs archived in each archive directory defined by `%s`. ",
+                                                    HISTORY_SERVER_ARCHIVE_DIRS.key()))
+                                    .text(
+                                            String.format(
+                                                    DESC_FORMAT, HISTORY_SERVER_RETAINED_JOBS_KEY))
+                                    .text(NOTE_MESSAGE)
+                                    .list(
+                                            text(CONFIGURE_SINGLE_INSTANCE),
+                                            text(CONFIGURE_CONSISTENT))
                                     .build());
 
     private HistoryServerOptions() {}
