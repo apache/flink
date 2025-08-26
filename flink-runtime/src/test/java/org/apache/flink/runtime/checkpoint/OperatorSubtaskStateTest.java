@@ -17,20 +17,18 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
-import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.InputChannelStateHandle;
-import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Random;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
@@ -65,37 +63,7 @@ public class OperatorSubtaskStateTest {
     @Test
     public void testToBuilderCorrectness() throws IOException {
         // given: Initialized operator subtask state.
-        JobVertexID jobVertexID = new JobVertexID();
-        int index = 0;
-        Random random = new Random();
-
-        OperatorSubtaskState operatorSubtaskState =
-                OperatorSubtaskState.builder()
-                        .setManagedOperatorState(
-                                generatePartitionableStateHandle(jobVertexID, index, 2, 8, false))
-                        .setRawOperatorState(
-                                generatePartitionableStateHandle(jobVertexID, index, 2, 8, true))
-                        .setManagedKeyedState(
-                                generateKeyGroupState(jobVertexID, new KeyGroupRange(0, 11), false))
-                        .setRawKeyedState(
-                                generateKeyGroupState(jobVertexID, new KeyGroupRange(0, 9), true))
-                        .setInputChannelState(
-                                StateObjectCollection.singleton(
-                                        createNewInputChannelStateHandle(3, random)))
-                        .setResultSubpartitionState(
-                                StateObjectCollection.singleton(
-                                        createNewResultSubpartitionStateHandle(3, random)))
-                        .setInputRescalingDescriptor(
-                                InflightDataRescalingDescriptorUtil.rescalingDescriptor(
-                                        new int[1],
-                                        new RescaleMappings[0],
-                                        Collections.singleton(1)))
-                        .setOutputRescalingDescriptor(
-                                InflightDataRescalingDescriptorUtil.rescalingDescriptor(
-                                        new int[1],
-                                        new RescaleMappings[0],
-                                        Collections.singleton(2)))
-                        .build();
+        OperatorSubtaskState operatorSubtaskState = generateSampleOperatorSubtaskState().f1;
 
         // when: Copy the operator subtask state.
         OperatorSubtaskState operatorSubtaskStateCopy = operatorSubtaskState.toBuilder().build();

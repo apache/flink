@@ -18,8 +18,9 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.util.AutoCloseableAsync;
-import org.apache.flink.util.function.RunnableWithException;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +48,7 @@ public class CheckpointsCleaner implements Serializable, AutoCloseableAsync {
     private static final Logger LOG = LoggerFactory.getLogger(CheckpointsCleaner.class);
     private static final long serialVersionUID = 2545865801947537790L;
 
+    private final boolean parallelMode;
     private final Object lock = new Object();
 
     @GuardedBy("lock")
@@ -60,6 +62,14 @@ public class CheckpointsCleaner implements Serializable, AutoCloseableAsync {
     @GuardedBy("lock")
     private final List<CompletedCheckpoint> subsumedCheckpoints = new ArrayList<>();
 
+    public CheckpointsCleaner() {
+        this.parallelMode = CheckpointingOptions.CLEANER_PARALLEL_MODE.defaultValue();
+    }
+
+    public CheckpointsCleaner(boolean parallelMode) {
+        this.parallelMode = parallelMode;
+    }
+
     int getNumberOfCheckpointsToClean() {
         synchronized (lock) {
             return numberOfCheckpointsToClean;
@@ -71,10 +81,35 @@ public class CheckpointsCleaner implements Serializable, AutoCloseableAsync {
             boolean shouldDiscard,
             Runnable postCleanAction,
             Executor executor) {
-        Checkpoint.DiscardObject discardObject =
-                shouldDiscard ? checkpoint.markAsDiscarded() : Checkpoint.NOOP_DISCARD_OBJECT;
+        LOG.debug(
+                "Clean checkpoint {} parallel-mode={} shouldDiscard={}",
+                checkpoint.getCheckpointID(),
+                parallelMode,
+                shouldDiscard);
+        if (shouldDiscard) {
+            incrementNumberOfCheckpointsToClean();
 
-        cleanup(checkpoint, discardObject::discard, postCleanAction, executor);
+            Checkpoint.DiscardObject discardObject = checkpoint.markAsDiscarded();
+            CompletableFuture<Void> discardFuture =
+                    parallelMode
+                            ? discardObject.discardAsync(executor)
+                            : FutureUtils.runAsync(discardObject::discard, executor);
+            discardFuture.handle(
+                    (Object outerIgnored, Throwable outerThrowable) -> {
+                        if (outerThrowable != null) {
+                            LOG.warn(
+                                    "Could not properly discard completed checkpoint {}.",
+                                    checkpoint.getCheckpointID(),
+                                    outerThrowable);
+                        }
+
+                        decrementNumberOfCheckpointsToClean();
+                        postCleanAction.run();
+                        return null;
+                    });
+        } else {
+            executor.execute(postCleanAction);
+        }
     }
 
     /**
@@ -123,30 +158,7 @@ public class CheckpointsCleaner implements Serializable, AutoCloseableAsync {
 
     public void cleanCheckpointOnFailedStoring(
             CompletedCheckpoint completedCheckpoint, Executor executor) {
-        Checkpoint.DiscardObject discardObject = completedCheckpoint.markAsDiscarded();
-        cleanup(completedCheckpoint, discardObject::discard, () -> {}, executor);
-    }
-
-    private void cleanup(
-            Checkpoint checkpoint,
-            RunnableWithException cleanupAction,
-            Runnable postCleanupAction,
-            Executor executor) {
-        incrementNumberOfCheckpointsToClean();
-        executor.execute(
-                () -> {
-                    try {
-                        cleanupAction.run();
-                    } catch (Exception e) {
-                        LOG.warn(
-                                "Could not properly discard completed checkpoint {}.",
-                                checkpoint.getCheckpointID(),
-                                e);
-                    } finally {
-                        decrementNumberOfCheckpointsToClean();
-                        postCleanupAction.run();
-                    }
-                });
+        cleanCheckpoint(completedCheckpoint, true, () -> {}, executor);
     }
 
     private void incrementNumberOfCheckpointsToClean() {
