@@ -98,8 +98,15 @@ public class MapFunctionITCase extends BuiltInFunctionTestBase {
                                 BOOLEAN().notNull())
                         .testResult(
                                 resultSpec(
+                                        map(
+                                                1, 1, 1, 2, 1, 9, 1, 3, 2, 24, 2, 29, 1, 0, 2, 22,
+                                                1, 8, 2, 25, 2, 20),
+                                        "MAP[1, 1, 1, 2, 1, 9, 1, 3, 2, 24, 2, 29, 1, 0, 2, 22, 1, 8, 2, 25, 2, 20]",
+                                        Map.ofEntries(Map.entry(1, 8), Map.entry(2, 20)),
+                                        DataTypes.MAP(INT().notNull(), INT().notNull()).notNull()),
+                                resultSpec(
                                         map($("f0"), $("f0"), $("f0"), $("f1")),
-                                        "MAP[f0, f1]",
+                                        "MAP[f0, f0, f0, f1]",
                                         Collections.singletonMap(1, 2),
                                         DataTypes.MAP(INT().notNull(), INT().notNull()).notNull()),
                                 resultSpec(
