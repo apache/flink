@@ -54,7 +54,6 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.rex.RexUtil;
@@ -238,13 +237,14 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
         // Combine the children MultiJoin inputs into an array of inputs for the new MultiJoin.
         final List<ImmutableBitSet> projFieldsList = new ArrayList<>();
         final List<int[]> joinFieldRefCountsList = new ArrayList<>();
+        final List<Integer> newLevels = new ArrayList<>();
         final List<RelNode> newInputs =
                 combineInputs(origJoin, left, right, projFieldsList, joinFieldRefCountsList);
 
         // Combine the join information from the left and right inputs, and include the
         // join information from the current join.
         final List<Pair<JoinRelType, RexNode>> joinSpecs = new ArrayList<>();
-        int origJoinIdx = combineJoinInfo(origJoin, left, right, joinSpecs);
+        int origJoinIdx = combineJoinInfo(origJoin, left, right, joinSpecs, newLevels);
         List<RexNode> joinConditions = Pair.right(joinSpecs);
         List<JoinRelType> joinTypes = Pair.left(joinSpecs);
 
@@ -274,6 +274,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
                         joinConditions,
                         newJoinFilters,
                         joinTypes,
+                        newLevels,
                         projFieldsList,
                         newJoinFieldRefCountsMap,
                         newPostJoinFilters,
@@ -336,9 +337,10 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
      * @param joinConditions combined join conditions
      * @param newJoinFilters combined join filters
      * @param joinTypes combined join types
+     * @param newLevels array of join tree levels
      * @param projFieldsList combined projected fields
      * @param newJoinFieldRefCountsMap combined ref counts map
-     * @param newPostJoinFilters combined post join filters
+     * @param newPostJoinFilters combined post-join filters
      * @param newProjects list of rex nodes for new projection
      * @param fieldNames list of field names for new projection
      * @param leftProject a left project in case right join takes place
@@ -354,6 +356,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
             List<RexNode> joinConditions,
             List<RexNode> newJoinFilters,
             List<JoinRelType> joinTypes,
+            List<Integer> newLevels,
             List<ImmutableBitSet> projFieldsList,
             Map<Integer, ImmutableIntList> newJoinFieldRefCountsMap,
             List<RexNode> newPostJoinFilters,
@@ -380,7 +383,8 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
                             joinTypes,
                             projFieldsList,
                             com.google.common.collect.ImmutableMap.copyOf(newJoinFieldRefCountsMap),
-                            RexUtil.composeConjunction(rexBuilder, newPostJoinFilters, true));
+                            RexUtil.composeConjunction(rexBuilder, newPostJoinFilters, true),
+                            newLevels);
 
             Project targetProject = leftProject != null ? leftProject : rightProject;
             transformer =
@@ -399,7 +403,8 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
                             joinTypes,
                             projFieldsList,
                             com.google.common.collect.ImmutableMap.copyOf(newJoinFieldRefCountsMap),
-                            RexUtil.composeConjunction(rexBuilder, newPostJoinFilters, true));
+                            RexUtil.composeConjunction(rexBuilder, newPostJoinFilters, true),
+                            newLevels);
         }
 
         return transformer;
@@ -729,9 +734,14 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
      * @param left left child of the joinrel
      * @param right right child of the joinrel
      * @param joinSpecs the list where the join types and conditions will be copied
+     * @param newLevels array of join tree levels
      */
     private int combineJoinInfo(
-            Join joinRel, RelNode left, RelNode right, List<Pair<JoinRelType, RexNode>> joinSpecs) {
+            Join joinRel,
+            RelNode left,
+            RelNode right,
+            List<Pair<JoinRelType, RexNode>> joinSpecs,
+            List<Integer> newLevels) {
         JoinRelType joinType = joinRel.getJoinType();
         final RexBuilder rexBuilder = joinRel.getCluster().getRexBuilder();
         int idx = 0;
@@ -750,21 +760,23 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
                             0,
                             null,
                             null);
+                    newLevels.addAll(leftMultiJoin.getLevels());
                 } else {
                     joinSpecs.add(Pair.of(JoinRelType.INNER, rexBuilder.makeLiteral(true)));
+                    newLevels.add(0);
                 }
 
                 joinSpecs.add(Pair.of(joinType, joinRel.getCondition()));
+                newLevels.add(newLevels.size() - 1);
                 idx = joinSpecs.size() - 1;
 
                 if (rightCombined) {
                     MultiJoin rightMultiJoin = (MultiJoin) right;
+                    joinSpecs.clear();
+                    joinSpecs.add(Pair.of(joinType, joinRel.getCondition()));
+                    idx = 0;
                     List<RexNode> joinConditions = rightMultiJoin.getOuterJoinConditions();
                     List<JoinRelType> joinTypes = rightMultiJoin.getJoinTypes();
-                    if (rightMultiJoin.getOuterJoinConditions().get(0) instanceof RexLiteral) {
-                        joinTypes = joinTypes.subList(1, joinTypes.size());
-                        joinConditions = joinConditions.subList(1, joinConditions.size());
-                    }
                     copyJoinInfo(
                             rightMultiJoin,
                             joinTypes,
@@ -773,6 +785,9 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
                             left.getRowType().getFieldCount(),
                             right.getRowType().getFieldList(),
                             joinRel.getRowType().getFieldList());
+                    newLevels.clear();
+                    newLevels.add(rightMultiJoin.getLevels().size() - 1);
+                    newLevels.addAll(rightMultiJoin.getLevels());
                 }
 
                 break;

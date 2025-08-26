@@ -50,6 +50,7 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
     private final GeneratedJoinCondition[] joinConditions;
     private final JoinKeyExtractor keyExtractor;
     private final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;
+    private final List<Integer> levels;
 
     public StreamingMultiJoinOperatorFactory(
             final List<InternalTypeInfo<RowData>> inputTypeInfos,
@@ -59,7 +60,8 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
             final long[] stateRetentionTime,
             final GeneratedJoinCondition[] joinConditions,
             final JoinKeyExtractor keyExtractor,
-            final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap) {
+            final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
+            final List<Integer> levels) {
         this.inputTypeInfos = inputTypeInfos;
         this.inputSideSpecs = inputSideSpecs;
         this.joinTypes = joinTypes;
@@ -68,6 +70,7 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
         this.joinConditions = joinConditions;
         this.keyExtractor = keyExtractor;
         this.joinAttributeMap = joinAttributeMap;
+        this.levels = levels;
     }
 
     @Override
@@ -88,7 +91,8 @@ public class StreamingMultiJoinOperatorFactory extends AbstractStreamOperatorFac
                         stateRetentionTime,
                         joinConditions,
                         keyExtractor,
-                        joinAttributeMap);
+                        joinAttributeMap,
+                        levels);
 
         @SuppressWarnings("unchecked")
         final T castedOperator = (T) operator;

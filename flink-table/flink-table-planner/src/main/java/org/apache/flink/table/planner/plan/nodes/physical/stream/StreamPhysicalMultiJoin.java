@@ -77,6 +77,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
     private final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;
 
     private final @Nullable RexNode postJoinFilter;
+    private final List<Integer> levels;
     private final List<RelHint> hints;
 
     // Cached derived properties to avoid recomputation
@@ -93,10 +94,12 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
             final List<JoinRelType> joinTypes,
             final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
             final @Nullable RexNode postJoinFilter,
+            List<Integer> levels,
             final List<RelHint> hints,
             final JoinKeyExtractor keyExtractor) {
         super(cluster, traitSet);
         this.inputs = inputs;
+        this.levels = levels;
         this.rowType = rowType;
         this.joinFilter = joinFilter;
         this.joinTypes = joinTypes;
@@ -143,6 +146,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
                 joinTypes,
                 joinAttributeMap,
                 postJoinFilter,
+                levels,
                 hints,
                 keyExtractor);
     }
@@ -165,7 +169,8 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
                 .item("joinAttributeMap", joinAttributeMap)
                 .itemIf("postJoinFilter", postJoinFilter, postJoinFilter != null)
                 .item("select", String.join(",", getRowType().getFieldNames()))
-                .item("rowType", getRowType());
+                .item("rowType", getRowType())
+                .item("levels", levels);
     }
 
     @Override
@@ -187,6 +192,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
                 multijoinCondition,
                 joinAttributeMap,
                 localInputUniqueKeys,
+                levels,
                 Collections.emptyMap(), // TODO Enable hint-based state ttl. See ticket
                 // TODO https://issues.apache.org/jira/browse/FLINK-37936
                 inputProperties,

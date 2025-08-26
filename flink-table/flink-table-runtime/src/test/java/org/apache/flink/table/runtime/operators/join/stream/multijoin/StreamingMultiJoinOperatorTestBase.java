@@ -82,6 +82,7 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
     protected final boolean isFullOuterJoin;
     protected final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap;
     protected final JoinKeyExtractor keyExtractor;
+    protected final List<Integer> levels;
 
     // ==========================================================================
     // Test State
@@ -108,12 +109,14 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         this.isFullOuterJoin = isFullOuterJoin;
         this.joinConditions = joinConditions;
         this.joinAttributeMap = new HashMap<>();
+        this.levels = List.of(0, 0, 1, 2, 3);
 
         initializeInputs(numInputs);
         initializeJoinConditions();
 
         this.keyExtractor =
-                new AttributeBasedJoinKeyExtractor(this.joinAttributeMap, this.inputTypeInfos);
+                new AttributeBasedJoinKeyExtractor(
+                        this.joinAttributeMap, this.inputTypeInfos, this.levels);
     }
 
     /** Constructor allowing explicit provision of joinAttributeMap for custom conditions. */
@@ -132,11 +135,13 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
         this.isFullOuterJoin = isFullOuterJoin;
         this.joinConditions = joinConditions;
         this.joinAttributeMap = joinAttributeMap;
+        this.levels = List.of(0, 0, 1, 2, 3);
 
         initializeInputs(numInputs);
 
         this.keyExtractor =
-                new AttributeBasedJoinKeyExtractor(this.joinAttributeMap, this.inputTypeInfos);
+                new AttributeBasedJoinKeyExtractor(
+                        this.joinAttributeMap, this.inputTypeInfos, levels);
     }
 
     // ==========================================================================
@@ -400,7 +405,8 @@ public abstract class StreamingMultiJoinOperatorTestBase extends StateParameteri
                         retentionTime,
                         generatedJoinConditions,
                         this.keyExtractor,
-                        this.joinAttributeMap);
+                        this.joinAttributeMap,
+                        this.levels);
 
         KeyedMultiInputStreamOperatorTestHarness<RowData, RowData> harness =
                 new KeyedMultiInputStreamOperatorTestHarness<>(factory, partitionKeyTypeInfo);

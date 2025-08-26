@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.join.stream;
 
 import org.apache.flink.api.common.functions.DefaultOpenContext;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.operators.AbstractInput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorV2;
 import org.apache.flink.streaming.api.operators.Input;
@@ -37,13 +38,18 @@ import org.apache.flink.table.runtime.operators.join.stream.keyselector.Attribut
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.state.MultiJoinStateView;
 import org.apache.flink.table.runtime.operators.join.stream.state.MultiJoinStateViews;
+import org.apache.flink.table.runtime.operators.join.stream.state.OuterMultiJoinStateView;
+import org.apache.flink.table.runtime.operators.join.stream.state.OuterMultiJoinStateViews;
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 /**
  * Streaming multi-way join operator which supports inner join and left outer join, right joins are
@@ -341,6 +347,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
 
     private final List<JoinInputSideSpec> inputSpecs;
     private final List<FlinkJoinType> joinTypes;
+    private final List<Integer> levels;
     private final List<RowType> inputTypes;
     private final long[] stateRetentionTime;
     private final List<Input<RowData>> typedInputs;
@@ -368,7 +375,8 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             GeneratedJoinCondition[] joinConditions,
             JoinKeyExtractor keyExtractor,
             // We currently don't use this, but it might be useful in the future for optimizations
-            Map<Integer, List<ConditionAttributeRef>> joinAttributeMap) {
+            Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
+            List<Integer> levels) {
         super(parameters, inputSpecs.size());
         this.inputTypes = inputTypes;
         this.inputSpecs = inputSpecs;
@@ -378,6 +386,7 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         this.keyExtractor = keyExtractor;
         this.typedInputs = new ArrayList<>(inputSpecs.size());
         this.multiJoinCondition = multiJoinCondition;
+        this.levels = levels;
 
         initializeInputs();
     }
@@ -403,389 +412,491 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             return;
         }
 
-        performMultiJoin(input, inputId);
-        addRecordToState(input, inputId);
+        int associationCount = performMultiJoin(input, inputId);
+        addRecordToState(input, inputId, associationCount);
     }
 
-    private void performMultiJoin(RowData input, int inputId) throws Exception {
-        recursiveMultiJoin(0, input, inputId, null, false);
-    }
+    private int performMultiJoin(RowData input, int inputId) throws Exception {
+        Iterable<RowData> outputRecords =
+                recursiveMultiJoin(0, inputSpecs.size() - 1, inputId, input);
 
-    /**
-     * See {@link StreamingMultiJoinOperator} for a detailed explanation of the recursive join and
-     * examples.
-     *
-     * @param depth The current depth of the recursion, representing the input stream index (0 to
-     *     N-1).
-     * @param input The original input record that triggered this join operation.
-     * @param inputId The index of the input stream from which the `input` record originated.
-     * @param joinedRowData An array holding the candidate row from each input stream processed so
-     *     far in this recursive path. `joinedRowData[d]` holds the row from input `d`.
-     * @param isInputRecordActive True when `joinedRowData` contains the new added input record at
-     *     its `inputId` (via `processInputRecord`), and we are in the mode to emit matching join
-     *     row combinations. False if we are in the initial state exploration/association
-     *     calculation mode.
-     * @throws Exception If state access or condition evaluation fails.
-     */
-    private void recursiveMultiJoin(
-            int depth,
-            RowData input,
-            int inputId,
-            RowData joinedRowData,
-            boolean isInputRecordActive)
-            throws Exception {
-        // Base case: If we've processed all inputs and reached the last level, all join conditions
-        // for each level have matched. We now emit the joined output record.
-        if (isMaxDepth(depth)) {
-            emitJoinedRow(input, joinedRowData);
-            return; // Return the count for the level below maxDepth
+        for (RowData record : outputRecords) {
+            collector.collect(record);
         }
 
-        boolean isLeftJoin = isLeftJoinAtDepth(depth);
+        return ((CountingIterable) outputRecords).getCount();
+    }
 
-        // We store associations here because we need to know if we need to do emit
-        // a null padded output if there were no matching records.
-        // processRecords returns null if no state records for the next depth matched
-        // joinedRowData. Otherwise, it returns the association count.
-        Integer associations =
-                processRecords(
-                        depth, input, inputId, joinedRowData, isInputRecordActive, isLeftJoin);
-
-        boolean anyMatches; // True if any state record at the current depth matched the
-        // joinedRowData to
-        // the left
-        int associationsPrevLevel; // Association count for the joinedRowData to the left with
-        // state at current depth
-
-        if (associations == null) {
-            // When associations are null, we did not emit any row: neither retractions nor inserts.
-            // This means no state record at the current depth matched the joinedRowData to the
-            // left.
-            anyMatches = false;
-            associationsPrevLevel = 0;
+    private Iterable<RowData> recursiveMultiJoin(
+            int leftIdx, int rightIdx, int inputId, RowData input) throws Exception {
+        if (levels.get(leftIdx) < levels.get(rightIdx)) {
+            return handleJoinedRowDataOnTheLeft(
+                    joinTypes.get(rightIdx), leftIdx, rightIdx, inputId, input);
+        } else if (levels.get(leftIdx) > levels.get(rightIdx)) {
+            return handleJoinedRowDataOnTheRight(
+                    joinTypes.get(leftIdx), leftIdx, rightIdx, inputId, input);
         } else {
-            // At least one state combination matched the joinedRowData to the left
-            // This means at least one state record at the current depth matched
-            // the joinedRowData to the left.
-            anyMatches = true;
-            associationsPrevLevel = associations; // Get the calculated count
-        }
-
-        // If the current depth is the one where the triggering input record arrived,
-        // now process the input record itself with the current combination of rows we are at.
-        // processInputRecord will handle transitioning to the "emit results" mode
-        // (isInputRecordActive =
-        // true for its recursive calls).
-        if (isInputLevel(depth, inputId)) {
-            processInputRecord(
-                    depth, input, inputId, joinedRowData, associationsPrevLevel, anyMatches);
-        } else if (isLeftJoin && !anyMatches && hasNoAssociations(depth, associationsPrevLevel)) {
-            // For LEFT joins, if no matches were found in the state for the joinedRowData to the
-            // left
-            // (anyMatches = false, associationsPrevLevel = 0 from state),
-            // and overall associations for the joinedRowData to the left are zero,
-            // process with null padding for the current depth.
-            // In other words, we emit null for this level. This is important so we continue to the
-            // join
-            // with the output of this join level, which is a null padded row so we can eventually
-            // reach the last join level.
-            // Continue with the same isInputRecordActive mode.
-            processWithNullPadding(depth, input, inputId, joinedRowData, isInputRecordActive);
+            return handleLowestLevel(joinTypes.get(rightIdx), leftIdx, rightIdx, inputId, input);
         }
     }
 
-    // This simply emits the resulting join row between all n inputs.
-    private void emitJoinedRow(RowData input, RowData joinedRowData) {
-        joinedRowData.setRowKind(input.getRowKind());
-        collector.collect(joinedRowData);
-    }
-
-    /**
-     * Processes records from the state for the current join depth.
-     *
-     * @param depth The current depth of recursion.
-     * @param input The original input record.
-     * @param inputId The ID of the input stream for the original input.
-     * @param joinedRowData The current set of rows forming the join combination.
-     * @param isInputRecordActive Whether the input record is currently active in `joinedRowData`.
-     * @param isLeftJoin True if the join at the current depth is a LEFT join.
-     * @return An {@code Integer} representing the association count for `joinedRowData[depth-1]`
-     *     with matching records from `state[depth]`. Returns {@code null} if no records from
-     *     `state[depth]` matched `joinedRowData[depth-1]`.
-     * @throws Exception If state access or condition evaluation fails.
-     */
-    private Integer processRecords(
-            int depth,
-            RowData input,
-            int inputId,
-            RowData joinedRowData,
-            boolean isInputRecordActive,
-            boolean isLeftJoin)
+    private Iterable<RowData> handleJoinedRowDataOnTheRight(
+            FlinkJoinType joinType, int leftIdx, int rightIdx, int inputId, RowData input)
             throws Exception {
-        // We need both because associations can be 0 at the end even though we matched records.
-        // For example, if we had 1 association and retracted it, associations are 0 but the
-        // retraction
-        // was actually a "match".
-        // 'anyMatch' tracks if any record from state at current depth matched the joinedRowData to
-        // the left.
-        boolean anyMatch = false;
-        // 'associations' counts matches between the joinedRowData to the left and state at current
-        // depth for left
-        // joins.
-        int associations = 0;
+        Iterable<Tuple2<RowData, Integer>> leftRecords;
 
-        // If an inner join and we reached the input level, we don't have to count the number of
-        // associations that the left side has. This is only necessary for left joins to know
-        // if we have to retract or insert null padded rows for the incoming record.
-        // In other rows, we do not have to process any records in state for the inputId if
-        // it's an inner join, since we do not need to know if we the left side has associations.
-        if (isInnerJoin(isLeftJoin) && isInputLevel(depth, inputId)) {
-            // No associations relevant from state for this specific case, and no match from state
-            // processing.
-            return null;
+        if (leftIdx == inputId) {
+            leftRecords = Collections.singletonList(Tuple2.of(input, -1));
+            return outerJoinedIterableFromLeft(
+                    joinType, leftRecords, input, leftIdx, rightIdx, inputId, true);
+        } else if (inputId > leftIdx && inputId <= rightIdx) {
+            Iterable<RowData> rightRecords =
+                    recursiveMultiJoin(leftIdx + 1, rightIdx, inputId, input);
+            return joinedIterableFromRight(rightRecords, leftIdx, rightIdx);
+        } else {
+            leftRecords =
+                    ((OuterMultiJoinStateView) stateHandlers.get(leftIdx))
+                            .getRecordsAndNumOfAssociations(null);
+            return outerJoinedIterableFromLeft(
+                    joinType, leftRecords, input, leftIdx, rightIdx, inputId, false);
         }
+    }
 
-        // Calculate the joinKey to retrieve from the state only the records that can potentially
-        // match based on the equi-join conditions.
-        // The joinKey consists of all attributes present in equi-join conditions for the current
-        // level.
-        // We use the left side (joinedRowData) to calculate its value.
-        RowData joinKey = keyExtractor.getLeftSideJoinKey(depth, joinedRowData);
-        Iterable<RowData> records = stateHandlers.get(depth).getRecords(joinKey);
+    private Iterable<RowData> handleJoinedRowDataOnTheLeft(
+            FlinkJoinType joinType, int leftIdx, int rightIdx, int inputId, RowData input)
+            throws Exception {
+        Iterable<RowData> leftRecords = recursiveMultiJoin(leftIdx, rightIdx - 1, inputId, input);
 
-        for (RowData record : records) {
-            // Shortcircuit: if the join condition fails, this path yields no results
-            // we can go to the next record in the state.
-            if (matchesCondition(depth, joinedRowData, record)) {
-                anyMatch = true;
-            } else {
-                continue;
-            }
+        if (rightIdx == inputId) {
+            return joinedIterableFromLeft(joinType, leftRecords, input, rightIdx, true);
+        } else {
+            return joinedIterableFromLeft(joinType, leftRecords, input, rightIdx, false);
+        }
+    }
 
-            // For LEFT joins, association counts are updated for the preceding level (depth - 1)
-            // to correctly track if the left-side row found any matches on this right-side.
-            // This information is crucial for determining if null padding is needed later.
-            if (isLeftJoin) {
-                associations =
-                        updateAssociationCount(
-                                associations,
-                                shouldIncrementAssociation(isInputRecordActive, input));
+    private Iterable<RowData> handleLowestLevel(
+            FlinkJoinType joinType, int leftIdx, int rightIdx, int inputId, RowData input)
+            throws Exception {
+        Iterable<RowData> leftRecords;
+        if (rightIdx == inputId) {
+            leftRecords = stateHandlers.get(leftIdx).getRecords(null);
+            return joinedIterableFromLeft(joinType, leftRecords, input, rightIdx, true);
+        } else if (leftIdx == inputId) {
+            leftRecords = Collections.singletonList(input);
+            return joinedIterableFromLeft(joinType, leftRecords, input, rightIdx, false);
+        } else {
+            leftRecords = stateHandlers.get(leftIdx).getRecords(null);
+            return joinedIterableFromLeft(joinType, leftRecords, input, rightIdx, false);
+        }
+    }
 
-                // Optimization: further recursion or counting might be skippable under
-                // specific conditions detailed in `canOptimizeAssociationCounting`.
-                if (canOptimizeAssociationCounting(depth, inputId, input, associations)) {
-                    // A match occurred, and we can optimize. Return the count.
-                    return associations;
+    private Iterable<RowData> joinedIterableFromRight(
+            Iterable<RowData> rightRecords, int leftIdx, int rightIdx) {
+        return new CountingIterable<RowData>() {
+            @Override
+            public int getCount() {
+                if (rightRecords instanceof CountingIterable) {
+                    return ((CountingIterable<RowData>) rightRecords).getCount();
                 }
+                return -1;
             }
 
-            // For the `inputId` level and when !isInputRecordActive (i.e., association calculation
-            // mode),
-            // the primary goal is to determine associations for the input record's level so we know
-            // if we have to handle null padded retractions or insertions. Recursion to deeper
-            // levels (joins to the right) is not needed for this specific count at this stage, as
-            // the
-            // input record's participation and further joins are handled by
-            // `processInputRecord` or subsequent recursive calls where isInputRecordActive will be
-            // true.
-            if (!isInputRecordActive && isInputLevel(depth, inputId)) {
-                continue;
+            @Override
+            public Iterator<RowData> iterator() {
+                return new Iterator<RowData>() {
+                    Iterator<RowData> rightIterator = rightRecords.iterator();
+                    Iterator<Tuple2<RowData, Tuple2<Integer, Integer>>> leftIterator =
+                            Collections.emptyIterator();
+
+                    boolean needInsert = false;
+
+                    RowData currentRight = null;
+                    Tuple2<RowData, Tuple2<Integer, Integer>> currentLeft = null;
+                    RowData joinKey = null;
+
+                    @Override
+                    public boolean hasNext() {
+                        if (currentLeft != null) {
+                            return true;
+                        }
+
+                        while ((leftIterator == null || !leftIterator.hasNext())
+                                && rightIterator.hasNext()) {
+                            currentRight = rightIterator.next();
+                            Iterable<Tuple2<RowData, Tuple2<Integer, Integer>>> leftIterable;
+                            joinKey = keyExtractor.getJoinedSideJoinKey(leftIdx, currentRight);
+                            try {
+                                leftIterable =
+                                        ((OuterMultiJoinStateView) stateHandlers.get(leftIdx))
+                                                .getRecordsCountAndNumOfAssociations(joinKey);
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                            leftIterator =
+                                    createMatchingIteratorOnTheRight(
+                                            leftIterable.iterator(), currentRight, leftIdx);
+                        }
+
+                        return leftIterator != null && leftIterator.hasNext();
+                    }
+
+                    @Override
+                    public RowData next() {
+                        if (!hasNext()) {
+                            throw new NoSuchElementException();
+                        }
+
+                        if (currentLeft != null) {
+                            if (!needInsert) {
+                                Tuple2<RowData, Tuple2<Integer, Integer>> tmp = currentLeft;
+                                currentLeft = null;
+
+                                return new JoinedRowData(RowKind.INSERT, tmp.f0, currentRight);
+                            } else {
+                                needInsert = false;
+                                RowData nullRow = getNullRowFromLeftToRight(leftIdx + 1, rightIdx);
+                                Tuple2<RowData, Tuple2<Integer, Integer>> tmp = currentLeft;
+                                currentLeft = null;
+
+                                return new JoinedRowData(RowKind.INSERT, tmp.f0, nullRow);
+                            }
+                        }
+
+                        RowKind rowKind = currentRight.getRowKind();
+                        currentLeft = leftIterator.next();
+
+                        if (isUpsert(currentRight) && currentLeft.f1.f1 == 0) {
+                            RowData nullRow = getNullRowFromLeftToRight(leftIdx + 1, rightIdx);
+                            updateAssociationCount(
+                                    leftIdx,
+                                    joinKey,
+                                    currentLeft.f0,
+                                    currentLeft.f1.f0,
+                                    currentLeft.f1.f1 + 1);
+
+                            return new JoinedRowData(RowKind.DELETE, currentLeft.f0, nullRow);
+                        }
+
+                        if (isRetraction(currentRight)) {
+                            if (currentLeft.f1.f1 == 1) {
+                                needInsert = true;
+                            }
+
+                            updateAssociationCount(
+                                    leftIdx,
+                                    joinKey,
+                                    currentLeft.f0,
+                                    currentLeft.f1.f0,
+                                    currentLeft.f1.f1 - 1);
+
+                            return new JoinedRowData(rowKind, currentLeft.f0, currentRight);
+                        }
+
+                        Tuple2<RowData, Tuple2<Integer, Integer>> tmp = currentLeft;
+                        currentLeft = null;
+
+                        return new JoinedRowData(currentRight.getRowKind(), tmp.f0, currentRight);
+                    }
+                };
+            }
+        };
+    }
+
+    private void updateAssociationCount(
+            int idx, RowData joinKey, RowData record, int count, int associationCount) {
+        try {
+            ((OuterMultiJoinStateView) stateHandlers.get(idx))
+                    .addRecord(joinKey, record, new Tuple2<>(count, associationCount));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private Iterable<RowData> outerJoinedIterableFromLeft(
+            FlinkJoinType joinType,
+            Iterable<Tuple2<RowData, Integer>> leftRecords,
+            RowData input,
+            int leftIdx,
+            int rightIdx,
+            int inputId,
+            boolean isInputOnTheLeft) {
+        return new CountingIterable<>() {
+            public int associationCount = -1;
+
+            @Override
+            public int getCount() {
+                return associationCount;
             }
 
-            RowData newJoinedRowData = newJoinedRowData(depth, joinedRowData, record);
-            recursiveMultiJoin(depth + 1, input, inputId, newJoinedRowData, isInputRecordActive);
-            // The returned associationCountForCurrentDepth is for recursiveMultiJoin
-            // [depth], and its
-            // updates
-            // are handled within that recursive call. We don't use it to modify
-            // currentAssociationCount (which is for joinedRowData[depth-1]).
-        }
+            @Override
+            public Iterator<RowData> iterator() {
+                return new Iterator<>() {
+                    final Iterator<Tuple2<RowData, Integer>> leftIterator = leftRecords.iterator();
+                    Iterator<RowData> rightIterator = Collections.emptyIterator();
+                    Tuple2<RowData, Integer> currentLeft = null;
 
-        // Returns whether any record at this level matched the local condition.
-        if (!anyMatch) {
-            return null; // No matches found in state for the preceding level.
-        } else {
-            return associations; // Matches found, return their count.
-        }
+                    @Override
+                    public boolean hasNext() {
+                        while ((rightIterator == null || !rightIterator.hasNext())
+                                && leftIterator.hasNext()) {
+                            currentLeft = leftIterator.next();
+
+                            if (joinType == FlinkJoinType.LEFT && currentLeft.f1 == 0) {
+                                RowData nullRow = getNullRowFromLeftToRight(leftIdx + 1, rightIdx);
+                                rightIterator = Collections.singletonList(nullRow).iterator();
+                                break;
+                            }
+
+                            try {
+                                rightIterator =
+                                        createMatchingIterator(
+                                                recursiveMultiJoin(
+                                                                leftIdx + 1,
+                                                                rightIdx,
+                                                                inputId,
+                                                                input)
+                                                        .iterator(),
+                                                currentLeft.f0,
+                                                leftIdx);
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+
+                            if (joinType == FlinkJoinType.LEFT && isInputOnTheLeft) {
+                                if (!rightIterator.hasNext()) {
+                                    RowData nullRow =
+                                            getNullRowFromLeftToRight(leftIdx + 1, rightIdx);
+                                    rightIterator = Collections.singletonList(nullRow).iterator();
+                                } else {
+                                    associationCount = 0;
+                                }
+                            }
+                        }
+                        return rightIterator != null && rightIterator.hasNext();
+                    }
+
+                    @Override
+                    public RowData next() {
+                        if (!hasNext()) {
+                            throw new NoSuchElementException();
+                        }
+                        if (isInputOnTheLeft) {
+                            associationCount++;
+                        }
+                        RowData currentRight = rightIterator.next();
+                        RowKind recordKind = currentLeft.f0.getRowKind();
+                        return new JoinedRowData(recordKind, currentLeft.f0, currentRight);
+                    }
+                };
+            }
+        };
     }
 
-    private static RowData newJoinedRowData(int depth, RowData joinedRowData, RowData record) {
-        RowData newJoinedRowData;
-        if (depth == 0) {
-            newJoinedRowData = record;
-        } else {
-            newJoinedRowData = new JoinedRowData(joinedRowData, record);
-        }
-        return newJoinedRowData;
-    }
-
-    private static boolean isInnerJoin(boolean isLeftJoin) {
-        return !isLeftJoin;
-    }
-
-    private void processWithNullPadding(
-            int depth,
+    private Iterable<RowData> joinedIterableFromLeft(
+            FlinkJoinType joinType,
+            Iterable<RowData> leftRecords,
             RowData input,
-            int inputId,
-            RowData joinedRowData,
-            boolean isInputRecordActive)
+            int rightIdx,
+            boolean isInputOnTheRight) {
+        return new CountingIterable<>() {
+            @Override
+            public int getCount() {
+                if (leftRecords instanceof CountingIterable) {
+                    return ((CountingIterable<?>) leftRecords).getCount();
+                }
+
+                return -1;
+            }
+
+            @Override
+            public Iterator<RowData> iterator() {
+                return new Iterator<>() {
+                    final Iterator<RowData> leftIterator = leftRecords.iterator();
+                    Iterator<RowData> rightIterator = Collections.emptyIterator();
+                    RowData currentLeft = null;
+
+                    @Override
+                    public boolean hasNext() {
+                        while ((rightIterator == null || !rightIterator.hasNext())
+                                && leftIterator.hasNext()) {
+                            currentLeft = leftIterator.next();
+                            RowData joinKey =
+                                    keyExtractor.getJoinedSideJoinKey(rightIdx, currentLeft);
+
+                            if (isInputOnTheRight) {
+                                rightIterator =
+                                        createMatchingIterator(
+                                                Collections.singletonList(input).iterator(),
+                                                currentLeft,
+                                                rightIdx);
+                            } else {
+                                try {
+                                    rightIterator =
+                                            createMatchingIterator(
+                                                    stateHandlers
+                                                            .get(rightIdx)
+                                                            .getRecords(joinKey)
+                                                            .iterator(),
+                                                    currentLeft,
+                                                    rightIdx);
+                                } catch (Exception e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+
+                            if (joinType == FlinkJoinType.LEFT) {
+                                if (!isInputOnTheRight) {
+                                    rightIterator =
+                                            handleInputOnTheLeft(
+                                                    rightIterator, currentLeft, rightIdx, joinKey);
+                                } else {
+                                    rightIterator =
+                                            handleInputOnTheRight(
+                                                    rightIterator, currentLeft, rightIdx, joinKey);
+                                }
+                            }
+                        }
+                        return rightIterator != null && rightIterator.hasNext();
+                    }
+
+                    @Override
+                    public RowData next() {
+                        if (!hasNext()) {
+                            throw new NoSuchElementException();
+                        }
+                        RowData currentRight = rightIterator.next();
+                        RowKind recordKind =
+                                isInputOnTheRight
+                                        ? currentRight.getRowKind()
+                                        : currentLeft.getRowKind();
+                        return new JoinedRowData(recordKind, currentLeft, currentRight);
+                    }
+                };
+            }
+        };
+    }
+
+    private Iterator<RowData> handleInputOnTheRight(
+            Iterator<RowData> rightIterator, RowData currentLeft, int rightIdx, RowData joinKey) {
+        if (!rightIterator.hasNext()) {
+            return rightIterator;
+        }
+        RowData input = rightIterator.next();
+        RowData nullRow = new GenericRowData(inputTypes.get(rightIdx).getFieldCount());
+
+        Iterator<RowData> matchingIterator;
+        try {
+            matchingIterator =
+                    createMatchingIterator(
+                            stateHandlers.get(rightIdx).getRecords(joinKey).iterator(),
+                            currentLeft,
+                            rightIdx);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        if (isUpsert(input) && !matchingIterator.hasNext()) {
+            nullRow.setRowKind(RowKind.DELETE);
+            return List.of(nullRow, input).iterator();
+        }
+
+        if (isRetraction(input)) {
+            matchingIterator.next();
+            if (!matchingIterator.hasNext()) {
+                nullRow.setRowKind(RowKind.INSERT);
+                return List.of(input, nullRow).iterator();
+            }
+        }
+
+        return Collections.singletonList(input).iterator();
+    }
+
+    private Iterator<RowData> handleInputOnTheLeft(
+            Iterator<RowData> rightIterator, RowData currentLeft, int rightIdx, RowData joinKey) {
+        if (!rightIterator.hasNext()) {
+            RowData nullRow = new GenericRowData(inputTypes.get(rightIdx).getFieldCount());
+            return Collections.singletonList(nullRow).iterator();
+        }
+
+        return rightIterator;
+    }
+
+    private Iterator<RowData> createMatchingIterator(
+            Iterator<RowData> rightIterator, RowData leftRecord, int idx) {
+        return new Iterator<>() {
+            RowData currentRight = null;
+
+            @Override
+            public boolean hasNext() {
+                while (currentRight == null && rightIterator.hasNext()) {
+                    RowData rightRecord = rightIterator.next();
+                    if (instantiatedJoinConditions[idx].apply(leftRecord, rightRecord)) {
+                        currentRight = rightRecord;
+                    }
+                }
+
+                return currentRight != null;
+            }
+
+            @Override
+            public RowData next() {
+                if (!hasNext()) {
+                    throw new NoSuchElementException();
+                }
+                RowData tmp = currentRight;
+                currentRight = null;
+                return tmp;
+            }
+        };
+    }
+
+    private Iterator<Tuple2<RowData, Tuple2<Integer, Integer>>> createMatchingIteratorOnTheRight(
+            Iterator<Tuple2<RowData, Tuple2<Integer, Integer>>> leftIterator,
+            RowData rightRecord,
+            int idx) {
+        return new Iterator<>() {
+            Tuple2<RowData, Tuple2<Integer, Integer>> currentLeft = null;
+
+            @Override
+            public boolean hasNext() {
+                while (currentLeft == null && leftIterator.hasNext()) {
+                    Tuple2<RowData, Tuple2<Integer, Integer>> leftRecord = leftIterator.next();
+                    if (instantiatedJoinConditions[idx].apply(leftRecord.f0, rightRecord)) {
+                        currentLeft = leftRecord;
+                    }
+                }
+
+                return currentLeft != null;
+            }
+
+            @Override
+            public Tuple2<RowData, Tuple2<Integer, Integer>> next() {
+                if (!hasNext()) {
+                    throw new NoSuchElementException();
+                }
+                Tuple2<RowData, Tuple2<Integer, Integer>> tmp = currentLeft;
+                currentLeft = null;
+                return tmp;
+            }
+        };
+    }
+
+    private void addRecordToState(RowData input, int inputId, int associationCount)
             throws Exception {
-
-        // Recursion continues with a null row at the current depth. This means the current join
-        // emits a null padded output which is used for the next levels.
-        // By continuing the recursion, we allow those deeper conditions to be evaluated and
-        // ensures that the null padding correctly propagates to the join chain.
-
-        RowData newJoinedRowData = newJoinedRowData(depth, joinedRowData, nullRows.get(depth));
-        // When recursing for depth+1, the association count needed is for the current
-        // joinedRowData.
-        // Initialize it to 0.
-        recursiveMultiJoin(
-                depth + 1,
-                input,
-                inputId,
-                newJoinedRowData,
-                // Initial association count for the current joinedRowData
-                isInputRecordActive);
-    }
-
-    /**
-     * Processes the actual input record at its designated depth.
-     *
-     * @param depth The current depth, which should be equal to `inputId`.
-     * @param input The original input record.
-     * @param inputId The ID of the input stream.
-     * @param joinedRowData The current set of rows forming the join combination.
-     * @param associationsToPrevLevel The association count for `joinedRowData[depth-1]` as
-     *     determined from processing state records at `state[depth]`.
-     * @param anyMatch True if any record from `state[depth]` matched `joinedRowData[depth-1]`.
-     * @throws Exception If state access or condition evaluation fails.
-     */
-    private void processInputRecord(
-            int depth,
-            RowData input,
-            int inputId,
-            RowData joinedRowData,
-            int associationsToPrevLevel,
-            boolean anyMatch)
-            throws Exception {
-        // 'associations' starts with the count from state and is updated by this input record.
-        // It represents the total associations for joinedRowData[depth-1] with (state[depth] + this
-        // input).
-        int associations = associationsToPrevLevel;
-        // if the join condition fails, this path yields no results.
-        if (!matchesCondition(depth, joinedRowData, input)) {
-            return; // No match, nothing more to do on this path
-        }
-
-        boolean isLeftJoin = isLeftJoinAtDepth(depth);
-        // When processing the actual input record, if it satisfies the outer join condition
-        // for this level (`depth`), its association with the preceding level (`depth-1`)
-        // must be updated: either increment if upsert or decrement the number of associations, if a
-        // retraction. This happens in the "result emission mode" (isInputRecordActive = true
-        // implicitly for this logic path).
-        if (isLeftJoin) {
-            associations =
-                    updateAssociationCount(
-                            associations,
-                            shouldIncrementAssociation(
-                                    true, input)); // true for isInputRecordActive
-        }
-
-        // --- Left Join Retraction Handling ---
-        // For an incoming INSERT/UPDATE_AFTER on the right side of a LEFT join,
-        // if the corresponding left-side row previously had no matches (indicated by `!anyMatch`
-        // which means no state records at the current joinedRowData matched joinedRowData[depth-1])
-        // during
-        // the association calculation phase where isInputRecordActive was false),
-        // it would have resulted in a null-padded output. This new record might form a
-        // valid join, so the previous null-padded output must be retracted.
-        if (isUpsert(input) && isLeftJoin && !anyMatch) {
-            handleRetractBeforeInput(depth, input, inputId, joinedRowData);
-        }
-
-        // Continue recursion to the next depth. Crucially, `isInputRecordActive` is now true
-        // because we have incorporated the actual input record, and any further matches
-        // found should lead to output generation or retractions.
-        RowData newJoinedRowData = newJoinedRowData(depth, joinedRowData, input);
-        // When recursing for depth+1, the association count needed is for the current
-        // joinedRowData.
-        // Initialize it to 0.
-        recursiveMultiJoin(
-                depth + 1, input, inputId, newJoinedRowData, true); // true for isInputRecordActive
-
-        // --- Left Join Insertion Handling ---
-        // If an incoming DELETE/UPDATE_BEFORE on the right side of a LEFT join removes
-        // the last matching record for the left-side row (checked via `hasNoAssociations`
-        // using the total 'associations' count for joinedRowData[depth-1]),
-        // then according to LEFT join semantics, a new null-padded result must be inserted.
-        if (isRetraction(input) && isLeftJoin && hasNoAssociations(depth, associations)) {
-            handleInsertAfterInput(depth, input, inputId, joinedRowData);
-        }
-    }
-
-    private void handleRetractBeforeInput(
-            int depth, RowData input, int inputId, RowData joinedRowData) throws Exception {
-        // To construct the row that needs retraction, temporarily place a null row here.
-        JoinedRowData newJoinedRowData = new JoinedRowData(joinedRowData, nullRows.get(depth));
-        RowKind originalKind = input.getRowKind();
-        // Temporarily change RowKind to DELETE to trigger retraction downstream.
-        input.setRowKind(RowKind.DELETE);
-
-        // Recurse to emit the potential retraction for the previously null-padded row.
-        // This is part of processing the input record, so isInputRecordActive = true.
-        // When recursing for depth+1, the association count needed is for the current
-        // joinedRowData.
-        // Initialize it to 0.
-        recursiveMultiJoin(
-                depth + 1,
-                input,
-                inputId,
-                newJoinedRowData,
-                // Initial association count for the current joinedRowData
-                true); // true for isInputRecordActive
-
-        // Restore the input record's original RowKind to prevent unintended side effects,
-        // as the `input` object itself was temporarily modified.
-        input.setRowKind(originalKind);
-    }
-
-    private void handleInsertAfterInput(
-            int depth, RowData input, int inputId, RowData joinedRowData) throws Exception {
-        // To construct the new null-padded row, temporarily place a null row here.
-        JoinedRowData newJoinedRowData = new JoinedRowData(joinedRowData, nullRows.get(depth));
-        RowKind originalKind = input.getRowKind();
-        // Temporarily change RowKind to INSERT to trigger insertion downstream.
-        input.setRowKind(RowKind.INSERT);
-
-        // Recurse to emit the potential insertion for the new null-padded row.
-        // This is part of processing the input record, so isInputRecordActive = true.
-        // When recursing for depth+1, the association count needed is for the current
-        // joinedRowData.
-        // Initialize it to 0.
-        recursiveMultiJoin(
-                depth + 1,
-                input,
-                inputId,
-                newJoinedRowData,
-                // Initial association count for the current joinedRowData
-                true); // true for isInputRecordActive
-
-        // Restore the input record's original RowKind to prevent unintended side effects,
-        // as the `input` object itself was temporarily modified.
-        input.setRowKind(originalKind);
-    }
-
-    private void addRecordToState(RowData input, int inputId) throws Exception {
-        final boolean isUpsert = isUpsert(input);
         RowData joinKey = keyExtractor.getJoinKey(input, inputId);
 
         // Always use insert so we store and retract records correctly from state
         input.setRowKind(RowKind.INSERT);
-        if (isUpsert) {
-            stateHandlers.get(inputId).addRecord(joinKey, input);
-        } else {
+        if (isRetraction(input)) {
             stateHandlers.get(inputId).retractRecord(joinKey, input);
+        } else {
+            if (associationCount >= 0) {
+                OuterMultiJoinStateView stateView =
+                        (OuterMultiJoinStateView) stateHandlers.get(inputId);
+                stateView.addRecord(joinKey, input, associationCount);
+            } else {
+                stateHandlers.get(inputId).addRecord(joinKey, input);
+            }
         }
     }
 
@@ -814,14 +925,26 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
             String stateName = "multi-join-input-" + i;
             RowType joinKeyType = keyExtractor.getJoinKeyType(i);
 
-            stateView =
-                    MultiJoinStateViews.create(
-                            getRuntimeContext(),
-                            stateName,
-                            inputSpecs.get(i),
-                            joinKeyType,
-                            inputTypes.get(i),
-                            stateRetentionTime[i]);
+            if (i + 1 < inputSpecs.size() && levels.get(i) > levels.get(i + 1)) {
+                stateView =
+                        OuterMultiJoinStateViews.create(
+                                getRuntimeContext(),
+                                stateName,
+                                inputSpecs.get(i),
+                                joinKeyType,
+                                inputTypes.get(i),
+                                stateRetentionTime[i]);
+            } else {
+                stateView =
+                        MultiJoinStateViews.create(
+                                getRuntimeContext(),
+                                stateName,
+                                inputSpecs.get(i),
+                                joinKeyType,
+                                inputTypes.get(i),
+                                stateRetentionTime[i]);
+            }
+
             stateHandlers.add(stateView);
         }
     }
@@ -865,32 +988,13 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         return row.getRowKind() == RowKind.DELETE || row.getRowKind() == RowKind.UPDATE_BEFORE;
     }
 
-    private boolean isLeftJoinAtDepth(int depth) {
-        return depth > 0 && joinTypes.get(depth) == FlinkJoinType.LEFT;
-    }
-
-    /** Checks if the join condition specific to the current depth holds true. */
-    private boolean matchesCondition(int depth, RowData joinedRowData, RowData record) {
-        // The first input (depth 0) doesn't have a preceding input to join with,
-        // so there's no specific join condition to evaluate against `joinConditions[0]`.
-        return depth == 0 || instantiatedJoinConditions[depth].apply(joinedRowData, record);
-    }
-
-    private int updateAssociationCount(int currentCount, boolean isUpsert) {
-        // This method is called when depth > 0 (implicitly by isLeftJoin checks by callers)
-        if (isUpsert) {
-            return currentCount + 1;
-        } else {
-            return currentCount - 1;
+    private RowData getNullRowFromLeftToRight(int leftIdx, int rightIdx) {
+        int nullFieldsCount = 0;
+        for (int i = leftIdx; i <= rightIdx; i++) {
+            nullFieldsCount += inputTypes.get(i).getFieldCount();
         }
-    }
 
-    private boolean shouldIncrementAssociation(boolean isInputRecordActive, RowData input) {
-        // If not processing the active input record (i.e., in association calculation mode),
-        // we always effectively "increment" for the purpose of counting potential matches from
-        // state.
-        // If processing the active input record, increment only for upserts.
-        return !isInputRecordActive || isUpsert(input);
+        return new GenericRowData(nullFieldsCount);
     }
 
     @SuppressWarnings({"rawtypes"})
@@ -906,52 +1010,6 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
         return rawInputs;
     }
 
-    private boolean isMaxDepth(int depth) {
-        return depth == inputSpecs.size();
-    }
-
-    private boolean isInputLevel(int depth, int inputId) {
-        return depth == inputId;
-    }
-
-    private boolean hasNoAssociations(int depth, int associationCountForPrevLevel) {
-        return depth > 0 && associationCountForPrevLevel == 0;
-    }
-
-    /**
-     * Optimization for LEFT joins at the input level.
-     *
-     * <p>We only need to know if *any* match exists (for upserts) or if *more than one* match
-     * exists (for retractions) to correctly handle null padding logic. Counting beyond this minimum
-     * requirement is unnecessary when `isInputRecordActive` is false.
-     *
-     * <p>Note: If further optimizations involving caching exact association counts are added, this
-     * optimization might need to be removed.
-     */
-    private boolean canOptimizeAssociationCounting(
-            int depth, int inputId, RowData input, int associationCountForPrevLevel) {
-        // This optimization is only relevant at the specific depth of the current input record
-        // and not for the initial input (depth 0, which has no preceding associations).
-        if (depth == 0 || inputId != depth) {
-            return false;
-        }
-
-        if (isUpsert(input)) {
-            // For an upsert, if at least one match is found (associations > 0),
-            // we know a retraction of a prior null-padded row (if any) won't be necessary
-            // before emitting the new joined row. Further counting adds no value here
-            // during the association calculation phase (when isInputRecordActive is false).
-            return associationCountForPrevLevel > 0;
-        } else {
-            // For a retraction, if more than one match existed (associations > 1),
-            // removing this one input record means other matches still exist.
-            // Therefore, we won't need to insert a new null-padded row after this retraction.
-            // If associations[depth-1] was 1, then after decrementing it becomes 0,
-            // and we would need to insert a null padded row.
-            return associationCountForPrevLevel > 1;
-        }
-    }
-
     private void initializeJoinConditions() throws Exception {
         this.instantiatedJoinConditions = new JoinCondition[joinConditions.length];
         for (int i = 0; i < joinConditions.length; i++) {
@@ -963,6 +1021,12 @@ public class StreamingMultiJoinOperator extends AbstractStreamOperatorV2<RowData
                 cond.open(DefaultOpenContext.INSTANCE);
                 this.instantiatedJoinConditions[i] = cond;
             }
+        }
+    }
+
+    private interface CountingIterable<T> extends Iterable<T> {
+        default int getCount() {
+            return -1;
         }
     }
 }
