@@ -1510,28 +1510,23 @@ object ScalarOperatorGens {
     val mapType = resultType.asInstanceOf[MapType]
     val baseMap = newName(ctx, "map")
 
-    // prepare map key array
-    val keyElements = elements
+    val keyValues = elements
       .grouped(2)
       .map { case Seq(key, value) => (key, value) }
       .toSeq
-      .groupBy(_._1)
-      .map(_._2.last)
-      .keys
-      .toSeq
+
+    val deduplicatedKeyValues = groupByOrdered(keyValues)(_._1).map {
+      case (_, pairs) =>
+        pairs.last // Take the last occurrence
+    }
+    // prepare map key array
+    val keyElements = deduplicatedKeyValues.map(_._1)
     val keyType = mapType.getKeyType
     val keyExpr = generateArray(ctx, new ArrayType(keyType), keyElements)
     val isKeyFixLength = isPrimitive(keyType)
 
     // prepare map value array
-    val valueElements = elements
-      .grouped(2)
-      .map { case Seq(key, value) => (key, value) }
-      .toSeq
-      .groupBy(_._1)
-      .map(_._2.last)
-      .values
-      .toSeq
+    val valueElements = deduplicatedKeyValues.map(_._2)
     val valueType = mapType.getValueType
     val valueExpr = generateArray(ctx, new ArrayType(valueType), valueElements)
     val isValueFixLength = isPrimitive(valueType)

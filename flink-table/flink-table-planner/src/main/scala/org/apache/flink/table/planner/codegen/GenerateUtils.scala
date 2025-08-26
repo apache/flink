@@ -802,4 +802,19 @@ object GenerateUtils {
     compares.mkString
   }
 
+  /**
+   * Groups the input sequence by the key function, and keeps the order of the first appearance of
+   * each key.
+   */
+  def groupByOrdered[A, K](xs: collection.Seq[A])(
+      f: A => K): collection.Seq[(K, collection.Seq[A])] = {
+    val m = collection.mutable.LinkedHashMap.empty[K, collection.mutable.ArrayBuffer[A]]
+    xs.foreach {
+      x =>
+        val k = f(x)
+        m.getOrElseUpdate(k, collection.mutable.ArrayBuffer.empty[A]) += x
+    }
+    m.toSeq.map { case (k, buffer) => (k, buffer) }
+  }
+
 }
