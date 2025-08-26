@@ -19,6 +19,7 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.IllegalConfigurationException;
@@ -43,8 +44,8 @@ import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.test.util.source.AbstractTestSource;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TernaryBoolean;
 
@@ -262,19 +263,12 @@ public class ChangelogStateBackendLoadingTest {
 
     private StreamExecutionEnvironment getEnvironment() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        SourceFunction<Integer> srcFun =
-                new SourceFunction<Integer>() {
-                    private static final long serialVersionUID = 1L;
-
-                    @Override
-                    public void run(SourceContext<Integer> ctx) throws Exception {}
-
-                    @Override
-                    public void cancel() {}
-                };
 
         SingleOutputStreamOperator<Object> operator =
-                env.addSource(srcFun)
+                env.fromSource(
+                                new EmptyTestSource(),
+                                WatermarkStrategy.noWatermarks(),
+                                "EmptyTestSource")
                         .flatMap(
                                 new FlatMapFunction<Integer, Object>() {
 
@@ -287,6 +281,8 @@ public class ChangelogStateBackendLoadingTest {
         operator.setParallelism(1);
         return env;
     }
+
+    private static class EmptyTestSource extends AbstractTestSource<Integer> {}
 
     private void assertStateBackendAndChangelogInStreamGraphAndJobGraph(
             StreamExecutionEnvironment env, TernaryBoolean isChangelogEnabled) throws Exception {
