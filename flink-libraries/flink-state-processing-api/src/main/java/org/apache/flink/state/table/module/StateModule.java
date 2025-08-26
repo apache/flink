@@ -19,61 +19,34 @@
 package org.apache.flink.state.table.module;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.state.table.SavepointMetadataTableFunction;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
+import org.apache.flink.table.functions.DynamicBuiltInFunctionDefinitionFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.module.Module;
-import org.apache.flink.table.types.inference.TypeStrategies;
 
-import java.util.Collections;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
-import static org.apache.flink.table.functions.FunctionKind.TABLE;
 
 /** Module of state in Flink. */
 @Experimental
 public class StateModule implements Module {
 
-    public static final String IDENTIFIER = "state";
+    private static final Logger LOG = LoggerFactory.getLogger(StateModule.class);
 
-    public static final BuiltInFunctionDefinition SAVEPOINT_METADATA =
-            BuiltInFunctionDefinition.newBuilder()
-                    .name("savepoint_metadata")
-                    .kind(TABLE)
-                    .runtimeClass(SavepointMetadataTableFunction.class.getName())
-                    .outputTypeStrategy(
-                            TypeStrategies.explicit(
-                                    DataTypes.ROW(
-                                            DataTypes.FIELD(
-                                                    "checkpoint-id", DataTypes.BIGINT().notNull()),
-                                            DataTypes.FIELD("operator-name", DataTypes.STRING()),
-                                            DataTypes.FIELD("operator-uid", DataTypes.STRING()),
-                                            DataTypes.FIELD(
-                                                    "operator-uid-hash",
-                                                    DataTypes.STRING().notNull()),
-                                            DataTypes.FIELD(
-                                                    "operator-parallelism",
-                                                    DataTypes.INT().notNull()),
-                                            DataTypes.FIELD(
-                                                    "operator-max-parallelism",
-                                                    DataTypes.INT().notNull()),
-                                            DataTypes.FIELD(
-                                                    "operator-subtask-state-count",
-                                                    DataTypes.INT().notNull()),
-                                            DataTypes.FIELD(
-                                                    "operator-coordinator-state-size-in-bytes",
-                                                    DataTypes.BIGINT().notNull()),
-                                            DataTypes.FIELD(
-                                                    "operator-total-size-in-bytes",
-                                                    DataTypes.BIGINT().notNull()))))
-                    .build();
+    public static final String IDENTIFIER = "state";
 
     public static final StateModule INSTANCE = new StateModule();
 
@@ -82,8 +55,19 @@ public class StateModule implements Module {
     private final Set<String> functionNamesWithoutInternal;
 
     private StateModule() {
-        final List<BuiltInFunctionDefinition> definitions =
-                Collections.singletonList(SAVEPOINT_METADATA);
+        final List<BuiltInFunctionDefinition> definitions = new ArrayList<>();
+
+        definitions.add(SavepointMetadataTableFunction.SAVEPOINT_METADATA);
+        ServiceLoader.load(DynamicBuiltInFunctionDefinitionFactory.class)
+                .iterator()
+                .forEachRemaining(
+                        f -> {
+                            if (f.factoryIdentifier().startsWith(IDENTIFIER + ".")) {
+                                definitions.addAll(f.getBuiltInFunctionDefinitions());
+                            }
+                        });
+        checkDuplicatedFunctions(definitions);
+
         this.normalizedFunctions =
                 definitions.stream()
                         .collect(
@@ -99,6 +83,25 @@ public class StateModule implements Module {
                         .filter(f -> !f.isInternal())
                         .map(BuiltInFunctionDefinition::getName)
                         .collect(Collectors.toSet());
+    }
+
+    @VisibleForTesting
+    static void checkDuplicatedFunctions(List<BuiltInFunctionDefinition> definitions) {
+        Set<String> seen = new HashSet<>();
+        Set<String> duplicates = new HashSet<>();
+
+        for (BuiltInFunctionDefinition definition : definitions) {
+            String name = definition.getName();
+            if (!seen.add(name)) {
+                duplicates.add(name);
+            }
+        }
+
+        if (!duplicates.isEmpty()) {
+            String error = "Duplicate function names found: " + String.join(",", duplicates);
+            LOG.error(error);
+            throw new IllegalStateException(error);
+        }
     }
 
     @Override
