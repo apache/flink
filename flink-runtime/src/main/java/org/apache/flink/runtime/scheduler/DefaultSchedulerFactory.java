@@ -21,7 +21,6 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobWriter;
@@ -120,11 +119,6 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
                         shuffleMaster,
                         partitionTracker);
 
-        final CheckpointsCleaner checkpointsCleaner =
-                new CheckpointsCleaner(
-                        jobMasterConfiguration.getBoolean(
-                                CheckpointingOptions.CLEANER_PARALLEL_MODE));
-
         return new DefaultScheduler(
                 log,
                 jobGraph,
@@ -133,7 +127,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
                 schedulerComponents.getStartUpAction(),
                 new ScheduledExecutorServiceAdapter(futureExecutor),
                 userCodeLoader,
-                checkpointsCleaner,
+                new CheckpointsCleaner(),
                 checkpointRecoveryFactory,
                 jobManagerJobMetricGroup,
                 schedulerComponents.getSchedulingStrategyFactory(),
