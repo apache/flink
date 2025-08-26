@@ -21,7 +21,6 @@ package org.apache.flink.runtime.dispatcher.cleanup;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -89,10 +88,7 @@ public class CheckpointResourcesCleanupRunner implements JobManagerRunner {
         this.cleanupExecutor = Preconditions.checkNotNull(cleanupExecutor);
         this.initializationTimestamp = initializationTimestamp;
 
-        this.checkpointsCleaner =
-                new CheckpointsCleaner(
-                        jobManagerConfiguration.getBoolean(
-                                CheckpointingOptions.CLEANER_PARALLEL_MODE));
+        this.checkpointsCleaner = new CheckpointsCleaner();
 
         this.resultFuture = new CompletableFuture<>();
         this.cleanupFuture = resultFuture.thenCompose(ignored -> runCleanupAsync());
