@@ -21,6 +21,7 @@ package org.apache.flink.table.api.internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
@@ -53,7 +54,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test {@link ShowCreateUtil}. */
-public class ShowCreateUtilTest {
+class ShowCreateUtilTest {
     private static final ObjectIdentifier TABLE_IDENTIFIER =
             ObjectIdentifier.of("catalogName", "dbName", "tableName");
     private static final ObjectIdentifier VIEW_IDENTIFIER =
@@ -69,30 +70,38 @@ public class ShowCreateUtilTest {
                     Column.physical("id", DataTypes.INT()),
                     Column.physical("name", DataTypes.STRING()));
 
-    @ParameterizedTest(name = "{index}: {1}")
+    @ParameterizedTest(name = "{index}: {2}")
     @MethodSource("argsForShowCreateTable")
-    void showCreateTable(ResolvedCatalogTable resolvedCatalogTable, String expected) {
+    void showCreateTable(
+            ResolvedCatalogTable resolvedCatalogTable, boolean isTemporary, String expected) {
         final String createTableString =
                 ShowCreateUtil.buildShowCreateTableRow(
-                        resolvedCatalogTable, TABLE_IDENTIFIER, false, DefaultSqlFactory.INSTANCE);
+                        resolvedCatalogTable,
+                        TABLE_IDENTIFIER,
+                        isTemporary,
+                        DefaultSqlFactory.INSTANCE);
         assertThat(createTableString).isEqualTo(expected);
     }
 
-    @ParameterizedTest(name = "{index}: {1}")
+    @ParameterizedTest(name = "{index}: {2}")
     @MethodSource("argsForShowCreateView")
-    void showCreateView(ResolvedCatalogView resolvedCatalogView, String expected) {
+    void showCreateView(
+            ResolvedCatalogView resolvedCatalogView, boolean isTemporary, String expected) {
         final String createViewString =
-                ShowCreateUtil.buildShowCreateViewRow(resolvedCatalogView, VIEW_IDENTIFIER, false);
+                ShowCreateUtil.buildShowCreateViewRow(
+                        resolvedCatalogView, VIEW_IDENTIFIER, isTemporary);
         assertThat(createViewString).isEqualTo(expected);
     }
 
-    @ParameterizedTest(name = "{index}: {1}")
+    @ParameterizedTest(name = "{index}: {2}")
     @MethodSource("argsForShowCreateMaterializedTable")
     void showCreateMaterializedTable(
-            ResolvedCatalogMaterializedTable materializedTable, String expected) {
+            ResolvedCatalogMaterializedTable materializedTable,
+            boolean isTemporary,
+            String expected) {
         final String createMaterializedTableString =
                 ShowCreateUtil.buildShowCreateMaterializedTableRow(
-                        materializedTable, MATERIALIZED_TABLE_IDENTIFIER, false);
+                        materializedTable, MATERIALIZED_TABLE_IDENTIFIER, isTemporary);
         assertThat(createMaterializedTableString).isEqualTo(expected);
     }
 
@@ -137,166 +146,184 @@ public class ShowCreateUtilTest {
     }
 
     private static Collection<Arguments> argsForShowCreateView() {
-        Collection<Arguments> argList = new ArrayList<>();
-        argList.add(
-                Arguments.of(
-                        createResolvedView(ONE_COLUMN_SCHEMA, "SELECT 1", "SELECT 1", null),
-                        "CREATE VIEW `catalogName`.`dbName`.`viewName` (\n"
-                                + "  `id`\n"
-                                + ")\n"
-                                + "AS SELECT 1\n"));
+        final Collection<Arguments> argList = new ArrayList<>();
+        addTemporaryAndPermanent(
+                argList,
+                createResolvedView(ONE_COLUMN_SCHEMA, "SELECT 1", "SELECT 1", null),
+                "CREATE %sVIEW `catalogName`.`dbName`.`viewName` (\n"
+                        + "  `id`\n"
+                        + ")\n"
+                        + "AS SELECT 1\n");
 
-        argList.add(
-                Arguments.of(
-                        createResolvedView(
-                                TWO_COLUMNS_SCHEMA,
-                                "SELECT id, name FROM tbl_a",
-                                "SELECT id, name FROM `catalogName`.`dbName`.`tbl_a`",
-                                "View comment"),
-                        "CREATE VIEW `catalogName`.`dbName`.`viewName` (\n"
-                                + "  `id`,\n"
-                                + "  `name`\n"
-                                + ")\n"
-                                + "COMMENT 'View comment'\n"
-                                + "AS SELECT id, name FROM `catalogName`.`dbName`.`tbl_a`\n"));
+        addTemporaryAndPermanent(
+                argList,
+                createResolvedView(
+                        TWO_COLUMNS_SCHEMA,
+                        "SELECT id, name FROM tbl_a",
+                        "SELECT id, name FROM `catalogName`.`dbName`.`tbl_a`",
+                        "View comment"),
+                "CREATE %sVIEW `catalogName`.`dbName`.`viewName` (\n"
+                        + "  `id`,\n"
+                        + "  `name`\n"
+                        + ")\n"
+                        + "COMMENT 'View comment'\n"
+                        + "AS SELECT id, name FROM `catalogName`.`dbName`.`tbl_a`\n");
         return argList;
     }
 
     private static Collection<Arguments> argsForShowCreateTable() {
-        Collection<Arguments> argList = new ArrayList<>();
-        argList.add(
-                Arguments.of(
-                        createResolvedTable(
-                                ONE_COLUMN_SCHEMA,
-                                Collections.emptyMap(),
-                                Collections.emptyList(),
-                                TableDistribution.of(
-                                        TableDistribution.Kind.HASH,
-                                        2,
-                                        Arrays.asList("key1", "key2")),
-                                null),
-                        "CREATE TABLE `catalogName`.`dbName`.`tableName` (\n"
-                                + "  `id` INT\n"
-                                + ")\n"
-                                + "DISTRIBUTED BY HASH(`key1`, `key2`) INTO 2 BUCKETS\n"));
+        final Collection<Arguments> argList = new ArrayList<>();
+        addTemporaryAndPermanent(
+                argList,
+                createResolvedTable(
+                        ONE_COLUMN_SCHEMA,
+                        Collections.emptyMap(),
+                        Collections.emptyList(),
+                        TableDistribution.of(
+                                TableDistribution.Kind.HASH, 2, Arrays.asList("key1", "key2")),
+                        null),
+                "CREATE %sTABLE `catalogName`.`dbName`.`tableName` (\n"
+                        + "  `id` INT\n"
+                        + ")\n"
+                        + "DISTRIBUTED BY HASH(`key1`, `key2`) INTO 2 BUCKETS\n");
 
-        argList.add(
-                Arguments.of(
-                        createResolvedTable(
-                                ONE_COLUMN_SCHEMA,
-                                Collections.emptyMap(),
-                                Collections.emptyList(),
-                                TableDistribution.of(
-                                        TableDistribution.Kind.RANGE, 2, Arrays.asList("1", "10")),
-                                "Table comment"),
-                        "CREATE TABLE `catalogName`.`dbName`.`tableName` (\n"
-                                + "  `id` INT\n"
-                                + ")\n"
-                                + "COMMENT 'Table comment'\n"
-                                + "DISTRIBUTED BY RANGE(`1`, `10`) INTO 2 BUCKETS\n"));
+        addTemporaryAndPermanent(
+                argList,
+                createResolvedTable(
+                        ONE_COLUMN_SCHEMA,
+                        Collections.emptyMap(),
+                        Collections.emptyList(),
+                        TableDistribution.of(
+                                TableDistribution.Kind.RANGE, 2, Arrays.asList("1", "10")),
+                        "Table comment"),
+                "CREATE %sTABLE `catalogName`.`dbName`.`tableName` (\n"
+                        + "  `id` INT\n"
+                        + ")\n"
+                        + "COMMENT 'Table comment'\n"
+                        + "DISTRIBUTED BY RANGE(`1`, `10`) INTO 2 BUCKETS\n");
 
         final Map<String, String> options = new HashMap<>();
         options.put("option_key_a", "option_value_a");
         options.put("option_key_b", "option_value_b");
         options.put("option_key_c", "option_value_c");
 
-        argList.add(
-                Arguments.of(
-                        createResolvedTable(
-                                TWO_COLUMNS_SCHEMA,
-                                options,
-                                Collections.emptyList(),
-                                null,
-                                "Another table comment"),
-                        "CREATE TABLE `catalogName`.`dbName`.`tableName` (\n"
-                                + "  `id` INT,\n"
-                                + "  `name` VARCHAR(2147483647)\n"
-                                + ")\n"
-                                + "COMMENT 'Another table comment'\n"
-                                + "WITH (\n"
-                                + "  'option_key_a' = 'option_value_a',\n"
-                                + "  'option_key_b' = 'option_value_b',\n"
-                                + "  'option_key_c' = 'option_value_c'\n"
-                                + ")\n"));
+        addTemporaryAndPermanent(
+                argList,
+                createResolvedTable(
+                        TWO_COLUMNS_SCHEMA,
+                        options,
+                        Collections.emptyList(),
+                        null,
+                        "Another table comment"),
+                "CREATE %sTABLE `catalogName`.`dbName`.`tableName` (\n"
+                        + "  `id` INT,\n"
+                        + "  `name` VARCHAR(2147483647)\n"
+                        + ")\n"
+                        + "COMMENT 'Another table comment'\n"
+                        + "WITH (\n"
+                        + "  'option_key_a' = 'option_value_a',\n"
+                        + "  'option_key_b' = 'option_value_b',\n"
+                        + "  'option_key_c' = 'option_value_c'\n"
+                        + ")\n");
 
-        argList.add(
-                Arguments.of(
-                        createResolvedTable(
-                                ONE_COLUMN_SCHEMA,
-                                Collections.emptyMap(),
-                                Arrays.asList("key1", "key2"),
-                                null,
-                                "comment"),
-                        "CREATE TABLE `catalogName`.`dbName`.`tableName` (\n"
-                                + "  `id` INT\n"
-                                + ")\n"
-                                + "COMMENT 'comment'\n"
-                                + "PARTITIONED BY (`key1`, `key2`)\n"));
+        addTemporaryAndPermanent(
+                argList,
+                createResolvedTable(
+                        ONE_COLUMN_SCHEMA,
+                        Collections.emptyMap(),
+                        Arrays.asList("key1", "key2"),
+                        null,
+                        "comment"),
+                "CREATE %sTABLE `catalogName`.`dbName`.`tableName` (\n"
+                        + "  `id` INT\n"
+                        + ")\n"
+                        + "COMMENT 'comment'\n"
+                        + "PARTITIONED BY (`key1`, `key2`)\n");
 
-        argList.add(
-                Arguments.of(
-                        createResolvedTable(
-                                TWO_COLUMNS_SCHEMA,
-                                options,
-                                Arrays.asList("key1", "key2"),
-                                TableDistribution.of(
-                                        TableDistribution.Kind.UNKNOWN,
-                                        3,
-                                        Arrays.asList("1", "2", "3")),
-                                "table comment"),
-                        "CREATE TABLE `catalogName`.`dbName`.`tableName` (\n"
-                                + "  `id` INT,\n"
-                                + "  `name` VARCHAR(2147483647)\n"
-                                + ")\n"
-                                + "COMMENT 'table comment'\n"
-                                + "DISTRIBUTED BY (`1`, `2`, `3`) INTO 3 BUCKETS\n"
-                                + "PARTITIONED BY (`key1`, `key2`)\n"
-                                + "WITH (\n"
-                                + "  'option_key_a' = 'option_value_a',\n"
-                                + "  'option_key_b' = 'option_value_b',\n"
-                                + "  'option_key_c' = 'option_value_c'\n"
-                                + ")\n"));
+        addTemporaryAndPermanent(
+                argList,
+                createResolvedTable(
+                        TWO_COLUMNS_SCHEMA,
+                        options,
+                        Arrays.asList("key1", "key2"),
+                        TableDistribution.of(
+                                TableDistribution.Kind.UNKNOWN, 3, Arrays.asList("1", "2", "3")),
+                        "table comment"),
+                "CREATE %sTABLE `catalogName`.`dbName`.`tableName` (\n"
+                        + "  `id` INT,\n"
+                        + "  `name` VARCHAR(2147483647)\n"
+                        + ")\n"
+                        + "COMMENT 'table comment'\n"
+                        + "DISTRIBUTED BY (`1`, `2`, `3`) INTO 3 BUCKETS\n"
+                        + "PARTITIONED BY (`key1`, `key2`)\n"
+                        + "WITH (\n"
+                        + "  'option_key_a' = 'option_value_a',\n"
+                        + "  'option_key_b' = 'option_value_b',\n"
+                        + "  'option_key_c' = 'option_value_c'\n"
+                        + ")\n");
         return argList;
     }
 
     private static Collection<Arguments> argsForShowCreateMaterializedTable() {
-        Collection<Arguments> argList = new ArrayList<>();
-        argList.add(
-                Arguments.of(
-                        createResolvedMaterialized(
-                                ONE_COLUMN_SCHEMA,
-                                null,
-                                List.of(),
-                                IntervalFreshness.ofMinute("1"),
-                                RefreshMode.CONTINUOUS,
-                                "SELECT 1"),
-                        "CREATE MATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
-                                + "  `id` INT\n"
-                                + ")\n"
-                                + "FRESHNESS = INTERVAL '1' MINUTE\n"
-                                + "REFRESH_MODE = CONTINUOUS\n"
-                                + "AS SELECT 1\n"));
+        final Collection<Arguments> argList = new ArrayList<>();
+        addTemporaryAndPermanent(
+                argList,
+                createResolvedMaterialized(
+                        ONE_COLUMN_SCHEMA,
+                        null,
+                        List.of(),
+                        IntervalFreshness.ofMinute("1"),
+                        RefreshMode.CONTINUOUS,
+                        "SELECT 1"),
+                "CREATE %sMATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
+                        + "  `id` INT\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '1' MINUTE\n"
+                        + "REFRESH_MODE = CONTINUOUS\n"
+                        + "AS SELECT 1\n");
 
-        argList.add(
-                Arguments.of(
-                        createResolvedMaterialized(
-                                TWO_COLUMNS_SCHEMA,
-                                "Materialized table comment",
-                                List.of("id"),
-                                IntervalFreshness.ofMinute("3"),
-                                RefreshMode.FULL,
-                                "SELECT id, name FROM tbl_a"),
-                        "CREATE MATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
-                                + "  `id` INT,\n"
-                                + "  `name` VARCHAR(2147483647)\n"
-                                + ")\n"
-                                + "COMMENT 'Materialized table comment'\n"
-                                + "PARTITION BY (`id`)\n"
-                                + "FRESHNESS = INTERVAL '3' MINUTE\n"
-                                + "REFRESH_MODE = FULL\n"
-                                + "AS SELECT id, name FROM tbl_a\n"));
+        addTemporaryAndPermanent(
+                argList,
+                createResolvedMaterialized(
+                        ONE_COLUMN_SCHEMA,
+                        null,
+                        List.of(),
+                        IntervalFreshness.ofMinute("1"),
+                        RefreshMode.CONTINUOUS,
+                        "SELECT 1"),
+                "CREATE %sMATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
+                        + "  `id` INT\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '1' MINUTE\n"
+                        + "REFRESH_MODE = CONTINUOUS\n"
+                        + "AS SELECT 1\n");
+
+        addTemporaryAndPermanent(
+                argList,
+                createResolvedMaterialized(
+                        TWO_COLUMNS_SCHEMA,
+                        "Materialized table comment",
+                        List.of("id"),
+                        IntervalFreshness.ofMinute("3"),
+                        RefreshMode.FULL,
+                        "SELECT id, name FROM tbl_a"),
+                "CREATE %sMATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
+                        + "  `id` INT,\n"
+                        + "  `name` VARCHAR(2147483647)\n"
+                        + ")\n"
+                        + "COMMENT 'Materialized table comment'\n"
+                        + "PARTITION BY (`id`)\n"
+                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT id, name FROM tbl_a\n");
 
         return argList;
+    }
+
+    private static void addTemporaryAndPermanent(
+            Collection<Arguments> argList, CatalogBaseTable catalogBaseTable, String sql) {
+        argList.add(Arguments.of(catalogBaseTable, false, String.format(sql, "")));
+        argList.add(Arguments.of(catalogBaseTable, true, String.format(sql, "TEMPORARY ")));
     }
 
     private static ResolvedCatalogTable createResolvedTable(
