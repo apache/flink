@@ -312,7 +312,8 @@ public class ProjectMultiJoinTransposeRule
                 originalMultiJoin.getJoinTypes(),
                 transformedInputs.newProjFields,
                 com.google.common.collect.ImmutableMap.copyOf(newJoinFieldRefCountsMap),
-                newPostJoinFilter);
+                newPostJoinFilter,
+                originalMultiJoin.getLevels());
     }
 
     /** Builds the new row type for the transformed MultiJoin. */

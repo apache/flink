@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.flink.table.runtime.operators.join.stream.state;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -16,7 +34,6 @@ import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideS
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.types.RowKind;
 import org.apache.flink.util.IterableIterator;
 
 import javax.annotation.Nonnull;
@@ -486,8 +503,6 @@ public final class OuterMultiJoinStateViews {
 
         @Override
         public void addRecord(@Nullable RowData joinKey, RowData record) throws Exception {
-            RowKind originalKind = record.getRowKind();
-            record.setRowKind(RowKind.INSERT); // Normalize for key creation
             RowData stateKey = getStateKey(joinKey, record);
 
             Tuple2<Integer, Integer> value = recordState.get(stateKey);
@@ -498,13 +513,10 @@ public final class OuterMultiJoinStateViews {
                 currentCount = value.f0;
             }
             recordState.put(stateKey, new Tuple2<>(currentCount + 1, 0));
-            record.setRowKind(originalKind);
         }
 
         @Override
         public void retractRecord(@Nullable RowData joinKey, RowData record) throws Exception {
-            RowKind originalKind = record.getRowKind();
-            record.setRowKind(RowKind.INSERT); // Normalize for key lookup
             RowData stateKey = getStateKey(joinKey, record);
 
             Tuple2<Integer, Integer> value = recordState.get(stateKey);
@@ -520,7 +532,6 @@ public final class OuterMultiJoinStateViews {
                     recordState.remove(stateKey);
                 }
             }
-            record.setRowKind(originalKind);
         }
 
         @Override
@@ -577,8 +588,6 @@ public final class OuterMultiJoinStateViews {
         @Override
         public void addRecord(RowData joinKey, RowData record, int numOfAssociations)
                 throws Exception {
-            RowKind originalKind = record.getRowKind();
-            record.setRowKind(RowKind.INSERT);
             RowData stateKey = getStateKey(joinKey, record);
 
             Tuple2<Integer, Integer> value = recordState.get(stateKey);
@@ -589,26 +598,19 @@ public final class OuterMultiJoinStateViews {
                 currentCount = value.f0;
             }
             recordState.put(stateKey, new Tuple2<>(currentCount + 1, numOfAssociations));
-            record.setRowKind(originalKind);
         }
 
         @Override
         public void addRecord(RowData joinKey, RowData record, Tuple2<Integer, Integer> value)
                 throws Exception {
-            RowKind originalKind = record.getRowKind();
-            record.setRowKind(RowKind.INSERT);
             RowData stateKey = getStateKey(joinKey, record);
 
             recordState.put(stateKey, value);
-
-            record.setRowKind(originalKind);
         }
 
         @Override
         public void updateNumOfAssociations(RowData joinKey, RowData record, int numOfAssociations)
                 throws Exception {
-            RowKind originalKind = record.getRowKind();
-            record.setRowKind(RowKind.INSERT);
             RowData stateKey = getStateKey(joinKey, record);
 
             Tuple2<Integer, Integer> value = recordState.get(stateKey);
@@ -619,7 +621,6 @@ public final class OuterMultiJoinStateViews {
                 currentCount = value.f0;
             }
             recordState.put(stateKey, new Tuple2<>(currentCount, numOfAssociations));
-            record.setRowKind(originalKind);
         }
 
         @Override

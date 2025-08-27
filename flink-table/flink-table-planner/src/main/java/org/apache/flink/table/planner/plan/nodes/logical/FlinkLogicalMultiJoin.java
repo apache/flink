@@ -79,7 +79,7 @@ public class FlinkLogicalMultiJoin extends AbstractRelNode implements FlinkLogic
             final List<? extends @Nullable RexNode> joinConditions,
             final List<JoinRelType> joinTypes,
             final @Nullable RexNode postJoinFilter,
-            List<Integer> levels,
+            final List<Integer> levels,
             final List<RelHint> hints) {
         super(cluster, traitSet);
         this.inputs = inputs;

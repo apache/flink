@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkOrderPreservingProjection;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin;
 import org.apache.flink.table.planner.plan.utils.IntervalJoinUtil;
@@ -35,10 +34,10 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.TableFunctionScan;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.core.Values;
-import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalSnapshot;
 import org.apache.calcite.rel.metadata.RelColumnOrigin;
@@ -1173,9 +1172,9 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
             return true;
         }
 
-        FlinkLogicalJoin flinkLogicalJoin =
-                (FlinkLogicalJoin) FlinkLogicalJoin.CONVERTER().convert(join);
-        return IntervalJoinUtil.satisfyIntervalJoin(flinkLogicalJoin);
+        //        FlinkLogicalJoin flinkLogicalJoin =
+        //                (FlinkLogicalJoin) FlinkLogicalJoin.CONVERTER().convert(join);
+        return IntervalJoinUtil.satisfyIntervalJoin(join);
     }
 
     /**

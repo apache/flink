@@ -19,8 +19,7 @@ package org.apache.flink.table.planner.plan.rules
 
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalMLPredictTableFunctionRule, StreamPhysicalProcessTableFunctionRule}
-import org.apache.flink.table.planner.plan.rules.logical._
-import org.apache.flink.table.planner.plan.rules.logical.{AsyncCorrelateSplitRule, JoinToMultiJoinRule}
+import org.apache.flink.table.planner.plan.rules.logical.{JoinToMultiJoinRule, _}
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.planner.plan.rules.physical.stream._
 
@@ -202,8 +201,6 @@ object FlinkStreamRuleSets {
     new FlinkProjectJoinTransposeRule(
       PushProjector.ExprCondition.FALSE,
       RelFactories.LOGICAL_BUILDER),
-    // push a projection to the children of a multi join
-    ProjectMultiJoinTransposeRule.INSTANCE,
     // push a projection to the children of a semi/anti Join
     ProjectSemiAntiJoinTransposeRule.INSTANCE,
     // merge projections
@@ -244,7 +241,9 @@ object FlinkStreamRuleSets {
     // merge join to MultiJoin
     JoinToMultiJoinRule.INSTANCE,
     // remove conflicting projections
-    FlinkOrderPreservingProjectRemoveRule.INSTANCE
+    FlinkOrderPreservingProjectRemoveRule.INSTANCE,
+    // push a projection to the children of a multi-join
+    ProjectMultiJoinTransposeRule.INSTANCE
   )
 
   /** RuleSet to do logical optimize. This RuleSet is a sub-set of [[LOGICAL_OPT_RULES]]. */

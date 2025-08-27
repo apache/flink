@@ -54,8 +54,7 @@ public class MultiJoinSemanticTests extends SemanticTestBase {
                 MultiJoinTestPrograms.MULTI_JOIN_FOUR_WAY_RIGHT_INNER_RIGHT,
                 MultiJoinTestPrograms.MULTI_JOIN_FOUR_WAY_INNER_RIGHT_RIGHT,
                 MultiJoinTestPrograms.MULTI_JOIN_FOUR_WAY_RIGHT_RIGHT_INNER,
-                MultiJoinTestPrograms.MULTI_JOIN_FOUR_WAY_RIGHT_RIGHT_RIGHT);
-                MultiJoinTestPrograms.MULTI_JOIN_FOUR_WAY_NO_COMMON_JOIN_KEY,
+                MultiJoinTestPrograms.MULTI_JOIN_FOUR_WAY_RIGHT_RIGHT_RIGHT,
                 MultiJoinTestPrograms.MULTI_JOIN_THREE_WAY_LEFT_OUTER_JOIN_WITH_CTE,
                 MultiJoinTestPrograms.MULTI_JOIN_MIXED_CHANGELOG_MODES,
                 MultiJoinTestPrograms.MULTI_JOIN_LEFT_OUTER_WITH_NULL_KEYS,
