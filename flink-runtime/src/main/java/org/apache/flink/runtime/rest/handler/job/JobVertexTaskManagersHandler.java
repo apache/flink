@@ -31,6 +31,7 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 import org.apache.flink.runtime.rest.handler.util.MutableIOMetrics;
 import org.apache.flink.runtime.rest.messages.AggregatedTaskDetailsInfo;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
@@ -105,7 +106,9 @@ public class JobVertexTaskManagersHandler
             throw new NotFoundException(String.format("JobVertex %s not found", jobVertexID));
         }
 
-        return createJobVertexTaskManagersInfo(jobVertex, jobID, metricFetcher);
+        metricFetcher.update();
+        return createJobVertexTaskManagersInfo(
+                jobVertex, jobID, metricFetcher.getMetricStore().getJobs());
     }
 
     @Override
@@ -130,7 +133,7 @@ public class JobVertexTaskManagersHandler
     private static JobVertexTaskManagersInfo createJobVertexTaskManagersInfo(
             AccessExecutionJobVertex jobVertex,
             JobID jobID,
-            @Nullable MetricFetcher metricFetcher) {
+            @Nullable MetricStore.MetricStoreJobs jobs) {
         // Build a map that groups task executions by TaskManager
         Map<TaskManagerLocation, List<AccessExecution>> taskManagerExecutions = new HashMap<>();
         Set<AccessExecution> representativeExecutions = new HashSet<>();
@@ -200,16 +203,10 @@ public class JobVertexTaskManagersHandler
                 endTime = Math.max(endTime, execution.getStateTimestamp(state));
 
                 counts.addIOMetrics(
-                        execution,
-                        metricFetcher,
-                        jobID.toString(),
-                        jobVertex.getJobVertexId().toString());
+                        execution, jobs, jobID.toString(), jobVertex.getJobVertexId().toString());
                 MutableIOMetrics current = new MutableIOMetrics();
                 current.addIOMetrics(
-                        execution,
-                        metricFetcher,
-                        jobID.toString(),
-                        jobVertex.getJobVertexId().toString());
+                        execution, jobs, jobID.toString(), jobVertex.getJobVertexId().toString());
                 ioMetricsInfos.add(
                         new IOMetricsInfo(
                                 current.getNumBytesIn(),
