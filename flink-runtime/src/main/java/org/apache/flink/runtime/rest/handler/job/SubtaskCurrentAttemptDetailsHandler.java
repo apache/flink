@@ -26,6 +26,7 @@ import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
@@ -87,18 +88,20 @@ public class SubtaskCurrentAttemptDetailsHandler
         final Collection<AccessExecution> attempts = executionVertex.getCurrentExecutions();
         List<SubtaskExecutionAttemptDetailsInfo> otherConcurrentAttempts = null;
 
+        metricFetcher.update();
+        MetricStore.JobMetricStoreSnapshot jobMetrics = metricFetcher.getMetricStore().getJobs();
         if (attempts.size() > 1) {
             otherConcurrentAttempts = new ArrayList<>();
             for (AccessExecution attempt : attempts) {
                 if (attempt.getAttemptNumber() != execution.getAttemptNumber()) {
                     otherConcurrentAttempts.add(
                             SubtaskExecutionAttemptDetailsInfo.create(
-                                    attempt, metricFetcher, jobID, jobVertexID, null));
+                                    attempt, jobMetrics, jobID, jobVertexID, null));
                 }
             }
         }
 
         return SubtaskExecutionAttemptDetailsInfo.create(
-                execution, metricFetcher, jobID, jobVertexID, otherConcurrentAttempts);
+                execution, jobMetrics, jobID, jobVertexID, otherConcurrentAttempts);
     }
 }

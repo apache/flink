@@ -72,12 +72,15 @@ public class MutableIOMetrics extends IOMetrics {
      * {@link MetricFetcher} is used to retrieve the required metrics.
      *
      * @param attempt Attempt whose IO metrics should be added
-     * @param fetcher MetricFetcher to retrieve metrics for running jobs
+     * @param jobMetrics metrics for running jobs
      * @param jobID JobID to which the attempt belongs
      * @param taskID TaskID to which the attempt belongs
      */
     public void addIOMetrics(
-            AccessExecution attempt, @Nullable MetricFetcher fetcher, String jobID, String taskID) {
+            AccessExecution attempt,
+            @Nullable MetricStore.JobMetricStoreSnapshot jobMetrics,
+            String jobID,
+            String taskID) {
         if (attempt.getState().isTerminal()) {
             IOMetrics ioMetrics = attempt.getIOMetrics();
             if (ioMetrics != null) { // execAttempt is already finished, use final metrics stored in
@@ -95,15 +98,13 @@ public class MutableIOMetrics extends IOMetrics {
                 }
             }
         } else { // execAttempt is still running, use MetricQueryService instead
-            if (fetcher != null) {
-                fetcher.update();
+            if (jobMetrics != null) {
                 MetricStore.ComponentMetricStore metrics =
-                        fetcher.getMetricStore()
-                                .getSubtaskAttemptMetricStore(
-                                        jobID,
-                                        taskID,
-                                        attempt.getParallelSubtaskIndex(),
-                                        attempt.getAttemptNumber());
+                        jobMetrics.getSubtaskAttemptMetricStore(
+                                jobID,
+                                taskID,
+                                attempt.getParallelSubtaskIndex(),
+                                attempt.getAttemptNumber());
                 if (metrics != null) {
                     /**
                      * We want to keep track of missing metrics to be able to make a difference

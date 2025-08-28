@@ -22,7 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
-import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 import org.apache.flink.runtime.rest.handler.util.MutableIOMetrics;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
@@ -195,7 +195,7 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
 
     public static SubtaskExecutionAttemptDetailsInfo create(
             AccessExecution execution,
-            @Nullable MetricFetcher metricFetcher,
+            @Nullable MetricStore.JobMetricStoreSnapshot jobMetrics,
             JobID jobID,
             JobVertexID jobVertexID,
             @Nullable List<SubtaskExecutionAttemptDetailsInfo> otherConcurrentAttempts) {
@@ -215,7 +215,7 @@ public class SubtaskExecutionAttemptDetailsInfo implements ResponseBody {
         final long duration = startTime > 0 ? ((endTime > 0 ? endTime : now) - startTime) : -1;
 
         final MutableIOMetrics ioMetrics = new MutableIOMetrics();
-        ioMetrics.addIOMetrics(execution, metricFetcher, jobID.toString(), jobVertexID.toString());
+        ioMetrics.addIOMetrics(execution, jobMetrics, jobID.toString(), jobVertexID.toString());
 
         final IOMetricsInfo ioMetricsInfo =
                 new IOMetricsInfo(
