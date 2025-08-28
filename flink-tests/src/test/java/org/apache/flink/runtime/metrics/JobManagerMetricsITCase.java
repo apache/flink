@@ -17,8 +17,13 @@
 
 package org.apache.flink.runtime.metrics;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.metrics.Gauge;
@@ -28,9 +33,11 @@ import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.legacy.PrintSinkFunction;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
+import org.apache.flink.streaming.api.functions.sink.PrintSink;
 import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.test.util.source.AbstractTestSource;
+import org.apache.flink.test.util.source.TestSourceReader;
+import org.apache.flink.test.util.source.TestSplit;
 import org.apache.flink.testutils.junit.extensions.ContextClassLoaderExtension;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -84,21 +91,11 @@ class JobManagerMetricsITCase {
                     public void go() throws Exception {
                         StreamExecutionEnvironment env =
                                 StreamExecutionEnvironment.getExecutionEnvironment();
-                        env.addSource(
-                                        new SourceFunction<String>() {
-
-                                            @Override
-                                            public void run(SourceContext<String> ctx)
-                                                    throws Exception {
-                                                sync.block();
-                                            }
-
-                                            @Override
-                                            public void cancel() {
-                                                sync.releaseBlocker();
-                                            }
-                                        })
-                                .addSink(new PrintSinkFunction());
+                        env.fromSource(
+                                        new BlockingSource(),
+                                        WatermarkStrategy.noWatermarks(),
+                                        "BlockingSourceV2")
+                                .sinkTo(new PrintSink<>());
 
                         env.execute();
                     }
@@ -199,6 +196,29 @@ class JobManagerMetricsITCase {
         @Override
         public MetricReporter createMetricReporter(Properties properties) {
             return this;
+        }
+    }
+
+    private static class BlockingSource extends AbstractTestSource<String> {
+        @Override
+        public SourceReader<String, TestSplit> createReader(SourceReaderContext ctx) {
+            return new TestSourceReader<String>(ctx) {
+                @Override
+                public InputStatus pollNext(ReaderOutput<String> out) {
+                    try {
+                        sync.block();
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                    return InputStatus.END_OF_INPUT;
+                }
+
+                @Override
+                public void close() throws Exception {
+                    sync.releaseBlocker();
+                    super.close();
+                }
+            };
         }
     }
 }
