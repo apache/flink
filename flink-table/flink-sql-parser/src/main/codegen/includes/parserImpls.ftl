@@ -806,6 +806,13 @@ SqlShowCreate SqlShowCreate() :
         {
             return new SqlShowCreateModel(pos, sqlIdentifier);
         }
+    |
+        <MATERIALIZED> <TABLE>
+        { pos = getPos(); }
+        sqlIdentifier = CompoundIdentifier()
+        {
+            return new SqlShowCreateMaterializedTable(pos, sqlIdentifier);
+        }
     )
 }
 

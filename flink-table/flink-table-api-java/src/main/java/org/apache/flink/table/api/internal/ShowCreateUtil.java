@@ -21,12 +21,15 @@ package org.apache.flink.table.api.internal;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogDescriptor;
 import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -38,6 +41,7 @@ import org.apache.flink.table.utils.EncodingUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -82,12 +86,7 @@ public class ShowCreateUtil {
             ObjectIdentifier tableIdentifier,
             boolean isTemporary,
             SqlFactory sqlFactory) {
-        if (table.getTableKind() == CatalogBaseTable.TableKind.VIEW) {
-            throw new TableException(
-                    String.format(
-                            "SHOW CREATE TABLE is only supported for tables, but %s is a view. Please use SHOW CREATE VIEW instead.",
-                            tableIdentifier.asSerializableString()));
-        }
+        validateTableKind(table, tableIdentifier, TableKind.TABLE);
         StringBuilder sb =
                 new StringBuilder()
                         .append(buildCreateFormattedPrefix("TABLE", isTemporary, tableIdentifier));
@@ -110,17 +109,40 @@ public class ShowCreateUtil {
         return sb.toString();
     }
 
+    /** Show create materialized table statement only for materialized tables. */
+    public static String buildShowCreateMaterializedTableRow(
+            ResolvedCatalogMaterializedTable table,
+            ObjectIdentifier tableIdentifier,
+            boolean isTemporary) {
+        validateTableKind(table, tableIdentifier, TableKind.MATERIALIZED_TABLE);
+        StringBuilder sb =
+                new StringBuilder()
+                        .append(
+                                buildCreateFormattedPrefix(
+                                        "MATERIALIZED TABLE", isTemporary, tableIdentifier));
+        sb.append(extractFormattedColumns(table, PRINT_INDENT));
+        extractFormattedPrimaryKey(table, PRINT_INDENT)
+                .ifPresent(pk -> sb.append(",\n").append(pk));
+        sb.append("\n)\n");
+        extractComment(table).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
+        extractFormattedPartitionedInfo(table)
+                .ifPresent(partitionedBy -> sb.append(formatPartitionedBy(partitionedBy)));
+        extractFormattedOptions(table.getOptions(), PRINT_INDENT)
+                .ifPresent(v -> sb.append("WITH (\n").append(v).append("\n)\n"));
+        sb.append(extractFreshness(table))
+                .append("\n")
+                .append(extractRefreshMode(table))
+                .append("\n");
+        sb.append("AS ").append(table.getDefinitionQuery()).append('\n');
+        return sb.toString();
+    }
+
     /** Show create view statement only for views. */
     public static String buildShowCreateViewRow(
             ResolvedCatalogBaseTable<?> view,
             ObjectIdentifier viewIdentifier,
             boolean isTemporary) {
-        if (view.getTableKind() != CatalogBaseTable.TableKind.VIEW) {
-            throw new TableException(
-                    String.format(
-                            "SHOW CREATE VIEW is only supported for views, but %s is a table. Please use SHOW CREATE TABLE instead.",
-                            viewIdentifier.asSerializableString()));
-        }
+        validateTableKind(view, viewIdentifier, TableKind.VIEW);
         final CatalogBaseTable origin = view.getOrigin();
         if (origin instanceof QueryOperationCatalogView
                 && !((QueryOperationCatalogView) origin).supportsShowCreateView()) {
@@ -243,6 +265,10 @@ public class ShowCreateUtil {
         return String.format("COMMENT '%s'", EncodingUtils.escapeSingleQuotes(comment));
     }
 
+    private static String formatPartitionedBy(String partitionedByColumns) {
+        return String.format("PARTITION BY (%s)\n", partitionedByColumns);
+    }
+
     static Optional<String> extractComment(ResolvedCatalogBaseTable<?> table) {
         return StringUtils.isEmpty(table.getComment())
                 ? Optional.empty()
@@ -263,10 +289,32 @@ public class ShowCreateUtil {
         if (!catalogTable.isPartitioned()) {
             return Optional.empty();
         }
-        return Optional.of(
-                catalogTable.getPartitionKeys().stream()
-                        .map(EncodingUtils::escapeIdentifier)
-                        .collect(Collectors.joining(", ")));
+        return Optional.of(extractPartitionKeys(catalogTable.getPartitionKeys()));
+    }
+
+    static Optional<String> extractFormattedPartitionedInfo(
+            ResolvedCatalogMaterializedTable catalogMaterializedTable) {
+        if (!catalogMaterializedTable.isPartitioned()) {
+            return Optional.empty();
+        }
+        return Optional.of(extractPartitionKeys(catalogMaterializedTable.getPartitionKeys()));
+    }
+
+    private static String extractPartitionKeys(List<String> partitionKeys) {
+        return partitionKeys.stream()
+                .map(EncodingUtils::escapeIdentifier)
+                .collect(Collectors.joining(", "));
+    }
+
+    static String extractFreshness(ResolvedCatalogMaterializedTable materializedTable) {
+        final IntervalFreshness definitionFreshness = materializedTable.getDefinitionFreshness();
+        return String.format(
+                "FRESHNESS = INTERVAL '%s' %s",
+                definitionFreshness.getInterval(), definitionFreshness.getTimeUnit());
+    }
+
+    static String extractRefreshMode(ResolvedCatalogMaterializedTable materializedTable) {
+        return String.format("REFRESH_MODE = %s", materializedTable.getRefreshMode());
     }
 
     static Optional<String> extractFormattedOptions(Map<String, String> conf, String printIndent) {
@@ -296,5 +344,43 @@ public class ShowCreateUtil {
                                         printIndent,
                                         EncodingUtils.escapeIdentifier(column.getName())))
                 .collect(Collectors.joining(",\n"));
+    }
+
+    private static void validateTableKind(
+            ResolvedCatalogBaseTable<?> table,
+            ObjectIdentifier tableIdentifier,
+            TableKind expectedTableKind) {
+        if (table.getTableKind() == expectedTableKind) {
+            return;
+        }
+
+        final String tableKindName = table.getTableKind().name().replace('_', ' ');
+        final String commandToUse = showCreateCommandToUse(table.getTableKind());
+        final String expectedTableKindName = expectedTableKind.name().replace('_', ' ');
+        final String currentCommand = "SHOW CREATE " + expectedTableKindName;
+
+        throw new TableException(
+                String.format(
+                        "%s is only supported for %ss, but %s is a %s. Please use %s instead.",
+                        currentCommand,
+                        expectedTableKindName.toLowerCase(Locale.ROOT),
+                        tableIdentifier.asSerializableString(),
+                        tableKindName.toLowerCase(Locale.ROOT),
+                        commandToUse));
+    }
+
+    private static String showCreateCommandToUse(TableKind tableKind) {
+        switch (tableKind) {
+            case MATERIALIZED_TABLE:
+                return "SHOW CREATE MATERIALIZED TABLE";
+            case TABLE:
+                return "SHOW CREATE TABLE";
+            case VIEW:
+                return "SHOW CREATE VIEW";
+            default:
+                throw new TableException(
+                        String.format(
+                                "SHOW CREATE is not implemented for %s yet.", tableKind.name()));
+        }
     }
 }
