@@ -61,6 +61,7 @@ export class JobListComponent implements OnInit, OnDestroy, OnChanges {
   listOfJob: JobsItem[] = [];
   isLoading = true;
   destroy$ = new Subject<void>();
+  sortOrder = 'descend';
   @Input() completed = false;
   @Input() title: string;
   @Input() jobData$: Observable<JobsItem[]>;

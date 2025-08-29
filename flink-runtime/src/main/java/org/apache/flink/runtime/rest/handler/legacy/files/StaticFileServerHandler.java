@@ -368,7 +368,7 @@ public class StaticFileServerHandler<T extends RestfulGateway> extends LeaderRet
     public static void checkFileValidity(File file, File rootPath, Logger logger)
             throws IOException, RestHandlerException {
         // this check must be done first to prevent probing for arbitrary files
-        if (!file.getCanonicalFile().toPath().startsWith(rootPath.toPath())) {
+        if (!file.getCanonicalFile().toPath().startsWith(rootPath.getCanonicalFile().toPath())) {
             if (logger.isDebugEnabled()) {
                 logger.debug(
                         "Requested path {} points outside the root directory.",
