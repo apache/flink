@@ -35,7 +35,6 @@ under the License.
 	<properties>
 		<fs.azure.sdk.version>1.16.0</fs.azure.sdk.version>
 		<fs.jackson.core.version>2.9.4</fs.jackson.core.version>
-		<jetty.version>9.3.24.v20180605</jetty.version>
 	</properties>
 
 	<dependencies>
