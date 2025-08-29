@@ -445,6 +445,13 @@ public final class TestValuesTableFactory
                             "Optional map of 'metadata_key:data_type'. The order will be alphabetically. "
                                     + "The metadata is part of the data when enabled.");
 
+    private static final ConfigOption<String> TARGET_COLUMNS =
+            ConfigOptions.key("target-columns")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Optional list of 'target-columns'. String format should be like this: '[[0], [1, 0]]'.");
+
     private static final ConfigOption<Boolean> SINK_DROP_LATE_EVENT =
             ConfigOptions.key("sink.drop-late-event")
                     .booleanType()
@@ -756,6 +763,8 @@ public final class TestValuesTableFactory
         final Map<String, DataType> writableMetadata =
                 convertToMetadataMap(
                         helper.getOptions().get(WRITABLE_METADATA), context.getClassLoader());
+        final int[][] targetColumns =
+                convertToTargetColumns(helper.getOptions().get(TARGET_COLUMNS));
         final ChangelogMode changelogMode =
                 Optional.ofNullable(helper.getOptions().get(SINK_CHANGELOG_MODE_ENFORCED))
                         .map(this::parseChangelogMode)
@@ -788,7 +797,7 @@ public final class TestValuesTableFactory
                     tableSchema,
                     requireBucketCount,
                     supportsDeleteByKey,
-                    null);
+                    targetColumns);
         } else {
             try {
                 return InstantiationUtil.instantiate(
@@ -985,6 +994,15 @@ public final class TestValuesTableFactory
                                     throw new IllegalStateException();
                                 },
                                 LinkedHashMap::new));
+    }
+
+    private static int[][] convertToTargetColumns(String targetColumns) {
+        if (targetColumns == null) {
+            return null;
+        }
+        return Arrays.stream(targetColumns.substring(2, targetColumns.length() - 2).split("],\\["))
+                .map(e -> Arrays.stream(e.split("\\s*,\\s*")).toArray())
+                .toArray(int[][]::new);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -2373,14 +2391,13 @@ public final class TestValuesTableFactory
                 assertThat(runtimeSink.equals("SinkFunction")).isTrue();
                 // check the contract of the context.getTargetColumns method returns the expected
                 // empty Option or non-empty Option with a non-empty array
-                assertThat(
-                                !context.getTargetColumns().isPresent()
-                                        || context.getTargetColumns().get().length > 0)
-                        .isTrue();
+                assertThat(this.targetColumns == null || this.targetColumns.length > 0).isTrue();
                 SinkFunction<RowData> sinkFunction;
                 if (primaryKeyIndices.length > 0) {
                     // TODO FLINK-31301 currently partial-insert composite columns are not supported
-                    int[][] targetColumns = context.getTargetColumns().orElse(new int[0][]);
+                    int[][] targetColumns =
+                            this.targetColumns != null ? this.targetColumns : new int[0][];
+
                     checkArgument(
                             Arrays.stream(targetColumns).allMatch(subArr -> subArr.length <= 1),
                             "partial-insert composite columns are not supported yet!");
