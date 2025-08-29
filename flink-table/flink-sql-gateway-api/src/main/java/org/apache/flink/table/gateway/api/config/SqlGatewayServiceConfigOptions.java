@@ -97,4 +97,21 @@ public class SqlGatewayServiceConfigOptions {
                     .withDescription(
                             "Keepalive time for an idle worker thread. When the number of workers exceeds min workers, "
                                     + "excessive threads are killed after this time interval.");
+
+    public static final ConfigOption<Boolean> SQL_GATEWAY_SECURITY_MASK_SENSITIVE_OPTIONS_ENABLED =
+            key("sql-gateway.security.mask-sensitive-options.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Masks sensitive option values (e.g., passwords or tokens) in "
+                                    + "SHOW CREATE results to prevent accidental exposure.");
+
+    public static final ConfigOption<String> SQL_GATEWAY_SECURITY_MASK_SENSITIVE_OPTIONS_NAMES =
+            key("sql-gateway.security.mask-sensitive-options.names")
+                    .stringType()
+                    .defaultValue("password,secret,accesskey,access-key,token")
+                    .withDescription(
+                            "Comma-separated table or catalog option names to mask. "
+                                    + "Any option whose name contains a listed value will be masked, "
+                                    + "e.g., 'pass' will match 'pass', 'password', 'properties.password', etc.");
 }
