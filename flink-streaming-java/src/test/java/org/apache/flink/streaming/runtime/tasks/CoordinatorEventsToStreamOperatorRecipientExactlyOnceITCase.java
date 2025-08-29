@@ -20,10 +20,21 @@ package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.ListAccumulator;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.Boundedness;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
+import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.operators.coordination.CoordinatorEventsExactlyOnceITCase;
@@ -34,7 +45,6 @@ import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
@@ -54,8 +64,10 @@ import org.junit.jupiter.api.Test;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -113,7 +125,7 @@ class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.enableCheckpointing(100);
-        ManuallyClosedSourceFunction.shouldCloseSource = false;
+        ManuallyClosedSourceV2.shouldCloseSource = false;
         EventReceivingOperator.shouldUnblockAllCheckpoint = false;
         EventReceivingOperator.shouldUnblockNextCheckpoint = false;
         TestScript.reset();
@@ -163,7 +175,11 @@ class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
         // The event receiving operator is not chained together with the source operator, so that
         // when checkpoint barriers are injected into sources, the event receiving operator has not
         // started checkpoint yet.
-        env.addSource(new ManuallyClosedSourceFunction<>(), TypeInformation.of(Long.class))
+        env.fromSource(
+                        new ManuallyClosedSourceV2<>(),
+                        WatermarkStrategy.noWatermarks(),
+                        "ManuallyClosedSource",
+                        TypeInformation.of(Long.class))
                 .disableChaining()
                 .transform(factory.name, TypeInformation.of(Long.class), factory)
                 .sinkTo(new DiscardingSink<>());
@@ -178,21 +194,152 @@ class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
         checkListContainsSequence(receivedInts, NUM_EVENTS);
     }
 
-    /** A mock source function that does not collect any stream record and closes on demand. */
-    private static class ManuallyClosedSourceFunction<T> implements SourceFunction<T> {
+    /** A mock source that does not collect any stream record and closes on demand. */
+    private static class ManuallyClosedSourceV2<T> implements Source<T, EmptySplit, Void> {
 
-        /** Whether the source function should be closed to finish the job. */
+        /** Whether the source should be closed to finish the job. */
         private static boolean shouldCloseSource;
 
         @Override
-        public void run(SourceContext<T> ctx) throws Exception {
-            while (!shouldCloseSource) {
-                Thread.sleep(100);
+        public Boundedness getBoundedness() {
+            return Boundedness.CONTINUOUS_UNBOUNDED;
+        }
+
+        @Override
+        public SourceReader<T, EmptySplit> createReader(SourceReaderContext context) {
+            return new WaitingSourceReader<>();
+        }
+
+        @Override
+        public SplitEnumerator<EmptySplit, Void> createEnumerator(
+                SplitEnumeratorContext<EmptySplit> context) {
+            return new EmptySplitEnumerator(context);
+        }
+
+        @Override
+        public SplitEnumerator<EmptySplit, Void> restoreEnumerator(
+                SplitEnumeratorContext<EmptySplit> context, Void checkpoint) {
+            return createEnumerator(context);
+        }
+
+        @Override
+        public SimpleVersionedSerializer<Void> getEnumeratorCheckpointSerializer() {
+            return new SimpleVersionedSerializer<Void>() {
+                @Override
+                public int getVersion() {
+                    return 1;
+                }
+
+                @Override
+                public byte[] serialize(Void obj) {
+                    return new byte[0];
+                }
+
+                @Override
+                public Void deserialize(int version, byte[] serialized) {
+                    return null;
+                }
+            };
+        }
+
+        @Override
+        public SimpleVersionedSerializer<EmptySplit> getSplitSerializer() {
+            return new SimpleVersionedSerializer<EmptySplit>() {
+                @Override
+                public int getVersion() {
+                    return 1;
+                }
+
+                @Override
+                public byte[] serialize(EmptySplit obj) {
+                    return new byte[0];
+                }
+
+                @Override
+                public EmptySplit deserialize(int version, byte[] serialized) {
+                    return new EmptySplit();
+                }
+            };
+        }
+    }
+
+    private static class EmptySplit implements SourceSplit {
+        @Override
+        public String splitId() {
+            return "empty-split";
+        }
+    }
+
+    private static class WaitingSourceReader<T> implements SourceReader<T, EmptySplit> {
+        @Override
+        public void start() {}
+
+        @Override
+        public InputStatus pollNext(ReaderOutput<T> output) throws Exception {
+            if (ManuallyClosedSourceV2.shouldCloseSource) {
+                return InputStatus.END_OF_INPUT;
+            }
+            Thread.sleep(100);
+            return InputStatus.NOTHING_AVAILABLE;
+        }
+
+        @Override
+        public List<EmptySplit> snapshotState(long checkpointId) {
+            return Collections.emptyList();
+        }
+
+        @Override
+        public CompletableFuture<Void> isAvailable() {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public void addSplits(List<EmptySplit> splits) {}
+
+        @Override
+        public void notifyNoMoreSplits() {}
+
+        @Override
+        public void close() throws Exception {}
+    }
+
+    private static class EmptySplitEnumerator implements SplitEnumerator<EmptySplit, Void> {
+        private final SplitEnumeratorContext<EmptySplit> context;
+        private boolean splitAssigned = false;
+
+        public EmptySplitEnumerator(SplitEnumeratorContext<EmptySplit> context) {
+            this.context = context;
+        }
+
+        @Override
+        public void start() {}
+
+        @Override
+        public void handleSplitRequest(int subtaskId, String requesterHostname) {
+            if (!splitAssigned) {
+                context.assignSplit(new EmptySplit(), subtaskId);
+                splitAssigned = true;
             }
         }
 
         @Override
-        public void cancel() {}
+        public void addSplitsBack(List<EmptySplit> splits, int subtaskId) {}
+
+        @Override
+        public void addReader(int subtaskId) {
+            if (!splitAssigned) {
+                context.assignSplit(new EmptySplit(), subtaskId);
+                splitAssigned = true;
+            }
+        }
+
+        @Override
+        public Void snapshotState(long checkpointId) {
+            return null;
+        }
+
+        @Override
+        public void close() throws IOException {}
     }
 
     /**
@@ -413,7 +560,7 @@ class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                ManuallyClosedSourceFunction.shouldCloseSource = true;
+                ManuallyClosedSourceV2.shouldCloseSource = true;
             } else {
                 throw new UnsupportedOperationException();
             }
@@ -531,7 +678,7 @@ class CoordinatorEventsToStreamOperatorRecipientExactlyOnceITCase
                     throw new RuntimeException(e);
                 }
                 if (testScript.hasAlreadyFailed()) {
-                    ManuallyClosedSourceFunction.shouldCloseSource = true;
+                    ManuallyClosedSourceV2.shouldCloseSource = true;
                 }
             } else {
                 throw new UnsupportedOperationException();
