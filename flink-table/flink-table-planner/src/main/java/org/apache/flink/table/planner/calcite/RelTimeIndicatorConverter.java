@@ -557,6 +557,7 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                 newJoinConditions,
                 multiJoin.getJoinTypes(),
                 newPostJoinFilter,
+                multiJoin.getLevels(),
                 multiJoin.getHints());
     }
 

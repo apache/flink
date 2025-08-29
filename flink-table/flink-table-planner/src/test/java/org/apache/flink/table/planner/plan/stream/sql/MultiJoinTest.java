@@ -314,9 +314,66 @@ public class MultiJoinTest extends TableTestBase {
                         + "LEFT JOIN Shipments s ON p.user_id_2 = s.user_id_3");
     }
 
-    /* Update this to supported with FLINK-37973 https://issues.apache.org/jira/browse/FLINK-37973 */
     @Test
-    void testRightJoinNotSupported() {
+    void testFourWayRightRightRightJoinRelPlan() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location "
+                        + "FROM Users u "
+                        + "RIGHT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "RIGHT JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
+                        + "RIGHT JOIN Shipments s ON p.user_id_2 = s.user_id_3");
+    }
+
+    @Test
+    void testFourWayRightRightInnerJoinRelPlan() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location "
+                        + "FROM Users u "
+                        + "RIGHT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "RIGHT JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
+                        + "INNER JOIN Shipments s ON p.user_id_2 = s.user_id_3");
+    }
+
+    @Test
+    void testFourWayRightInnerRightJoinRelPlan() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location "
+                        + "FROM Users u "
+                        + "RIGHT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
+                        + "RIGHT JOIN Shipments s ON p.user_id_2 = s.user_id_3");
+    }
+
+    @Test
+    void testFourWayInnerRightRightJoinRelPlan() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location "
+                        + "FROM Users u "
+                        + "INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "RIGHT JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
+                        + "RIGHT JOIN Shipments s ON p.user_id_2 = s.user_id_3");
+    }
+
+    @Test
+    void testThreeWayInnerRightJoin() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id "
+                        + "FROM Users u "
+                        + "INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "RIGHT JOIN Payments p ON o.user_id_1 = p.user_id_2");
+    }
+
+    @Test
+    void testThreeWayRightInnerJoin() {
+        util.verifyRelPlan(
+                "SELECT u.user_id_0, u.name, o.order_id, p.payment_id "
+                        + "FROM Users u "
+                        + "RIGHT JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "INNER JOIN Payments p ON o.user_id_1 = p.user_id_2");
+    }
+
+    @Test
+    void testThreeWayRightRightJoin() {
         util.verifyRelPlan(
                 "SELECT u.user_id_0, u.name, o.order_id, p.payment_id "
                         + "FROM Users u "

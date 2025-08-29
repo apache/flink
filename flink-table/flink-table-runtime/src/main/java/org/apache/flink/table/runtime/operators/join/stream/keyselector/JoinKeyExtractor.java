@@ -63,7 +63,7 @@ public interface JoinKeyExtractor extends Serializable {
      * @return A {@link RowData} representing the state lookup key. Can be null if no key can be
      *     derived (e.g., missing configuration, or a required row in `joinedRowData` is null).
      */
-    RowData getLeftSideJoinKey(int depth, RowData joinedRowData);
+    RowData getJoinedSideJoinKey(int depth, RowData joinedRowData);
 
     /**
      * Returns the type of the join key for a given input.

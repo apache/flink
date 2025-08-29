@@ -52,7 +52,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexShuttle;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayList;
@@ -84,6 +86,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     private static final String FIELD_NAME_JOIN_ATTRIBUTE_MAP = "joinAttributeMap";
     private static final String FIELD_NAME_INPUT_UNIQUE_KEYS = "inputUniqueKeys";
     private static final String FIELD_NAME_MULTI_JOIN_CONDITION = "multiJoinCondition";
+    private static final String FIELD_NAME_LEVELS = "levels";
 
     @JsonProperty(FIELD_NAME_JOIN_TYPES)
     private final List<FlinkJoinType> joinTypes;
@@ -112,6 +115,10 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private final List<StateMetadata> stateMetadataList;
 
+    @JsonProperty(FIELD_NAME_LEVELS)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final List<Integer> levels;
+
     public StreamExecMultiJoin(
             final ReadableConfig tableConfig,
             final List<FlinkJoinType> joinTypes,
@@ -119,6 +126,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             @Nullable final RexNode multiJoinCondition,
             final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
             final List<List<int[]>> inputUniqueKeys,
+            final List<Integer> levels,
             final Map<Integer, Long> stateTtlFromHint,
             final List<InputProperty> inputProperties,
             final RowType outputType,
@@ -132,6 +140,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                 multiJoinCondition,
                 joinAttributeMap,
                 inputUniqueKeys,
+                levels,
                 StateMetadata.getMultiInputOperatorDefaultMeta(
                         stateTtlFromHint, tableConfig, generateStateNames(inputProperties.size())),
                 inputProperties,
@@ -152,6 +161,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_JOIN_ATTRIBUTE_MAP)
                     final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
             @JsonProperty(FIELD_NAME_INPUT_UNIQUE_KEYS) final List<List<int[]>> inputUniqueKeys,
+            @JsonProperty(FIELD_NAME_LEVELS) final List<Integer> levels,
             @Nullable @JsonProperty(FIELD_NAME_STATE) final List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) final List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) final RowType outputType,
@@ -164,6 +174,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
         this.multiJoinCondition = multiJoinCondition;
         this.joinAttributeMap = Objects.requireNonNullElseGet(joinAttributeMap, Map::of);
         this.stateMetadataList = stateMetadataList;
+        this.levels = levels;
     }
 
     private void validateInputs(
@@ -212,7 +223,7 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
         }
 
         final JoinKeyExtractor keyExtractor =
-                new AttributeBasedJoinKeyExtractor(joinAttributeMap, inputRowTypes);
+                new AttributeBasedJoinKeyExtractor(joinAttributeMap, inputRowTypes, levels);
 
         final List<JoinInputSideSpec> inputSideSpecs = new ArrayList<>();
         for (int i = 0; i < numInputs; i++) {
@@ -233,7 +244,8 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                         inputTypeInfos,
                         inputSideSpecs,
                         generatedJoinConditions,
-                        keyExtractor);
+                        keyExtractor,
+                        levels);
 
         final List<KeySelector<RowData, RowData>> commonJoinKeySelectors =
                 createKeySelectors(planner, inputTypeInfos, keyExtractor);
@@ -261,24 +273,71 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             final ExecNodeConfig config,
             final ClassLoader classLoader,
             final List<RowType> inputRowTypes) {
+
         final GeneratedJoinCondition[] generatedJoinConditions =
                 new GeneratedJoinCondition[joinConditions.size()];
-        for (int i = 0; i < joinConditions.size(); i++) {
-            final RexNode rexCond = joinConditions.get(i);
-            if (rexCond == null) {
-                // No condition for this input, which is valid e.g. for the first input.
-                continue;
-            }
 
-            final GeneratedJoinCondition generatedCondition =
-                    generateJoinConditionForInput(config, classLoader, rexCond, inputRowTypes, i);
+        int leftIdx = 0;
+        int rightIdx = levels.size() - 1;
+        int shift = 0;
+        while (leftIdx < rightIdx) {
+            final RowType leftRowType;
+            final RowType rightRowType;
+            final int leftLevel = levels.get(leftIdx);
+            final int rightLevel = levels.get(rightIdx);
+            if (leftLevel > rightLevel) {
+                RexNode rexCond = joinConditions.get(leftIdx);
+                int finalShift = shift;
+                assert rexCond != null;
+                rexCond =
+                        rexCond.accept(
+                                new RexShuttle() {
+                                    @Override
+                                    public RexNode visitInputRef(RexInputRef inputRef) {
+                                        int newIdx = inputRef.getIndex() + finalShift;
+                                        return new RexInputRef(newIdx, inputRef.getType());
+                                    }
+                                });
+                leftRowType = inputRowTypes.get(leftIdx);
+                rightRowType = getTypeFromList(inputRowTypes.subList(leftIdx + 1, rightIdx + 1));
+                final GeneratedJoinCondition generatedCondition =
+                        generateJoinConditionForInput(
+                                config, classLoader, rexCond, leftRowType, rightRowType);
+                if (generatedCondition != null) {
+                    generatedJoinConditions[leftIdx] = generatedCondition;
+                }
 
-            // For the first input (i=0), there is no preceding input to join with,
-            // so no join condition is generated.
-            if (generatedCondition != null) {
-                generatedJoinConditions[i] = generatedCondition;
+                leftIdx += 1;
+                shift -= leftRowType.getFieldCount();
+            } else {
+                RexNode rexCond = joinConditions.get(rightIdx);
+                int finalShift = shift;
+                assert rexCond != null;
+                rexCond =
+                        rexCond.accept(
+                                new RexShuttle() {
+                                    @Override
+                                    public RexNode visitInputRef(RexInputRef inputRef) {
+                                        int newIdx = inputRef.getIndex() + finalShift;
+                                        return new RexInputRef(newIdx, inputRef.getType());
+                                    }
+                                });
+                if (leftLevel == rightLevel) {
+                    leftRowType = inputRowTypes.get(leftIdx);
+                } else {
+                    leftRowType = getTypeFromList(inputRowTypes.subList(leftIdx, rightIdx));
+                }
+                rightRowType = inputRowTypes.get(rightIdx);
+                final GeneratedJoinCondition generatedCondition =
+                        generateJoinConditionForInput(
+                                config, classLoader, rexCond, leftRowType, rightRowType);
+                if (generatedCondition != null) {
+                    generatedJoinConditions[rightIdx] = generatedCondition;
+                }
+                rightIdx -= 1;
             }
         }
+
         return generatedJoinConditions;
     }
 
@@ -287,7 +346,8 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             final List<InternalTypeInfo<RowData>> inputTypeInfos,
             final List<JoinInputSideSpec> inputSideSpecs,
             final GeneratedJoinCondition[] joinConditions,
-            final JoinKeyExtractor keyExtractor) {
+            final JoinKeyExtractor keyExtractor,
+            List<Integer> levels) {
         final List<Long> stateTtls =
                 StateMetadata.getStateTtlForMultiInputOperator(
                         config, inputTypeInfos.size(), stateMetadataList);
@@ -301,7 +361,8 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
                 stateRetentionTimes,
                 joinConditions,
                 keyExtractor,
-                joinAttributeMap);
+                joinAttributeMap,
+                levels);
     }
 
     private List<KeySelector<RowData, RowData>> createKeySelectors(
@@ -343,38 +404,20 @@ public class StreamExecMultiJoin extends ExecNodeBase<RowData>
             final ExecNodeConfig config,
             final ClassLoader classLoader,
             final RexNode joinCondition,
-            final List<RowType> inputRowTypes,
-            final int inputIndex) {
-        // Our join conditions are always associated with the left side (with the inputs to the
-        // left). For input 0, there is no input to the left, so there is no join condition.
-        if (inputIndex == 0) {
-            return null;
-        }
-
-        final RowType leftType = leftTypeForIndex(inputRowTypes, inputIndex);
-        final RowType rightType = inputRowTypes.get(inputIndex);
+            final RowType leftRowType,
+            final RowType rightRowType) {
 
         return JoinUtil.generateConditionFunction(
-                config, classLoader, joinCondition, leftType, rightType);
+                config, classLoader, joinCondition, leftRowType, rightRowType);
     }
 
     /**
-     * Calculates the accumulated {@link RowType} of all inputs to the left of a given input index.
-     *
-     * <p>For a multi-way join, the condition for input `i` is evaluated against the combined row of
-     * all inputs from `0` to `i-1`. This method computes the {@link RowType} for this combined row,
-     * which is essential for the code generation of the join condition. The resulting {@link
-     * RowType} is a flat structure of all fields from the preceding inputs.
+     * Calculates the accumulated {@link RowType} of all inputs from the list of input row types.
      */
-    private RowType leftTypeForIndex(final List<RowType> inputRowTypes, final int inputIndex) {
-        if (inputIndex <= 0) {
-            throw new IllegalArgumentException(
-                    "Input index must be greater than 0 for accumulated left type calculation");
-        }
+    private RowType getTypeFromList(final List<RowType> inputRowTypes) {
 
         final LogicalType[] fieldTypes =
                 inputRowTypes.stream()
-                        .limit(inputIndex)
                         .flatMap(rowType -> rowType.getChildren().stream())
                         .toArray(LogicalType[]::new);
 
