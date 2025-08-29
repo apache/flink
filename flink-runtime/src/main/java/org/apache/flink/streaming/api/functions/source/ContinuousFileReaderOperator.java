@@ -500,7 +500,11 @@ public class ContinuousFileReaderOperator<OUT, T extends TimestampedInputSplit>
         LOG.debug("cleanup, state={}", state);
 
         RunnableWithException[] runClose = {
-            () -> sourceContext.close(),
+            () -> {
+                if (sourceContext != null) {
+                    sourceContext.close();
+                }
+            },
             () -> format.close(),
             () -> {
                 if (this.format instanceof RichInputFormat) {

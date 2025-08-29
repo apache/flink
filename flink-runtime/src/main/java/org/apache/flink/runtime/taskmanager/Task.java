@@ -29,6 +29,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.security.FlinkSecurityManager;
@@ -612,6 +613,9 @@ public class Task
         // need to be undone in the end
         Map<String, Future<Path>> distributedCacheEntries = new HashMap<>();
         TaskInvokable invokable = null;
+        // Registry that can be used to execute actions after the task has already failed. These
+        // actions are fired in the registration order.
+        AutoCloseableRegistry postFailureCleanUpRegistry = new AutoCloseableRegistry(false);
 
         try {
             // ----------------------------
@@ -753,7 +757,7 @@ public class Task
             // by the time we switched to running.
             this.invokable = invokable;
 
-            restoreAndInvoke(invokable);
+            restoreAndInvoke(invokable, postFailureCleanUpRegistry);
 
             // make sure, we enter the catch block if the task leaves the invoke() method due
             // to the fact that it has been canceled
@@ -786,47 +790,8 @@ public class Task
             t = preProcessException(t);
 
             try {
-                // transition into our final state. we should be either in DEPLOYING, INITIALIZING,
-                // RUNNING, CANCELING, or FAILED
-                // loop for multiple retries during concurrent state changes via calls to cancel()
-                // or to failExternally()
-                while (true) {
-                    ExecutionState current = this.executionState;
-
-                    if (current == ExecutionState.RUNNING
-                            || current == ExecutionState.INITIALIZING
-                            || current == ExecutionState.DEPLOYING) {
-                        if (ExceptionUtils.findThrowable(t, CancelTaskException.class)
-                                .isPresent()) {
-                            if (transitionState(current, ExecutionState.CANCELED, t)) {
-                                cancelInvokable(invokable);
-                                break;
-                            }
-                        } else {
-                            if (transitionState(current, ExecutionState.FAILED, t)) {
-                                cancelInvokable(invokable);
-                                break;
-                            }
-                        }
-                    } else if (current == ExecutionState.CANCELING) {
-                        if (transitionState(current, ExecutionState.CANCELED)) {
-                            break;
-                        }
-                    } else if (current == ExecutionState.FAILED) {
-                        // in state failed already, no transition necessary any more
-                        break;
-                    }
-                    // unexpected state, go to failed
-                    else if (transitionState(current, ExecutionState.FAILED, t)) {
-                        LOG.error(
-                                "Unexpected state in task {} ({}) during an exception: {}.",
-                                taskNameWithSubtask,
-                                executionId,
-                                current);
-                        break;
-                    }
-                    // else fall through the loop and
-                }
+                transitionStateOnFailure(t, postFailureCleanUpRegistry);
+                postFailureCleanUpRegistry.close();
             } catch (Throwable tt) {
                 String message =
                         String.format(
@@ -885,6 +850,53 @@ public class Task
         }
     }
 
+    /**
+     * Transition into our final state in case of failure. We should be either in DEPLOYING,
+     * INITIALIZING, RUNNING, CANCELING, or FAILED. Loop for multiple retries in case of concurrent
+     * state changes via calls to cancel() or to failExternally()
+     */
+    private void transitionStateOnFailure(
+            Throwable t, AutoCloseableRegistry postFailureCleanUpRegistry) throws IOException {
+        while (true) {
+            ExecutionState current = this.executionState;
+
+            if (current == ExecutionState.RUNNING
+                    || current == ExecutionState.INITIALIZING
+                    || current == ExecutionState.DEPLOYING) {
+                if (ExceptionUtils.findThrowable(t, CancelTaskException.class).isPresent()) {
+                    if (transitionState(current, ExecutionState.CANCELED, t)) {
+                        postFailureCleanUpRegistry.registerCloseable(
+                                () -> cancelInvokable(invokable));
+                        break;
+                    }
+                } else {
+                    if (transitionState(current, ExecutionState.FAILED, t)) {
+                        postFailureCleanUpRegistry.registerCloseable(
+                                () -> cancelInvokable(invokable));
+                        break;
+                    }
+                }
+            } else if (current == ExecutionState.CANCELING) {
+                if (transitionState(current, ExecutionState.CANCELED)) {
+                    break;
+                }
+            } else if (current == ExecutionState.FAILED) {
+                // in state failed already, no transition necessary any more
+                break;
+            }
+            // unexpected state, go to failed
+            else if (transitionState(current, ExecutionState.FAILED, t)) {
+                LOG.error(
+                        "Unexpected state in task {} ({}) during an exception: {}.",
+                        taskNameWithSubtask,
+                        executionId,
+                        current);
+                break;
+            }
+            // else fall through the loop
+        }
+    }
+
     /** Unwrap, enrich and handle fatal errors. */
     private Throwable preProcessException(Throwable t) {
         // unwrap wrapped exceptions to make stack traces more compact
@@ -915,7 +927,8 @@ public class Task
         return t;
     }
 
-    private void restoreAndInvoke(TaskInvokable finalInvokable) throws Exception {
+    private void restoreAndInvoke(
+            TaskInvokable finalInvokable, AutoCloseableRegistry cleanUpRegistry) throws Exception {
         try {
             // switch to the INITIALIZING state, if that fails, we have been canceled/failed in the
             // meantime
@@ -941,11 +954,8 @@ public class Task
 
             runWithSystemExitMonitoring(finalInvokable::invoke);
         } catch (Throwable throwable) {
-            try {
-                runWithSystemExitMonitoring(() -> finalInvokable.cleanUp(throwable));
-            } catch (Throwable cleanUpThrowable) {
-                throwable.addSuppressed(cleanUpThrowable);
-            }
+            cleanUpRegistry.registerCloseable(
+                    () -> runWithSystemExitMonitoring(() -> finalInvokable.cleanUp(throwable)));
             throw throwable;
         }
         runWithSystemExitMonitoring(() -> finalInvokable.cleanUp(null));
