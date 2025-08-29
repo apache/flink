@@ -18,10 +18,14 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.Map;
 
 /**
  * Simple implementation of the {@link RequestSlotMatchingStrategy} that matches the pending
@@ -32,7 +36,9 @@ public enum SimpleRequestSlotMatchingStrategy implements RequestSlotMatchingStra
 
     @Override
     public Collection<RequestSlotMatch> matchRequestsAndSlots(
-            Collection<? extends PhysicalSlot> slots, Collection<PendingRequest> pendingRequests) {
+            Collection<? extends PhysicalSlot> slots,
+            Collection<PendingRequest> pendingRequests,
+            Map<ResourceID, LoadingWeight> taskExecutorsLoadingWeight) {
         final Collection<RequestSlotMatch> resultingMatches = new ArrayList<>();
 
         // if pendingRequests has a special order, then let's preserve it
