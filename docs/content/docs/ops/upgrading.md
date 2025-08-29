@@ -276,6 +276,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
 For more details, please take a look at the [savepoint documentation]({{< ref "docs/ops/state/savepoints" >}}).
 
 ## Compatibility Table
+> **Note:** For SQL/Table API jobs, even minor version upgrades (e.g., 1.16 → 1.20) can cause incompatible savepoints due to changes in query optimizers and operator topologies. See the [Table API & SQL](#table-api--sql) section above for important compatibility considerations.
 
 Savepoints are compatible across Flink versions as indicated by the table below:
 
@@ -287,7 +288,9 @@ Savepoints are compatible across Flink versions as indicated by the table below:
       <th class="text-center">1.18.x</th>
       <th class="text-center">1.19.x</th>
       <th class="text-center">1.20.x</th>
-      <th class="text-center" style="width: 50%">Limitations</th>
+      <th class="text-center">2.0.x</th>
+      <th class="text-center">2.1.x</th>
+      <th class="text-center" style="width: 40%">Limitations</th>
     </tr>
   </thead>
   <tbody>
@@ -297,6 +300,8 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -305,6 +310,8 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -313,6 +320,8 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -321,6 +330,8 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
     </tr>
     <tr>
@@ -329,6 +340,8 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
@@ -337,6 +350,8 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left">Don't upgrade from 1.12.x to 1.13.x with an unaligned checkpoint. Please use a savepoint for migrating.</td>
         </tr>
     <tr>
@@ -345,6 +360,8 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
@@ -353,6 +370,8 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left">
             For Table API: 1.15.0 and 1.15.1 generated non-deterministic UIDs for operators that 
             make it difficult/impossible to restore state or upgrade to next patch version. A new 
@@ -369,6 +388,8 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
@@ -377,6 +398,8 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
@@ -385,6 +408,8 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center">O</td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
@@ -393,10 +418,34 @@ Savepoints are compatible across Flink versions as indicated by the table below:
           <td class="text-center"></td>
           <td class="text-center">O</td>
           <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-left"></td>
         </tr>
     <tr>
           <td class="text-center"><strong>1.20.x</strong></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center">O</td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-left"></td>
+        </tr>
+    <tr>
+          <td class="text-center"><strong>2.0.x</strong></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
+          <td class="text-center">O</td>
+          <td class="text-center">O</td>
+          <td class="text-left">State compatibility is not guaranteed between 1.x and 2.x.</td>
+        </tr>
+    <tr>
+          <td class="text-center"><strong>2.1.x</strong></td>
+          <td class="text-center"></td>
+          <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
           <td class="text-center"></td>
