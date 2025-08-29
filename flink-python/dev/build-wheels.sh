@@ -15,41 +15,35 @@
 # limitations under the License.
 set -e -x
 
-## 1. install python env
-dev/lint-python.sh -s py_env
+## 1. Setup virtual environment with uv
+dev/lint-python.sh -s basic
 
-PY_ENV_DIR=`pwd`/dev/.uv/envs
-py_env=("3.9" "3.10" "3.11" "3.12")
-## 2. install dependency
-for ((i=0;i<${#py_env[@]};i++)) do
-    source `pwd`/dev/.uv/envs/${py_env[i]}/bin/activate
-    echo "Installing dependencies for environment: ${py_env[i]}"
-    uv pip install --group dev
-    deactivate
+python_versions=("3.9" "3.10" "3.11" "3.12")
+
+if [[ "$(uname)" != "Darwin" ]]; then
+    # force the linker to use the older glibc version in Linux
+    export CFLAGS="-I. -include dev/glibc_version_fix.h"
+fi
+
+source "$(pwd)"/dev/.uv/bin/activate
+
+## 2. Build wheels for each Python version
+for ((i=0;i<${#python_versions[@]};i++)) do
+    echo "Building wheel for Python: ${python_versions[i]}"
+    uv build --wheel --python "${python_versions[i]}"
 done
 
-## 3. build wheels
-for ((i=0;i<${#py_env[@]};i++)) do
-    echo "Building wheel for environment: ${py_env[i]}"
-    if [[ "$(uname)" != "Darwin" ]]; then
-        # force the linker to use the older glibc version in Linux
-        export CFLAGS="-I. -include dev/glibc_version_fix.h"
-    fi
-    ${PY_ENV_DIR}/${py_env[i]}/bin/python setup.py bdist_wheel
-done
-
-## 4. convert linux_x86_64 wheel to manylinux1 wheel in Linux
+## 3. Convert linux_x86_64 wheel to manylinux1 wheel in Linux
 if [[ "$(uname)" != "Darwin" ]]; then
     echo "Converting linux_x86_64 wheel to manylinux1"
-    source `pwd`/dev/.uv/bin/activate
-    # 4.1 install patchelf and auditwheel
-    uv pip install patchelf==0.17.2.1 auditwheel==3.2.0
-    # 4.2 convert Linux wheel
     for wheel_file in dist/*.whl; do
-        auditwheel repair ${wheel_file} -w dist
-        rm -f ${wheel_file}
+        uv run --group auditwheel auditwheel repair "${wheel_file}" -w dist
+        rm -f "${wheel_file}"
     done
-    deactivate
 fi
-## see the result
+
+deactivate
+
+## 4. Output the result
+echo "Build finished - created the following wheels:"
 ls -al dist/
