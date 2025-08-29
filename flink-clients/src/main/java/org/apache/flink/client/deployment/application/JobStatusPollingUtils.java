@@ -38,12 +38,13 @@ class JobStatusPollingUtils {
      * state, it requests its {@link JobResult}.
      *
      * @param dispatcherGateway the {@link DispatcherGateway} to be used for requesting the details
-     *     of the job.
+     *         of the job.
      * @param jobId the id of the job
      * @param scheduledExecutor the executor to be used to periodically request the status of the
-     *     job
+     *         job
      * @param rpcTimeout the timeout of the rpc
      * @param retryPeriod the interval between two consecutive job status requests
+     *
      * @return a future that will contain the job's {@link JobResult}.
      */
     static CompletableFuture<JobResult> getJobResult(
@@ -82,42 +83,33 @@ class JobStatusPollingUtils {
             final CompletableFuture<JobResult> resultFuture,
             final long retryMsTimeout,
             final long attempt) {
-
-        jobStatusSupplier
-                .get()
-                .whenComplete(
-                        (jobStatus, throwable) -> {
-                            if (throwable != null) {
-                                resultFuture.completeExceptionally(throwable);
-                            } else {
-                                if (jobStatus.isGloballyTerminalState()) {
-                                    jobResultSupplier
-                                            .get()
-                                            .whenComplete(
-                                                    (jobResult, t) -> {
-                                                        if (t != null) {
-                                                            resultFuture.completeExceptionally(t);
-                                                        } else {
-                                                            resultFuture.complete(jobResult);
-                                                        }
-                                                    });
-                                } else {
-                                    scheduledExecutor.schedule(
-                                            () -> {
-                                                pollJobResultAsync(
-                                                        jobStatusSupplier,
-                                                        jobResultSupplier,
-                                                        scheduledExecutor,
-                                                        resultFuture,
-                                                        retryMsTimeout,
-                                                        attempt + 1);
-                                            },
-                                            retryMsTimeout,
-                                            TimeUnit.MILLISECONDS);
-                                }
-                            }
-                        });
-
+        jobStatusSupplier.get().whenComplete((jobStatus, throwable) -> {
+            if (throwable != null) {
+                resultFuture.completeExceptionally(throwable);
+                return;
+            }
+            if (jobStatus.isGloballyTerminalState()) {
+                jobResultSupplier.get().whenComplete((jobResult, t) -> {
+                    if (t != null) {
+                        resultFuture.completeExceptionally(t);
+                    } else {
+                        resultFuture.complete(jobResult);
+                    }
+                });
+            } else {
+                scheduledExecutor.schedule(
+                        () -> pollJobResultAsync(
+                                jobStatusSupplier,
+                                jobResultSupplier,
+                                scheduledExecutor,
+                                resultFuture,
+                                retryMsTimeout,
+                                attempt + 1),
+                        retryMsTimeout,
+                        TimeUnit.MILLISECONDS
+                );
+            }
+        });
         return resultFuture;
     }
 }
