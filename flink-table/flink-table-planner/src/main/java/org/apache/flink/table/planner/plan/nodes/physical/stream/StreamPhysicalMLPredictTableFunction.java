@@ -51,7 +51,6 @@ import org.apache.calcite.sql.SqlDescriptorOperator;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -59,29 +58,30 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static org.apache.calcite.sql.SqlKind.MAP_VALUE_CONSTRUCTOR;
-
 /** Stream physical RelNode for ml predict table function. */
 public class StreamPhysicalMLPredictTableFunction extends SingleRel implements StreamPhysicalRel {
 
     private final RelDataType outputRowType;
     private final FlinkLogicalTableFunctionScan scan;
+    private final Map<String, String> runtimeConfig;
 
     public StreamPhysicalMLPredictTableFunction(
             RelOptCluster cluster,
             RelTraitSet traits,
             RelNode inputRel,
             FlinkLogicalTableFunctionScan scan,
-            RelDataType outputRowType) {
+            RelDataType outputRowType,
+            Map<String, String> runtimeConfig) {
         super(cluster, traits, inputRel);
         this.scan = scan;
         this.outputRowType = outputRowType;
+        this.runtimeConfig = runtimeConfig;
     }
 
     @Override
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
         return new StreamPhysicalMLPredictTableFunction(
-                getCluster(), traitSet, inputs.get(0), scan, getRowType());
+                getCluster(), traitSet, inputs.get(0), scan, getRowType(), runtimeConfig);
     }
 
     @Override
@@ -92,7 +92,6 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
     @Override
     public ExecNode<?> translateToExecNode() {
         RexModelCall modelCall = extractOperand(operand -> operand instanceof RexModelCall);
-        Map<String, String> runtimeConfig = buildRuntimeConfig();
         return new StreamExecMLPredictTableFunction(
                 ShortcutUtils.unwrapTableConfig(this),
                 buildMLPredictSpec(runtimeConfig),
@@ -169,23 +168,6 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
         } else {
             return null;
         }
-    }
-
-    private Map<String, String> buildRuntimeConfig() {
-        Optional<RexCall> optionalMapConstructor =
-                extractOptionalOperand(operand -> operand.getKind() == MAP_VALUE_CONSTRUCTOR);
-        if (optionalMapConstructor.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        RexCall mapConstructor = optionalMapConstructor.get();
-        Map<String, String> reducedConfig = new HashMap<>();
-        assert mapConstructor.getOperands().size() % 2 == 0;
-        for (int i = 0; i < mapConstructor.getOperands().size(); i += 2) {
-            String key = RexLiteral.stringValue(mapConstructor.getOperands().get(i));
-            String value = RexLiteral.stringValue(mapConstructor.getOperands().get(i + 1));
-            reducedConfig.put(key, value);
-        }
-        return reducedConfig;
     }
 
     @SuppressWarnings("unchecked")
