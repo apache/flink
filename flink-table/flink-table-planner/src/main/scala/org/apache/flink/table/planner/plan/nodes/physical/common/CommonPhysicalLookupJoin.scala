@@ -21,7 +21,7 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.catalog.{ObjectIdentifier, UniqueConstraint}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec
+import org.apache.flink.table.planner.plan.abilities.source.{FilterPushDownSpec, PartitionPushDownSpec}
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 import org.apache.flink.table.planner.plan.schema.{IntermediateRelTable, LegacyTableSourceTable, TableSourceTable}
@@ -202,7 +202,7 @@ abstract class CommonPhysicalLookupJoin(
       .item("joinType", JoinTypeUtil.getFlinkJoinType(joinType))
       .item("lookup", lookupKeys)
       .itemIf("where", whereString, whereString.nonEmpty)
-      .itemIf("filter", filterPushdownString, filterPushdownString.nonEmpty)
+      .itemIf("filterPushDown", filterPushdownString, filterPushdownString.nonEmpty)
       .itemIf(
         "joinCondition",
         joinConditionToString(resultFieldNames, preferExpressionFormat(pw), pw.getDetailLevel),
@@ -217,7 +217,9 @@ abstract class CommonPhysicalLookupJoin(
 
   private def getTableFilterString(t: TableSourceTable): String = {
     val filterOpt = t.abilitySpecs.collectFirst { case spec: FilterPushDownSpec => spec }
-    filterOpt match {
+    val partitionOpt = t.abilitySpecs.collectFirst { case spec: PartitionPushDownSpec => spec }
+
+    val filterString = filterOpt match {
       case Some(filter) if !filter.getPredicates.isEmpty =>
         val fieldNames = JavaScalaConversionUtil.toScala(t.getRowType.getFieldNames)
         val predicates = JavaScalaConversionUtil.toScala(filter.getPredicates)
@@ -226,6 +228,19 @@ abstract class CommonPhysicalLookupJoin(
           .reduceOption((l, r) => String.format("and(%s, %s)", l, r))
           .getOrElse("")
       case _ => ""
+    }
+
+    val partitionString = partitionOpt match {
+      case Some(partition) if !partition.getPartitions.isEmpty =>
+        s"partitions=${partition.getDigests(null)}"
+      case _ => ""
+    }
+
+    (filterString, partitionString) match {
+      case ("", "") => ""
+      case (f, "") => f
+      case ("", p) => p
+      case (f, p) => s"$f, $p"
     }
   }
 
