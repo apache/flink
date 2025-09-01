@@ -33,6 +33,7 @@ import java.rmi.NoSuchObjectException;
 import java.rmi.NotBoundException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.concurrent.atomic.AtomicReference;
@@ -49,14 +50,14 @@ class JMXServer {
 
     private final AtomicReference<Remote> rmiServerReference = new AtomicReference<>();
 
-    private Registry rmiRegistry;
+    private JmxRegistry jmxRegistry;
     private JMXConnectorServer connector;
     private int port;
 
     JMXServer() {}
 
     void start(int port) throws IOException {
-        if (rmiRegistry != null && connector != null) {
+        if (jmxRegistry != null && connector != null) {
             LOG.debug("JMXServer is already running.");
             return;
         }
@@ -73,13 +74,13 @@ class JMXServer {
                 connector = null;
             }
         }
-        if (rmiRegistry != null) {
+        if (jmxRegistry != null) {
             try {
-                UnicastRemoteObject.unexportObject(rmiRegistry, true);
+                jmxRegistry.unexport();
             } catch (NoSuchObjectException e) {
                 throw new IOException("Could not un-export our RMI registry", e);
             } finally {
-                rmiRegistry = null;
+                jmxRegistry = null;
             }
         }
     }
@@ -92,7 +93,7 @@ class JMXServer {
         rmiServerReference.set(null);
 
         // this allows clients to lookup the JMX service
-        rmiRegistry = new JmxRegistry(port, "jmxrmi", rmiServerReference);
+        jmxRegistry = new JmxRegistry(port, "jmxrmi", rmiServerReference);
 
         String serviceUrl =
                 "service:jmx:rmi://localhost:" + port + "/jndi/rmi://localhost:" + port + "/jmxrmi";
@@ -120,7 +121,8 @@ class JMXServer {
 
     /** A registry that only exposes a single remote object. */
     @SuppressWarnings("restriction")
-    private static class JmxRegistry extends sun.rmi.registry.RegistryImpl {
+    private static class JmxRegistry implements Registry {
+        private final Registry registry;
         private final String lookupName;
         private final AtomicReference<Remote> remoteServerStub;
 
@@ -129,7 +131,7 @@ class JMXServer {
                 final String lookupName,
                 final AtomicReference<Remote> remoteServerStub)
                 throws RemoteException {
-            super(port);
+            this.registry = LocateRegistry.createRegistry(port);
             this.lookupName = lookupName;
             this.remoteServerStub = remoteServerStub;
         }
@@ -163,6 +165,10 @@ class JMXServer {
         @Override
         public String[] list() {
             return new String[] {lookupName};
+        }
+
+        public void unexport() throws NoSuchObjectException {
+            UnicastRemoteObject.unexportObject(registry, true);
         }
     }
 }
