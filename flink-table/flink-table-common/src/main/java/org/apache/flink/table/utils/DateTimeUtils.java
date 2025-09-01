@@ -800,7 +800,7 @@ public class DateTimeUtils {
 
             return toFormatter.format(date);
         } catch (ParseException e) {
-            LOG.error(
+            LOG.debug(
                     "Exception when formatting: '"
                             + dateStr
                             + "' from: '"
@@ -809,8 +809,7 @@ public class DateTimeUtils {
                             + toFormat
                             + "' with offsetMills: '"
                             + offsetMills
-                            + "'",
-                    e);
+                            + "'");
             return null;
         }
     }
@@ -1011,11 +1010,10 @@ public class DateTimeUtils {
             Date date = formatter.parse(dateStr);
             return date.getTime();
         } catch (ParseException e) {
-            LOG.error(
+            LOG.debug(
                     String.format(
                             "Exception when parsing datetime string '%s' in format '%s'",
-                            dateStr, format),
-                    e);
+                            dateStr, format));
             return Long.MIN_VALUE;
         }
     }
