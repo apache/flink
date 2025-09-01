@@ -27,12 +27,12 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.test.util.TestBaseUtils;
 import org.apache.flink.util.CollectionUtil;
 
 import org.apache.avro.util.Utf8;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -51,7 +51,7 @@ import static org.apache.flink.table.api.Expressions.$;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for interoperability with Avro types. */
-public class AvroTypesITCase extends AbstractTestBaseJUnit4 {
+class AvroTypesITCase extends AbstractTestBase {
 
     private static final User USER_1 =
             User.newBuilder()
@@ -79,7 +79,7 @@ public class AvroTypesITCase extends AbstractTestBaseJUnit4 {
                                     .build())
                     .setTypeBytes(ByteBuffer.allocate(10))
                     .setTypeDate(LocalDate.parse("2014-03-01"))
-                    .setTypeTimeMillis(LocalTime.parse("12:12:12"))
+                    .setTypeTimeMillis(LocalTime.parse("12:12:12.345"))
                     .setTypeTimeMicros(LocalTime.ofSecondOfDay(0).plus(123456L, ChronoUnit.MICROS))
                     .setTypeTimestampMillis(Instant.parse("2014-03-01T12:12:12.321Z"))
                     .setTypeTimestampMicros(
@@ -152,7 +152,7 @@ public class AvroTypesITCase extends AbstractTestBaseJUnit4 {
                     .build();
 
     @Test
-    public void testAvroToRow() throws Exception {
+    void testAvroToRow() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
@@ -167,7 +167,7 @@ public class AvroTypesITCase extends AbstractTestBaseJUnit4 {
         String expected =
                 "+I[Charlie, null, blue, 1337, 1.337, null, false, [], [], null, RED, {}, null, null, "
                         + "{\"num\": 42, \"street\": \"Bakerstreet\", \"city\": \"Berlin\", \"state\": \"Berlin\", \"zip\": \"12049\"}, "
-                        + "java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], 2014-03-01, 12:12:12, 00:00:00.123456, 2014-03-01T12:12:12.321Z, "
+                        + "java.nio.HeapByteBuffer[pos=0 lim=10 cap=10], 2014-03-01, 12:12:12.345, 00:00:00.123456, 2014-03-01T12:12:12.321Z, "
                         + "1970-01-01T00:00:00.123456Z, java.nio.HeapByteBuffer[pos=0 lim=2 cap=2], [7, -48]]\n"
                         + "+I[Whatever, null, black, 42, 0.0, null, true, [hello], [true], null, GREEN, {}, "
                         + "[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], null, null, "
@@ -181,7 +181,7 @@ public class AvroTypesITCase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
-    public void testAvroStringAccess() {
+    void testAvroStringAccess() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
@@ -198,7 +198,7 @@ public class AvroTypesITCase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
-    public void testAvroObjectAccess() throws Exception {
+    void testAvroObjectAccess() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
@@ -217,7 +217,7 @@ public class AvroTypesITCase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
-    public void testAvroToAvro() throws Exception {
+    void testAvroToAvro() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment tEnv = StreamTableEnvironment.create(env);
 
