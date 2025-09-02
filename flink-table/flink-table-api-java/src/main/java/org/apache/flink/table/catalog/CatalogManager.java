@@ -905,6 +905,36 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     }
 
     /**
+     * Returns an array of names of all views(both temporary and permanent) registered in the
+     * namespace of the current catalog and database.
+     *
+     * @return names of all registered views
+     */
+    public Set<String> listMaterializedTables() {
+        return listMaterializedTables(getCurrentCatalog(), getCurrentDatabase());
+    }
+
+    /**
+     * Returns an array of names of all views(both temporary and permanent) registered in the
+     * namespace of the given catalog and database.
+     *
+     * @return names of registered views
+     */
+    public Set<String> listMaterializedTables(String catalogName, String databaseName) {
+        Catalog catalog = getCatalogOrThrowException(catalogName);
+        if (catalog == null) {
+            throw new ValidationException(String.format("Catalog %s does not exist", catalogName));
+        }
+
+        try {
+            return new HashSet<>(catalog.listMaterializedTables(databaseName));
+        } catch (DatabaseNotExistException e) {
+            throw new ValidationException(
+                    String.format("Database %s does not exist", databaseName), e);
+        }
+    }
+
+    /**
      * Lists all available schemas in the root of the catalog manager. It is not equivalent to
      * listing all catalogs as it includes also different catalog parts of the temporary objects.
      *

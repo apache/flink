@@ -44,6 +44,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -325,35 +326,20 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 
     @Override
     public List<String> listTables(String databaseName) throws DatabaseNotExistException {
-        checkArgument(
-                !StringUtils.isNullOrWhitespaceOnly(databaseName),
-                "databaseName cannot be null or empty");
-
-        if (!databaseExists(databaseName)) {
-            throw new DatabaseNotExistException(getName(), databaseName);
-        }
-
-        return tables.keySet().stream()
-                .filter(k -> k.getDatabaseName().equals(databaseName))
-                .map(k -> k.getObjectName())
-                .collect(Collectors.toList());
+        return listObjectsUnderDatabase(tables, databaseName, objectPath -> true);
     }
 
     @Override
     public List<String> listViews(String databaseName) throws DatabaseNotExistException {
-        checkArgument(
-                !StringUtils.isNullOrWhitespaceOnly(databaseName),
-                "databaseName cannot be null or empty");
+        return listObjectsUnderDatabase(
+                tables, databaseName, k -> (tables.get(k) instanceof CatalogView));
+    }
 
-        if (!databaseExists(databaseName)) {
-            throw new DatabaseNotExistException(getName(), databaseName);
-        }
-
-        return tables.keySet().stream()
-                .filter(k -> k.getDatabaseName().equals(databaseName))
-                .filter(k -> (tables.get(k) instanceof CatalogView))
-                .map(k -> k.getObjectName())
-                .collect(Collectors.toList());
+    @Override
+    public List<String> listMaterializedTables(String databaseName)
+            throws DatabaseNotExistException {
+        return listObjectsUnderDatabase(
+                tables, databaseName, k -> (tables.get(k) instanceof CatalogMaterializedTable));
     }
 
     @Override
@@ -447,18 +433,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 
     @Override
     public List<String> listModels(String databaseName) throws DatabaseNotExistException {
-        checkArgument(
-                !StringUtils.isNullOrWhitespaceOnly(databaseName),
-                "databaseName cannot be null or empty");
-
-        if (!databaseExists(databaseName)) {
-            throw new DatabaseNotExistException(getName(), databaseName);
-        }
-
-        return models.keySet().stream()
-                .filter(k -> k.getDatabaseName().equals(databaseName))
-                .map(k -> k.getObjectName())
-                .collect(Collectors.toList());
+        return listObjectsUnderDatabase(models, databaseName, k -> true);
     }
 
     @Override
@@ -543,18 +518,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
 
     @Override
     public List<String> listFunctions(String databaseName) throws DatabaseNotExistException {
-        checkArgument(
-                !StringUtils.isNullOrWhitespaceOnly(databaseName),
-                "databaseName cannot be null or empty");
-
-        if (!databaseExists(databaseName)) {
-            throw new DatabaseNotExistException(getName(), databaseName);
-        }
-
-        return functions.keySet().stream()
-                .filter(k -> k.getDatabaseName().equals(databaseName))
-                .map(k -> k.getObjectName())
-                .collect(Collectors.toList());
+        return listObjectsUnderDatabase(functions, databaseName, k -> true);
     }
 
     @Override
@@ -903,5 +867,23 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
         } else if (!ignoreIfNotExists) {
             throw new PartitionNotExistException(getName(), tablePath, partitionSpec);
         }
+    }
+
+    private List<String> listObjectsUnderDatabase(
+            Map<ObjectPath, ?> map, String databaseName, Predicate<ObjectPath> filter)
+            throws DatabaseNotExistException {
+        checkArgument(
+                !StringUtils.isNullOrWhitespaceOnly(databaseName),
+                "databaseName cannot be null or empty");
+
+        if (!databaseExists(databaseName)) {
+            throw new DatabaseNotExistException(getName(), databaseName);
+        }
+
+        return map.keySet().stream()
+                .filter(k -> k.getDatabaseName().equals(databaseName))
+                .filter(filter)
+                .map(ObjectPath::getObjectName)
+                .collect(Collectors.toList());
     }
 }

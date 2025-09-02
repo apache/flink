@@ -42,7 +42,14 @@ public class SqlShowToOperationConverterTest extends SqlNodeToOperationConversio
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"SHOW TABLES", "SHOW VIEWS", "SHOW FUNCTIONS", "SHOW PROCEDURES"})
+    @ValueSource(
+            strings = {
+                "SHOW TABLES",
+                "SHOW VIEWS",
+                "SHOW FUNCTIONS",
+                "SHOW PROCEDURES",
+                "SHOW MATERIALIZED TABLES"
+            })
     void testParseShowFunctionForUnsetCatalog(String sql) {
         catalogManager.setCurrentCatalog(null);
         // No exception should be thrown during parsing.
@@ -51,7 +58,14 @@ public class SqlShowToOperationConverterTest extends SqlNodeToOperationConversio
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"SHOW TABLES", "SHOW VIEWS", "SHOW FUNCTIONS", "SHOW PROCEDURES"})
+    @ValueSource(
+            strings = {
+                "SHOW TABLES",
+                "SHOW VIEWS",
+                "SHOW FUNCTIONS",
+                "SHOW PROCEDURES",
+                "SHOW MATERIALIZED TABLES"
+            })
     void testParseShowFunctionForUnsetDatabase(String sql) {
         catalogManager.setCurrentDatabase(null);
         // No exception should be thrown during parsing.
