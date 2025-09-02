@@ -23,9 +23,11 @@ import org.apache.flink.table.annotation.ArgumentHint;
 import org.apache.flink.table.annotation.ArgumentTrait;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.StateHint;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.ChangelogFunction;
 import org.apache.flink.table.functions.ProcessTableFunction;
@@ -33,6 +35,9 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.runtime.operators.process.AbstractProcessTableOperator.RunnerContext;
 import org.apache.flink.table.test.program.SourceTestStep;
+import org.apache.flink.table.types.inference.StaticArgument;
+import org.apache.flink.table.types.inference.StaticArgumentTrait;
+import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
@@ -40,10 +45,12 @@ import org.apache.flink.types.RowKind;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.annotation.ArgumentTrait.OPTIONAL_PARTITION_BY;
@@ -230,6 +237,53 @@ public class ProcessTableFunctionTestUtils {
                             "Clearing all timers at time %s watermark %s",
                             timeCtx.time(), timeCtx.currentWatermark()));
             timeCtx.clearAllTimers();
+        }
+    }
+
+    /** Testing function. */
+    public static class NoSystemArgsTableFunction extends AppendProcessTableFunctionBase {
+        public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+            return TypeInference.newBuilder()
+                    .allowSystemArguments(false)
+                    .staticArguments(
+                            StaticArgument.table(
+                                    "r", Row.class, false, EnumSet.of(StaticArgumentTrait.TABLE)),
+                            StaticArgument.scalar("i", DataTypes.INT(), false))
+                    .outputTypeStrategy(
+                            callContext ->
+                                    Optional.of(
+                                            DataTypes.ROW(
+                                                            DataTypes.FIELD(
+                                                                    "out",
+                                                                    DataTypes.STRING().notNull()))
+                                                    .notNull()))
+                    .build();
+        }
+
+        public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row r, Integer i) {
+            collectObjects(r, i);
+        }
+    }
+
+    /** Testing function. */
+    public static class NoSystemArgsScalarFunction extends AppendProcessTableFunctionBase {
+        public TypeInference getTypeInference(DataTypeFactory typeFactory) {
+            return TypeInference.newBuilder()
+                    .allowSystemArguments(false)
+                    .staticArguments(StaticArgument.scalar("i", DataTypes.INT(), false))
+                    .outputTypeStrategy(
+                            callContext ->
+                                    Optional.of(
+                                            DataTypes.ROW(
+                                                            DataTypes.FIELD(
+                                                                    "out",
+                                                                    DataTypes.STRING().notNull()))
+                                                    .notNull()))
+                    .build();
+        }
+
+        public void eval(Integer i) {
+            collectObjects(i);
         }
     }
 

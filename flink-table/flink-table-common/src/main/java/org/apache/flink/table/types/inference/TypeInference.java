@@ -260,6 +260,11 @@ public final class TypeInference {
             return this;
         }
 
+        /**
+         * Sets whether system arguments are allowed in addition to the declared arguments for PTFs.
+         * If disabled, uid and time attributes arguments will not be added to PTF input arguments
+         * automatically.
+         */
         public Builder allowSystemArguments(boolean allowSystemArguments) {
             this.allowSystemArguments = allowSystemArguments;
             return this;
