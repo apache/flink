@@ -17,16 +17,15 @@
  */
 package org.apache.flink.table.planner.expressions
 
-import org.apache.flink.table.api._
 import org.apache.flink.table.api.Expressions.toTimestampLtz
+import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.TimeIntervalUnit
 import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
-import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TableConfigUtils}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
+import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TableConfigUtils}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
-
 import org.junit.jupiter.api.Test
 
 import java.lang.{Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong}
@@ -610,7 +609,7 @@ class TemporalTypesTest extends ExpressionTestBase {
   @Test
   def testDateAndTime(): Unit = {
     testSqlApi("DATE '2018-03-14'", "2018-03-14")
-    testSqlApi("TIME '19:01:02.123'", "19:01:02")
+    testSqlApi("TIME '19:01:02.123'", "19:01:02.123")
 
     // DATE & TIME
     testSqlApi("CAST('12:44:31' AS TIME)", "12:44:31")
