@@ -453,6 +453,9 @@ object BuiltInMethods {
   val TRUNCATE_SQL_TIMESTAMP =
     Types.lookupMethod(classOf[DateTimeUtils], "truncate", classOf[TimestampData], classOf[Int])
 
+  val TRUNCATE_SQL_TIME =
+    Types.lookupMethod(classOf[DateTimeUtils], "truncate", classOf[Int], classOf[Int])
+
   val ADD_MONTHS =
     Types.lookupMethod(classOf[DateTimeUtils], "addMonths", classOf[Long], classOf[Int])
 

@@ -764,6 +764,67 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // ROW
                         // RAW
                         .build(),
+                CastTestSpecBuilder.testCastTo(TIME(3))
+                        .fromCase(TIME(), null, null)
+                        .failRuntime(CHAR(3), "foo", DateTimeException.class)
+                        .failRuntime(VARCHAR(5), "Flink", DateTimeException.class)
+                        .failRuntime(STRING(), "Flink", DateTimeException.class)
+                        .failRuntime(STRING(), "123", DateTimeException.class)
+                        .failRuntime(STRING(), "123:45", DateTimeException.class)
+                        .failRuntime(STRING(), "2021-09-27", DateTimeException.class)
+                        .failRuntime(STRING(), "2021-09-27 12:34:56", DateTimeException.class)
+                        .fromCase(STRING(), "23", LocalTime.of(23, 0, 0, 0))
+                        .fromCase(STRING(), "23:45", LocalTime.of(23, 45, 0, 0))
+                        .fromCase(
+                                STRING(),
+                                "12:34:56.123456789",
+                                LocalTime.of(12, 34, 56, 123_000_000))
+                        .failRuntime(
+                                STRING(), "2021-09-27 12:34:56.123456789", DateTimeException.class)
+                        // Not supported - no fix
+                        .failValidation(BOOLEAN(), true)
+                        .failTableApiValidation(BINARY(2), DEFAULT_BINARY)
+                        .failTableApiValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failTableApiValidation(BYTES(), DEFAULT_BYTES)
+                        .failValidation(DECIMAL(5, 3), 12.345)
+                        .failValidation(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
+                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
+                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
+                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
+                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .fromCase(TIME(5), DEFAULT_TIME, LocalTime.of(12, 34, 56, 123_000_000))
+                        .fromCase(
+                                TIMESTAMP(),
+                                DEFAULT_TIMESTAMP,
+                                LocalTime.of(12, 34, 56, 123_000_000))
+                        .fromCase(
+                                TIMESTAMP(4),
+                                DEFAULT_TIMESTAMP,
+                                LocalTime.of(12, 34, 56, 123_000_000))
+
+                        // https://issues.apache.org/jira/browse/FLINK-20869
+                        // TIMESTAMP_WITH_TIME_ZONE
+
+                        // https://issues.apache.org/jira/browse/FLINK-24422 - Accept only Instant
+                        .fromCase(
+                                TIMESTAMP_LTZ(4),
+                                DEFAULT_TIMESTAMP,
+                                LocalTime.of(12, 34, 56, 123_000_000))
+                        .fromCase(
+                                TIMESTAMP_LTZ(4),
+                                DEFAULT_TIMESTAMP_LTZ,
+                                LocalTime.of(7, 54, 56, 123_000_000))
+                        // Not supported - no fix
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
+                        // MULTISET
+                        // MAP
+                        // ROW
+                        // RAW
+                        .build(),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP(9))
                         .fromCase(TIMESTAMP(), null, null)
                         .failRuntime(CHAR(3), "foo", DateTimeException.class)
@@ -795,7 +856,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         // https://issues.apache.org/jira/browse/FLINK-24423 Continue using EPOCH
                         // date or use 0 for the year?
                         .fromCase(
-                                TIME(5), DEFAULT_TIME, LocalDateTime.of(1970, 1, 1, 12, 34, 56, 0))
+                                TIME(5),
+                                DEFAULT_TIME,
+                                LocalDateTime.of(1970, 1, 1, 12, 34, 56, 123_000_000))
                         .fromCase(
                                 TIMESTAMP(),
                                 DEFAULT_TIMESTAMP,
@@ -875,7 +938,8 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(
                                 TIME(5),
                                 DEFAULT_TIME,
-                                fromLocalToUTC(LocalDateTime.of(1970, 1, 1, 12, 34, 56, 0)))
+                                fromLocalToUTC(
+                                        LocalDateTime.of(1970, 1, 1, 12, 34, 56, 123_000_000)))
                         .fromCase(
                                 TIMESTAMP(),
                                 DEFAULT_TIMESTAMP,
@@ -1039,9 +1103,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                                 DEFAULT_NEGATIVE_DOUBLE,
                                 String.valueOf(DEFAULT_NEGATIVE_DOUBLE))
                         .fromCase(DATE(), DEFAULT_DATE, "2021-09-24")
-                        // https://issues.apache.org/jira/browse/FLINK-17224 Currently, fractional
-                        // seconds are lost
-                        .fromCase(TIME(5), DEFAULT_TIME, "12:34:56")
+                        .fromCase(TIME(5), DEFAULT_TIME, "12:34:56.123")
                         .fromCase(TIMESTAMP(), DEFAULT_TIMESTAMP, "2021-09-24 12:34:56.123456")
                         .fromCase(TIMESTAMP(9), DEFAULT_TIMESTAMP, "2021-09-24 12:34:56.123456700")
                         .fromCase(TIMESTAMP(4), DEFAULT_TIMESTAMP, "2021-09-24 12:34:56.1234")
