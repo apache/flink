@@ -103,6 +103,8 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         this.inputs = inputs;
         this.rowType = rowType;
         this.scan = scan;
+        final RexCall call = (RexCall) scan.getCall();
+        validateAllowSystemArgs(call);
         this.uid = deriveUniqueIdentifier(scan);
         verifyInputSize(ShortcutUtils.unwrapTableConfig(cluster), inputs.size());
     }
@@ -240,6 +242,19 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
         }
         // Otherwise UID should be correct as it has been checked by SystemTypeInference.
         return RexLiteral.stringValue(uidRexNode);
+    }
+
+    public static void validateAllowSystemArgs(RexCall rexCall) {
+        final BridgingSqlFunction.WithTableFunction function =
+                (BridgingSqlFunction.WithTableFunction) rexCall.getOperator();
+
+        if (!function.getTypeInference().allowSystemArguments()) {
+            // Disabling uid and time attributes for process table functions with implementation
+            // is not supported for now. It can only be disabled for syntax purpose: for example
+            // it's disabled for ML_PREDICT which is not processed by this rule.
+            throw new ValidationException(
+                    "Disabling uid/time attributes is not supported for PTF.");
+        }
     }
 
     private static void verifyTimeAttributes(

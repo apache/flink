@@ -117,6 +117,7 @@ public class SystemTypeInference {
                         systemArgs,
                         origin.getOutputTypeStrategy(),
                         origin.allowSystemArguments()));
+        builder.allowSystemArguments(origin.allowSystemArguments());
         return builder.build();
     }
 
