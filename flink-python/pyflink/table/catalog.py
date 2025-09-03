@@ -157,7 +157,6 @@ class Catalog(object):
         """
         return list(self._j_catalog.listViews(database_name))
 
-
     def list_materialized_tables(self, database_name: str) -> List[str]:
         """
         Get names of all materialized tables under this database.
