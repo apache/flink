@@ -295,6 +295,88 @@ Calc(select=[f1, f5])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testPartialPushDownWithTrimmedFields">
+    <Resource name="sql">
+      <![CDATA[SELECT f2 FROM T WHERE f2 < 1 AND f2 > 0
+ UNION SELECT f2 FROM T WHERE f2 < 3 AND f2 > 0
+ INTERSECT SELECT f2 FROM T WHERE f2 > 0 AND f2 < 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalUnion(all=[false])
+:- LogicalProject(f2=[$2])
+:  +- LogicalFilter(condition=[AND(<($2, 1), >($2, 0))])
+:     +- LogicalTableScan(table=[[default_catalog, default_database, T]])
++- LogicalIntersect(all=[false])
+   :- LogicalProject(f2=[$2])
+   :  +- LogicalFilter(condition=[AND(<($2, 3), >($2, 0))])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+   +- LogicalProject(f2=[$2])
+      +- LogicalFilter(condition=[AND(>($2, 0), <($2, 10))])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(groupBy=[f2], select=[f2])
++- Exchange(distribution=[hash[f2]])
+   +- Union(all=[true], union=[f2])
+      :- Calc(select=[f2], where=[(f2 < 1)])
+      :  +- ChangelogNormalize(key=[f1, f2])(reuse_id=[1])
+      :     +- Exchange(distribution=[hash[f1, f2]])
+      :        +- Calc(select=[f1, f2], where=[(f2 > 0)])
+      :           +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2, f3, f4, f5, f6, f7])
+      +- Join(joinType=[LeftSemiJoin], where=[(f2 = f20)], select=[f2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :- Exchange(distribution=[hash[f2]])
+         :  +- Calc(select=[f2], where=[(f2 < 3)])
+         :     +- Reused(reference_id=[1])
+         +- Exchange(distribution=[hash[f2]])
+            +- Calc(select=[f2], where=[(f2 < 10)])
+               +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartialPushDownWithTrimmedFieldsAndDifferentProjection">
+    <Resource name="sql">
+      <![CDATA[SELECT f3 FROM T WHERE f2 < 1 AND f2 > 0
+ UNION SELECT f3 FROM T WHERE f2 < 3 AND f2 > 0
+ INTERSECT SELECT f3 FROM T WHERE f2 > 0 AND f2 < 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalUnion(all=[false])
+:- LogicalProject(f3=[$3])
+:  +- LogicalFilter(condition=[AND(<($2, 1), >($2, 0))])
+:     +- LogicalTableScan(table=[[default_catalog, default_database, T]])
++- LogicalIntersect(all=[false])
+   :- LogicalProject(f3=[$3])
+   :  +- LogicalFilter(condition=[AND(<($2, 3), >($2, 0))])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+   +- LogicalProject(f3=[$3])
+      +- LogicalFilter(condition=[AND(>($2, 0), <($2, 10))])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(groupBy=[f3], select=[f3])
++- Exchange(distribution=[hash[f3]])
+   +- Union(all=[true], union=[f3])
+      :- Calc(select=[f3], where=[(f2 < 1)])
+      :  +- ChangelogNormalize(key=[f1, f2])(reuse_id=[1])
+      :     +- Exchange(distribution=[hash[f1, f2]])
+      :        +- Calc(select=[f1, f2, f3], where=[(f2 > 0)])
+      :           +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2, f3, f4, f5, f6, f7])
+      +- Join(joinType=[LeftSemiJoin], where=[IS NOT DISTINCT FROM(f3, f30)], select=[f3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+         :- Exchange(distribution=[hash[f3]])
+         :  +- Calc(select=[f3], where=[(f2 < 3)])
+         :     +- Reused(reference_id=[1])
+         +- Exchange(distribution=[hash[f3]])
+            +- Calc(select=[f3], where=[(f2 < 10)])
+               +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testPrimaryKeySeveralDifferentSources">
     <Resource name="sql">
       <![CDATA[SELECT * FROM T WHERE f1 < 1 AND f1 > 0
