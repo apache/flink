@@ -661,45 +661,8 @@ SqlShowProcedures SqlShowProcedures() :
 }
 
 /**
- * SHOW VIEWS FROM [catalog.] database sql call.
- */
-SqlShowViews SqlShowViews() :
-{
-    SqlIdentifier databaseName = null;
-    SqlCharStringLiteral likeLiteral = null;
-    String prep = null;
-    boolean notLike = false;
-    SqlParserPos pos;
-}
-{
-    <SHOW> <VIEWS>
-    { pos = getPos(); }
-    [
-        ( <FROM> { prep = "FROM"; } | <IN> { prep = "IN"; } )
-        { pos = getPos(); }
-        databaseName = CompoundIdentifier()
-    ]
-    [
-        [
-            <NOT>
-            {
-                notLike = true;
-            }
-        ]
-        <LIKE> <QUOTED_STRING>
-        {
-            String likeCondition = SqlParserUtil.parseString(token.image);
-            likeLiteral = SqlLiteral.createCharString(likeCondition, getPos());
-        }
-    ]
-    {
-        return new SqlShowViews(pos, prep, databaseName, notLike, likeLiteral);
-    }
-}
-
-/**
 * Parses a show tables statement.
-* SHOW TABLES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE pattern ];
+* SHOW ( VIEWS | [ MATERIALIZED ]TABLES ) [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE pattern ];
 */
 SqlShowTables SqlShowTables() :
 {
@@ -708,9 +671,17 @@ SqlShowTables SqlShowTables() :
     String prep = null;
     boolean notLike = false;
     SqlParserPos pos;
+    SqlTableKind kind;
 }
 {
-    <SHOW> <TABLES>
+    <SHOW>
+    (
+           <TABLES> { kind = SqlTableKind.TABLE; }
+       |
+           <VIEWS> { kind = SqlTableKind.VIEW; }
+       |
+           <MATERIALIZED> <TABLES> { kind = SqlTableKind.MATERIALIZED_TABLE; }
+    )
     { pos = getPos(); }
     [
         ( <FROM> { prep = "FROM"; } | <IN> { prep = "IN"; } )
@@ -731,7 +702,7 @@ SqlShowTables SqlShowTables() :
         }
     ]
     {
-        return new SqlShowTables(pos, prep, databaseName, notLike, likeLiteral);
+        return new SqlShowTables(pos, kind, prep, databaseName, notLike, likeLiteral);
     }
 }
 

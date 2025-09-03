@@ -157,6 +157,18 @@ class Catalog(object):
         """
         return list(self._j_catalog.listViews(database_name))
 
+    def list_materialized_tables(self, database_name: str) -> List[str]:
+        """
+        Get names of all materialized tables under this database.
+        An empty list is returned if none exists.
+
+        :param database_name: Name of the given database.
+        :return: A list of the names of all materialized tables in the given database.
+        :raise: CatalogException in case of any runtime exception.
+                DatabaseNotExistException if the database does not exist.
+        """
+        return list(self._j_catalog.listMaterializedTables(database_name))
+
     def get_table(self, table_path: 'ObjectPath') -> 'CatalogBaseTable':
         """
         Get a CatalogTable or CatalogView identified by tablePath.
