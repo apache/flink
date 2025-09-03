@@ -619,6 +619,17 @@ class TableEnvironment(object):
         j_view_name_array = self._j_tenv.listViews()
         return [item for item in j_view_name_array]
 
+    def list_materialized_tables(self) -> List[str]:
+        """
+        Gets the names of all materialized tables available in the current namespace (the current database of the current catalog).
+
+        :return: A list of the names of all registered materialized tables in the current database of the current catalog.
+
+        .. versionadded:: 2.2.0
+        """
+        j_materialized_table_name_array = self._j_tenv.listMaterializedTables()
+        return [item for item in j_materialized_table_name_array]
+
     def list_user_defined_functions(self) -> List[str]:
         """
         Gets the names of all user defined functions registered in this environment.
