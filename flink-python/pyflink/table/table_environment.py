@@ -621,9 +621,11 @@ class TableEnvironment(object):
 
     def list_materialized_tables(self) -> List[str]:
         """
-        Gets the names of all materialized tables available in the current namespace (the current database of the current catalog).
+        Gets the names of all materialized tables available
+        in the current namespace (the current database of the current catalog).
 
-        :return: A list of the names of all registered materialized tables in the current database of the current catalog.
+        :return: A list of the names of all registered materialized tables
+        in the current database of the current catalog.
 
         .. versionadded:: 2.2.0
         """

@@ -160,7 +160,8 @@ class Catalog(object):
 
     def list_materialized_tables(self, database_name: str) -> List[str]:
         """
-        Get names of all materialized tables under this database. An empty list is returned if none exists.
+        Get names of all materialized tables under this database.
+        An empty list is returned if none exists.
 
         :param database_name: Name of the given database.
         :return: A list of the names of all materialized tables in the given database.
