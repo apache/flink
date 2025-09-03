@@ -905,20 +905,20 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     }
 
     /**
-     * Returns an array of names of all views(both temporary and permanent) registered in the
-     * namespace of the current catalog and database.
+     * Returns an array of names of materialized tables registered in the namespace of the current
+     * catalog and database.
      *
-     * @return names of all registered views
+     * @return names of registered materialized tables
      */
     public Set<String> listMaterializedTables() {
         return listMaterializedTables(getCurrentCatalog(), getCurrentDatabase());
     }
 
     /**
-     * Returns an array of names of all views(both temporary and permanent) registered in the
-     * namespace of the given catalog and database.
+     * Returns an array of names of materialized tables registered in the namespace of the given
+     * catalog and database.
      *
-     * @return names of registered views
+     * @return names of registered materialized tables
      */
     public Set<String> listMaterializedTables(String catalogName, String databaseName) {
         Catalog catalog = getCatalogOrThrowException(catalogName);

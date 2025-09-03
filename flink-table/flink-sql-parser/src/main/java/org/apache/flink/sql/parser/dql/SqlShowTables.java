@@ -20,7 +20,9 @@ package org.apache.flink.sql.parser.dql;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /**
@@ -65,5 +67,25 @@ public class SqlShowTables extends SqlShowCall {
 
     public SqlTableKind getTableKind() {
         return kind;
+    }
+
+    /**
+     * The kind of table. Keep in sync with {@link
+     * org.apache.flink.table.catalog.CatalogBaseTable.TableKind}.
+     */
+    public enum SqlTableKind {
+        MATERIALIZED_TABLE(new SqlSpecialOperator("SHOW MATERIALIZED TABLES", SqlKind.OTHER)),
+        TABLE(new SqlSpecialOperator("SHOW TABLES", SqlKind.OTHER)),
+        VIEW(new SqlSpecialOperator("SHOW VIEWS", SqlKind.OTHER));
+
+        private final SqlSpecialOperator operator;
+
+        SqlTableKind(final SqlSpecialOperator operator) {
+            this.operator = operator;
+        }
+
+        public SqlSpecialOperator getOperator() {
+            return operator;
+        }
     }
 }
