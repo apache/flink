@@ -109,10 +109,7 @@ public class ProcessingTimeTriggers {
             ReducingState<Long> nextFiring = ctx.getPartitionedState(nextFiringStateDesc);
             Long timer = nextFiring.get();
             if (timer != null && timer == time) {
-                long newTimer = time + interval;
-                ctx.registerProcessingTimeTimer(newTimer);
                 nextFiring.clear();
-                nextFiring.add(newTimer);
                 return true;
             } else {
                 return false;
