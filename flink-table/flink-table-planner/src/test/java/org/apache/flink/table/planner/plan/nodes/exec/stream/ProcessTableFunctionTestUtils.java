@@ -244,7 +244,7 @@ public class ProcessTableFunctionTestUtils {
     public static class NoSystemArgsTableFunction extends AppendProcessTableFunctionBase {
         public TypeInference getTypeInference(DataTypeFactory typeFactory) {
             return TypeInference.newBuilder()
-                    .allowSystemArguments(false)
+                    .disableSystemArguments(true)
                     .staticArguments(
                             StaticArgument.table(
                                     "r", Row.class, false, EnumSet.of(StaticArgumentTrait.TABLE)),
@@ -269,7 +269,7 @@ public class ProcessTableFunctionTestUtils {
     public static class NoSystemArgsScalarFunction extends AppendProcessTableFunctionBase {
         public TypeInference getTypeInference(DataTypeFactory typeFactory) {
             return TypeInference.newBuilder()
-                    .allowSystemArguments(false)
+                    .disableSystemArguments(true)
                     .staticArguments(StaticArgument.scalar("i", DataTypes.INT(), false))
                     .outputTypeStrategy(
                             callContext ->

@@ -83,9 +83,6 @@ public interface CallContext {
      * Returns information about the model that has been passed to a model argument.
      *
      * <p>This method applies only to {@link ProcessTableFunction}s.
-     *
-     * <p>Semantics are only available for model arguments that are annotated with
-     * {@code @ArgumentHint(MODEL)}).
      */
     default Optional<ModelSemantics> getModelSemantics(int pos) {
         return Optional.empty();

@@ -298,8 +298,8 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
             return this;
         }
 
-        public Builder allowSystemArguments(boolean allowSystemArguments) {
-            this.typeInferenceBuilder.allowSystemArguments(allowSystemArguments);
+        public Builder disableSystemArguments(boolean disableSystemArguments) {
+            this.typeInferenceBuilder.disableSystemArguments(disableSystemArguments);
             return this;
         }
 

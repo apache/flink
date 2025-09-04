@@ -1326,7 +1326,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction SESSION = new SqlSessionTableFunction();
 
     // MODEL TABLE FUNCTIONS
-    // public static final SqlFunction ML_PREDICT = new SqlMLPredictTableFunction();
     public static final SqlFunction ML_EVALUATE = new SqlMLEvaluateTableFunction();
 
     // Catalog Functions

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.types.inference.strategies;
+package org.apache.flink.table.types.inference.utils;
 
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.TableSemantics;

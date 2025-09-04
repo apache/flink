@@ -20,16 +20,24 @@ package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.DataTypes.Field;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.functions.ModelSemantics;
+import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Entry point for specific type strategies not covered in {@link TypeStrategies}.
@@ -193,6 +201,44 @@ public final class SpecificTypeStrategies {
 
     /** Type strategy specific for {@link BuiltInFunctionDefinitions#OBJECT_UPDATE}. */
     public static final TypeStrategy OBJECT_UPDATE = new ObjectUpdateTypeStrategy();
+
+    /** Type strategy specific for {@link BuiltInFunctionDefinitions#ML_PREDICT}. */
+    public static final TypeStrategy ML_PREDICT_OUTPUT_TYPE_STRATEGY =
+            callContext -> {
+                // The output type of the model prediction is always a row type with a single field
+                // named "prediction" of type DOUBLE.
+                TableSemantics tableSemantics = callContext.getTableSemantics(0).orElse(null);
+                if (tableSemantics == null) {
+                    throw new ValidationException(
+                            "First argument must be a table for ML_PREDICT function.");
+                }
+                final ModelSemantics modelSemantics = callContext.getModelSemantics(1).orElse(null);
+                if (modelSemantics == null) {
+                    throw new ValidationException(
+                            "Second argument must be a model for ML_PREDICT function.");
+                }
+
+                LogicalType tableType = tableSemantics.dataType().getLogicalType();
+                LogicalType modelOutputType = modelSemantics.outputDataType().getLogicalType();
+                if (!tableType.is(LogicalTypeRoot.ROW)
+                        || !modelOutputType.is(LogicalTypeRoot.ROW)) {
+                    throw new ValidationException(
+                            "Both table and model output types must be row types for ML_PREDICT function.");
+                }
+                List<Field> tableFields = DataType.getFields(tableSemantics.dataType());
+                List<Field> modelFields = DataType.getFields(modelSemantics.outputDataType());
+                List<Field> outputFields = new ArrayList<>(tableFields);
+                Set<String> tableFieldNames =
+                        tableFields.stream().map(Field::getName).collect(Collectors.toSet());
+                for (Field modelField : modelFields) {
+                    String fieldName = modelField.getName();
+                    if (tableFieldNames.contains(modelField.getName())) {
+                        fieldName = fieldName + "0";
+                    }
+                    outputFields.add(DataTypes.FIELD(fieldName, modelField.getDataType()));
+                }
+                return Optional.of(DataTypes.ROW(outputFields));
+            };
 
     private SpecificTypeStrategies() {
         // no instantiation

@@ -59,19 +59,19 @@ public final class TypeInference {
     private final InputTypeStrategy inputTypeStrategy;
     private final LinkedHashMap<String, StateTypeStrategy> stateTypeStrategies;
     private final TypeStrategy outputTypeStrategy;
-    private final boolean allowSystemArguments;
+    private final boolean disableSystemArguments;
 
     private TypeInference(
             @Nullable List<StaticArgument> staticArguments,
             InputTypeStrategy inputTypeStrategy,
             LinkedHashMap<String, StateTypeStrategy> stateTypeStrategies,
             TypeStrategy outputTypeStrategy,
-            boolean allowSystemArguments) {
+            boolean disableSystemArguments) {
         this.staticArguments = staticArguments;
         this.inputTypeStrategy = inputTypeStrategy;
         this.stateTypeStrategies = stateTypeStrategies;
         this.outputTypeStrategy = outputTypeStrategy;
-        this.allowSystemArguments = allowSystemArguments;
+        this.disableSystemArguments = disableSystemArguments;
         checkStateEntries();
     }
 
@@ -96,8 +96,8 @@ public final class TypeInference {
         return outputTypeStrategy;
     }
 
-    public boolean allowSystemArguments() {
-        return allowSystemArguments;
+    public boolean disableSystemArguments() {
+        return disableSystemArguments;
     }
 
     /**
@@ -187,7 +187,7 @@ public final class TypeInference {
                 new LinkedHashMap<>();
         private @Nullable TypeStrategy outputTypeStrategy;
 
-        private boolean allowSystemArguments = true;
+        private boolean disableSystemArguments = false;
 
         // Legacy
         private @Nullable List<String> namedArguments;
@@ -265,8 +265,8 @@ public final class TypeInference {
          * If disabled, uid and time attributes arguments will not be added to PTF input arguments
          * automatically.
          */
-        public Builder allowSystemArguments(boolean allowSystemArguments) {
-            this.allowSystemArguments = allowSystemArguments;
+        public Builder disableSystemArguments(boolean disableSystemArguments) {
+            this.disableSystemArguments = disableSystemArguments;
             return this;
         }
 
@@ -289,7 +289,7 @@ public final class TypeInference {
                     stateTypeStrategies,
                     Preconditions.checkNotNull(
                             outputTypeStrategy, "Output type strategy must not be null."),
-                    allowSystemArguments);
+                    disableSystemArguments);
         }
 
         /**

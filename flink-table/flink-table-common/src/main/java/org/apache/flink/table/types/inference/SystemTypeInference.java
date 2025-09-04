@@ -100,7 +100,7 @@ public class SystemTypeInference {
                 deriveSystemArgs(
                         functionKind,
                         origin.getStaticArguments().orElse(null),
-                        origin.allowSystemArguments());
+                        origin.disableSystemArguments());
         if (systemArgs != null) {
             builder.staticArguments(systemArgs);
         }
@@ -109,15 +109,15 @@ public class SystemTypeInference {
                         functionKind,
                         systemArgs,
                         origin.getInputTypeStrategy(),
-                        origin.allowSystemArguments()));
+                        origin.disableSystemArguments()));
         builder.stateTypeStrategies(origin.getStateTypeStrategies());
         builder.outputTypeStrategy(
                 deriveSystemOutputStrategy(
                         functionKind,
                         systemArgs,
                         origin.getOutputTypeStrategy(),
-                        origin.allowSystemArguments()));
-        builder.allowSystemArguments(origin.allowSystemArguments());
+                        origin.disableSystemArguments()));
+        builder.disableSystemArguments(origin.disableSystemArguments());
         return builder.build();
     }
 
@@ -143,7 +143,7 @@ public class SystemTypeInference {
     private static @Nullable List<StaticArgument> deriveSystemArgs(
             FunctionKind functionKind,
             @Nullable List<StaticArgument> declaredArgs,
-            boolean allowSystemArgs) {
+            boolean disableSystemArgs) {
         if (functionKind != FunctionKind.PROCESS_TABLE) {
             if (declaredArgs != null) {
                 checkScalarArgsOnly(declaredArgs);
@@ -160,7 +160,7 @@ public class SystemTypeInference {
         checkPassThroughColumns(declaredArgs);
 
         final List<StaticArgument> newStaticArgs = new ArrayList<>(declaredArgs);
-        if (allowSystemArgs) {
+        if (!disableSystemArgs) {
             newStaticArgs.addAll(PROCESS_TABLE_FUNCTION_SYSTEM_ARGS);
         }
         return newStaticArgs;
@@ -213,24 +213,25 @@ public class SystemTypeInference {
             FunctionKind functionKind,
             @Nullable List<StaticArgument> staticArgs,
             InputTypeStrategy inputStrategy,
-            boolean allowSystemArgs) {
+            boolean disableSystemArgs) {
         if (functionKind != FunctionKind.PROCESS_TABLE) {
             return inputStrategy;
         }
-        return new SystemInputStrategy(staticArgs, inputStrategy, allowSystemArgs);
+        return new SystemInputStrategy(staticArgs, inputStrategy, disableSystemArgs);
     }
 
     private static TypeStrategy deriveSystemOutputStrategy(
             FunctionKind functionKind,
             @Nullable List<StaticArgument> staticArgs,
             TypeStrategy outputStrategy,
-            boolean allowSystemArgs) {
+            boolean disableSystemArgs) {
         if (functionKind != FunctionKind.TABLE
                 && functionKind != FunctionKind.PROCESS_TABLE
                 && functionKind != FunctionKind.ASYNC_TABLE) {
             return outputStrategy;
         }
-        return new SystemOutputStrategy(functionKind, staticArgs, outputStrategy, allowSystemArgs);
+        return new SystemOutputStrategy(
+                functionKind, staticArgs, outputStrategy, disableSystemArgs);
     }
 
     private static class SystemOutputStrategy implements TypeStrategy {
@@ -238,17 +239,17 @@ public class SystemTypeInference {
         private final FunctionKind functionKind;
         private final List<StaticArgument> staticArgs;
         private final TypeStrategy origin;
-        private final boolean allowSystemArgs;
+        private final boolean disableSystemArgs;
 
         private SystemOutputStrategy(
                 FunctionKind functionKind,
                 List<StaticArgument> staticArgs,
                 TypeStrategy origin,
-                boolean allowSystemArgs) {
+                boolean disableSystemArgs) {
             this.functionKind = functionKind;
             this.staticArgs = staticArgs;
             this.origin = origin;
-            this.allowSystemArgs = allowSystemArgs;
+            this.disableSystemArgs = disableSystemArgs;
         }
 
         @Override
@@ -270,7 +271,7 @@ public class SystemTypeInference {
                                 fields.addAll(derivePassThroughFields(callContext));
                                 fields.addAll(deriveFunctionOutputFields(functionDataType));
 
-                                if (allowSystemArgs) {
+                                if (!disableSystemArgs) {
                                     fields.addAll(deriveRowtimeField(callContext));
                                 }
 
@@ -505,15 +506,15 @@ public class SystemTypeInference {
 
         private final List<StaticArgument> staticArgs;
         private final InputTypeStrategy origin;
-        private final boolean allowSystemArgs;
+        private final boolean disableSystemArgs;
 
         private SystemInputStrategy(
                 List<StaticArgument> staticArgs,
                 InputTypeStrategy origin,
-                boolean allowSystemArgs) {
+                boolean disableSystemArgs) {
             this.staticArgs = staticArgs;
             this.origin = origin;
-            this.allowSystemArgs = allowSystemArgs;
+            this.disableSystemArgs = disableSystemArgs;
         }
 
         @Override
@@ -544,7 +545,7 @@ public class SystemTypeInference {
 
             try {
                 checkTableArgs(staticArgs, callContext);
-                if (allowSystemArgs) {
+                if (!disableSystemArgs) {
                     checkUidArg(callContext);
                 }
             } catch (ValidationException e) {
