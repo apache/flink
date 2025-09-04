@@ -229,19 +229,46 @@ public final class SpecificInputTypeStrategies {
 
     private static Optional<List<DataType>> inferMLPredictInputTypes(
             CallContext callContext, boolean throwOnFailure) {
+        // Check that first argument is a table
+        TableSemantics tableSemantics = callContext.getTableSemantics(0).orElse(null);
+        if (tableSemantics == null) {
+            if (throwOnFailure) {
+                throw new ValidationException(
+                        "First argument must be a table for ML_PREDICT function.");
+            } else {
+                return Optional.empty();
+            }
+        }
 
-        TableSemantics tableSemantics = callContext.getTableSemantics(0).orElseThrow();
-        ModelSemantics modelSemantics = callContext.getModelSemantics(1).orElseThrow();
-        ColumnList descriptorColumns =
-                callContext.getArgumentValue(2, ColumnList.class).orElseThrow();
+        // Check that second argument is a model
+        ModelSemantics modelSemantics = callContext.getModelSemantics(1).orElse(null);
+        if (modelSemantics == null) {
+            if (throwOnFailure) {
+                throw new ValidationException(
+                        "Second argument must be a model for ML_PREDICT function.");
+            } else {
+                return Optional.empty();
+            }
+        }
+
+        // Check that third argument is a descriptor with column names
+        Optional<ColumnList> descriptorColumns = callContext.getArgumentValue(2, ColumnList.class);
+        if (descriptorColumns.isEmpty()) {
+            if (throwOnFailure) {
+                throw new ValidationException(
+                        "Third argument must be a descriptor with simple column names for ML_PREDICT function.");
+            } else {
+                return Optional.empty();
+            }
+        }
 
         if (!validateTableAndDescriptorArguments(
-                tableSemantics, descriptorColumns, throwOnFailure)) {
+                tableSemantics, descriptorColumns.get(), throwOnFailure)) {
             return Optional.empty();
         }
 
         if (!validateModelDescriptorCompatibility(
-                tableSemantics, modelSemantics, descriptorColumns, throwOnFailure)) {
+                tableSemantics, modelSemantics, descriptorColumns.get(), throwOnFailure)) {
             return Optional.empty();
         }
 

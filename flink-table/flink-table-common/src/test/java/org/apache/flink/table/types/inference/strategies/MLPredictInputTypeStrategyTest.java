@@ -90,7 +90,7 @@ class MLPredictInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 1, new ModelSemanticsMock(MODEL_INPUT_TYPE, MODEL_OUTPUT_TYPE))
                         .calledWithLiteralAt(2, ColumnList.of(List.of("nonexistent_column")))
                         .expectErrorMessage(
-                                "Descriptor column 'nonexistent_column' not found in table columns. Available columns: feature2, feature1, id"),
+                                "Descriptor column 'nonexistent_column' not found in table columns. Available columns: id, feature1, feature2."),
 
                 // Error case: descriptor column count doesn't match model input size
                 TestSpec.forStrategy(
