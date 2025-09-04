@@ -23,10 +23,10 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.ModelSemantics;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.strategies.ModelSemanticsMock;
-import org.apache.flink.table.types.inference.strategies.TableSemanticsMock;
 import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
+import org.apache.flink.table.types.inference.utils.ModelSemanticsMock;
+import org.apache.flink.table.types.inference.utils.TableSemanticsMock;
 
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;

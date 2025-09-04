@@ -45,13 +45,13 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlUtil;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.sql.validate.SqlValidator;
 
 import javax.annotation.Nullable;
 
 import java.util.AbstractList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -63,9 +63,9 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
 
     private final List<SqlNode> adaptedArguments;
     private final List<DataType> argumentDataTypes;
+    private final Function<Integer, DataType> getModelInputType;
     private final @Nullable DataType outputType;
     private final @Nullable List<StaticArgument> staticArguments;
-    private final SqlValidator validator;
 
     public CallBindingCallContext(
             DataTypeFactory dataTypeFactory,
@@ -79,7 +79,6 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
                 binding.getOperator().getNameAsId().toString(),
                 binding.getGroupCount() > 0);
         this.adaptedArguments = binding.operands(); // reorders the operands
-        validator = binding.getValidator();
         this.argumentDataTypes =
                 new AbstractList<>() {
                     @Override
@@ -93,6 +92,20 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
                     public int size() {
                         return binding.getOperandCount();
                     }
+                };
+        this.getModelInputType =
+                pos -> {
+                    final SqlNode sqlNode = adaptedArguments.get(pos);
+                    if (!(sqlNode instanceof SqlModelCall)) {
+                        throw new ValidationException(
+                                String.format(
+                                        "Argument %d is not a model call, cannot get model input type.",
+                                        pos));
+                    }
+                    RelDataType type =
+                            ((SqlModelCall) sqlNode).getInputType(binding.getValidator());
+                    final LogicalType logicalType = FlinkTypeFactory.toLogicalType(type);
+                    return TypeConversions.fromLogicalToDataType(logicalType);
                 };
         this.outputType = convertOutputType(binding, outputType);
         this.staticArguments = staticArguments;
@@ -168,7 +181,9 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
         if (!(sqlNode instanceof SqlModelCall)) {
             return Optional.empty();
         }
-        return Optional.of(CallBindingModelSemantics.create((SqlModelCall) sqlNode, validator));
+        return Optional.of(
+                CallBindingModelSemantics.create(
+                        getModelInputType.apply(pos), argumentDataTypes.get(pos)));
     }
 
     @Override
@@ -292,30 +307,8 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
         private final DataType outputDataType;
 
         public static CallBindingModelSemantics create(
-                SqlModelCall sqlModelCall, SqlValidator validator) {
-            return new CallBindingModelSemantics(
-                    createInputDataType(sqlModelCall, validator),
-                    createOutputDataType(sqlModelCall, validator));
-        }
-
-        private static DataType createInputDataType(
-                SqlModelCall sqlModelCall, SqlValidator validator) {
-            final RelDataType inputType = sqlModelCall.getInputType(validator);
-            if (inputType != null) {
-                final LogicalType logicalType = FlinkTypeFactory.toLogicalType(inputType);
-                return TypeConversions.fromLogicalToDataType(logicalType);
-            }
-            throw new ValidationException("Cannot infer input data type for model");
-        }
-
-        private static DataType createOutputDataType(
-                SqlModelCall sqlModelCall, SqlValidator validator) {
-            final RelDataType outputType = sqlModelCall.getOutputType(validator);
-            if (outputType != null) {
-                final LogicalType logicalType = FlinkTypeFactory.toLogicalType(outputType);
-                return TypeConversions.fromLogicalToDataType(logicalType);
-            }
-            throw new ValidationException("Cannot infer output data type for model");
+                DataType inputDataType, DataType outputDataType) {
+            return new CallBindingModelSemantics(inputDataType, outputDataType);
         }
 
         private CallBindingModelSemantics(DataType inputDataType, DataType outputDataType) {

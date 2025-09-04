@@ -19,20 +19,19 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.functions.ModelTypeUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.InputTypeStrategiesTestBase;
-import org.apache.flink.table.types.inference.InputTypeStrategy;
+import org.apache.flink.table.types.inference.utils.ModelSemanticsMock;
+import org.apache.flink.table.types.inference.utils.TableSemanticsMock;
 import org.apache.flink.types.ColumnList;
 
 import java.util.List;
 import java.util.stream.Stream;
 
-/** Tests for {@link ModelTypeUtils#ML_PREDICT_INPUT_TYPE_STRATEGY}. */
-class MLPredictInputTypeStrategyTest extends InputTypeStrategiesTestBase {
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ML_PREDICT_INPUT_TYPE_STRATEGY;
 
-    private static final InputTypeStrategy ML_PREDICT_INPUT_STRATEGY =
-            ModelTypeUtils.ML_PREDICT_INPUT_TYPE_STRATEGY;
+/** Tests for {@link SpecificInputTypeStrategies#ML_PREDICT_INPUT_TYPE_STRATEGY}. */
+class MLPredictInputTypeStrategyTest extends InputTypeStrategiesTestBase {
 
     private static final DataType TABLE_TYPE =
             DataTypes.ROW(
@@ -57,7 +56,7 @@ class MLPredictInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                 // Valid case with 3 arguments (table, model, descriptor)
                 TestSpec.forStrategy(
                                 "Valid ML_PREDICT with table, model, and descriptor",
-                                ML_PREDICT_INPUT_STRATEGY)
+                                ML_PREDICT_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE, MODEL_INPUT_TYPE, DESCRIPTOR_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .calledWithModelSemanticsAt(
@@ -71,7 +70,7 @@ class MLPredictInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                 // Valid case with 4 arguments (table, model, descriptor, config)
                 TestSpec.forStrategy(
                                 "Valid ML_PREDICT with table, model, descriptor, and config",
-                                ML_PREDICT_INPUT_STRATEGY)
+                                ML_PREDICT_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(
                                 TABLE_TYPE, MODEL_INPUT_TYPE, DESCRIPTOR_TYPE, MAP_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
@@ -83,7 +82,8 @@ class MLPredictInputTypeStrategyTest extends InputTypeStrategiesTestBase {
 
                 // Error case: descriptor column not found in table
                 TestSpec.forStrategy(
-                                "Descriptor column not found in table", ML_PREDICT_INPUT_STRATEGY)
+                                "Descriptor column not found in table",
+                                ML_PREDICT_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE, MODEL_INPUT_TYPE, DESCRIPTOR_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .calledWithModelSemanticsAt(
@@ -95,7 +95,7 @@ class MLPredictInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                 // Error case: descriptor column count doesn't match model input size
                 TestSpec.forStrategy(
                                 "Descriptor column count mismatch with model input",
-                                ML_PREDICT_INPUT_STRATEGY)
+                                ML_PREDICT_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE, MODEL_INPUT_TYPE, DESCRIPTOR_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .calledWithModelSemanticsAt(
@@ -108,7 +108,7 @@ class MLPredictInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                 // Error case: descriptor column type incompatible with model input type
                 TestSpec.forStrategy(
                                 "Descriptor column type incompatible with model input",
-                                ML_PREDICT_INPUT_STRATEGY)
+                                ML_PREDICT_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE, MODEL_INPUT_TYPE, DESCRIPTOR_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .calledWithModelSemanticsAt(
@@ -123,13 +123,13 @@ class MLPredictInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 "Descriptor column 'id' type STRING cannot be assigned to model input type DOUBLE at position 0."),
 
                 // Error case: too few arguments
-                TestSpec.forStrategy("Too few arguments", ML_PREDICT_INPUT_STRATEGY)
+                TestSpec.forStrategy("Too few arguments", ML_PREDICT_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE, MODEL_INPUT_TYPE)
                         .expectErrorMessage(
                                 "Invalid number of arguments. At least 3 arguments expected but 2 passed."),
 
                 // Error case: too many arguments
-                TestSpec.forStrategy("Too many arguments", ML_PREDICT_INPUT_STRATEGY)
+                TestSpec.forStrategy("Too many arguments", ML_PREDICT_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(
                                 TABLE_TYPE,
                                 MODEL_INPUT_TYPE,
@@ -140,21 +140,22 @@ class MLPredictInputTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 "Invalid number of arguments. At most 4 arguments expected but 5 passed."),
 
                 // Error case: first argument not a table
-                TestSpec.forStrategy("First argument not a table", ML_PREDICT_INPUT_STRATEGY)
+                TestSpec.forStrategy("First argument not a table", ML_PREDICT_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(
                                 DataTypes.STRING(), MODEL_INPUT_TYPE, DESCRIPTOR_TYPE)
                         .expectErrorMessage(
                                 "First argument must be a table for ML_PREDICT function."),
 
                 // Error case: second argument not a model
-                TestSpec.forStrategy("Second argument not a model", ML_PREDICT_INPUT_STRATEGY)
+                TestSpec.forStrategy("Second argument not a model", ML_PREDICT_INPUT_TYPE_STRATEGY)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .calledWithArgumentTypes(TABLE_TYPE, DataTypes.STRING(), DESCRIPTOR_TYPE)
                         .expectErrorMessage(
                                 "Second argument must be a model for ML_PREDICT function."),
 
                 // Error case: third argument not a descriptor
-                TestSpec.forStrategy("Third argument not a descriptor", ML_PREDICT_INPUT_STRATEGY)
+                TestSpec.forStrategy(
+                                "Third argument not a descriptor", ML_PREDICT_INPUT_TYPE_STRATEGY)
                         .calledWithArgumentTypes(TABLE_TYPE, MODEL_INPUT_TYPE, DataTypes.STRING())
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .calledWithModelSemanticsAt(

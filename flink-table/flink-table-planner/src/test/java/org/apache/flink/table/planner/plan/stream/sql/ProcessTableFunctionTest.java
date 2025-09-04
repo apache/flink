@@ -198,16 +198,14 @@ public class ProcessTableFunctionTest extends TableTestBase {
     void testNoSystemArgsAllowedForScalarPtf() {
         util.addTemporarySystemFunction("f", NoSystemArgsScalarFunction.class);
         assertThatThrownBy(() -> util.verifyRelPlan("SELECT * FROM f(i => 1);"))
-                .satisfies(
-                        anyCauseMatches("Disabling uid/time attributes is not supported for PTF."));
+                .satisfies(anyCauseMatches("Disabling system arguments is not supported for PTF."));
     }
 
     @Test
     void testNoSystemArgsAllowedForTablePtf() {
         util.addTemporarySystemFunction("f", NoSystemArgsTableFunction.class);
         assertThatThrownBy(() -> util.verifyRelPlan("SELECT * FROM f(r => TABLE t, i => 1);"))
-                .satisfies(
-                        anyCauseMatches("Disabling uid/time attributes is not supported for PTF."));
+                .satisfies(anyCauseMatches("Disabling system arguments is not supported for PTF."));
     }
 
     @Test

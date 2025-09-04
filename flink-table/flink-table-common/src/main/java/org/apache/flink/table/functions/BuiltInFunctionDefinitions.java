@@ -108,11 +108,13 @@ import static org.apache.flink.table.types.inference.strategies.SpecificInputTyp
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_FULLY_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.INDEX;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.JSON_ARGUMENT;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ML_PREDICT_INPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentage;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentageArray;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.ARRAY_APPEND_PREPEND;
+import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.ML_PREDICT_OUTPUT_TYPE_STRATEGY;
 
 /** Dictionary of function definitions for all built-in functions. */
 @PublicEvolving
@@ -734,7 +736,7 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("ML_PREDICT")
                     .kind(PROCESS_TABLE)
-                    .allowSystemArguments(false)
+                    .disableSystemArguments(true)
                     .staticArguments(
                             StaticArgument.table(
                                     "INPUT",
@@ -748,8 +750,8 @@ public final class BuiltInFunctionDefinitions {
                                     "CONFIG",
                                     DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()),
                                     true))
-                    .inputTypeStrategy(ModelTypeUtils.ML_PREDICT_INPUT_TYPE_STRATEGY)
-                    .outputTypeStrategy(ModelTypeUtils.ML_PREDICT_OUTPUT_TYPE_STRATEGY)
+                    .inputTypeStrategy(ML_PREDICT_INPUT_TYPE_STRATEGY)
+                    .outputTypeStrategy(ML_PREDICT_OUTPUT_TYPE_STRATEGY)
                     .runtimeProvided()
                     .build();
 

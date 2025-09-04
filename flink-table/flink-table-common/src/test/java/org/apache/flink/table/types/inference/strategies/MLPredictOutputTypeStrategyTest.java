@@ -19,18 +19,17 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.functions.ModelTypeUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeStrategiesTestBase;
-import org.apache.flink.table.types.inference.TypeStrategy;
+import org.apache.flink.table.types.inference.utils.ModelSemanticsMock;
+import org.apache.flink.table.types.inference.utils.TableSemanticsMock;
 
 import java.util.stream.Stream;
 
-/** Tests for {@link ModelTypeUtils#ML_PREDICT_OUTPUT_TYPE_STRATEGY}. */
-class MLPredictOutputTypeStrategyTest extends TypeStrategiesTestBase {
+import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.ML_PREDICT_OUTPUT_TYPE_STRATEGY;
 
-    private static final TypeStrategy ML_PREDICT_OUTPUT_STRATEGY =
-            ModelTypeUtils.ML_PREDICT_OUTPUT_TYPE_STRATEGY;
+/** Tests for {@link SpecificTypeStrategies#ML_PREDICT_OUTPUT_TYPE_STRATEGY}. */
+class MLPredictOutputTypeStrategyTest extends TypeStrategiesTestBase {
 
     private static final DataType TABLE_TYPE =
             DataTypes.ROW(
@@ -62,7 +61,7 @@ class MLPredictOutputTypeStrategyTest extends TypeStrategiesTestBase {
                 // Basic case: table + model output without conflicts
                 TestSpec.forStrategy(
                                 "Basic output type inference with no field conflicts",
-                                ML_PREDICT_OUTPUT_STRATEGY)
+                                ML_PREDICT_OUTPUT_TYPE_STRATEGY)
                         .inputTypes(TABLE_TYPE, MODEL_INPUT_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .calledWithModelSemanticsAt(
@@ -77,7 +76,7 @@ class MLPredictOutputTypeStrategyTest extends TypeStrategiesTestBase {
                 // Case with field name conflict - model field should be renamed
                 TestSpec.forStrategy(
                                 "Output type inference with field name conflict",
-                                ML_PREDICT_OUTPUT_STRATEGY)
+                                ML_PREDICT_OUTPUT_TYPE_STRATEGY)
                         .inputTypes(TABLE_TYPE, MODEL_INPUT_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .calledWithModelSemanticsAt(
@@ -96,7 +95,7 @@ class MLPredictOutputTypeStrategyTest extends TypeStrategiesTestBase {
                 // Case with multiple model output fields
                 TestSpec.forStrategy(
                                 "Output type inference with multiple model fields",
-                                ML_PREDICT_OUTPUT_STRATEGY)
+                                ML_PREDICT_OUTPUT_TYPE_STRATEGY)
                         .inputTypes(TABLE_TYPE, MODEL_INPUT_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .calledWithModelSemanticsAt(
@@ -113,7 +112,8 @@ class MLPredictOutputTypeStrategyTest extends TypeStrategiesTestBase {
 
                 // Error case: no table semantics
                 TestSpec.forStrategy(
-                                "Error when table semantics missing", ML_PREDICT_OUTPUT_STRATEGY)
+                                "Error when table semantics missing",
+                                ML_PREDICT_OUTPUT_TYPE_STRATEGY)
                         .inputTypes(TABLE_TYPE, MODEL_INPUT_TYPE)
                         .calledWithModelSemanticsAt(
                                 1, new ModelSemanticsMock(MODEL_INPUT_TYPE, MODEL_OUTPUT_TYPE))
@@ -122,7 +122,8 @@ class MLPredictOutputTypeStrategyTest extends TypeStrategiesTestBase {
 
                 // Error case: no model semantics
                 TestSpec.forStrategy(
-                                "Error when model semantics missing", ML_PREDICT_OUTPUT_STRATEGY)
+                                "Error when model semantics missing",
+                                ML_PREDICT_OUTPUT_TYPE_STRATEGY)
                         .inputTypes(TABLE_TYPE, MODEL_INPUT_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .expectErrorMessage(
@@ -130,7 +131,8 @@ class MLPredictOutputTypeStrategyTest extends TypeStrategiesTestBase {
 
                 // Error case: table type is not a row
                 TestSpec.forStrategy(
-                                "Error when table type is not a row", ML_PREDICT_OUTPUT_STRATEGY)
+                                "Error when table type is not a row",
+                                ML_PREDICT_OUTPUT_TYPE_STRATEGY)
                         .inputTypes(DataTypes.STRING(), MODEL_INPUT_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(DataTypes.STRING()))
                         .calledWithModelSemanticsAt(
@@ -141,7 +143,7 @@ class MLPredictOutputTypeStrategyTest extends TypeStrategiesTestBase {
                 // Error case: model output type is not a row
                 TestSpec.forStrategy(
                                 "Error when model output type is not a row",
-                                ML_PREDICT_OUTPUT_STRATEGY)
+                                ML_PREDICT_OUTPUT_TYPE_STRATEGY)
                         .inputTypes(TABLE_TYPE, MODEL_INPUT_TYPE)
                         .calledWithTableSemanticsAt(0, new TableSemanticsMock(TABLE_TYPE))
                         .calledWithModelSemanticsAt(

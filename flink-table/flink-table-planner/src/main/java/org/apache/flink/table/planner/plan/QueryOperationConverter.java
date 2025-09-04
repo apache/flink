@@ -335,8 +335,6 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                                             inputStack.add(relBuilder.build());
                                             return tableArgCall;
                                         }
-                                        // TODO: Check ModelReferenceExpression and construct
-                                        // RexModelArgCall
                                         return convertExprToRexNode(resolvedArg);
                                     })
                             .collect(Collectors.toList());

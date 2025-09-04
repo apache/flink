@@ -30,15 +30,9 @@ import org.apache.flink.table.types.DataType;
 @PublicEvolving
 public interface ModelSemantics {
 
-    /**
-     * Input data type expected by the passed model. Extracting type from PTF class definition is
-     * not supported yet.
-     */
+    /** Input data type expected by the passed model. */
     DataType inputDataType();
 
-    /**
-     * Output data type produced by the passed model. Extracting type from PTF class definition is
-     * not supported yet.
-     */
+    /** Output data type produced by the passed model. */
     DataType outputDataType();
 }
