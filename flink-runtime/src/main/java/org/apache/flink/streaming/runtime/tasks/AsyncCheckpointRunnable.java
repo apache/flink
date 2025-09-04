@@ -18,6 +18,7 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.fs.FileSystemContext;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -29,6 +30,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
 import org.apache.flink.runtime.taskmanager.AsynchronousException;
+import org.apache.flink.runtime.util.ContextGetter;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.util.ExceptionUtils;
@@ -115,6 +117,9 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
                 checkpointMetaData.getCheckpointId(),
                 asyncStartDelayMillis);
 
+        FileSystemContext.initializeContextForThread(
+                ContextGetter.getContext(taskEnvironment.getJobID().toString(), taskName));
+
         FileSystemSafetyNet.initializeSafetyNetForThread();
         try {
 
@@ -156,6 +161,7 @@ final class AsyncCheckpointRunnable implements Runnable, Closeable {
             finishedFuture.completeExceptionally(e);
         } finally {
             unregisterConsumer.accept(this);
+            FileSystemContext.clearContext();
             FileSystemSafetyNet.closeSafetyNetAndGuardedResourcesForThread();
         }
     }
