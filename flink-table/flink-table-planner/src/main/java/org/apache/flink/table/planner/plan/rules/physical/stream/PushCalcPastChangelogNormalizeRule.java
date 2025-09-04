@@ -328,7 +328,7 @@ public class PushCalcPastChangelogNormalizeRule
             final RexNode condition = relBuilder.and(conditions);
             final RexNode simplifiedCondition =
                     FlinkRexUtil.simplify(relBuilder.getRexBuilder(), condition, rexExecutor);
-            if (!condition.isAlwaysTrue()) {
+            if (!simplifiedCondition.isAlwaysTrue()) {
                 programBuilder.addCondition(adjustInputRef(simplifiedCondition, inputRefMapping));
             }
         }
