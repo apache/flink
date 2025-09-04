@@ -217,4 +217,24 @@ class PushCalcPastChangelogNormalizeRuleTest extends TableTestBase {
         util.tableEnv().createTable("T", sourceDescriptorWithTwoPrimaryKeys);
         util.verifyRelPlan("SELECT f1, f5 FROM T WHERE f1 < 1 AND f3 IS NOT NULL");
     }
+
+    @Test
+    void testPartialPushDownWithTrimmedFieldsAndDifferentProjection() {
+        util.tableEnv().createTable("T", sourceDescriptorWithTwoPrimaryKeys);
+        // verifyExecPlan is intended here as it will show whether the node is reused or not
+        util.verifyExecPlan(
+                "SELECT f3 FROM T WHERE f2 < 1 AND f2 > 0\n"
+                        + " UNION SELECT f3 FROM T WHERE f2 < 3 AND f2 > 0\n"
+                        + " INTERSECT SELECT f3 FROM T WHERE f2 > 0 AND f2 < 10");
+    }
+
+    @Test
+    void testPartialPushDownWithTrimmedFields() {
+        util.tableEnv().createTable("T", sourceDescriptorWithTwoPrimaryKeys);
+        // verifyExecPlan is intended here as it will show whether the node is reused or not
+        util.verifyExecPlan(
+                "SELECT f2 FROM T WHERE f2 < 1 AND f2 > 0\n"
+                        + " UNION SELECT f2 FROM T WHERE f2 < 3 AND f2 > 0\n"
+                        + " INTERSECT SELECT f2 FROM T WHERE f2 > 0 AND f2 < 10");
+    }
 }
