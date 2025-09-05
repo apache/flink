@@ -31,6 +31,7 @@ import org.assertj.core.api.AbstractThrowableAssert;
 import org.assertj.core.api.ListAssert;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.function.IntSupplier;
@@ -91,7 +92,7 @@ abstract class CommitterOperatorTestBase {
         SinkAndCounters sinkAndCounters = sinkWithPostCommit();
         final OneInputStreamOperatorTestHarness<
                         CommittableMessage<String>, CommittableMessage<String>>
-                testHarness = createTestHarness(sinkAndCounters.sink, false, true);
+                testHarness = createTestHarness(sinkAndCounters.sink, false, true, 1, 1, 0);
         testHarness.open();
         testHarness.setProcessingTime(0);
 
@@ -125,11 +126,13 @@ abstract class CommitterOperatorTestBase {
         testHarness.close();
     }
 
-    @Test
-    void testStateRestore() throws Exception {
+    @ParameterizedTest
+    @CsvSource({"1, 10, 9", "2, 1, 0", "2, 2, 1"})
+    void testStateRestoreWithScaling(
+            int parallelismBeforeScaling, int parallelismAfterScaling, int subtaskIdAfterRecovery)
+            throws Exception {
 
         final int originalSubtaskId = 0;
-        final int subtaskIdAfterRecovery = 9;
 
         final OneInputStreamOperatorTestHarness<
                         CommittableMessage<String>, CommittableMessage<String>>
@@ -138,8 +141,8 @@ abstract class CommitterOperatorTestBase {
                                 sinkWithPostCommitWithRetry().sink,
                                 false,
                                 true,
-                                1,
-                                1,
+                                parallelismBeforeScaling,
+                                parallelismBeforeScaling,
                                 originalSubtaskId);
         testHarness.open();
 
@@ -148,7 +151,8 @@ abstract class CommitterOperatorTestBase {
         long checkpointId = 0L;
 
         final CommittableSummary<String> committableSummary =
-                new CommittableSummary<>(originalSubtaskId, 1, checkpointId, 1, 1, 0);
+                new CommittableSummary<>(
+                        originalSubtaskId, parallelismBeforeScaling, checkpointId, 1, 1, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary));
         final CommittableWithLineage<String> first =
                 new CommittableWithLineage<>("1", checkpointId, originalSubtaskId);
@@ -156,7 +160,8 @@ abstract class CommitterOperatorTestBase {
 
         // another committable for the same checkpointId but from different subtask.
         final CommittableSummary<String> committableSummary2 =
-                new CommittableSummary<>(originalSubtaskId + 1, 1, checkpointId, 1, 1, 0);
+                new CommittableSummary<>(
+                        originalSubtaskId + 1, parallelismBeforeScaling, checkpointId, 1, 1, 0);
         testHarness.processElement(new StreamRecord<>(committableSummary2));
         final CommittableWithLineage<String> second =
                 new CommittableWithLineage<>("2", checkpointId, originalSubtaskId + 1);
@@ -174,7 +179,12 @@ abstract class CommitterOperatorTestBase {
                         CommittableMessage<String>, CommittableMessage<String>>
                 restored =
                         createTestHarness(
-                                sinkAndCounters.sink, false, true, 10, 10, subtaskIdAfterRecovery);
+                                sinkAndCounters.sink,
+                                false,
+                                true,
+                                parallelismAfterScaling,
+                                parallelismAfterScaling,
+                                subtaskIdAfterRecovery);
 
         restored.initializeState(snapshot);
         restored.open();
@@ -188,7 +198,8 @@ abstract class CommitterOperatorTestBase {
                 .hasSubtaskId(subtaskIdAfterRecovery)
                 .hasFailedCommittables(0)
                 .hasOverallCommittables(2)
-                .hasPendingCommittables(0);
+                .hasPendingCommittables(0)
+                .hasNumberOfSubtasks(Math.min(parallelismBeforeScaling, parallelismAfterScaling));
 
         // Expect the same checkpointId that the original snapshot was made with.
         records.element(1, as(committableWithLineage()))
@@ -274,17 +285,6 @@ abstract class CommitterOperatorTestBase {
         testHarness.endInput();
 
         assertThat(testHarness.getOutput()).hasSize(2);
-    }
-
-    private OneInputStreamOperatorTestHarness<
-                    CommittableMessage<String>, CommittableMessage<String>>
-            createTestHarness(
-                    SupportsCommitter<String> sink,
-                    boolean isBatchMode,
-                    boolean isCheckpointingEnabled)
-                    throws Exception {
-        return new OneInputStreamOperatorTestHarness<>(
-                new CommitterOperatorFactory<>(sink, isBatchMode, isCheckpointingEnabled));
     }
 
     private OneInputStreamOperatorTestHarness<
