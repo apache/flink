@@ -25,12 +25,12 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.dispatcher.DefaultDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherOperationCaches;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
-import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.VoidHistoryServerArchivist;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -184,7 +184,7 @@ class ZooKeeperDefaultDispatcherRunnerTest {
 
             final DefaultDispatcherRunnerFactory defaultDispatcherRunnerFactory =
                     DefaultDispatcherRunnerFactory.createSessionRunner(
-                            SessionDispatcherFactory.INSTANCE);
+                            DefaultDispatcherFactory.INSTANCE);
 
             try (final DispatcherRunner dispatcherRunner =
                     createDispatcherRunner(
