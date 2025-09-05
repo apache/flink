@@ -30,7 +30,7 @@ import java.util.Map;
 @Internal
 public class AggregatorRegistry {
 
-    private final Map<String, Aggregator<?>> registry = new HashMap<String, Aggregator<?>>();
+    private final Map<String, Aggregator<?>> registry = new HashMap<>();
 
     private ConvergenceCriterion<? extends Value> convergenceCriterion;
 
@@ -50,7 +50,7 @@ public class AggregatorRegistry {
 
     public Collection<AggregatorWithName<?>> getAllRegisteredAggregators() {
         ArrayList<AggregatorWithName<?>> list =
-                new ArrayList<AggregatorWithName<?>>(this.registry.size());
+                new ArrayList<>(this.registry.size());
 
         for (Map.Entry<String, Aggregator<?>> entry : this.registry.entrySet()) {
             @SuppressWarnings("unchecked")
@@ -67,14 +67,12 @@ public class AggregatorRegistry {
                     "Name, aggregator, or convergence criterion must not be null");
         }
 
-        Aggregator<?> genAgg = aggregator;
-
         Aggregator<?> previous = this.registry.get(name);
-        if (previous != null && previous != genAgg) {
+        if (previous != null && previous != aggregator) {
             throw new RuntimeException("An aggregator is already registered under the given name.");
         }
 
-        this.registry.put(name, genAgg);
+        this.registry.put(name, aggregator);
         this.convergenceCriterion = convergenceCheck;
         this.convergenceCriterionAggregatorName = name;
     }

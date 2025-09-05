@@ -64,7 +64,7 @@ public class GlobFilePathFilter extends FilePathFilter {
 
     /** Constructor for GlobFilePathFilter that will match all files */
     public GlobFilePathFilter() {
-        this(Collections.<String>emptyList(), Collections.<String>emptyList());
+        this(Collections.emptyList(), Collections.emptyList());
     }
 
     /**

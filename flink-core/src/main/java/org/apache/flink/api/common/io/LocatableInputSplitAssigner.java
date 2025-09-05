@@ -46,11 +46,11 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
 
     // unassigned input splits
     private final Set<LocatableInputSplitWithCount> unassigned =
-            new HashSet<LocatableInputSplitWithCount>();
+            new HashSet<>();
 
     // input splits indexed by host for local assignment
     private final ConcurrentHashMap<String, LocatableInputSplitChooser> localPerHost =
-            new ConcurrentHashMap<String, LocatableInputSplitChooser>();
+            new ConcurrentHashMap<>();
 
     // unassigned splits for remote assignment
     private final LocatableInputSplitChooser remoteSplitChooser;
@@ -291,11 +291,11 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
         private int elementCycleCount = 0;
 
         public LocatableInputSplitChooser() {
-            this.splits = new LinkedList<LocatableInputSplitWithCount>();
+            this.splits = new LinkedList<>();
         }
 
         public LocatableInputSplitChooser(Collection<LocatableInputSplitWithCount> splits) {
-            this.splits = new LinkedList<LocatableInputSplitWithCount>();
+            this.splits = new LinkedList<>();
             for (LocatableInputSplitWithCount isw : splits) {
                 this.addInputSplit(isw);
             }
@@ -338,50 +338,38 @@ public final class LocatableInputSplitAssigner implements InputSplitAssigner {
          * returned input split is NOT removed from the provided set.
          *
          * @param unassignedSplits Set of unassigned input splits.
+         *
          * @return An input split with minimum local count or null if all splits have been assigned.
          */
         public LocatableInputSplitWithCount getNextUnassignedMinLocalCountSplit(
                 Set<LocatableInputSplitWithCount> unassignedSplits) {
 
-            if (splits.size() == 0) {
+            if (splits.isEmpty()) {
                 return null;
             }
-
-            do {
+            while (elementCycleCount > 0) {
                 elementCycleCount--;
-                // take first split of the list
                 LocatableInputSplitWithCount split = splits.pollFirst();
+                if (split == null) {
+                    continue;
+                }
                 if (unassignedSplits.contains(split)) {
                     int localCount = split.getLocalCount();
-                    // still unassigned, check local count
                     if (localCount > minLocalCount) {
-                        // re-insert at end of the list and continue to look for split with smaller
-                        // local count
                         splits.offerLast(split);
-                        // check and update second smallest local count
-                        if (nextMinLocalCount == -1 || split.getLocalCount() < nextMinLocalCount) {
-                            nextMinLocalCount = split.getLocalCount();
+                        if (nextMinLocalCount == -1 || localCount < nextMinLocalCount) {
+                            nextMinLocalCount = localCount;
                         }
-                        split = null;
+                    } else {
+                        return split;
                     }
-                } else {
-                    // split was already assigned
-                    split = null;
                 }
-                if (elementCycleCount == 0) {
-                    // one full cycle, but no split with min local count found
-                    // update minLocalCnt and element cycle count for next pass over the splits
+                if (elementCycleCount == 0 && !splits.isEmpty()) {
                     minLocalCount = nextMinLocalCount;
                     nextMinLocalCount = -1;
                     elementCycleCount = splits.size();
                 }
-                if (split != null) {
-                    // found a split to assign
-                    return split;
-                }
-            } while (elementCycleCount > 0);
-
-            // no split left
+            }
             return null;
         }
     }
