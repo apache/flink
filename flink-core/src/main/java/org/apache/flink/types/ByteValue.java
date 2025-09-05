@@ -107,8 +107,8 @@ public class ByteValue
 
     @Override
     public boolean equals(final Object obj) {
-        if (obj instanceof ByteValue) {
-            return ((ByteValue) obj).value == this.value;
+        if (obj instanceof ByteValue other) {
+            return other.value == this.value;
         }
         return false;
     }
