@@ -50,7 +50,7 @@ class MetricStoreTest {
     @Test
     void testAdd() {
         MetricStore store = setupStore(new MetricStore());
-
+        MetricStore.JobMetricStoreSnapshot jobMetrics = store.getJobs();
         assertThat(store.getJobManagerMetricStore().getMetric("abc.metric1", "-1")).isEqualTo("0");
         assertThat(store.getTaskManagerMetricStore("tmid").getMetric("abc.metric2", "-1"))
                 .isEqualTo("1");
@@ -64,15 +64,18 @@ class MetricStoreTest {
                                 .getMetric("8.abc.metric5", "-1"))
                 .isEqualTo("14");
         assertThat(
-                        store.getSubtaskMetricStore(JOB_ID.toString(), "taskid", 8)
+                        jobMetrics
+                                .getSubtaskMetricStore(JOB_ID.toString(), "taskid", 8)
                                 .getMetric("abc.metric5", "-1"))
                 .isEqualTo("14");
         assertThat(
-                        store.getSubtaskAttemptMetricStore(JOB_ID.toString(), "taskid", 8, 1)
+                        jobMetrics
+                                .getSubtaskAttemptMetricStore(JOB_ID.toString(), "taskid", 8, 1)
                                 .getMetric("abc.metric5", "-1"))
                 .isEqualTo("4");
         assertThat(
-                        store.getSubtaskAttemptMetricStore(JOB_ID.toString(), "taskid", 8, 2)
+                        jobMetrics
+                                .getSubtaskAttemptMetricStore(JOB_ID.toString(), "taskid", 8, 2)
                                 .getMetric("abc.metric5", "-1"))
                 .isEqualTo("14");
 
@@ -89,20 +92,25 @@ class MetricStoreTest {
                                 .getMetric("1.opname.abc.metric7", "-1"))
                 .isEqualTo("6");
         assertThat(
-                        store.getSubtaskMetricStore(JOB_ID.toString(), "taskid", 1)
+                        jobMetrics
+                                .getSubtaskMetricStore(JOB_ID.toString(), "taskid", 1)
                                 .getMetric("opname.abc.metric7", "-1"))
                 .isEqualTo("6");
-        assertThat(store.getSubtaskAttemptMetricStore(JOB_ID.toString(), "taskid", 1, 2)).isNull();
+        assertThat(jobMetrics.getSubtaskAttemptMetricStore(JOB_ID.toString(), "taskid", 1, 2))
+                .isNull();
         assertThat(
-                        store.getSubtaskAttemptMetricStore(JOB_ID.toString(), "taskid", 1, 3)
+                        jobMetrics
+                                .getSubtaskAttemptMetricStore(JOB_ID.toString(), "taskid", 1, 3)
                                 .getMetric("opname.abc.metric7", "-1"))
                 .isEqualTo("6");
         assertThat(
-                        store.getSubtaskAttemptMetricStore(JOB_ID.toString(), "taskid", 8, 2)
+                        jobMetrics
+                                .getSubtaskAttemptMetricStore(JOB_ID.toString(), "taskid", 8, 2)
                                 .getMetric("opname.abc.metric7", "-1"))
                 .isEqualTo("6");
         assertThat(
-                        store.getSubtaskAttemptMetricStore(JOB_ID.toString(), "taskid", 8, 4)
+                        jobMetrics
+                                .getSubtaskAttemptMetricStore(JOB_ID.toString(), "taskid", 8, 4)
                                 .getMetric("opname.abc.metric7", "-1"))
                 .isEqualTo("16");
 
@@ -135,13 +143,13 @@ class MetricStoreTest {
         // -----verify that no side effects occur
         assertThat(store.getJobManagerMetricStore().metrics).isEmpty();
         assertThat(store.getTaskManagers()).isEmpty();
-        assertThat(store.getJobs()).isEmpty();
+        assertThat(store.getJobs().values()).isEmpty();
     }
 
     @Test
     void testUpdateCurrentExecutionAttemptsWithNonExistentComponentMetricStore() {
         MetricStore metricStore = new MetricStore();
-        assertThat(metricStore.getJobs()).isEmpty();
+        assertThat(metricStore.getJobs().values()).isEmpty();
 
         JobDetails jobDetail =
                 new JobDetails(

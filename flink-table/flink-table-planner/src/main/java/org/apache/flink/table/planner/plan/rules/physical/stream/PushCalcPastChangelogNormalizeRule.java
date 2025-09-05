@@ -326,8 +326,11 @@ public class PushCalcPastChangelogNormalizeRule
         }
         if (!conditions.isEmpty()) {
             final RexNode condition = relBuilder.and(conditions);
-            programBuilder.addCondition(
-                    FlinkRexUtil.simplify(relBuilder.getRexBuilder(), condition, rexExecutor));
+            final RexNode simplifiedCondition =
+                    FlinkRexUtil.simplify(relBuilder.getRexBuilder(), condition, rexExecutor);
+            if (!simplifiedCondition.isAlwaysTrue()) {
+                programBuilder.addCondition(adjustInputRef(simplifiedCondition, inputRefMapping));
+            }
         }
 
         final RexProgram newProgram = programBuilder.getProgram();

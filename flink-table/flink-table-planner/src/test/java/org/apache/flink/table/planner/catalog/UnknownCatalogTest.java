@@ -118,7 +118,9 @@ class UnknownCatalogTest {
                 "SHOW PROCEDURES",
                 "SHOW PROCEDURES IN db",
                 "SHOW COLUMNS IN db",
-                "SHOW DATABASES"
+                "SHOW DATABASES",
+                "SHOW MATERIALIZED TABLES",
+                "SHOW MATERIALIZED TABLES IN db"
             })
     void showForUnsetCatalog(String sql) {
         TableEnvironment tEnv = TableEnvironment.create(ENVIRONMENT_SETTINGS);
@@ -133,6 +135,7 @@ class UnknownCatalogTest {
     @ValueSource(
             strings = {
                 "SHOW TABLES",
+                "SHOW MATERIALIZED TABLES",
                 "SHOW VIEWS",
                 "SHOW PROCEDURES",
                 // Here `db` is considered as object name

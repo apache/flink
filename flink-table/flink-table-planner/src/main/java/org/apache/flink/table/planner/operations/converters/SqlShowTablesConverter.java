@@ -19,8 +19,11 @@
 package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.dql.SqlShowTables;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.ShowMaterializedTablesOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
+import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.utils.ShowLikeOperator;
 
 import javax.annotation.Nullable;
@@ -32,7 +35,17 @@ public class SqlShowTablesConverter extends AbstractSqlShowConverter<SqlShowTabl
             @Nullable String catalogName,
             @Nullable String databaseName,
             @Nullable ShowLikeOperator likeOp) {
-        return new ShowTablesOperation(catalogName, databaseName, likeOp);
+        switch (sqlShowCall.getTableKind()) {
+            case MATERIALIZED_TABLE:
+                return new ShowMaterializedTablesOperation(catalogName, databaseName, likeOp);
+            case TABLE:
+                return new ShowTablesOperation(catalogName, databaseName, likeOp);
+            case VIEW:
+                return new ShowViewsOperation(catalogName, databaseName, likeOp);
+            default:
+                throw new ValidationException(
+                        "Not supported table kind " + sqlShowCall.getTableKind() + " yet");
+        }
     }
 
     @Override
@@ -42,7 +55,17 @@ public class SqlShowTablesConverter extends AbstractSqlShowConverter<SqlShowTabl
             @Nullable String databaseName,
             String prep,
             @Nullable ShowLikeOperator likeOp) {
-        return new ShowTablesOperation(catalogName, databaseName, prep, likeOp);
+        switch (sqlShowCall.getTableKind()) {
+            case MATERIALIZED_TABLE:
+                return new ShowMaterializedTablesOperation(catalogName, databaseName, prep, likeOp);
+            case TABLE:
+                return new ShowTablesOperation(catalogName, databaseName, prep, likeOp);
+            case VIEW:
+                return new ShowViewsOperation(catalogName, databaseName, prep, likeOp);
+            default:
+                throw new ValidationException(
+                        "Not supported table kind " + sqlShowCall.getTableKind() + " yet");
+        }
     }
 
     @Override

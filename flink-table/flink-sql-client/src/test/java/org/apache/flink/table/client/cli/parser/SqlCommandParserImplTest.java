@@ -88,6 +88,7 @@ public class SqlCommandParserImplTest {
                 TestSpec.of("SHOW CREATE VIEW (what_ever);", OTHER),
                 TestSpec.of("SHOW CREATE syntax_error;", OTHER),
                 TestSpec.of("SHOW TABLES;", OTHER),
+                TestSpec.of("SHOW MATERIALIZED TABLES;", OTHER),
                 TestSpec.of("BEGIN STATEMENT SET;", OTHER),
                 TestSpec.of("BEGIN statement;", OTHER),
                 TestSpec.of("END;", OTHER),

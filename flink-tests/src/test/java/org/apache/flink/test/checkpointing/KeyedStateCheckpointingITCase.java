@@ -56,9 +56,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 /**
  * A simple test that runs a streaming topology with checkpointing enabled.
@@ -188,8 +188,14 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
                 .keyBy(x -> x.f0)
                 .addSink(new CounterSink());
 
+        long recoveryCounterBeforeTest = OnceFailingPartitionedSum.RECOVERY_COUNTER.get();
         env.execute();
 
+        // OnceFailingPartitionedSum should have failed exactly once, so one recovery with state per
+        // parallel operator
+        assertEquals(
+                recoveryCounterBeforeTest + PARALLELISM,
+                OnceFailingPartitionedSum.RECOVERY_COUNTER.get());
         // verify that we counted exactly right
         assertEquals(NUM_KEYS, CounterSink.ALL_COUNTS.size());
         assertEquals(NUM_KEYS, OnceFailingPartitionedSum.ALL_SUMS.size());
@@ -298,6 +304,7 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
             implements ListCheckpointed<Integer> {
 
         private static final Map<Integer, Long> ALL_SUMS = new ConcurrentHashMap<>();
+        private static final AtomicLong RECOVERY_COUNTER = new AtomicLong();
 
         private final int failurePos;
         private int count;
@@ -338,15 +345,9 @@ public class KeyedStateCheckpointingITCase extends TestLogger {
         @Override
         public void restoreState(List<Integer> state) throws Exception {
             assertEquals("Test failed due to unexpected recovered state size", 1, state.size());
+            RECOVERY_COUNTER.incrementAndGet();
             count = state.get(0);
             shouldFail = false;
-        }
-
-        @Override
-        public void close() throws Exception {
-            if (shouldFail) {
-                fail("Test ineffective: Function cleanly finished without ever failing.");
-            }
         }
     }
 

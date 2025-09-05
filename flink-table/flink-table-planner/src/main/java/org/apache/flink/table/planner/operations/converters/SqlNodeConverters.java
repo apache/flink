@@ -73,7 +73,6 @@ public class SqlNodeConverters {
         register(new SqlDropMaterializedTableConverter());
         register(new SqlDropModelConverter());
         register(new SqlShowTablesConverter());
-        register(new SqlShowViewsConverter());
         register(new SqlShowCatalogsConverter());
         register(new SqlDescribeFunctionConverter());
         register(new SqlDescribeModelConverter());

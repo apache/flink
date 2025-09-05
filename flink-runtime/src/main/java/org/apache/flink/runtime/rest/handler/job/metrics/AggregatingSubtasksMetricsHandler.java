@@ -76,6 +76,7 @@ public class AggregatingSubtasksMetricsHandler
         JobID jobID = request.getPathParameter(JobIDPathParameter.class);
         JobVertexID taskID = request.getPathParameter(JobVertexIdPathParameter.class);
 
+        MetricStore.JobMetricStoreSnapshot jobMetrics = store.getJobs();
         Collection<String> subtaskRanges =
                 request.getQueryParameter(SubtasksFilterQueryParameter.class);
         if (subtaskRanges.isEmpty()) {
@@ -91,7 +92,8 @@ public class AggregatingSubtasksMetricsHandler
             Collection<MetricStore.ComponentMetricStore> subtaskStores = new ArrayList<>(8);
             for (int subtask : subtasks) {
                 MetricStore.ComponentMetricStore subtaskMetricStore =
-                        store.getSubtaskMetricStore(jobID.toString(), taskID.toString(), subtask);
+                        jobMetrics.getSubtaskMetricStore(
+                                jobID.toString(), taskID.toString(), subtask);
                 if (subtaskMetricStore != null) {
                     subtaskStores.add(subtaskMetricStore);
                 }
