@@ -21,7 +21,7 @@ package org.apache.flink.formats.protobuf;
 /** Keeps protobuf constants separately. */
 public class PbConstant {
     public static final String PB_METHOD_GET_DESCRIPTOR = "getDescriptor";
-    public static final String PB_METHOD_PARSE_FROM = "parseFrom";
+    public static final String PB_METHOD_PARSER = "parser";
     public static final String GENERATED_DECODE_METHOD = "decode";
     public static final String GENERATED_ENCODE_METHOD = "encode";
     public static final String PB_MAP_KEY_NAME = "key";
