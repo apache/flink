@@ -32,7 +32,7 @@
             "bounded" : "false",
             "connector" : "values",
             "failing-source" : "true",
-            "sink-changelog-mode-enforced" : "I,UA,UB,D",
+            "sink-changelog-mode-enforced" : "I,UA,D",
             "sink-insert-only" : "false"
           }
         }
@@ -82,7 +82,7 @@
             "bounded" : "false",
             "connector" : "values",
             "failing-source" : "true",
-            "sink-changelog-mode-enforced" : "I,UA,UB,D",
+            "sink-changelog-mode-enforced" : "I,UA,D",
             "sink-insert-only" : "false"
           }
         }
@@ -140,7 +140,7 @@
                 "bounded" : "false",
                 "connector" : "values",
                 "failing-source" : "true",
-                "sink-changelog-mode-enforced" : "I,UA,UB,D",
+                "sink-changelog-mode-enforced" : "I,UA,D",
                 "sink-insert-only" : "false"
               }
             }
@@ -206,7 +206,7 @@
                 "bounded" : "false",
                 "connector" : "values",
                 "failing-source" : "true",
-                "sink-changelog-mode-enforced" : "I,UA,UB,D",
+                "sink-changelog-mode-enforced" : "I,UA,D",
                 "sink-insert-only" : "false"
               }
             }
@@ -309,7 +309,7 @@
             "async" : "true",
             "bounded" : "false",
             "connector" : "values",
-            "sink-changelog-mode-enforced" : "I,UA,UB,D",
+            "sink-changelog-mode-enforced" : "I,UA,D",
             "sink-insert-only" : "false"
           }
         }
