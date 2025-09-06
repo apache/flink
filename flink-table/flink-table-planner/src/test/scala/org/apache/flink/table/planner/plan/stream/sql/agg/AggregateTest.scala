@@ -481,4 +481,32 @@ class AggregateTest extends TableTestBase {
                                |""".stripMargin)
     util.verifyExecPlan("SELECT COUNT(*) FROM src")
   }
+
+  @Test
+  def testCalcWithNonDeterministicFilterAfterAgg1(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT * from(
+        |  SELECT SUM(b) b, MAX(c) c
+        |  FROM T1
+        |  GROUP BY a
+        |)
+        |WHERE TO_TIMESTAMP(c, 'yyyy-MM-dd HH:mm:ss')
+        |      < TIMESTAMPADD(HOUR, -2, CAST(CURRENT_TIME AS TIMESTAMP(3)))
+        |""".stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testCalcWithNonDeterministicFilterAfterAgg2(): Unit = {
+    val sqlQuery =
+      """
+        |SELECT MAX(b)
+        |FROM T1
+        |GROUP BY c
+        |HAVING c > '2022-01-01 00:00:00'
+        |AND TO_TIMESTAMP(c, 'yyyy-MM-dd HH:mm:ss') < TIMESTAMPADD(HOUR, -2, NOW())
+        |""".stripMargin
+    util.verifyExecPlan(sqlQuery)
+  }
 }

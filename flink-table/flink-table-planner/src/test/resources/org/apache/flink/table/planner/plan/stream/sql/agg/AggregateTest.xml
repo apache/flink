@@ -224,6 +224,65 @@ GroupAggregate(select=[AVG_RETRACT(a) AS EXPR$0], changelogMode=[I,UA,D])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCalcWithNonDeterministicFilterAfterAgg1">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * from(
+  SELECT SUM(b) b, MAX(c) c
+  FROM T1
+  GROUP BY a
+)
+WHERE TO_TIMESTAMP(c, 'yyyy-MM-dd HH:mm:ss')
+      < TIMESTAMPADD(HOUR, -2, CAST(CURRENT_TIME AS TIMESTAMP(3)))
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$0], c=[$1])
++- LogicalFilter(condition=[<(TO_TIMESTAMP($1, _UTF-16LE'yyyy-MM-dd HH:mm:ss'), +(CAST(CURRENT_TIME()):TIMESTAMP(3) NOT NULL, *(3600000:INTERVAL HOUR, -2)))])
+   +- LogicalProject(b=[$1], c=[$2])
+      +- LogicalAggregate(group=[{0}], b=[SUM($1)], c=[MAX($2)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[b, c], where=[(TO_TIMESTAMP(c, 'yyyy-MM-dd HH:mm:ss') < (CAST(CURRENT_TIME() AS TIMESTAMP(3)) + -7200000:INTERVAL HOUR))])
++- GroupAggregate(groupBy=[a], select=[a, SUM(b) AS b, MAX(c) AS c])
+   +- Exchange(distribution=[hash[a]])
+      +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcWithNonDeterministicFilterAfterAgg2">
+    <Resource name="sql">
+      <![CDATA[
+SELECT MAX(b)
+FROM T1
+GROUP BY c
+HAVING c > '2022-01-01 00:00:00'
+AND TO_TIMESTAMP(c, 'yyyy-MM-dd HH:mm:ss') < TIMESTAMPADD(HOUR, -2, NOW())
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalFilter(condition=[AND(>($0, _UTF-16LE'2022-01-01 00:00:00'), <(TO_TIMESTAMP($0, _UTF-16LE'yyyy-MM-dd HH:mm:ss'), +(NOW(), *(3600000:INTERVAL HOUR, -2))))])
+   +- LogicalAggregate(group=[{0}], EXPR$0=[MAX($1)])
+      +- LogicalProject(c=[$2], b=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0], where=[(TO_TIMESTAMP(c, 'yyyy-MM-dd HH:mm:ss') < (NOW() + -7200000:INTERVAL HOUR))])
++- GroupAggregate(groupBy=[c], select=[c, MAX(b) AS EXPR$0])
+   +- Exchange(distribution=[hash[c]])
+      +- Calc(select=[b, c], where=[(c > '2022-01-01 00:00:00')])
+         +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testColumnIntervalValidation">
     <Resource name="sql">
       <![CDATA[SELECT b, SUM(a) FROM MyTable WHERE a > 0.1 and a < 10 GROUP BY b]]>
