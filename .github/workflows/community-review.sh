@@ -237,8 +237,10 @@ process_pr_reviews() {
     existing_labels=$(call_github_get_labels_api "$pr_number")
 
     if [[ ! "$existing_labels" =~ (^|[[:space:]])"$label_to_post"($|[[:space:]]) ]]; then
-      call_github_mutate_label_api "$token" "$label_to_delete" "DELETE" "$pr_number" || exit
       call_github_mutate_label_api "$token" "$label_to_post" "POST" "$pr_number" || exit
+    fi
+    if [[ "$existing_labels" =~ (^|[[:space:]])"$label_to_delete"($|[[:space:]]) ]]; then
+      call_github_mutate_label_api "$token" "$label_to_delete" "DELETE" "$pr_number" || exit
     fi
   fi
 }
