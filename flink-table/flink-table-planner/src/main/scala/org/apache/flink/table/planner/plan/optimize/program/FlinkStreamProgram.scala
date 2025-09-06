@@ -240,7 +240,7 @@ object FlinkStreamProgram {
           .newBuilder[StreamOptimizeContext]
           .addProgram(
             FlinkHepRuleSetProgramBuilder.newBuilder
-              .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+              .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_SEQUENCE)
               .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
               .add(FlinkStreamRuleSets.MULTI_JOIN_RULES)
               .build(),
