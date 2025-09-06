@@ -17,14 +17,62 @@
  */
 
 nz-select {
-  width: 300px;
+  flex: 1;
+  width: 100%;
+  max-width: 100%;
 }
 
 .metric-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
   text-align: center;
+}
+
+.metric-option-text {
+  display: block;
+  overflow: visible;
+  width: 100%;
+  min-width: max-content;
+  max-width: none;
+  text-overflow: unset;
+  white-space: nowrap;
+  word-break: break-all;
 }
 
 :host {
   display: block;
+  box-sizing: border-box;
+  width: 100%;
   padding: 16px;
+}
+
+/* Ensure dropdown options display properly */
+::ng-deep .ant-select-item-option-content {
+  overflow: visible;
+  text-overflow: unset;
+  white-space: nowrap;
+  word-break: break-all;
+}
+
+/* Force dropdown width to respect our custom styling */
+::ng-deep .custom-dropdown-width {
+  .ant-select-dropdown {
+    width: var(--dropdown-width) !important;
+    min-width: var(--dropdown-width) !important;
+    max-width: 80vw !important;
+  }
+
+  .ant-select-item {
+    width: auto;
+    min-width: max-content;
+  }
+
+  .ant-select-item-option-content {
+    width: max-content;
+    min-width: max-content;
+  }
 }
