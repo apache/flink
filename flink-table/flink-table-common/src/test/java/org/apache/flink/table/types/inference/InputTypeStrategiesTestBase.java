@@ -21,10 +21,14 @@ package org.apache.flink.table.types.inference;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.FunctionKind;
+import org.apache.flink.table.functions.ModelSemantics;
+import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
+import org.apache.flink.table.types.inference.utils.ModelSemanticsMock;
+import org.apache.flink.table.types.inference.utils.TableSemanticsMock;
 import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 
 import org.junit.jupiter.api.TestInstance;
@@ -106,6 +110,8 @@ public abstract class InputTypeStrategiesTestBase {
                         .collect(Collectors.toList());
         callContextMock.name = "f";
         callContextMock.outputDataType = Optional.empty();
+        callContextMock.tableSemantics = testSpec.tableSemantics;
+        callContextMock.modelSemantics = testSpec.modelSemantics;
 
         final TypeInferenceUtil.SurroundingInfo surroundingInfo;
         if (testSpec.surroundingStrategy != null) {
@@ -169,6 +175,10 @@ public abstract class InputTypeStrategiesTestBase {
 
         private @Nullable String expectedErrorMessage;
 
+        private Map<Integer, ModelSemantics> modelSemantics = new HashMap<>();
+
+        private Map<Integer, TableSemantics> tableSemantics = new HashMap<>();
+
         private TestSpec(@Nullable String description, InputTypeStrategy strategy) {
             this.description = description;
             this.strategy = strategy;
@@ -209,6 +219,16 @@ public abstract class InputTypeStrategiesTestBase {
 
         public TestSpec calledWithLiteralAt(int pos, Object value) {
             this.literals.put(pos, value);
+            return this;
+        }
+
+        public TestSpec calledWithModelSemanticsAt(int pos, ModelSemanticsMock modelSemantics) {
+            this.modelSemantics.put(pos, modelSemantics);
+            return this;
+        }
+
+        public TestSpec calledWithTableSemanticsAt(int pos, TableSemanticsMock tableSemantics) {
+            this.tableSemantics.put(pos, tableSemantics);
             return this;
         }
 
