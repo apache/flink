@@ -45,7 +45,7 @@ public class DeclarativeSlotPoolBridgeBuilder {
     private Clock clock = SystemClock.getInstance();
     private Duration slotRequestMaxInterval = SLOT_REQUEST_MAX_INTERVAL.defaultValue();
     private ComponentMainThreadExecutor mainThreadExecutor = forMainThread();
-    private boolean slotBatchAllocatable = false;
+    private boolean deferSlotAllocation = false;
 
     @Nullable
     private ResourceManagerGateway resourceManagerGateway = new TestingResourceManagerGateway();
@@ -97,8 +97,8 @@ public class DeclarativeSlotPoolBridgeBuilder {
         return this;
     }
 
-    public DeclarativeSlotPoolBridgeBuilder setSlotBatchAllocatable(boolean slotBatchAllocatable) {
-        this.slotBatchAllocatable = slotBatchAllocatable;
+    public DeclarativeSlotPoolBridgeBuilder setDeferSlotAllocation(boolean deferSlotAllocation) {
+        this.deferSlotAllocation = deferSlotAllocation;
         return this;
     }
 
@@ -112,7 +112,7 @@ public class DeclarativeSlotPoolBridgeBuilder {
                 batchSlotTimeout,
                 requestSlotMatchingStrategy,
                 slotRequestMaxInterval,
-                slotBatchAllocatable,
+                deferSlotAllocation,
                 mainThreadExecutor);
     }
 
@@ -127,7 +127,7 @@ public class DeclarativeSlotPoolBridgeBuilder {
                         batchSlotTimeout,
                         requestSlotMatchingStrategy,
                         slotRequestMaxInterval,
-                        slotBatchAllocatable,
+                        deferSlotAllocation,
                         mainThreadExecutor);
 
         slotPool.start(JobMasterId.generate(), "foobar");
