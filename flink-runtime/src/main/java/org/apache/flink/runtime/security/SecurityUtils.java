@@ -62,14 +62,17 @@ public class SecurityUtils {
 
         // install the security module factories
         List<SecurityModule> modules = new ArrayList<>();
-        for (String moduleFactoryClass : config.getSecurityModuleFactories()) {
-            SecurityModuleFactory moduleFactory = null;
-            try {
-                moduleFactory = SecurityFactoryServiceLoader.findModuleFactory(moduleFactoryClass);
-            } catch (NoMatchSecurityFactoryException ne) {
-                LOG.error("Unable to instantiate security module factory {}", moduleFactoryClass);
-                throw new IllegalArgumentException("Unable to find module factory class", ne);
-            }
+        List<String> moduleFactoryClasses = config.getSecurityModuleFactories();
+        List<SecurityModuleFactory> moduleFactories = null;
+        try {
+            moduleFactories = SecurityFactoryServiceLoader.findModuleFactory(moduleFactoryClasses);
+        } catch (NoMatchSecurityFactoryException ne) {
+            LOG.error(
+                    "Unable to instantiate security module factories {}",
+                    String.join(",", ne.getMissingFactoryClasses()));
+            throw new IllegalArgumentException("Unable to find module factory classes", ne);
+        }
+        for (SecurityModuleFactory moduleFactory : moduleFactories) {
             SecurityModule module = moduleFactory.createModule(config);
             // can be null if a SecurityModule is not supported in the current environment
             if (module != null) {
