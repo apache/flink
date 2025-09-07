@@ -38,7 +38,6 @@ import static org.apache.flink.streaming.api.connector.sink2.SinkV2Assertions.co
 import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
 
-
 import java.util.Collection;
 
 class SinkV2CommitterOperatorTest extends CommitterOperatorTestBase {
@@ -181,7 +180,6 @@ class SinkV2CommitterOperatorTest extends CommitterOperatorTestBase {
                 parallelism,
                 subtaskId);
     }
-
 
     private static class ForwardingCommitter extends TestSinkV2.DefaultCommitter {
         private int successfulCommits = 0;
