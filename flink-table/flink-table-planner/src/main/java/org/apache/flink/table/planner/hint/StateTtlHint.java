@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.hint;
 
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin;
 import org.apache.flink.util.TimeUtils;
 
 import org.apache.calcite.rel.hint.RelHint;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Hint strategy to configure different {@link
@@ -43,6 +45,8 @@ public enum StateTtlHint {
      * <p>Only accept key-value hint options.
      */
     STATE_TTL("STATE_TTL");
+
+    public static final String NO_STATE_TTL = "0s";
 
     private final String hintName;
 
@@ -89,6 +93,32 @@ public enum StateTtlHint {
                                                     side, TimeUtils.parseDuration(ttl).toMillis());
                                         }));
 
+        return stateTtlFromHint;
+    }
+
+    /**
+     * Get the state ttl from hints from the listOptions inside the STATE_TTL {@link RelHint} if
+     * present. Else if returns an empty map. Used for nodes with multiple inputs such as {@link
+     * StreamPhysicalMultiJoin}.
+     *
+     * @return The key of the map is the input side. The value of the map is the state ttl in
+     *     milliseconds.
+     */
+    public static Map<Integer, Long> getStateTtlFromHintOnMultiRel(List<RelHint> hints) {
+        Map<Integer, Long> stateTtlFromHint = new java.util.HashMap<>();
+        hints.stream()
+                .filter(hint -> StateTtlHint.isStateTtlHint(hint.hintName))
+                .forEach(
+                        hint -> {
+                            List<String> ttls = hint.listOptions;
+                            IntStream.range(0, ttls.size())
+                                    .forEach(
+                                            id ->
+                                                    stateTtlFromHint.put(
+                                                            id,
+                                                            TimeUtils.parseDuration(ttls.get(id))
+                                                                    .toMillis()));
+                        });
         return stateTtlFromHint;
     }
 
