@@ -19,6 +19,10 @@
 #
 # Community review GitHub Action - sets the community review labels on PRs to show case
 # community review activity. See Flip-518 for details
+# This github action also sets the target version as a label on PRs.
+# 
+# If more capabilities are added to this script we should consider renaming it to have a
+# more generic name.   
 set -e
 
 # =============================================================================
@@ -29,6 +33,7 @@ REPO_NAME=flink
 LGTM_LABEL="community-reviewed-LGTM"
 COMMUNITY_REVIEW_LABEL="community-reviewed"
 USER_CACHE_FILENAME="user_cache.txt"
+PR_CACHE_FILENAME="pr_number_cache.txt"
 
 # =============================================================================
 # Community review script - is passed a github token that it uses for authentication
@@ -40,6 +45,8 @@ USER_CACHE_FILENAME="user_cache.txt"
 #      no changes requested
 #    - community-reviewed - set if a non-committer has reviewed the PR.
 #  Note only one of the above labels should be present on a PR.
+#
+#  Additionally this script adds the target branch as a label to each PR.   
 # =============================================================================
 main() {
   local token="${1?missing token}"
@@ -52,6 +59,9 @@ main() {
             node {
               number
               isDraft
+              baseRef {
+                name
+              }
               timelineItems(first: 100, itemTypes: [PULL_REQUEST_REVIEW]) {
                 nodes {
                   ... on PullRequestReview {
@@ -99,10 +109,11 @@ main() {
     fi
     restResponse="$(call_github_graphql_api "$token" "$payload")"
     check_github_graphql_response "$restResponse"
-    receivedPullRequests="$(jq '.data.repository.pullRequests.edges' <<< "$restResponse")"
+    local receivedPullRequests="$(jq '.data.repository.pullRequests.edges' <<< "$restResponse")"
 
     printf "Filtering %4s received pull requests... "  "$(JSONArrayLength "$receivedPullRequests")"
-    receivedPullRequests=$(jq '[.[] | select((.node.isDraft = false) and (.node.timelineItems.nodes | type != "array" or length > 0))]' <<< "$receivedPullRequests")
+    
+    receivedPullRequests=$(jq '[.[] | select((.node.isDraft = false))]' <<< "$receivedPullRequests")
     printf " %2s PR retained" "$(JSONArrayLength "$receivedPullRequests")"
 
     pullRequests=$(jq --argjson a1 "$pullRequests" --argjson a2 "$receivedPullRequests" '$a1 + $a2' <<< '{}')
@@ -147,21 +158,74 @@ process_each_pr() {
 
     printf "\n(%s/%s) PR %s - " "$counter" "$prCount" "$pr_number"
 
-    # find the node for our pr
-    local pr_reviews
-    if [[ "$hasNextPage" == "false" ]]; then
-      all_reviews="$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | .node.timelineItems.nodes'  <<< "$pullRequests")"
-    else
-      all_reviews="$(get_all_reviews_for_pr "$token" "$pr_number")"
+    # Add target branch as label 
+    local target_branch=$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | .node.baseRef.name' <<< "$pullRequests")  
+    process_target_branch_label "$token" "$pr_number" "$target_branch"
+    
+    # Add review orientated labels
+    local has_timeline_items=$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | (.node.timelineItems.nodes | type != "array" or length > 0)' <<< "$pullRequests")
+    # Only process reviews if there are timeline items
+    if [[ "$has_timeline_items" == "true" ]]; then
+       local all_reviews
+       if [[ "$hasNextPage" == "false" ]]; then
+         all_reviews="$(jq --argjson number "$pr_number" -r '.[] | select(.node.number==$number) | .node.timelineItems.nodes'  <<< "$pullRequests")"
+       else
+         all_reviews="$(get_all_reviews_for_pr "$token" "$pr_number")"
+       fi
+       # leave only the latest reviews per reviewer in a comma separated form
+       pr_reviewers="$(jq  '. | sort_by([.author.login, .createdAt]) | reverse | unique_by(.author.login) | .[] | [.author.login, .state, .createdAt] | join(",")' <<< "$all_reviews")"
+
+       printf "Reviews %s Reviewers %s\n" "$(JSONArrayLength "$all_reviews")" "$(wc -l <<< "$pr_reviewers" | xargs)"
+
+       process_pr_reviews "$token" "$pr_number" "$pr_reviewers" || exit
     fi
-    # leave only the latest reviews per reviewer in a comma separated form
-    pr_reviewers="$(jq  '. | sort_by([.author.login, .createdAt]) | reverse | unique_by(.author.login) | .[] | [.author.login, .state, .createdAt] | join(",")' <<< "$all_reviews")"
-
-    printf "Reviews %s Reviewers %s\n" "$(JSONArrayLength "$all_reviews")" "$(wc -l <<< "$pr_reviewers" | xargs)"
-
-    process_pr_reviews "$token" "$pr_number" "$pr_reviewers" || exit
     ((counter++))
   done <<< "$prNumbersAndPaging" || exit
+}
+
+# =============================================================================
+# Process target branch label for a PR
+# Arguments:
+#   $1 - GitHub API token for authentication
+#   $2 - PR number
+#   $3 - Target branch name
+# =============================================================================
+process_target_branch_label() {
+  local token="${1?missing token}"
+  local pr_number="${2?missing pr number}"
+  local target_branch="${3?missing target branch}"
+
+  local file_name=$PR_CACHE_FILENAME
+
+  local pr_found=false
+  if [[ -e "$file_name" ]]; then
+
+    while IFS=, read -r pr_number_from_file; do
+      if [[ "$pr_number_from_file" == "$pr_number" ]]; then
+        pr_found=true
+        break
+      fi
+    done < $file_name
+  fi
+  
+  # Only process labels for release branches.
+  if [[ "$target_branch" == release-* && "$pr_found" == "false" ]]; then
+    local target_branch_label="target:${target_branch}"
+    
+    # Ensure the target branch label exists before trying to add it to the PR
+    ensure_label_exists "$token" "$target_branch_label"
+    
+    # Get existing labels
+    local existing_labels=$(call_github_get_labels_api "$pr_number")
+    
+    # Add target branch label if it doesn't exist on the PR
+    if [[ ! "$existing_labels" =~ (^|[[:space:]])"$target_branch_label"($|[[:space:]]) ]]; then
+      call_github_mutate_label_api "$token" "$target_branch_label" "POST" "$pr_number" || exit
+      printf "Added target branch label %s to PR %s\n" "$target_branch_label" "$pr_number"
+      local line="$pr_number"
+      echo "$line">>$file_name
+    fi
+  fi
 }
 
 # =============================================================================
@@ -313,8 +377,7 @@ get_all_reviews_for_pr() {
     fi
     restResponse="$(call_github_graphql_api "$token" "$payload")"
     check_github_graphql_response "$restResponse"
-    local cutdownRestResponse
-    cutdownRestResponse="$(jq '.data.repository.pullRequest.timelineItems.nodes' <<< "$restResponse")"
+    local cutdownRestResponse="$(jq '.data.repository.pullRequest.timelineItems.nodes' <<< "$restResponse")"
     hasNextPage=$(jq  '.data.repository.pullRequest.timelineItems.pageInfo.hasNextPage' <<< "$restResponse")
     cursor=$(jq  '.data.repository.pullRequest.timelineItems.pageInfo.endCursor' <<< "$restResponse")
     # remove quotes from cursor
@@ -350,6 +413,37 @@ call_github_graphql_api() {
     -H "Authorization: Bearer ${token}" \
     -d "${payload}" \
     "https://api.github.com/graphql"
+}
+
+# =============================================================================
+# Check if a label exists in the repository and create it if it doesn't
+# Arguments:
+#   $1 - GitHub API token for authentication
+#   $2 - Label name to check/create
+# =============================================================================
+ensure_label_exists() {
+  local token="${1?missing token}"
+  local label_name="${2?missing label name}"
+  
+  local color="90EE90"
+  
+  # Check if the label exists
+  local label_exists=$(curl --fail --no-progress-meter -s \
+    -H "Accept: application/json" \
+    -H "Authorization: Bearer $token" \
+    "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/labels/$label_name" \
+    -w "%{http_code}" -o /dev/null || echo "404")
+  
+  # If label doesn't exist (404), create it
+  if [[ "$label_exists" == "404" ]]; then
+    sprintf "Creating label %s" "$label_name"
+    curl --fail --no-progress-meter -s \
+      -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $token" \
+      -X POST \
+      -d "{\"name\":\"$label_name\",\"color\":\"$color\"}" \
+      "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/labels"
+  fi
 }
 
 # =============================================================================
@@ -475,7 +569,7 @@ call_github_get_user_push_permission() {
       "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/collaborators/$user_name/permission") || exit
     push_permission=$(jq -r '.user.permissions.push' <<< "$permissions")
     # write line to file
-    line="$user_name,$push_permission"
+    local line="$user_name,$push_permission"
     echo "$line">>$file_name
   fi
   # echo out the permissions
