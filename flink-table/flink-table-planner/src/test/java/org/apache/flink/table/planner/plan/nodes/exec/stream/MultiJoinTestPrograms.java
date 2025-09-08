@@ -378,6 +378,63 @@ public class MultiJoinTestPrograms {
                                     + "INNER JOIN Payments p ON u.user_id = p.user_id")
                     .build();
 
+    public static final TableTestProgram
+            MULTI_JOIN_THREE_WAY_INNER_JOIN_WITH_TTL_HINTS_WITH_RESTORE =
+                    TableTestProgram.of(
+                                    "three-way-inner-join-with-ttl-hints-with-restore",
+                                    "three way inner join with restore and ttl hints")
+                            .setupConfig(
+                                    OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("Users")
+                                            .addSchema("user_id STRING", "name STRING")
+                                            .producedBeforeRestore(
+                                                    Row.ofKind(RowKind.INSERT, "1", "Gus"),
+                                                    Row.ofKind(RowKind.INSERT, "2", "Bob"))
+                                            .producedAfterRestore(
+                                                    Row.ofKind(RowKind.INSERT, "3", "Alice"))
+                                            .build())
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("Orders")
+                                            .addSchema("user_id STRING", "order_id STRING")
+                                            .producedBeforeRestore(
+                                                    Row.ofKind(RowKind.INSERT, "1", "order1"),
+                                                    Row.ofKind(RowKind.INSERT, "2", "order2"))
+                                            .producedAfterRestore(
+                                                    Row.ofKind(RowKind.INSERT, "2", "order3"))
+                                            .build())
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("Payments")
+                                            .addSchema("user_id STRING", "payment_id STRING")
+                                            .producedBeforeRestore(
+                                                    Row.ofKind(RowKind.INSERT, "1", "payment1"),
+                                                    Row.ofKind(RowKind.INSERT, "2", "payment2"))
+                                            .producedAfterRestore(
+                                                    Row.ofKind(RowKind.INSERT, "1", "payment3"))
+                                            .build())
+                            .setupTableSink(
+                                    SinkTestStep.newBuilder("sink")
+                                            .addSchema(
+                                                    "user_id STRING",
+                                                    "name STRING",
+                                                    "order_id STRING",
+                                                    "payment_id STRING")
+                                            .consumedBeforeRestore(
+                                                    "+I[1, Gus, order1, payment1]",
+                                                    "+I[2, Bob, order2, payment2]")
+                                            .consumedAfterRestore(
+                                                    "+I[2, Bob, order3, payment2]",
+                                                    "+I[1, Gus, order1, payment3]")
+                                            .testMaterializedData()
+                                            .build())
+                            .runSql(
+                                    "INSERT INTO sink "
+                                            + "SELECT /*+ STATE_TTL('u' = '1d', 'p' = '2d') */u.user_id, u.name, o.order_id, p.payment_id "
+                                            + "FROM Users u "
+                                            + "INNER JOIN Orders o ON u.user_id = o.user_id "
+                                            + "INNER JOIN Payments p ON u.user_id = p.user_id")
+                            .build();
+
     public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_JOIN_NO_JOIN_KEY =
             TableTestProgram.of(
                             "three-way-inner-join-no-join-key",

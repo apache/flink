@@ -163,6 +163,24 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    void testThreeWayInnerJoinWithTttlHints() {
+        util.verifyRelPlan(
+                "SELECT /*+ STATE_TTL(u='1d', o='2d', p='1h') */u.user_id_0, u.name, o.order_id, p.payment_id "
+                        + "FROM Users u "
+                        + "INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2");
+    }
+
+    @Test
+    void testThreeWayInnerJoinWithSingleTttlHint() {
+        util.verifyRelPlan(
+                "SELECT /*+ STATE_TTL(o='2d') */u.user_id_0, u.name, o.order_id, p.payment_id "
+                        + "FROM Users u "
+                        + "INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 "
+                        + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2");
+    }
+
+    @Test
     void testThreeWayLeftOuterJoinExecPlan() {
         util.verifyExecPlan(
                 "SELECT u.user_id_0, u.name, o.order_id, p.payment_id "
