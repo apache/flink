@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.SubTaskInitializationMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.filemerging.FileMergingSnapshotManager;
 import org.apache.flink.runtime.checkpoint.filemerging.SubtaskFileMergingManagerRestoreOperation;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.state.AsyncKeyedStateBackend;
@@ -160,7 +161,8 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
             throws Exception {
 
         TaskInfo taskInfo = environment.getTaskInfo();
-        registerRestoredStateToFileMergingManager(environment.getJobID(), taskInfo, operatorID);
+        registerRestoredStateToFileMergingManager(
+                environment.getJobID(), taskInfo, environment.getJobVertexId(), operatorID);
 
         OperatorSubtaskDescriptionText operatorSubtaskDescription =
                 new OperatorSubtaskDescriptionText(
@@ -332,7 +334,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
     }
 
     private void registerRestoredStateToFileMergingManager(
-            JobID jobID, TaskInfo taskInfo, OperatorID operatorID) {
+            JobID jobID, TaskInfo taskInfo, JobVertexID jobVertexID, OperatorID operatorID) {
         FileMergingSnapshotManager fileMergingSnapshotManager =
                 taskStateManager.getFileMergingSnapshotManager();
         Optional<Long> restoredCheckpointId = taskStateManager.getRestoreCheckpointId();
@@ -348,7 +350,7 @@ public class StreamTaskStateInitializerImpl implements StreamTaskStateInitialize
                             fileMergingSnapshotManager,
                             jobID,
                             taskInfo,
-                            operatorID,
+                            jobVertexID,
                             subtaskState.get());
             restoreOperation.restore();
         }

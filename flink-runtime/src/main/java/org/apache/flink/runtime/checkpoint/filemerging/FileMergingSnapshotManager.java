@@ -23,7 +23,7 @@ import org.apache.flink.api.common.TaskInfo;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.execution.Environment;
-import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
 import org.apache.flink.runtime.state.PlaceholderStreamStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -209,14 +209,14 @@ public interface FileMergingSnapshotManager extends Closeable {
             long checkpointId, SubtaskKey subtaskKey, Stream<SegmentFileStateHandle> stateHandles);
 
     /**
-     * A key identifies a subtask. A subtask can be identified by the operator id, subtask index and
+     * A key identifies a subtask. A subtask can be identified by the vertex id, subtask index and
      * the parallelism. Note that this key should be consistent across job attempts.
      */
     final class SubtaskKey {
         private static final String MANAGED_DIR_FORMAT = "job_%s_op_%s_%d_%d";
 
         final String jobIDString;
-        final String operatorIDString;
+        final String vertexIDString;
         final int subtaskIndex;
         final int parallelism;
 
@@ -226,23 +226,23 @@ public interface FileMergingSnapshotManager extends Closeable {
          */
         final int hashCode;
 
-        public SubtaskKey(JobID jobID, OperatorID operatorID, TaskInfo taskInfo) {
+        public SubtaskKey(JobID jobID, JobVertexID vertexID, TaskInfo taskInfo) {
             this(
                     jobID.toHexString(),
-                    operatorID.toHexString(),
+                    vertexID.toHexString(),
                     taskInfo.getIndexOfThisSubtask(),
                     taskInfo.getNumberOfParallelSubtasks());
         }
 
         @VisibleForTesting
         public SubtaskKey(
-                String jobIDString, String operatorIDString, int subtaskIndex, int parallelism) {
+                String jobIDString, String vertexIDString, int subtaskIndex, int parallelism) {
             this.jobIDString = jobIDString;
-            this.operatorIDString = operatorIDString;
+            this.vertexIDString = vertexIDString;
             this.subtaskIndex = subtaskIndex;
             this.parallelism = parallelism;
             int hash = jobIDString.hashCode();
-            hash = 31 * hash + operatorIDString.hashCode();
+            hash = 31 * hash + vertexIDString.hashCode();
             hash = 31 * hash + subtaskIndex;
             hash = 31 * hash + parallelism;
             this.hashCode = hash;
@@ -251,7 +251,7 @@ public interface FileMergingSnapshotManager extends Closeable {
         public static SubtaskKey of(Environment environment) {
             return new SubtaskKey(
                     environment.getJobID(),
-                    OperatorID.fromJobVertexID(environment.getJobVertexId()),
+                    environment.getJobVertexId(),
                     environment.getTaskInfo());
         }
 
@@ -269,7 +269,7 @@ public interface FileMergingSnapshotManager extends Closeable {
             return String.format(
                             MANAGED_DIR_FORMAT,
                             jobIDString,
-                            operatorIDString,
+                            vertexIDString,
                             subtaskIndex,
                             parallelism)
                     .replaceAll("[^a-zA-Z0-9\\-]", "_");
@@ -289,7 +289,7 @@ public interface FileMergingSnapshotManager extends Closeable {
             return hashCode == that.hashCode
                     && subtaskIndex == that.subtaskIndex
                     && parallelism == that.parallelism
-                    && operatorIDString.equals(that.operatorIDString)
+                    && vertexIDString.equals(that.vertexIDString)
                     && jobIDString.equals(that.jobIDString);
         }
 
@@ -301,7 +301,7 @@ public interface FileMergingSnapshotManager extends Closeable {
         @Override
         public String toString() {
             return String.format(
-                    "%s-%s(%d/%d)", jobIDString, operatorIDString, subtaskIndex, parallelism);
+                    "%s-%s(%d/%d)", jobIDString, vertexIDString, subtaskIndex, parallelism);
         }
     }
 
