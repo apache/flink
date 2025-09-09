@@ -97,10 +97,10 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
         } else {
             ValueStateDescriptor<List<RowData>> valueStateDescriptor =
                     new ValueStateDescriptor<>("values", new ListSerializer<>(serializer));
-            state = getRuntimeContext().getState(valueStateDescriptor);
             if (ttlConfig.isEnabled()) {
                 valueStateDescriptor.enableTimeToLive(ttlConfig);
             }
+            state = getRuntimeContext().getState(valueStateDescriptor);
         }
         emptyRow = initEmptyRow(lookupJoinRunner.tableFieldsCount);
         collectListener = new FetchedRecordListener();
