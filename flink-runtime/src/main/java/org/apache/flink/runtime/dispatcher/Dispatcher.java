@@ -111,6 +111,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -996,6 +997,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     @Override
     public CompletableFuture<Integer> getBlobServerPort(Duration timeout) {
         return CompletableFuture.completedFuture(blobServer.getPort());
+    }
+
+    @Override
+    public CompletableFuture<InetAddress> getBlobServerAddress(Duration timeout) {
+        return CompletableFuture.completedFuture(blobServer.getAddress());
     }
 
     @Override

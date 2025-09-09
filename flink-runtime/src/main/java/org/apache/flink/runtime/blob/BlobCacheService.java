@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -112,5 +113,10 @@ public class BlobCacheService implements TaskExecutorBlobService {
     public int getPort() {
         // NOTE: both blob stores connect to the same server!
         return permanentBlobCache.getPort();
+    }
+
+    @Override
+    public InetAddress getAddress() {
+        return permanentBlobCache.serverAddress.getAddress();
     }
 }

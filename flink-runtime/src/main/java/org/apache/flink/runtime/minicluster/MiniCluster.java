@@ -1163,10 +1163,11 @@ public class MiniCluster implements AutoCloseableAsync {
                         dispatcherGateway ->
                                 dispatcherGateway
                                         .getBlobServerPort(rpcTimeout)
-                                        .thenApply(
-                                                blobServerPort ->
+                                        .thenCombine(
+                                                dispatcherGateway.getBlobServerAddress(rpcTimeout),
+                                                (blobServerPort, blobServerAddress) ->
                                                         new InetSocketAddress(
-                                                                dispatcherGateway.getHostname(),
+                                                                blobServerAddress.getHostName(),
                                                                 blobServerPort)))
                 .thenCompose(Function.identity());
     }
