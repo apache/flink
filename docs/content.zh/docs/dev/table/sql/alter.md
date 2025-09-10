@@ -24,6 +24,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<a name="alter-statements"></a>
+
 # ALTER 语句
 
 
@@ -38,6 +40,8 @@ Flink SQL 目前支持以下 ALTER 语句：
 - ALTER FUNCTION
 - ALTER CATALOG
 - ALTER MODEL
+
+<a name="run-an-alter-statement"></a>
 
 ## 执行 ALTER 语句
 
@@ -382,7 +386,7 @@ ALTER TABLE [IF EXISTS] table_name {
 若表不存在，则不进行任何操作。
 
 ### ADD
-使用 `ADD` 语句向已有表中增加 [columns]({{< ref "docs/dev/table/sql/create" >}}#columns)， [constraints]({{< ref "docs/dev/table/sql/create" >}}#primary-key)，[watermark]({{< ref "docs/dev/table/sql/create" >}}#watermark), [partitions]({{< ref "docs/dev/table/sql/create" >}}#partitioned-by), and a distribution]({{< ref "docs/dev/table/sql/create" >}}#distributed)。
+使用 `ADD` 语句向已有表中增加 [columns]({{< ref "docs/dev/table/sql/create" >}}#columns)，[constraints]({{< ref "docs/dev/table/sql/create" >}}#primary-key)，[watermark]({{< ref "docs/dev/table/sql/create" >}}#watermark)，[partitions]({{< ref "docs/dev/table/sql/create" >}}#partitioned-by) 和 [distribution]({{< ref "docs/dev/table/sql/create" >}}#distributed)。
 
 向表新增列时可通过 `FIRST` or `AFTER col_name` 指定位置，不指定位置时默认追加在最后。
 
@@ -406,17 +410,17 @@ ALTER TABLE MyTable ADD PARTITION (p1=1,p2='a') with ('k1'='v1');
 -- 新增两个分区
 ALTER TABLE MyTable ADD PARTITION (p1=1,p2='a') with ('k1'='v1') PARTITION (p1=1,p2='b') with ('k2'='v2');
 
--- add new distribution using a hash on uid into 4 buckets
+-- 新增分布，根据 uid 列的哈希值分配到 4 个桶
 ALTER TABLE MyTable ADD DISTRIBUTION BY HASH(uid) INTO 4 BUCKETS;
 
--- add new distribution on uid into 4 buckets
-CREATE TABLE MyTable ADD DISTRIBUTION BY (uid) INTO 4 BUCKETS;
+-- 新增分布，根据 uid 列的值分配到 4 个桶
+ALTER TABLE MyTable ADD DISTRIBUTION BY (uid) INTO 4 BUCKETS;
 
--- add new distribution on uid.
-CREATE TABLE MyTable ADD DISTRIBUTION BY (uid);
+-- 新增分布，根据 uid 列的值进行分桶
+ALTER TABLE MyTable ADD DISTRIBUTION BY (uid);
 
--- add new distribution into 4 buckets
-CREATE TABLE MyTable ADD DISTRIBUTION INTO 4 BUCKETS;
+-- 新增分布，将数据分配到 4 个桶
+ALTER TABLE MyTable ADD DISTRIBUTION INTO 4 BUCKETS;
 ```
 <span class="label label-danger">注意</span> 指定列为主键列时会隐式修改该列的 nullability 为 false。
 
@@ -465,7 +469,7 @@ ALTER TABLE MyTable DROP PARTITION (`id` = 1), PARTITION (`id` = 2);
 -- 删除 watermark
 ALTER TABLE MyTable DROP WATERMARK;
 
--- drop distribution
+-- 删除表分桶信息
 ALTER TABLE MyTable DROP DISTRIBUTION;
 ```
 
