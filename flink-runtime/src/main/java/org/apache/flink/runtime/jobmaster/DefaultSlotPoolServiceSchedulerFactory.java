@@ -41,6 +41,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.RequestSlotMatchingStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SimpleRequestSlotMatchingStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolServiceFactory;
+import org.apache.flink.runtime.jobmaster.slotpool.TasksBalancedRequestSlotMatchingStrategy;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
@@ -64,6 +65,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static org.apache.flink.configuration.JobManagerOptions.SLOT_REQUEST_MAX_INTERVAL;
+import static org.apache.flink.configuration.TaskManagerOptions.TASK_MANAGER_LOAD_BALANCE_MODE;
+import static org.apache.flink.configuration.TaskManagerOptions.TaskManagerLoadBalanceMode;
 
 /** Default {@link SlotPoolServiceSchedulerFactory} implementation. */
 public final class DefaultSlotPoolServiceSchedulerFactory
@@ -170,9 +173,9 @@ public final class DefaultSlotPoolServiceSchedulerFactory
 
         final Duration slotRequestMaxInterval = configuration.get(SLOT_REQUEST_MAX_INTERVAL);
 
-        // TODO: It will be assigned by the corresponding logic after
-        //  https://issues.apache.org/jira/browse/FLINK-35966
-        final boolean slotBatchAllocatable = false;
+        final TaskManagerLoadBalanceMode mode = configuration.get(TASK_MANAGER_LOAD_BALANCE_MODE);
+        boolean deferSlotAllocation =
+                mode == TaskManagerLoadBalanceMode.TASKS && jobType == JobType.STREAMING;
 
         if (configuration
                 .getOptional(JobManagerOptions.HYBRID_PARTITION_DATA_CONSUME_CONSTRAINT)
@@ -193,7 +196,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                                 slotIdleTimeout,
                                 batchSlotTimeout,
                                 slotRequestMaxInterval,
-                                slotBatchAllocatable,
+                                deferSlotAllocation,
                                 getRequestSlotMatchingStrategy(configuration, jobType));
                 break;
             case Adaptive:
@@ -214,7 +217,7 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                                 slotIdleTimeout,
                                 batchSlotTimeout,
                                 slotRequestMaxInterval,
-                                slotBatchAllocatable,
+                                deferSlotAllocation,
                                 getRequestSlotMatchingStrategy(configuration, jobType));
                 break;
             default:
@@ -269,15 +272,19 @@ public final class DefaultSlotPoolServiceSchedulerFactory
         return schedulerType;
     }
 
-    @VisibleForTesting
-    static RequestSlotMatchingStrategy getRequestSlotMatchingStrategy(
+    public static RequestSlotMatchingStrategy getRequestSlotMatchingStrategy(
             Configuration configuration, JobType jobType) {
         final boolean isLocalRecoveryEnabled =
                 configuration.get(StateRecoveryOptions.LOCAL_RECOVERY);
+        final TaskManagerLoadBalanceMode mode = configuration.get(TASK_MANAGER_LOAD_BALANCE_MODE);
 
         if (isLocalRecoveryEnabled) {
             if (jobType == JobType.STREAMING) {
-                return PreferredAllocationRequestSlotMatchingStrategy.INSTANCE;
+                final RequestSlotMatchingStrategy rollback =
+                        mode == TaskManagerLoadBalanceMode.TASKS
+                                ? TasksBalancedRequestSlotMatchingStrategy.INSTANCE
+                                : SimpleRequestSlotMatchingStrategy.INSTANCE;
+                return PreferredAllocationRequestSlotMatchingStrategy.create(rollback);
             } else {
                 LOG.warn(
                         "Batch jobs do not support local recovery. Falling back for request slot matching strategy to {}.",
@@ -285,6 +292,9 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                 return SimpleRequestSlotMatchingStrategy.INSTANCE;
             }
         } else {
+            if (jobType == JobType.STREAMING && mode == TaskManagerLoadBalanceMode.TASKS) {
+                return TasksBalancedRequestSlotMatchingStrategy.INSTANCE;
+            }
             return SimpleRequestSlotMatchingStrategy.INSTANCE;
         }
     }
