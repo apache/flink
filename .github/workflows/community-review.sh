@@ -425,7 +425,7 @@ ensure_label_exists() {
   local token="${1?missing token}"
   local label_name="${2?missing label name}"
   
-  local color="90EE90"
+  local color="5d069e"
   
   # Check if the label exists
   local label_exists=$(curl --fail --no-progress-meter -s \
