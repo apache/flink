@@ -294,9 +294,9 @@ Supported Environment:
 Supported Environment:
 {{< label Huawei Cloud >}}
 
-#### Ververica Platform
+#### Ververica's Unified Streaming Data Platform (Managed Service / BYOC / Self-Managed)
 
-[Website](https://www.ververica.com/platform)
+[Website](https://www.ververica.com/product)
 
 Supported Environments:
 {{< label AliCloud >}}
