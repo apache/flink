@@ -385,6 +385,41 @@ class KeyedLookupJoinHarnessTest {
     }
 
     @Test
+    void testTemporalLeftJoinWithTtlWithoutPk() throws Exception {
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createHarness(JoinType.LEFT_JOIN, FilterOnTable.WITH_FILTER, false, 1_000);
+
+        testHarness.open();
+        // set TtlTimeProvider with 1
+        testHarness.setStateTtlProcessingTime(1);
+        testHarness.processElement(insertRecord(1, "a"));
+        testHarness.processElement(insertRecord(2, "b"));
+        testHarness.processElement(insertRecord(3, "c"));
+
+        // set TtlTimeProvider with 1001 to trigger expired state cleanup
+        testHarness.setStateTtlProcessingTime(1002);
+        // should output a delete message (pad null) since it's left join
+        testHarness.processElement(deleteRecord(2, "b"));
+
+        testHarness.processElement(insertRecord(2, "b2"));
+        testHarness.processElement(updateBeforeRecord(3, "c"));
+        testHarness.processElement(updateAfterRecord(3, "c2"));
+
+        List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord(1, "a", 1, "Julian"));
+        expectedOutput.add(insertRecord(2, "b", null, null));
+        expectedOutput.add(insertRecord(3, "c", 3, "Jackson"));
+        expectedOutput.add(deleteRecord(2, "b", null, null));
+        expectedOutput.add(insertRecord(2, "b2", 2, "default-2"));
+        expectedOutput.add(deleteRecord(3, "c", null, null));
+        expectedOutput.add(insertRecord(3, "c2", 6, "Jark-2"));
+        expectedOutput.add(insertRecord(3, "c2", 6, "Jackson-2"));
+
+        assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    @Test
     void testTemporalInnerJoinWithTtlLookupKeyContainsPk() throws Exception {
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 createHarness(JoinType.INNER_JOIN, FilterOnTable.WITH_FILTER, true, 1_000);
