@@ -85,5 +85,11 @@ class RescalesSummaryTest {
         assertThat(rescalesSummary.getInProgressRescalesCount()).isZero();
         assertThat(rescalesSummary.getFailedRescalesCount()).isZero();
         assertSummary(rescalesSummary.getCompletedRescalesSummary(), 1L, 1L, 1L, 1L, 1L);
+        assertThat(
+                        rescalesSummary
+                                .createSnapshot()
+                                .getCompletedRescalesSummarySnapshot()
+                                .getQuantile(1))
+                .isOne();
     }
 }

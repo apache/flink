@@ -27,6 +27,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -119,6 +121,14 @@ public class DefaultRescaleTimeline implements RescaleTimeline {
     @Nullable
     Rescale currentRescale() {
         return currentRescale;
+    }
+
+    @Override
+    public RescalesStatsSnapshot createSnapshot() {
+        List<Rescale> rescales = rescaleHistory.toArrayList();
+        Collections.reverse(rescales);
+        return new RescalesStatsSnapshot(
+                Collections.unmodifiableList(rescales), rescalesSummary.createSnapshot());
     }
 
     private RescaleIdInfo nextRescaleId(boolean newRescaleEpoch) {

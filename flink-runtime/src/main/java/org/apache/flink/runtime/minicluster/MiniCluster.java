@@ -30,6 +30,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.RecoveryClaimMode;
@@ -66,6 +67,7 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipCont
 import org.apache.flink.runtime.io.network.partition.ClusterPartitionManager;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -844,6 +846,25 @@ public class MiniCluster implements AutoCloseableAsync {
                         dispatcherGateway
                                 .requestExecutionGraphInfo(jobId, rpcTimeout)
                                 .thenApply(ExecutionGraphInfo::getArchivedExecutionGraph));
+    }
+
+    public CompletableFuture<ExecutionGraphInfo> getExecutionGraphInfo(JobID jobId) {
+        return runDispatcherCommand(
+                dispatcherGateway ->
+                        dispatcherGateway.requestExecutionGraphInfo(jobId, rpcTimeout));
+    }
+
+    public CompletableFuture<Acknowledge> updateJobResourceRequirements(
+            JobID jobId, JobResourceRequirements resourceRequirements) {
+        if (miniClusterConfiguration.getConfiguration().get(JobManagerOptions.SCHEDULER)
+                != JobManagerOptions.SchedulerType.Adaptive) {
+            throw new UnsupportedOperationException(
+                    "Unsupported updateJobResourceRequirements when scheduler type is adaptive");
+        }
+        return runDispatcherCommand(
+                dispatcherGateway ->
+                        dispatcherGateway.updateJobResourceRequirements(
+                                jobId, resourceRequirements));
     }
 
     public CompletableFuture<Collection<JobStatusMessage>> listJobs() {
