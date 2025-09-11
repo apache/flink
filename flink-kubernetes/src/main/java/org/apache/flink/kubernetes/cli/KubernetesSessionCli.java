@@ -102,7 +102,6 @@ public class KubernetesSessionCli {
         try {
             final ClusterClient<String> clusterClient;
             String clusterId = kubernetesClusterClientFactory.getClusterId(configuration);
-            final boolean detached = !configuration.get(DeploymentOptions.ATTACHED);
             final FlinkKubeClient kubeClient =
                     FlinkKubeClientFactory.getInstance().fromConfiguration(configuration, "client");
 
@@ -123,7 +122,7 @@ public class KubernetesSessionCli {
             }
 
             try {
-                if (!detached) {
+                if (configuration.get(DeploymentOptions.ATTACHED)) {
                     Tuple2<Boolean, Boolean> continueRepl = new Tuple2<>(true, false);
                     try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
                         while (continueRepl.f0) {
