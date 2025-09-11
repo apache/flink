@@ -646,6 +646,39 @@ public abstract class FileMergingSnapshotManagerTestBase {
         assertThat(fs.exists(sharedDirOfSubtask1)).isTrue();
         assertThat(fs.exists(sharedDirOfSubtask2)).isTrue();
         assertThat(fs.exists(exclusiveDir)).isTrue();
+
+        // 4. Test not clean up managed dir when rpc loss
+        emptyCheckpointBaseDir();
+        try (FileMergingSnapshotManagerBase fmsm =
+                (FileMergingSnapshotManagerBase)
+                        createFileMergingSnapshotManager(
+                                checkpointBaseDir,
+                                32,
+                                PhysicalFilePool.Type.BLOCKING,
+                                Float.MAX_VALUE)) {
+
+            fmsm.registerSubtaskForSharedStates(subtaskKey1);
+            fmsm.registerSubtaskForSharedStates(subtaskKey2);
+
+            // record reference from checkpoint 1
+            fmsm.notifyCheckpointStart(subtaskKey1, 1L);
+            fmsm.notifyCheckpointStart(subtaskKey2, 1L);
+
+            // checkpoint 1 complete rpc loss
+            // checkpoint 2 start rpc loss
+
+            // checkpoint 2 aborted
+            fmsm.notifyCheckpointAborted(subtaskKey1, 2L);
+            fmsm.notifyCheckpointAborted(subtaskKey2, 2L);
+
+            assertThat(fs.exists(sharedDirOfSubtask1)).isTrue();
+            assertThat(fs.exists(sharedDirOfSubtask2)).isTrue();
+            exclusiveDir = new Path(taskOwnedStateDir, fmsm.getId());
+            assertThat(fs.exists(exclusiveDir)).isTrue();
+        }
+        assertThat(fs.exists(sharedDirOfSubtask1)).isTrue();
+        assertThat(fs.exists(sharedDirOfSubtask2)).isTrue();
+        assertThat(fs.exists(exclusiveDir)).isTrue();
     }
 
     private void emptyCheckpointBaseDir() throws IOException {
