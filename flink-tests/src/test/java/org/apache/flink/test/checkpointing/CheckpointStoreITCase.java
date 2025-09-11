@@ -18,10 +18,15 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
@@ -31,9 +36,11 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServic
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.source.AbstractTestSource;
+import org.apache.flink.test.util.source.TestSourceReader;
+import org.apache.flink.test.util.source.TestSplit;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.SerializableSupplier;
@@ -80,7 +87,10 @@ public class CheckpointStoreITCase extends TestLogger {
         env.enableCheckpointing(10);
         RestartStrategyUtils.configureFixedDelayRestartStrategy(
                 env, 2 /* failure on processing + on recovery */, 0L);
-        env.addSource(emitUntil(() -> FailingMapper.failedAndProcessed))
+        env.fromSource(
+                        new EmitUntilSource(() -> FailingMapper.failedAndProcessed),
+                        WatermarkStrategy.noWatermarks(),
+                        "EmitUntilSourceV2")
                 .map(new FailingMapper())
                 .sinkTo(new DiscardingSink<>());
         final JobClient jobClient = env.executeAsync();
@@ -154,29 +164,30 @@ public class CheckpointStoreITCase extends TestLogger {
         }
     }
 
-    private SourceFunction<Integer> emitUntil(SerializableSupplier<Boolean> until) {
-        return new SourceFunction<Integer>() {
+    private static final class EmitUntilSource extends AbstractTestSource<Integer> {
+        private final SerializableSupplier<Boolean> until;
 
-            private volatile boolean running = true;
+        EmitUntilSource(SerializableSupplier<Boolean> until) {
+            this.until = until;
+        }
 
-            @Override
-            public void run(SourceContext<Integer> ctx) {
-                while (running && !until.get()) {
-                    synchronized (ctx.getCheckpointLock()) {
-                        ctx.collect(0);
-                        try {
-                            Thread.sleep(100);
-                        } catch (InterruptedException e) {
-                            ExceptionUtils.rethrow(e);
-                        }
+        @Override
+        public SourceReader<Integer, TestSplit> createReader(SourceReaderContext ctx) {
+            return new TestSourceReader<>(ctx) {
+                @Override
+                public InputStatus pollNext(ReaderOutput<Integer> out) {
+                    if (until.get()) {
+                        return InputStatus.END_OF_INPUT;
                     }
+                    out.collect(0);
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        ExceptionUtils.rethrow(e);
+                    }
+                    return InputStatus.MORE_AVAILABLE;
                 }
-            }
-
-            @Override
-            public void cancel() {
-                running = false;
-            }
-        };
+            };
+        }
     }
 }

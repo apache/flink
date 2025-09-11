@@ -18,26 +18,37 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.util.CheckpointStorageUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.source.AbstractTestSource;
+import org.apache.flink.test.util.source.SingleSplitEnumerator;
+import org.apache.flink.test.util.source.TestSourceReader;
+import org.apache.flink.test.util.source.TestSplit;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.TestLogger;
@@ -54,7 +65,6 @@ import javax.annotation.Nonnull;
 import java.util.Iterator;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.LockSupport;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.test.checkpointing.RestoreUpgradedJobITCase.MapName.MAP_1;
@@ -184,7 +194,11 @@ public class RestoreUpgradedJobITCase extends TestLogger {
         env.enableCheckpointing(Integer.MAX_VALUE);
 
         // Different order of maps before and after savepoint.
-        env.addSource(new IntSource(allDataEmittedLatch))
+        env.fromSource(
+                        new IntSource(allDataEmittedLatch),
+                        WatermarkStrategy.<Integer>noWatermarks(),
+                        "IntSourceV2")
+                .setParallelism(1)
                 .map(new IntMap(MAP_5.id()))
                 .uid(MAP_5.name())
                 .forward()
@@ -203,7 +217,7 @@ public class RestoreUpgradedJobITCase extends TestLogger {
                 .rescale()
                 .map(new IntMap(MAP_3.id()))
                 .uid(MAP_3.name())
-                .addSink(new IntSink(result))
+                .sinkTo(createIntSink(result))
                 // one sink for easy calculation.
                 .setParallelism(1);
 
@@ -224,7 +238,11 @@ public class RestoreUpgradedJobITCase extends TestLogger {
         conf.set(CheckpointingOptions.FILE_MERGING_ENABLED, false);
         env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.setParallelism(PARALLELISM);
-        env.addSource(new StringSource(allDataEmittedLatch))
+        env.fromSource(
+                        new StringSource(allDataEmittedLatch),
+                        WatermarkStrategy.noWatermarks(),
+                        "StringSourceV2")
+                .setParallelism(1)
                 .map(new StringMap(MAP_1.id()))
                 .uid(MAP_1.name())
                 .forward()
@@ -247,7 +265,7 @@ public class RestoreUpgradedJobITCase extends TestLogger {
                 .broadcast()
                 .map(new StringMap(MAP_6.id()))
                 .uid(MAP_6.name())
-                .addSink(new StringSink(result))
+                .sinkTo(createStringSink(result))
                 // one sink for easy calculation.
                 .setParallelism(1);
 
@@ -294,30 +312,42 @@ public class RestoreUpgradedJobITCase extends TestLogger {
         return snapshotPath;
     }
 
-    private static class IntSink implements SinkFunction<Integer> {
-        private final SharedReference<AtomicLong> result;
-
-        public IntSink(SharedReference<AtomicLong> result) {
-            this.result = result;
-        }
-
-        @Override
-        public void invoke(Integer value, Context context) throws Exception {
-            result.get().addAndGet(value);
-        }
+    /** Creates a simple split enumerator that assigns one split (unbounded source pattern). */
+    private static SplitEnumerator<TestSplit, Void> createSimpleEnumerator(
+            SplitEnumeratorContext<TestSplit> context) {
+        return new SingleSplitEnumerator(context);
     }
 
-    private static class StringSink implements SinkFunction<String> {
-        private final SharedReference<AtomicLong> result;
+    private static Sink<Integer> createIntSink(SharedReference<AtomicLong> result) {
+        return context ->
+                new SinkWriter<>() {
+                    @Override
+                    public void write(Integer element, Context ctx) {
+                        result.get().addAndGet(element);
+                    }
 
-        public StringSink(SharedReference<AtomicLong> result) {
-            this.result = result;
-        }
+                    @Override
+                    public void flush(boolean endOfInput) {}
 
-        @Override
-        public void invoke(String value, Context context) throws Exception {
-            result.get().addAndGet(Integer.parseInt(value));
-        }
+                    @Override
+                    public void close() {}
+                };
+    }
+
+    private static Sink<String> createStringSink(SharedReference<AtomicLong> result) {
+        return context ->
+                new SinkWriter<String>() {
+                    @Override
+                    public void write(String element, Context ctx) {
+                        result.get().addAndGet(Integer.parseInt(element));
+                    }
+
+                    @Override
+                    public void flush(boolean endOfInput) {}
+
+                    @Override
+                    public void close() {}
+                };
     }
 
     private static class IntMap extends AbstractMap<Integer> {
@@ -387,58 +417,75 @@ public class RestoreUpgradedJobITCase extends TestLogger {
         }
     }
 
-    private static class IntSource extends TestSource<Integer> {
-        public IntSource(SharedReference<OneShotLatch> dataEmitted) {
-            super(dataEmitted);
-        }
-
-        @Override
-        void collect(SourceContext<Integer> ctx, int index) {
-            ctx.collect(index);
-        }
-    }
-
-    private static class StringSource extends TestSource<String> {
-        public StringSource(SharedReference<OneShotLatch> dataEmitted) {
-            super(dataEmitted);
-        }
-
-        @Override
-        void collect(SourceContext<String> ctx, int index) {
-            ctx.collect(String.valueOf(index));
-        }
-    }
-
-    private abstract static class TestSource<T> implements SourceFunction<T> {
-
-        private static final long serialVersionUID = 1L;
+    /** Source V2 (bounded emission, keeps task alive afterwards). */
+    private static class IntSource extends AbstractTestSource<Integer> {
         private final SharedReference<OneShotLatch> dataEmitted;
 
-        private volatile boolean isRunning = true;
-
-        public TestSource(SharedReference<OneShotLatch> dataEmitted) {
+        IntSource(SharedReference<OneShotLatch> dataEmitted) {
             this.dataEmitted = dataEmitted;
         }
 
         @Override
-        public void run(SourceContext<T> ctx) throws Exception {
-            int i = TOTAL_RECORDS;
-            while (i-- > 0) {
-                synchronized (ctx.getCheckpointLock()) {
-                    collect(ctx, i);
+        public SourceReader<Integer, TestSplit> createReader(SourceReaderContext ctx) {
+            return new TestSourceReader<Integer>(ctx) {
+                private int i = TOTAL_RECORDS;
+                private boolean signaled = false;
+
+                @Override
+                public InputStatus pollNext(ReaderOutput<Integer> out) {
+                    if (i-- > 0) {
+                        out.collect(i);
+                        if (i == 0 && !signaled && ctx.getIndexOfSubtask() == 0) {
+                            dataEmitted.get().trigger(); // like legacy run() after last emit
+                            signaled = true;
+                        }
+                        return InputStatus.MORE_AVAILABLE;
+                    }
+                    // stay alive; the job will be stopped via checkpoint/savepoint/cancel
+                    return InputStatus.NOTHING_AVAILABLE;
                 }
-            }
-            dataEmitted.get().trigger();
-            while (isRunning) {
-                LockSupport.parkNanos(100000);
-            }
+            };
         }
 
-        abstract void collect(SourceContext<T> ctx, int index);
+        @Override
+        public SplitEnumerator<TestSplit, Void> createEnumerator(
+                SplitEnumeratorContext<TestSplit> context) {
+            return createSimpleEnumerator(context);
+        }
+    }
+
+    private static class StringSource extends AbstractTestSource<String> {
+        private final SharedReference<OneShotLatch> dataEmitted;
+
+        StringSource(SharedReference<OneShotLatch> dataEmitted) {
+            this.dataEmitted = dataEmitted;
+        }
 
         @Override
-        public void cancel() {
-            isRunning = false;
+        public SourceReader<String, TestSplit> createReader(SourceReaderContext ctx) {
+            return new TestSourceReader<>(ctx) {
+                private int i = TOTAL_RECORDS;
+                private boolean signaled = false;
+
+                @Override
+                public InputStatus pollNext(ReaderOutput<String> out) {
+                    if (i-- > 0) {
+                        out.collect(String.valueOf(i));
+                        if (i == 0 && !signaled && ctx.getIndexOfSubtask() == 0) {
+                            dataEmitted.get().trigger();
+                            signaled = true;
+                        }
+                        return InputStatus.MORE_AVAILABLE;
+                    }
+                    return InputStatus.NOTHING_AVAILABLE;
+                }
+            };
+        }
+
+        @Override
+        public SplitEnumerator<TestSplit, Void> createEnumerator(
+                SplitEnumeratorContext<TestSplit> context) {
+            return createSimpleEnumerator(context);
         }
     }
 }

@@ -17,10 +17,17 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -28,7 +35,6 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
@@ -42,6 +48,10 @@ import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPu
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
 import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.source.AbstractTestSource;
+import org.apache.flink.test.util.source.SingleSplitEnumerator;
+import org.apache.flink.test.util.source.TestSourceReader;
+import org.apache.flink.test.util.source.TestSplit;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
@@ -89,24 +99,11 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
         env.setParallelism(3);
 
         DataStream<Integer> dataStream =
-                env.addSource(
-                        new SourceFunction<Integer>() {
-                            private static final long serialVersionUID = 1L;
-
-                            @Override
-                            public void run(SourceContext<Integer> ctx) throws Exception {
-                                ctx.collectWithTimestamp(1, 0);
-                                ctx.emitWatermark(new Watermark(0));
-                                ctx.collectWithTimestamp(2, 1);
-                                ctx.collectWithTimestamp(5, 2);
-                                ctx.emitWatermark(new Watermark(2));
-                                ctx.collectWithTimestamp(3, 3);
-                                ctx.collectWithTimestamp(4, 4);
-                            }
-
-                            @Override
-                            public void cancel() {}
-                        });
+                env.fromSource(
+                                createTimestampedWatermarkSource(),
+                                WatermarkStrategy.<Integer>noWatermarks(),
+                                "timestamped-source")
+                        .setParallelism(1);
 
         SingleOutputStreamOperator<Integer> passThroughtStream =
                 dataStream.process(
@@ -1142,5 +1139,41 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
         assertEquals(Arrays.asList(2, 2, 4, 4), evensUEvensResultSink.getSortedResult());
 
         assertEquals(Arrays.asList(1, 2, 3, 4), oddsUEvensExternalResultSink.getSortedResult());
+    }
+
+    /** Source V2 that emits timestamped elements with watermarks for side output testing. */
+    private static AbstractTestSource<Integer> createTimestampedWatermarkSource() {
+        return new AbstractTestSource<>() {
+            @Override
+            public SourceReader<Integer, TestSplit> createReader(SourceReaderContext ctx) {
+                return new TestSourceReader<Integer>(ctx) {
+                    private boolean emitted = false;
+
+                    @Override
+                    public InputStatus pollNext(ReaderOutput<Integer> out) {
+                        if (!emitted) {
+                            out.collect(1, 0);
+                            out.emitWatermark(
+                                    new org.apache.flink.api.common.eventtime.Watermark(0));
+                            out.collect(2, 1);
+                            out.collect(5, 2);
+                            out.emitWatermark(
+                                    new org.apache.flink.api.common.eventtime.Watermark(2));
+                            out.collect(3, 3);
+                            out.collect(4, 4);
+                            emitted = true;
+                            return InputStatus.END_OF_INPUT;
+                        }
+                        return InputStatus.END_OF_INPUT;
+                    }
+                };
+            }
+
+            @Override
+            public SplitEnumerator<TestSplit, Void> createEnumerator(
+                    SplitEnumeratorContext<TestSplit> context) {
+                return new SingleSplitEnumerator(context);
+            }
+        };
     }
 }
