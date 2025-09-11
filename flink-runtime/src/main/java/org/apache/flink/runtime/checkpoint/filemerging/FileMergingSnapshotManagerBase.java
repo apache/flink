@@ -507,10 +507,10 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             managedSharedStateDirHandles.computeIfPresent(
                     subtaskKey,
                     (k, v) -> {
-                        v.increaseRefCountWhenCheckpointStart(checkpointId);
+                        v.addReferenceWhenCheckpointStart(checkpointId);
                         return v;
                     });
-            managedExclusiveStateDirHandle.increaseRefCountWhenCheckpointStart(checkpointId);
+            managedExclusiveStateDirHandle.addReferenceWhenCheckpointStart(checkpointId);
         }
     }
 
@@ -534,10 +534,10 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             managedSharedStateDirHandles.computeIfPresent(
                     subtaskKey,
                     (k, v) -> {
-                        v.decreaseRefCountWhenCheckpointAbort(checkpointId);
+                        v.removeReferenceWhenCheckpointAbort(checkpointId);
                         return v;
                     });
-            managedExclusiveStateDirHandle.decreaseRefCountWhenCheckpointAbort(checkpointId);
+            managedExclusiveStateDirHandle.removeReferenceWhenCheckpointAbort(checkpointId);
         }
 
         synchronized (lock) {
@@ -948,20 +948,22 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
     }
 
     /**
-     * This class wrap DirectoryStreamStateHandle with reference count by ongoing checkpoint. If an
-     * ongoing checkpoint which reference the directory handle complete, we will stop tracking the
-     * handle, because the ownership of the handle is handover to JobManager.
+     * This class wrap DirectoryStreamStateHandle with reference by ongoing checkpoint. If an
+     * ongoing checkpoint which reference the directory handle complete or be subsumed, we will stop
+     * tracking the handle, because the ownership of the handle is handover to JobManager.
+     * JobManager acknowledges the handle and will clean up the directory when it is no longer
+     * needed.
      */
     protected static class DirectoryHandleWithReferenceTrack {
 
         private final DirectoryStreamStateHandle directoryHandle;
-        // reference count by ongoing checkpoint
-        private final AtomicLong ongoingRefCount;
+        // reference by ongoing checkpoint
+        private final Set<Long> refCheckpointIds;
         private boolean tracking;
 
         DirectoryHandleWithReferenceTrack(DirectoryStreamStateHandle directoryHandle, boolean own) {
             this.directoryHandle = directoryHandle;
-            this.ongoingRefCount = new AtomicLong(0);
+            this.refCheckpointIds = new HashSet<>();
             this.tracking = own;
         }
 
@@ -974,23 +976,23 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
             return directoryHandle;
         }
 
-        void increaseRefCountWhenCheckpointStart(long checkpointId) {
+        void addReferenceWhenCheckpointStart(long checkpointId) {
             if (tracking) {
                 LOG.debug(
-                        "checkpoint:{} start, increase ref-count to file-merging managed shared dir : {}",
+                        "checkpoint:{} start, add reference to file-merging managed shared dir : {}",
                         checkpointId,
                         directoryHandle.getDirectory());
-                ongoingRefCount.incrementAndGet();
+                refCheckpointIds.add(checkpointId);
             }
         }
 
-        void decreaseRefCountWhenCheckpointAbort(long checkpointId) {
+        void removeReferenceWhenCheckpointAbort(long checkpointId) {
             if (tracking) {
                 LOG.debug(
-                        "checkpoint:{} aborted, decrease ref-count to file-merging managed shared dir : {}",
+                        "checkpoint:{} aborted, remove reference to file-merging managed shared dir : {}",
                         checkpointId,
                         directoryHandle.getDirectory());
-                ongoingRefCount.decrementAndGet();
+                refCheckpointIds.remove(checkpointId);
             }
         }
 
@@ -1001,6 +1003,7 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                         checkpointId,
                         directoryHandle.getDirectory());
                 tracking = false;
+                refCheckpointIds.clear();
             }
         }
 
@@ -1011,11 +1014,12 @@ public abstract class FileMergingSnapshotManagerBase implements FileMergingSnaps
                         checkpointId,
                         directoryHandle.getDirectory());
                 tracking = false;
+                refCheckpointIds.clear();
             }
         }
 
         void tryCleanupQuietly() {
-            if (tracking && ongoingRefCount.get() == 0 && directoryHandle != null) {
+            if (tracking && refCheckpointIds.isEmpty() && directoryHandle != null) {
                 try {
                     directoryHandle.discardState();
                 } catch (Exception e) {
