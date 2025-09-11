@@ -67,7 +67,8 @@ public class StreamPhysicalMultiJoinRule extends ConverterRule {
                         .map(i -> FlinkTypeFactory.toLogicalRowType(i.getRowType()))
                         .collect(Collectors.toList());
         final JoinKeyExtractor keyExtractor =
-                new AttributeBasedJoinKeyExtractor(joinAttributeMap, inputRowTypes);
+                new AttributeBasedJoinKeyExtractor(
+                        joinAttributeMap, inputRowTypes, multiJoin.getLevels());
         // Apply hash distribution traits to all inputs based on the commonJoinKeys
         final List<RelNode> newInputs =
                 createHashDistributedInputs(multiJoin.getInputs(), keyExtractor);
@@ -83,6 +84,7 @@ public class StreamPhysicalMultiJoinRule extends ConverterRule {
                 multiJoin.getJoinTypes(),
                 joinAttributeMap,
                 multiJoin.getPostJoinFilter(),
+                multiJoin.getLevels(),
                 multiJoin.getHints(),
                 keyExtractor);
     }
@@ -134,8 +136,9 @@ public class StreamPhysicalMultiJoinRule extends ConverterRule {
         }
 
         final List<? extends RexNode> joinConditions = multiJoin.getJoinConditions();
-        for (final RexNode condition : joinConditions) {
-            extractEqualityConditions(condition, inputOffsets, inputFieldCounts, joinAttributeMap);
+        for (int i = 0; i < joinConditions.size(); i++) {
+            extractEqualityConditions(
+                    joinConditions.get(i), inputOffsets, inputFieldCounts, joinAttributeMap, i);
         }
         return joinAttributeMap;
     }
@@ -144,7 +147,8 @@ public class StreamPhysicalMultiJoinRule extends ConverterRule {
             final RexNode condition,
             final List<Integer> inputOffsets,
             final List<Integer> inputFieldCounts,
-            final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap) {
+            final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap,
+            int inputIndex) {
         if (!(condition instanceof RexCall)) {
             return;
         }
@@ -155,7 +159,7 @@ public class StreamPhysicalMultiJoinRule extends ConverterRule {
         if (kind != SqlKind.EQUALS) {
             for (final RexNode operand : call.getOperands()) {
                 extractEqualityConditions(
-                        operand, inputOffsets, inputFieldCounts, joinAttributeMap);
+                        operand, inputOffsets, inputFieldCounts, joinAttributeMap, inputIndex);
             }
             return;
         }
@@ -196,7 +200,7 @@ public class StreamPhysicalMultiJoinRule extends ConverterRule {
                         leftRef.attributeIndex,
                         rightRef.inputIndex,
                         rightRef.attributeIndex);
-        joinAttributeMap.computeIfAbsent(rightRef.inputIndex, k -> new ArrayList<>()).add(attrRef);
+        joinAttributeMap.computeIfAbsent(inputIndex, k -> new ArrayList<>()).add(attrRef);
     }
 
     private @Nullable InputRef findInputRef(

@@ -145,6 +145,7 @@ class ExecNodeMultiJoinJsonSerdeTest {
                         List.of(
                                 List.of(new int[] {0}),
                                 List.of(new int[] {0})), // left keys for each join
+                        List.of(0, 0, 1, 2, 3),
                         Collections.emptyMap(),
                         Arrays.asList(InputProperty.DEFAULT, InputProperty.DEFAULT),
                         RowType.of(VarCharType.STRING_TYPE, new IntType()),

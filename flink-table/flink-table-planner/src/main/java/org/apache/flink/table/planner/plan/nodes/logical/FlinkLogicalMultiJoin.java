@@ -67,6 +67,7 @@ public class FlinkLogicalMultiJoin extends AbstractRelNode implements FlinkLogic
     private final List<JoinRelType> joinTypes;
     private final List<? extends @Nullable RexNode> joinConditions;
     private final @Nullable RexNode postJoinFilter;
+    private final List<Integer> levels;
     private final List<RelHint> hints;
 
     public FlinkLogicalMultiJoin(
@@ -78,6 +79,7 @@ public class FlinkLogicalMultiJoin extends AbstractRelNode implements FlinkLogic
             final List<? extends @Nullable RexNode> joinConditions,
             final List<JoinRelType> joinTypes,
             final @Nullable RexNode postJoinFilter,
+            final List<Integer> levels,
             final List<RelHint> hints) {
         super(cluster, traitSet);
         this.inputs = inputs;
@@ -87,6 +89,7 @@ public class FlinkLogicalMultiJoin extends AbstractRelNode implements FlinkLogic
         this.joinConditions = joinConditions;
         this.postJoinFilter = postJoinFilter;
         this.hints = hints;
+        this.levels = levels;
     }
 
     public static FlinkLogicalMultiJoin create(
@@ -97,6 +100,7 @@ public class FlinkLogicalMultiJoin extends AbstractRelNode implements FlinkLogic
             final List<? extends @Nullable RexNode> joinConditions,
             final List<JoinRelType> joinTypes,
             final @Nullable RexNode postJoinFilter,
+            final List<Integer> levels,
             final List<RelHint> hints) {
         final RelTraitSet traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL()).simplify();
         return new FlinkLogicalMultiJoin(
@@ -108,6 +112,7 @@ public class FlinkLogicalMultiJoin extends AbstractRelNode implements FlinkLogic
                 joinConditions,
                 joinTypes,
                 postJoinFilter,
+                levels,
                 hints);
     }
 
@@ -136,6 +141,7 @@ public class FlinkLogicalMultiJoin extends AbstractRelNode implements FlinkLogic
                 joinConditions,
                 joinTypes,
                 postJoinFilter,
+                levels,
                 hints);
     }
 
@@ -185,6 +191,10 @@ public class FlinkLogicalMultiJoin extends AbstractRelNode implements FlinkLogic
         return getInputs();
     }
 
+    public List<Integer> getLevels() {
+        return levels;
+    }
+
     /** Converter rule that converts a {@link MultiJoin} to a {@link FlinkLogicalMultiJoin}. */
     @Internal
     public static class Converter extends ConverterRule {
@@ -207,6 +217,7 @@ public class FlinkLogicalMultiJoin extends AbstractRelNode implements FlinkLogic
                     multiJoin.getOuterJoinConditions(),
                     multiJoin.getJoinTypes(),
                     multiJoin.getPostJoinFilter(),
+                    multiJoin.getLevels(),
                     Collections.emptyList());
         }
     }
