@@ -270,6 +270,35 @@ class HistoryServerTest {
         runArchiveExpirationTest(false);
     }
 
+    @Test
+    void testClearWebDir() throws Exception {
+        // Test the path configured by 'historyserver.web.tmpdir' is clean.
+        Configuration historyServerConfig =
+                createTestConfiguration(
+                        HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS.defaultValue());
+        historyServerConfig.set(
+                HistoryServerOptions.HISTORY_SERVER_WEB_DIR, hsDirectory.toURI().toString());
+        HistoryServer hs = new HistoryServer(historyServerConfig);
+        assertInitializedHistoryServerWebDir(hs.getWebDir());
+
+        // Test the path configured by 'historyserver.web.tmpdir' is dirty.
+        new File(hsDirectory.toURI() + "/dirtyEmptySubDir").mkdir();
+        new File(hsDirectory.toURI() + "/dirtyEmptySubFile.json").createNewFile();
+        new File(hsDirectory.toURI() + "/overviews/dirtyEmptySubDir").mkdir();
+        new File(hsDirectory.toURI() + "/overviews/dirtyEmptySubFile.json").createNewFile();
+        new File(hsDirectory.toURI() + "/jobs/dirtyEmptySubDir").mkdir();
+        new File(hsDirectory.toURI() + "/jobs/dirtyEmptySubFile.json").createNewFile();
+        hs = new HistoryServer(historyServerConfig);
+        assertInitializedHistoryServerWebDir(hs.getWebDir());
+    }
+
+    private void assertInitializedHistoryServerWebDir(File historyWebDir) {
+
+        assertThat(historyWebDir.list()).containsExactlyInAnyOrder("overviews", "jobs");
+        assertThat(new File(historyWebDir, "overviews")).exists().isDirectory().isEmptyDirectory();
+        assertThat(new File(historyWebDir, "jobs").list()).containsExactly("overview.json");
+    }
+
     private void runArchiveExpirationTest(boolean cleanupExpiredJobs) throws Exception {
         int numExpiredJobs = cleanupExpiredJobs ? 1 : 0;
         int numJobs = 3;
