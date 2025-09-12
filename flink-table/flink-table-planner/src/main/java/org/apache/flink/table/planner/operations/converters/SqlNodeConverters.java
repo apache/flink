@@ -80,7 +80,7 @@ public class SqlNodeConverters {
         register(new SqlShowCreateCatalogConverter());
         register(new SqlDescribeCatalogConverter());
         register(new SqlDescribeJobConverter());
-        register(new SqlCreateMaterializedTableConverter());
+        register(new SqlCreateOrAlterMaterializedTableConverter());
         register(new SqlCreateModelConverter());
         register(new SqlAlterMaterializedTableRefreshConverter());
         register(new SqlAlterMaterializedTableSuspendConverter());

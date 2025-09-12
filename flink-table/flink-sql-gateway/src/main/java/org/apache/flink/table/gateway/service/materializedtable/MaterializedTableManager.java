@@ -265,7 +265,7 @@ public class MaterializedTableManager {
         CreateRefreshWorkflow createRefreshWorkflow =
                 new CreatePeriodicRefreshWorkflow(
                         materializedTableIdentifier,
-                        catalogMaterializedTable.getDefinitionQuery(),
+                        catalogMaterializedTable.getExpandedQuery(),
                         cronExpression,
                         getSessionInitializationConf(operationExecutor),
                         Collections.emptyMap(),
@@ -569,7 +569,7 @@ public class MaterializedTableManager {
         String insertStatement =
                 getInsertStatement(
                         materializedTableIdentifier,
-                        catalogMaterializedTable.getDefinitionQuery(),
+                        catalogMaterializedTable.getExpandedQuery(),
                         dynamicOptions);
 
         JobExecutionResult result =
@@ -651,7 +651,7 @@ public class MaterializedTableManager {
         String insertStatement =
                 getRefreshStatement(
                         materializedTableIdentifier,
-                        materializedTable.getDefinitionQuery(),
+                        materializedTable.getExpandedQuery(),
                         refreshPartitions,
                         dynamicOptions);
 
@@ -868,8 +868,8 @@ public class MaterializedTableManager {
                 LOG.warn(
                         "Failed to start the continuous refresh job for materialized table {} using new query {}, rollback to origin query {}.",
                         tableIdentifier,
-                        op.getCatalogMaterializedTable().getDefinitionQuery(),
-                        suspendMaterializedTable.getDefinitionQuery(),
+                        op.getCatalogMaterializedTable().getExpandedQuery(),
+                        suspendMaterializedTable.getExpandedQuery(),
                         e);
 
                 AlterMaterializedTableChangeOperation rollbackChangeOperation =
@@ -891,7 +891,7 @@ public class MaterializedTableManager {
                 throw new SqlExecutionException(
                         String.format(
                                 "Failed to start the continuous refresh job using new query %s when altering materialized table %s select query.",
-                                op.getCatalogMaterializedTable().getDefinitionQuery(),
+                                op.getCatalogMaterializedTable().getExpandedQuery(),
                                 tableIdentifier),
                         e);
             }
@@ -944,8 +944,7 @@ public class MaterializedTableManager {
                                 oldMaterializedTable.getSerializedRefreshHandler()));
             } else if (tableChange instanceof TableChange.ModifyDefinitionQuery) {
                 rollbackChanges.add(
-                        TableChange.modifyDefinitionQuery(
-                                oldMaterializedTable.getDefinitionQuery()));
+                        TableChange.modifyDefinitionQuery(oldMaterializedTable.getExpandedQuery()));
             } else {
                 throw new ValidationException(
                         String.format(

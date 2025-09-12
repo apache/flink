@@ -28,13 +28,27 @@ import java.util.List;
 
 /** Operation to describe an ALTER MATERIALIZED TABLE AS query operation. */
 @Internal
-public class AlterMaterializedTableAsQueryOperation extends AlterMaterializedTableChangeOperation {
+public class AlterMaterializedTableAsQueryOperation extends AlterMaterializedTableOperation {
+
+    private final List<MaterializedTableChange> tableChanges;
+
+    private final CatalogMaterializedTable catalogMaterializedTable;
 
     public AlterMaterializedTableAsQueryOperation(
             ObjectIdentifier tableIdentifier,
             List<MaterializedTableChange> tableChanges,
-            CatalogMaterializedTable newMaterializedTable) {
-        super(tableIdentifier, tableChanges, newMaterializedTable);
+            CatalogMaterializedTable catalogMaterializedTable) {
+        super(tableIdentifier);
+        this.tableChanges = tableChanges;
+        this.catalogMaterializedTable = catalogMaterializedTable;
+    }
+
+    public List<MaterializedTableChange> getTableChanges() {
+        return tableChanges;
+    }
+
+    public CatalogMaterializedTable getCatalogMaterializedTable() {
+        return catalogMaterializedTable;
     }
 
     @Override
@@ -47,7 +61,6 @@ public class AlterMaterializedTableAsQueryOperation extends AlterMaterializedTab
     public String asSummaryString() {
         return String.format(
                 "ALTER MATERIALIZED TABLE %s AS %s",
-                tableIdentifier.asSummaryString(),
-                getCatalogMaterializedTable().getDefinitionQuery());
+                tableIdentifier.asSummaryString(), catalogMaterializedTable.getExpandedQuery());
     }
 }

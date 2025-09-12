@@ -52,7 +52,9 @@ public class SqlAlterMaterializedTableAsQuery extends SqlAlterMaterializedTable 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparse(writer, leftPrec, rightPrec);
+        writer.newlineAndIndent();
         writer.keyword("AS");
+        writer.newlineAndIndent();
         asQuery.unparse(writer, leftPrec, rightPrec);
     }
 }

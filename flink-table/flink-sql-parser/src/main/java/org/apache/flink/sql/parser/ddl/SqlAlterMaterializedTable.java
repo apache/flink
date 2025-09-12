@@ -29,8 +29,8 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Abstract class to describe statements like ALTER MATERIALIZED TABLE [catalogName.]
- * [dataBasesName.]tableName ...
+ * Abstract class to describe statements like ALTER MATERIALIZED TABLE
+ * [catalogName.][dataBasesName.]tableName ...
  */
 public abstract class SqlAlterMaterializedTable extends SqlCall {
 

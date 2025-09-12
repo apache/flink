@@ -94,7 +94,10 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
                             .build(),
                     CREATE_RESOLVED_SCHEMA);
 
-    private static final String DEFINITION_QUERY = "SELECT id, region, county FROM T";
+    private static final String ORIGINAL_QUERY = "SELECT id, region, county FROM T";
+    private static final String EXPANDED_QUERY =
+            String.format(
+                    "SELECT id, region, county FROM %s.%s.T", TEST_CATALOG, TEST_DEFAULT_DATABASE);
     private static final IntervalFreshness FRESHNESS = IntervalFreshness.ofMinute("3");
     private static final ResolvedCatalogMaterializedTable EXPECTED_CATALOG_MATERIALIZED_TABLE =
             new ResolvedCatalogMaterializedTable(
@@ -103,7 +106,8 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
                             .comment("test materialized table")
                             .partitionKeys(PARTITION_KEYS)
                             .options(EXPECTED_OPTIONS)
-                            .definitionQuery(DEFINITION_QUERY)
+                            .originalQuery(ORIGINAL_QUERY)
+                            .expandedQuery(EXPANDED_QUERY)
                             .freshness(FRESHNESS)
                             .logicalRefreshMode(
                                     CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC)
@@ -238,7 +242,7 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
         // validate options
         assertThat(actualMaterializedTable.getOptions()).isEqualTo(expectedOptions);
         // validate definition query
-        assertThat(actualMaterializedTable.getDefinitionQuery()).isEqualTo(DEFINITION_QUERY);
+        assertThat(actualMaterializedTable.getExpandedQuery()).isEqualTo(EXPANDED_QUERY);
         // validate freshness
         assertThat(actualMaterializedTable.getDefinitionFreshness()).isEqualTo(FRESHNESS);
         // validate logical refresh mode

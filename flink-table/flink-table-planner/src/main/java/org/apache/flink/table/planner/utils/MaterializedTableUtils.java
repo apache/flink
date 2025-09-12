@@ -22,11 +22,16 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
-import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
+import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.IntervalFreshness;
+import org.apache.flink.table.catalog.ResolvedSchema;
 
 import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.type.SqlTypeFamily;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 /** The utils for materialized table. */
 @Internal
@@ -101,5 +106,41 @@ public class MaterializedTableUtils {
                 throw new IllegalArgumentException(
                         "Unknown logical refresh mode: " + logicalRefreshMode);
         }
+    }
+
+    public static List<Column> validateAndExtractNewColumns(
+            ResolvedSchema oldSchema, ResolvedSchema newSchema) {
+        List<Column> newAddedColumns = new ArrayList<>();
+        int originalColumnSize = oldSchema.getColumns().size();
+        int newColumnSize = newSchema.getColumns().size();
+
+        if (originalColumnSize > newColumnSize) {
+            throw new ValidationException(
+                    String.format(
+                            "Failed to modify query because drop column is unsupported. "
+                                    + "When modifying a query, you can only append new columns at the end of original schema. "
+                                    + "The original schema has %d columns, but the newly derived schema from the query has %d columns.",
+                            originalColumnSize, newColumnSize));
+        }
+
+        for (int i = 0; i < oldSchema.getColumns().size(); i++) {
+            Column oldColumn = oldSchema.getColumns().get(i);
+            Column newColumn = newSchema.getColumns().get(i);
+            if (!oldColumn.equals(newColumn)) {
+                throw new ValidationException(
+                        String.format(
+                                "When modifying the query of a materialized table, "
+                                        + "currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
+                                        + "Column mismatch at position %d: Original column is [%s], but new column is [%s].",
+                                i, oldColumn, newColumn));
+            }
+        }
+
+        for (int i = oldSchema.getColumns().size(); i < newSchema.getColumns().size(); i++) {
+            Column newColumn = newSchema.getColumns().get(i);
+            newAddedColumns.add(newColumn.copy(newColumn.getDataType().nullable()));
+        }
+
+        return newAddedColumns;
     }
 }

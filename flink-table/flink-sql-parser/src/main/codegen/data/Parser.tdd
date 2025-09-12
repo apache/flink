@@ -76,7 +76,7 @@
     "org.apache.flink.sql.parser.ddl.SqlCreateCatalog"
     "org.apache.flink.sql.parser.ddl.SqlCreateDatabase"
     "org.apache.flink.sql.parser.ddl.SqlCreateFunction"
-    "org.apache.flink.sql.parser.ddl.SqlCreateMaterializedTable"
+    "org.apache.flink.sql.parser.ddl.SqlCreateOrAlterMaterializedTable"
     "org.apache.flink.sql.parser.ddl.SqlCreateModel"
     "org.apache.flink.sql.parser.ddl.SqlCreateModelAs"
     "org.apache.flink.sql.parser.ddl.SqlCreateTable"

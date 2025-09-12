@@ -158,7 +158,8 @@ class CatalogPropertiesUtilTest {
                                 .schema(schema)
                                 .comment("some comment")
                                 .distribution(unknownDist)
-                                .definitionQuery("SELECT 1, 'two'")
+                                .originalQuery("SELECT 1, 'two'")
+                                .expandedQuery("SELECT 1, 'two'")
                                 .freshness(IntervalFreshness.ofHour("123"))
                                 .logicalRefreshMode(
                                         CatalogMaterializedTable.LogicalRefreshMode.CONTINUOUS)

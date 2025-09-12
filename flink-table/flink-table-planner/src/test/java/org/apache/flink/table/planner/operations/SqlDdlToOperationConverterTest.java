@@ -1496,6 +1496,57 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
     }
 
     @Test
+    void createMaterializedTableWithDistribution() throws Exception {
+        final String sql =
+                "CREATE MATERIALIZED TABLE users_shops ("
+                        + " PRIMARY KEY (user_id) not enforced)"
+                        + " DISTRIBUTED BY HASH (user_id) INTO 7 BUCKETS\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT 1 as shop_id, 2 as user_id ";
+
+        final String expectedSummaryString =
+                "CREATE MATERIALIZED TABLE: (materializedTable: "
+                        + "[ResolvedCatalogMaterializedTable{origin=DefaultCatalogMaterializedTable{schema=(\n"
+                        + "  `shop_id` INT NOT NULL,\n"
+                        + "  `user_id` INT NOT NULL,\n"
+                        + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
+                        + "), comment='null', distribution=DISTRIBUTED BY HASH(`user_id`) INTO 7 BUCKETS, partitionKeys=[], "
+                        + "options={format=debezium-json}, snapshot=null, "
+                        + "originalQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
+                        + "expandedQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
+                        + "freshness=INTERVAL '30' SECOND, logicalRefreshMode=AUTOMATIC, refreshMode=CONTINUOUS, "
+                        + "refreshStatus=INITIALIZING, refreshHandlerDescription='null', serializedRefreshHandler=null}, resolvedSchema=(\n"
+                        + "  `shop_id` INT NOT NULL,\n"
+                        + "  `user_id` INT NOT NULL,\n"
+                        + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
+                        + ")}], identifier: [`builtin`.`default`.`users_shops`])";
+
+        final Operation operation = parse(sql);
+
+        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
+        assertThat(
+                ((CreateMaterializedTableOperation) operation)
+                        .getCatalogMaterializedTable()
+                        .getDistribution()
+                        .get())
+                .isEqualTo(TableDistribution.of(Kind.HASH, 7, List.of("user_id")));
+
+        prepareMaterializedTable("tb2", false, 1, null, "SELECT 1");
+
+        assertThatThrownBy(
+                () ->
+                        parse(
+                                "alter MATERIALIZED table cat1.db1.tb2 modify distribution into 3 buckets"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Materialized table `cat1`.`db1`.`tb2` does not have a distribution to modify.");
+    }
+
+    @Test
     void testAlterMaterializedTableDropDistribution() throws Exception {
         prepareMaterializedTable(
                 "tb1", false, 1, TableDistribution.of(Kind.HASH, 2, List.of("a")), "SELECT 1");
@@ -2858,7 +2909,8 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                         .logicalRefreshMode(LogicalRefreshMode.CONTINUOUS)
                         .refreshMode(RefreshMode.CONTINUOUS)
                         .refreshStatus(RefreshStatus.ACTIVATED)
-                        .definitionQuery(query);
+                        .originalQuery(query)
+                        .expandedQuery(query);
 
         if (tableDistribution != null) {
             tableBuilder.distribution(tableDistribution);

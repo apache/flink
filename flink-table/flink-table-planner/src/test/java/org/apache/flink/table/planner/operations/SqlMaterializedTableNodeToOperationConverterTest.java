@@ -155,9 +155,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         .logicalRefreshMode(CatalogMaterializedTable.LogicalRefreshMode.FULL)
                         .refreshMode(RefreshMode.FULL)
                         .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
-                        .definitionQuery(
-                                "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
-                                        + "FROM `builtin`.`default`.`t1` AS `t1`")
+                        .originalQuery("SELECT *\n" + "FROM `t1`")
+                        .expandedQuery("SELECT *\n" + "FROM `builtin`.`default`.`t1`")
                         .build();
 
         final IntervalFreshness resolvedFreshness = materializedTable.getDefinitionFreshness();
@@ -298,10 +297,10 @@ class SqlMaterializedTableNodeToOperationConverterTest
         CreateMaterializedTableOperation createOperation =
                 (CreateMaterializedTableOperation) operation;
 
-        assertThat(createOperation.getCatalogMaterializedTable().getDefinitionQuery())
+        assertThat(createOperation.getCatalogMaterializedTable().getExpandedQuery())
                 .isEqualTo(
                         "SELECT `t1`.`a`, `T`.`f1`, `T`.`f2`\n"
-                                + "FROM `builtin`.`default`.`t1` AS `t1`,\n"
+                                + "FROM `builtin`.`default`.`t1`,\n"
                                 + "LATERAL TABLE(`builtin`.`default`.`myFunc`(`b`)) AS `T` (`f1`, `f2`)");
     }
 
@@ -669,7 +668,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 .isEqualTo(newTable.getUnresolvedSchema().getPrimaryKey());
         assertThat(oldTable.getUnresolvedSchema().getWatermarkSpecs())
                 .isEqualTo(newTable.getUnresolvedSchema().getWatermarkSpecs());
-        assertThat(oldTable.getDefinitionQuery()).isNotEqualTo(newTable.getDefinitionQuery());
+        assertThat(oldTable.getOriginalQuery()).isNotEqualTo(newTable.getOriginalQuery());
+        assertThat(oldTable.getExpandedQuery()).isNotEqualTo(newTable.getExpandedQuery());
         assertThat(oldTable.getDefinitionFreshness()).isEqualTo(newTable.getDefinitionFreshness());
         assertThat(oldTable.getRefreshMode()).isEqualTo(newTable.getRefreshMode());
         assertThat(oldTable.getRefreshStatus()).isEqualTo(newTable.getRefreshStatus());
@@ -727,6 +727,131 @@ class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(operation2.asSummaryString())
                 .isEqualTo(
                         "DROP MATERIALIZED TABLE: (identifier: [`builtin`.`default`.`mtbl1`], IfExists: [true])");
+    }
+
+    // TODO: Check if needed
+    @Test
+    void testCreateOrAlterMaterializedTable() {
+        final String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE mtbl1 (\n"
+                        + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED"
+                        + ")\n"
+                        + "COMMENT 'materialized table comment'\n"
+                        + "PARTITIONED BY (a, d)\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'filesystem', \n"
+                        + "  'format' = 'json'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '30' SECOND\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT * FROM t1";
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
+
+        CreateMaterializedTableOperation op = (CreateMaterializedTableOperation) operation;
+        CatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
+        assertThat(materializedTable).isInstanceOf(ResolvedCatalogMaterializedTable.class);
+
+        Map<String, String> options = new HashMap<>();
+        options.put("connector", "filesystem");
+        options.put("format", "json");
+        CatalogMaterializedTable expected =
+                CatalogMaterializedTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("a", DataTypes.BIGINT().notNull())
+                                        .column("b", DataTypes.VARCHAR(Integer.MAX_VALUE))
+                                        .column("c", DataTypes.INT())
+                                        .column("d", DataTypes.VARCHAR(Integer.MAX_VALUE))
+                                        .primaryKeyNamed("ct1", Collections.singletonList("a"))
+                                        .build())
+                        .comment("materialized table comment")
+                        .options(options)
+                        .partitionKeys(Arrays.asList("a", "d"))
+                        .freshness(IntervalFreshness.ofSecond("30"))
+                        .logicalRefreshMode(CatalogMaterializedTable.LogicalRefreshMode.FULL)
+                        .refreshMode(CatalogMaterializedTable.RefreshMode.FULL)
+                        .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
+                        .originalQuery("SELECT *\n" + "FROM `t1`")
+                        .expandedQuery("SELECT *\n" + "FROM `builtin`.`default`.`t1`")
+                        .build();
+
+        assertThat(((ResolvedCatalogMaterializedTable) materializedTable).getOrigin())
+                .isEqualTo(expected);
+    }
+
+    @Test
+    void testCreateOrAlterMaterializedTableForExistingTable() throws TableNotExistException {
+        final String sql =
+                "CREATE OR ALTER MATERIALIZED TABLE base_mtbl (\n"
+                        + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED"
+                        + ")\n"
+                        + "COMMENT 'materialized table comment'\n"
+                        + "PARTITIONED BY (a, d)\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'filesystem', \n"
+                        + "  'format' = 'json'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '30' SECOND\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT a, b, c, d, d as e, cast('123' as string) as f FROM t3";
+        Operation operation = parse(sql);
+
+        assertThat(operation).isInstanceOf(AlterMaterializedTableAsQueryOperation.class);
+
+        AlterMaterializedTableAsQueryOperation op =
+                (AlterMaterializedTableAsQueryOperation) operation;
+        assertThat(op.getTableChanges())
+                .isEqualTo(
+                        Arrays.asList(
+                                TableChange.add(
+                                        Column.physical("e", DataTypes.VARCHAR(Integer.MAX_VALUE))),
+                                TableChange.add(
+                                        Column.physical("f", DataTypes.VARCHAR(Integer.MAX_VALUE))),
+                                TableChange.modifyDefinitionQuery(
+                                        "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
+                                                + "FROM `builtin`.`default`.`t3`")));
+        assertThat(operation.asSummaryString())
+                .isEqualTo(
+                        "ALTER MATERIALIZED TABLE builtin.default.base_mtbl AS SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
+                                + "FROM `builtin`.`default`.`t3`");
+
+        // new table only difference schema & definition query with old table.
+        CatalogMaterializedTable oldTable =
+                (CatalogMaterializedTable)
+                        catalog.getTable(
+                                new ObjectPath(catalogManager.getCurrentDatabase(), "base_mtbl"));
+        CatalogMaterializedTable newTable = op.getCatalogMaterializedTable();
+
+        assertThat(oldTable.getUnresolvedSchema()).isNotEqualTo(newTable.getUnresolvedSchema());
+        assertThat(oldTable.getUnresolvedSchema().getPrimaryKey())
+                .isEqualTo(newTable.getUnresolvedSchema().getPrimaryKey());
+        assertThat(oldTable.getUnresolvedSchema().getWatermarkSpecs())
+                .isEqualTo(newTable.getUnresolvedSchema().getWatermarkSpecs());
+        assertThat(oldTable.getOriginalQuery()).isNotEqualTo(newTable.getOriginalQuery());
+        assertThat(oldTable.getExpandedQuery()).isNotEqualTo(newTable.getExpandedQuery());
+        assertThat(oldTable.getDefinitionFreshness()).isEqualTo(newTable.getDefinitionFreshness());
+        assertThat(oldTable.getRefreshMode()).isEqualTo(newTable.getRefreshMode());
+        assertThat(oldTable.getRefreshStatus()).isEqualTo(newTable.getRefreshStatus());
+        assertThat(oldTable.getSerializedRefreshHandler())
+                .isEqualTo(newTable.getSerializedRefreshHandler());
+
+        List<Schema.UnresolvedColumn> addedColumn =
+                newTable.getUnresolvedSchema().getColumns().stream()
+                        .filter(
+                                column ->
+                                        !oldTable.getUnresolvedSchema()
+                                                .getColumns()
+                                                .contains(column))
+                        .collect(Collectors.toList());
+        // added column should be a nullable column.
+        assertThat(addedColumn)
+                .isEqualTo(
+                        Arrays.asList(
+                                new Schema.UnresolvedPhysicalColumn(
+                                        "e", DataTypes.VARCHAR(Integer.MAX_VALUE)),
+                                new Schema.UnresolvedPhysicalColumn(
+                                        "f", DataTypes.VARCHAR(Integer.MAX_VALUE))));
     }
 
     private static Collection<Arguments> testDataForCreateMaterializedTableFailedCase() {
