@@ -104,14 +104,14 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(col=[$0], res=[$1])
-+- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIME(0) col, VARCHAR(2147483647) res)])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIME(3) col, VARCHAR(2147483647) res)])
    +- LogicalProject(col=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIME(0) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIME(3) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
@@ -384,14 +384,14 @@ FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))]]>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(col=[$0], res=[$1])
-+- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIME(0) col, VARCHAR(2147483647) res)])
++- LogicalTableFunctionScan(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIME(3) col, VARCHAR(2147483647) res)])
    +- LogicalProject(col=[$0])
       +- LogicalTableScan(table=[[default_catalog, default_database, TypeTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIME(0) col, VARCHAR(2147483647) res)])
+MLPredictTableFunction(invocation=[ML_PREDICT(TABLE(#0), Model(MODEL default_catalog.default_database.TypeModel), DESCRIPTOR(_UTF-16LE'col'))], rowType=[RecordType(TIME(3) col, VARCHAR(2147483647) res)])
 +- TableSourceScan(table=[[default_catalog, default_database, TypeTable]], fields=[col])
 ]]>
     </Resource>
