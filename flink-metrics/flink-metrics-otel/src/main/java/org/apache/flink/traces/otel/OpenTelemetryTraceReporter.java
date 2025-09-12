@@ -124,10 +124,9 @@ public class OpenTelemetryTraceReporter extends OpenTelemetryReporterBase implem
                         .startSpan();
 
         // Recursively add child spans to this parent
-        // TODO: not yet supported
-        // for (Span childSpan : span.getChildren()) {
-        //    notifyOfAddedSpanInternal(childSpan, currentOtelSpan);
-        // }
+        for (Span childSpan : span.getChildren()) {
+            notifyOfAddedSpanInternal(childSpan, currentOtelSpan);
+        }
 
         currentOtelSpan.end(span.getEndTsMillis(), TimeUnit.MILLISECONDS);
     }

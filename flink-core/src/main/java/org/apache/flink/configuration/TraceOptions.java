@@ -35,6 +35,21 @@ import static org.apache.flink.configuration.description.TextElement.text;
 @Experimental
 public class TraceOptions {
 
+    /** Enum for the detail level of checkpointing spans. */
+    public enum CheckpointSpanDetailLevel {
+        /** Sum/Max for submetrics per checkpoint. */
+        SPANS_PER_CHECKPOINT,
+        /** Sum/Max for submetrics per checkpoint and arrays of task aggregates. */
+        SPANS_PER_CHECKPOINT_WITH_TASKS,
+        /** Sub/Max for submetrics of checkpoint and tasks (tasks as child spans). */
+        SPANS_PER_TASK,
+        /**
+         * Sub/Max for submetrics of checkpoint, tasks, and subtasks (tasks as child spans, subtasks
+         * as grand-child spans).
+         */
+        SPANS_PER_SUBTASK;
+    }
+
     private static final String NAMED_REPORTER_CONFIG_PREFIX =
             ConfigConstants.TRACES_REPORTER_PREFIX + "<name>";
 
@@ -66,6 +81,19 @@ public class TraceOptions {
                             "An optional list of trace reporter names. If configured, only reporters whose name matches"
                                     + " any of the names in the list will be started. Otherwise, all reporters that could be found in"
                                     + " the configuration will be started.");
+
+    /** The detail level for reporting checkpoint spans. */
+    public static final ConfigOption<TraceOptions.CheckpointSpanDetailLevel>
+            CHECKPOINT_SPAN_DETAIL_LEVEL =
+                    key("traces.checkpoint.span-detail-level")
+                            .enumType(TraceOptions.CheckpointSpanDetailLevel.class)
+                            .defaultValue(CheckpointSpanDetailLevel.SPANS_PER_CHECKPOINT)
+                            .withDescription(
+                                    "Detail level for reporting checkpoint spans. Possible values:\n"
+                                            + "- SPAN_PER_CHECKPOINT (default): Single span per checkpoint. Aggregated sum/max for submetrics from all tasks and subtasks per checkpoint\n"
+                                            + "- SPAN_PER_CHECKPOINT_WITH_TASKS: Single span per checkpoint. Same as SPAN_PER_CHECKPOINT, plus arrays of aggregated values per task.\n"
+                                            + "- SPANS_PER_TASK: Same as SPAN_PER_CHECKPOINT plus children spans per each task. Each task span with aggregated sum/max submetrics from subtasks.\n"
+                                            + "- SPANS_PER_SUBTASK: Same as SPANS_PER_TASK plus children spans per each subtask. Child spans for tasks and grand-child spans for subtasks.");
 
     /**
      * Returns a view over the given configuration via which options can be set/retrieved for the

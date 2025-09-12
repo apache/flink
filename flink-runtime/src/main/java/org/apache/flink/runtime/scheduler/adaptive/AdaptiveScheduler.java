@@ -158,6 +158,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static org.apache.flink.configuration.JobManagerOptions.SCHEDULER_RESCALE_TRIGGER_MAX_DELAY;
+import static org.apache.flink.configuration.TraceOptions.CHECKPOINT_SPAN_DETAIL_LEVEL;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphUtils.isAnyOutputBlocking;
 
 /**
@@ -455,6 +456,7 @@ public class AdaptiveScheduler
                         new DefaultCheckpointStatsTracker(
                                 configuration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE),
                                 metricGroup,
+                                configuration.get(CHECKPOINT_SPAN_DETAIL_LEVEL),
                                 checkpointStatsListener),
                 jobGraph,
                 jobResourceRequirements,
