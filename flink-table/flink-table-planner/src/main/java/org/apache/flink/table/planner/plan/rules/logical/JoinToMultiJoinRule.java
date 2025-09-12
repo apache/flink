@@ -219,8 +219,8 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
 
         // Handle hints: if left or right side is a MultiJoin, reuse their hints and add new ones
         final RelHint.Builder builder = RelHint.builder(STATE_TTL.getHintName());
-        processSideHints(builder, left, origJoin, FlinkHints.LEFT_INPUT);
-        processSideHints(builder, right, origJoin, FlinkHints.RIGHT_INPUT);
+        handleStateTtlHintsForInput(builder, left, origJoin, FlinkHints.LEFT_INPUT);
+        handleStateTtlHintsForInput(builder, right, origJoin, FlinkHints.RIGHT_INPUT);
 
         RelNode multiJoin =
                 new MultiJoin(
@@ -754,7 +754,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
      * @param origJoin the original join containing the hints to process
      * @param joinSide the expected input property key (LEFT_INPUT or RIGHT_INPUT)
      */
-    private void processSideHints(
+    private void handleStateTtlHintsForInput(
             RelHint.Builder builder, RelNode input, Join origJoin, String joinSide) {
 
         if (canCombine(input, origJoin)) {

@@ -71,8 +71,8 @@ public enum StateTtlHint {
      * Get the state ttl from hints on the {@link org.apache.calcite.rel.BiRel} such as Join and
      * Correlate.
      *
-     * @return The key of the map is the input side. The value of the map is the state ttl in
-     *     milliseconds.
+     * @return Returns a map where the key is the input side (0 for LEFT and 1 for RIGHT side). The
+     *     value of the map is the state ttl in milliseconds.
      */
     public static Map<Integer, Long> getStateTtlFromHintOnBiRel(List<RelHint> hints) {
         Map<Integer, Long> stateTtlFromHint = new java.util.HashMap<>();
@@ -101,8 +101,8 @@ public enum StateTtlHint {
      * present. Else if returns an empty map. Used for nodes with multiple inputs such as {@link
      * StreamPhysicalMultiJoin}.
      *
-     * @return The key of the map is the input side. The value of the map is the state ttl in
-     *     milliseconds.
+     * @return Returns a map where the key is the input identifier (0-based index of the input) and
+     *     the value is the state ttl in milliseconds.
      */
     public static Map<Integer, Long> getStateTtlFromHintOnMultiRel(List<RelHint> hints) {
         Map<Integer, Long> stateTtlFromHint = new java.util.HashMap<>();

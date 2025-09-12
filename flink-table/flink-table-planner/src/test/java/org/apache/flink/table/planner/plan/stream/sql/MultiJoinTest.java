@@ -174,7 +174,7 @@ public class MultiJoinTest extends TableTestBase {
     @Test
     void testThreeWayInnerJoinWithSingleTttlHint() {
         util.verifyRelPlan(
-                "SELECT /*+ STATE_TTL(o='2d') */u.user_id_0, u.name, o.order_id, p.payment_id "
+                "SELECT /*+ STaTE_tTL(o='2d') */u.user_id_0, u.name, o.order_id, p.payment_id "
                         + "FROM Users u "
                         + "INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 "
                         + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2");

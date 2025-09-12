@@ -44,7 +44,13 @@ import java.util.Map;
 import static java.util.Objects.requireNonNull;
 
 /**
- * A MultiJoin represents a join of N inputs, whereas regular Joins represent strictly binary joins.
+ * MultiJoin represents a join of N inputs, whereas regular Joins represent strictly binary joins.
+ *
+ * <p>This is the default implementation of {@link org.apache.calcite.rel.rules.MultiJoin}. The
+ * class was copied to add the hints field and related methods.
+ *
+ * <p>Look for FLINK MODIFICATION BEGIN/END to see the changes made to the original file. This file
+ * can be deleted once CALCITE-7164 is implemented and available in the used calcite version.
  */
 public final class MultiJoin extends AbstractRelNode {
     // ~ Instance fields --------------------------------------------------------
@@ -61,6 +67,7 @@ public final class MultiJoin extends AbstractRelNode {
     private final List<@Nullable ImmutableBitSet> projFields;
     public final ImmutableMap<Integer, ImmutableIntList> joinFieldRefCountsMap;
     private final @Nullable RexNode postJoinFilter;
+    // FLINK MODIFICATION BEGIN
     private final ImmutableList<RelHint> hints;
 
     // ~ Constructors -----------------------------------------------------------
@@ -137,6 +144,8 @@ public final class MultiJoin extends AbstractRelNode {
                 postJoinFilter);
     }
 
+    // FLINK MODIFICATION END
+
     // ~ Methods ----------------------------------------------------------------
 
     @Override
@@ -202,7 +211,9 @@ public final class MultiJoin extends AbstractRelNode {
                 .item("outerJoinConditions", outerJoinConds)
                 .item("projFields", projFieldObjects)
                 .itemIf("postJoinFilter", postJoinFilter, postJoinFilter != null)
+                // FLINK MODIFICATION BEGIN
                 .itemIf("hints", hints, !hints.isEmpty());
+        // FLINK MODIFICATION END
     }
 
     @Override
@@ -229,7 +240,9 @@ public final class MultiJoin extends AbstractRelNode {
 
         return new MultiJoin(
                 getCluster(),
+                // FLINK MODIFICATION BEGIN
                 hints,
+                // FLINK MODIFICATION END
                 inputs,
                 joinFilter,
                 rowType,
@@ -290,10 +303,13 @@ public final class MultiJoin extends AbstractRelNode {
         return postJoinFilter;
     }
 
+    // FLINK MODIFICATION BEGIN
     /** Returns hints associated with this MultiJoin. */
     public ImmutableList<RelHint> getHints() {
         return hints;
     }
+
+    // FLINK MODIFICATION END
 
     boolean containsOuter() {
         for (JoinRelType joinType : joinTypes) {
