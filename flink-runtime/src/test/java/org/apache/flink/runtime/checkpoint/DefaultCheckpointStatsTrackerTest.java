@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.configuration.TraceOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.events.Event;
 import org.apache.flink.events.EventBuilder;
@@ -32,6 +33,7 @@ import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.traces.Span;
 import org.apache.flink.traces.SpanBuilder;
+import org.apache.flink.util.CollectionUtil;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 
@@ -287,6 +289,7 @@ class DefaultCheckpointStatsTrackerTest {
                 new DefaultCheckpointStatsTracker(
                         10,
                         UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup(),
+                        TraceOptions.CheckpointSpanDetailLevel.SPAN_PER_CHECKPOINT,
                         listener);
 
         // "factory" code to enable the instantiation of test data based on a PendingCheckpointStats
@@ -432,6 +435,254 @@ class DefaultCheckpointStatsTrackerTest {
         assertThat(attributes.get("checkpointId")).isEqualTo(checkpointId);
         assertThat(attributes.get("checkpointType")).isEqualTo(checkpointType);
         assertThat(attributes.get("isUnaligned")).isEqualTo(Boolean.toString(isUnaligned));
+    }
+
+    @Test
+    public void testSpanCreationBreakDownPerCheckpoint() {
+        testSpanCreationTemplate(TraceOptions.CheckpointSpanDetailLevel.SPAN_PER_CHECKPOINT);
+    }
+
+    @Test
+    public void testSpanCreationBreakDownPerCheckpointWithTasks() {
+        testSpanCreationTemplate(
+                TraceOptions.CheckpointSpanDetailLevel.SPAN_PER_CHECKPOINT_WITH_TASKS);
+    }
+
+    @Test
+    public void testSpanCreationBreakDownPerTask() {
+        testSpanCreationTemplate(TraceOptions.CheckpointSpanDetailLevel.CHILDREN_SPANS_PER_TASK);
+    }
+
+    @Test
+    public void testSpanCreationBreakDownPerSubTask() {
+        testSpanCreationTemplate(TraceOptions.CheckpointSpanDetailLevel.CHILDREN_SPANS_PER_SUBTASK);
+    }
+
+    public void testSpanCreationTemplate(TraceOptions.CheckpointSpanDetailLevel detailLevel) {
+        JobVertexID jobVertexID0 = new JobVertexID();
+        JobVertexID jobVertexID1 = new JobVertexID();
+
+        final List<Span> reportedSpans = new ArrayList<>();
+        final List<Event> reportedEvents = new ArrayList<>();
+
+        produceTestSpans(jobVertexID0, jobVertexID1, detailLevel, reportedSpans, reportedEvents);
+        assertThat(reportedSpans).hasSize(1);
+        assertThat(reportedEvents).hasSize(1);
+
+        Map<String, Object> expected = new HashMap<>();
+        expected.put("checkpointId", 42L);
+        expected.put("checkpointedSize", 37L);
+        expected.put("fullSize", 40L);
+        expected.put("checkpointStatus", "COMPLETED");
+        expected.put("checkpointType", "Checkpoint");
+        expected.put("isUnaligned", "true");
+        expected.put("metadataSize", 1984L);
+
+        assertThat(reportedEvents.get(0).getAttributes())
+                .containsExactlyInAnyOrderEntriesOf(expected);
+
+        expected.put("maxCheckpointStartDelayMs", 29L);
+        expected.put("maxPersistedDataBytes", 27L);
+        expected.put("maxAsyncCheckpointDurationMs", 25L);
+        expected.put("maxSyncCheckpointDurationMs", 24L);
+        expected.put("maxAlignmentDurationMs", 28L);
+        expected.put("maxProcessedDataBytes", 26L);
+        expected.put("sumCheckpointStartDelayMs", 58L);
+        expected.put("sumAlignmentDurationMs", 55L);
+        expected.put("sumProcessedDataBytes", 49L);
+        expected.put("sumAsyncCheckpointDurationMs", 46L);
+        expected.put("sumPersistedDataBytes", 52L);
+        expected.put("sumSyncCheckpointDurationMs", 43L);
+        expected.put("maxStateSizeBytes", 23L);
+        expected.put("maxCheckpointedSizeBytes", 22L);
+
+        if (detailLevel == TraceOptions.CheckpointSpanDetailLevel.SPAN_PER_CHECKPOINT_WITH_TASKS) {
+            expected.put("perTaskMaxAlignmentDurationMs", "[28, 8]");
+            expected.put("perTaskMaxAsyncCheckpointDurationMs", "[16, 25]");
+            expected.put("perTaskMaxCheckpointStartDelayMs", "[20, 29]");
+            expected.put("perTaskMaxPersistedDataBytes", "[18, 27]");
+            expected.put("perTaskMaxProcessedDataBytes", "[17, 26]");
+            expected.put("perTaskMaxSyncCheckpointDurationMs", "[24, 4]");
+            expected.put("perTaskMaxStateSizeBytes", "[14, 23]");
+            expected.put("perTaskMaxCheckpointedSizeBytes", "[13, 22]");
+            expected.put("perTaskSumAlignmentDurationMs", "[47, 8]");
+            expected.put("perTaskSumAsyncCheckpointDurationMs", "[21, 25]");
+            expected.put("perTaskSumCheckpointStartDelayMs", "[29, 29]");
+            expected.put("perTaskSumPersistedDataBytes", "[25, 27]");
+            expected.put("perTaskSumProcessedDataBytes", "[23, 26]");
+            expected.put("perTaskSumSyncCheckpointDurationMs", "[39, 4]");
+            expected.put("perTaskSumStateSizeBytes", "[17, 23]");
+            expected.put("perTaskSumCheckpointedSizeBytes", "[15, 22]");
+        }
+
+        Span checkpointLevelSpan = reportedSpans.get(0);
+        assertThat(checkpointLevelSpan.getAttributes())
+                .containsExactlyInAnyOrderEntriesOf(expected);
+
+        List<Span> taskLevelSpans = checkpointLevelSpan.getChildren();
+        if (detailLevel == TraceOptions.CheckpointSpanDetailLevel.CHILDREN_SPANS_PER_TASK
+                || detailLevel
+                        == TraceOptions.CheckpointSpanDetailLevel.CHILDREN_SPANS_PER_SUBTASK) {
+            assertThat(taskLevelSpans.size()).isEqualTo(2);
+        } else {
+            assertThat(taskLevelSpans).isEmpty();
+            return;
+        }
+
+        Span taskSpan0 = taskLevelSpans.get(0);
+        expected.clear();
+
+        expected.put("checkpointId", 42L);
+        expected.put("jobVertexId", jobVertexID0.toString());
+        expected.put("maxCheckpointStartDelayMs", 20L);
+        expected.put("maxPersistedDataBytes", 18L);
+        expected.put("maxAsyncCheckpointDurationMs", 16L);
+        expected.put("maxSyncCheckpointDurationMs", 24L);
+        expected.put("maxAlignmentDurationMs", 28L);
+        expected.put("maxProcessedDataBytes", 17L);
+        expected.put("sumCheckpointStartDelayMs", 29L);
+        expected.put("sumAlignmentDurationMs", 47L);
+        expected.put("sumProcessedDataBytes", 23L);
+        expected.put("sumAsyncCheckpointDurationMs", 21L);
+        expected.put("sumPersistedDataBytes", 25L);
+        expected.put("sumSyncCheckpointDurationMs", 39L);
+        expected.put("maxStateSizeBytes", 14L);
+        expected.put("sumStateSizeBytes", 17L);
+        expected.put("maxCheckpointedSizeBytes", 13L);
+        expected.put("sumCheckpointedSizeBytes", 15L);
+
+        assertThat(taskSpan0.getAttributes()).containsExactlyInAnyOrderEntriesOf(expected);
+
+        Span taskSpan1 = taskLevelSpans.get(1);
+        expected.clear();
+
+        expected.put("checkpointId", 42L);
+        expected.put("jobVertexId", jobVertexID1.toString());
+        expected.put("maxCheckpointStartDelayMs", 29L);
+        expected.put("maxPersistedDataBytes", 27L);
+        expected.put("maxAsyncCheckpointDurationMs", 25L);
+        expected.put("maxSyncCheckpointDurationMs", 4L);
+        expected.put("maxAlignmentDurationMs", 8L);
+        expected.put("maxProcessedDataBytes", 26L);
+        expected.put("sumCheckpointStartDelayMs", 29L);
+        expected.put("sumAlignmentDurationMs", 8L);
+        expected.put("sumProcessedDataBytes", 26L);
+        expected.put("sumAsyncCheckpointDurationMs", 25L);
+        expected.put("sumPersistedDataBytes", 27L);
+        expected.put("sumSyncCheckpointDurationMs", 4L);
+        expected.put("maxStateSizeBytes", 23L);
+        expected.put("sumStateSizeBytes", 23L);
+        expected.put("maxCheckpointedSizeBytes", 22L);
+        expected.put("sumCheckpointedSizeBytes", 22L);
+        assertThat(taskSpan1.getAttributes()).containsExactlyInAnyOrderEntriesOf(expected);
+
+        List<Span> subtasksSpans0 = taskSpan0.getChildren();
+        List<Span> subtasksSpans1 = taskSpan1.getChildren();
+
+        if (detailLevel == TraceOptions.CheckpointSpanDetailLevel.CHILDREN_SPANS_PER_SUBTASK) {
+            assertThat(subtasksSpans0.size()).isEqualTo(2);
+            assertThat(subtasksSpans1.size()).isEqualTo(1);
+        } else {
+            assertThat(subtasksSpans0).isEmpty();
+            assertThat(subtasksSpans1).isEmpty();
+            return;
+        }
+
+        Span subtaskSpan0N0 = subtasksSpans0.get(0);
+        expected.clear();
+
+        expected.put("checkpointId", 42L);
+        expected.put("jobVertexId", jobVertexID0.toString());
+        expected.put("subtaskId", 0L);
+        expected.put("CheckpointStartDelayMs", 9L);
+        expected.put("AlignmentDurationMs", 28L);
+        expected.put("ProcessedDataBytes", 6L);
+        expected.put("AsyncCheckpointDurationMs", 5L);
+        expected.put("PersistedDataBytes", 7L);
+        expected.put("SyncCheckpointDurationMs", 24L);
+        expected.put("StateSizeBytes", 3L);
+        expected.put("CheckpointedSizeBytes", 2L);
+        assertThat(subtaskSpan0N0.getAttributes()).containsExactlyInAnyOrderEntriesOf(expected);
+
+        Span subtaskSpan0N1 = subtasksSpans0.get(1);
+        expected.clear();
+
+        expected.put("checkpointId", 42L);
+        expected.put("jobVertexId", jobVertexID0.toString());
+        expected.put("subtaskId", 1L);
+        expected.put("CheckpointStartDelayMs", 20L);
+        expected.put("AlignmentDurationMs", 19L);
+        expected.put("ProcessedDataBytes", 17L);
+        expected.put("AsyncCheckpointDurationMs", 16L);
+        expected.put("PersistedDataBytes", 18L);
+        expected.put("SyncCheckpointDurationMs", 15L);
+        expected.put("StateSizeBytes", 14L);
+        expected.put("CheckpointedSizeBytes", 13L);
+        assertThat(subtaskSpan0N1.getAttributes()).containsExactlyInAnyOrderEntriesOf(expected);
+
+        Span subtaskSpan1N10 = subtasksSpans1.get(0);
+        expected.clear();
+
+        expected.put("checkpointId", 42L);
+        expected.put("jobVertexId", jobVertexID1.toString());
+        expected.put("subtaskId", 0L);
+        expected.put("CheckpointStartDelayMs", 29L);
+        expected.put("AlignmentDurationMs", 8L);
+        expected.put("ProcessedDataBytes", 26L);
+        expected.put("AsyncCheckpointDurationMs", 25L);
+        expected.put("PersistedDataBytes", 27L);
+        expected.put("SyncCheckpointDurationMs", 4L);
+        expected.put("StateSizeBytes", 23L);
+        expected.put("CheckpointedSizeBytes", 22L);
+        assertThat(subtaskSpan1N10.getAttributes()).containsExactlyInAnyOrderEntriesOf(expected);
+    }
+
+    private List<Span> produceTestSpans(
+            JobVertexID jobVertexID0,
+            JobVertexID jobVertexID1,
+            TraceOptions.CheckpointSpanDetailLevel detailLevel,
+            List<Span> reportedSpansOut,
+            List<Event> reportedEventsOut) {
+
+        JobManagerJobMetricGroup metricGroup =
+                new UnregisteredMetricGroups.UnregisteredJobManagerJobMetricGroup() {
+
+                    @Override
+                    public void addSpan(SpanBuilder spanBuilder) {
+                        reportedSpansOut.add(spanBuilder.build());
+                    }
+
+                    @Override
+                    public void addEvent(EventBuilder eventBuilder) {
+                        reportedEventsOut.add(eventBuilder.build());
+                    }
+                };
+
+        CheckpointStatsTracker tracker =
+                new DefaultCheckpointStatsTracker(10, metricGroup, detailLevel, null);
+
+        Map<JobVertexID, Integer> subtasksByVertex = CollectionUtil.newHashMapWithExpectedSize(2);
+        subtasksByVertex.put(jobVertexID0, 2);
+        subtasksByVertex.put(jobVertexID1, 1);
+        PendingCheckpointStats pending =
+                tracker.reportPendingCheckpoint(
+                        42,
+                        1,
+                        CheckpointProperties.forCheckpoint(
+                                CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                        subtasksByVertex);
+
+        pending.reportSubtaskStats(
+                jobVertexID0, new SubtaskStateStats(0, 1, 2, 3, 24, 5, 6, 7, 28, 9, false, true));
+        pending.reportSubtaskStats(
+                jobVertexID0,
+                new SubtaskStateStats(1, 12, 13, 14, 15, 16, 17, 18, 19, 20, false, true));
+        pending.reportSubtaskStats(
+                jobVertexID1,
+                new SubtaskStateStats(0, 21, 22, 23, 4, 25, 26, 27, 8, 29, true, true));
+        // Complete checkpoint => new snapshot
+        tracker.reportCompletedCheckpoint(pending.toCompletedCheckpointStats(null, 1984));
+        return reportedSpansOut;
     }
 
     @Test

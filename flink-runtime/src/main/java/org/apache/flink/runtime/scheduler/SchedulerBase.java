@@ -135,6 +135,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.configuration.TraceOptions.CHECKPOINT_SPAN_DETAIL_LEVEL;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphUtils.isAnyOutputBlocking;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -247,7 +248,9 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                                 new DefaultCheckpointStatsTracker(
                                         jobMasterConfiguration.get(
                                                 WebOptions.CHECKPOINTS_HISTORY_SIZE),
-                                        jobManagerJobMetricGroup));
+                                        jobManagerJobMetricGroup,
+                                        jobMasterConfiguration.get(CHECKPOINT_SPAN_DETAIL_LEVEL),
+                                        null));
         this.executionGraph =
                 createAndRestoreExecutionGraph(
                         completedCheckpointStore,
