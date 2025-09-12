@@ -24,13 +24,13 @@ import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.dispatcher.DefaultDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherOperationCaches;
 import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.HistoryServerArchivist;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
-import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunnerFactory;
@@ -296,7 +296,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
             ResourceManagerFactory<?> resourceManagerFactory) {
         return new DefaultDispatcherResourceManagerComponentFactory(
                 DefaultDispatcherRunnerFactory.createSessionRunner(
-                        SessionDispatcherFactory.INSTANCE),
+                        DefaultDispatcherFactory.INSTANCE),
                 resourceManagerFactory,
                 SessionRestEndpointFactory.INSTANCE);
     }
