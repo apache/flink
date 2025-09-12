@@ -19,11 +19,11 @@
 package org.apache.flink.table.runtime.functions.aggregate;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -38,8 +38,11 @@ public final class LastValueAggFunction<T> extends BuiltInAggregateFunction<T, R
 
     private final transient DataType valueDataType;
 
+    private TypeSerializer typeSerializer;
+
     public LastValueAggFunction(LogicalType valueType) {
         this.valueDataType = toInternalDataType(valueType);
+        this.typeSerializer = InternalSerializers.create(valueType);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -84,27 +87,15 @@ public final class LastValueAggFunction<T> extends BuiltInAggregateFunction<T, R
     public void accumulate(RowData rowData, Object value) {
         GenericRowData acc = (GenericRowData) rowData;
         if (value != null) {
-            acc.setField(0, value);
+            acc.setField(0, typeSerializer.copy(value));
         }
     }
 
     public void accumulate(RowData rowData, Object value, Long order) {
         GenericRowData acc = (GenericRowData) rowData;
         if (value != null && acc.getLong(1) < order) {
-            acc.setField(0, value);
+            acc.setField(0, typeSerializer.copy(value));
             acc.setField(1, order);
-        }
-    }
-
-    public void accumulate(GenericRowData acc, StringData value) {
-        if (value != null) {
-            accumulate(acc, (Object) ((BinaryStringData) value).copy());
-        }
-    }
-
-    public void accumulate(GenericRowData acc, StringData value, Long order) {
-        if (value != null) {
-            accumulate(acc, (Object) ((BinaryStringData) value).copy(), order);
         }
     }
 
