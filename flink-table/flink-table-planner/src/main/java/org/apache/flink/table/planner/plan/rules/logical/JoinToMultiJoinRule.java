@@ -20,6 +20,8 @@ package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.hint.StateTtlHint;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin;
 import org.apache.flink.table.planner.plan.utils.IntervalJoinUtil;
 
@@ -37,6 +39,7 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.TableFunctionScan;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.core.Values;
+import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalSnapshot;
 import org.apache.calcite.rel.metadata.RelColumnOrigin;
@@ -65,8 +68,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.table.planner.hint.StateTtlHint.STATE_TTL;
 
 /**
  * Flink Planner rule to flatten a tree of {@link Join}s into a single {@link MultiJoin} with N
@@ -79,7 +85,7 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li>Supports a broader set of left and inner joins by rewriting the $canCombine() method
  *   <li>Right joins are supported in combination with {@link FlinkRightJoinToLeftJoinRule}
- *   <li>Is specifically designed for stream processing, as the resulting MultiJoin will be
+ *   <li>Is specifically designed for stream processing, as the resulting LogicalMultiJoin will be
  *       converted into a {@link StreamPhysicalMultiJoin}
  *   <li>Does not expect resulting multi join to be reordered. Reordering should be applied before
  *       this rule.
@@ -181,7 +187,8 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
         // Build null generate field list.
         buildInputNullGenFieldList(left, right, origJoin.getJoinType(), inputNullGenFieldList);
 
-        // Combine the children MultiJoin inputs into an array of inputs for the new MultiJoin.
+        // Combine the children LogicalMultiJoin inputs into an array of inputs for the new
+        // MultiJoin.
         final List<ImmutableBitSet> projFieldsList = new ArrayList<>();
         final List<int[]> joinFieldRefCountsList = new ArrayList<>();
         final List<RelNode> newInputs =
@@ -209,9 +216,16 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
         List<RexNode> newPostJoinFilters = combinePostJoinFilters(origJoin, left, right);
 
         final RexBuilder rexBuilder = origJoin.getCluster().getRexBuilder();
+
+        // Handle hints: if left or right side is a MultiJoin, reuse their hints and add new ones
+        final RelHint.Builder builder = RelHint.builder(STATE_TTL.getHintName());
+        handleStateTtlHintsForInput(builder, left, origJoin, FlinkHints.LEFT_INPUT);
+        handleStateTtlHintsForInput(builder, right, origJoin, FlinkHints.RIGHT_INPUT);
+
         RelNode multiJoin =
                 new MultiJoin(
                         origJoin.getCluster(),
+                        List.of(builder.build()),
                         newInputs,
                         RexUtil.composeConjunction(rexBuilder, newJoinFilters),
                         origJoin.getRowType(),
@@ -721,6 +735,71 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
         } else {
             return false;
         }
+    }
+
+    /**
+     * Processes state TTL hints for a given side (left or right) of a join operation.
+     *
+     * <p>This method handles two scenarios:
+     *
+     * <ul>
+     *   <li>If the input is a LogicalMultiJoin, it copies all existing STATE_TTL hints from that
+     *       MultiJoin
+     *   <li>If the input is a regular RelNode, it extracts the STATE_TTL hint from the original
+     *       join
+     * </ul>
+     *
+     * @param builder the RelHint.Builder to add hints to
+     * @param input the input RelNode (either LogicalMultiJoin or regular RelNode)
+     * @param origJoin the original join containing the hints to process
+     * @param joinSide the expected input property key (LEFT_INPUT or RIGHT_INPUT)
+     */
+    private void handleStateTtlHintsForInput(
+            RelHint.Builder builder, RelNode input, Join origJoin, String joinSide) {
+
+        if (canCombine(input, origJoin)) {
+            // Input is a MultiJoin and will be combined with original join,
+            // so we copy all existing STATE_TTL hints
+            final MultiJoin multiJoin = (MultiJoin) input;
+            multiJoin.getHints().stream()
+                    .filter(hint -> hint.hintName.equals(STATE_TTL.getHintName()))
+                    .forEach(hint -> hint.listOptions.forEach(builder::hintOption));
+        } else {
+            extractStateTtlHint(builder, origJoin, joinSide);
+        }
+    }
+
+    /**
+     * Extracts STATE_TTL hints from the original join for a specific input side.
+     *
+     * <p>This method processes all STATE_TTL hints and extracts the TTL value for the expected
+     * input property, following Flink's hint precedence rules where multiple hints with the same
+     * key use the first occurrence.
+     *
+     * @param builder the RelHint.Builder to add the hint to
+     * @param origJoin the original join containing the hints
+     * @param joinSide the expected input property key (LEFT_INPUT or RIGHT_INPUT)
+     */
+    private void extractStateTtlHint(RelHint.Builder builder, Join origJoin, String joinSide) {
+
+        final List<RelHint> stateTtlHints =
+                origJoin.getHints().stream()
+                        .filter(hint -> hint.hintName.equals(STATE_TTL.getHintName()))
+                        .collect(Collectors.toList());
+
+        // Process all STATE_TTL hints, following Flink's hint precedence rules
+        String ttlValue = null;
+        for (final RelHint stateTtlHint : stateTtlHints) {
+            // For each hint, get the TTL value for the expected input property
+            // If the key exists multiple times in the same hint, the last occurrence wins
+            final String hintTtlValue = stateTtlHint.kvOptions.get(joinSide);
+            if (hintTtlValue != null) {
+                ttlValue = hintTtlValue;
+            }
+        }
+
+        // Use the extracted TTL value or default to NO_STATE_TTL
+        builder.hintOption(Objects.requireNonNullElse(ttlValue, StateTtlHint.NO_STATE_TTL));
     }
 
     // ~ Inner Classes ----------------------------------------------------------
