@@ -41,6 +41,8 @@ public class SlotSharingGroup implements java.io.Serializable {
 
     private final SlotSharingGroupId slotSharingGroupId = new SlotSharingGroupId();
 
+    private String slotSharingGroupName;
+
     // Represents resources of all tasks in the group. Default to be UNKNOWN.
     private ResourceProfile resourceProfile = ResourceProfile.UNKNOWN;
 
@@ -68,6 +70,14 @@ public class SlotSharingGroup implements java.io.Serializable {
 
     public ResourceProfile getResourceProfile() {
         return resourceProfile;
+    }
+
+    public String getSlotSharingGroupName() {
+        return slotSharingGroupName;
+    }
+
+    public void setSlotSharingGroupName(String slotSharingGroupName) {
+        this.slotSharingGroupName = slotSharingGroupName;
     }
 
     // ------------------------------------------------------------------------
