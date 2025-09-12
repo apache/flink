@@ -278,8 +278,6 @@ Heap state backend 会额外存储一个包括用户状态以及时间戳的 Jav
 
 - 暂时只支持基于 *processing time* 的 TTL。
 
-- 尝试从 checkpoint/savepoint 进行恢复时，TTL 的状态（是否开启）必须和之前保持一致，否则会遇到 "StateMigrationException"。
-
 - TTL 的配置并不会保存在 checkpoint/savepoint 中，仅对当前 Job 有效。
 
 - 不建议checkpoint恢复前后将state TTL从短调长，这可能会产生潜在的数据错误。
@@ -450,6 +448,15 @@ RocksDB backend 的默认后台清理策略会每处理 1000 条数据进行一�
 从而确定下一个未过期数据的位置。
 - 对已有的作业，这个清理方式可以在任何时候通过 `StateTtlConfig` 启用或禁用该特性，比如从 savepoint 重启后。
 - 定期压缩功能只在 TTL 启用时生效。
+
+### TTL Migration Compatibility
+
+Starting from Flink 2.2.0, Flink supports seamless migration between state with and without TTL enabled.
+
+If you previously configured state without TTL and now want to enable it (or vice versa),
+this is now safe to do without triggering restore-time errors.
+
+Read the full details here: [TTL / Non-TTL State Migration Compatibility]({{< ref "docs/dev/datastream/fault-tolerance/state_migration" >}})
 
 ## 算子状态 (Operator State)
 
