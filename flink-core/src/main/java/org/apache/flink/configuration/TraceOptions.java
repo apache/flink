@@ -35,6 +35,21 @@ import static org.apache.flink.configuration.description.TextElement.text;
 @Experimental
 public class TraceOptions {
 
+    /** Enum for the detail level of checkpointing spans. */
+    public enum CheckpointSpanDetailLevel {
+        /** Sum/Max for sub-metrics per checkpoint. */
+        SPAN_PER_CHECKPOINT,
+        /** Sum/Max for sub-metrics per checkpoint and arrays of task aggregates. */
+        SPAN_PER_CHECKPOINT_WITH_TASKS,
+        /** Sub/Max for sub-metrics of checkpoint and tasks (tasks as child spans). */
+        CHILDREN_SPANS_PER_TASK,
+        /**
+         * Sub/Max for sub-metrics of checkpoint, tasks, and subtasks (tasks as child spans,
+         * subtasks as grand-child spans).
+         */
+        CHILDREN_SPANS_PER_SUBTASK;
+    }
+
     private static final String NAMED_REPORTER_CONFIG_PREFIX =
             ConfigConstants.TRACES_REPORTER_PREFIX + "<name>";
 
@@ -66,6 +81,59 @@ public class TraceOptions {
                             "An optional list of trace reporter names. If configured, only reporters whose name matches"
                                     + " any of the names in the list will be started. Otherwise, all reporters that could be found in"
                                     + " the configuration will be started.");
+
+    /** The detail level for reporting checkpoint spans. */
+    public static final ConfigOption<TraceOptions.CheckpointSpanDetailLevel>
+            CHECKPOINT_SPAN_DETAIL_LEVEL =
+                    key("traces.checkpoint.span-detail-level")
+                            .enumType(CheckpointSpanDetailLevel.class)
+                            .defaultValue(CheckpointSpanDetailLevel.SPAN_PER_CHECKPOINT)
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "Detail level for reporting checkpoint spans. Possible values:\n")
+                                            .list(
+                                                    text(
+                                                            "'%s' (default): Single span per checkpoint. "
+                                                                    + "Aggregated sum/max for sub-metrics from all tasks and subtasks per checkpoint.",
+                                                            code(
+                                                                    CheckpointSpanDetailLevel
+                                                                            .SPAN_PER_CHECKPOINT
+                                                                            .name())),
+                                                    text(
+                                                            "'%s': Single span per checkpoint. "
+                                                                    + "Same as '%s', plus arrays of aggregated values per task.",
+                                                            code(
+                                                                    CheckpointSpanDetailLevel
+                                                                            .SPAN_PER_CHECKPOINT_WITH_TASKS
+                                                                            .name()),
+                                                            code(
+                                                                    CheckpointSpanDetailLevel
+                                                                            .SPAN_PER_CHECKPOINT
+                                                                            .name())),
+                                                    text(
+                                                            "'%s': Same as '%s' plus children spans per each task. "
+                                                                    + "Each task span with aggregated sum/max sub-metrics from subtasks.",
+                                                            code(
+                                                                    CheckpointSpanDetailLevel
+                                                                            .CHILDREN_SPANS_PER_TASK
+                                                                            .name()),
+                                                            code(
+                                                                    CheckpointSpanDetailLevel
+                                                                            .SPAN_PER_CHECKPOINT
+                                                                            .name())),
+                                                    text(
+                                                            "'%s': Same as '%s' plus children spans per each subtask. "
+                                                                    + "Child spans for tasks and grand-child spans for subtasks.",
+                                                            code(
+                                                                    CheckpointSpanDetailLevel
+                                                                            .CHILDREN_SPANS_PER_SUBTASK
+                                                                            .name()),
+                                                            code(
+                                                                    CheckpointSpanDetailLevel
+                                                                            .CHILDREN_SPANS_PER_TASK
+                                                                            .name())))
+                                            .build());
 
     /**
      * Returns a view over the given configuration via which options can be set/retrieved for the
