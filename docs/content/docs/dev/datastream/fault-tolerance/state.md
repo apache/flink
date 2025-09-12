@@ -342,9 +342,6 @@ and a primitive long value in memory. The RocksDB state backend adds 8 bytes per
 
 - Only TTLs in reference to *processing time* are currently supported.
 
-- Trying to restore state, which was previously configured without TTL, using TTL enabled descriptor or vice versa
-will lead to compatibility failure and `StateMigrationException`.
-
 - The TTL configuration is not part of check- or savepoints but rather a way of how Flink treats it in the currently running job.
 
 - It is not recommended to restore checkpoint state with adjusting the ttl from a short value to a long value,
@@ -541,6 +538,15 @@ where at least the first element has expired to determine the offset of the next
 - For existing jobs, this cleanup strategy can be activated or deactivated anytime in `StateTtlConfig`, 
 e.g. after restart from savepoint.
 - Periodic compaction could only work when TTL is enabled.
+
+### TTL Migration Compatibility
+
+Starting from Flink 2.2.0, Flink supports seamless migration between state with and without TTL enabled.
+
+If you previously configured state without TTL and now want to enable it (or vice versa),
+this is now safe to do without triggering restore-time errors.
+
+Read the full details here: [TTL / Non-TTL State Migration Compatibility]({{< ref "docs/dev/datastream/fault-tolerance/state_migration" >}})
 
 ## Operator State
 
