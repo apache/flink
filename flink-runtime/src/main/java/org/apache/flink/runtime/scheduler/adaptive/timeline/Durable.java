@@ -22,7 +22,7 @@ import javax.annotation.Nullable;
 
 import java.time.Instant;
 
-/** Durable to record enter timestamp and leave timestamp. */
+/** Durable to record in timestamp and out timestamp. */
 public class Durable {
 
     private final Long inTimestamp;

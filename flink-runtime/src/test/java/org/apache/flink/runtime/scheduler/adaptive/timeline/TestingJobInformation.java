@@ -73,11 +73,6 @@ public class TestingJobInformation implements JobInformation {
     }
 
     @Override
-    public String getVertexName(JobVertexID jobVertexID) {
-        return jobVerticesById.get(jobVertexID).getName();
-    }
-
-    @Override
     public VertexParallelismStore getVertexParallelismStore() {
         return vertexParallelismStore;
     }

@@ -25,7 +25,11 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.Objects;
 
-/** Utils class to record the information of a scheduler state. */
+/**
+ * Utils class to record the information of a scheduler state that contains the span of the time of
+ * the adaptive scheduler state, in timestamp, out timestamp, the exception if occurred during the
+ * adaptive scheduler state.
+ */
 public class SchedulerStateSpan implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -59,6 +63,20 @@ public class SchedulerStateSpan implements Serializable {
 
     public void setStringedException(@Nullable String stringedException) {
         this.stringedException = stringedException;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    @Nullable
+    public Long getInTimestamp() {
+        return inTimestamp;
+    }
+
+    @Nullable
+    public Long getDuration() {
+        return duration;
     }
 
     @Nullable

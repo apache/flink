@@ -21,7 +21,6 @@ package org.apache.flink.runtime.scheduler.adaptive.timeline;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -37,25 +36,22 @@ public class SlotSharingGroupRescale implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private final SlotSharingGroupId slotSharingGroupId;
-    private String slotSharingGroupName;
-    private ResourceProfile requiredResourceProfile;
+    private final String slotSharingGroupName;
+    private final ResourceProfile requiredResourceProfile;
     private Integer desiredSlots;
     private Integer minimalRequiredSlots;
     @Nullable private Integer preRescaleSlots;
     @Nullable private Integer postRescaleSlots;
     @Nullable private ResourceProfile acquiredResourceProfile;
 
-    public SlotSharingGroupRescale(SlotSharingGroupId sharingGroupId) {
-        this.slotSharingGroupId = Preconditions.checkNotNull(sharingGroupId);
+    public SlotSharingGroupRescale(SlotSharingGroup slotSharingGroup) {
+        this.slotSharingGroupId = slotSharingGroup.getSlotSharingGroupId();
+        this.slotSharingGroupName = slotSharingGroup.getSlotSharingGroupName();
+        this.requiredResourceProfile = slotSharingGroup.getResourceProfile();
     }
 
     public SlotSharingGroupId getSlotSharingGroupId() {
         return slotSharingGroupId;
-    }
-
-    public void setSlotSharingGroupMetaInfo(SlotSharingGroup slotSharingGroup) {
-        this.slotSharingGroupName = slotSharingGroup.getSlotSharingGroupName();
-        this.requiredResourceProfile = slotSharingGroup.getResourceProfile();
     }
 
     public String getSlotSharingGroupName() {
@@ -110,6 +106,35 @@ public class SlotSharingGroupRescale implements Serializable {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        SlotSharingGroupRescale that = (SlotSharingGroupRescale) o;
+        return Objects.equals(slotSharingGroupId, that.slotSharingGroupId)
+                && Objects.equals(slotSharingGroupName, that.slotSharingGroupName)
+                && Objects.equals(requiredResourceProfile, that.requiredResourceProfile)
+                && Objects.equals(desiredSlots, that.desiredSlots)
+                && Objects.equals(minimalRequiredSlots, that.minimalRequiredSlots)
+                && Objects.equals(preRescaleSlots, that.preRescaleSlots)
+                && Objects.equals(postRescaleSlots, that.postRescaleSlots)
+                && Objects.equals(acquiredResourceProfile, that.acquiredResourceProfile);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                slotSharingGroupId,
+                slotSharingGroupName,
+                requiredResourceProfile,
+                desiredSlots,
+                minimalRequiredSlots,
+                preRescaleSlots,
+                postRescaleSlots,
+                acquiredResourceProfile);
+    }
+
+    @Override
     public String toString() {
         return "SlotSharingGroupRescale{"
                 + "slotSharingGroupId="
@@ -130,35 +155,5 @@ public class SlotSharingGroupRescale implements Serializable {
                 + ", acquiredResourceProfile="
                 + acquiredResourceProfile
                 + '}';
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-
-        SlotSharingGroupRescale that = (SlotSharingGroupRescale) o;
-        return Objects.equals(desiredSlots, that.desiredSlots)
-                && Objects.equals(minimalRequiredSlots, that.minimalRequiredSlots)
-                && Objects.equals(preRescaleSlots, that.preRescaleSlots)
-                && Objects.equals(postRescaleSlots, that.postRescaleSlots)
-                && Objects.equals(slotSharingGroupId, that.slotSharingGroupId)
-                && Objects.equals(slotSharingGroupName, that.slotSharingGroupName)
-                && Objects.equals(requiredResourceProfile, that.requiredResourceProfile)
-                && Objects.equals(acquiredResourceProfile, that.acquiredResourceProfile);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(
-                slotSharingGroupId,
-                slotSharingGroupName,
-                desiredSlots,
-                minimalRequiredSlots,
-                preRescaleSlots,
-                postRescaleSlots,
-                requiredResourceProfile,
-                acquiredResourceProfile);
     }
 }

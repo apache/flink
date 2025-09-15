@@ -20,15 +20,26 @@ package org.apache.flink.runtime.scheduler.adaptive.timeline;
 
 /** The enum to represent the terminal state of a rescale. */
 public enum TerminalState {
-    /** It represents the target rescale event is completed successfully. */
-    COMPLETED,
-    /** It represents the target rescale event is failed due to some exceptions. */
-    FAILED,
-    /**
-     * It represents the target rescale event is ignored by some new conditions that could trigger a
-     * new rescale.
-     */
-    IGNORED;
+    COMPLETED("It represents the rescale was completed successfully"),
+    FAILED(
+            "It represents the rescale was failed due to some exceptions about lack of condition resources."),
+    IGNORED(
+            "It represents the rescale was ignored by some new conditions that could trigger a new rescale.\n"
+                    + "For example,\n"
+                    + "   The scheduler has received a new resource request,\n"
+                    + "   A job restart is triggered during rescale due to any exception,\n"
+                    + "   Available resources or parallelism do not change during rescale,\n"
+                    + "   The job reaches a terminal state during rescale: FINISHED, FAILING, CANCELING.");
+
+    private final String description;
+
+    TerminalState(String description) {
+        this.description = description;
+    }
+
+    public String getDescription() {
+        return description;
+    }
 
     public static boolean isTerminated(TerminalState terminalState) {
         return terminalState != null;
