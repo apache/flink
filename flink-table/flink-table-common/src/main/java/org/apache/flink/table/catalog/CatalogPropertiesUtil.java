@@ -90,6 +90,9 @@ public final class CatalogPropertiesUtil {
 
             serializePartitionKeys(properties, resolvedTable.getPartitionKeys());
 
+            final Optional<TableDistribution> distribution = resolvedTable.getDistribution();
+            distribution.ifPresent(d -> serializeTableDistribution(properties, d));
+
             properties.putAll(resolvedTable.getOptions());
 
             properties.remove(IS_GENERIC); // reserved option
@@ -144,6 +147,10 @@ public final class CatalogPropertiesUtil {
             snapshot.ifPresent(snapshotId -> properties.put(SNAPSHOT, Long.toString(snapshotId)));
 
             serializePartitionKeys(properties, resolvedMaterializedTable.getPartitionKeys());
+
+            final Optional<TableDistribution> distribution =
+                    resolvedMaterializedTable.getDistribution();
+            distribution.ifPresent(d -> serializeTableDistribution(properties, d));
 
             properties.putAll(resolvedMaterializedTable.getOptions());
 
@@ -235,12 +242,16 @@ public final class CatalogPropertiesUtil {
 
             final List<String> partitionKeys = deserializePartitionKeys(properties);
 
-            final Map<String, String> options = deserializeOptions(properties, schemaKey);
+            final Map<String, String> options = deserializeOptions(properties);
+
+            final @Nullable TableDistribution distribution =
+                    deserializeTableDistribution(properties);
 
             return CatalogTable.newBuilder()
                     .schema(schema)
                     .comment(comment)
                     .partitionKeys(partitionKeys)
+                    .distribution(distribution)
                     .options(options)
                     .snapshot(snapshot)
                     .build();
@@ -267,7 +278,7 @@ public final class CatalogPropertiesUtil {
 
             final List<String> partitionKeys = deserializePartitionKeys(properties);
 
-            final Map<String, String> options = deserializeOptions(properties, SCHEMA);
+            final Map<String, String> options = deserializeOptions(properties);
 
             final String definitionQuery = properties.get(DEFINITION_QUERY);
 
@@ -292,10 +303,14 @@ public final class CatalogPropertiesUtil {
                             ? null
                             : decodeBase64ToBytes(refreshHandlerStringBytes);
 
+            final @Nullable TableDistribution distribution =
+                    deserializeTableDistribution(properties);
+
             CatalogMaterializedTable.Builder builder = CatalogMaterializedTable.newBuilder();
             builder.schema(schema)
                     .comment(comment)
                     .partitionKeys(partitionKeys)
+                    .distribution(distribution)
                     .options(options)
                     .snapshot(snapshot)
                     .definitionQuery(definitionQuery)
@@ -327,9 +342,7 @@ public final class CatalogPropertiesUtil {
             deserializeColumns(properties, MODEL_OUTPUT_SCHEMA, outputSchemaBuilder);
             final Schema outputSchema = outputSchemaBuilder.build();
 
-            final Map<String, String> modelOptions =
-                    deserializeOptions(
-                            properties, Arrays.asList(MODEL_INPUT_SCHEMA, MODEL_OUTPUT_SCHEMA));
+            final Map<String, String> modelOptions = deserializeOptions(properties);
 
             final @Nullable String comment = properties.get(COMMENT);
 
@@ -412,25 +425,26 @@ public final class CatalogPropertiesUtil {
 
     private static final String MODEL_OUTPUT_SCHEMA = "output-schema";
 
-    private static Map<String, String> deserializeOptions(
-            Map<String, String> map, String schemaKey) {
-        return deserializeOptions(map, Collections.singletonList(schemaKey));
-    }
+    private static final String DISTRIBUTION = "distribution";
 
-    private static Map<String, String> deserializeOptions(
-            Map<String, String> map, List<String> schemaKeys) {
+    private static final String DISTRIBUTION_KIND = DISTRIBUTION + ".kind";
+
+    private static final String DISTRIBUTION_BUCKETS = DISTRIBUTION + ".buckets";
+
+    private static final String DISTRIBUTION_KEYS = compoundKey(DISTRIBUTION, KEYS);
+
+    private static Map<String, String> deserializeOptions(Map<String, String> map) {
         return map.entrySet().stream()
                 .filter(
                         e -> {
                             final String key = e.getKey();
-                            return schemaKeys.stream()
-                                            .noneMatch(
-                                                    schemaKey ->
-                                                            key.startsWith(schemaKey + SEPARATOR))
+                            return !key.startsWith(DISTRIBUTION + SEPARATOR)
                                     && !key.startsWith(PARTITION_KEYS + SEPARATOR)
+                                    && !key.startsWith(SCHEMA)
                                     && !key.equals(COMMENT)
                                     && !key.equals(SNAPSHOT)
-                                    && !isMaterializedTableAttribute(key);
+                                    && !isMaterializedTableAttribute(key)
+                                    && !isModelAttribute(key);
                         })
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
@@ -446,6 +460,11 @@ public final class CatalogPropertiesUtil {
                 || key.equals(REFRESH_HANDLER_BYTES);
     }
 
+    private static boolean isModelAttribute(String key) {
+        return key.startsWith(MODEL_INPUT_SCHEMA + SEPARATOR)
+                || key.startsWith(MODEL_OUTPUT_SCHEMA + SEPARATOR);
+    }
+
     private static List<String> deserializePartitionKeys(Map<String, String> map) {
         final int partitionCount = getCount(map, PARTITION_KEYS, NAME);
         final List<String> partitionKeys = new ArrayList<>();
@@ -455,6 +474,29 @@ public final class CatalogPropertiesUtil {
             partitionKeys.add(partitionName);
         }
         return partitionKeys;
+    }
+
+    private static TableDistribution deserializeTableDistribution(Map<String, String> map) {
+        final String distributionKind = map.get(DISTRIBUTION_KIND);
+        if (distributionKind == null) {
+            return null;
+        }
+
+        final TableDistribution.Kind kind = TableDistribution.Kind.valueOf(distributionKind);
+        final Integer bucketCount =
+                map.get(DISTRIBUTION_BUCKETS) == null
+                        ? null
+                        : Integer.valueOf(map.get(DISTRIBUTION_BUCKETS));
+
+        final List<String> bucketKeys = new ArrayList<>();
+        int i = 0;
+        String bucketNameKey = compoundKey(DISTRIBUTION_KEYS, i, NAME);
+        while (map.containsKey(bucketNameKey)) {
+            final String bucketName = getValue(map, bucketNameKey);
+            bucketKeys.add(bucketName);
+            bucketNameKey = compoundKey(DISTRIBUTION_KEYS, ++i, NAME);
+        }
+        return TableDistribution.of(kind, bucketCount, bucketKeys);
     }
 
     private static Schema deserializeSchema(Map<String, String> map, String schemaKey) {
@@ -562,6 +604,26 @@ public final class CatalogPropertiesUtil {
                 PARTITION_KEYS,
                 Collections.singletonList(NAME),
                 keys.stream().map(Collections::singletonList).collect(Collectors.toList()));
+    }
+
+    private static void serializeTableDistribution(
+            Map<String, String> map, TableDistribution distribution) {
+        if (distribution == null) {
+            return;
+        }
+
+        map.put(DISTRIBUTION_KIND, distribution.getKind().name());
+        distribution
+                .getBucketCount()
+                .ifPresent(bc -> map.put(DISTRIBUTION_BUCKETS, String.valueOf(bc.intValue())));
+
+        putIndexedProperties(
+                map,
+                DISTRIBUTION_KEYS,
+                Collections.singletonList(NAME),
+                distribution.getBucketKeys().stream()
+                        .map(Collections::singletonList)
+                        .collect(Collectors.toList()));
     }
 
     private static void serializeResolvedModelSchema(
