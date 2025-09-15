@@ -1717,7 +1717,7 @@ public final class TestValuesTableFactory
             try {
                 return SourceFunctionProvider.of(
                         new TestValuesRuntimeFunctions.FromElementSourceFunctionWithWatermark(
-                                tableName, serializer, values, watermarkStrategy),
+                                tableName, serializer, values, watermarkStrategy, terminating),
                         false);
             } catch (IOException e) {
                 throw new TableException("Fail to init source function", e);

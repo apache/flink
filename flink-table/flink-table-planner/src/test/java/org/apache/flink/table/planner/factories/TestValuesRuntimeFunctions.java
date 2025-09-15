@@ -29,6 +29,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.source.TerminatingLogic;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -240,13 +241,17 @@ public final class TestValuesRuntimeFunctions {
 
         private final String tableName;
 
+        private final TerminatingLogic terminating;
+
         public FromElementSourceFunctionWithWatermark(
                 String tableName,
                 TypeSerializer<RowData> serializer,
                 Iterable<RowData> elements,
-                WatermarkStrategy<RowData> watermarkStrategy)
+                WatermarkStrategy<RowData> watermarkStrategy,
+                TerminatingLogic terminating)
                 throws IOException {
             this.tableName = tableName;
+            this.terminating = terminating;
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
 
@@ -305,6 +310,13 @@ public final class TestValuesRuntimeFunctions {
                     numElementsEmitted++;
                     generator.onEvent(next, Long.MIN_VALUE, output);
                     generator.onPeriodicEmit(output);
+                }
+            }
+
+            if (terminating == TerminatingLogic.INFINITE) {
+                // wait until being canceled
+                while (isRunning) {
+                    Thread.sleep(100);
                 }
             }
         }
