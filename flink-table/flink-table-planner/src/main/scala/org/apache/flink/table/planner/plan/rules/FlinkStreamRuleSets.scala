@@ -19,8 +19,7 @@ package org.apache.flink.table.planner.plan.rules
 
 import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalMLPredictTableFunctionRule, StreamPhysicalProcessTableFunctionRule}
-import org.apache.flink.table.planner.plan.rules.logical._
-import org.apache.flink.table.planner.plan.rules.logical.{AsyncCorrelateSplitRule, JoinToMultiJoinRule}
+import org.apache.flink.table.planner.plan.rules.logical.{JoinToMultiJoinRule, _}
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.planner.plan.rules.physical.stream._
 
@@ -235,10 +234,6 @@ object FlinkStreamRuleSets {
   )
 
   val MULTI_JOIN_RULES: RuleSet = RuleSets.ofList(
-    // merge project to MultiJoin
-    CoreRules.PROJECT_MULTI_JOIN_MERGE,
-    // merge filter to MultiJoin
-    CoreRules.FILTER_MULTI_JOIN_MERGE,
     // merge join to MultiJoin
     JoinToMultiJoinRule.INSTANCE
   )

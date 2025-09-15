@@ -304,6 +304,7 @@ public class ProjectMultiJoinTransposeRule
 
         return new MultiJoin(
                 cluster,
+                originalMultiJoin.getHints(),
                 transformedInputs.newInputs,
                 newJoinFilter,
                 newRowType,

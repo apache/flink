@@ -19,12 +19,14 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream;
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.hint.StateTtlHint;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMultiJoin;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistributionTraitDef;
+import org.apache.flink.table.planner.plan.utils.RelExplainUtil;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor.ConditionAttributeRef;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
@@ -165,7 +167,8 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
                 .item("joinAttributeMap", joinAttributeMap)
                 .itemIf("postJoinFilter", postJoinFilter, postJoinFilter != null)
                 .item("select", String.join(",", getRowType().getFieldNames()))
-                .item("rowType", getRowType());
+                .item("rowType", getRowType())
+                .itemIf("stateTtlHints", RelExplainUtil.hintsToString(hints), !hints.isEmpty());
     }
 
     @Override
@@ -187,8 +190,7 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
                 multijoinCondition,
                 joinAttributeMap,
                 localInputUniqueKeys,
-                Collections.emptyMap(), // TODO Enable hint-based state ttl. See ticket
-                // TODO https://issues.apache.org/jira/browse/FLINK-37936
+                StateTtlHint.getStateTtlFromHintOnMultiRel(this.hints),
                 inputProperties,
                 FlinkTypeFactory.toLogicalRowType(getRowType()),
                 getRelDetailedDescription());
