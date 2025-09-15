@@ -45,8 +45,12 @@ public class VertexParallelismRescale implements Serializable {
 
     @Nullable private Integer postRescaleParallelism;
 
-    public VertexParallelismRescale(JobVertexID jobVertexId) {
+    public VertexParallelismRescale(
+            JobVertexID jobVertexId, String jobVertexName, SlotSharingGroup slotSharingGroup) {
         this.jobVertexId = Preconditions.checkNotNull(jobVertexId);
+        this.jobVertexName = jobVertexName;
+        this.slotSharingGroupName = slotSharingGroup.getSlotSharingGroupName();
+        this.slotSharingGroupId = slotSharingGroup.getSlotSharingGroupId();
     }
 
     public JobVertexID getJobVertexId() {
@@ -67,11 +71,6 @@ public class VertexParallelismRescale implements Serializable {
 
     public String getSlotSharingGroupName() {
         return slotSharingGroupName;
-    }
-
-    public void setSlotSharingGroupMetaInfo(SlotSharingGroup slotSharingGroup) {
-        this.slotSharingGroupName = slotSharingGroup.getSlotSharingGroupName();
-        this.slotSharingGroupId = slotSharingGroup.getSlotSharingGroupId();
     }
 
     @Nullable

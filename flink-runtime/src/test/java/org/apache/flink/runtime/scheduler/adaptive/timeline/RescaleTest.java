@@ -292,7 +292,7 @@ class RescaleTest {
     void testSetPreRescaleSlotsAndParallelisms() {
         // Test for null last rescale.
         Rescale rescale = new Rescale(new RescaleIdInfo(new AbstractID(), 2L));
-        rescale.setPreRescaleSlotsAndParallelisms(null);
+        rescale.setPreRescaleSlotsAndParallelisms(jobInformation, null);
         assertThat(rescale.getSlots()).isEmpty();
         assertThat(rescale.getVertices()).isEmpty();
 
@@ -305,7 +305,16 @@ class RescaleTest {
                 jobVertex -> {
                     VertexParallelismRescale vertexParallelismRescale =
                             lastRescaleVertices.computeIfAbsent(
-                                    jobVertex.getID(), VertexParallelismRescale::new);
+                                    jobVertex.getID(),
+                                    ignored ->
+                                            new VertexParallelismRescale(
+                                                    jobVertex.getID(),
+                                                    jobInformation
+                                                            .getVertexInformation(jobVertex.getID())
+                                                            .getVertexName(),
+                                                    jobInformation
+                                                            .getVertexInformation(jobVertex.getID())
+                                                            .getSlotSharingGroup()));
                     vertexParallelismRescale.setPostRescaleParallelism(4);
                 });
         Map<SlotSharingGroupId, SlotSharingGroupRescale> lastRescaleSlotSharingGroups =
@@ -314,11 +323,12 @@ class RescaleTest {
                 group -> {
                     SlotSharingGroupRescale slotSharingGroupRescale =
                             lastRescaleSlotSharingGroups.computeIfAbsent(
-                                    group.getSlotSharingGroupId(), SlotSharingGroupRescale::new);
+                                    group.getSlotSharingGroupId(),
+                                    ignored -> new SlotSharingGroupRescale(group));
                     slotSharingGroupRescale.setPostRescaleSlots(4);
                 });
 
-        rescale.setPreRescaleSlotsAndParallelisms(lastCompletedRescale);
+        rescale.setPreRescaleSlotsAndParallelisms(jobInformation, lastCompletedRescale);
 
         assertThat(rescale.getSlots()).hasSize(2);
         assertThat(
@@ -343,7 +353,7 @@ class RescaleTest {
                     parallelismForVertices.put(vertex.getID(), 2);
                 });
         Rescale rescale = new Rescale(new RescaleIdInfo(new AbstractID(), 1L));
-        rescale.setPostRescaleVertexParallelism(postVertexParallelism);
+        rescale.setPostRescaleVertexParallelism(jobInformation, postVertexParallelism);
         assertThat(
                         rescale.getVertices().values().stream()
                                 .map(VertexParallelismRescale::getPostRescaleParallelism)

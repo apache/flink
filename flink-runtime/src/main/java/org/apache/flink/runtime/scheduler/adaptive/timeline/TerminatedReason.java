@@ -20,22 +20,34 @@ package org.apache.flink.runtime.scheduler.adaptive.timeline;
 
 /** The enum to represent the reason why a rescale event is terminated. */
 public enum TerminatedReason {
-    SUCCEEDED(TerminalState.COMPLETED),
-    EXCEPTION_OCCURRED(TerminalState.FAILED),
-    RESOURCE_REQUIREMENTS_UPDATED(TerminalState.IGNORED),
-    NO_RESOURCES_OR_PARALLELISMS_CHANGE(TerminalState.IGNORED),
-    JOB_FINISHED(TerminalState.IGNORED),
-    JOB_FAILING(TerminalState.IGNORED),
-    JOB_FAILOVER_RESTARTING(TerminalState.IGNORED),
-    JOB_CANCELING(TerminalState.IGNORED);
+    SUCCEEDED(TerminalState.COMPLETED, "The rescale was completed successfully."),
+    EXCEPTION_OCCURRED(
+            TerminalState.FAILED,
+            "The rescale was failed due to some exceptions about no resources enough."),
+    RESOURCE_REQUIREMENTS_UPDATED(
+            TerminalState.IGNORED, "The rescale was ignored due to the new resource requirements."),
+    NO_RESOURCES_OR_PARALLELISMS_CHANGE(
+            TerminalState.IGNORED,
+            "The rescale was ignored due to no available resources change or parallelism change."),
+    JOB_FINISHED(TerminalState.IGNORED, "The rescale was ignored due to the job finished."),
+    JOB_FAILING(TerminalState.IGNORED, "The rescale was ignored due to the job failing."),
+    JOB_FAILOVER_RESTARTING(
+            TerminalState.IGNORED, "The rescale was ignored due to the job failover restarting."),
+    JOB_CANCELING(TerminalState.IGNORED, "The rescale was ignored due to the job canceling.");
 
     private final TerminalState terminalState;
+    private final String description;
 
-    TerminatedReason(TerminalState terminalState) {
+    TerminatedReason(TerminalState terminalState, String description) {
         this.terminalState = terminalState;
+        this.description = description;
     }
 
     public TerminalState getTerminalState() {
         return terminalState;
+    }
+
+    public String getDescription() {
+        return description;
     }
 }

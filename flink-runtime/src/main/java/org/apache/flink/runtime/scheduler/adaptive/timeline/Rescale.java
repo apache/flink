@@ -51,7 +51,65 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Rescale event. */
+/**
+ * The rescale to record the related vertices and slots change during the rescaling process.
+ *
+ * <p>This rescale begins when the scheduler initiates a rescaling operation and ends when the
+ * rescaling succeeds.
+ *
+ * <pre>
+ *
+ * The structure of the rescale as follows:
+ *
+ * +--> rescale id information:
+ * +    +-->rescale uuid
+ * +    +-->resource requirements id
+ * +    +-->rescale attempt id
+ * +--> vertices:
+ * +    +--> job vertex id-1 -> vertex-1 parallelism rescale:
+ * +    +                       +--> vertex id
+ * +    +                       +--> vertex name
+ * +    +                       +--> slot sharing group id
+ * +    +                       +--> slot sharing group name
+ * +    +                       +--> desired parallelism
+ * +    +                       +--> sufficient parallelism
+ * +    +--> job vertex id-2 -> vertex-2 parallelism rescale:
+ * +    +                       +--> ...
+ * +    +                       ...
+ * +    ...
+ * +--> slots:
+ * +    +--> slot sharing group id-1 -> slot-1 sharing group rescale:
+ * +    +                               +--> slot sharing group id
+ * +    +                               +--> slot sharing group name
+ * +    +                               +--> required resource profile
+ * +    +                               +--> minimal required slots
+ * +    +                               +--> pre-rescale slots
+ * +    +                               +--> post-rescale slots
+ * +    +                               +--> acquired resource profile
+ * +    +--> slot sharing group id-2 -> slot-2 sharing group rescale:
+ * +    +                               +--> ...
+ * +    +                               ...
+ * +    ...
+ * +--> scheduler states:
+ * +    +--> scheduler state span:
+ * +    +    +--> state
+ * +    +    +--> in timestamp
+ * +    +    +--> out timestamp
+ * +    +    +--> duration
+ * +    +    +--> exception information
+ * +    +--> ...
+ * +    ...
+ * +--> start timestamp
+ * +--> end timestamp
+ * +--> trigger cause
+ * +--> terminal state
+ * +--> terminated reason
+ *
+ * </pre>
+ *
+ * <p>The more design details about the rescale could be viewed in <a
+ * href="https://cwiki.apache.org/confluence/x/TQr0Ew">FLIP-495</a>.
+ */
 public class Rescale implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -167,12 +225,20 @@ public class Rescale implements Serializable {
         return this;
     }
 
+    public Long getStartTimestamp() {
+        return startTimestamp;
+    }
+
     public Rescale setEndTimestamp(Long endTimestamp) {
         if (this.endTimestamp != null) {
             LOG.warn("The old endTimestamp was already set to '{}'", this.endTimestamp);
         }
         this.endTimestamp = endTimestamp;
         return this;
+    }
+
+    public Long getEndTimestamp() {
+        return endTimestamp;
     }
 
     public Rescale setDesiredSlots(JobInformation jobInformation) {
@@ -186,10 +252,10 @@ public class Rescale implements Serializable {
                                                     .getParallelism())
                             .max(Integer::compare)
                             .orElse(0);
-            SlotSharingGroupId sharingGroupId = sharingGroup.getSlotSharingGroupId();
             SlotSharingGroupRescale sharingGroupRescaleInfo =
-                    slots.computeIfAbsent(sharingGroupId, SlotSharingGroupRescale::new);
-            sharingGroupRescaleInfo.setSlotSharingGroupMetaInfo(sharingGroup);
+                    slots.computeIfAbsent(
+                            sharingGroup.getSlotSharingGroupId(),
+                            ignored -> new SlotSharingGroupRescale(sharingGroup));
             sharingGroupRescaleInfo.setDesiredSlots(desiredSlot);
         }
         return this;
@@ -201,15 +267,16 @@ public class Rescale implements Serializable {
         for (Map.Entry<JobVertexID, VertexParallelismInformation> entry :
                 allParallelismInfo.entrySet()) {
             JobVertexID jvId = entry.getKey();
-            VertexParallelismInformation vertexParallelInfo = entry.getValue();
-            VertexParallelismRescale vertexParallelismRescale =
-                    this.vertices.computeIfAbsent(
-                            jvId, jobVertexID -> new VertexParallelismRescale(jvId));
             SlotSharingGroup slotSharingGroup =
                     jobInformation.getVertexInformation(jvId).getSlotSharingGroup();
-            vertexParallelismRescale.setSlotSharingGroupMetaInfo(slotSharingGroup);
-            vertexParallelismRescale.setJobVertexName(jobInformation.getVertexName(jvId));
-            vertexParallelismRescale.setRequiredParallelisms(vertexParallelInfo);
+            String vertexName = jobInformation.getVertexInformation(jvId).getVertexName();
+            VertexParallelismRescale vertexParallelismRescale =
+                    this.vertices.computeIfAbsent(
+                            jvId,
+                            jobVertexID ->
+                                    new VertexParallelismRescale(
+                                            jvId, vertexName, slotSharingGroup));
+            vertexParallelismRescale.setRequiredParallelisms(entry.getValue());
         }
         return this;
     }
@@ -219,15 +286,18 @@ public class Rescale implements Serializable {
                 SlotSharingGroupMetaInfo.from(jobInformation.getVertices());
         for (Map.Entry<SlotSharingGroup, SlotSharingGroupMetaInfo> entry :
                 slotSharingGroupMetaInfo.entrySet()) {
-            SlotSharingGroupId groupId = entry.getKey().getSlotSharingGroupId();
+            SlotSharingGroup sharingGroup = entry.getKey();
             SlotSharingGroupRescale slotSharingGroupRescale =
-                    slots.computeIfAbsent(groupId, SlotSharingGroupRescale::new);
+                    slots.computeIfAbsent(
+                            sharingGroup.getSlotSharingGroupId(),
+                            ignored -> new SlotSharingGroupRescale(sharingGroup));
             slotSharingGroupRescale.setMinimalRequiredSlots(entry.getValue().getMaxLowerBound());
         }
         return this;
     }
 
-    public Rescale setPreRescaleSlotsAndParallelisms(@Nullable Rescale lastCompletedRescale) {
+    public Rescale setPreRescaleSlotsAndParallelisms(
+            JobInformation jobInformation, @Nullable Rescale lastCompletedRescale) {
         if (lastCompletedRescale == null) {
             LOG.info("No available previous parallelism to set.");
             return this;
@@ -235,27 +305,50 @@ public class Rescale implements Serializable {
         for (JobVertexID jobVertexID : lastCompletedRescale.getVertices().keySet()) {
             Integer preRescaleParallelism =
                     lastCompletedRescale.vertices.get(jobVertexID).getPostRescaleParallelism();
+            JobInformation.VertexInformation vertexInformation =
+                    jobInformation.getVertexInformation(jobVertexID);
             VertexParallelismRescale vertexParallelismRescale =
-                    vertices.computeIfAbsent(jobVertexID, VertexParallelismRescale::new);
+                    vertices.computeIfAbsent(
+                            jobVertexID,
+                            jobVertexId ->
+                                    new VertexParallelismRescale(
+                                            jobVertexId,
+                                            vertexInformation.getVertexName(),
+                                            vertexInformation.getSlotSharingGroup()));
             vertexParallelismRescale.setPreRescaleParallelism(preRescaleParallelism);
         }
 
-        for (SlotSharingGroupId sharingGroupId : lastCompletedRescale.getSlots().keySet()) {
-            Integer preRescaleSlot =
-                    lastCompletedRescale.slots.get(sharingGroupId).getPostRescaleSlots();
+        Map<SlotSharingGroupId, SlotSharingGroupRescale> slotsRescales =
+                lastCompletedRescale.getSlots();
+        for (SlotSharingGroup sharingGroup : jobInformation.getSlotSharingGroups()) {
+            SlotSharingGroupId slotSharingGroupId = sharingGroup.getSlotSharingGroupId();
+            Integer preRescaleSlot = slotsRescales.get(slotSharingGroupId).getPostRescaleSlots();
             SlotSharingGroupRescale slotSharingGroupRescale =
-                    slots.computeIfAbsent(sharingGroupId, SlotSharingGroupRescale::new);
+                    slots.computeIfAbsent(
+                            slotSharingGroupId,
+                            ignored -> new SlotSharingGroupRescale(sharingGroup));
             slotSharingGroupRescale.setPreRescaleSlots(preRescaleSlot);
         }
 
         return this;
     }
 
-    public Rescale setPostRescaleVertexParallelism(VertexParallelism postRescaleVertexParallelism) {
+    public Rescale setPostRescaleVertexParallelism(
+            JobInformation jobInformation, VertexParallelism postRescaleVertexParallelism) {
+
         Set<JobVertexID> vertices = postRescaleVertexParallelism.getVertices();
         for (JobVertexID vertexID : vertices) {
+            JobInformation.VertexInformation vertexInformation =
+                    jobInformation.getVertexInformation(vertexID);
             VertexParallelismRescale vertexParallelismRescale =
-                    this.vertices.computeIfAbsent(vertexID, VertexParallelismRescale::new);
+                    this.vertices.computeIfAbsent(
+                            vertexID,
+                            jobVertexId ->
+                                    new VertexParallelismRescale(
+                                            jobVertexId,
+                                            vertexInformation.getVertexName(),
+                                            vertexInformation.getSlotSharingGroup()));
+
             vertexParallelismRescale.setPostRescaleParallelism(
                     postRescaleVertexParallelism.getParallelism(vertexID));
         }
@@ -264,7 +357,7 @@ public class Rescale implements Serializable {
 
     public Rescale setPostRescaleSlots(
             Collection<JobSchedulingPlan.SlotAssignment> postRescaleSlotAssignments) {
-        Map<SlotSharingGroupId, Set<JobSchedulingPlan.SlotAssignment>> assignmentsPerSharingGroup =
+        Map<SlotSharingGroup, Set<JobSchedulingPlan.SlotAssignment>> assignmentsPerSharingGroup =
                 postRescaleSlotAssignments.stream()
                         .collect(
                                 Collectors.groupingBy(
@@ -272,19 +365,20 @@ public class Rescale implements Serializable {
                                                 slotAssignment
                                                         .getTargetAs(
                                                                 ExecutionSlotSharingGroup.class)
-                                                        .getSlotSharingGroup()
-                                                        .getSlotSharingGroupId(),
+                                                        .getSlotSharingGroup(),
                                         Collectors.toSet()));
-        for (Map.Entry<SlotSharingGroupId, Set<JobSchedulingPlan.SlotAssignment>> entry :
+        for (Map.Entry<SlotSharingGroup, Set<JobSchedulingPlan.SlotAssignment>> entry :
                 assignmentsPerSharingGroup.entrySet()) {
-            SlotSharingGroupId sharingGroupId = entry.getKey();
+            SlotSharingGroup sharingGroup = entry.getKey();
             Set<JobSchedulingPlan.SlotAssignment> assignments =
-                    assignmentsPerSharingGroup.get(sharingGroupId);
+                    assignmentsPerSharingGroup.get(sharingGroup);
             int postRescaleSlot = assignments.size();
             ResourceProfile acquiredResource =
                     assignments.iterator().next().getSlotInfo().getResourceProfile();
             SlotSharingGroupRescale slotSharingGroupRescale =
-                    slots.computeIfAbsent(sharingGroupId, SlotSharingGroupRescale::new);
+                    slots.computeIfAbsent(
+                            sharingGroup.getSlotSharingGroupId(),
+                            ignored -> new SlotSharingGroupRescale(sharingGroup));
             slotSharingGroupRescale.setPostRescaleSlots(postRescaleSlot);
             slotSharingGroupRescale.setAcquiredResourceProfile(acquiredResource);
         }
@@ -296,16 +390,20 @@ public class Rescale implements Serializable {
         return this;
     }
 
+    public TriggerCause getTriggerCause() {
+        return triggerCause;
+    }
+
     public void log() {
         LOG.info("Updated rescale is: {}", this);
     }
 
     public Map<JobVertexID, VertexParallelismRescale> getVertices() {
-        return vertices;
+        return Collections.unmodifiableMap(vertices);
     }
 
     public Map<SlotSharingGroupId, SlotSharingGroupRescale> getSlots() {
-        return slots;
+        return Collections.unmodifiableMap(slots);
     }
 
     public static boolean isTerminated(Rescale rescale) {
