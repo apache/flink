@@ -58,7 +58,7 @@ The serializers and state backends transparently handle the presence or absence 
 
 | Migration Type                         | Available Since               | Behavior                                                            |
 | -------------------------------------- | ----------------------------- | ------------------------------------------------------------------- |
-| Non-TTL state → TTL-enabled descriptor | 2.1.0 (RocksDB), 2.2.0 (Heap) | State restored as non-expired. TTL applied on new updates/accesses. |
+| Non-TTL state → TTL-enabled descriptor | 2.1.0 (RocksDB), 2.2.0 (Heap) | Previous state restored as non-expired. TTL applied on new updates/accesses. |
 | TTL state → Non-TTL descriptor         | 2.1.0 (RocksDB), 2.2.0 (Heap) | TTL metadata is ignored. State becomes permanently visible.         |
 
 ## Limitations
