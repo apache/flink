@@ -61,17 +61,6 @@ The serializers and state backends transparently handle the presence or absence 
 | Non-TTL state → TTL-enabled descriptor | 2.1.0 (RocksDB), 2.2.0 (Heap) | State restored as non-expired. TTL applied on new updates/accesses. |
 | TTL state → Non-TTL descriptor         | 2.1.0 (RocksDB), 2.2.0 (Heap) | TTL metadata is ignored. State becomes permanently visible.         |
 
-## Implementation Details
-
-The compatibility is achieved through the following changes:
-
-* **TtlAwareSerializer** (Flink 2.0.0): Wraps user serializers to support reading/writing TTL and non-TTL formats.
-* **Backend migration logic**:
-    * RocksDBKeyedStateBackend (Flink 2.1.0)
-    * HeapKeyedStateBackend (Flink 2.2.0)
-
-These components check the metadata during restore and adapt accordingly.
-
 ## Limitations
 
 * Changes to TTL **parameters** (e.g. expiration time, update behavior) are not always compatible. These may require serializer migration.
@@ -100,7 +89,7 @@ Yes. Flink will restore the values and ignore any TTL expiration metadata.
 
 ### Is this supported in RocksDB and Heap backends?
 
-Yes, RocksDB since 2.1.0, Heap since 2.2.0.
+Yes, RocksDB since 2.1.0, Heap since 2.2.0 but ForSt is not yet added.
 
 ### Which Flink version fully supports TTL migration?
 
