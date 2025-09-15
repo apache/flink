@@ -25,27 +25,27 @@ import java.time.Instant;
 /** Durable to record enter timestamp and leave timestamp. */
 public class Durable {
 
-    private final Long inTimestamp;
-    private @Nullable Long outTimestamp;
+    private final Long enterTimestamp;
+    private @Nullable Long leaveTimestamp;
 
     public Durable() {
         this(Instant.now().toEpochMilli(), null);
     }
 
-    public Durable(Long inTimestamp, @Nullable Long outTimestamp) {
-        this.inTimestamp = inTimestamp;
-        this.outTimestamp = outTimestamp;
+    public Durable(Long enterTimestamp, @Nullable Long leaveTimestamp) {
+        this.enterTimestamp = enterTimestamp;
+        this.leaveTimestamp = leaveTimestamp;
     }
 
-    public void setOutTimestamp(long timestamp) {
-        this.outTimestamp = timestamp;
+    public void setLeaveTimestamp(long timestamp) {
+        this.leaveTimestamp = timestamp;
     }
 
-    public Long getInTimestamp() {
-        return inTimestamp;
+    public Long getEnterTimestamp() {
+        return enterTimestamp;
     }
 
-    public @Nullable Long getOutTimestamp() {
-        return outTimestamp;
+    public @Nullable Long getLeaveTimestamp() {
+        return leaveTimestamp;
     }
 }

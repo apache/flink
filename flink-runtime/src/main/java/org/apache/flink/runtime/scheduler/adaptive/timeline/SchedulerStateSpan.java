@@ -25,15 +25,19 @@ import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.Objects;
 
-/** Utils class to record the information of a scheduler state. */
+/**
+ * Utils class to record the information of a scheduler state that contains the span of the time of
+ * the adaptive scheduler state, enter timestamp, leave timestamp, the exception if occurred during
+ * the adaptive scheduler state.
+ */
 public class SchedulerStateSpan implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private final String state;
 
-    @Nullable private final Long inTimestamp;
+    @Nullable private final Long enterTimestamp;
 
-    @Nullable private final Long outTimestamp;
+    @Nullable private final Long leaveTimestamp;
 
     @Nullable private final Long duration;
 
@@ -41,24 +45,38 @@ public class SchedulerStateSpan implements Serializable {
 
     public SchedulerStateSpan(
             String state,
-            Long logicStartMillis,
-            Long logicEndMillis,
+            Long logicEnterMillis,
+            Long logicLeaveMillis,
             Long duration,
             String stringedException) {
         this.state = Preconditions.checkNotNull(state);
-        this.inTimestamp = logicStartMillis;
-        this.outTimestamp = logicEndMillis;
+        this.enterTimestamp = logicEnterMillis;
+        this.leaveTimestamp = logicLeaveMillis;
         this.duration = duration;
         this.stringedException = stringedException;
     }
 
     @Nullable
-    public Long getOutTimestamp() {
-        return outTimestamp;
+    public Long getLeaveTimestamp() {
+        return leaveTimestamp;
     }
 
     public void setStringedException(@Nullable String stringedException) {
         this.stringedException = stringedException;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    @Nullable
+    public Long getEnterTimestamp() {
+        return enterTimestamp;
+    }
+
+    @Nullable
+    public Long getDuration() {
+        return duration;
     }
 
     @Nullable
@@ -74,15 +92,15 @@ public class SchedulerStateSpan implements Serializable {
 
         SchedulerStateSpan that = (SchedulerStateSpan) o;
         return Objects.equals(state, that.state)
-                && Objects.equals(inTimestamp, that.inTimestamp)
-                && Objects.equals(outTimestamp, that.outTimestamp)
+                && Objects.equals(enterTimestamp, that.enterTimestamp)
+                && Objects.equals(leaveTimestamp, that.leaveTimestamp)
                 && Objects.equals(duration, that.duration)
                 && Objects.equals(stringedException, that.stringedException);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(state, inTimestamp, outTimestamp, duration, stringedException);
+        return Objects.hash(state, enterTimestamp, leaveTimestamp, duration, stringedException);
     }
 
     @Override
@@ -91,10 +109,10 @@ public class SchedulerStateSpan implements Serializable {
                 + "state='"
                 + state
                 + '\''
-                + ", inTimestamp="
-                + inTimestamp
-                + ", outTimestamp="
-                + outTimestamp
+                + ", enterTimestamp="
+                + enterTimestamp
+                + ", leaveTimestamp="
+                + leaveTimestamp
                 + ", duration="
                 + duration
                 + ", stringedException='"

@@ -193,7 +193,7 @@ class RescaleTest {
         rescale.setStringedException(stringedException1);
         rescale.addSchedulerState(stateWithoutEndTimestamp, null);
         schedulerStateSpan = rescale.getSchedulerStates().get(0);
-        assertThat(schedulerStateSpan.getOutTimestamp())
+        assertThat(schedulerStateSpan.getLeaveTimestamp())
                 .isLessThanOrEqualTo(Instant.now().toEpochMilli());
     }
 
@@ -292,7 +292,7 @@ class RescaleTest {
     void testSetPreRescaleSlotsAndParallelisms() {
         // Test for null last rescale.
         Rescale rescale = new Rescale(new RescaleIdInfo(new AbstractID(), 2L));
-        rescale.setPreRescaleSlotsAndParallelisms(null);
+        rescale.setPreRescaleSlotsAndParallelisms(jobInformation, null);
         assertThat(rescale.getSlots()).isEmpty();
         assertThat(rescale.getVertices()).isEmpty();
 
@@ -300,25 +300,35 @@ class RescaleTest {
         // Prepare the last completed rescale.
         Rescale lastCompletedRescale = new Rescale(new RescaleIdInfo(new AbstractID(), 1L));
         Map<JobVertexID, VertexParallelismRescale> lastRescaleVertices =
-                lastCompletedRescale.getVertices();
+                lastCompletedRescale.getModifiableVertices();
         jobVertices.forEach(
                 jobVertex -> {
                     VertexParallelismRescale vertexParallelismRescale =
                             lastRescaleVertices.computeIfAbsent(
-                                    jobVertex.getID(), VertexParallelismRescale::new);
+                                    jobVertex.getID(),
+                                    ignored ->
+                                            new VertexParallelismRescale(
+                                                    jobVertex.getID(),
+                                                    jobInformation
+                                                            .getVertexInformation(jobVertex.getID())
+                                                            .getVertexName(),
+                                                    jobInformation
+                                                            .getVertexInformation(jobVertex.getID())
+                                                            .getSlotSharingGroup()));
                     vertexParallelismRescale.setPostRescaleParallelism(4);
                 });
         Map<SlotSharingGroupId, SlotSharingGroupRescale> lastRescaleSlotSharingGroups =
-                lastCompletedRescale.getSlots();
+                lastCompletedRescale.getModifiableSlots();
         slotSharingGroups.forEach(
                 group -> {
                     SlotSharingGroupRescale slotSharingGroupRescale =
                             lastRescaleSlotSharingGroups.computeIfAbsent(
-                                    group.getSlotSharingGroupId(), SlotSharingGroupRescale::new);
+                                    group.getSlotSharingGroupId(),
+                                    ignored -> new SlotSharingGroupRescale(group));
                     slotSharingGroupRescale.setPostRescaleSlots(4);
                 });
 
-        rescale.setPreRescaleSlotsAndParallelisms(lastCompletedRescale);
+        rescale.setPreRescaleSlotsAndParallelisms(jobInformation, lastCompletedRescale);
 
         assertThat(rescale.getSlots()).hasSize(2);
         assertThat(
@@ -343,7 +353,7 @@ class RescaleTest {
                     parallelismForVertices.put(vertex.getID(), 2);
                 });
         Rescale rescale = new Rescale(new RescaleIdInfo(new AbstractID(), 1L));
-        rescale.setPostRescaleVertexParallelism(postVertexParallelism);
+        rescale.setPostRescaleVertexParallelism(jobInformation, postVertexParallelism);
         assertThat(
                         rescale.getVertices().values().stream()
                                 .map(VertexParallelismRescale::getPostRescaleParallelism)

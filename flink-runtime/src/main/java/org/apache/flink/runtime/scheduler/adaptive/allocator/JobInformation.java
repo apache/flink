@@ -39,10 +39,6 @@ public interface JobInformation {
 
     Iterable<VertexInformation> getVertices();
 
-    default String getVertexName(JobVertexID jobVertexID) {
-        throw new UnsupportedOperationException();
-    }
-
     default VertexParallelismStore getVertexParallelismStore() {
         throw new UnsupportedOperationException();
     }
@@ -50,6 +46,8 @@ public interface JobInformation {
     /** Information about a single vertex. */
     interface VertexInformation {
         JobVertexID getJobVertexID();
+
+        String getVertexName();
 
         int getMinParallelism();
 

@@ -50,6 +50,11 @@ class TestVertexInformation implements JobInformation.VertexInformation {
     }
 
     @Override
+    public String getVertexName() {
+        return "JobVertex-" + jobVertexId.toString();
+    }
+
+    @Override
     public int getMinParallelism() {
         return minParallelism;
     }

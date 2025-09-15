@@ -50,7 +50,7 @@ public interface State extends LabeledGlobalFailureHandler {
      * @param newState newState is the state into which the scheduler transitions
      */
     default void onLeave(Class<? extends State> newState) {
-        getDurable().setOutTimestamp(Instant.now().toEpochMilli());
+        getDurable().setLeaveTimestamp(Instant.now().toEpochMilli());
     }
 
     /** Cancels the job execution. */
