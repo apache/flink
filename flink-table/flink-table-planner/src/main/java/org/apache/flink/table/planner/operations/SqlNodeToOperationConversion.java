@@ -549,8 +549,7 @@ public class SqlNodeToOperationConversion {
                         .comment(resolvedCatalogTable.getComment())
                         .options(resolvedCatalogTable.getOptions())
                         .schema(resolvedCatalogTable.getUnresolvedSchema())
-                        .partitionKeys(resolvedCatalogTable.getPartitionKeys())
-                        .options(resolvedCatalogTable.getOptions());
+                        .partitionKeys(resolvedCatalogTable.getPartitionKeys());
 
         resolvedCatalogTable.getSnapshot().ifPresent(builder::snapshot);
 

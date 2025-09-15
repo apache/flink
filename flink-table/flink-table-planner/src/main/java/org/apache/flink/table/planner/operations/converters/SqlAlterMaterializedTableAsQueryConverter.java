@@ -24,12 +24,10 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableChange.MaterializedTableChange;
-import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableAsQueryOperation;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
@@ -39,11 +37,9 @@ import org.apache.calcite.sql.SqlNode;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.table.catalog.CatalogBaseTable.TableKind.MATERIALIZED_TABLE;
-
 /** A converter for {@link SqlAlterMaterializedTableAsQuery}. */
 public class SqlAlterMaterializedTableAsQueryConverter
-        implements SqlNodeConverter<SqlAlterMaterializedTableAsQuery> {
+        extends AbstractAlterMaterializedTableConverter<SqlAlterMaterializedTableAsQuery> {
 
     @Override
     public Operation convertSqlNode(
@@ -66,7 +62,11 @@ public class SqlAlterMaterializedTableAsQueryConverter
                         context.toRelRoot(validatedQuery).project(), () -> originalQuery);
 
         ResolvedCatalogMaterializedTable oldTable =
-                getResolvedMaterializedTable(context, identifier);
+                getResolvedMaterializedTable(
+                        context,
+                        identifier,
+                        () -> "Only materialized table support modify definition query.");
+
         List<Column> addedColumns =
                 validateAndExtractNewColumns(
                         oldTable.getResolvedSchema(), queryOperation.getResolvedSchema());
@@ -81,46 +81,20 @@ public class SqlAlterMaterializedTableAsQueryConverter
         return new AlterMaterializedTableAsQueryOperation(identifier, tableChanges, updatedTable);
     }
 
-    private ObjectIdentifier resolveIdentifier(
-            SqlAlterMaterializedTableAsQuery sqlAlterTableAsQuery, ConvertContext context) {
-        UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlAlterTableAsQuery.fullTableName());
-        return context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
-    }
-
-    private ResolvedCatalogMaterializedTable getResolvedMaterializedTable(
-            ConvertContext context, ObjectIdentifier identifier) {
-        ResolvedCatalogBaseTable<?> baseTable =
-                context.getCatalogManager().getTableOrError(identifier).getResolvedTable();
-        if (MATERIALIZED_TABLE != baseTable.getTableKind()) {
-            throw new ValidationException(
-                    "Only materialized table support modify definition query.");
-        }
-        return (ResolvedCatalogMaterializedTable) baseTable;
-    }
-
     private CatalogMaterializedTable buildUpdatedMaterializedTable(
             ResolvedCatalogMaterializedTable oldTable,
             List<Column> addedColumns,
             String definitionQuery) {
-
         Schema.Builder newSchemaBuilder =
                 Schema.newBuilder().fromResolvedSchema(oldTable.getResolvedSchema());
         addedColumns.forEach(col -> newSchemaBuilder.column(col.getName(), col.getDataType()));
 
-        return CatalogMaterializedTable.newBuilder()
-                .schema(newSchemaBuilder.build())
-                .comment(oldTable.getComment())
-                .partitionKeys(oldTable.getPartitionKeys())
-                .options(oldTable.getOptions())
-                .definitionQuery(definitionQuery)
-                .freshness(oldTable.getDefinitionFreshness())
-                .logicalRefreshMode(oldTable.getLogicalRefreshMode())
-                .refreshMode(oldTable.getRefreshMode())
-                .refreshStatus(oldTable.getRefreshStatus())
-                .refreshHandlerDescription(oldTable.getRefreshHandlerDescription().orElse(null))
-                .serializedRefreshHandler(oldTable.getSerializedRefreshHandler())
-                .build();
+        return buildUpdatedMaterializedTable(
+                oldTable,
+                builder -> {
+                    builder.schema(newSchemaBuilder.build());
+                    builder.definitionQuery(definitionQuery);
+                });
     }
 
     private List<Column> validateAndExtractNewColumns(

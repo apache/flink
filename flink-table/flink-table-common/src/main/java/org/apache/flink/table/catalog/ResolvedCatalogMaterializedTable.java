@@ -148,6 +148,11 @@ public class ResolvedCatalogMaterializedTable
         return origin.getRefreshHandlerDescription();
     }
 
+    @Override
+    public Optional<TableDistribution> getDistribution() {
+        return origin.getDistribution();
+    }
+
     @Nullable
     @Override
     public byte[] getSerializedRefreshHandler() {
@@ -188,6 +193,7 @@ public class ResolvedCatalogMaterializedTable
                 CatalogTable.newBuilder()
                         .schema(getUnresolvedSchema())
                         .comment(getComment())
+                        .distribution(getDistribution().orElse(null))
                         .partitionKeys(getPartitionKeys())
                         .options(getOptions())
                         .snapshot(getSnapshot().orElse(null))

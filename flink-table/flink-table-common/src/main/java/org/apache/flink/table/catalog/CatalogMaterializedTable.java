@@ -65,6 +65,14 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
     }
 
     /**
+     * Returns the distribution of the materialized table if the {@code DISTRIBUTED} clause is
+     * defined.
+     */
+    default Optional<TableDistribution> getDistribution() {
+        return Optional.empty();
+    }
+
+    /**
      * Check if the table is partitioned or not.
      *
      * @return true if the table is partitioned; otherwise, false
@@ -192,6 +200,7 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
 
         private Schema schema;
         private String comment;
+        private TableDistribution distribution = null;
         private List<String> partitionKeys = Collections.emptyList();
         private Map<String, String> options = Collections.emptyMap();
         private @Nullable Long snapshot;
@@ -272,10 +281,16 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
             return this;
         }
 
+        public Builder distribution(@Nullable TableDistribution distribution) {
+            this.distribution = distribution;
+            return this;
+        }
+
         public CatalogMaterializedTable build() {
             return new DefaultCatalogMaterializedTable(
                     schema,
                     comment,
+                    distribution,
                     partitionKeys,
                     options,
                     snapshot,

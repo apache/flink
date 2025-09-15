@@ -1860,6 +1860,7 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
     SqlIdentifier tableName;
     SqlCharStringLiteral comment = null;
     SqlTableConstraint constraint = null;
+    SqlDistribution distribution = null;
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNode freshness = null;
@@ -1893,6 +1894,10 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
             String p = SqlParserUtil.parseString(token.image);
             comment = SqlLiteral.createCharString(p, getPos());
         }
+    ]
+    [
+        <DISTRIBUTED>
+        distribution = SqlDistribution(getPos())
     ]
     [
         <PARTITIONED> <BY>
@@ -1932,8 +1937,9 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
         return new SqlCreateMaterializedTable(
             startPos.plus(getPos()),
             tableName,
-            comment,
             constraint,
+            comment,
+            distribution,
             partitionColumns,
             propertyList,
             (SqlIntervalLiteral) freshness,
@@ -2070,6 +2076,25 @@ SqlAlterMaterializedTable SqlAlterMaterializedTable() :
                     startPos.plus(getPos()),
                     tableIdentifier,
                     asQuery);
+            }
+        |
+        <MODIFY> <DISTRIBUTION> {
+                return new SqlAlterMaterializedTableModifyDistribution(
+                startPos.plus(getPos()),
+                tableIdentifier,
+                SqlDistribution(getPos()));
+            }
+        |
+        <DROP> <DISTRIBUTION> {
+                return new SqlAlterMaterializedTableDropDistribution(
+                startPos.plus(getPos()),
+                tableIdentifier);
+            }
+        |
+        <ADD> <DISTRIBUTION> {
+                return new SqlAlterMaterializedTableAddDistribution(
+                startPos.plus(getPos()),
+                tableIdentifier, SqlDistribution(getPos()));
             }
     )
 }

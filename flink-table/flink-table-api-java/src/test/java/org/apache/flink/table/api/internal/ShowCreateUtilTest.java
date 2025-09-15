@@ -280,6 +280,7 @@ class ShowCreateUtilTest {
                         ONE_COLUMN_SCHEMA,
                         null,
                         List.of(),
+                        null,
                         IntervalFreshness.ofMinute("1"),
                         RefreshMode.CONTINUOUS,
                         "SELECT 1"),
@@ -294,6 +295,7 @@ class ShowCreateUtilTest {
                         ONE_COLUMN_SCHEMA_WITH_PRIMARY_KEY,
                         null,
                         List.of(),
+                        null,
                         IntervalFreshness.ofMinute("1"),
                         RefreshMode.CONTINUOUS,
                         "SELECT 1"),
@@ -310,11 +312,13 @@ class ShowCreateUtilTest {
                         TWO_COLUMNS_SCHEMA,
                         "Materialized table comment",
                         List.of("id"),
+                        TableDistribution.of(TableDistribution.Kind.HASH, 5, List.of("id")),
                         IntervalFreshness.ofMinute("3"),
                         RefreshMode.FULL,
                         "SELECT id, name FROM tbl_a"),
                 "CREATE %sMATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName`\n"
                         + "COMMENT 'Materialized table comment'\n"
+                        + "DISTRIBUTED BY HASH(`id`) INTO 5 BUCKETS\n"
                         + "PARTITIONED BY (`id`)\n"
                         + "FRESHNESS = INTERVAL '3' MINUTE\n"
                         + "REFRESH_MODE = FULL\n"
@@ -366,6 +370,7 @@ class ShowCreateUtilTest {
             ResolvedSchema resolvedSchema,
             String comment,
             List<String> partitionBy,
+            TableDistribution distribution,
             IntervalFreshness freshness,
             RefreshMode refreshMode,
             String definitionQuery) {
@@ -373,6 +378,7 @@ class ShowCreateUtilTest {
                 CatalogMaterializedTable.newBuilder()
                         .comment(comment)
                         .partitionKeys(partitionBy)
+                        .distribution(distribution)
                         .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema).build())
                         .freshness(freshness)
                         .refreshMode(refreshMode)
