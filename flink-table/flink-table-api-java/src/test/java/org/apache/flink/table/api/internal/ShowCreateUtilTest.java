@@ -37,6 +37,7 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedCatalogView;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableDistribution;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.expressions.DefaultSqlFactory;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -64,6 +65,13 @@ class ShowCreateUtilTest {
 
     private static final ResolvedSchema ONE_COLUMN_SCHEMA =
             ResolvedSchema.of(Column.physical("id", DataTypes.INT()));
+
+    private static final ResolvedSchema ONE_COLUMN_SCHEMA_WITH_PRIMARY_KEY =
+            new ResolvedSchema(
+                    List.of(Column.physical("id", DataTypes.INT())),
+                    List.of(),
+                    UniqueConstraint.primaryKey("pk", List.of("id")),
+                    List.of());
 
     private static final ResolvedSchema TWO_COLUMNS_SCHEMA =
             ResolvedSchema.of(
@@ -275,9 +283,7 @@ class ShowCreateUtilTest {
                         IntervalFreshness.ofMinute("1"),
                         RefreshMode.CONTINUOUS,
                         "SELECT 1"),
-                "CREATE %sMATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
-                        + "  `id` INT\n"
-                        + ")\n"
+                "CREATE %sMATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName`\n"
                         + "FRESHNESS = INTERVAL '1' MINUTE\n"
                         + "REFRESH_MODE = CONTINUOUS\n"
                         + "AS SELECT 1\n");
@@ -285,14 +291,14 @@ class ShowCreateUtilTest {
         addTemporaryAndPermanent(
                 argList,
                 createResolvedMaterialized(
-                        ONE_COLUMN_SCHEMA,
+                        ONE_COLUMN_SCHEMA_WITH_PRIMARY_KEY,
                         null,
                         List.of(),
                         IntervalFreshness.ofMinute("1"),
                         RefreshMode.CONTINUOUS,
                         "SELECT 1"),
                 "CREATE %sMATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
-                        + "  `id` INT\n"
+                        + "  CONSTRAINT `pk` PRIMARY KEY (`id`) NOT ENFORCED\n"
                         + ")\n"
                         + "FRESHNESS = INTERVAL '1' MINUTE\n"
                         + "REFRESH_MODE = CONTINUOUS\n"
@@ -307,12 +313,9 @@ class ShowCreateUtilTest {
                         IntervalFreshness.ofMinute("3"),
                         RefreshMode.FULL,
                         "SELECT id, name FROM tbl_a"),
-                "CREATE %sMATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
-                        + "  `id` INT,\n"
-                        + "  `name` VARCHAR(2147483647)\n"
-                        + ")\n"
+                "CREATE %sMATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName`\n"
                         + "COMMENT 'Materialized table comment'\n"
-                        + "PARTITION BY (`id`)\n"
+                        + "PARTITIONED BY (`id`)\n"
                         + "FRESHNESS = INTERVAL '3' MINUTE\n"
                         + "REFRESH_MODE = FULL\n"
                         + "AS SELECT id, name FROM tbl_a\n");

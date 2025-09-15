@@ -162,7 +162,7 @@ public class TableDescriptor {
                         .collect(Collectors.joining(String.format(",%n")));
 
         return String.format(
-                "%s%nCOMMENT '%s'%n%s%s%nWITH (%n%s%n)",
+                "%s%nCOMMENT '%s'%n%s%n%s%nWITH (%n%s%n)",
                 schema != null ? schema : "",
                 comment != null ? comment : "",
                 distributedBy,

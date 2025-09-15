@@ -59,7 +59,9 @@ public class ShowCreateUtil {
             ResolvedCatalogModel model, ObjectIdentifier modelIdentifier, boolean isTemporary) {
         StringBuilder sb =
                 new StringBuilder()
-                        .append(buildCreateFormattedPrefix("MODEL", isTemporary, modelIdentifier));
+                        .append(
+                                buildCreateFormattedPrefix(
+                                        "MODEL", isTemporary, modelIdentifier, false));
         extractFormattedColumns(model.getResolvedInputSchema())
                 .ifPresent(
                         c -> sb.append(String.format("INPUT (%s)%s", c, System.lineSeparator())));
@@ -89,7 +91,9 @@ public class ShowCreateUtil {
         validateTableKind(table, tableIdentifier, TableKind.TABLE);
         StringBuilder sb =
                 new StringBuilder()
-                        .append(buildCreateFormattedPrefix("TABLE", isTemporary, tableIdentifier));
+                        .append(
+                                buildCreateFormattedPrefix(
+                                        "TABLE", isTemporary, tableIdentifier, true));
         sb.append(extractFormattedColumns(table, PRINT_INDENT));
         extractFormattedWatermarkSpecs(table, PRINT_INDENT, sqlFactory)
                 .ifPresent(watermarkSpecs -> sb.append(",\n").append(watermarkSpecs));
@@ -97,13 +101,12 @@ public class ShowCreateUtil {
                 .ifPresent(pk -> sb.append(",\n").append(pk));
         sb.append("\n)\n");
         extractComment(table).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
-        extractFormattedDistributedInfo((ResolvedCatalogTable) table).ifPresent(sb::append);
+        extractFormattedDistributedInfo((ResolvedCatalogTable) table)
+                .ifPresent(d -> sb.append(d).append("\n"));
         extractFormattedPartitionedInfo((ResolvedCatalogTable) table)
                 .ifPresent(
                         partitionedInfoFormatted ->
-                                sb.append("PARTITIONED BY (")
-                                        .append(partitionedInfoFormatted)
-                                        .append(")\n"));
+                                sb.append(formatPartitionedBy(partitionedInfoFormatted)));
         extractFormattedOptions(table.getOptions(), PRINT_INDENT)
                 .ifPresent(v -> sb.append("WITH (\n").append(v).append("\n)\n"));
         return sb.toString();
@@ -115,15 +118,16 @@ public class ShowCreateUtil {
             ObjectIdentifier tableIdentifier,
             boolean isTemporary) {
         validateTableKind(table, tableIdentifier, TableKind.MATERIALIZED_TABLE);
+        Optional<String> primaryKeys = extractFormattedPrimaryKey(table, PRINT_INDENT);
         StringBuilder sb =
                 new StringBuilder()
                         .append(
                                 buildCreateFormattedPrefix(
-                                        "MATERIALIZED TABLE", isTemporary, tableIdentifier));
-        sb.append(extractFormattedColumns(table, PRINT_INDENT));
-        extractFormattedPrimaryKey(table, PRINT_INDENT)
-                .ifPresent(pk -> sb.append(",\n").append(pk));
-        sb.append("\n)\n");
+                                        "MATERIALIZED TABLE",
+                                        isTemporary,
+                                        tableIdentifier,
+                                        primaryKeys.isPresent()));
+        primaryKeys.ifPresent(s -> sb.append(s).append("\n)\n"));
         extractComment(table).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
         extractFormattedPartitionedInfo(table)
                 .ifPresent(partitionedBy -> sb.append(formatPartitionedBy(partitionedBy)));
@@ -151,7 +155,9 @@ public class ShowCreateUtil {
         }
         StringBuilder sb =
                 new StringBuilder()
-                        .append(buildCreateFormattedPrefix("VIEW", isTemporary, viewIdentifier));
+                        .append(
+                                buildCreateFormattedPrefix(
+                                        "VIEW", isTemporary, viewIdentifier, true));
         sb.append(extractFormattedColumnNames(view, PRINT_INDENT)).append("\n)\n");
         extractComment(view).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
         sb.append("AS ").append(((CatalogView) origin).getExpandedQuery()).append("\n");
@@ -172,14 +178,16 @@ public class ShowCreateUtil {
     }
 
     static String buildCreateFormattedPrefix(
-            String type, boolean isTemporary, ObjectIdentifier identifier) {
-        String postName = "model".equalsIgnoreCase(type) ? "" : " (";
+            String type,
+            boolean isTemporary,
+            ObjectIdentifier identifier,
+            boolean openParenthesis) {
         return String.format(
                 "CREATE %s%s %s%s%s",
                 isTemporary ? "TEMPORARY " : "",
                 type,
                 identifier.asSerializableString(),
-                postName,
+                openParenthesis ? " (" : "",
                 System.lineSeparator());
     }
 
@@ -266,7 +274,7 @@ public class ShowCreateUtil {
     }
 
     private static String formatPartitionedBy(String partitionedByColumns) {
-        return String.format("PARTITION BY (%s)\n", partitionedByColumns);
+        return String.format("PARTITIONED BY (%s)\n", partitionedByColumns);
     }
 
     static Optional<String> extractComment(ResolvedCatalogBaseTable<?> table) {
