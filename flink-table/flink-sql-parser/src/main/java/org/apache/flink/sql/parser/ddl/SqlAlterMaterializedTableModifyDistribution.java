@@ -22,37 +22,40 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
+
+import javax.annotation.Nullable;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
- * SqlNode to describe the ALTER TABLE [catalogName.][dataBasesName.]tableName AS &lt;query&gt;
- * statement.
+ * SqlNode to describe the ALTER MATERIALIZED TABLE [catalogName.][dataBasesName.]tableName MODIFY
+ * DISTRIBUTION statement.
  */
-public class SqlAlterMaterializedTableAsQuery extends SqlAlterMaterializedTable {
+public class SqlAlterMaterializedTableModifyDistribution extends SqlAlterMaterializedTable {
+    protected final @Nullable SqlDistribution distribution;
 
-    private final SqlNode asQuery;
-
-    public SqlAlterMaterializedTableAsQuery(
-            SqlParserPos pos, SqlIdentifier tableName, SqlNode asQuery) {
+    public SqlAlterMaterializedTableModifyDistribution(
+            SqlParserPos pos, SqlIdentifier tableName, SqlDistribution distribution) {
         super(pos, tableName);
-        this.asQuery = asQuery;
-    }
-
-    public SqlNode getAsQuery() {
-        return asQuery;
+        this.distribution = distribution;
     }
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getTableName(), asQuery);
+        return List.of(getTableName(), distribution);
     }
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("AS");
-        asQuery.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("MODIFY");
+        if (distribution != null) {
+            distribution.unparseAlter(writer, leftPrec, rightPrec);
+        }
+    }
+
+    public Optional<SqlDistribution> getDistribution() {
+        return Optional.ofNullable(distribution);
     }
 }

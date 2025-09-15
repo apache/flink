@@ -31,6 +31,7 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.CreateMaterializedTableOperation;
@@ -155,10 +156,15 @@ public class SqlCreateMaterializedTableConverter
                                 verifyAndBuildPrimaryKey(
                                         builder, resolvedSchema, sqlTableConstraint));
 
+        Optional<TableDistribution> tableDistribution =
+                Optional.ofNullable(sqlCreateMaterializedTable.getDistribution())
+                        .map(OperationConverterUtils::getDistributionFromSqlDistribution);
+
         CatalogMaterializedTable materializedTable =
                 CatalogMaterializedTable.newBuilder()
                         .schema(builder.build())
                         .comment(tableComment)
+                        .distribution(tableDistribution.orElse(null))
                         .partitionKeys(partitionKeys)
                         .options(options)
                         .definitionQuery(definitionQuery)

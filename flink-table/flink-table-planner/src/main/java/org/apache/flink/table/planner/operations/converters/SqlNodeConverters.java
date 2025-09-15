@@ -67,6 +67,9 @@ public class SqlNodeConverters {
         register(new SqlAlterMaterializedTableSuspendConverter());
         register(new SqlAlterMaterializedTableResumeConverter());
         register(new SqlAlterMaterializedTableAsQueryConverter());
+        register(new SqlAlterMaterializedTableAddDistributionConverter());
+        register(new SqlAlterMaterializedTableModifyDistributionConverter());
+        register(new SqlAlterMaterializedTableDropDistributionConverter());
         register(new SqlAlterModelRenameConverter());
         register(new SqlAlterModelResetConverter());
         register(new SqlAlterModelSetConverter());

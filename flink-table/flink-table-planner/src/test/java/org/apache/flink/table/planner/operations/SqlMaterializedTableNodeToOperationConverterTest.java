@@ -487,7 +487,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                 (CatalogMaterializedTable)
                         catalog.getTable(
                                 new ObjectPath(catalogManager.getCurrentDatabase(), "base_mtbl"));
-        CatalogMaterializedTable newTable = op.getNewMaterializedTable();
+        CatalogMaterializedTable newTable = op.getCatalogMaterializedTable();
 
         assertThat(oldTable.getUnresolvedSchema()).isNotEqualTo(newTable.getUnresolvedSchema());
         assertThat(oldTable.getUnresolvedSchema().getPrimaryKey())
@@ -573,7 +573,8 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         final String sql = "ALTER MATERIALIZED TABLE t1 AS SELECT * FROM t1";
         assertThatThrownBy(() -> parse(sql))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Only materialized table support modify definition query.");
+                .hasMessageContaining(
+                        "Only materialized tables support modifying the definition query.");
     }
 
     @Test

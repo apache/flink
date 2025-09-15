@@ -38,6 +38,7 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
 
     private final Schema schema;
     private final @Nullable String comment;
+    private final @Nullable TableDistribution distribution;
     private final List<String> partitionKeys;
     private final Map<String, String> options;
 
@@ -54,6 +55,7 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
     protected DefaultCatalogMaterializedTable(
             Schema schema,
             @Nullable String comment,
+            @Nullable TableDistribution distribution,
             List<String> partitionKeys,
             Map<String, String> options,
             @Nullable Long snapshot,
@@ -66,6 +68,7 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
             @Nullable byte[] serializedRefreshHandler) {
         this.schema = checkNotNull(schema, "Schema must not be null.");
         this.comment = comment;
+        this.distribution = distribution;
         this.partitionKeys = checkNotNull(partitionKeys, "Partition keys must not be null.");
         this.options = checkNotNull(options, "Options must not be null.");
         this.snapshot = snapshot;
@@ -95,6 +98,11 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
     }
 
     @Override
+    public Optional<TableDistribution> getDistribution() {
+        return Optional.ofNullable(distribution);
+    }
+
+    @Override
     public boolean isPartitioned() {
         return !partitionKeys.isEmpty();
     }
@@ -114,6 +122,7 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
         return new DefaultCatalogMaterializedTable(
                 schema,
                 comment,
+                distribution,
                 partitionKeys,
                 options,
                 snapshot,
@@ -131,6 +140,7 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
         return new DefaultCatalogMaterializedTable(
                 schema,
                 comment,
+                distribution,
                 partitionKeys,
                 options,
                 snapshot,
@@ -151,6 +161,7 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
         return new DefaultCatalogMaterializedTable(
                 schema,
                 comment,
+                distribution,
                 partitionKeys,
                 options,
                 snapshot,
@@ -264,6 +275,8 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
                 + ", comment='"
                 + comment
                 + '\''
+                + ", distribution="
+                + distribution
                 + ", partitionKeys="
                 + partitionKeys
                 + ", options="

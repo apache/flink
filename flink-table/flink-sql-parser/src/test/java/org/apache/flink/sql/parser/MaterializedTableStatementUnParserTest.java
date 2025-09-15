@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
  * un-parse successfully.
  */
 @Execution(CONCURRENT)
-public class MaterializedTableStatementUnParserTest extends MaterializedTableStatementParserTest {
+class MaterializedTableStatementUnParserTest extends MaterializedTableStatementParserTest {
     // ~ Constructors -----------------------------------------------------------
 
     public MaterializedTableStatementUnParserTest() {}

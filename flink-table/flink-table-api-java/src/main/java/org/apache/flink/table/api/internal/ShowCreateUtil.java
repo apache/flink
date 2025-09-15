@@ -129,6 +129,9 @@ public class ShowCreateUtil {
                                         primaryKeys.isPresent()));
         primaryKeys.ifPresent(s -> sb.append(s).append("\n)\n"));
         extractComment(table).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
+        table.getDistribution()
+                .map(TableDistribution::toString)
+                .ifPresent(d -> sb.append(d).append("\n"));
         extractFormattedPartitionedInfo(table)
                 .ifPresent(partitionedBy -> sb.append(formatPartitionedBy(partitionedBy)));
         extractFormattedOptions(table.getOptions(), PRINT_INDENT)

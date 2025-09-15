@@ -55,7 +55,6 @@ import org.apache.flink.table.gateway.service.result.ResultFetcher;
 import org.apache.flink.table.gateway.service.utils.SqlExecutionException;
 import org.apache.flink.table.operations.command.DescribeJobOperation;
 import org.apache.flink.table.operations.command.StopJobOperation;
-import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableAsQueryOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableRefreshOperation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableResumeOperation;
@@ -184,9 +183,9 @@ public class MaterializedTableManager {
         } else if (op instanceof DropMaterializedTableOperation) {
             return callDropMaterializedTableOperation(
                     operationExecutor, handle, (DropMaterializedTableOperation) op);
-        } else if (op instanceof AlterMaterializedTableAsQueryOperation) {
-            return callAlterMaterializedTableAsQueryOperation(
-                    operationExecutor, handle, (AlterMaterializedTableAsQueryOperation) op);
+        } else if (op instanceof AlterMaterializedTableChangeOperation) {
+            return callAlterMaterializedTableChangeOperation(
+                    operationExecutor, handle, (AlterMaterializedTableChangeOperation) op);
         }
 
         throw new SqlExecutionException(
@@ -814,10 +813,10 @@ public class MaterializedTableManager {
         return insertStatement.toString();
     }
 
-    private ResultFetcher callAlterMaterializedTableAsQueryOperation(
+    private ResultFetcher callAlterMaterializedTableChangeOperation(
             OperationExecutor operationExecutor,
             OperationHandle handle,
-            AlterMaterializedTableAsQueryOperation op) {
+            AlterMaterializedTableChangeOperation op) {
         ObjectIdentifier tableIdentifier = op.getTableIdentifier();
         CatalogMaterializedTable oldMaterializedTable =
                 getCatalogMaterializedTable(operationExecutor, tableIdentifier);
@@ -826,7 +825,9 @@ public class MaterializedTableManager {
             // directly apply the alter operation
             AlterMaterializedTableChangeOperation alterMaterializedTableChangeOperation =
                     new AlterMaterializedTableChangeOperation(
-                            tableIdentifier, op.getTableChanges(), op.getNewMaterializedTable());
+                            tableIdentifier,
+                            op.getTableChanges(),
+                            op.getCatalogMaterializedTable());
             return operationExecutor.callExecutableOperation(
                     handle, alterMaterializedTableChangeOperation);
         }
@@ -840,7 +841,7 @@ public class MaterializedTableManager {
 
             // 2. alter materialized table schema & query definition
             CatalogMaterializedTable updatedMaterializedTable =
-                    op.getNewMaterializedTable()
+                    op.getCatalogMaterializedTable()
                             .copy(
                                     suspendMaterializedTable.getRefreshStatus(),
                                     suspendMaterializedTable
@@ -868,7 +869,7 @@ public class MaterializedTableManager {
                 LOG.warn(
                         "Failed to start the continuous refresh job for materialized table {} using new query {}, rollback to origin query {}.",
                         tableIdentifier,
-                        op.getNewMaterializedTable().getDefinitionQuery(),
+                        op.getCatalogMaterializedTable().getDefinitionQuery(),
                         suspendMaterializedTable.getDefinitionQuery(),
                         e);
 
@@ -891,7 +892,8 @@ public class MaterializedTableManager {
                 throw new SqlExecutionException(
                         String.format(
                                 "Failed to start the continuous refresh job using new query %s when altering materialized table %s select query.",
-                                op.getNewMaterializedTable().getDefinitionQuery(), tableIdentifier),
+                                op.getCatalogMaterializedTable().getDefinitionQuery(),
+                                tableIdentifier),
                         e);
             }
         } else if (CatalogMaterializedTable.RefreshStatus.SUSPENDED
@@ -905,7 +907,7 @@ public class MaterializedTableManager {
             tableChanges.add(modifyRefreshHandler);
 
             CatalogMaterializedTable updatedMaterializedTable =
-                    op.getNewMaterializedTable()
+                    op.getCatalogMaterializedTable()
                             .copy(
                                     oldMaterializedTable.getRefreshStatus(),
                                     modifyRefreshHandler.getRefreshHandlerDesc(),

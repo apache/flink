@@ -23,83 +23,27 @@ import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.apache.calcite.sql.parser.SqlParserFixture;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.AbstractMap;
+import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Sql parser test for materialized related syntax. * */
 @Execution(CONCURRENT)
-public class MaterializedTableStatementParserTest {
+class MaterializedTableStatementParserTest {
 
-    @Test
-    void testCreateMaterializedTable() {
-        final String sql =
-                "CREATE MATERIALIZED TABLE tbl1\n"
-                        + "(\n"
-                        + "   PRIMARY KEY (a, b)\n"
-                        + ")\n"
-                        + "COMMENT 'table comment'\n"
-                        + "PARTITIONED BY (a, h)\n"
-                        + "WITH (\n"
-                        + "  'group.id' = 'latest', \n"
-                        + "  'kafka.topic' = 'log.test'\n"
-                        + ")\n"
-                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
-                        + "AS SELECT a, b, h, t m FROM source";
-        final String expected =
-                "CREATE MATERIALIZED TABLE `TBL1`\n"
-                        + "(\n"
-                        + "  PRIMARY KEY (`A`, `B`)\n"
-                        + ")\n"
-                        + "COMMENT 'table comment'\n"
-                        + "PARTITIONED BY (`A`, `H`)\n"
-                        + "WITH (\n"
-                        + "  'group.id' = 'latest',\n"
-                        + "  'kafka.topic' = 'log.test'\n"
-                        + ")\n"
-                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
-                        + "AS\n"
-                        + "SELECT `A`, `B`, `H`, `T` AS `M`\n"
-                        + "FROM `SOURCE`";
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("inputForCreateMaterializedTable")
+    void testCreateMaterializedTable(Map.Entry<String, String> sqlToExpected) {
+        final String sql = sqlToExpected.getKey();
+        final String expected = sqlToExpected.getValue();
+
         sql(sql).ok(expected);
-
-        final String sql2 =
-                "CREATE MATERIALIZED TABLE tbl1\n"
-                        + "(\n"
-                        + "   PRIMARY KEY (a, b)\n"
-                        + ")\n"
-                        + "COMMENT 'table comment'\n"
-                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
-                        + "REFRESH_MODE = FULL\n"
-                        + "AS SELECT a, b, h, t m FROM source";
-        final String expected2 =
-                "CREATE MATERIALIZED TABLE `TBL1`\n"
-                        + "(\n"
-                        + "  PRIMARY KEY (`A`, `B`)\n"
-                        + ")\n"
-                        + "COMMENT 'table comment'\n"
-                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
-                        + "REFRESH_MODE = FULL\n"
-                        + "AS\n"
-                        + "SELECT `A`, `B`, `H`, `T` AS `M`\n"
-                        + "FROM `SOURCE`";
-
-        sql(sql2).ok(expected2);
-
-        final String sql3 =
-                "CREATE MATERIALIZED TABLE tbl1\n"
-                        + "COMMENT 'table comment'\n"
-                        + "FRESHNESS = INTERVAL '3' DAY\n"
-                        + "REFRESH_MODE = FULL\n"
-                        + "AS SELECT a, b, h, t m FROM source";
-        final String expected3 =
-                "CREATE MATERIALIZED TABLE `TBL1`\n"
-                        + "COMMENT 'table comment'\n"
-                        + "FRESHNESS = INTERVAL '3' DAY\n"
-                        + "REFRESH_MODE = FULL\n"
-                        + "AS\n"
-                        + "SELECT `A`, `B`, `H`, `T` AS `M`\n"
-                        + "FROM `SOURCE`";
-        sql(sql3).ok(expected3);
     }
 
     @Test
@@ -218,9 +162,12 @@ public class MaterializedTableStatementParserTest {
                 .fails(
                         "Encountered \"<EOF>\" at line 1, column 28.\n"
                                 + "Was expecting one of:\n"
+                                + "    \"ADD\" ...\n"
                                 + "    \"AS\" ...\n"
+                                + "    \"DROP\" ...\n"
                                 + "    \"RESET\" ...\n"
                                 + "    \"SET\" ...\n"
+                                + "    \"MODIFY\" ...\n"
                                 + "    \"SUSPEND\" ...\n"
                                 + "    \"REFRESH\" ...\n"
                                 + "    \"RESUME\" ...\n"
@@ -442,5 +389,82 @@ public class MaterializedTableStatementParserTest {
 
     protected SqlParserFixture expr(String sql) {
         return this.sql(sql).expression(true);
+    }
+
+    private static Stream<Arguments> inputForCreateMaterializedTable() {
+        return Stream.of(
+                Arguments.of(fullExample()),
+                Arguments.of(withoutTableConstraint()),
+                Arguments.of(withPrimaryKey()));
+    }
+
+    private static Map.Entry<String, String> fullExample() {
+        return new AbstractMap.SimpleEntry<>(
+                "CREATE MATERIALIZED TABLE tbl1\n"
+                        + "(\n"
+                        + "   PRIMARY KEY (a, b)\n"
+                        + ")\n"
+                        + "COMMENT 'table comment'\n"
+                        + "DISTRIBUTED BY HASH (a) INTO 4 BUCKETS\n"
+                        + "PARTITIONED BY (a, h)\n"
+                        + "WITH (\n"
+                        + "  'group.id' = 'latest', \n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
+                        + "AS SELECT a, b, h, t m FROM source",
+                "CREATE MATERIALIZED TABLE `TBL1`\n"
+                        + "(\n"
+                        + "  PRIMARY KEY (`A`, `B`)\n"
+                        + ")\n"
+                        + "COMMENT 'table comment'\n"
+                        + "DISTRIBUTED BY HASH(`A`) INTO 4 BUCKETS\n"
+                        + "PARTITIONED BY (`A`, `H`)\n"
+                        + "WITH (\n"
+                        + "  'group.id' = 'latest',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
+                        + "AS\n"
+                        + "SELECT `A`, `B`, `H`, `T` AS `M`\n"
+                        + "FROM `SOURCE`");
+    }
+
+    private static Map.Entry<String, String> withPrimaryKey() {
+        return new AbstractMap.SimpleEntry<>(
+                "CREATE MATERIALIZED TABLE tbl1\n"
+                        + "(\n"
+                        + "   PRIMARY KEY (a, b)\n"
+                        + ")\n"
+                        + "COMMENT 'table comment'\n"
+                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT a, b, h, t m FROM source",
+                "CREATE MATERIALIZED TABLE `TBL1`\n"
+                        + "(\n"
+                        + "  PRIMARY KEY (`A`, `B`)\n"
+                        + ")\n"
+                        + "COMMENT 'table comment'\n"
+                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS\n"
+                        + "SELECT `A`, `B`, `H`, `T` AS `M`\n"
+                        + "FROM `SOURCE`");
+    }
+
+    private static Map.Entry<String, String> withoutTableConstraint() {
+        return new AbstractMap.SimpleEntry<>(
+                "CREATE MATERIALIZED TABLE tbl1\n"
+                        + "COMMENT 'table comment'\n"
+                        + "FRESHNESS = INTERVAL '3' DAY\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT a, b, h, t m FROM source",
+                "CREATE MATERIALIZED TABLE `TBL1`\n"
+                        + "COMMENT 'table comment'\n"
+                        + "FRESHNESS = INTERVAL '3' DAY\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS\n"
+                        + "SELECT `A`, `B`, `H`, `T` AS `M`\n"
+                        + "FROM `SOURCE`");
     }
 }

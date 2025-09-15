@@ -29,15 +29,21 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
 import org.apache.flink.table.catalog.CatalogFunctionImpl;
+import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
+import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
+import org.apache.flink.table.catalog.TableDistribution.Kind;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.FunctionAlreadyExistException;
 import org.apache.flink.table.expressions.DefaultSqlFactory;
@@ -62,6 +68,8 @@ import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
 import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
+import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
+import org.apache.flink.table.operations.materializedtable.CreateMaterializedTableOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.expressions.utils.Func1$;
@@ -1397,6 +1405,133 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
     }
 
     @Test
+    void createMaterializedTableWithDistribution() throws Exception {
+        final String sql =
+                "CREATE MATERIALIZED TABLE users_shops ("
+                        + " PRIMARY KEY (user_id) not enforced)"
+                        + " DISTRIBUTED BY HASH (user_id) INTO 7 BUCKETS\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT 1 as shop_id, 2 as user_id ";
+
+        final String expectedSummaryString =
+                "CREATE MATERIALIZED TABLE: (materializedTable: "
+                        + "[ResolvedCatalogMaterializedTable{origin=DefaultCatalogMaterializedTable{schema=(\n"
+                        + "  `shop_id` INT NOT NULL,\n"
+                        + "  `user_id` INT NOT NULL,\n"
+                        + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
+                        + "), comment='null', distribution=DISTRIBUTED BY HASH(`user_id`) INTO 7 BUCKETS, partitionKeys=[], "
+                        + "options={format=debezium-json}, snapshot=null, definitionQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
+                        + "freshness=INTERVAL '30' SECOND, logicalRefreshMode=AUTOMATIC, refreshMode=CONTINUOUS, "
+                        + "refreshStatus=INITIALIZING, refreshHandlerDescription='null', serializedRefreshHandler=null}, resolvedSchema=(\n"
+                        + "  `shop_id` INT NOT NULL,\n"
+                        + "  `user_id` INT NOT NULL,\n"
+                        + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
+                        + ")}], identifier: [`builtin`.`default`.`users_shops`])";
+
+        final Operation operation = parse(sql);
+
+        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
+        assertThat(
+                        ((CreateMaterializedTableOperation) operation)
+                                .getCatalogMaterializedTable()
+                                .getDistribution()
+                                .get())
+                .isEqualTo(TableDistribution.of(Kind.HASH, 7, List.of("user_id")));
+
+        prepareMaterializedTable("tb2", false, 1, null, "SELECT 1");
+
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "alter MATERIALIZED table cat1.db1.tb2 modify distribution into 3 buckets"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Materialized table `cat1`.`db1`.`tb2` does not have a distribution to modify.");
+    }
+
+    @Test
+    void testAlterMaterializedTableDropDistribution() throws Exception {
+        prepareMaterializedTable(
+                "tb1", false, 1, TableDistribution.of(Kind.HASH, 2, List.of("a")), "SELECT 1");
+
+        final String expectedSummaryString =
+                "ALTER MATERIALIZED TABLE cat1.db1.tb1\n  DROP DISTRIBUTION";
+
+        final Operation operation = parse("alter materialized table tb1 drop distribution");
+
+        assertThat(operation).isInstanceOf(AlterMaterializedTableChangeOperation.class);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
+        assertThat(((AlterMaterializedTableChangeOperation) operation).getTableChanges())
+                .containsExactly(TableChange.dropDistribution());
+
+        prepareMaterializedTable("tb2", false, 1, null, "SELECT 1");
+
+        assertThatThrownBy(() -> parse("alter MATERIALIZED table tb2 drop distribution"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Materialized table `cat1`.`db1`.`tb2` does not have a distribution to drop.");
+    }
+
+    @Test
+    void testAlterMaterializedTableAddDistribution() throws Exception {
+        prepareMaterializedTable("tb1", false, 1, null, "SELECT 1");
+
+        final String expectedSummaryString =
+                "ALTER MATERIALIZED TABLE cat1.db1.tb1\n  ADD DISTRIBUTED INTO 3 BUCKETS";
+
+        final Operation operation =
+                parse("alter materialized table tb1 add distribution into 3 buckets");
+
+        assertThat(operation).isInstanceOf(AlterMaterializedTableChangeOperation.class);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
+        assertThat(((AlterMaterializedTableChangeOperation) operation).getTableChanges())
+                .containsExactly(TableChange.add(TableDistribution.of(Kind.UNKNOWN, 3, List.of())));
+
+        prepareMaterializedTable(
+                "tb2", false, 1, TableDistribution.of(Kind.HASH, 1, List.of("a")), "SELECT 1");
+
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "alter materialized table cat1.db1.tb2 add distribution into 3 buckets"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Materialized table `cat1`.`db1`.`tb2` has already defined "
+                                + "the distribution `DISTRIBUTED BY HASH(`a`) INTO 1 BUCKETS`."
+                                + " You can modify it or drop it before adding a new one.");
+    }
+
+    @Test
+    void testAlterMaterializedTableModifyDistribution() throws Exception {
+        prepareMaterializedTable(
+                "tb1", false, 1, TableDistribution.of(Kind.HASH, 1, List.of("a")), "SELECT 1");
+        String expectedSummaryString =
+                "ALTER MATERIALIZED TABLE cat1.db1.tb1\n  MODIFY DISTRIBUTED INTO 3 BUCKETS";
+
+        Operation operation =
+                parse("alter MATERIALIZED table tb1 modify distribution into 3 buckets");
+        assertThat(operation).isInstanceOf(AlterMaterializedTableChangeOperation.class);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
+        assertThat(((AlterMaterializedTableChangeOperation) operation).getTableChanges())
+                .containsExactly(
+                        TableChange.modify(TableDistribution.of(Kind.UNKNOWN, 3, List.of())));
+
+        prepareMaterializedTable("tb2", false, 1, null, "SELECT 1");
+
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "alter MATERIALIZED table cat1.db1.tb2 modify distribution into 3 buckets"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "Materialized table `cat1`.`db1`.`tb2` does not have a distribution to modify.");
+    }
+
+    @Test
     void testFailedToAlterTableDropWatermark() throws Exception {
         prepareTable("tb1", false);
         assertThatThrownBy(() -> parse("alter table tb1 drop watermark"))
@@ -2185,7 +2320,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                 operation,
                 tableIdentifier,
                 TableDistribution.ofHash(Collections.singletonList("a"), 12),
-                "ALTER TABLE cat1.db1.tb1\n" + "  ADD DISTRIBUTED BY HASH(`a`) INTO 12 BUCKETS\n");
+                "ALTER TABLE cat1.db1.tb1\n" + "  ADD DISTRIBUTED BY HASH(`a`) INTO 12 BUCKETS");
     }
 
     @Test
@@ -2241,8 +2376,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                 operation,
                 tableIdentifier,
                 TableDistribution.ofHash(Collections.singletonList("c"), 12),
-                "ALTER TABLE cat1.db1.tb1\n"
-                        + "  MODIFY DISTRIBUTED BY HASH(`c`) INTO 12 BUCKETS\n");
+                "ALTER TABLE cat1.db1.tb1\n" + "  MODIFY DISTRIBUTED BY HASH(`c`) INTO 12 BUCKETS");
     }
 
     @Test
@@ -2520,8 +2654,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
     private CatalogTable prepareTableWithDistribution(String tableName, boolean withWatermark)
             throws Exception {
         TableDistribution distribution =
-                TableDistribution.of(
-                        TableDistribution.Kind.HASH, 6, Collections.singletonList("c"));
+                TableDistribution.of(Kind.HASH, 6, Collections.singletonList("c"));
         return prepareTable(tableName, false, withWatermark, 0, distribution);
     }
 
@@ -2595,6 +2728,80 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         }
 
         CatalogTable catalogTable = tableBuilder.build();
+
+        catalogManager.setCurrentCatalog("cat1");
+        catalogManager.setCurrentDatabase("db1");
+        ObjectIdentifier tableIdentifier = ObjectIdentifier.of("cat1", "db1", tableName);
+        catalogManager.createTable(catalogTable, tableIdentifier, true);
+        return catalogTable;
+    }
+
+    private CatalogMaterializedTable prepareMaterializedTable(
+            String tableName,
+            boolean hasPartition,
+            int numOfPkFields,
+            @Nullable TableDistribution tableDistribution,
+            String query)
+            throws Exception {
+        Catalog catalog = new GenericInMemoryCatalog("default", "default");
+        if (catalogManager.getCatalog("cat1").isEmpty()) {
+            catalogManager.registerCatalog("cat1", catalog);
+        }
+        catalogManager.createDatabase(
+                "cat1", "db1", new CatalogDatabaseImpl(new HashMap<>(), null), true);
+        Schema.Builder builder =
+                Schema.newBuilder()
+                        .column("a", DataTypes.INT().notNull())
+                        .column("b", DataTypes.BIGINT().notNull())
+                        .column("c", DataTypes.STRING().notNull())
+                        .withComment("column comment")
+                        .columnByExpression("d", "a*(b+2 + a*b)")
+                        .column(
+                                "e",
+                                DataTypes.ROW(
+                                        DataTypes.STRING(),
+                                        DataTypes.INT(),
+                                        DataTypes.ROW(
+                                                DataTypes.DOUBLE(),
+                                                DataTypes.ARRAY(DataTypes.FLOAT()))))
+                        .columnByExpression("f", "e.f1 + e.f2.f0")
+                        .columnByMetadata("g", DataTypes.STRING(), null, true)
+                        .column("ts", DataTypes.TIMESTAMP(3))
+                        .withComment("just a comment");
+        Map<String, String> options = new HashMap<>();
+        options.put("k", "v");
+        options.put("connector", "dummy");
+        if (numOfPkFields == 0) {
+            // do nothing
+        } else if (numOfPkFields == 1) {
+            builder.primaryKeyNamed("ct1", "a");
+        } else if (numOfPkFields == 2) {
+            builder.primaryKeyNamed("ct1", "a", "b");
+        } else if (numOfPkFields == 3) {
+            builder.primaryKeyNamed("ct1", "a", "b", "c");
+        } else {
+            throw new IllegalArgumentException(
+                    String.format("Don't support to set pk with %s fields.", numOfPkFields));
+        }
+
+        CatalogMaterializedTable.Builder tableBuilder =
+                CatalogMaterializedTable.newBuilder()
+                        .schema(builder.build())
+                        .comment("a table")
+                        .partitionKeys(
+                                hasPartition ? Arrays.asList("b", "c") : Collections.emptyList())
+                        .options(Collections.unmodifiableMap(options))
+                        .freshness(IntervalFreshness.ofHour("2"))
+                        .logicalRefreshMode(LogicalRefreshMode.CONTINUOUS)
+                        .refreshMode(RefreshMode.CONTINUOUS)
+                        .refreshStatus(RefreshStatus.ACTIVATED)
+                        .definitionQuery(query);
+
+        if (tableDistribution != null) {
+            tableBuilder.distribution(tableDistribution);
+        }
+
+        CatalogMaterializedTable catalogTable = tableBuilder.build();
 
         catalogManager.setCurrentCatalog("cat1");
         catalogManager.setCurrentDatabase("db1");

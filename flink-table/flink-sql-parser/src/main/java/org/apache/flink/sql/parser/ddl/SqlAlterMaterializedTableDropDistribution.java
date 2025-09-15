@@ -22,37 +22,28 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
- * SqlNode to describe the ALTER TABLE [catalogName.][dataBasesName.]tableName AS &lt;query&gt;
- * statement.
+ * SqlNode to describe the ALTER MATERIALIZED TABLE [catalogName.][dataBasesName.]tableName DROP
+ * DISTRIBUTION statement.
  */
-public class SqlAlterMaterializedTableAsQuery extends SqlAlterMaterializedTable {
+public class SqlAlterMaterializedTableDropDistribution extends SqlAlterMaterializedTable {
 
-    private final SqlNode asQuery;
-
-    public SqlAlterMaterializedTableAsQuery(
-            SqlParserPos pos, SqlIdentifier tableName, SqlNode asQuery) {
+    public SqlAlterMaterializedTableDropDistribution(SqlParserPos pos, SqlIdentifier tableName) {
         super(pos, tableName);
-        this.asQuery = asQuery;
-    }
-
-    public SqlNode getAsQuery() {
-        return asQuery;
     }
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getTableName(), asQuery);
+        return Collections.emptyList();
     }
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("AS");
-        asQuery.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("DROP DISTRIBUTION");
     }
 }
