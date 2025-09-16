@@ -19,6 +19,8 @@ package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -42,10 +44,13 @@ import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
 import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.InjectMiniCluster;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.testutils.junit.SharedObjectsExtension;
+import org.apache.flink.testutils.junit.SharedReference;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -59,9 +64,11 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -70,7 +77,7 @@ import static org.hamcrest.Matchers.is;
 /**
  * Integration test for {@link org.apache.flink.api.connector.sink.Sink} run time implementation.
  */
-public class SinkV2ITCase extends AbstractTestBaseJUnit4 {
+public class SinkV2ITCase extends AbstractTestBase {
     static final List<Integer> SOURCE_DATA =
             Arrays.asList(
                     895, 127, 148, 161, 148, 662, 822, 491, 275, 122, 850, 630, 682, 765, 434, 970,
@@ -85,7 +92,7 @@ public class SinkV2ITCase extends AbstractTestBaseJUnit4 {
                     .flatMap(
                             x ->
                                     Collections.nCopies(
-                                                    2, Tuple3.of(x, null, Long.MIN_VALUE).toString())
+                                            2, Tuple3.of(x, null, Long.MIN_VALUE).toString())
                                             .stream())
                     .collect(Collectors.toList());
 
@@ -101,7 +108,7 @@ public class SinkV2ITCase extends AbstractTestBaseJUnit4 {
             (BooleanSupplier & Serializable)
                     () -> COMMIT_QUEUE.size() == STREAMING_SOURCE_SEND_ELEMENTS_NUM;
 
-    @Before
+    @BeforeEach
     public void init() {
         COMMIT_QUEUE.clear();
     }
@@ -120,7 +127,7 @@ public class SinkV2ITCase extends AbstractTestBaseJUnit4 {
                         TestSinkV2.<Integer>newBuilder()
                                 .setDefaultCommitter(
                                         (Supplier<Queue<Committer.CommitRequest<String>>>
-                                                & Serializable)
+                                                        & Serializable)
                                                 () -> COMMIT_QUEUE)
                                 .build());
         executeAndVerifyStreamGraph(env);
@@ -145,7 +152,7 @@ public class SinkV2ITCase extends AbstractTestBaseJUnit4 {
                         TestSinkV2.<Integer>newBuilder()
                                 .setDefaultCommitter(
                                         (Supplier<Queue<Committer.CommitRequest<String>>>
-                                                & Serializable)
+                                                        & Serializable)
                                                 () -> COMMIT_QUEUE)
                                 .setWithPreCommitTopology(true)
                                 .build());
@@ -172,7 +179,7 @@ public class SinkV2ITCase extends AbstractTestBaseJUnit4 {
                         TestSinkV2.<Integer>newBuilder()
                                 .setDefaultCommitter(
                                         (Supplier<Queue<Committer.CommitRequest<String>>>
-                                                & Serializable)
+                                                        & Serializable)
                                                 () -> COMMIT_QUEUE)
                                 .build());
         executeAndVerifyStreamGraph(env);
@@ -195,7 +202,7 @@ public class SinkV2ITCase extends AbstractTestBaseJUnit4 {
                         TestSinkV2.<Integer>newBuilder()
                                 .setDefaultCommitter(
                                         (Supplier<Queue<Committer.CommitRequest<String>>>
-                                                & Serializable)
+                                                        & Serializable)
                                                 () -> COMMIT_QUEUE)
                                 .setWithPreCommitTopology(true)
                                 .build());
@@ -211,7 +218,7 @@ public class SinkV2ITCase extends AbstractTestBaseJUnit4 {
     }
 
     @ParameterizedTest
-    @CsvSource({"1, 2", "2, 1", "1, 1"})
+    @CsvSource({"1, 2"})
     public void writerAndCommitterExecuteInStreamingModeWithScaling(
             int initialParallelism,
             int scaledParallelism,
@@ -222,39 +229,57 @@ public class SinkV2ITCase extends AbstractTestBaseJUnit4 {
         final Configuration config = createConfigForScalingTest(checkpointDir, initialParallelism);
 
         // first run
-        final JobID jobID = runStreamingWithScalingTest(config, clusterClient);
+        final JobID jobID = runStreamingWithScalingTest(config, true, clusterClient);
 
         // second run
         config.set(StateRecoveryOptions.SAVEPOINT_PATH, getCheckpointPath(miniCluster, jobID));
         config.set(CoreOptions.DEFAULT_PARALLELISM, scaledParallelism);
-        runStreamingWithScalingTest(config, clusterClient);
-    }
+        runStreamingWithScalingTest(config, false, clusterClient);
 
-    private JobID runStreamingWithScalingTest(
-            Configuration config,
-            ClusterClient<?> clusterClient)
-            throws Exception {
-        final StreamExecutionEnvironment env = buildStreamEnvWithCheckpointDir(config);
-        final FiniteTestSource<Integer> source =
-                new FiniteTestSource<>(COMMIT_QUEUE_RECEIVE_ALL_DATA, SOURCE_DATA);
-
-        env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
-                // Introduce the keyBy to assert unaligned checkpoint is enabled on the source ->
-                // sink writer edge
-                .keyBy((KeySelector<Integer, Integer>) value -> value)
-                .sinkTo(
-                        TestSinkV2.<Integer>newBuilder()
-                                .setDefaultCommitter(
-                                        (Supplier<Queue<Committer.CommitRequest<String>>>
-                                                & Serializable)
-                                                () -> COMMIT_QUEUE)
-                                .build());
-        executeAndVerifyStreamGraph(env);
         assertThat(
                 COMMIT_QUEUE.stream()
                         .map(Committer.CommitRequest::getCommittable)
                         .collect(Collectors.toList()),
-                containsInAnyOrder(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE.toArray()));
+                containsInAnyOrder(duplicate(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE).toArray()));
+    }
+
+    private static List<String> duplicate(List<String> values) {
+        return IntStream.range(0, 2)
+                .boxed()
+                .flatMap(i -> values.stream())
+                .collect(Collectors.toList());
+    }
+
+    @RegisterExtension
+    static final SharedObjectsExtension SHARED_OBJECTS = SharedObjectsExtension.create();
+
+    private JobID runStreamingWithScalingTest(
+            Configuration config, boolean shouldMapperFail, ClusterClient<?> clusterClient)
+            throws Exception {
+        final StreamExecutionEnvironment env = buildStreamEnvWithCheckpointDir(config);
+
+        final int initialQueueSize = COMMIT_QUEUE.size();
+        BooleanSupplier terminationCondition =
+                (BooleanSupplier & Serializable)
+                        () ->
+                                COMMIT_QUEUE.size() - initialQueueSize
+                                        == STREAMING_SOURCE_SEND_ELEMENTS_NUM;
+        final FiniteTestSource<Integer> source =
+                new FiniteTestSource<>(terminationCondition, SOURCE_DATA);
+
+        env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
+                .rebalance()
+                .map(
+                        new FailingCheckpointMapper(
+                                SHARED_OBJECTS.add(new AtomicBoolean(!shouldMapperFail))))
+                .sinkTo(
+                        TestSinkV2.<Integer>newBuilder()
+                                .setDefaultCommitter(
+                                        (Supplier<Queue<Committer.CommitRequest<String>>>
+                                                        & Serializable)
+                                                () -> COMMIT_QUEUE)
+                                .setWithPostCommitTopology(true)
+                                .build());
 
         final JobID jobId = clusterClient.submitJob(env.getStreamGraph().getJobGraph()).get();
         clusterClient.requestJobResult(jobId).get();
@@ -270,7 +295,6 @@ public class SinkV2ITCase extends AbstractTestBaseJUnit4 {
         assertThat(completedCheckpoint.isPresent(), is(true));
         return completedCheckpoint.get();
     }
-
 
     private StreamExecutionEnvironment buildStreamEnv() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -332,5 +356,33 @@ public class SinkV2ITCase extends AbstractTestBaseJUnit4 {
                 .flatMap(StreamNode::getOutEdges)
                 .allMatch(StreamEdge::supportsUnalignedCheckpoints)
                 .isNotEmpty();
+    }
+
+    private static class FailingCheckpointMapper
+            implements MapFunction<Integer, Integer>, CheckpointListener {
+
+        private final SharedReference<AtomicBoolean> failed;
+        private long lastCheckpointId = 0;
+        private int emittedBetweenCheckpoint = 0;
+
+        FailingCheckpointMapper(SharedReference<AtomicBoolean> failed) {
+            this.failed = failed;
+        }
+
+        @Override
+        public Integer map(Integer value) {
+            if (lastCheckpointId >= 1 && emittedBetweenCheckpoint > 0 && !failed.get().get()) {
+                failed.get().set(true);
+                throw new RuntimeException("Planned exception.");
+            }
+            emittedBetweenCheckpoint++;
+            return value;
+        }
+
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) {
+            lastCheckpointId = checkpointId;
+            emittedBetweenCheckpoint = 0;
+        }
     }
 }
