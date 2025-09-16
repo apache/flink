@@ -44,6 +44,11 @@ public class BoundedOutOfOrderWatermarkGenerator extends WatermarkGenerator {
         this.rowtimeIndex = rowtimeIndex;
     }
 
+    @Override
+    public long extractTimestamp(RowData row) throws Exception {
+        return row.getLong(rowtimeIndex);
+    }
+
     @Nullable
     @Override
     public Long currentWatermark(RowData row) {

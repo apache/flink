@@ -92,6 +92,7 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
     protected FlinkLogicalTableSourceScan getNewScan(
             FlinkLogicalWatermarkAssigner watermarkAssigner,
             RexNode watermarkExpr,
+            RexNode rowTimeExpr,
             FlinkLogicalTableSourceScan scan,
             TableConfig tableConfig,
             boolean useWatermarkAssignerRowType) {
@@ -159,7 +160,11 @@ public abstract class PushWatermarkIntoTableSourceScanRuleBase extends RelOptRul
 
             final WatermarkPushDownSpec watermarkPushDownSpec =
                     new WatermarkPushDownSpec(
-                            watermarkExpr, globalIdleTimeoutMillis, producedType, watermarkParams);
+                            watermarkExpr,
+                            rowTimeExpr,
+                            globalIdleTimeoutMillis,
+                            producedType,
+                            watermarkParams);
             watermarkPushDownSpec.apply(newDynamicTableSource, abilityContext);
             abilitySpec = watermarkPushDownSpec;
         }

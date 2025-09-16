@@ -364,6 +364,11 @@ class WatermarkAssignerOperatorTest extends WatermarkAssignerOperatorTestBase {
             openCalled = true;
         }
 
+        @Override
+        public long extractTimestamp(RowData row) throws Exception {
+            return row.getLong(watermarkFieldIndex);
+        }
+
         @Nullable
         @Override
         public Long currentWatermark(RowData row) throws Exception {

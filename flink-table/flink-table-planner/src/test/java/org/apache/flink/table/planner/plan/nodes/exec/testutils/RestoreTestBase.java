@@ -81,9 +81,18 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Base class for implementing restore tests for {@link ExecNode}.You can generate json compiled
- * plan and a savepoint for the latest node version by running {@link
- * RestoreTestBase#generateTestSetupFiles(TableTestProgram)} which is disabled by default.
+ * Base class for implementing restore tests for {@link ExecNode}.
+ *
+ * <p>Restore tests test {@link TableTestProgram}s in two steps: The first step creates and executes
+ * a {@link CompiledPlan} with "before restore" data which generates state that is persisted using a
+ * savepoint. In the second step, the program is restored from the {@link CompiledPlan} and the
+ * corresponding savepoint. "After restore" data is ingested to test the final correctness.
+ *
+ * <p>You can generate a JSON compiled plan and a savepoint for the latest node version by running
+ * {@link RestoreTestBase#generateTestSetupFiles(TableTestProgram)} which is disabled by default.
+ * The "before restore" data of a sink defines the condition when a stop-with-savepoint should be
+ * triggered. You can inspect {@link #registerSinkObserver(List, SinkTestStep, boolean)} to monitor
+ * the savepoint progress.
  *
  * <p><b>Note:</b> The test base uses {@link TableConfigOptions.CatalogPlanCompilation#SCHEMA}
  * because it needs to adjust source and sink properties before and after the restore. Therefore,
@@ -230,14 +239,14 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         TestValuesTableFactory.registerLocalRawResultsObserver(
                 tableName,
                 (integer, strings) -> {
-                    List<String> results =
+                    final List<String> expected =
                             new ArrayList<>(sinkTestStep.getExpectedBeforeRestoreAsStrings());
                     if (!ignoreAfter) {
-                        results.addAll(sinkTestStep.getExpectedAfterRestoreAsStrings());
+                        expected.addAll(sinkTestStep.getExpectedAfterRestoreAsStrings());
                     }
-                    List<String> expectedResults = getExpectedResults(sinkTestStep, tableName);
+                    final List<String> actual = getExpectedResults(sinkTestStep, tableName);
                     final boolean shouldComplete =
-                            CollectionUtils.isEqualCollection(expectedResults, results);
+                            CollectionUtils.isEqualCollection(actual, expected);
                     if (shouldComplete) {
                         future.complete(null);
                     }

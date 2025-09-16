@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWatermarkAs
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.rex.RexNode;
 
 /**
  * Rule to push the {@link FlinkLogicalWatermarkAssigner} into the {@link
@@ -51,10 +52,16 @@ public class PushWatermarkIntoTableSourceScanRule extends PushWatermarkIntoTable
         FlinkLogicalWatermarkAssigner watermarkAssigner = call.rel(0);
         FlinkLogicalTableSourceScan scan = call.rel(1);
 
+        RexNode rowtimeExpr =
+                call.builder()
+                        .getRexBuilder()
+                        .makeInputRef(scan, watermarkAssigner.rowtimeFieldIndex());
+
         FlinkLogicalTableSourceScan newScan =
                 getNewScan(
                         watermarkAssigner,
                         watermarkAssigner.watermarkExpr(),
+                        rowtimeExpr,
                         scan,
                         ShortcutUtils.unwrapContext(scan).getTableConfig(),
                         true); // useWatermarkAssignerRowType
