@@ -65,7 +65,7 @@ public class SqlAlterMaterializedTableAsQueryConverter
                 getResolvedMaterializedTable(
                         context,
                         identifier,
-                        () -> "Only materialized table support modify definition query.");
+                        () -> "Only materialized tables support modifying the definition query.");
 
         List<Column> addedColumns =
                 validateAndExtractNewColumns(

@@ -39,7 +39,10 @@ class MaterializedTableStatementParserTest {
 
     @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("inputForCreateMaterializedTable")
-    void testCreateMaterializedTable(String sql, String expected) {
+    void testCreateMaterializedTable(Map.Entry<String, String> sqlToExpected) {
+        final String sql = sqlToExpected.getKey();
+        final String expected = sqlToExpected.getValue();
+
         sql(sql).ok(expected);
     }
 
@@ -390,13 +393,9 @@ class MaterializedTableStatementParserTest {
 
     private static Stream<Arguments> inputForCreateMaterializedTable() {
         return Stream.of(
-                mapEntryToArguments(fullExample()),
-                mapEntryToArguments(withoutTableConstraint()),
-                mapEntryToArguments(withPrimaryKey()));
-    }
-
-    private static Arguments mapEntryToArguments(Map.Entry<String, String> entry) {
-        return Arguments.of(entry.getKey(), entry.getValue());
+                Arguments.of(fullExample()),
+                Arguments.of(withoutTableConstraint()),
+                Arguments.of(withPrimaryKey()));
     }
 
     private static Map.Entry<String, String> fullExample() {

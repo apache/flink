@@ -573,7 +573,8 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         final String sql = "ALTER MATERIALIZED TABLE t1 AS SELECT * FROM t1";
         assertThatThrownBy(() -> parse(sql))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Only materialized table support modify definition query.");
+                .hasMessageContaining(
+                        "Only materialized tables support modifying the definition query.");
     }
 
     @Test

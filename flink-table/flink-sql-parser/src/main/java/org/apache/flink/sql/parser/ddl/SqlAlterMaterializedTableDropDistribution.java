@@ -27,7 +27,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * SqlNode to describe the ALTER MATERIALIZED TABLE [catalogName.] [dataBasesName.]tableName DROP
+ * SqlNode to describe the ALTER MATERIALIZED TABLE [catalogName.][dataBasesName.]tableName DROP
  * DISTRIBUTION statement.
  */
 public class SqlAlterMaterializedTableDropDistribution extends SqlAlterMaterializedTable {

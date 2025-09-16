@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * SqlNode to describe the ALTER MATERIALIZED TABLE [catalogName.] [dataBasesName.]tableName ADD
+ * SqlNode to describe the ALTER MATERIALIZED TABLE [catalogName.][dataBasesName.]tableName ADD
  * DISTRIBUTION statement.
  */
 public class SqlAlterMaterializedTableAddDistribution extends SqlAlterMaterializedTable {
@@ -49,7 +49,7 @@ public class SqlAlterMaterializedTableAddDistribution extends SqlAlterMaterializ
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparse(writer, leftPrec, rightPrec);
-        writer.keyword(" ADD ");
+        writer.keyword("ADD");
         if (distribution != null) {
             distribution.unparseAlter(writer, leftPrec, rightPrec);
         }
