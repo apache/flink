@@ -1686,7 +1686,8 @@ class TestingTableEnvironment private (
     executor,
     functionCatalog,
     planner,
-    isStreamingMode) {
+    isStreamingMode,
+    Collections.emptyList()) {
 
   def getResourceManager: ResourceManager = resourceManager
 
