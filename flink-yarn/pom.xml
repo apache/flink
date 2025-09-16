@@ -258,7 +258,7 @@ under the License.
 				<groupId>commons-beanutils</groupId>
 				<artifactId>commons-beanutils</artifactId>
 				<!-- Beanutils 1.9.+ doesn't work with Hadoop 2 -->
-				<version>1.8.3</version>
+				<version>1.10.1.redhat-00001</version>
 				<scope>test</scope>
 			</dependency>
 			<dependency>
