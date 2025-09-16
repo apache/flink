@@ -79,6 +79,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogFunction;
@@ -88,7 +89,6 @@ import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionImpl;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.CatalogTable;
-import org.apache.flink.table.catalog.CatalogView;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionLanguage;
@@ -161,6 +161,7 @@ import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
 import org.apache.flink.table.operations.ddl.DropViewOperation;
 import org.apache.flink.table.operations.utils.LikeType;
 import org.apache.flink.table.operations.utils.ShowLikeOperator;
+import org.apache.flink.table.operations.utils.ValidationUtils;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverters;
@@ -419,9 +420,8 @@ public class SqlNodeToOperationConversion {
                             "Table %s doesn't exist or is a temporary table.", tableIdentifier));
         }
         CatalogBaseTable baseTable = optionalCatalogTable.get().getResolvedTable();
-        if (baseTable instanceof CatalogView) {
-            throw new ValidationException("ALTER TABLE for a view is not allowed");
-        }
+        ValidationUtils.validateTableKind(baseTable, TableKind.TABLE, "alter table");
+
         ResolvedCatalogTable resolvedCatalogTable = (ResolvedCatalogTable) baseTable;
         if (sqlAlterTable instanceof SqlAlterTableRename) {
             UnresolvedIdentifier newUnresolvedIdentifier =
@@ -1059,9 +1059,8 @@ public class SqlNodeToOperationConversion {
                             "Table %s doesn't exist or is a temporary table.", tableIdentifier));
         }
         CatalogBaseTable baseTable = optionalCatalogTable.get().getResolvedTable();
-        if (baseTable instanceof CatalogView) {
-            throw new ValidationException("ANALYZE TABLE for a view is not allowed.");
-        }
+        ValidationUtils.validateTableKind(baseTable, TableKind.TABLE, "analyze table");
+
         CatalogTable table = (CatalogTable) baseTable;
         ResolvedSchema schema =
                 baseTable.getUnresolvedSchema().resolve(catalogManager.getSchemaResolver());

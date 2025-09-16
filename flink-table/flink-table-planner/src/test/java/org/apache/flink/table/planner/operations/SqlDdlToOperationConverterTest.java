@@ -2625,6 +2625,27 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                 "A column with the same name `id` has been defined at line 5, column 8."));
     }
 
+    @Test
+    void testAlterInvalidOperationsForMaterializedTables() throws Exception {
+        prepareMaterializedTable("my_materialized_table", false, 1, null, "SELECT 1");
+
+        assertThatThrownBy(() -> parse("alter table my_materialized_table RENAME to new_name"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("ALTER TABLE for a materialized table is not allowed");
+
+        assertThatThrownBy(() -> parse("analyze table my_materialized_table compute statistics"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("ANALYZE TABLE for a materialized table is not allowed");
+
+        assertThatThrownBy(() -> parse("alter view my_materialized_table RENAME to new_name"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("ALTER VIEW for a materialized table is not allowed");
+
+        assertThatThrownBy(() -> parse("truncate table my_materialized_table"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("TRUNCATE TABLE for a materialized table is not allowed");
+    }
+
     // ~ Tool Methods ----------------------------------------------------------
 
     private static TestItem createTestItem(Object... args) {

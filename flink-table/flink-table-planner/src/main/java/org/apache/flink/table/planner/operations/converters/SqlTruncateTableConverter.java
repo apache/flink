@@ -19,11 +19,15 @@
 package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.dml.SqlTruncateTable;
+import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.TruncateTableOperation;
+import org.apache.flink.table.operations.utils.ValidationUtils;
 
 /** A converter for {@link SqlTruncateTable}. */
 public class SqlTruncateTableConverter implements SqlNodeConverter<SqlTruncateTable> {
@@ -34,6 +38,11 @@ public class SqlTruncateTableConverter implements SqlNodeConverter<SqlTruncateTa
                 UnresolvedIdentifier.of(sqlTruncateTable.fullTableName());
         CatalogManager catalogManager = context.getCatalogManager();
         ObjectIdentifier tableIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+
+        ContextResolvedTable contextResolvedTable = catalogManager.getTableOrError(tableIdentifier);
+        CatalogBaseTable catalogBaseTable = contextResolvedTable.getTable();
+        ValidationUtils.validateTableKind(catalogBaseTable, TableKind.TABLE, "truncate table");
+
         return new TruncateTableOperation(tableIdentifier);
     }
 }
