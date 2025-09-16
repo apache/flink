@@ -80,11 +80,8 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
                     software.amazon.awssdk.services.s3.model.UploadPartRequest uploadPartRequest,
                     software.amazon.awssdk.core.sync.RequestBody requestBody,
                     org.apache.hadoop.fs.statistics.DurationTrackerFactory durationTrackerFactory) {
-                // Return a dummy response - this callback should not be called in our
-                // implementation
-                return software.amazon.awssdk.services.s3.model.UploadPartResponse.builder()
-                        .eTag("dummy-etag")
-                        .build();
+                throw new UnsupportedOperationException(
+                        "Direct uploadPart callback is not supported in Flink's S3 access helper implementation");
             }
 
             @Override
@@ -92,14 +89,8 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
                     completeMultipartUpload(
                             software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest
                                     completeMultipartUploadRequest) {
-                // Return a dummy response - this callback should not be called in our
-                // implementation
-                return software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse
-                        .builder()
-                        .eTag("dummy-etag")
-                        .bucket("dummy-bucket")
-                        .key("dummy-key")
-                        .build();
+                throw new UnsupportedOperationException(
+                        "Direct completeMultipartUpload callback is not supported in Flink's S3 access helper implementation");
             }
         };
     }
@@ -140,6 +131,10 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
         // Convert AWS SDK v2 response to AWS SDK v1 response
         UploadPartResult result = new UploadPartResult();
         result.setETag(response.eTag());
+        result.setPartNumber(partNumber);
+        if (response.requestCharged() != null) {
+            result.setRequesterCharged(response.requestCharged().toString().equals("requester"));
+        }
         return result;
     }
 
@@ -169,6 +164,9 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
         // Convert AWS SDK v2 response to AWS SDK v1 response
         PutObjectResult result = new PutObjectResult();
         result.setETag(response.eTag());
+        if (response.requestCharged() != null) {
+            result.setRequesterCharged(response.requestCharged().toString().equals("requester"));
+        }
         return result;
     }
 
@@ -207,6 +205,9 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
         result.setETag(response.eTag());
         result.setBucketName(response.bucket());
         result.setKey(response.key());
+        if (response.requestCharged() != null) {
+            result.setRequesterCharged(response.requestCharged().toString().equals("requester"));
+        }
         return result;
     }
 
