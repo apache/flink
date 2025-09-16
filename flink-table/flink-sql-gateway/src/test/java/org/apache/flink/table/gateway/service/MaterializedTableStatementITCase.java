@@ -94,7 +94,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * syntax related to Materialized table is relatively independent, and to try to avoid conflicts
  * with the code in {@link SqlGatewayServiceITCase}.
  */
-public class MaterializedTableStatementITCase extends AbstractMaterializedTableStatementITCase {
+class MaterializedTableStatementITCase extends AbstractMaterializedTableStatementITCase {
 
     @Test
     void testCreateMaterializedTableInContinuousMode() throws Exception {
@@ -1098,43 +1098,29 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
     }
 
     @Test
-    void testCreateMaterializedTableWithDistribution(@TempDir Path temporaryPath) throws Exception {
+    void testCreateMaterializedTableWithDistribution() {
         String materializedTableDDL =
                 "CREATE MATERIALIZED TABLE users_shops ("
-                        + " PRIMARY KEY (ds, user_id) not enforced)"
+                        + " PRIMARY KEY (shop_id, user_id) not enforced)"
                         + " DISTRIBUTED BY HASH (user_id) INTO 7 BUCKETS\n"
                         + " WITH(\n"
                         + "   'format' = 'debezium-json'\n"
                         + " )\n"
                         + " FRESHNESS = INTERVAL '30' SECOND\n"
-                        + " AS SELECT \n"
-                        + "  coalesce(user_id, 0) as user_id,\n"
-                        + "  shop_id,\n"
-                        + "  coalesce(ds, '') as ds,\n"
-                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum\n"
-                        + " FROM (\n"
-                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
-                        + " ) AS tmp\n"
-                        + " GROUP BY (user_id, shop_id, ds)";
+                        + " AS SELECT 1 as shop_id, 2 as user_id";
         OperationHandle materializedTableHandle =
                 service.executeStatement(
                         sessionHandle, materializedTableDDL, -1, new Configuration());
-        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
-        ResolvedCatalogMaterializedTable oldTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
-
-        // verify background job is running
-        ContinuousRefreshHandler activeRefreshHandler =
-                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
-                        oldTable.getSerializedRefreshHandler(), getClass().getClassLoader());
-        waitUntilAllTasksAreRunning(
-                restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
+        assertThatThrownBy(
+                        () ->
+                                awaitOperationTermination(
+                                        service, sessionHandle, materializedTableHandle))
+                .isInstanceOf(SqlExecutionException.class)
+                .hasRootCauseMessage(
+                        String.format(
+                                "Table '%s.test_db.users_shops' is distributed into buckets,"
+                                        + " but the underlying DynamicTableSink doesn't implement the SupportsBucketing interface.",
+                                fileSystemCatalogName));
     }
 
     @Test
@@ -1292,13 +1278,7 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         waitUntilAllTasksAreRunning(
                 restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
 
-        // setup savepoint dir
-        String savepointDir = "file://" + temporaryPath.toAbsolutePath();
-        String setupSavepointDDL =
-                "SET 'execution.checkpointing.savepoint-dir' = '" + savepointDir + "'";
-        OperationHandle setupSavepointHandle =
-                service.executeStatement(sessionHandle, setupSavepointDDL, -1, new Configuration());
-        awaitOperationTermination(service, sessionHandle, setupSavepointHandle);
+        setupSavepointDir(temporaryPath);
 
         String alterTableDDL =
                 "ALTER MATERIALIZED TABLE users_shops"
@@ -1395,13 +1375,7 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         waitUntilAllTasksAreRunning(
                 restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
 
-        // setup savepoint dir
-        String savepointDir = "file://" + temporaryPath.toAbsolutePath();
-        String setupSavepointDDL =
-                "SET 'execution.checkpointing.savepoint-dir' = '" + savepointDir + "'";
-        OperationHandle setupSavepointHandle =
-                service.executeStatement(sessionHandle, setupSavepointDDL, -1, new Configuration());
-        awaitOperationTermination(service, sessionHandle, setupSavepointHandle);
+        setupSavepointDir(temporaryPath);
 
         // suspend materialized table
         String suspendTableDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
@@ -2002,6 +1976,15 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         dropMaterializedTable(
                 ObjectIdentifier.of(
                         fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table"));
+    }
+
+    private void setupSavepointDir(Path temporaryPath) throws Exception {
+        String savepointDir = "file://" + temporaryPath.toAbsolutePath();
+        String setupSavepointDDL =
+                "SET 'execution.checkpointing.savepoint-dir' = '" + savepointDir + "'";
+        OperationHandle setupSavepointHandle =
+                service.executeStatement(sessionHandle, setupSavepointDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, setupSavepointHandle);
     }
 
     private List<Column> getAddedColumns(ResolvedSchema newSchema, ResolvedSchema oldSchema) {
