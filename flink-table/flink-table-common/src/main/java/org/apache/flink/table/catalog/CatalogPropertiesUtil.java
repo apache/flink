@@ -242,8 +242,7 @@ public final class CatalogPropertiesUtil {
 
             final List<String> partitionKeys = deserializePartitionKeys(properties);
 
-            final Map<String, String> options =
-                    deserializeOptions(properties, List.of(schemaKey, DISTRIBUTION));
+            final Map<String, String> options = deserializeOptions(properties);
 
             final @Nullable TableDistribution distribution =
                     deserializeTableDistribution(properties);
@@ -279,8 +278,7 @@ public final class CatalogPropertiesUtil {
 
             final List<String> partitionKeys = deserializePartitionKeys(properties);
 
-            final Map<String, String> options =
-                    deserializeOptions(properties, List.of(SCHEMA, DISTRIBUTION));
+            final Map<String, String> options = deserializeOptions(properties);
 
             final String definitionQuery = properties.get(DEFINITION_QUERY);
 
@@ -344,9 +342,7 @@ public final class CatalogPropertiesUtil {
             deserializeColumns(properties, MODEL_OUTPUT_SCHEMA, outputSchemaBuilder);
             final Schema outputSchema = outputSchemaBuilder.build();
 
-            final Map<String, String> modelOptions =
-                    deserializeOptions(
-                            properties, Arrays.asList(MODEL_INPUT_SCHEMA, MODEL_OUTPUT_SCHEMA));
+            final Map<String, String> modelOptions = deserializeOptions(properties);
 
             final @Nullable String comment = properties.get(COMMENT);
 
@@ -433,24 +429,22 @@ public final class CatalogPropertiesUtil {
 
     private static final String DISTRIBUTION_KIND = DISTRIBUTION + ".kind";
 
-    private static final String DISTRIBUTION_COUNT = DISTRIBUTION + ".count";
+    private static final String DISTRIBUTION_BUCKETS = DISTRIBUTION + ".buckets";
 
     private static final String DISTRIBUTION_KEYS = compoundKey(DISTRIBUTION, KEYS);
 
-    private static Map<String, String> deserializeOptions(
-            Map<String, String> map, List<String> schemaKeys) {
+    private static Map<String, String> deserializeOptions(Map<String, String> map) {
         return map.entrySet().stream()
                 .filter(
                         e -> {
                             final String key = e.getKey();
-                            return schemaKeys.stream()
-                                            .noneMatch(
-                                                    schemaKey ->
-                                                            key.startsWith(schemaKey + SEPARATOR))
+                            return !key.startsWith(DISTRIBUTION + SEPARATOR)
                                     && !key.startsWith(PARTITION_KEYS + SEPARATOR)
+                                    && !key.startsWith(SCHEMA)
                                     && !key.equals(COMMENT)
                                     && !key.equals(SNAPSHOT)
-                                    && !isMaterializedTableAttribute(key);
+                                    && !isMaterializedTableAttribute(key)
+                                    && !isModelAttribute(key);
                         })
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
@@ -464,6 +458,11 @@ public final class CatalogPropertiesUtil {
                 || key.equals(REFRESH_STATUS)
                 || key.equals(REFRESH_HANDLER_DESC)
                 || key.equals(REFRESH_HANDLER_BYTES);
+    }
+
+    private static boolean isModelAttribute(String key) {
+        return key.startsWith(MODEL_INPUT_SCHEMA + SEPARATOR)
+                || key.startsWith(MODEL_OUTPUT_SCHEMA + SEPARATOR);
     }
 
     private static List<String> deserializePartitionKeys(Map<String, String> map) {
@@ -485,9 +484,9 @@ public final class CatalogPropertiesUtil {
 
         final TableDistribution.Kind kind = TableDistribution.Kind.valueOf(distributionKind);
         final Integer bucketCount =
-                map.get(DISTRIBUTION_COUNT) == null
+                map.get(DISTRIBUTION_BUCKETS) == null
                         ? null
-                        : Integer.valueOf(map.get(DISTRIBUTION_COUNT));
+                        : Integer.valueOf(map.get(DISTRIBUTION_BUCKETS));
 
         final List<String> bucketKeys = new ArrayList<>();
         int i = 0;
@@ -616,7 +615,7 @@ public final class CatalogPropertiesUtil {
         map.put(DISTRIBUTION_KIND, distribution.getKind().name());
         distribution
                 .getBucketCount()
-                .ifPresent(bc -> map.put(DISTRIBUTION_COUNT, String.valueOf(bc.intValue())));
+                .ifPresent(bc -> map.put(DISTRIBUTION_BUCKETS, String.valueOf(bc.intValue())));
 
         putIndexedProperties(
                 map,

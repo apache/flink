@@ -142,7 +142,6 @@ class CatalogPropertiesUtilTest {
                         CatalogTable.newBuilder()
                                 .schema(schema)
                                 .comment("some comment")
-                                .options(new HashMap<>())
                                 .distribution(hashDist)
                                 .build(),
                         resolvedSchema),
@@ -150,7 +149,6 @@ class CatalogPropertiesUtilTest {
                         CatalogTable.newBuilder()
                                 .schema(schema)
                                 .comment("some comment")
-                                .options(new HashMap<>())
                                 .distribution(rangeDist)
                                 .build(),
                         resolvedSchema),
@@ -158,7 +156,6 @@ class CatalogPropertiesUtilTest {
                         CatalogMaterializedTable.newBuilder()
                                 .schema(schema)
                                 .comment("some comment")
-                                .options(new HashMap<>())
                                 .distribution(unknownDist)
                                 .definitionQuery("SELECT 1, 'two'")
                                 .freshness(IntervalFreshness.ofHour("123"))
