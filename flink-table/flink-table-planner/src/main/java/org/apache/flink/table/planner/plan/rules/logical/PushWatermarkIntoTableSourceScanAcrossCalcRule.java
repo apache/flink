@@ -81,8 +81,20 @@ public class PushWatermarkIntoTableSourceScanAcrossCalcRule
                         .map(originProgram::expandLocalRef)
                         .collect(Collectors.toList());
 
-        // get watermark expression
-        RexNode rowTimeColumn = projectList.get(watermarkAssigner.rowtimeFieldIndex());
+        FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(calc);
+        RexBuilder builder = call.builder().getRexBuilder();
+
+        // adjust expressions
+        // cast timestamp/timestamp_ltz type to rowtime type.
+        RexNode rowtimeExpr = projectList.get(watermarkAssigner.rowtimeFieldIndex());
+        RexNode newRowtimeExpr =
+                builder.makeReinterpretCast(
+                        typeFactory.createRowtimeIndicatorType(
+                                rowtimeExpr.getType().isNullable(),
+                                rowtimeExpr.getType().getSqlTypeName()
+                                        == SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE),
+                        rowtimeExpr,
+                        null);
         RexNode newWatermarkExpr =
                 watermarkAssigner
                         .watermarkExpr()
@@ -99,21 +111,10 @@ public class PushWatermarkIntoTableSourceScanAcrossCalcRule
                 getNewScan(
                         watermarkAssigner,
                         newWatermarkExpr,
+                        newRowtimeExpr,
                         call.rel(2),
                         ShortcutUtils.unwrapContext(calc).getTableConfig(),
                         false); // useWatermarkAssignerRowType
-
-        FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(calc);
-        RexBuilder builder = call.builder().getRexBuilder();
-        // cast timestamp/timestamp_ltz type to rowtime type.
-        RexNode newRowTimeColumn =
-                builder.makeReinterpretCast(
-                        typeFactory.createRowtimeIndicatorType(
-                                rowTimeColumn.getType().isNullable(),
-                                rowTimeColumn.getType().getSqlTypeName()
-                                        == SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE),
-                        rowTimeColumn,
-                        null);
 
         // build new calc program
         RexProgramBuilder programBuilder = new RexProgramBuilder(newScan.getRowType(), builder);
@@ -122,7 +123,7 @@ public class PushWatermarkIntoTableSourceScanAcrossCalcRule
         for (int i = 0; i < projectList.size(); i++) {
             if (i == watermarkAssigner.rowtimeFieldIndex()) {
                 // replace the origin computed column to keep type consistent
-                programBuilder.addProject(newRowTimeColumn, outputFieldNames.get(i));
+                programBuilder.addProject(newRowtimeExpr, outputFieldNames.get(i));
             } else {
                 programBuilder.addProject(projectList.get(i), outputFieldNames.get(i));
             }

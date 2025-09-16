@@ -1,5 +1,5 @@
 {
-  "flinkVersion" : "1.19",
+  "flinkVersion" : "2.2",
   "nodes" : [ {
     "id" : 1,
     "type" : "stream-exec-table-source-scan_1",
@@ -22,11 +22,13 @@
               "dataType" : "VARCHAR(2147483647)"
             }, {
               "name" : "ts",
+              "kind" : "METADATA",
               "dataType" : {
                 "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
                 "precision" : 3,
                 "kind" : "ROWTIME"
-              }
+              },
+              "isVirtual" : false
             } ],
             "watermarkSpecs" : [ {
               "rowtimeAttribute" : "ts",
@@ -49,17 +51,16 @@
                 "serializableString" : "`ts` - INTERVAL '1' SECOND"
               }
             } ]
-          },
-          "partitionKeys" : [ ]
+          }
         }
       },
       "abilities" : [ {
         "type" : "ProjectPushDown",
-        "projectedFields" : [ [ 0 ], [ 1 ], [ 4 ] ],
-        "producedType" : "ROW<`a` INT, `b` BIGINT, `ts` TIMESTAMP(3)> NOT NULL"
+        "projectedFields" : [ [ 0 ], [ 1 ] ],
+        "producedType" : "ROW<`a` INT, `b` BIGINT> NOT NULL"
       }, {
         "type" : "ReadingMetadata",
-        "metadataKeys" : [ ],
+        "metadataKeys" : [ "ts" ],
         "producedType" : "ROW<`a` INT, `b` BIGINT, `ts` TIMESTAMP(3)> NOT NULL"
       }, {
         "type" : "WatermarkPushDown",
@@ -68,9 +69,19 @@
           "syntax" : "SPECIAL",
           "internalName" : "$-$1",
           "operands" : [ {
-            "kind" : "INPUT_REF",
-            "inputIndex" : 2,
-            "type" : "TIMESTAMP(3)"
+            "kind" : "CALL",
+            "syntax" : "SPECIAL",
+            "internalName" : "$CAST$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 2,
+              "type" : "TIMESTAMP(3)"
+            } ],
+            "type" : {
+              "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+              "precision" : 3,
+              "kind" : "ROWTIME"
+            }
           }, {
             "kind" : "LITERAL",
             "value" : "1000",
@@ -78,25 +89,33 @@
           } ],
           "type" : "TIMESTAMP(3)"
         },
-        "idleTimeoutMillis" : -1,
-        "producedType" : {
-          "type" : "ROW",
-          "nullable" : false,
-          "fields" : [ {
-            "name" : "a",
-            "fieldType" : "INT"
-          }, {
-            "name" : "b",
-            "fieldType" : "BIGINT"
-          }, {
-            "name" : "ts",
-            "fieldType" : {
+        "rowtimeExpr" : {
+          "kind" : "CALL",
+          "syntax" : "SPECIAL",
+          "internalName" : "$REINTERPRET$1",
+          "operands" : [ {
+            "kind" : "CALL",
+            "syntax" : "SPECIAL",
+            "internalName" : "$CAST$1",
+            "operands" : [ {
+              "kind" : "INPUT_REF",
+              "inputIndex" : 2,
+              "type" : "TIMESTAMP(3)"
+            } ],
+            "type" : {
               "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
               "precision" : 3,
               "kind" : "ROWTIME"
             }
-          } ]
+          } ],
+          "type" : {
+            "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+            "precision" : 3,
+            "kind" : "ROWTIME"
+          }
         },
+        "idleTimeoutMillis" : -1,
+        "producedType" : "ROW<`a` INT, `b` BIGINT, `ts` TIMESTAMP(3)> NOT NULL",
         "watermarkParams" : {
           "emitStrategy" : "ON_PERIODIC",
           "alignGroupName" : null,
@@ -109,25 +128,8 @@
         "predicates" : [ ]
       } ]
     },
-    "outputType" : {
-      "type" : "ROW",
-      "fields" : [ {
-        "name" : "a",
-        "fieldType" : "INT"
-      }, {
-        "name" : "b",
-        "fieldType" : "BIGINT"
-      }, {
-        "name" : "ts",
-        "fieldType" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "precision" : 3,
-          "kind" : "ROWTIME"
-        }
-      } ]
-    },
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t, project=[a, b, ts], metadata=[], watermark=[-(ts, 1000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic], filter=[]]], fields=[a, b, ts])",
-    "inputProperties" : [ ]
+    "outputType" : "ROW<`a` INT, `b` BIGINT, `ts` TIMESTAMP(3)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t, project=[a, b], metadata=[ts], watermark=[-(CAST(ts AS TIMESTAMP(3) *ROWTIME*), 1000:INTERVAL SECOND)], watermarkEmitStrategy=[on-periodic], filter=[]]], fields=[a, b, ts])"
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
@@ -146,8 +148,24 @@
       } ],
       "type" : "BIGINT"
     }, {
-      "kind" : "INPUT_REF",
-      "inputIndex" : 2,
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$REINTERPRET$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$CAST$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : "TIMESTAMP(3)"
+        } ],
+        "type" : {
+          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+          "precision" : 3,
+          "kind" : "ROWTIME"
+        }
+      } ],
       "type" : {
         "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
         "precision" : 3,
@@ -193,7 +211,7 @@
         }
       } ]
     },
-    "description" : "Calc(select=[a, CAST(3 AS BIGINT) AS b, ts], where=[(b = 3)])"
+    "description" : "Calc(select=[a, CAST(3 AS BIGINT) AS b, Reinterpret(CAST(ts AS TIMESTAMP(3) *ROWTIME*)) AS ts], where=[(b = 3)])"
   }, {
     "id" : 3,
     "type" : "stream-exec-sink_1",
@@ -218,10 +236,8 @@
             }, {
               "name" : "ts",
               "dataType" : "TIMESTAMP(3)"
-            } ],
-            "watermarkSpecs" : [ ]
-          },
-          "partitionKeys" : [ ]
+            } ]
+          }
         }
       }
     },

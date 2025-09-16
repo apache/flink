@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier
 import org.apache.flink.api.common.functions.OpenContext
-import org.apache.flink.configuration.{Configuration, ReadableConfig}
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{newName, ROW_DATA}
@@ -33,11 +33,16 @@ import org.apache.calcite.rex.RexNode
 /** A code generator for generating [[WatermarkGenerator]]s. */
 object WatermarkGeneratorCodeGenerator {
 
+  /**
+   * Generates a [[WatermarkGenerator]]. The generator is also able to provide the event-time
+   * timestamp for advanced watermark strategies if the given parameter has been specified.
+   */
   def generateWatermarkGenerator(
       tableConfig: ReadableConfig,
       classLoader: ClassLoader,
       inputType: RowType,
       watermarkExpr: RexNode,
+      rowtimeExpr: Option[RexNode] = None,
       contextTerm: Option[String] = None): GeneratedWatermarkGenerator = {
     // validation
     val watermarkOutputType = FlinkTypeFactory.toLogicalType(watermarkExpr.getType)
@@ -58,7 +63,24 @@ object WatermarkGeneratorCodeGenerator {
     val generator = new ExprCodeGenerator(ctx, false)
       .bindInput(inputType, inputTerm = "row")
       .bindConstructorTerm(contextTerm.orNull)
-    val generatedExpr = generator.generateExpression(watermarkExpr)
+    val generatedWatermarkExpr = generator.generateExpression(watermarkExpr)
+
+    val generatedTimestampCode = if (rowtimeExpr.isDefined) {
+      val generatedRowtimeExpr = generator.generateExpression(rowtimeExpr.get)
+      j"""
+         |${ctx.reusePerRecordCode()}
+         |${ctx.reuseLocalVariableCode()}
+         |${ctx.reuseInputUnboxingCode()}
+         |${generatedRowtimeExpr.code}
+         |if (${generatedRowtimeExpr.nullTerm}) {
+         |  return Long.MIN_VALUE;
+         |} else {
+         |  return ${generatedRowtimeExpr.resultTerm}.getMillisecond();
+         |}
+         |""".stripMargin
+    } else {
+      "return Long.MIN_VALUE;"
+    }
 
     if (contextTerm.isDefined) {
       ctx.addReusableMember(
@@ -93,15 +115,20 @@ object WatermarkGeneratorCodeGenerator {
         }
 
         @Override
+        public long extractTimestamp($ROW_DATA row) {
+          $generatedTimestampCode
+        }
+
+        @Override
         public Long currentWatermark($ROW_DATA row) throws Exception {
           ${ctx.reusePerRecordCode()}
           ${ctx.reuseLocalVariableCode()}
           ${ctx.reuseInputUnboxingCode()}
-          ${generatedExpr.code}
-          if (${generatedExpr.nullTerm}) {
+          ${generatedWatermarkExpr.code}
+          if (${generatedWatermarkExpr.nullTerm}) {
             return null;
           } else {
-            return ${generatedExpr.resultTerm}.getMillisecond();
+            return ${generatedWatermarkExpr.resultTerm}.getMillisecond();
           }
         }
 

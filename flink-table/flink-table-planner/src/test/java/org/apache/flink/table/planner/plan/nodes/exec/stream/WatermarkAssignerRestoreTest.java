@@ -35,6 +35,7 @@ public class WatermarkAssignerRestoreTest extends RestoreTestBase {
     public List<TableTestProgram> programs() {
         return Arrays.asList(
                 WatermarkAssignerTestPrograms.WATERMARK_ASSIGNER_BASIC_FILTER,
-                WatermarkAssignerTestPrograms.WATERMARK_ASSIGNER_PUSHDOWN_METADATA);
+                WatermarkAssignerTestPrograms.WATERMARK_ASSIGNER_PUSHDOWN_METADATA,
+                WatermarkAssignerTestPrograms.WATERMARK_ASSIGNER_PUSHDOWN_COMPUTED);
     }
 }

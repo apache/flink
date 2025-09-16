@@ -28,6 +28,9 @@ public abstract class WatermarkGenerator extends AbstractRichFunction {
 
     private static final long serialVersionUID = 1L;
 
+    /** Returns the timestamp for the current row. */
+    public abstract long extractTimestamp(RowData row) throws Exception;
+
     /**
      * Returns the watermark for the current row or null if no watermark should be generated.
      *

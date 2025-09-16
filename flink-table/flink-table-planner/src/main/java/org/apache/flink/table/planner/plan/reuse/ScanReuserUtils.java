@@ -48,7 +48,6 @@ import org.apache.calcite.rex.RexShuttle;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -223,29 +222,27 @@ public class ScanReuserUtils {
             }
             newSourceType = new RowType(fields);
         }
-        RexNode newExpr =
-                adjustRexNodeIndex(
-                                oldSourceType,
-                                newSourceType,
-                                Collections.singletonList(spec.getWatermarkExpr()))
-                        .get(0);
-        return spec.copy(newExpr, newSourceType);
+
+        RexShuttle adjustIndicesShuttle = createAdjustIndicesShuttle(oldSourceType, newSourceType);
+
+        RexNode adjustedWatermarkExpr = spec.getWatermarkExpr().accept(adjustIndicesShuttle);
+        RexNode adjustedRowtimeExpr =
+                spec.getRowtimeExpr().map(e -> e.accept(adjustIndicesShuttle)).orElse(null);
+        return spec.copy(adjustedWatermarkExpr, adjustedRowtimeExpr, newSourceType);
     }
 
-    private static List<RexNode> adjustRexNodeIndex(
-            RowType oldSourceType, RowType newSourceType, List<RexNode> rexNodes) {
+    private static RexShuttle createAdjustIndicesShuttle(
+            RowType oldSourceType, RowType newSourceType) {
         List<String> oldFieldNames = oldSourceType.getFieldNames();
         List<String> newFieldNames = newSourceType.getFieldNames();
-        RexShuttle shuttle =
-                new RexShuttle() {
-                    @Override
-                    public RexNode visitInputRef(RexInputRef inputRef) {
-                        String name = oldFieldNames.get(inputRef.getIndex());
-                        int newIndex = newFieldNames.indexOf(name);
-                        return new RexInputRef(newIndex, inputRef.getType());
-                    }
-                };
-        return rexNodes.stream().map(node -> node.accept(shuttle)).collect(Collectors.toList());
+        return new RexShuttle() {
+            @Override
+            public RexNode visitInputRef(RexInputRef inputRef) {
+                String name = oldFieldNames.get(inputRef.getIndex());
+                int newIndex = newFieldNames.indexOf(name);
+                return new RexInputRef(newIndex, inputRef.getType());
+            }
+        };
     }
 
     public static Calc createCalcForScan(RelNode input, RexProgram program) {

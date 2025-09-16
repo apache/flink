@@ -213,6 +213,7 @@ public class DynamicTableSourceSpecSerdeTest {
                                                                 TimeUnit.SECOND,
                                                                 6,
                                                                 SqlParserPos.ZERO))),
+                                        null,
                                         5000,
                                         RowType.of(
                                                 new BigIntType(),
@@ -226,6 +227,30 @@ public class DynamicTableSourceSpecSerdeTest {
                                                 .alignUpdateInterval(Duration.ofSeconds(1))
                                                 .sourceIdleTimeout(60000)
                                                 .build()),
+                                new WatermarkPushDownSpec(
+                                        rexBuilder.makeCall(
+                                                SqlStdOperatorTable.MINUS,
+                                                rexBuilder.makeInputRef(
+                                                        factory.createSqlType(
+                                                                SqlTypeName.TIMESTAMP, 3),
+                                                        3),
+                                                rexBuilder.makeIntervalLiteral(
+                                                        BigDecimal.valueOf(1000),
+                                                        new SqlIntervalQualifier(
+                                                                TimeUnit.SECOND,
+                                                                2,
+                                                                TimeUnit.SECOND,
+                                                                6,
+                                                                SqlParserPos.ZERO))),
+                                        rexBuilder.makeInputRef(
+                                                factory.createSqlType(SqlTypeName.TIMESTAMP, 3), 3),
+                                        5000,
+                                        RowType.of(
+                                                new BigIntType(),
+                                                new IntType(),
+                                                new IntType(),
+                                                new TimestampType(false, TimestampKind.ROWTIME, 3)),
+                                        null),
                                 new SourceWatermarkSpec(
                                         true,
                                         RowType.of(
