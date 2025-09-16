@@ -53,7 +53,7 @@ jobs:
         run: |
           docker run --rm --volume "$PWD:/root/flink" chesnay/flink-ci:java_8_11_17_21_maven_386_jammy bash -c "cd /root/flink && ./.github/workflows/docs.sh"
       - name: Upload documentation
-        uses: burnett01/rsync-deployments@5.2
+        uses: burnett01/rsync-deployments@0dc935cdecc5f5e571865e60d2a6cdc673704823 # 5.2
         with:
           switches: --archive --compress --delete
           path: docs/target/
@@ -64,7 +64,7 @@ jobs:
           remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
       - name: Upload documentation alias
         if: env.flink_alias != ''
-        uses: burnett01/rsync-deployments@5.2
+        uses: burnett01/rsync-deployments@0dc935cdecc5f5e571865e60d2a6cdc673704823 # 5.2
         with:
           switches: --archive --compress --delete
           path: docs/target/
