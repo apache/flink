@@ -218,7 +218,7 @@ public class SinkV2ITCase extends AbstractTestBase {
     }
 
     @ParameterizedTest
-    @CsvSource({"1, 2"})
+    @CsvSource({"1, 2", "2, 1", "1, 1"})
     public void writerAndCommitterExecuteInStreamingModeWithScaling(
             int initialParallelism,
             int scaledParallelism,
