@@ -283,7 +283,7 @@ Supported Environment:
 {{< label AWS >}}
 {{< label Azure >}}
 {{< label Google Cloud >}}
-{{< label On-Premise >}}
+{{< label On-Premises >}}
 
 #### Confluent Cloud and Platform
 
@@ -311,6 +311,6 @@ Supported Environments:
 {{< label AWS >}}
 {{< label Azure >}}
 {{< label Google Cloud >}}
-{{< label On-Premise >}}
+{{< label On-Premises >}}
 
 {{< top >}}
