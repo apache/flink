@@ -257,7 +257,8 @@ Parameters:
 - `apikey` - the Datadog API key
 - `proxyHost` - (optional) The proxy host to use when sending to Datadog.
 - `proxyPort` - (optional) The proxy port to use when sending to Datadog, defaults to 8080.
-- `dataCenter` - (optional) The data center (`EU`/`US`) to connect to, defaults to `US`.
+- `dataCenter` - (deprecated/optional) The data center (`EU`/`US`) to connect to, defaults to `US`. *DEPRECATED* will be removed in a future flink version, please use `dataCenterUrl`.
+- `dataCenterUrl`- (optional) The datacenter url to connect to, defaults to `https://app.datadoghq.com`.
 - `maxMetricsPerRequest` - (optional) The maximum number of metrics to include in each request, defaults to 2000.
 - `useLogicalIdentifier` -> (optional) Whether the reporter uses a logical metric identifier, defaults to `false`.
 
