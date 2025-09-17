@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.ALLOW_LIST;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.FILTER_LABEL_VALUE_CHARACTER;
 
 /** base prometheus reporter for prometheus metrics. */
@@ -61,9 +62,12 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
     @VisibleForTesting static final char SCOPE_SEPARATOR = '_';
     @VisibleForTesting static final String SCOPE_PREFIX = "flink" + SCOPE_SEPARATOR;
+    @VisibleForTesting static final char DEFAULT_SCOPE_SEPARATOR = '.';
 
     private final Map<String, AbstractMap.SimpleImmutableEntry<Collector, Integer>>
             collectorsWithCountByMetricName = new HashMap<>();
+
+    private final List<String> allowLists = new ArrayList<>();
 
     @VisibleForTesting
     static String replaceInvalidChars(final String input) {
@@ -87,6 +91,13 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
         if (!filterLabelValueCharacters) {
             labelValueCharactersFilter = input -> input;
         }
+
+        String allowList = config.getString(ALLOW_LIST.key(), ALLOW_LIST.defaultValue());
+        for (String ele : allowList.split(",")) {
+            if (!ele.trim().isEmpty()) {
+                allowLists.add(ele.trim());
+            }
+        }
     }
 
     @Override
@@ -97,6 +108,11 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
     @Override
     public void notifyOfAddedMetric(
             final Metric metric, final String metricName, final MetricGroup group) {
+        String metricScope = LogicalScopeProvider.castFrom(group).getLogicalScope(CHARACTER_FILTER);
+        if (!allowLists.isEmpty()
+                && !isInAllowList(metricScope + DEFAULT_SCOPE_SEPARATOR + metricName, allowLists)) {
+            return;
+        }
 
         List<String> dimensionKeys = new LinkedList<>();
         List<String> dimensionValues = new LinkedList<>();
@@ -389,5 +405,14 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
 
     private static String[] toArray(List<String> list) {
         return list.toArray(new String[list.size()]);
+    }
+
+    public static boolean isInAllowList(String metricScopeName, List<String> patternList) {
+        for (String pattern : patternList) {
+            if (metricScopeName.contains(pattern)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
