@@ -149,20 +149,51 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
             // Get configuration from the S3AFileSystem
             org.apache.hadoop.conf.Configuration hadoopConf = s3a.getConf();
 
-            // Set the region if specified
-            String region = hadoopConf.get("fs.s3a.endpoint.region");
-            if (region != null && !region.isEmpty()) {
-                clientBuilder.region(software.amazon.awssdk.regions.Region.of(region));
+            // Set credentials if available (try both Flink and Hadoop S3A config keys)
+            String accessKey = hadoopConf.get("s3.access-key");
+            String secretKey = hadoopConf.get("s3.secret-key");
+            if (accessKey == null) {
+                accessKey = hadoopConf.get("fs.s3a.access.key");
+            }
+            if (secretKey == null) {
+                secretKey = hadoopConf.get("fs.s3a.secret.key");
             }
 
-            // Set custom endpoint if specified
+            if (accessKey != null && secretKey != null) {
+                clientBuilder.credentialsProvider(
+                        software.amazon.awssdk.auth.credentials.StaticCredentialsProvider.create(
+                                software.amazon.awssdk.auth.credentials.AwsBasicCredentials.create(
+                                        accessKey, secretKey)));
+            }
+
+            // Set the region if specified (try both config key styles)
+            String region = hadoopConf.get("fs.s3a.endpoint.region");
+            if (region == null) {
+                region = hadoopConf.get("s3.region");
+            }
+            // AWS SDK v2 requires a region, so provide a default for custom endpoints like MinIO
+            if (region == null || region.isEmpty()) {
+                region = "us-east-1"; // Default region for custom endpoints
+            }
+            clientBuilder.region(software.amazon.awssdk.regions.Region.of(region));
+
+            // Set custom endpoint if specified (try both config key styles)
             String endpoint = hadoopConf.get("fs.s3a.endpoint");
+            if (endpoint == null) {
+                endpoint = hadoopConf.get("s3.endpoint");
+            }
             if (endpoint != null && !endpoint.isEmpty()) {
                 clientBuilder.endpointOverride(java.net.URI.create(endpoint));
             }
 
-            // Configure path style access if enabled
+            // Configure path style access if enabled (try both config key styles)
             boolean pathStyleAccess = hadoopConf.getBoolean("fs.s3a.path.style.access", false);
+            if (!pathStyleAccess) {
+                pathStyleAccess = hadoopConf.getBoolean("s3.path.style.access", false);
+            }
+            if (!pathStyleAccess) {
+                pathStyleAccess = hadoopConf.getBoolean("s3.path-style-access", false);
+            }
             if (pathStyleAccess) {
                 clientBuilder.serviceConfiguration(
                         software.amazon.awssdk.services.s3.S3Configuration.builder()
@@ -171,7 +202,6 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
             }
 
             // Build and return the client
-            // AWS credentials will be automatically discovered from environment/IAM
             return clientBuilder.build();
 
         } catch (Exception e) {
