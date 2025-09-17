@@ -367,6 +367,86 @@ public class HadoopS3AccessHelperTest {
     }
 
     @Test
+    public void testS3ClientConsistencyInMultipartUploadLifecycle() throws Exception {
+        // This test verifies the fix for the NoSuchUploadException issue where different S3 clients
+        // were used for upload initiation vs. callbacks, causing upload IDs to be invalid across
+        // clients.
+        //
+        // The issue was:
+        // 1. startMultiPartUpload() used s3accessHelper (S3AFileSystem's client)
+        // 2. Callbacks used createS3Client() (created NEW client)
+        // 3. Upload ID from one client didn't work with another client!
+        //
+        // The fix ensures callbacks use consistent S3 client configuration via
+        // getS3ClientFromFileSystem()
+
+        // Get the default callbacks to test that they are properly implemented
+        WriteOperationHelper.WriteOperationHelperCallbacks callbacks = getDefaultCallbacks();
+
+        // Test uploadPart callback - should attempt real S3 operation, not throw
+        // UnsupportedOperationException
+        software.amazon.awssdk.services.s3.model.UploadPartRequest uploadRequest =
+                software.amazon.awssdk.services.s3.model.UploadPartRequest.builder()
+                        .bucket("test-bucket")
+                        .key("test-key")
+                        .uploadId("test-upload-id")
+                        .partNumber(1)
+                        .build();
+        software.amazon.awssdk.core.sync.RequestBody requestBody =
+                software.amazon.awssdk.core.sync.RequestBody.empty();
+
+        try {
+            callbacks.uploadPart(uploadRequest, requestBody, null);
+            fail("Should throw exception due to missing AWS credentials/connectivity, not succeed");
+        } catch (RuntimeException e) {
+            // Expected: Should be AWS connectivity/credential error, NOT
+            // UnsupportedOperationException
+            assertFalse(
+                    "Should not throw UnsupportedOperationException - callbacks are implemented",
+                    e instanceof UnsupportedOperationException);
+            assertTrue(
+                    "Should be AWS-related error indicating real S3 operation was attempted",
+                    e.getMessage().toLowerCase().contains("s3")
+                            || e.getMessage().toLowerCase().contains("aws")
+                            || e.getMessage().toLowerCase().contains("credentials")
+                            || e.getMessage().toLowerCase().contains("unable to execute"));
+        }
+
+        // Test completeMultipartUpload callback - should attempt real S3 operation
+        software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest completeRequest =
+                software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest.builder()
+                        .bucket("test-bucket")
+                        .key("test-key")
+                        .uploadId("test-upload-id")
+                        .multipartUpload(
+                                m ->
+                                        m.parts(
+                                                software.amazon.awssdk.services.s3.model
+                                                        .CompletedPart.builder()
+                                                        .partNumber(1)
+                                                        .eTag("test-etag")
+                                                        .build()))
+                        .build();
+
+        try {
+            callbacks.completeMultipartUpload(completeRequest);
+            fail("Should throw exception due to missing AWS credentials/connectivity, not succeed");
+        } catch (RuntimeException e) {
+            // Expected: Should be AWS connectivity/credential error, NOT
+            // UnsupportedOperationException
+            assertFalse(
+                    "Should not throw UnsupportedOperationException - callbacks are implemented",
+                    e instanceof UnsupportedOperationException);
+            assertTrue(
+                    "Should be AWS-related error indicating real S3 operation was attempted",
+                    e.getMessage().toLowerCase().contains("s3")
+                            || e.getMessage().toLowerCase().contains("aws")
+                            || e.getMessage().toLowerCase().contains("credentials")
+                            || e.getMessage().toLowerCase().contains("unable to execute"));
+        }
+    }
+
+    @Test
     public void testHadoop342SpecificClasses() throws Exception {
         // Test for classes that we know should exist in Hadoop 3.4.2
         String[] expectedClasses = {

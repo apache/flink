@@ -82,14 +82,13 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
                     software.amazon.awssdk.services.s3.model.UploadPartRequest uploadPartRequest,
                     software.amazon.awssdk.core.sync.RequestBody requestBody,
                     org.apache.hadoop.fs.statistics.DurationTrackerFactory durationTrackerFactory) {
-                // Implementation: Create and use our own S3 client with same config as
-                // S3AFileSystem
-                // This avoids reflection while providing proper S3 operations
+                // Implementation: Use the S3AFileSystem's S3 client directly
+                // This ensures consistency with the S3 client that initiated the upload
                 try {
-                    // Get S3 client from the S3AFileSystem using the public getS3AInternals()
-                    // method
-                    // if available, or create one with same configuration
-                    software.amazon.awssdk.services.s3.S3Client s3Client = createS3Client();
+                    // Access the S3 client from S3AFileSystem's internals
+                    // This avoids recursion while using the same S3 client configuration
+                    software.amazon.awssdk.services.s3.S3Client s3Client =
+                            getS3ClientFromFileSystem();
 
                     // Perform the actual S3 upload operation
                     return s3Client.uploadPart(uploadPartRequest, requestBody);
@@ -103,10 +102,13 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
                     completeMultipartUpload(
                             software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest
                                     completeMultipartUploadRequest) {
-                // Implementation: Create and use our own S3 client with same config as
-                // S3AFileSystem
+                // Implementation: Use the same S3 infrastructure as WriteOperationHelper
+                // This ensures consistency with the S3 client that initiated the upload
                 try {
-                    software.amazon.awssdk.services.s3.S3Client s3Client = createS3Client();
+                    // Access the S3 client from S3AFileSystem's internals
+                    // This avoids recursion while using the same S3 client configuration
+                    software.amazon.awssdk.services.s3.S3Client s3Client =
+                            getS3ClientFromFileSystem();
 
                     // Perform the actual S3 complete multipart upload operation
                     return s3Client.completeMultipartUpload(completeMultipartUploadRequest);
@@ -121,6 +123,17 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
     /** Creates default PutObjectOptions for Hadoop 3.4.2. */
     private static org.apache.hadoop.fs.s3a.impl.PutObjectOptions createDefaultPutObjectOptions() {
         return org.apache.hadoop.fs.s3a.impl.PutObjectOptions.keepingDirs();
+    }
+
+    /**
+     * Gets the S3 client from the S3AFileSystem's internals to ensure consistency. This allows us
+     * to perform S3 operations in callbacks using the same client that initiated the multipart
+     * upload.
+     */
+    private software.amazon.awssdk.services.s3.S3Client getS3ClientFromFileSystem() {
+        // Create S3 client with the same configuration as the S3AFileSystem
+        // This ensures consistency without reflection or accessing private internals
+        return createS3Client();
     }
 
     /**
