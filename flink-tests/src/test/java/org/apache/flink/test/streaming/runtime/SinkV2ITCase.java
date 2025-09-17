@@ -19,10 +19,15 @@ package org.apache.flink.test.streaming.runtime;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.util.ratelimit.GatedRateLimiter;
+import org.apache.flink.api.connector.source.util.ratelimit.RateLimiter;
+import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.client.program.ClusterClient;
@@ -33,6 +38,7 @@ import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
+import org.apache.flink.connector.datagen.source.DataGeneratorSource;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -41,16 +47,14 @@ import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.StreamNode;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
+import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2.DefaultCommitter;
 import org.apache.flink.streaming.util.FiniteTestSource;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.test.util.AbstractTestBase;
-import org.apache.flink.testutils.junit.SharedObjectsExtension;
-import org.apache.flink.testutils.junit.SharedReference;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -62,13 +66,13 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -226,58 +230,42 @@ public class SinkV2ITCase extends AbstractTestBase {
             @InjectMiniCluster MiniCluster miniCluster,
             @InjectClusterClient ClusterClient<?> clusterClient)
             throws Exception {
+        final DefaultCommitter committer =
+                new DefaultCommitter(
+                        (Supplier<Queue<Committer.CommitRequest<String>>> & Serializable)
+                                () -> COMMIT_QUEUE);
         final Configuration config = createConfigForScalingTest(checkpointDir, initialParallelism);
 
         // first run
-        final JobID jobID = runStreamingWithScalingTest(config, true, clusterClient);
+        final JobID jobID = runStreamingWithScalingTest(config, true, committer, clusterClient);
 
         // second run
         config.set(StateRecoveryOptions.SAVEPOINT_PATH, getCheckpointPath(miniCluster, jobID));
         config.set(CoreOptions.DEFAULT_PARALLELISM, scaledParallelism);
-        runStreamingWithScalingTest(config, false, clusterClient);
+        runStreamingWithScalingTest(config, false, committer, clusterClient);
 
         assertThat(
                 COMMIT_QUEUE.stream()
                         .map(Committer.CommitRequest::getCommittable)
                         .collect(Collectors.toList()),
-                containsInAnyOrder(duplicate(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE).toArray()));
+                containsInAnyOrder(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE.toArray()));
     }
-
-    private static List<String> duplicate(List<String> values) {
-        return IntStream.range(0, 2)
-                .boxed()
-                .flatMap(i -> values.stream())
-                .collect(Collectors.toList());
-    }
-
-    @RegisterExtension
-    static final SharedObjectsExtension SHARED_OBJECTS = SharedObjectsExtension.create();
 
     private JobID runStreamingWithScalingTest(
-            Configuration config, boolean shouldMapperFail, ClusterClient<?> clusterClient)
+            Configuration config,
+            boolean shouldMapperFail,
+            DefaultCommitter committer,
+            ClusterClient<?> clusterClient)
             throws Exception {
         final StreamExecutionEnvironment env = buildStreamEnvWithCheckpointDir(config);
+        final Source<Integer, ?, ?> source = createStreamingSource();
 
-        final int initialQueueSize = COMMIT_QUEUE.size();
-        BooleanSupplier terminationCondition =
-                (BooleanSupplier & Serializable)
-                        () ->
-                                COMMIT_QUEUE.size() - initialQueueSize
-                                        == STREAMING_SOURCE_SEND_ELEMENTS_NUM;
-        final FiniteTestSource<Integer> source =
-                new FiniteTestSource<>(terminationCondition, SOURCE_DATA);
-
-        env.addSource(source, IntegerTypeInfo.INT_TYPE_INFO)
+        env.fromSource(source, WatermarkStrategy.noWatermarks(), "source")
                 .rebalance()
-                .map(
-                        new FailingCheckpointMapper(
-                                SHARED_OBJECTS.add(new AtomicBoolean(!shouldMapperFail))))
+                .map(new FailingCheckpointMapper(!shouldMapperFail))
                 .sinkTo(
                         TestSinkV2.<Integer>newBuilder()
-                                .setDefaultCommitter(
-                                        (Supplier<Queue<Committer.CommitRequest<String>>>
-                                                        & Serializable)
-                                                () -> COMMIT_QUEUE)
+                                .setCommitter(committer)
                                 .setWithPostCommitTopology(true)
                                 .build());
 
@@ -358,21 +346,61 @@ public class SinkV2ITCase extends AbstractTestBase {
                 .isNotEmpty();
     }
 
+    /**
+     * A stream source that: 1) emits a list of elements without allowing checkpoints, 2) then waits
+     * for two more checkpoints to complete, 3) then re-emits the same elements before 4) waiting
+     * for another two checkpoints and 5) exiting.
+     */
+    private Source<Integer, ?, ?> createStreamingSource() {
+        RateLimiterStrategy rateLimiterStrategy =
+                parallelism -> new BurstingRateLimiter(SOURCE_DATA.size() / 4, 2);
+        return new DataGeneratorSource<>(
+                l -> SOURCE_DATA.get(l.intValue() % SOURCE_DATA.size()),
+                SOURCE_DATA.size() * 2L,
+                rateLimiterStrategy,
+                IntegerTypeInfo.INT_TYPE_INFO);
+    }
+
+    private static class BurstingRateLimiter implements RateLimiter {
+        private final RateLimiter rateLimiter;
+        private final int numCheckpointCooldown;
+        private int cooldown;
+
+        public BurstingRateLimiter(int recordPerCycle, int numCheckpointCooldown) {
+            rateLimiter = new GatedRateLimiter(recordPerCycle);
+            this.numCheckpointCooldown = numCheckpointCooldown;
+        }
+
+        @Override
+        public CompletionStage<Void> acquire() {
+            CompletionStage<Void> stage = rateLimiter.acquire();
+            cooldown = numCheckpointCooldown;
+            return stage;
+        }
+
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) {
+            if (cooldown-- <= 0) {
+                rateLimiter.notifyCheckpointComplete(checkpointId);
+            }
+        }
+    }
+
     private static class FailingCheckpointMapper
             implements MapFunction<Integer, Integer>, CheckpointListener {
 
-        private final SharedReference<AtomicBoolean> failed;
+        private static final AtomicBoolean failed = new AtomicBoolean(false);
         private long lastCheckpointId = 0;
         private int emittedBetweenCheckpoint = 0;
 
-        FailingCheckpointMapper(SharedReference<AtomicBoolean> failed) {
-            this.failed = failed;
+        FailingCheckpointMapper(boolean failed) {
+            FailingCheckpointMapper.failed.set(failed);
         }
 
         @Override
         public Integer map(Integer value) {
-            if (lastCheckpointId >= 1 && emittedBetweenCheckpoint > 0 && !failed.get().get()) {
-                failed.get().set(true);
+            if (lastCheckpointId >= 1 && emittedBetweenCheckpoint > 0 && !failed.get()) {
+                failed.set(true);
                 throw new RuntimeException("Planned exception.");
             }
             emittedBetweenCheckpoint++;
