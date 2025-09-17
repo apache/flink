@@ -52,6 +52,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
 
     public HadoopS3AccessHelper(S3AFileSystem s3a, Configuration conf) {
         checkNotNull(s3a);
+        // Create WriteOperationHelper with minimal callbacks for Hadoop 3.4.2
         this.s3accessHelper =
                 new InternalWriteOperationHelper(
                         s3a,
@@ -59,20 +60,19 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
                         s3a.createStoreContext().getInstrumentation(),
                         s3a.getAuditSpanSource(),
                         s3a.getActiveAuditSpan(),
-                        createDefaultCallbacks());
+                        createCallbacks());
         this.s3a = s3a;
     }
 
-    /** Creates default WriteOperationHelperCallbacks for Hadoop 3.4.2. */
-    private static WriteOperationHelper.WriteOperationHelperCallbacks createDefaultCallbacks() {
-        // Create a default implementation that provides no-op behavior
+    /** Creates minimal callbacks for Hadoop 3.4.2 that delegate back to the helper. */
+    private WriteOperationHelper.WriteOperationHelperCallbacks createCallbacks() {
         return new WriteOperationHelper.WriteOperationHelperCallbacks() {
             @Override
             public void finishedWrite(
                     String key,
                     long len,
                     org.apache.hadoop.fs.s3a.impl.PutObjectOptions putObjectOptions) {
-                // No-op - the actual method signature for Hadoop 3.4.2
+                // No-op - this is called after successful writes
             }
 
             @Override
@@ -80,8 +80,9 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
                     software.amazon.awssdk.services.s3.model.UploadPartRequest uploadPartRequest,
                     software.amazon.awssdk.core.sync.RequestBody requestBody,
                     org.apache.hadoop.fs.statistics.DurationTrackerFactory durationTrackerFactory) {
+                // This callback shouldn't be called since we use the helper's direct methods
                 throw new UnsupportedOperationException(
-                        "Direct uploadPart callback is not supported in Flink's S3 access helper implementation");
+                        "Direct uploadPart callback should not be called - using WriteOperationHelper methods instead");
             }
 
             @Override
@@ -89,8 +90,9 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
                     completeMultipartUpload(
                             software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest
                                     completeMultipartUploadRequest) {
+                // This callback shouldn't be called since we use the helper's direct methods
                 throw new UnsupportedOperationException(
-                        "Direct completeMultipartUpload callback is not supported in Flink's S3 access helper implementation");
+                        "Direct completeMultipartUpload callback should not be called - using WriteOperationHelper methods instead");
             }
         };
     }
@@ -110,25 +112,25 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
     public UploadPartResult uploadPart(
             String key, String uploadId, int partNumber, File inputFile, long length)
             throws IOException {
-        // Hadoop 3.4.2 uses AWS SDK v2 with different upload part API
-        // Create AWS SDK v2 UploadPartRequest
+        // For Hadoop 3.4.2, use AWS SDK v2 types as required
         software.amazon.awssdk.services.s3.model.UploadPartRequest uploadRequest =
                 software.amazon.awssdk.services.s3.model.UploadPartRequest.builder()
-                        .bucket("") // Will be set by Hadoop
+                        .bucket(s3a.getBucket())
                         .key(key)
                         .uploadId(uploadId)
                         .partNumber(partNumber)
+                        .contentLength(length)
                         .build();
 
         // Create RequestBody from file
         software.amazon.awssdk.core.sync.RequestBody requestBody =
                 software.amazon.awssdk.core.sync.RequestBody.fromFile(inputFile.toPath());
 
-        // Use the new uploadPart API
+        // Use the WriteOperationHelper's uploadPart method with AWS SDK v2 types
         software.amazon.awssdk.services.s3.model.UploadPartResponse response =
                 s3accessHelper.uploadPart(uploadRequest, requestBody, null);
 
-        // Convert AWS SDK v2 response to AWS SDK v1 response
+        // Convert AWS SDK v2 response to AWS SDK v1 response for compatibility
         UploadPartResult result = new UploadPartResult();
         result.setETag(response.eTag());
         result.setPartNumber(partNumber);
@@ -302,6 +304,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
                 AuditSpanSource auditSpanSource,
                 AuditSpan auditSpan,
                 WriteOperationHelperCallbacks callbacks) {
+            // Hadoop 3.4.2 requires callbacks parameter
             super(owner, conf, statisticsContext, auditSpanSource, auditSpan, callbacks);
         }
     }
