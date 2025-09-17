@@ -194,6 +194,7 @@
   # Please keep the keyword in alphabetical order if new keyword is added.
   keywords: [
     "ANALYZE"
+    "BITMAP"
     "BUCKETS"
     "BYTES"
     "CATALOGS"
@@ -696,6 +697,7 @@
     "SqlRawTypeName()"
     "ExtendedSqlRowTypeName()"
     "SqlStructuredTypeName()"
+    "SqlBitmapTypeName()"
   ]
 
   # List of methods for parsing builtin function calls.
