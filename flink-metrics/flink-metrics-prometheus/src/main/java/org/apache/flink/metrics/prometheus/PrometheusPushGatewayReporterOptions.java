@@ -112,4 +112,11 @@ public class PrometheusPushGatewayReporterOptions {
                     .noDefaultValue()
                     .withDescription(
                             "(Optional) The password for HTTP Basic Authentication with the PushGateway.");
+
+    public static final ConfigOption<String> ALLOW_LIST =
+            ConfigOptions.key("allowList")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            "The allow-list of metric name. The default is to report all metrics");
 }
