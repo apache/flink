@@ -135,6 +135,12 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
         if (response.requestCharged() != null) {
             result.setRequesterCharged(response.requestCharged().toString().equals("requester"));
         }
+
+        // Copy server-side encryption algorithm if available
+        if (response.sseCustomerAlgorithm() != null) {
+            result.setSSECustomerAlgorithm(response.sseCustomerAlgorithm());
+        }
+
         return result;
     }
 
@@ -167,6 +173,12 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
         if (response.requestCharged() != null) {
             result.setRequesterCharged(response.requestCharged().toString().equals("requester"));
         }
+
+        // Copy server-side encryption algorithm if available
+        if (response.sseCustomerAlgorithm() != null) {
+            result.setSSECustomerAlgorithm(response.sseCustomerAlgorithm());
+        }
+
         return result;
     }
 
@@ -208,6 +220,10 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
         if (response.requestCharged() != null) {
             result.setRequesterCharged(response.requestCharged().toString().equals("requester"));
         }
+
+        // CompleteMultipartUploadResponse typically only has basic properties
+        // SSE properties are not commonly available on this response type
+
         return result;
     }
 

@@ -98,11 +98,12 @@ public class HadoopS3AccessHelperTest {
 
     @Test
     public void testUploadPartResponseConversion() {
-        // Create an UploadPartResponse with all properties
+        // Create an UploadPartResponse with available properties
         UploadPartResponse response =
                 UploadPartResponse.builder()
                         .eTag("test-etag-123")
                         .requestCharged(RequestCharged.REQUESTER)
+                        .sseCustomerAlgorithm("AES256")
                         .build();
 
         UploadPartResult result = convertUploadPartResponse(response, 5);
@@ -111,6 +112,9 @@ public class HadoopS3AccessHelperTest {
         assertEquals("test-etag-123", result.getETag());
         assertEquals(5, result.getPartNumber());
         assertTrue(result.isRequesterCharged());
+
+        // Verify SSE algorithm property
+        assertEquals("AES256", result.getSSECustomerAlgorithm());
     }
 
     @Test
@@ -221,6 +225,12 @@ public class HadoopS3AccessHelperTest {
         if (response.requestCharged() != null) {
             result.setRequesterCharged(response.requestCharged().toString().equals("requester"));
         }
+
+        // Copy server-side encryption algorithm if available
+        if (response.sseCustomerAlgorithm() != null) {
+            result.setSSECustomerAlgorithm(response.sseCustomerAlgorithm());
+        }
+
         return result;
     }
 
@@ -231,6 +241,12 @@ public class HadoopS3AccessHelperTest {
         if (response.requestCharged() != null) {
             result.setRequesterCharged(response.requestCharged().toString().equals("requester"));
         }
+
+        // Copy server-side encryption algorithm if available
+        if (response.sseCustomerAlgorithm() != null) {
+            result.setSSECustomerAlgorithm(response.sseCustomerAlgorithm());
+        }
+
         return result;
     }
 
@@ -244,6 +260,10 @@ public class HadoopS3AccessHelperTest {
         if (response.requestCharged() != null) {
             result.setRequesterCharged(response.requestCharged().toString().equals("requester"));
         }
+
+        // CompleteMultipartUploadResponse typically only has basic properties
+        // SSE properties are not commonly available on this response type
+
         return result;
     }
 
