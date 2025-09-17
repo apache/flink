@@ -288,6 +288,7 @@ try:
                 'pyflink.fn_execution.datastream',
                 'pyflink.fn_execution.datastream.embedded',
                 'pyflink.fn_execution.datastream.process',
+                'pyflink.fn_execution.datastream.process.async_function',
                 'pyflink.fn_execution.datastream.window',
                 'pyflink.fn_execution.embedded',
                 'pyflink.fn_execution.formats',

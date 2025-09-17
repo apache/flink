@@ -17,8 +17,10 @@
 ################################################################################
 
 from abc import ABC, abstractmethod
+from enum import Enum
+
 from py4j.java_gateway import JavaObject
-from typing import Union, Any, Generic, TypeVar, Iterable
+from typing import Union, Any, Generic, TypeVar, Iterable, List
 
 from pyflink.datastream.state import ValueState, ValueStateDescriptor, ListStateDescriptor, \
     ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState, \
@@ -53,6 +55,9 @@ __all__ = [
     'BaseBroadcastProcessFunction',
     'BroadcastProcessFunction',
     'KeyedBroadcastProcessFunction',
+    'AsyncFunction',
+    'AsyncFunctionDescriptor',
+    'ResultFuture'
 ]
 
 
@@ -895,6 +900,83 @@ register a timer that will trigger an action in the future.
                     invocation of this method, do not store it.
         """
         pass
+
+
+class ResultFuture(Generic[OUT]):
+    """
+    Collects data / error in user codes while processing async i/o.
+    """
+
+    @abstractmethod
+    def complete(self, result: List[OUT]):
+        """
+        Completes the result future with a collection of result objects.
+
+        Note that it should be called for exactly one time in the user code. Calling this function
+        for multiple times will cause data lose.
+
+        Put all results in a collection and then emit output.
+
+        :param result: A list of results.
+        """
+        pass
+
+    @abstractmethod
+    def complete_exceptionally(self, error: Exception):
+        """
+        Completes the result future exceptionally with an exception.
+
+        :param error: An Exception object.
+        """
+        pass
+
+
+class AsyncFunction(Function, Generic[IN, OUT]):
+    """
+    A function to trigger Async I/O operation.
+
+    For each #async_invoke, an async io operation can be triggered, and once it has been done, the
+    result can be collected by calling :func:`~ResultFuture.complete`. For each async operation, its
+    context is stored in the operator immediately after invoking #async_invoke, avoiding blocking
+    for each stream input as long as the internal buffer is not full.
+
+    :class:`~ResultFuture` can be passed into callbacks or futures to collect the result data. An
+    error can also be propagated to the async IO operator by
+    :func:`~ResultFuture.complete_exceptionally`.
+    """
+
+    @abstractmethod
+    async def async_invoke(self, value: IN, result_future: ResultFuture[OUT]):
+        """
+        Trigger async operation for each stream input.
+        In case of a user code error. You can raise an exception to make the task fail and
+        trigger fail-over process.
+
+        :param value: Input element coming from an upstream task.
+        :param result_future: A future to be completed with the result data.
+        """
+        pass
+
+    def timeout(self, value: IN, result_future: ResultFuture[OUT]):
+        """
+        In case :func:`~ResultFuture.async_invoke` timeout occurred. By default, the result future
+        is exceptionally completed with a timeout exception.
+        """
+        result_future.complete_exceptionally(
+            TimeoutError("Async function call has timed out for input: " + str(value)))
+
+
+class AsyncFunctionDescriptor(object):
+
+    class OutputMode(Enum):
+        ORDERED = 0
+        UNORDERED = 1
+
+    def __init__(self, async_function, timeout, capacity, output_mode):
+        self.async_function = async_function
+        self.timeout = timeout
+        self.capacity = capacity
+        self.output_mode = output_mode
 
 
 class WindowFunction(Function, Generic[IN, OUT, KEY, W]):

@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 import abc
+import pickle
 from abc import abstractmethod
 from typing import Iterable, Any, Dict, List
 
@@ -25,6 +26,8 @@ from apache_beam.utils import windowed_value
 from apache_beam.utils.windowed_value import WindowedValue
 
 from pyflink.common.constants import DEFAULT_OUTPUT_TAG
+from pyflink.datastream.functions import AsyncFunctionDescriptor
+from pyflink.fn_execution.datastream.process.async_function.operation import AsyncOperation
 from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
 from pyflink.fn_execution.table.operations import BundleOperation
 from pyflink.fn_execution.profiler import Profiler
@@ -81,11 +84,6 @@ class FunctionOperation(Operation):
         self.operator_state_backend = operator_state_backend
         self.operation = self.generate_operation()
         self.process_element = self.operation.process_element
-        self.operation.open()
-        if spec.serialized_fn.profile_enabled:
-            self._profiler = Profiler()
-        else:
-            self._profiler = None
 
         if isinstance(spec.serialized_fn, UserDefinedDataStreamFunction):
             self._has_side_output = spec.serialized_fn.has_side_output
@@ -94,6 +92,14 @@ class FunctionOperation(Operation):
             self._has_side_output = False
         if not self._has_side_output:
             self._main_output_processor = self._output_processors[DEFAULT_OUTPUT_TAG][0]
+            if isinstance(self.operation, AsyncOperation):
+                self.operation.set_output_processor(self._main_output_processor)
+
+        self.operation.open()
+        if spec.serialized_fn.profile_enabled:
+            self._profiler = Profiler()
+        else:
+            self._profiler = None
 
     def setup(self, data_sampler=None):
         super().setup(data_sampler)
@@ -146,6 +152,10 @@ class FunctionOperation(Operation):
                     for value in o.value:
                         self.process_element(value)
                     self._main_output_processor.process_outputs(o, self.operation.finish_bundle())
+                elif isinstance(self.operation, AsyncOperation):
+                    for value in o.value:
+                        # it processes the input asynchronously
+                        self.operation.process_element(o, value)
                 else:
                     for value in o.value:
                         self._main_output_processor.process_outputs(
@@ -185,6 +195,12 @@ class StatelessFunctionOperation(FunctionOperation):
         )
 
     def generate_operation(self):
+        func_type = self.spec.serialized_fn.function_type \
+            if hasattr(self.spec.serialized_fn, "function_type") else None
+        if (func_type == UserDefinedDataStreamFunction.PROCESS and
+                isinstance(pickle.loads(self.spec.serialized_fn.payload), AsyncFunctionDescriptor)):
+            return AsyncOperation(self.spec.serialized_fn, self.operator_state_backend)
+
         if self.operator_state_backend is not None:
             return self.operation_cls(self.spec.serialized_fn, self.operator_state_backend)
         else:

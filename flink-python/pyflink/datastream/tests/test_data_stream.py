@@ -38,7 +38,8 @@ from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.state import (ValueStateDescriptor, ListStateDescriptor, MapStateDescriptor,
                                       ReducingStateDescriptor, ReducingState, AggregatingState,
                                       AggregatingStateDescriptor, StateTtlConfig)
-from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
+from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction, \
+    SecondColumnTimestampAssigner
 from pyflink.java_gateway import get_gateway
 from pyflink.metrics import Counter, Meter, Distribution
 from pyflink.testing.test_case_utils import (PyFlinkBatchTestCase, PyFlinkStreamingTestCase,
@@ -1732,9 +1733,3 @@ class MyReduceFunction(ReduceFunction):
             assert state_value == 3
         self.state.update(state_value)
         return result_value
-
-
-class SecondColumnTimestampAssigner(TimestampAssigner):
-
-    def extract_timestamp(self, value, record_timestamp) -> int:
-        return int(value[1])

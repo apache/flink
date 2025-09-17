@@ -46,7 +46,8 @@ from pyflink.datastream.functions import (_get_python_env, FlatMapFunction, MapF
                                           KeyedBroadcastProcessFunction,
                                           InternalSingleValueAllWindowFunction,
                                           PassThroughAllWindowFunction,
-                                          InternalSingleValueProcessAllWindowFunction)
+                                          InternalSingleValueProcessAllWindowFunction,
+                                          AsyncFunctionDescriptor)
 from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup
 from pyflink.datastream.state import (ListStateDescriptor, StateDescriptor, ReducingStateDescriptor,
@@ -2757,7 +2758,8 @@ class BroadcastConnectedStream(object):
 def _get_one_input_stream_operator(data_stream: DataStream,
                                    func: Union[Function,
                                                FunctionWrapper,
-                                               WindowOperationDescriptor],
+                                               WindowOperationDescriptor,
+                                               AsyncFunctionDescriptor],
                                    func_type: int,
                                    output_type: Union[TypeInformation, List] = None):
     """
@@ -2891,7 +2893,8 @@ def _get_two_input_stream_operator(connected_streams: ConnectedStreams,
 
 
 def _create_j_data_stream_python_function_info(
-    func: Union[Function, FunctionWrapper, WindowOperationDescriptor], func_type: int
+    func: Union[Function, FunctionWrapper, WindowOperationDescriptor, AsyncFunctionDescriptor],
+    func_type: int
 ) -> bytes:
     gateway = get_gateway()
 
