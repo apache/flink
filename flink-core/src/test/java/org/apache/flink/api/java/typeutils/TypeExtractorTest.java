@@ -33,6 +33,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.serialization.SerializerConfig;
 import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.BitmapTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
@@ -54,6 +55,8 @@ import org.apache.flink.types.IntValue;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.types.Value;
+import org.apache.flink.types.bitmap.Bitmap;
+import org.apache.flink.types.bitmap.RoaringBitmapData;
 import org.apache.flink.types.variant.BinaryVariant;
 import org.apache.flink.types.variant.Variant;
 import org.apache.flink.util.Collector;
@@ -2113,6 +2116,13 @@ public class TypeExtractorTest {
         assertThat(TypeExtractor.createTypeInfo(Variant.class)).isEqualTo(VariantTypeInfo.INSTANCE);
         assertThat(TypeExtractor.createTypeInfo(BinaryVariant.class))
                 .isEqualTo(VariantTypeInfo.INSTANCE);
+    }
+
+    @Test
+    void testBitmapType() {
+        assertThat(TypeExtractor.createTypeInfo(Bitmap.class)).isEqualTo(BitmapTypeInfo.INSTANCE);
+        assertThat(TypeExtractor.createTypeInfo(RoaringBitmapData.class))
+                .isEqualTo(BitmapTypeInfo.INSTANCE);
     }
 
     public static class MapperWithMultiDimGenericArray<T>
