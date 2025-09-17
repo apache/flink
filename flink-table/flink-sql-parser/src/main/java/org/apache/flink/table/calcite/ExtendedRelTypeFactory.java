@@ -41,4 +41,9 @@ public interface ExtendedRelTypeFactory extends RelDataTypeFactory {
      */
     RelDataType createStructuredType(
             String className, List<RelDataType> typeList, List<String> fieldNameList);
+
+    /** Creates a BITMAP type. */
+    default RelDataType createBitmapType() {
+        throw new UnsupportedOperationException("BITMAP type is not supported yet.");
+    }
 }
