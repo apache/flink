@@ -25,28 +25,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.s3.S3Client;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-
 /**
- * Factory for creating AWS SDK v2 S3 clients with configuration management and metrics collection.
+ * Simple factory for creating AWS SDK v2 S3 clients with configuration management.
  *
  * <p>This factory provides:
  *
  * <ul>
  *   <li>Type-safe configuration through S3ConfigurationBuilder
  *   <li>Single cached S3 client for consistency
- *   <li>Comprehensive metrics collection
- *   <li>Intelligent error handling
  * </ul>
  */
 public class S3ClientConfigurationFactory {
 
     private static final Logger LOG = LoggerFactory.getLogger(S3ClientConfigurationFactory.class);
-
-    // Shared components
-    private static final S3MetricsManager metricsManager = S3MetricsManager.getInstance();
 
     // Simple client cache - we only need one client per configuration
     private static volatile S3Client cachedClient;
@@ -72,7 +63,6 @@ public class S3ClientConfigurationFactory {
 
         } catch (Exception e) {
             LOG.error("Failed to create S3 client for S3AFileSystem", e);
-            metricsManager.recordOperationError("getS3Client", e);
             throw new RuntimeException("Failed to create S3 client: " + e.getMessage(), e);
         }
     }
@@ -93,7 +83,6 @@ public class S3ClientConfigurationFactory {
 
         } catch (Exception e) {
             LOG.error("Failed to create S3 client from Hadoop configuration", e);
-            metricsManager.recordOperationError("getS3Client", e);
             throw new RuntimeException("Failed to create S3 client: " + e.getMessage(), e);
         }
     }
@@ -109,7 +98,6 @@ public class S3ClientConfigurationFactory {
 
         // Check if we already have a client for this configuration
         if (cachedClient != null && configHash.equals(cachedConfigHash)) {
-            metricsManager.recordCacheHit();
             LOG.debug("Using cached S3 client for config hash: {}", configHash);
             return cachedClient;
         }
@@ -118,12 +106,10 @@ public class S3ClientConfigurationFactory {
         synchronized (clientLock) {
             // Double-check pattern
             if (cachedClient != null && configHash.equals(cachedConfigHash)) {
-                metricsManager.recordCacheHit();
                 LOG.debug("Using cached S3 client (double-check) for config hash: {}", configHash);
                 return cachedClient;
             }
 
-            metricsManager.recordCacheMiss();
             LOG.debug("Creating new S3 client for config hash: {}", configHash);
 
             // Close existing client if any
@@ -143,7 +129,6 @@ public class S3ClientConfigurationFactory {
             cachedClient = newClient;
             cachedConfigHash = configHash;
 
-            metricsManager.recordClientCreated();
             LOG.debug(
                     "Successfully created and cached new S3 client for config hash: {}",
                     configHash);
@@ -218,24 +203,6 @@ public class S3ClientConfigurationFactory {
         clientBuilder.overrideConfiguration(overrideBuilder.build());
 
         return clientBuilder.build();
-    }
-
-    /**
-     * Returns comprehensive metrics for monitoring the S3 client factory.
-     *
-     * @return Current metrics snapshot
-     */
-    @VisibleForTesting
-    public static Map<String, Long> getMetrics() {
-        S3MetricsManager.S3Metrics metrics = metricsManager.getMetrics();
-        Map<String, Long> result = new HashMap<>();
-        result.put("total_operations", metrics.getTotalOperations());
-        result.put("total_errors", metrics.getTotalErrors());
-        result.put("cache_hits", metrics.getCacheHits());
-        result.put("cache_misses", metrics.getCacheMisses());
-        result.put("clients_created", metrics.getClientsCreated());
-        result.put("active_helpers", metrics.getActiveHelpers());
-        return Collections.unmodifiableMap(result);
     }
 
     /** Manually triggers cleanup of cached client (mainly for testing). */

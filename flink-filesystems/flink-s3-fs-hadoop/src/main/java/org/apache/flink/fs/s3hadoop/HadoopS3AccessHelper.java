@@ -56,30 +56,12 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
     /** Configuration object with validated settings. */
     private final S3Configuration s3Configuration;
 
-    /** Error handler for resilient S3 operations. */
-    private final S3ErrorHandler errorHandler;
-
-    /** Metrics manager for monitoring S3 operations. */
-    private final S3MetricsManager metricsManager;
-
     public HadoopS3AccessHelper(S3AFileSystem s3a, Configuration conf) {
-        this(s3a, conf, new S3ErrorHandler(), S3MetricsManager.getInstance());
-    }
-
-    public HadoopS3AccessHelper(
-            S3AFileSystem s3a,
-            Configuration conf,
-            S3ErrorHandler errorHandler,
-            S3MetricsManager metricsManager) {
         checkNotNull(s3a, "S3AFileSystem cannot be null");
         checkNotNull(conf, "Configuration cannot be null");
-        checkNotNull(errorHandler, "Error handler cannot be null");
-        checkNotNull(metricsManager, "Metrics manager cannot be null");
 
         // Build configuration with validation
         this.s3Configuration = S3ConfigurationBuilder.fromHadoopConfiguration(conf).build();
-        this.errorHandler = errorHandler;
-        this.metricsManager = metricsManager;
 
         // Create WriteOperationHelper with callbacks for Hadoop 3.4.2
         this.s3accessHelper =
@@ -94,7 +76,6 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
 
         // Track instance for resource leak detection
         instanceCount.incrementAndGet();
-        metricsManager.recordHelperCreated();
     }
 
     /**
@@ -122,31 +103,15 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                 }
 
                 try {
-                    return errorHandler.executeWithErrorHandling(
-                            "uploadPart",
-                            "key="
-                                    + uploadPartRequest.key()
-                                    + ",part="
-                                    + uploadPartRequest.partNumber(),
-                            () -> {
-                                // Access the S3 client from S3AFileSystem's internals
-                                software.amazon.awssdk.services.s3.S3Client s3Client =
-                                        getS3ClientFromFileSystem();
+                    // Access the S3 client from S3AFileSystem's internals
+                    software.amazon.awssdk.services.s3.S3Client s3Client =
+                            getS3ClientFromFileSystem();
 
-                                // Perform the actual S3 upload operation with timing
-                                long startTime = System.nanoTime();
-                                software.amazon.awssdk.services.s3.model.UploadPartResponse
-                                        response =
-                                                s3Client.uploadPart(uploadPartRequest, requestBody);
+                    // Perform the actual S3 upload operation
+                    software.amazon.awssdk.services.s3.model.UploadPartResponse response =
+                            s3Client.uploadPart(uploadPartRequest, requestBody);
 
-                                // Record success metrics with timing
-                                java.time.Duration duration =
-                                        java.time.Duration.ofNanos(System.nanoTime() - startTime);
-                                metricsManager.recordOperationSuccess(
-                                        "uploadPart", duration, uploadPartRequest.contentLength());
-
-                                return response;
-                            });
+                    return response;
                 } catch (Exception e) {
                     // Callback methods can't throw checked exceptions, so wrap IOException in
                     // RuntimeException
@@ -166,35 +131,17 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                 }
 
                 try {
-                    return errorHandler.executeWithErrorHandling(
-                            "completeMultipartUpload",
-                            "key="
-                                    + completeMultipartUploadRequest.key()
-                                    + ",uploadId="
-                                    + completeMultipartUploadRequest.uploadId(),
-                            () -> {
-                                // Access the S3 client from S3AFileSystem's internals
-                                software.amazon.awssdk.services.s3.S3Client s3Client =
-                                        getS3ClientFromFileSystem();
+                    // Access the S3 client from S3AFileSystem's internals
+                    software.amazon.awssdk.services.s3.S3Client s3Client =
+                            getS3ClientFromFileSystem();
 
-                                // Perform the actual S3 complete multipart upload operation with
-                                // timing
-                                long startTime = System.nanoTime();
-                                software.amazon.awssdk.services.s3.model
-                                                .CompleteMultipartUploadResponse
-                                        response =
-                                                s3Client.completeMultipartUpload(
-                                                        completeMultipartUploadRequest);
+                    // Perform the actual S3 complete multipart upload operation
+                    software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse
+                            response =
+                                    s3Client.completeMultipartUpload(
+                                            completeMultipartUploadRequest);
 
-                                // Record success metrics with timing (no bytes transferred directly
-                                // in completion)
-                                java.time.Duration duration =
-                                        java.time.Duration.ofNanos(System.nanoTime() - startTime);
-                                metricsManager.recordOperationSuccess(
-                                        "completeMultipartUpload", duration, 0);
-
-                                return response;
-                            });
+                    return response;
                 } catch (Exception e) {
                     // Callback methods can't throw checked exceptions, so wrap IOException in
                     // RuntimeException
@@ -344,32 +291,6 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         return S3ClientConfigurationFactory.getS3Client(s3a);
     }
 
-    /**
-     * Returns current comprehensive metrics for monitoring and debugging.
-     *
-     * @return Current metrics snapshot
-     */
-    public static S3MetricsManager.S3Metrics getMetrics() {
-        return S3MetricsManager.getInstance().getMetrics();
-    }
-
-    /**
-     * Returns instance-specific metrics for this helper.
-     *
-     * @return Map of metric names to values for this instance
-     */
-    public java.util.Map<String, Object> getInstanceMetrics() {
-        java.util.Map<String, Object> metrics = new java.util.HashMap<>();
-        metrics.put("instance_closed", closed);
-        metrics.put("buffer_size", s3Configuration.getBufferSize());
-        metrics.put("connection_timeout", s3Configuration.getConnectionTimeout().toMillis());
-        metrics.put("socket_timeout", s3Configuration.getSocketTimeout().toMillis());
-        metrics.put("max_retries", s3Configuration.getMaxRetries());
-        metrics.put("region", s3Configuration.getRegion());
-        metrics.put("path_style_access", s3Configuration.isPathStyleAccess());
-        return java.util.Collections.unmodifiableMap(metrics);
-    }
-
     /** Validates that a key parameter is not null or empty. */
     private static void validateKey(String key) {
         if (key == null || key.trim().isEmpty()) {
@@ -424,16 +345,10 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         validateKey(key);
         try {
             // Hadoop 3.4.2 uses AWS SDK v2 and requires PutObjectOptions
-            long startTime = System.nanoTime();
             String uploadId =
                     s3accessHelper.initiateMultiPartUpload(key, createDefaultPutObjectOptions());
-
-            // Record success metrics with timing
-            java.time.Duration duration = java.time.Duration.ofNanos(System.nanoTime() - startTime);
-            metricsManager.recordOperationSuccess("startMultiPartUpload", duration, 0);
             return uploadId;
         } catch (Exception e) {
-            metricsManager.recordOperationError("startMultiPartUpload", e);
             throw e;
         }
     }
@@ -633,7 +548,6 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         validateKey(key);
         validateOutputFile(targetLocation);
         long numBytes = 0L;
-        long startTime = System.nanoTime();
 
         try (final OutputStream outStream = new FileOutputStream(targetLocation);
                 final org.apache.hadoop.fs.FSDataInputStream inStream =
@@ -647,11 +561,9 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                 numBytes += numRead;
             }
         } catch (software.amazon.awssdk.core.exception.SdkException e) {
-            metricsManager.recordOperationError("getObject", e);
             // Use consistent S3AUtils exception translation
             throw S3AUtils.translateException("getObject", key, e);
         } catch (Exception e) {
-            metricsManager.recordOperationError("getObject", e);
             // Wrap other exceptions consistently
             throw new IOException(
                     "Failed to get object with key: " + key + ". Error: " + e.getMessage(), e);
@@ -667,9 +579,6 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                             targetLocation.length(), numBytes));
         }
 
-        // Record successful download with timing and bytes transferred
-        java.time.Duration duration = java.time.Duration.ofNanos(System.nanoTime() - startTime);
-        metricsManager.recordOperationSuccess("getObject", duration, numBytes);
         return numBytes;
     }
 
@@ -715,9 +624,6 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
 
         // Mark as closed - the shared factory manages S3 client lifecycle
         closed = true;
-
-        // Update metrics
-        metricsManager.recordHelperClosed();
         instanceCount.decrementAndGet();
     }
 
