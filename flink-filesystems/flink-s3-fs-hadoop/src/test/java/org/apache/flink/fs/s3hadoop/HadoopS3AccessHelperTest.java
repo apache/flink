@@ -608,12 +608,14 @@ public class HadoopS3AccessHelperTest {
             Class<?> factoryClass =
                     Class.forName("org.apache.flink.fs.s3hadoop.S3ClientConfigurationFactory");
 
-            // Verify the factory has caching capabilities
-            Method getMetricsMethod = factoryClass.getDeclaredMethod("getMetrics");
-            assertTrue("Factory should have metrics method", getMetricsMethod != null);
+            // Verify the factory has static client creation capabilities
+            Method getS3ClientMethod =
+                    factoryClass.getDeclaredMethod(
+                            "getS3Client", org.apache.hadoop.fs.s3a.S3AFileSystem.class);
+            assertTrue("Factory should have getS3Client method", getS3ClientMethod != null);
             assertTrue(
-                    "getMetrics should be static",
-                    java.lang.reflect.Modifier.isStatic(getMetricsMethod.getModifiers()));
+                    "getS3Client should be static",
+                    java.lang.reflect.Modifier.isStatic(getS3ClientMethod.getModifiers()));
 
             // Verify no global caching methods exist (they were removed to fix resource leaks)
             try {
@@ -626,7 +628,7 @@ public class HadoopS3AccessHelperTest {
 
         } catch (ClassNotFoundException | NoSuchMethodException e) {
             throw new AssertionError(
-                    "S3ClientConfigurationFactory should exist with metrics support", e);
+                    "S3ClientConfigurationFactory should exist with client creation support", e);
         }
 
         // Verify the reflection-based access method exists
