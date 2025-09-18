@@ -243,6 +243,11 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
      * @return true if the exception might be transient
      */
     private static boolean isTransientException(Exception exception) {
+        // NoSuchUploadException is never transient - upload ID is invalid/expired
+        if (exception instanceof software.amazon.awssdk.services.s3.model.NoSuchUploadException) {
+            return false;
+        }
+
         if (exception instanceof software.amazon.awssdk.core.exception.SdkException) {
             software.amazon.awssdk.core.exception.SdkException sdkException =
                     (software.amazon.awssdk.core.exception.SdkException) exception;
