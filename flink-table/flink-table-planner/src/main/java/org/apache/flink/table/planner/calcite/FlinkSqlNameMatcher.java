@@ -23,7 +23,6 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
-import org.apache.calcite.sql.validate.SqlValidatorImpl;
 
 import java.util.List;
 import java.util.Map;

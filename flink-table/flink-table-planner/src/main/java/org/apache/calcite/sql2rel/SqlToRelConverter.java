@@ -95,6 +95,7 @@ import org.apache.calcite.rex.RexDynamicParam;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexFieldCollation;
 import org.apache.calcite.rex.RexInputRef;
+import org.apache.calcite.rex.RexLambdaRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexOver;
@@ -131,6 +132,7 @@ import org.apache.calcite.sql.SqlInsert;
 import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlJoin;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLambda;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlMatchRecognize;
 import org.apache.calcite.sql.SqlMerge;
@@ -174,6 +176,7 @@ import org.apache.calcite.sql.validate.ListScope;
 import org.apache.calcite.sql.validate.MatchRecognizeScope;
 import org.apache.calcite.sql.validate.ParameterScope;
 import org.apache.calcite.sql.validate.SelectScope;
+import org.apache.calcite.sql.validate.SqlLambdaScope;
 import org.apache.calcite.sql.validate.SqlMonotonicity;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.calcite.sql.validate.SqlQualified;
@@ -245,18 +248,18 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 685 ~ 702
- *   <li>Added in Flink-24024: Lines 1452 ~ 1458
- *   <li>Added in Flink-24024: Lines 1472 ~ 1511
- *   <li>Added in Flink-37269: Lines 2249 ~ 2271
- *   <li>Added in FLINK-28682: Lines 2382 ~ 2399
- *   <li>Added in FLINK-28682: Lines 2436 ~ 2464
- *   <li>Added in FLINK-32474: Lines 2521 ~ 2523
- *   <li>Added in FLINK-32474: Lines 2527 ~ 2529
- *   <li>Added in FLINK-32474: Lines 2545 ~ 2547
- *   <li>Added in FLINK-32474: Lines 2960 ~ 2972
- *   <li>Added in FLINK-32474: Lines 3073 ~ 3107
- *   <li>Added in FLINK-34312: Lines 5937 ~ 5948
+ *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 688 ~ 705
+ *   <li>Added in Flink-24024: Lines 1455 ~ 1461
+ *   <li>Added in Flink-24024: Lines 1475 ~ 1514
+ *   <li>Added in Flink-37269: Lines 2252 ~ 2274
+ *   <li>Added in FLINK-28682: Lines 2416 ~ 2433
+ *   <li>Added in FLINK-28682: Lines 2470 ~ 2498
+ *   <li>Added in FLINK-32474: Lines 2555 ~ 2561
+ *   <li>Added in FLINK-32474: Lines 2561 ~ 2563
+ *   <li>Added in FLINK-32474: Lines 2579 ~ 2581
+ *   <li>Added in FLINK-32474: Lines 2994 ~ 3006
+ *   <li>Added in FLINK-32474: Lines 3107 ~ 3141
+ *   <li>Added in FLINK-34312: Lines 5994 ~ 6005
  * </ol>
  *
  * <p>In official extension point (i.e. {@link #convertExtendedExpression(SqlNode, Blackboard)}):
@@ -2270,6 +2273,37 @@ public class SqlToRelConverter {
         }
         // ----- FLINK MODIFICATION END -----
         return null;
+    }
+
+    /**
+     * Converts a lambda expression to a RexNode.
+     *
+     * @param bb Blackboard
+     * @param node Lambda expression
+     * @return Relational expression
+     */
+    private RexNode convertLambda(Blackboard bb, SqlNode node) {
+        final SqlLambda call = (SqlLambda) node;
+        final SqlLambdaScope scope = (SqlLambdaScope) validator().getLambdaScope(call);
+
+        final Map<String, RexNode> nameToNodeMap = new HashMap<>();
+        final List<RexLambdaRef> parameters = new ArrayList<>(scope.getParameterTypes().size());
+        final Map<String, RelDataType> parameterTypes = scope.getParameterTypes();
+
+        int i = 0;
+        for (SqlNode p : call.getParameters()) {
+            final String name = p.toString();
+            final RexLambdaRef parameter =
+                    new RexLambdaRef(i, name, requireNonNull(parameterTypes.get(name)));
+            parameters.add(parameter);
+            nameToNodeMap.put(name, parameter);
+            i++;
+        }
+
+        final Blackboard lambdaBb = createBlackboard(scope, nameToNodeMap, false);
+        lambdaBb.setRoot(castNonNull(bb.inputs));
+        final RexNode expr = lambdaBb.convertExpression(call.getExpression());
+        return rexBuilder.makeLambdaCall(expr, parameters);
     }
 
     private RexNode convertOver(Blackboard bb, SqlNode node) {
@@ -5584,23 +5618,28 @@ public class SqlToRelConverter {
                                 builder.add(convertExpression(node));
                             }
                             final ImmutableList<RexNode> list = builder.build();
+                            RelNode rel = root.rel;
+                            // Fix the correlation namespaces and de-duplicate the correlation
+                            // variables.
+                            CorrelationUse correlationUse = getCorrelationUse(this, root.rel);
+                            if (correlationUse != null) {
+                                rel = correlationUse.r;
+                            }
+
                             switch (kind) {
                                 case IN:
-                                    return RexSubQuery.in(root.rel, list);
+                                    return RexSubQuery.in(rel, list);
                                 case NOT_IN:
                                     return rexBuilder.makeCall(
-                                            SqlStdOperatorTable.NOT,
-                                            RexSubQuery.in(root.rel, list));
+                                            SqlStdOperatorTable.NOT, RexSubQuery.in(rel, list));
                                 case SOME:
                                     return RexSubQuery.some(
-                                            root.rel,
-                                            list,
-                                            (SqlQuantifyOperator) call.getOperator());
+                                            rel, list, (SqlQuantifyOperator) call.getOperator());
                                 case ALL:
                                     return rexBuilder.makeCall(
                                             SqlStdOperatorTable.NOT,
                                             RexSubQuery.some(
-                                                    root.rel,
+                                                    rel,
                                                     list,
                                                     negate(
                                                             (SqlQuantifyOperator)
@@ -5616,6 +5655,13 @@ public class SqlToRelConverter {
                         query = Iterables.getOnlyElement(call.getOperandList());
                         root = convertQueryRecursive(query, false, null);
                         RelNode rel = root.rel;
+                        // Fix the correlation namespaces and de-duplicate the correlation
+                        // variables.
+                        CorrelationUse correlationUse = getCorrelationUse(this, root.rel);
+                        if (correlationUse != null) {
+                            rel = correlationUse.r;
+                        }
+
                         while (rel instanceof Project
                                 || rel instanceof Sort
                                         && ((Sort) rel).fetch == null
@@ -5634,12 +5680,21 @@ public class SqlToRelConverter {
                         call = (SqlCall) expr;
                         query = Iterables.getOnlyElement(call.getOperandList());
                         root = convertQueryRecursive(query, false, null);
-                        return RexSubQuery.scalar(root.rel);
+                        rel = root.rel;
+                        // Fix the correlation namespaces and de-duplicate the correlation
+                        // variables.
+                        correlationUse = getCorrelationUse(this, root.rel);
+                        if (correlationUse != null) {
+                            rel = correlationUse.r;
+                        }
+                        return RexSubQuery.scalar(rel);
 
                     case ARRAY_QUERY_CONSTRUCTOR:
                         call = (SqlCall) expr;
                         query = Iterables.getOnlyElement(call.getOperandList());
-                        root = convertQueryRecursive(query, false, null);
+                        // let top=true to make the query be top-level query,
+                        // then ORDER BY will be reserved.
+                        root = convertQueryRecursive(query, true, null);
                         return RexSubQuery.array(root.rel);
 
                     case MAP_QUERY_CONSTRUCTOR:
@@ -5712,6 +5767,8 @@ public class SqlToRelConverter {
 
                 case OVER:
                     return convertOver(this, expr);
+                case LAMBDA:
+                    return convertLambda(this, expr);
 
                 default:
                     // fall through
