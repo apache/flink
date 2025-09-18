@@ -73,6 +73,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -248,7 +249,14 @@ public class SinkV2ITCase extends AbstractTestBase {
                 COMMIT_QUEUE.stream()
                         .map(Committer.CommitRequest::getCommittable)
                         .collect(Collectors.toList()),
-                containsInAnyOrder(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE.toArray()));
+                containsInAnyOrder(duplicate(EXPECTED_COMMITTED_DATA_IN_STREAMING_MODE).toArray()));
+    }
+
+    private static List<String> duplicate(List<String> values) {
+        return IntStream.range(0, 2)
+                .boxed()
+                .flatMap(i -> values.stream())
+                .collect(Collectors.toList());
     }
 
     private JobID runStreamingWithScalingTest(

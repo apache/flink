@@ -243,7 +243,7 @@ public class TestSinkV2<InputT> implements Sink<InputT> {
         @Override
         public void addPostCommitTopology(DataStream<CommittableMessage<String>> committables) {
             StandardSinkTopologies.addGlobalCommitter(
-                    committables, DefaultCommitter::new, this::getCommittableSerializer);
+                    committables, () -> createCommitter(null), this::getCommittableSerializer);
         }
     }
 
