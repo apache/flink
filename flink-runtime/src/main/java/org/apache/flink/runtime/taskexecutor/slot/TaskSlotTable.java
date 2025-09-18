@@ -83,6 +83,12 @@ public interface TaskSlotTable<T extends TaskSlotPayload>
      */
     Set<AllocationID> getActiveTaskSlotAllocationIdsPerJob(JobID jobId);
 
+    /**
+     * Create a slot report for the task slots in this task slot table.
+     * ANd it must be lowered number of slots.
+     * @param resourceId of the TaskExecutor
+     * @return The slot report for the task slots in this task slot table
+     */
     SlotReport createSlotReport(ResourceID resourceId);
 
     /**

@@ -233,7 +233,20 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
     public SlotReport createSlotReport(ResourceID resourceId) {
         List<SlotStatus> slotStatuses = new ArrayList<>();
 
-        for (int i = 0; i < numberSlots; i++) {
+        for (TaskSlot<T> taskSlot : allocatedSlots.values()) {
+            if (isDynamicIndex(taskSlot.getIndex())) {
+                SlotStatus slotStatus =
+                        new SlotStatus(
+                                new SlotID(resourceId, taskSlot.getIndex()),
+                                taskSlot.getResourceProfile(),
+                                taskSlot.getJobId(),
+                                taskSlot.getAllocationId());
+                slotStatuses.add(slotStatus);
+            }
+        }
+
+        // report numberSlots slots, number slot is must be lowed bound of slot index
+        for (int i = 0; i < numberSlots - slotStatuses.size(); i++) {
             SlotID slotId = new SlotID(resourceId, i);
             SlotStatus slotStatus;
             if (taskSlots.containsKey(i)) {
@@ -252,20 +265,8 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
             slotStatuses.add(slotStatus);
         }
 
-        for (TaskSlot<T> taskSlot : allocatedSlots.values()) {
-            if (isDynamicIndex(taskSlot.getIndex())) {
-                SlotStatus slotStatus =
-                        new SlotStatus(
-                                new SlotID(resourceId, taskSlot.getIndex()),
-                                taskSlot.getResourceProfile(),
-                                taskSlot.getJobId(),
-                                taskSlot.getAllocationId());
-                slotStatuses.add(slotStatus);
-            }
-        }
-
         final SlotReport slotReport = new SlotReport(slotStatuses);
-
+        LOG.debug("Created new slot report: {}.", slotReport);
         return slotReport;
     }
 

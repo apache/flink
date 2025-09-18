@@ -477,6 +477,25 @@ class TaskSlotTableImplTest {
     }
 
     @Test
+    void testCreateSlotReportSize1() throws Exception {
+        runInMainThread(1, taskSlotTable -> {
+            ResourceID resourceID = ResourceID.generate();
+            SlotReport slotReport = taskSlotTable.createSlotReport(resourceID);
+            assertThat(slotReport).hasSize(1);
+        });
+    }
+
+    @Test
+    void testCreateSlotReportSize2() throws Exception {
+        runInMainThread(2, taskSlotTable -> {
+            ResourceID resourceID = ResourceID.generate();
+            SlotReport slotReport = taskSlotTable.createSlotReport(resourceID);
+            assertThat(slotReport).hasSize(2);
+        });
+    }
+
+
+    @Test
     void testAllocateSlot() throws Exception {
         final JobID jobId = new JobID();
         final AllocationID allocationId = new AllocationID();
