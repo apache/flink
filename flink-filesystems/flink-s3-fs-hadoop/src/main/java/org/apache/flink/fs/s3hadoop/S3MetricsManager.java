@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -171,10 +173,11 @@ public class S3MetricsManager {
             this.cacheHits = cacheHits;
             this.cacheMisses = cacheMisses;
             this.activeHelpers = activeHelpers;
-            this.operationCounts = Map.copyOf(operationCounts);
-            this.operationErrors = Map.copyOf(operationErrors);
-            this.operationLatencies = Map.copyOf(operationLatencies);
-            this.errorTypes = Map.copyOf(errorTypes);
+            this.operationCounts = Collections.unmodifiableMap(new HashMap<>(operationCounts));
+            this.operationErrors = Collections.unmodifiableMap(new HashMap<>(operationErrors));
+            this.operationLatencies =
+                    Collections.unmodifiableMap(new HashMap<>(operationLatencies));
+            this.errorTypes = Collections.unmodifiableMap(new HashMap<>(errorTypes));
             this.timestamp = Instant.now();
         }
 

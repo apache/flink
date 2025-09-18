@@ -25,6 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.s3.S3Client;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -226,13 +228,14 @@ public class S3ClientConfigurationFactory {
     @VisibleForTesting
     public static Map<String, Long> getMetrics() {
         S3MetricsManager.S3Metrics metrics = metricsManager.getMetrics();
-        return Map.of(
-                "total_operations", metrics.getTotalOperations(),
-                "total_errors", metrics.getTotalErrors(),
-                "cache_hits", metrics.getCacheHits(),
-                "cache_misses", metrics.getCacheMisses(),
-                "clients_created", metrics.getClientsCreated(),
-                "active_helpers", metrics.getActiveHelpers());
+        Map<String, Long> result = new HashMap<>();
+        result.put("total_operations", metrics.getTotalOperations());
+        result.put("total_errors", metrics.getTotalErrors());
+        result.put("cache_hits", metrics.getCacheHits());
+        result.put("cache_misses", metrics.getCacheMisses());
+        result.put("clients_created", metrics.getClientsCreated());
+        result.put("active_helpers", metrics.getActiveHelpers());
+        return Collections.unmodifiableMap(result);
     }
 
     /** Manually triggers cleanup of cached client (mainly for testing). */
