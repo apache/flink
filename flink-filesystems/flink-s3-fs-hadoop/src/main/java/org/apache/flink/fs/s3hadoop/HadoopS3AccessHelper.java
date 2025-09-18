@@ -50,55 +50,38 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
 
     private final InternalWriteOperationHelper s3accessHelper;
 
-    /** Cached S3 client to ensure consistency across multipart upload operations. */
-    private volatile software.amazon.awssdk.services.s3.S3Client cachedS3Client;
-
     /** Flag to track if this helper has been closed to prevent resource leaks. */
     private volatile boolean closed = false;
 
-    /** Lock for coordinating close operations and client access. */
-    private final Object closeLock = new Object();
+    /** Configuration object with validated settings. */
+    private final S3Configuration s3Configuration;
 
-    /** Default buffer size for file operations - configurable via Hadoop settings. */
-    private static final int DEFAULT_BUFFER_SIZE = 32 * 1024; // 32KB
+    /** Error handler for resilient S3 operations. */
+    private final S3ErrorHandler errorHandler;
 
-    /** Maximum buffer size to prevent excessive memory usage. */
-    private static final int MAX_BUFFER_SIZE = 1024 * 1024; // 1MB
-
-    /** Cached buffer size for this instance to avoid repeated configuration lookups. */
-    private final int bufferSize;
-
-    /** Metrics for monitoring S3 operations performance and health. */
-    private static final java.util.concurrent.atomic.AtomicLong totalOperations =
-            new java.util.concurrent.atomic.AtomicLong(0);
-
-    private static final java.util.concurrent.atomic.AtomicLong totalErrors =
-            new java.util.concurrent.atomic.AtomicLong(0);
-    private static final java.util.concurrent.atomic.AtomicLong totalBytesTransferred =
-            new java.util.concurrent.atomic.AtomicLong(0);
-    private static final java.util.concurrent.atomic.AtomicLong totalUploadParts =
-            new java.util.concurrent.atomic.AtomicLong(0);
-    private static final java.util.concurrent.atomic.AtomicLong totalMultipartUploads =
-            new java.util.concurrent.atomic.AtomicLong(0);
-
-    /** Instance-specific metrics for this helper. */
-    private final java.util.concurrent.atomic.AtomicLong instanceOperations =
-            new java.util.concurrent.atomic.AtomicLong(0);
-
-    private final java.util.concurrent.atomic.AtomicLong instanceErrors =
-            new java.util.concurrent.atomic.AtomicLong(0);
+    /** Metrics manager for monitoring S3 operations. */
+    private final S3MetricsManager metricsManager;
 
     public HadoopS3AccessHelper(S3AFileSystem s3a, Configuration conf) {
-        checkNotNull(s3a);
-        checkNotNull(conf);
+        this(s3a, conf, new S3ErrorHandler(), S3MetricsManager.getInstance());
+    }
 
-        // Validate configuration before proceeding
-        validateConfiguration(conf);
+    public HadoopS3AccessHelper(
+            S3AFileSystem s3a,
+            Configuration conf,
+            S3ErrorHandler errorHandler,
+            S3MetricsManager metricsManager) {
+        checkNotNull(s3a, "S3AFileSystem cannot be null");
+        checkNotNull(conf, "Configuration cannot be null");
+        checkNotNull(errorHandler, "Error handler cannot be null");
+        checkNotNull(metricsManager, "Metrics manager cannot be null");
 
-        // Configure optimal buffer size for file operations
-        this.bufferSize = calculateOptimalBufferSize(conf);
+        // Build configuration with validation
+        this.s3Configuration = S3ConfigurationBuilder.fromHadoopConfiguration(conf).build();
+        this.errorHandler = errorHandler;
+        this.metricsManager = metricsManager;
 
-        // Create WriteOperationHelper with minimal callbacks for Hadoop 3.4.2
+        // Create WriteOperationHelper with callbacks for Hadoop 3.4.2
         this.s3accessHelper =
                 new InternalWriteOperationHelper(
                         s3a,
@@ -111,147 +94,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
 
         // Track instance for resource leak detection
         instanceCount.incrementAndGet();
-    }
-
-    /**
-     * Validates critical configuration parameters to catch issues early.
-     *
-     * @param conf Hadoop configuration to validate
-     * @throws IllegalArgumentException if configuration is invalid
-     */
-    private static void validateConfiguration(org.apache.hadoop.conf.Configuration conf) {
-        try {
-            // Validate timeout configurations
-            int connectionTimeout = conf.getInt("fs.s3a.connection.timeout", 200000);
-            if (connectionTimeout < 1000 || connectionTimeout > 600000) { // 1s to 10min
-                throw new IllegalArgumentException(
-                        "Invalid connection timeout: "
-                                + connectionTimeout
-                                + ". Must be between 1000ms and 600000ms");
-            }
-
-            int socketTimeout = conf.getInt("fs.s3a.socket.timeout", 200000);
-            if (socketTimeout < 1000 || socketTimeout > 600000) { // 1s to 10min
-                throw new IllegalArgumentException(
-                        "Invalid socket timeout: "
-                                + socketTimeout
-                                + ". Must be between 1000ms and 600000ms");
-            }
-
-            // Validate retry configuration
-            int maxRetries = conf.getInt("fs.s3a.retry.limit", 10);
-            if (maxRetries < 0 || maxRetries > 50) {
-                throw new IllegalArgumentException(
-                        "Invalid retry limit: " + maxRetries + ". Must be between 0 and 50");
-            }
-
-            int retryInterval = conf.getInt("fs.s3a.retry.interval", 500);
-            if (retryInterval < 100 || retryInterval > 60000) { // 100ms to 1min
-                throw new IllegalArgumentException(
-                        "Invalid retry interval: "
-                                + retryInterval
-                                + ". Must be between 100ms and 60000ms");
-            }
-
-            // Validate connection pool size
-            int maxConnections = conf.getInt("fs.s3a.connection.maximum", 96);
-            if (maxConnections < 1 || maxConnections > 1000) {
-                throw new IllegalArgumentException(
-                        "Invalid maximum connections: "
-                                + maxConnections
-                                + ". Must be between 1 and 1000");
-            }
-
-            // Validate region if specified
-            String region = conf.get("fs.s3a.endpoint.region");
-            if (region != null && !region.trim().isEmpty()) {
-                if (!isValidAwsRegion(region.trim())) {
-                    throw new IllegalArgumentException(
-                            "Invalid AWS region: "
-                                    + region
-                                    + ". Must be a valid AWS region identifier");
-                }
-            }
-
-            // Validate endpoint URL format if specified
-            String endpoint = conf.get("fs.s3a.endpoint");
-            if (endpoint != null && !endpoint.trim().isEmpty()) {
-                if (!isValidEndpointUrl(endpoint.trim())) {
-                    throw new IllegalArgumentException(
-                            "Invalid endpoint URL: "
-                                    + endpoint
-                                    + ". Must be a valid HTTP/HTTPS URL");
-                }
-            }
-        } catch (NumberFormatException e) {
-            // Gracefully handle test environments with string configurations
-            System.err.println(
-                    "Warning: Configuration validation skipped due to non-numeric values in test environment: "
-                            + e.getMessage());
-        }
-    }
-
-    /**
-     * Validates AWS region format.
-     *
-     * @param region Region string to validate
-     * @return true if valid AWS region format
-     */
-    private static boolean isValidAwsRegion(String region) {
-        // Basic AWS region format validation: region consists of lowercase letters, numbers, and
-        // hyphens
-        return region.matches("^[a-z0-9-]+$") && region.length() >= 3 && region.length() <= 20;
-    }
-
-    /**
-     * Validates endpoint URL format.
-     *
-     * @param endpoint Endpoint URL to validate
-     * @return true if valid URL format
-     */
-    private static boolean isValidEndpointUrl(String endpoint) {
-        try {
-            java.net.URI uri = java.net.URI.create(endpoint);
-            String scheme = uri.getScheme();
-            return (scheme != null && (scheme.equals("http") || scheme.equals("https")))
-                    && uri.getHost() != null
-                    && !uri.getHost().trim().isEmpty();
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
-     * Calculates optimal buffer size based on configuration and system constraints.
-     *
-     * @param conf Hadoop configuration
-     * @return Optimal buffer size in bytes
-     */
-    private static int calculateOptimalBufferSize(org.apache.hadoop.conf.Configuration conf) {
-        try {
-            // Try Hadoop S3A buffer size configuration
-            int configuredSize = conf.getInt("fs.s3a.block.size", DEFAULT_BUFFER_SIZE);
-
-            // Fallback to Flink-style configuration
-            if (configuredSize == DEFAULT_BUFFER_SIZE) {
-                configuredSize = conf.getInt("s3.buffer.size", DEFAULT_BUFFER_SIZE);
-            }
-
-            // Ensure buffer size is within reasonable bounds
-            if (configuredSize < 4096) { // Minimum 4KB
-                configuredSize = 4096;
-            } else if (configuredSize > MAX_BUFFER_SIZE) {
-                configuredSize = MAX_BUFFER_SIZE;
-            }
-
-            return configuredSize;
-        } catch (NumberFormatException e) {
-            // Use default buffer size for test environments
-            System.err.println(
-                    "Warning: Using default buffer size due to non-numeric configuration: "
-                            + e.getMessage());
-            return DEFAULT_BUFFER_SIZE;
-        }
+        metricsManager.recordHelperCreated();
     }
 
     /**
@@ -272,19 +115,41 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                     software.amazon.awssdk.services.s3.model.UploadPartRequest uploadPartRequest,
                     software.amazon.awssdk.core.sync.RequestBody requestBody,
                     org.apache.hadoop.fs.statistics.DurationTrackerFactory durationTrackerFactory) {
-                // Implementation: Use the S3AFileSystem's S3 client directly
-                // This ensures consistency with the S3 client that initiated the upload
-                try {
-                    // Access the S3 client from S3AFileSystem's internals
-                    // This avoids recursion while using the same S3 client configuration
-                    software.amazon.awssdk.services.s3.S3Client s3Client =
-                            getS3ClientFromFileSystem();
+                // Implementation: Use error handling and metrics for resilient uploads
+                if (closed) {
+                    throw new IllegalStateException(
+                            "HadoopS3AccessHelper has been closed and cannot be used");
+                }
 
-                    // Perform the actual S3 upload operation
-                    return s3Client.uploadPart(uploadPartRequest, requestBody);
-                } catch (software.amazon.awssdk.core.exception.SdkException e) {
-                    throw translateS3Exception("uploadPart", uploadPartRequest.key(), e);
+                try {
+                    return errorHandler.executeWithErrorHandling(
+                            "uploadPart",
+                            "key="
+                                    + uploadPartRequest.key()
+                                    + ",part="
+                                    + uploadPartRequest.partNumber(),
+                            () -> {
+                                // Access the S3 client from S3AFileSystem's internals
+                                software.amazon.awssdk.services.s3.S3Client s3Client =
+                                        getS3ClientFromFileSystem();
+
+                                // Perform the actual S3 upload operation with timing
+                                long startTime = System.nanoTime();
+                                software.amazon.awssdk.services.s3.model.UploadPartResponse
+                                        response =
+                                                s3Client.uploadPart(uploadPartRequest, requestBody);
+
+                                // Record success metrics with timing
+                                java.time.Duration duration =
+                                        java.time.Duration.ofNanos(System.nanoTime() - startTime);
+                                metricsManager.recordOperationSuccess(
+                                        "uploadPart", duration, uploadPartRequest.contentLength());
+
+                                return response;
+                            });
                 } catch (Exception e) {
+                    // Callback methods can't throw checked exceptions, so wrap IOException in
+                    // RuntimeException
                     throw new RuntimeException("Failed to upload S3 part: " + e.getMessage(), e);
                 }
             }
@@ -294,20 +159,45 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                     completeMultipartUpload(
                             software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest
                                     completeMultipartUploadRequest) {
-                // Implementation: Use the same S3 infrastructure as WriteOperationHelper
-                // This ensures consistency with the S3 client that initiated the upload
-                try {
-                    // Access the S3 client from S3AFileSystem's internals
-                    // This avoids recursion while using the same S3 client configuration
-                    software.amazon.awssdk.services.s3.S3Client s3Client =
-                            getS3ClientFromFileSystem();
+                // Implementation: Use error handling and metrics for resilient completion
+                if (closed) {
+                    throw new IllegalStateException(
+                            "HadoopS3AccessHelper has been closed and cannot be used");
+                }
 
-                    // Perform the actual S3 complete multipart upload operation
-                    return s3Client.completeMultipartUpload(completeMultipartUploadRequest);
-                } catch (software.amazon.awssdk.core.exception.SdkException e) {
-                    throw translateS3Exception(
-                            "completeMultipartUpload", completeMultipartUploadRequest.key(), e);
+                try {
+                    return errorHandler.executeWithErrorHandling(
+                            "completeMultipartUpload",
+                            "key="
+                                    + completeMultipartUploadRequest.key()
+                                    + ",uploadId="
+                                    + completeMultipartUploadRequest.uploadId(),
+                            () -> {
+                                // Access the S3 client from S3AFileSystem's internals
+                                software.amazon.awssdk.services.s3.S3Client s3Client =
+                                        getS3ClientFromFileSystem();
+
+                                // Perform the actual S3 complete multipart upload operation with
+                                // timing
+                                long startTime = System.nanoTime();
+                                software.amazon.awssdk.services.s3.model
+                                                .CompleteMultipartUploadResponse
+                                        response =
+                                                s3Client.completeMultipartUpload(
+                                                        completeMultipartUploadRequest);
+
+                                // Record success metrics with timing (no bytes transferred directly
+                                // in completion)
+                                java.time.Duration duration =
+                                        java.time.Duration.ofNanos(System.nanoTime() - startTime);
+                                metricsManager.recordOperationSuccess(
+                                        "completeMultipartUpload", duration, 0);
+
+                                return response;
+                            });
                 } catch (Exception e) {
+                    // Callback methods can't throw checked exceptions, so wrap IOException in
+                    // RuntimeException
                     throw new RuntimeException(
                             "Failed to complete S3 multipart upload: " + e.getMessage(), e);
                 }
@@ -435,8 +325,8 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
     }
 
     /**
-     * Gets a consistent S3 client for multipart upload operations. This uses a cached client with
-     * identical configuration to S3AFileSystem, ensuring consistency without reflection.
+     * Gets a consistent S3 client for multipart upload operations using the shared factory. This
+     * ensures perfect configuration consistency with S3AFileSystem.
      */
     private software.amazon.awssdk.services.s3.S3Client getS3ClientFromFileSystem() {
         if (closed) {
@@ -444,190 +334,18 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                     "HadoopS3AccessHelper has been closed and cannot be used");
         }
 
-        // Use double-checked locking for thread-safe lazy initialization
-        // This approach avoids reflection while ensuring client consistency
-        software.amazon.awssdk.services.s3.S3Client client = cachedS3Client;
-        if (client == null) {
-            synchronized (closeLock) {
-                if (closed) {
-                    throw new IllegalStateException(
-                            "HadoopS3AccessHelper has been closed and cannot be used");
-                }
-                client = cachedS3Client;
-                if (client == null) {
-                    // Create S3 client with identical configuration to S3AFileSystem
-                    // This ensures consistency without needing the exact same instance
-                    cachedS3Client = client = createS3Client();
-                }
-            }
-        }
-        return client;
+        // Use the shared factory to get an S3 client with configuration that exactly matches
+        // what S3AFileSystem would use. The factory handles caching and consistency.
+        return S3ClientConfigurationFactory.getS3Client(s3a);
     }
 
     /**
-     * Creates an S3 client with comprehensive configuration matching S3AFileSystem. This ensures
-     * client consistency without requiring reflection to access internal clients.
-     */
-    private software.amazon.awssdk.services.s3.S3Client createS3Client() {
-        try {
-            // Build S3 client configuration based on S3AFileSystem's configuration
-            software.amazon.awssdk.services.s3.S3ClientBuilder clientBuilder =
-                    software.amazon.awssdk.services.s3.S3Client.builder();
-
-            // Get configuration from the S3AFileSystem
-            org.apache.hadoop.conf.Configuration hadoopConf = s3a.getConf();
-
-            // ENHANCED: Comprehensive credential configuration
-            configureCredentials(clientBuilder, hadoopConf);
-
-            // ENHANCED: Comprehensive region configuration
-            configureRegion(clientBuilder, hadoopConf);
-
-            // ENHANCED: Comprehensive endpoint configuration
-            configureEndpoint(clientBuilder, hadoopConf);
-
-            // ENHANCED: Comprehensive service configuration
-            configureServiceSettings(clientBuilder, hadoopConf);
-
-            // ENHANCED: HTTP client configuration for consistency
-            configureHttpClient(clientBuilder, hadoopConf);
-
-            // ENHANCED: Consolidated client override configuration (retry policy, etc.)
-            configureClientOverrides(clientBuilder, hadoopConf);
-
-            // ENHANCED: SSL/TLS configuration for security
-            configureSslSettings(clientBuilder, hadoopConf);
-
-            // Build and return the client
-            return clientBuilder.build();
-
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to create S3 client: " + e.getMessage(), e);
-        }
-    }
-
-    /** Configure credentials to match S3AFileSystem's credential handling. */
-    private void configureCredentials(
-            software.amazon.awssdk.services.s3.S3ClientBuilder clientBuilder,
-            org.apache.hadoop.conf.Configuration hadoopConf) {
-
-        try {
-            // Try multiple credential configuration patterns used by S3AFileSystem
-            String accessKey = secureGetConfig(hadoopConf, "fs.s3a.access.key");
-            String secretKey = secureGetConfig(hadoopConf, "fs.s3a.secret.key");
-            String sessionToken = secureGetConfig(hadoopConf, "fs.s3a.session.token");
-
-            // Fallback to Flink-style configuration
-            if (accessKey == null) {
-                accessKey = secureGetConfig(hadoopConf, "s3.access-key");
-            }
-            if (secretKey == null) {
-                secretKey = secureGetConfig(hadoopConf, "s3.secret-key");
-            }
-
-            if (accessKey != null && secretKey != null) {
-                if (sessionToken != null) {
-                    // Use session credentials for temporary access (STS)
-                    clientBuilder.credentialsProvider(
-                            software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
-                                    .create(
-                                            software.amazon.awssdk.auth.credentials
-                                                    .AwsSessionCredentials.create(
-                                                    accessKey, secretKey, sessionToken)));
-                } else {
-                    // Use basic credentials for long-term access
-                    clientBuilder.credentialsProvider(
-                            software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
-                                    .create(
-                                            software.amazon.awssdk.auth.credentials
-                                                    .AwsBasicCredentials.create(
-                                                    accessKey, secretKey)));
-                }
-            }
-            // Note: If no explicit credentials, SDK will use default credential chain
-            // which matches S3AFileSystem behavior (IAM roles, environment variables, etc.)
-        } catch (Exception e) {
-            // Security: Never log the actual exception as it might contain credentials
-            throw new RuntimeException(
-                    "Failed to configure S3 credentials. Check configuration keys.", e);
-        }
-    }
-
-    /**
-     * Securely retrieves configuration values, ensuring credentials are never logged or exposed in
-     * stack traces.
+     * Returns current comprehensive metrics for monitoring and debugging.
      *
-     * @param conf Hadoop configuration
-     * @param key Configuration key
-     * @return Configuration value or null if not found
+     * @return Current metrics snapshot
      */
-    private static String secureGetConfig(org.apache.hadoop.conf.Configuration conf, String key) {
-        try {
-            return conf.get(key);
-        } catch (Exception e) {
-            // Security: Never log the key or value for credential-related configuration
-            throw new RuntimeException(
-                    "Failed to retrieve configuration for security-sensitive key", e);
-        }
-    }
-
-    /**
-     * Records metrics for a successful operation.
-     *
-     * @param operationType Type of operation performed
-     * @param bytesTransferred Number of bytes transferred (0 if not applicable)
-     */
-    private void recordSuccessMetrics(String operationType, long bytesTransferred) {
-        totalOperations.incrementAndGet();
-        instanceOperations.incrementAndGet();
-
-        if (bytesTransferred > 0) {
-            totalBytesTransferred.addAndGet(bytesTransferred);
-        }
-
-        // Track specific operation types
-        switch (operationType) {
-            case "uploadPart":
-                totalUploadParts.incrementAndGet();
-                break;
-            case "startMultiPartUpload":
-                totalMultipartUploads.incrementAndGet();
-                break;
-        }
-    }
-
-    /**
-     * Records metrics for a failed operation.
-     *
-     * @param operationType Type of operation that failed
-     * @param exception Exception that occurred
-     */
-    private void recordErrorMetrics(String operationType, Exception exception) {
-        totalErrors.incrementAndGet();
-        instanceErrors.incrementAndGet();
-
-        // Log error details for monitoring (without sensitive information)
-        System.err.println(
-                "S3 operation failed - Type: "
-                        + operationType
-                        + ", Error: "
-                        + exception.getClass().getSimpleName());
-    }
-
-    /**
-     * Returns current metrics for monitoring and debugging.
-     *
-     * @return Map of metric names to values
-     */
-    public static java.util.Map<String, Long> getMetrics() {
-        java.util.Map<String, Long> metrics = new java.util.HashMap<>();
-        metrics.put("total_operations", totalOperations.get());
-        metrics.put("total_errors", totalErrors.get());
-        metrics.put("total_bytes_transferred", totalBytesTransferred.get());
-        metrics.put("total_upload_parts", totalUploadParts.get());
-        metrics.put("total_multipart_uploads", totalMultipartUploads.get());
-        metrics.put("active_instances", (long) instanceCount.get());
-        return java.util.Collections.unmodifiableMap(metrics);
+    public static S3MetricsManager.S3Metrics getMetrics() {
+        return S3MetricsManager.getInstance().getMetrics();
     }
 
     /**
@@ -635,199 +353,17 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
      *
      * @return Map of metric names to values for this instance
      */
-    public java.util.Map<String, Long> getInstanceMetrics() {
-        java.util.Map<String, Long> metrics = new java.util.HashMap<>();
-        metrics.put("instance_operations", instanceOperations.get());
-        metrics.put("instance_errors", instanceErrors.get());
-        metrics.put("instance_closed", closed ? 1L : 0L);
-        metrics.put("buffer_size", (long) bufferSize);
+    public java.util.Map<String, Object> getInstanceMetrics() {
+        java.util.Map<String, Object> metrics = new java.util.HashMap<>();
+        metrics.put("instance_closed", closed);
+        metrics.put("buffer_size", s3Configuration.getBufferSize());
+        metrics.put("connection_timeout", s3Configuration.getConnectionTimeout().toMillis());
+        metrics.put("socket_timeout", s3Configuration.getSocketTimeout().toMillis());
+        metrics.put("max_retries", s3Configuration.getMaxRetries());
+        metrics.put("region", s3Configuration.getRegion());
+        metrics.put("path_style_access", s3Configuration.isPathStyleAccess());
         return java.util.Collections.unmodifiableMap(metrics);
     }
-
-    /** Configure region to match S3AFileSystem's region handling. */
-    private void configureRegion(
-            software.amazon.awssdk.services.s3.S3ClientBuilder clientBuilder,
-            org.apache.hadoop.conf.Configuration hadoopConf) {
-
-        // Try S3A region configuration first
-        String region = hadoopConf.get("fs.s3a.endpoint.region");
-        if (region == null || region.isEmpty()) {
-            region = hadoopConf.get("fs.s3a.region");
-        }
-        // Fallback to Flink-style configuration
-        if (region == null || region.isEmpty()) {
-            region = hadoopConf.get("s3.region");
-        }
-
-        // AWS SDK v2 requires a region, so provide a sensible default
-        if (region == null || region.isEmpty()) {
-            region = "us-east-1"; // Default region that works with most endpoints
-        }
-
-        clientBuilder.region(software.amazon.awssdk.regions.Region.of(region));
-    }
-
-    /** Configure endpoint to match S3AFileSystem's endpoint handling. */
-    private void configureEndpoint(
-            software.amazon.awssdk.services.s3.S3ClientBuilder clientBuilder,
-            org.apache.hadoop.conf.Configuration hadoopConf) {
-
-        // Try S3A endpoint configuration first
-        String endpoint = hadoopConf.get("fs.s3a.endpoint");
-        // Fallback to Flink-style configuration
-        if (endpoint == null || endpoint.isEmpty()) {
-            endpoint = hadoopConf.get("s3.endpoint");
-        }
-
-        if (endpoint != null && !endpoint.isEmpty()) {
-            clientBuilder.endpointOverride(java.net.URI.create(endpoint));
-        }
-    }
-
-    /** Configure service settings to match S3AFileSystem's service configuration. */
-    private void configureServiceSettings(
-            software.amazon.awssdk.services.s3.S3ClientBuilder clientBuilder,
-            org.apache.hadoop.conf.Configuration hadoopConf) {
-
-        software.amazon.awssdk.services.s3.S3Configuration.Builder serviceConfigBuilder =
-                software.amazon.awssdk.services.s3.S3Configuration.builder();
-
-        // Configure path style access - try multiple configuration keys
-        boolean pathStyleAccess = hadoopConf.getBoolean("fs.s3a.path.style.access", false);
-        if (!pathStyleAccess) {
-            pathStyleAccess = hadoopConf.getBoolean("s3.path.style.access", false);
-        }
-        if (!pathStyleAccess) {
-            pathStyleAccess = hadoopConf.getBoolean("s3.path-style-access", false);
-        }
-        serviceConfigBuilder.pathStyleAccessEnabled(pathStyleAccess);
-
-        // Configure additional service settings that S3AFileSystem uses
-        boolean checksumValidation = hadoopConf.getBoolean("fs.s3a.checksum.validation", true);
-        serviceConfigBuilder.checksumValidationEnabled(checksumValidation);
-
-        clientBuilder.serviceConfiguration(serviceConfigBuilder.build());
-    }
-
-    /** Configure HTTP client settings to match S3AFileSystem's HTTP configuration. */
-    private void configureHttpClient(
-            software.amazon.awssdk.services.s3.S3ClientBuilder clientBuilder,
-            org.apache.hadoop.conf.Configuration hadoopConf) {
-
-        software.amazon.awssdk.http.apache.ApacheHttpClient.Builder httpClientBuilder =
-                software.amazon.awssdk.http.apache.ApacheHttpClient.builder();
-
-        // Connection timeout
-        int connectionTimeout =
-                hadoopConf.getInt("fs.s3a.connection.timeout", 200000); // 200 seconds default
-        httpClientBuilder.connectionTimeout(java.time.Duration.ofMillis(connectionTimeout));
-
-        // Socket timeout
-        int socketTimeout =
-                hadoopConf.getInt("fs.s3a.socket.timeout", 200000); // 200 seconds default
-        httpClientBuilder.socketTimeout(java.time.Duration.ofMillis(socketTimeout));
-
-        // Maximum connections
-        int maxConnections = hadoopConf.getInt("fs.s3a.connection.maximum", 96); // S3A default
-        httpClientBuilder.maxConnections(maxConnections);
-
-        clientBuilder.httpClientBuilder(httpClientBuilder);
-    }
-
-    /** Configure client override settings including retry policy, metrics, etc. */
-    private void configureClientOverrides(
-            software.amazon.awssdk.services.s3.S3ClientBuilder clientBuilder,
-            org.apache.hadoop.conf.Configuration hadoopConf) {
-
-        software.amazon.awssdk.core.client.config.ClientOverrideConfiguration.Builder
-                overrideBuilder =
-                        software.amazon.awssdk.core.client.config.ClientOverrideConfiguration
-                                .builder();
-
-        // Configure retry policy with custom backoff based on retry interval
-        int maxRetries = hadoopConf.getInt("fs.s3a.retry.limit", 10); // S3A default
-        int retryIntervalMs = hadoopConf.getInt("fs.s3a.retry.interval", 500); // 500ms default
-
-        // Create custom backoff strategy using the retry interval
-        software.amazon.awssdk.core.retry.backoff.BackoffStrategy backoffStrategy =
-                software.amazon.awssdk.core.retry.backoff.FixedDelayBackoffStrategy.create(
-                        java.time.Duration.ofMillis(retryIntervalMs));
-
-        software.amazon.awssdk.core.retry.RetryPolicy retryPolicy =
-                software.amazon.awssdk.core.retry.RetryPolicy.builder()
-                        .numRetries(maxRetries)
-                        .backoffStrategy(backoffStrategy) // Use configurable backoff
-                        .throttlingBackoffStrategy(
-                                software.amazon.awssdk.core.retry.backoff.BackoffStrategy
-                                        .defaultThrottlingStrategy())
-                        .retryCondition(
-                                software.amazon.awssdk.core.retry.conditions.RetryCondition
-                                        .defaultRetryCondition())
-                        .build();
-
-        overrideBuilder.retryPolicy(retryPolicy);
-
-        // Configure API call timeout
-        int apiCallTimeout = hadoopConf.getInt("fs.s3a.api.timeout", 300000); // 5min default
-        if (apiCallTimeout > 0) {
-            overrideBuilder.apiCallTimeout(java.time.Duration.ofMillis(apiCallTimeout));
-        }
-
-        // Configure API call attempt timeout
-        int apiCallAttemptTimeout =
-                hadoopConf.getInt("fs.s3a.api.attempt.timeout", 60000); // 1min default
-        if (apiCallAttemptTimeout > 0) {
-            overrideBuilder.apiCallAttemptTimeout(
-                    java.time.Duration.ofMillis(apiCallAttemptTimeout));
-        }
-
-        clientBuilder.overrideConfiguration(overrideBuilder.build());
-    }
-
-    /** Configure SSL/TLS settings to match S3AFileSystem's SSL configuration. */
-    private void configureSslSettings(
-            software.amazon.awssdk.services.s3.S3ClientBuilder clientBuilder,
-            org.apache.hadoop.conf.Configuration hadoopConf) {
-
-        // SSL configuration - typically handled at HTTP client level in S3A
-        boolean sslEnabled = hadoopConf.getBoolean("fs.s3a.connection.ssl.enabled", true);
-
-        if (!sslEnabled) {
-            // For custom endpoints like MinIO that might not use SSL
-            // This is typically handled by the endpoint configuration
-            // AWS SDK will automatically use HTTP vs HTTPS based on endpoint
-        }
-
-        // Certificate validation
-        boolean verifySslCerts =
-                hadoopConf.getBoolean("fs.s3a.ssl.channel.mode", true); // Default to verify
-
-        if (!verifySslCerts) {
-            // This would require custom trust manager configuration
-            // For production use, SSL verification should always be enabled
-            System.err.println(
-                    "Warning: SSL certificate verification is disabled. "
-                            + "This should only be used for testing with self-signed certificates.");
-        }
-
-        // Custom SSL trust store
-        String trustStore = hadoopConf.get("fs.s3a.ssl.truststore.path");
-        String trustStorePassword = hadoopConf.get("fs.s3a.ssl.truststore.password");
-
-        if (trustStore != null && !trustStore.isEmpty()) {
-            // Custom trust store configuration would go here
-            // This requires advanced SSL context configuration
-            System.err.println(
-                    "Info: Custom SSL trust store specified: "
-                            + trustStore
-                            + ". Advanced SSL configuration may be required.");
-        }
-    }
-
-    // Note: S3 encryption configuration is typically handled per-request, not per-client.
-    // Server-side encryption (SSE) and client-side encryption (CSE) settings from Hadoop
-    // configuration (fs.s3a.server-side-encryption-algorithm, fs.s3a.encryption.key, etc.)
-    // should be applied in individual putObject/uploadPart operations, not at the client level.
 
     /** Validates that a key parameter is not null or empty. */
     private static void validateKey(String key) {
@@ -883,12 +419,16 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         validateKey(key);
         try {
             // Hadoop 3.4.2 uses AWS SDK v2 and requires PutObjectOptions
+            long startTime = System.nanoTime();
             String uploadId =
                     s3accessHelper.initiateMultiPartUpload(key, createDefaultPutObjectOptions());
-            recordSuccessMetrics("startMultiPartUpload", 0);
+
+            // Record success metrics with timing
+            java.time.Duration duration = java.time.Duration.ofNanos(System.nanoTime() - startTime);
+            metricsManager.recordOperationSuccess("startMultiPartUpload", duration, 0);
             return uploadId;
         } catch (Exception e) {
-            recordErrorMetrics("startMultiPartUpload", e);
+            metricsManager.recordOperationError("startMultiPartUpload", e);
             throw e;
         }
     }
@@ -940,11 +480,10 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                 result.setSSECustomerAlgorithm(response.sseCustomerAlgorithm());
             }
 
-            // Record successful upload with bytes transferred
-            recordSuccessMetrics("uploadPart", length);
+            // Note: Metrics are already recorded in the callback error handler
             return result;
         } catch (Exception e) {
-            recordErrorMetrics("uploadPart", e);
+            // Note: Metrics are already recorded in the callback error handler
             throw e;
         }
     }
@@ -1089,11 +628,13 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         validateKey(key);
         validateOutputFile(targetLocation);
         long numBytes = 0L;
+        long startTime = System.nanoTime();
+
         try (final OutputStream outStream = new FileOutputStream(targetLocation);
                 final org.apache.hadoop.fs.FSDataInputStream inStream =
                         s3a.open(new org.apache.hadoop.fs.Path("/" + key))) {
             // Use optimized buffer size for better performance
-            final byte[] buffer = new byte[bufferSize];
+            final byte[] buffer = new byte[s3Configuration.getBufferSize()];
 
             int numRead;
             while ((numRead = inStream.read(buffer)) != -1) {
@@ -1101,9 +642,11 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                 numBytes += numRead;
             }
         } catch (software.amazon.awssdk.core.exception.SdkException e) {
+            metricsManager.recordOperationError("getObject", e);
             // Use consistent S3AUtils exception translation
             throw S3AUtils.translateException("getObject", key, e);
         } catch (Exception e) {
+            metricsManager.recordOperationError("getObject", e);
             // Wrap other exceptions consistently
             throw new IOException(
                     "Failed to get object with key: " + key + ". Error: " + e.getMessage(), e);
@@ -1119,8 +662,9 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                             targetLocation.length(), numBytes));
         }
 
-        // Record successful download with bytes transferred
-        recordSuccessMetrics("getObject", numBytes);
+        // Record successful download with timing and bytes transferred
+        java.time.Duration duration = java.time.Duration.ofNanos(System.nanoTime() - startTime);
+        metricsManager.recordOperationSuccess("getObject", duration, numBytes);
         return numBytes;
     }
 
@@ -1157,40 +701,19 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         }
     }
 
-    /**
-     * Closes the cached S3 client to free up resources. Should be called when this helper is no
-     * longer needed.
-     */
+    /** Marks this helper as closed. S3 client lifecycle is now managed by the shared factory. */
     @Override
     public void close() {
         if (closed) {
             return; // Already closed
         }
 
-        synchronized (closeLock) {
-            if (closed) {
-                return; // Double-check after acquiring lock
-            }
+        // Mark as closed - the shared factory manages S3 client lifecycle
+        closed = true;
 
-            software.amazon.awssdk.services.s3.S3Client client = cachedS3Client;
-            if (client != null) {
-                try {
-                    client.close();
-                } catch (Exception e) {
-                    // Log the error but don't throw - cleanup should be best effort
-                    System.err.println(
-                            "Warning: Failed to close cached S3 client: " + e.getMessage());
-                } finally {
-                    cachedS3Client = null;
-                }
-            }
-
-            // Mark as closed last to ensure proper synchronization
-            closed = true;
-
-            // Decrement instance counter for leak detection
-            instanceCount.decrementAndGet();
-        }
+        // Update metrics
+        metricsManager.recordHelperClosed();
+        instanceCount.decrementAndGet();
     }
 
     /**

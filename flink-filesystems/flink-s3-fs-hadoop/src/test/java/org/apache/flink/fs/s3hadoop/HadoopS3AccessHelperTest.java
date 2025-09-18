@@ -534,25 +534,33 @@ public class HadoopS3AccessHelperTest {
         // Since HadoopS3AccessHelper requires S3AFileSystem, and mocking is complex,
         // we test that the fix exists by verifying the cached S3 client field is present
 
+        // Verify that the factory-based approach is used instead of instance caching
         try {
-            java.lang.reflect.Field cachedClientField =
-                    HadoopS3AccessHelper.class.getDeclaredField("cachedS3Client");
+            HadoopS3AccessHelper.class.getDeclaredField("cachedS3Client");
+            fail("HadoopS3AccessHelper should NOT have cachedS3Client field with factory approach");
+        } catch (NoSuchFieldException expected) {
+            // This is expected - the factory approach doesn't use instance caching
+        }
 
-            // Verify the field exists and is volatile (thread-safe)
-            assertTrue("Cached S3 client field should exist", cachedClientField != null);
+        // Verify the S3ClientConfigurationFactory class exists for the shared approach
+        try {
+            Class<?> factoryClass =
+                    Class.forName("org.apache.flink.fs.s3hadoop.S3ClientConfigurationFactory");
+            assertTrue("S3ClientConfigurationFactory should exist", factoryClass != null);
+
+            // Verify the factory has the getS3Client method
+            Method getS3ClientMethod =
+                    factoryClass.getDeclaredMethod(
+                            "getS3Client", org.apache.hadoop.fs.s3a.S3AFileSystem.class);
+            assertTrue("Factory should have getS3Client method", getS3ClientMethod != null);
             assertTrue(
-                    "Cached S3 client should be volatile for thread safety",
-                    java.lang.reflect.Modifier.isVolatile(cachedClientField.getModifiers()));
+                    "getS3Client should be static",
+                    java.lang.reflect.Modifier.isStatic(getS3ClientMethod.getModifiers()));
 
-            // Verify the type is correct
-            assertEquals(
-                    "Cached client should be AWS SDK v2 S3Client",
-                    software.amazon.awssdk.services.s3.S3Client.class,
-                    cachedClientField.getType());
-
-        } catch (NoSuchFieldException e) {
+        } catch (ClassNotFoundException | NoSuchMethodException e) {
             throw new AssertionError(
-                    "HadoopS3AccessHelper should have cachedS3Client field for consistency fix", e);
+                    "S3ClientConfigurationFactory should exist with getS3Client method for shared approach",
+                    e);
         }
 
         // Verify the getS3ClientFromFileSystem method exists
@@ -584,16 +592,32 @@ public class HadoopS3AccessHelperTest {
      */
     @Test
     public void testNoSuchUploadExceptionPrevention() throws Exception {
-        // Verify that the createS3Client method exists and is properly configured
-        // This method creates S3 clients with consistent configuration
+        // Verify that the factory-based approach replaces the old createS3Client method
+        // The shared factory ensures S3 clients have consistent configuration
 
         try {
-            Method createS3ClientMethod =
-                    HadoopS3AccessHelper.class.getDeclaredMethod("createS3Client");
-            assertTrue("createS3Client method should exist", createS3ClientMethod != null);
+            HadoopS3AccessHelper.class.getDeclaredMethod("createS3Client");
+            fail(
+                    "HadoopS3AccessHelper should NOT have createS3Client method with factory approach");
+        } catch (NoSuchMethodException expected) {
+            // This is expected - the factory approach centralizes client creation
+        }
 
-        } catch (NoSuchMethodException e) {
-            throw new AssertionError("HadoopS3AccessHelper should have createS3Client method", e);
+        // Verify the factory approach is used instead
+        try {
+            Class<?> factoryClass =
+                    Class.forName("org.apache.flink.fs.s3hadoop.S3ClientConfigurationFactory");
+
+            // Verify the factory has caching capabilities
+            Method getMetricsMethod = factoryClass.getDeclaredMethod("getMetrics");
+            assertTrue("Factory should have metrics method", getMetricsMethod != null);
+            assertTrue(
+                    "getMetrics should be static",
+                    java.lang.reflect.Modifier.isStatic(getMetricsMethod.getModifiers()));
+
+        } catch (ClassNotFoundException | NoSuchMethodException e) {
+            throw new AssertionError(
+                    "S3ClientConfigurationFactory should exist with metrics support", e);
         }
 
         // Verify the reflection-based access method exists
