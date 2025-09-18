@@ -34,6 +34,7 @@ import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.apache.flink.table.watermark.WatermarkParams;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -53,6 +54,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A sub-class of {@link SourceAbilitySpec} that can not only serialize/deserialize the watermark
  * to/from JSON, but also can push the watermark into a {@link SupportsWatermarkPushDown}.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("WatermarkPushDown")
 public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
     public static final String FIELD_NAME_WATERMARK_EXPR = "watermarkExpr";
