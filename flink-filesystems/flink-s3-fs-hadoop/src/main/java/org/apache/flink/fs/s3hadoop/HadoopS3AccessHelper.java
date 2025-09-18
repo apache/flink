@@ -87,6 +87,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
 
     private final java.util.concurrent.atomic.AtomicLong instanceErrors =
             new java.util.concurrent.atomic.AtomicLong(0);
+
     public HadoopS3AccessHelper(S3AFileSystem s3a, Configuration conf) {
         checkNotNull(s3a);
         checkNotNull(conf);
