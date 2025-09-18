@@ -266,7 +266,7 @@ public class SinkV2ITCase extends AbstractTestBase {
             ClusterClient<?> clusterClient)
             throws Exception {
         final StreamExecutionEnvironment env = buildStreamEnvWithCheckpointDir(config);
-        final Source<Integer, ?, ?> source = createStreamingSource();
+        final Source<Integer, ?, ?> source = createStreamingSourceForScalingTest();
 
         env.fromSource(source, WatermarkStrategy.noWatermarks(), "source")
                 .rebalance()
@@ -359,7 +359,7 @@ public class SinkV2ITCase extends AbstractTestBase {
      * for two more checkpoints to complete, 3) then re-emits the same elements before 4) waiting
      * for another two checkpoints and 5) exiting.
      */
-    private Source<Integer, ?, ?> createStreamingSource() {
+    private Source<Integer, ?, ?> createStreamingSourceForScalingTest() {
         RateLimiterStrategy rateLimiterStrategy =
                 parallelism -> new BurstingRateLimiter(SOURCE_DATA.size() / 4, 2);
         return new DataGeneratorSource<>(
