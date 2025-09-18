@@ -56,12 +56,18 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
     /** Configuration object with validated settings. */
     private final S3Configuration s3Configuration;
 
+    /** S3 client for this helper instance - managed locally to avoid resource leaks. */
+    private final software.amazon.awssdk.services.s3.S3Client s3Client;
+
     public HadoopS3AccessHelper(S3AFileSystem s3a, Configuration conf) {
         checkNotNull(s3a, "S3AFileSystem cannot be null");
         checkNotNull(conf, "Configuration cannot be null");
 
         // Build configuration with validation
         this.s3Configuration = S3ConfigurationBuilder.fromHadoopConfiguration(conf).build();
+
+        // Create S3 client for this helper instance - no global caching to avoid resource leaks
+        this.s3Client = S3ClientConfigurationFactory.getS3Client(s3a);
 
         // Create WriteOperationHelper with callbacks for Hadoop 3.4.2
         this.s3accessHelper =
@@ -277,8 +283,8 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
     }
 
     /**
-     * Gets a consistent S3 client for multipart upload operations using the shared factory. This
-     * ensures perfect configuration consistency with S3AFileSystem.
+     * Gets the S3 client for this helper instance. Each helper manages its own client to avoid
+     * resource leaks and ensure proper lifecycle management.
      */
     private software.amazon.awssdk.services.s3.S3Client getS3ClientFromFileSystem() {
         if (closed) {
@@ -286,9 +292,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                     "HadoopS3AccessHelper has been closed and cannot be used");
         }
 
-        // Use the shared factory to get an S3 client with configuration that exactly matches
-        // what S3AFileSystem would use. The factory handles caching and consistency.
-        return S3ClientConfigurationFactory.getS3Client(s3a);
+        return s3Client;
     }
 
     /** Validates that a key parameter is not null or empty. */
@@ -615,15 +619,28 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         }
     }
 
-    /** Marks this helper as closed. S3 client lifecycle is now managed by the shared factory. */
+    /** Marks this helper as closed and properly cleans up the S3 client. */
     @Override
     public void close() {
         if (closed) {
             return; // Already closed
         }
 
-        // Mark as closed - the shared factory manages S3 client lifecycle
+        // Mark as closed first to prevent concurrent operations
         closed = true;
+
+        // Close the S3 client to free up HTTP connections and resources
+        try {
+            if (s3Client != null) {
+                s3Client.close();
+            }
+        } catch (Exception e) {
+            // Log warning but don't throw - close() should be best-effort
+            System.err.println(
+                    "Warning: Failed to close S3 client in HadoopS3AccessHelper: "
+                            + e.getMessage());
+        }
+
         instanceCount.decrementAndGet();
     }
 

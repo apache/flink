@@ -615,6 +615,15 @@ public class HadoopS3AccessHelperTest {
                     "getMetrics should be static",
                     java.lang.reflect.Modifier.isStatic(getMetricsMethod.getModifiers()));
 
+            // Verify no global caching methods exist (they were removed to fix resource leaks)
+            try {
+                factoryClass.getDeclaredMethod("cleanup");
+                fail(
+                        "Factory should not have cleanup method - no global caching to avoid resource leaks");
+            } catch (NoSuchMethodException expected) {
+                // This is expected - global caching was removed
+            }
+
         } catch (ClassNotFoundException | NoSuchMethodException e) {
             throw new AssertionError(
                     "S3ClientConfigurationFactory should exist with metrics support", e);
