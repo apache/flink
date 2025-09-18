@@ -169,7 +169,7 @@ under the License.
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
-			<version>1.18.30</version>
+			<version>1.18.42</version>
 			<scope>test</scope>
 		</dependency>
 
