@@ -1144,4 +1144,101 @@ public class MultiJoinTestPrograms {
                                     + "FROM UsersNullSafe u "
                                     + "INNER JOIN OrdersNullSafe o ON u.user_id IS NOT DISTINCT FROM o.user_id")
                     .build();
+
+    public static final TableTestProgram
+            MULTI_JOIN_WITH_TIME_ATTRIBUTES_IN_CONDITIONS_MATERIALIZATION =
+                    TableTestProgram.of(
+                                    "three-way-join-with-time-attributes-in-join-conditions",
+                                    "A query from the nexmark benchmark: "
+                                            + "auction and bid aggregation with time-based filtering")
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("auctions")
+                                            .addSchema(
+                                                    "id BIGINT PRIMARY KEY NOT ENFORCED",
+                                                    "category STRING",
+                                                    "auctionTimestamp STRING",
+                                                    "expiresTimestamp STRING",
+                                                    "auctionDateTime AS TO_TIMESTAMP(auctionTimestamp)",
+                                                    "expires AS TO_TIMESTAMP(expiresTimestamp)",
+                                                    "WATERMARK FOR auctionDateTime AS auctionDateTime - INTERVAL '1' SECOND")
+                                            .addOption("changelog-mode", "I")
+                                            .producedValues(
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            1L,
+                                                            "Electronics",
+                                                            "2024-01-01 12:00:00",
+                                                            "2024-01-01 12:30:00"),
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            3L,
+                                                            "Electronics",
+                                                            "2024-01-01 12:10:00",
+                                                            "2024-01-01 12:40:00"),
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            2L,
+                                                            "Books",
+                                                            "2024-01-01 12:05:00",
+                                                            "2024-01-01 12:35:00"))
+                                            .build())
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("bids")
+                                            .addSchema(
+                                                    "auction BIGINT",
+                                                    "price DOUBLE",
+                                                    "bidTimestamp STRING",
+                                                    "bidDateTime AS TO_TIMESTAMP(bidTimestamp)",
+                                                    "WATERMARK FOR bidDateTime AS bidDateTime - INTERVAL '1' SECOND")
+                                            .addOption("changelog-mode", "I")
+                                            .producedValues(
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            1L,
+                                                            12.0,
+                                                            "2024-01-01 12:15:00"),
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            1L,
+                                                            15.0,
+                                                            "2024-01-01 12:20:00"),
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            2L,
+                                                            25.0,
+                                                            "2024-01-01 12:25:00"),
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            3L,
+                                                            18.0,
+                                                            "2024-01-01 12:30:00"),
+                                                    Row.ofKind(
+                                                            RowKind.INSERT,
+                                                            1L,
+                                                            20.0,
+                                                            "2024-01-01 12:45:00"))
+                                            .build())
+                            .setupTableSink(
+                                    SinkTestStep.newBuilder("sink")
+                                            .addSchema("category STRING", "avg_final DOUBLE")
+                                            .consumedValues(
+                                                    // Electronics: AVG(MAX(12.0, 15.0), MAX(18.0))
+                                                    // =
+                                                    // AVG(15.0, 18.0) = 16.5
+                                                    "+I[Electronics, 16.5]",
+                                                    // Books: MAX(25.0) = 25.0, AVG(25.0) = 25.0
+                                                    "+I[Books, 25.0]")
+                                            .testMaterializedData()
+                                            .build())
+                            .runSql(
+                                    "INSERT INTO sink "
+                                            + "SELECT Q.category, AVG(Q.final) "
+                                            + "FROM ( "
+                                            + "    SELECT MAX(B.price) AS final, A.category "
+                                            + "    FROM auctions A, bids B "
+                                            + "    WHERE A.id = B.auction AND B.bidDateTime BETWEEN A.auctionDateTime AND A.expires "
+                                            + "    GROUP BY A.id, A.category "
+                                            + ") Q "
+                                            + "GROUP BY Q.category")
+                            .build();
 }
