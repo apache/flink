@@ -708,7 +708,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         return getTable(objectIdentifier)
                 .orElseThrow(
                         () ->
-                                new TableException(
+                                new ValidationException(
                                         String.format(
                                                 "Cannot find table '%s' in any of the catalogs %s, nor as a temporary table.",
                                                 objectIdentifier, listCatalogs())));
@@ -748,7 +748,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 if (timestamp != null) {
                     table = currentCatalog.getTable(objectPath, timestamp);
                     if (table.getTableKind() == TableKind.VIEW) {
-                        throw new TableException(
+                        throw new ValidationException(
                                 String.format(
                                         "%s is a view, but time travel is not supported for view.",
                                         objectIdentifier.asSummaryString()));
@@ -1448,7 +1448,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         return getModel(objectIdentifier)
                 .orElseThrow(
                         () ->
-                                new TableException(
+                                new ValidationException(
                                         String.format(
                                                 "Cannot find model '%s' in any of the catalogs %s.",
                                                 objectIdentifier, listCatalogs())));
