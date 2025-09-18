@@ -276,6 +276,33 @@ abstract class CommitterOperatorTestBase {
         assertThat(testHarness.getOutput()).hasSize(2);
     }
 
+    @Test
+    void testEmitCommittablesBatch() throws Exception {
+        SinkAndCounters sinkAndCounters = sinkWithoutPostCommit();
+        final OneInputStreamOperatorTestHarness<
+                CommittableMessage<String>, CommittableMessage<String>>
+                testHarness =
+                new OneInputStreamOperatorTestHarness<>(
+                        new CommitterOperatorFactory<>(sinkAndCounters.sink, true, false));
+        testHarness.open();
+
+        // Test that all committables up to Long.MAX_VALUE are committed.
+        long checkpointId = Long.MAX_VALUE;
+        final CommittableSummary<String> committableSummary =
+                new CommittableSummary<>(1, 1, checkpointId, 1, 0, 0);
+        testHarness.processElement(new StreamRecord<>(committableSummary));
+        final CommittableWithLineage<String> committableWithLineage =
+                new CommittableWithLineage<>("1", checkpointId, 1);
+        testHarness.processElement(new StreamRecord<>(committableWithLineage));
+
+        testHarness.endInput();
+
+        assertThat(sinkAndCounters.commitCounter.getAsInt()).isEqualTo(1);
+        assertThat(testHarness.getOutput()).isEmpty();
+
+        testHarness.close();
+    }
+
     private OneInputStreamOperatorTestHarness<
                     CommittableMessage<String>, CommittableMessage<String>>
             createTestHarness(
