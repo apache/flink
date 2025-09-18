@@ -108,8 +108,11 @@ public class S3ConfigurationBuilder {
 
         // SSL settings
         this.sslEnabled = hadoopConfig.getBoolean("fs.s3a.connection.ssl.enabled", sslEnabled);
+        // Note: fs.s3a.ssl.channel.mode is not a boolean - it's an enum ("default_jsse", "openssl",
+        // etc.)
+        // Use the correct boolean config for SSL certificate verification
         this.verifySslCertificates =
-                hadoopConfig.getBoolean("fs.s3a.ssl.channel.mode", verifySslCertificates);
+                hadoopConfig.getBoolean("fs.s3a.connection.ssl.cert.verify", verifySslCertificates);
         this.trustStorePath = hadoopConfig.get("fs.s3a.ssl.truststore.path");
         this.trustStorePassword = hadoopConfig.get("fs.s3a.ssl.truststore.password");
 
