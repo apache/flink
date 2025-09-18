@@ -151,10 +151,6 @@ under the License.
 					<artifactId>joda-time</artifactId>
 				</exclusion>
 				<exclusion>
-					<groupId>org.apache.calcite</groupId>
-					<artifactId>calcite-linq4j</artifactId>
-				</exclusion>
-				<exclusion>
 					<groupId>org.codehaus.janino</groupId>
 					<artifactId>janino</artifactId>
 				</exclusion>
@@ -243,12 +239,6 @@ under the License.
 					<artifactId>scott-data-hsqldb</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.calcite</groupId>
-			<artifactId>calcite-linq4j</artifactId>
-			<version>${calcite.version}</version>
-			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
