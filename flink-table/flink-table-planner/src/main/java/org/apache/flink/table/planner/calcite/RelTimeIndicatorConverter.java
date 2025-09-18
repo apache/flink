@@ -530,7 +530,9 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                         .collect(Collectors.toList());
 
         final List<RelDataType> allFields =
-                newInputs.stream().map(RelNode::getRowType).collect(Collectors.toList());
+                newInputs.stream()
+                        .flatMap(input -> RelOptUtil.getFieldTypeList(input.getRowType()).stream())
+                        .collect(Collectors.toList());
 
         RexTimeIndicatorMaterializer materializer = new RexTimeIndicatorMaterializer(allFields);
 
