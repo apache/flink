@@ -280,10 +280,10 @@ abstract class CommitterOperatorTestBase {
     void testEmitCommittablesBatch() throws Exception {
         SinkAndCounters sinkAndCounters = sinkWithoutPostCommit();
         final OneInputStreamOperatorTestHarness<
-                CommittableMessage<String>, CommittableMessage<String>>
+                        CommittableMessage<String>, CommittableMessage<String>>
                 testHarness =
-                new OneInputStreamOperatorTestHarness<>(
-                        new CommitterOperatorFactory<>(sinkAndCounters.sink, true, false));
+                        new OneInputStreamOperatorTestHarness<>(
+                                new CommitterOperatorFactory<>(sinkAndCounters.sink, true, false));
         testHarness.open();
 
         // Test that all committables up to Long.MAX_VALUE are committed.
