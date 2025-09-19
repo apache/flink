@@ -338,15 +338,15 @@ def to_timestamp_ltz(*args) -> Expression:
                                         "UTC"))  # string with format and timezone
     """
     if len(args) == 1:
-        return _unary_op("toTimestampLtz", lit(args[0]))
+        return _unary_op("toTimestampLtz", args[0])
 
     # For two arguments case (numeric + precision or string + format)
     elif len(args) == 2:
-        return _binary_op("toTimestampLtz", lit(args[0]), lit(args[1]))
+        return _binary_op("toTimestampLtz", args[0], args[1])
 
     # For three arguments case (string + format + timezone)
     else:
-        return _ternary_op("toTimestampLtz", lit(args[0]), lit(args[1]), lit(args[2]))
+        return _ternary_op("toTimestampLtz", args[0], args[1], args[2])
 
 
 def temporal_overlaps(left_time_point,
