@@ -24,7 +24,7 @@ import org.apache.flink.runtime.event.WatermarkEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
-import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfOutputChannelStateEvent;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBuf;
 import org.apache.flink.shaded.netty4.io.netty.buffer.ByteBufAllocator;
@@ -408,7 +408,7 @@ public interface Buffer {
         public static DataType getDataType(AbstractEvent event, boolean hasPriority) {
             if (hasPriority) {
                 return PRIORITIZED_EVENT_BUFFER;
-            } else if (event instanceof EndOfChannelStateEvent) {
+            } else if (event instanceof EndOfOutputChannelStateEvent) {
                 return RECOVERY_COMPLETION;
             } else if (event instanceof EndOfData) {
                 return END_OF_DATA;
