@@ -51,7 +51,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *      |            |       /job-id-2/connection_info
  *      |            |
  *      |            |
- *      |            +jobgraphs/job-id-1
+ *      |            +execution-plans/job-id-1
  *      |            |         /job-id-2
  *      |            +jobs/job-id-1/checkpoints/latest
  *      |                 |                    /latest-1
