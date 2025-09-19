@@ -56,8 +56,11 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
     /** Configuration object with validated settings. */
     private final S3Configuration s3Configuration;
 
-    /** S3 client for this helper instance - managed locally to avoid resource leaks. */
-    private volatile software.amazon.awssdk.services.s3.S3Client s3Client;
+    /**
+     * S3 client for this helper instance - shared with reference counting to prevent HTTP pool
+     * exhaustion.
+     */
+    private final software.amazon.awssdk.services.s3.S3Client s3Client;
 
     public HadoopS3AccessHelper(S3AFileSystem s3a, Configuration conf) {
         checkNotNull(s3a, "S3AFileSystem cannot be null");
@@ -66,8 +69,8 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         // Build configuration with validation
         this.s3Configuration = S3ConfigurationBuilder.fromHadoopConfiguration(conf).build();
 
-        // S3 client will be created lazily when first needed to avoid test setup issues
-        this.s3Client = null;
+        // Acquire shared S3 client with reference counting to prevent HTTP pool exhaustion
+        this.s3Client = S3ClientConfigurationFactory.acquireS3Client(s3a);
 
         // Create WriteOperationHelper with callbacks for Hadoop 3.4.2
         this.s3accessHelper =
@@ -283,23 +286,13 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
     }
 
     /**
-     * Gets the S3 client for this helper instance. Each helper manages its own client to avoid
-     * resource leaks and ensure proper lifecycle management. Uses lazy initialization to avoid test
-     * setup issues.
+     * Gets the shared S3 client for this helper instance. The client is managed with reference
+     * counting to prevent HTTP connection pool exhaustion while ensuring proper resource cleanup.
      */
     private software.amazon.awssdk.services.s3.S3Client getS3ClientFromFileSystem() {
         if (closed) {
             throw new IllegalStateException(
                     "HadoopS3AccessHelper has been closed and cannot be used");
-        }
-
-        // Lazy initialization with double-checked locking
-        if (s3Client == null) {
-            synchronized (this) {
-                if (s3Client == null) {
-                    s3Client = S3ClientConfigurationFactory.getS3Client(s3a);
-                }
-            }
         }
 
         return s3Client;
@@ -629,7 +622,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         }
     }
 
-    /** Marks this helper as closed and properly cleans up the S3 client. */
+    /** Marks this helper as closed and releases the shared S3 client reference. */
     @Override
     public void close() {
         if (closed) {
@@ -639,17 +632,14 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         // Mark as closed first to prevent concurrent operations
         closed = true;
 
-        // Close the S3 client to free up HTTP connections and resources
-        // Only close if it was actually created (lazy initialization)
+        // Release the shared S3 client reference
+        // The factory will close the client when the last reference is released
         try {
-            if (s3Client != null) {
-                s3Client.close();
-                s3Client = null; // Help GC
-            }
+            S3ClientConfigurationFactory.releaseS3Client(s3Client);
         } catch (Exception e) {
             // Log warning but don't throw - close() should be best-effort
             System.err.println(
-                    "Warning: Failed to close S3 client in HadoopS3AccessHelper: "
+                    "Warning: Failed to release S3 client in HadoopS3AccessHelper: "
                             + e.getMessage());
         }
 

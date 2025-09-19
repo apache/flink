@@ -26,53 +26,136 @@ import software.amazon.awssdk.services.s3.S3Client;
 /**
  * Factory for creating AWS SDK v2 S3 clients with configuration management.
  *
- * <p>This factory provides type-safe configuration through S3ConfigurationBuilder. No global
- * caching is used to avoid resource leaks and test interference.
+ * <p>This factory provides type-safe configuration through S3ConfigurationBuilder. Uses shared
+ * client with proper lifecycle management to prevent HTTP connection pool exhaustion.
  */
 public class S3ClientConfigurationFactory {
 
     private static final Logger LOG = LoggerFactory.getLogger(S3ClientConfigurationFactory.class);
 
+    // Shared client with reference counting for proper cleanup
+    private static volatile S3Client sharedClient;
+    private static volatile String sharedConfigHash;
+    private static volatile int clientRefCount = 0;
+    private static final Object clientLock = new Object();
+
     /** Private constructor to prevent instantiation. */
     private S3ClientConfigurationFactory() {}
 
     /**
-     * Creates a new S3 client configured to match the given S3AFileSystem.
+     * Acquires a reference to the shared S3 client configured to match the given S3AFileSystem.
+     * Must be paired with releaseS3Client() to prevent resource leaks.
      *
      * @param s3aFileSystem The S3AFileSystem to match configuration for
-     * @return An S3 client with consistent configuration
+     * @return A shared S3 client with consistent configuration
      */
-    public static S3Client getS3Client(S3AFileSystem s3aFileSystem) {
+    public static S3Client acquireS3Client(S3AFileSystem s3aFileSystem) {
         try {
+            // Handle test scenarios where getConf() might return null
+            org.apache.hadoop.conf.Configuration hadoopConf = s3aFileSystem.getConf();
+            if (hadoopConf == null) {
+                // In test environments, create a minimal configuration
+                hadoopConf = new org.apache.hadoop.conf.Configuration();
+                LOG.debug(
+                        "Using default configuration for test environment (S3AFileSystem.getConf() returned null)");
+            }
+
             // Build configuration from Hadoop configuration
             S3Configuration config =
-                    S3ConfigurationBuilder.fromHadoopConfiguration(s3aFileSystem.getConf()).build();
+                    S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConf).build();
 
-            return createS3Client(config);
+            return getOrCreateSharedClient(config);
 
         } catch (Exception e) {
-            LOG.error("Failed to create S3 client for S3AFileSystem", e);
-            throw new RuntimeException("Failed to create S3 client: " + e.getMessage(), e);
+            LOG.error("Failed to acquire S3 client for S3AFileSystem", e);
+            throw new RuntimeException("Failed to acquire S3 client: " + e.getMessage(), e);
         }
     }
 
     /**
-     * Creates an S3 client from Hadoop configuration directly.
+     * Acquires a reference to the shared S3 client from Hadoop configuration directly. Must be
+     * paired with releaseS3Client() to prevent resource leaks.
      *
      * @param hadoopConfig The Hadoop configuration to use
-     * @return An S3 client with consistent configuration
+     * @return A shared S3 client with consistent configuration
      */
-    public static S3Client getS3Client(org.apache.hadoop.conf.Configuration hadoopConfig) {
+    public static S3Client acquireS3Client(org.apache.hadoop.conf.Configuration hadoopConfig) {
         try {
             // Build configuration from Hadoop configuration
             S3Configuration config =
                     S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
 
-            return createS3Client(config);
+            return getOrCreateSharedClient(config);
 
         } catch (Exception e) {
-            LOG.error("Failed to create S3 client from Hadoop configuration", e);
-            throw new RuntimeException("Failed to create S3 client: " + e.getMessage(), e);
+            LOG.error("Failed to acquire S3 client from Hadoop configuration", e);
+            throw new RuntimeException("Failed to acquire S3 client: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Releases a reference to the shared S3 client. When the last reference is released, the client
+     * will be closed to free up HTTP connection pools.
+     *
+     * @param client The S3 client to release (should match the client returned by acquireS3Client)
+     */
+    public static void releaseS3Client(S3Client client) {
+        if (client == null) {
+            return;
+        }
+
+        synchronized (clientLock) {
+            if (client == sharedClient && clientRefCount > 0) {
+                clientRefCount--;
+                LOG.debug("Released S3 client reference, remaining refs: {}", clientRefCount);
+
+                // Close the shared client when no more references
+                if (clientRefCount == 0) {
+                    LOG.debug("Closing shared S3 client - no more references");
+                    try {
+                        if (sharedClient != null) {
+                            sharedClient.close();
+                            sharedClient = null;
+                            sharedConfigHash = null;
+                        }
+                    } catch (Exception e) {
+                        LOG.warn("Failed to close shared S3 client", e);
+                    }
+                }
+            }
+        }
+    }
+
+    /** Gets or creates the shared S3 client with reference counting. */
+    private static S3Client getOrCreateSharedClient(S3Configuration config) {
+        String configHash = config.getConfigurationHash();
+
+        synchronized (clientLock) {
+            // Check if we have a client for this configuration
+            if (sharedClient != null && configHash.equals(sharedConfigHash)) {
+                clientRefCount++;
+                LOG.debug("Using existing shared S3 client, refs: {}", clientRefCount);
+                return sharedClient;
+            }
+
+            // Need to create a new client (configuration changed or first time)
+            if (sharedClient != null) {
+                LOG.debug("Configuration changed, closing previous S3 client");
+                try {
+                    sharedClient.close();
+                } catch (Exception e) {
+                    LOG.warn("Failed to close previous S3 client", e);
+                }
+            }
+
+            // Create new shared client
+            LOG.debug("Creating new shared S3 client for config hash: {}", configHash);
+            sharedClient = createS3Client(config);
+            sharedConfigHash = configHash;
+            clientRefCount = 1;
+
+            LOG.debug("Created shared S3 client, refs: {}", clientRefCount);
+            return sharedClient;
         }
     }
 

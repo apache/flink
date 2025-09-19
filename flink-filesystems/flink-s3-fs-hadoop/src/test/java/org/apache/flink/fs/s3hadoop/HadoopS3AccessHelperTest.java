@@ -548,18 +548,18 @@ public class HadoopS3AccessHelperTest {
                     Class.forName("org.apache.flink.fs.s3hadoop.S3ClientConfigurationFactory");
             assertTrue("S3ClientConfigurationFactory should exist", factoryClass != null);
 
-            // Verify the factory has the getS3Client method
-            Method getS3ClientMethod =
+            // Verify the factory has the acquireS3Client method
+            Method acquireS3ClientMethod =
                     factoryClass.getDeclaredMethod(
-                            "getS3Client", org.apache.hadoop.fs.s3a.S3AFileSystem.class);
-            assertTrue("Factory should have getS3Client method", getS3ClientMethod != null);
+                            "acquireS3Client", org.apache.hadoop.fs.s3a.S3AFileSystem.class);
+            assertTrue("Factory should have acquireS3Client method", acquireS3ClientMethod != null);
             assertTrue(
-                    "getS3Client should be static",
-                    java.lang.reflect.Modifier.isStatic(getS3ClientMethod.getModifiers()));
+                    "acquireS3Client should be static",
+                    java.lang.reflect.Modifier.isStatic(acquireS3ClientMethod.getModifiers()));
 
         } catch (ClassNotFoundException | NoSuchMethodException e) {
             throw new AssertionError(
-                    "S3ClientConfigurationFactory should exist with getS3Client method for shared approach",
+                    "S3ClientConfigurationFactory should exist with acquireS3Client method for shared approach",
                     e);
         }
 
@@ -608,14 +608,14 @@ public class HadoopS3AccessHelperTest {
             Class<?> factoryClass =
                     Class.forName("org.apache.flink.fs.s3hadoop.S3ClientConfigurationFactory");
 
-            // Verify the factory has static client creation capabilities
-            Method getS3ClientMethod =
+            // Verify the factory has static client acquisition capabilities
+            Method acquireS3ClientMethod =
                     factoryClass.getDeclaredMethod(
-                            "getS3Client", org.apache.hadoop.fs.s3a.S3AFileSystem.class);
-            assertTrue("Factory should have getS3Client method", getS3ClientMethod != null);
+                            "acquireS3Client", org.apache.hadoop.fs.s3a.S3AFileSystem.class);
+            assertTrue("Factory should have acquireS3Client method", acquireS3ClientMethod != null);
             assertTrue(
-                    "getS3Client should be static",
-                    java.lang.reflect.Modifier.isStatic(getS3ClientMethod.getModifiers()));
+                    "acquireS3Client should be static",
+                    java.lang.reflect.Modifier.isStatic(acquireS3ClientMethod.getModifiers()));
 
             // Verify no global caching methods exist (they were removed to fix resource leaks)
             try {
@@ -628,7 +628,7 @@ public class HadoopS3AccessHelperTest {
 
         } catch (ClassNotFoundException | NoSuchMethodException e) {
             throw new AssertionError(
-                    "S3ClientConfigurationFactory should exist with client creation support", e);
+                    "S3ClientConfigurationFactory should exist with client acquisition support", e);
         }
 
         // Verify the reflection-based access method exists
