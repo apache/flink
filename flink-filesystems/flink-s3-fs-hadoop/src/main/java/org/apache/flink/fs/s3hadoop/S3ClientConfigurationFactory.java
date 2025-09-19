@@ -199,30 +199,8 @@ public class S3ClientConfigurationFactory {
             clientBuilder.credentialsProvider(() -> credentials);
         }
 
-        // Configure HTTP client
-        software.amazon.awssdk.http.apache.ApacheHttpClient.Builder httpClientBuilder =
-                software.amazon.awssdk.http.apache.ApacheHttpClient.builder();
-
-        httpClientBuilder.connectionTimeout(config.getConnectionTimeout());
-        httpClientBuilder.socketTimeout(config.getSocketTimeout());
-        httpClientBuilder.maxConnections(config.getMaxConnections());
-
-        clientBuilder.httpClient(httpClientBuilder.build());
-
-        // Configure overrides (timeouts, retries)
-        software.amazon.awssdk.core.client.config.ClientOverrideConfiguration.Builder
-                overrideBuilder =
-                        software.amazon.awssdk.core.client.config.ClientOverrideConfiguration
-                                .builder();
-
-        overrideBuilder.apiCallTimeout(config.getApiCallTimeout());
-        overrideBuilder.apiCallAttemptTimeout(config.getApiCallAttemptTimeout());
-
-        // Configure retry strategy - use default retry mode with custom number of retries
-        overrideBuilder.retryPolicy(
-                retryPolicyBuilder -> retryPolicyBuilder.numRetries(config.getMaxRetries()));
-
-        clientBuilder.overrideConfiguration(overrideBuilder.build());
+        // Use AWS SDK default HTTP client to avoid interference with Flink networking
+        // Custom HTTP client configuration was causing SSL/connection conflicts
 
         return clientBuilder.build();
     }
