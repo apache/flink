@@ -151,7 +151,7 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
     public void endInput() throws Exception {
         if (!isCheckpointingEnabled || isBatchMode) {
             // There will be no final checkpoint, all committables should be committed here
-            commitAndEmitCheckpoints(lastCompletedCheckpointId + 1);
+            commitAndEmitCheckpoints(Long.MAX_VALUE);
         }
     }
 
