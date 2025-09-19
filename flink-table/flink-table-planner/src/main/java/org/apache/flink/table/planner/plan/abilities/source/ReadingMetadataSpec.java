@@ -26,6 +26,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -41,6 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * columns to/from JSON, but also can read the metadata columns from {@link
  * SupportsReadingMetadata}.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("ReadingMetadata")
 public final class ReadingMetadataSpec extends SourceAbilitySpecBase {
     public static final String FIELD_NAME_METADATA_KEYS = "metadataKeys";
