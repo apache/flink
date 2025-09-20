@@ -42,7 +42,8 @@ import scala.collection.JavaConversions._
  * @param hints
  *   the hints
  * @param targetColumns
- *   the specified target columns.
+ *   the specified target columns. @Deprecated(since = "2.2"), use
+ *   [[org.apache.flink.table.planner.plan.abilities.sink.TargetColumnWritingSpec]] instead.
  * @param contextResolvedTable
  *   the table definition.
  * @param tableSink
@@ -53,6 +54,7 @@ abstract class Sink(
     traitSet: RelTraitSet,
     input: RelNode,
     val hints: util.List[RelHint],
+    @deprecated(since = "2.2")
     val targetColumns: Array[Array[Int]],
     val contextResolvedTable: ContextResolvedTable,
     val tableSink: DynamicTableSink)
