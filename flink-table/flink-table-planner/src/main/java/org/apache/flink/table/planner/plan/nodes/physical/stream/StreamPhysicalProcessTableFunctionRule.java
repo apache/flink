@@ -42,6 +42,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalProcessTableFunction.validateAllowSystemArgs;
+
 /**
  * Rule to convert a {@link FlinkLogicalTableFunctionScan} with table arguments into a {@link
  * StreamPhysicalProcessTableFunction}.
@@ -69,13 +71,17 @@ public class StreamPhysicalProcessTableFunctionRule extends ConverterRule {
         }
         final RexCall rexCall = (RexCall) scan.getCall();
         final FunctionDefinition definition = ShortcutUtils.unwrapFunctionDefinition(rexCall);
-        return definition != null && definition.getKind() == FunctionKind.PROCESS_TABLE;
+        return definition != null
+                && !StreamPhysicalMLPredictTableFunctionRule.isMLPredictFunction(definition)
+                && definition.getKind() == FunctionKind.PROCESS_TABLE;
     }
 
     @Override
     public @Nullable RelNode convert(RelNode rel) {
         final FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) rel;
         final RexCall rexCall = (RexCall) scan.getCall();
+        validateAllowSystemArgs(rexCall);
+
         final BridgingSqlFunction.WithTableFunction function =
                 (BridgingSqlFunction.WithTableFunction) rexCall.getOperator();
         final List<RexNode> operands = rexCall.getOperands();
