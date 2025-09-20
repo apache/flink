@@ -179,6 +179,12 @@ public class ResultFetcher {
         }
     }
 
+    public static ResultFetcher showCreateFromTableResult(
+            OperationHandle operationHandle, ResolvedSchema resultSchema, List<RowData> results) {
+        return new ResultFetcher(
+                operationHandle, resultSchema, results, null, ResultKind.SUCCESS_WITH_CONTENT);
+    }
+
     public static ResultFetcher fromResults(
             OperationHandle operationHandle, ResolvedSchema resultSchema, List<RowData> results) {
         return fromResults(
