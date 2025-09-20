@@ -33,7 +33,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -124,5 +128,171 @@ public class OpenTelemetryTraceReporterITCase extends OpenTelemetryTestBase {
                                 }
                             });
                 });
+    }
+
+    @Test
+    public void testReportNestedSpan() throws Exception {
+        String scope = this.getClass().getCanonicalName();
+
+        String attribute1KeyRoot = "foo";
+        String attribute1ValueRoot = "bar";
+        String attribute2KeyRoot = "<variable>";
+        String attribute2ValueRoot = "value";
+        String spanRoot = "root";
+
+        String spanL1N1 = "1_1";
+        String attribute1KeyL1N1 = "foo_" + spanL1N1;
+        String attribute1ValueL1N1 = "bar_" + spanL1N1;
+
+        String spanL1N2 = "1_2";
+        String attribute1KeyL1N2 = "foo_" + spanL1N2;
+        String attribute1ValueL1N2 = "bar_" + spanL1N2;
+
+        String spanL2N1 = "2_1";
+        String attribute1KeyL2N1 = "foo_" + spanL2N1;
+        String attribute1ValueL2N1 = "bar_" + spanL2N1;
+
+        reporter.open(createMetricConfig());
+        try {
+            SpanBuilder childLeveL2N1 =
+                    Span.builder(this.getClass(), spanL2N1)
+                            .setAttribute(attribute1KeyL2N1, attribute1ValueL2N1)
+                            .setStartTsMillis(44)
+                            .setEndTsMillis(46);
+
+            SpanBuilder childL1N1 =
+                    Span.builder(this.getClass(), spanL1N1)
+                            .setAttribute(attribute1KeyL1N1, attribute1ValueL1N1)
+                            .setStartTsMillis(43)
+                            .setEndTsMillis(48)
+                            .addChild(childLeveL2N1);
+
+            SpanBuilder childL1N2 =
+                    Span.builder(this.getClass(), spanL1N2)
+                            .setAttribute(attribute1KeyL1N2, attribute1ValueL1N2)
+                            .setStartTsMillis(44)
+                            .setEndTsMillis(46);
+
+            SpanBuilder rootSpan =
+                    Span.builder(this.getClass(), spanRoot)
+                            .setAttribute(attribute1KeyRoot, attribute1ValueRoot)
+                            .setAttribute(attribute2KeyRoot, attribute2ValueRoot)
+                            .setStartTsMillis(42)
+                            .setEndTsMillis(64)
+                            .addChildren(Arrays.asList(childL1N1, childL1N2));
+
+            reporter.notifyOfAddedSpan(rootSpan.build());
+        } finally {
+            reporter.close();
+        }
+
+        eventuallyConsumeJson(
+                (json) -> {
+                    JsonNode scopeSpans = json.findPath("resourceSpans").findPath("scopeSpans");
+                    assertThat(scopeSpans.findPath("scope").findPath("name").asText())
+                            .isEqualTo(scope);
+                    JsonNode spans = scopeSpans.findPath("spans");
+
+                    Map<String, ActualSpan> actualSpanSummaries = convertToSummaries(spans);
+
+                    assertThat(actualSpanSummaries.keySet())
+                            .containsExactlyInAnyOrder(spanRoot, spanL1N1, spanL1N2, spanL2N1);
+
+                    ActualSpan root = actualSpanSummaries.get(spanRoot);
+                    ActualSpan l1n1 = actualSpanSummaries.get(spanL1N1);
+                    ActualSpan l1n2 = actualSpanSummaries.get(spanL1N2);
+                    ActualSpan l2n1 = actualSpanSummaries.get(spanL2N1);
+
+                    assertThat(root.parentSpanId).isEmpty();
+                    assertThat(root.attributes)
+                            .containsEntry(attribute1KeyRoot, attribute1ValueRoot);
+                    assertThat(root.attributes)
+                            .containsEntry(
+                                    VariableNameUtil.getVariableName(attribute2KeyRoot),
+                                    attribute2ValueRoot);
+                    assertThat(l1n1.attributes)
+                            .containsEntry(attribute1KeyL1N1, attribute1ValueL1N1);
+                    assertThat(l1n2.attributes)
+                            .containsEntry(attribute1KeyL1N2, attribute1ValueL1N2);
+                    assertThat(l2n1.attributes)
+                            .containsEntry(attribute1KeyL2N1, attribute1ValueL2N1);
+
+                    assertThat(root.traceId).isEqualTo(l1n1.traceId);
+                    assertThat(root.traceId).isEqualTo(l1n2.traceId);
+                    assertThat(root.traceId).isEqualTo(l2n1.traceId);
+                    assertThat(root.spanId).isNotEmpty();
+                    assertThat(root.spanId).isEqualTo(l1n1.parentSpanId);
+                    assertThat(root.spanId).isEqualTo(l1n2.parentSpanId);
+
+                    assertThat(root.children).containsExactlyInAnyOrder(l1n1, l1n2);
+                    assertThat(l1n1.children).containsExactlyInAnyOrder(l2n1);
+                    assertThat(l1n2.children).isEmpty();
+                    assertThat(l2n1.children).isEmpty();
+                });
+    }
+
+    private Map<String, ActualSpan> convertToSummaries(JsonNode spans) {
+        Map<String, ActualSpan> spanIdToSpan = new HashMap<>();
+        for (int i = 0; spans.get(i) != null; i++) {
+            ActualSpan actualSpan = convertToActualSpan(spans.get(i));
+            spanIdToSpan.put(actualSpan.spanId, actualSpan);
+        }
+
+        Map<String, ActualSpan> nameToSpan = new HashMap<>();
+
+        spanIdToSpan.forEach(
+                (spanId, actualSpan) -> {
+                    if (!actualSpan.parentSpanId.isEmpty()) {
+                        ActualSpan parentSpan = spanIdToSpan.get(actualSpan.parentSpanId);
+                        parentSpan.addChild(actualSpan);
+                    }
+                    nameToSpan.put(actualSpan.name, actualSpan);
+                });
+
+        return nameToSpan;
+    }
+
+    private ActualSpan convertToActualSpan(JsonNode span) {
+        String name = span.findPath("name").asText();
+        String traceId = span.findPath("traceId").asText();
+        String spanId = span.findPath("spanId").asText();
+        String parentSpanId = span.findPath("parentSpanId").asText();
+
+        Map<String, String> attributeMap = new HashMap<>();
+        JsonNode attributes = span.findPath("attributes");
+
+        for (int j = 0; attributes.get(j) != null; j++) {
+            JsonNode attribute = attributes.get(j);
+            String key = attribute.get("key").asText();
+            String value = attribute.at("/value/stringValue").asText();
+            attributeMap.put(key, value);
+        }
+        return new ActualSpan(traceId, spanId, name, parentSpanId, attributeMap);
+    }
+
+    private static class ActualSpan {
+        final String traceId;
+        final String spanId;
+        final String name;
+        final String parentSpanId;
+        final Map<String, String> attributes;
+        final List<ActualSpan> children = new ArrayList<>();
+
+        public ActualSpan(
+                String traceId,
+                String spanId,
+                String name,
+                String parentSpanId,
+                Map<String, String> attributes) {
+            this.traceId = traceId;
+            this.spanId = spanId;
+            this.name = name;
+            this.parentSpanId = parentSpanId;
+            this.attributes = attributes;
+        }
+
+        public void addChild(ActualSpan child) {
+            this.children.add(child);
+        }
     }
 }

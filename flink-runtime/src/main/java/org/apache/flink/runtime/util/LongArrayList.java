@@ -67,6 +67,10 @@ public class LongArrayList {
         return Arrays.copyOf(array, size);
     }
 
+    public long[] getInternalArray() {
+        return array;
+    }
+
     private void grow(int length) {
         if (length > array.length) {
             final int newLength =
