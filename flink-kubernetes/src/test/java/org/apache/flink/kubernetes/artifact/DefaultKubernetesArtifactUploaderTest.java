@@ -27,7 +27,6 @@ import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.testutils.TestingUtils;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -44,7 +43,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link DefaultKubernetesArtifactUploader}. */
-@Disabled
 class DefaultKubernetesArtifactUploaderTest {
 
     private final DefaultKubernetesArtifactUploader artifactUploader =
