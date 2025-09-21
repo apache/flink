@@ -402,10 +402,7 @@ class DefaultPackagedProgramRetrieverITCase {
                         new Configuration());
         final StreamGraph streamGraph =
                 retrieveStreamGraph(retrieverUnderTest, new Configuration());
-        final List<String> actualClasspath =
-                streamGraph.getClasspaths().stream()
-                        .map(URL::toString)
-                        .collect(Collectors.toList());
+        final List<String> actualClasspath = getClasspaths(streamGraph);
 
         final List<String> expectedClasspath =
                 extractRelativizedURLsForJarsFromDirectory(
@@ -424,10 +421,7 @@ class DefaultPackagedProgramRetrieverITCase {
                         new Configuration());
         final StreamGraph streamGraph =
                 retrieveStreamGraph(retrieverUnderTest, new Configuration());
-        final List<String> actualClasspath =
-                streamGraph.getClasspaths().stream()
-                        .map(URL::toString)
-                        .collect(Collectors.toList());
+        final List<String> actualClasspath = getClasspaths(streamGraph);
 
         final List<String> expectedClasspath =
                 extractRelativizedURLsForJarsFromDirectory(
@@ -494,10 +488,7 @@ class DefaultPackagedProgramRetrieverITCase {
                 .contains(
                         new org.apache.flink.core.fs.Path(
                                 testJobEntryClassClasspathProvider.getJobJar().toURI()));
-        final List<String> actualClasspath =
-                streamGraph.getClasspaths().stream()
-                        .map(URL::toString)
-                        .collect(Collectors.toList());
+        final List<String> actualClasspath = getClasspaths(streamGraph);
         final List<String> expectedClasspath =
                 extractRelativizedURLsForJarsFromDirectory(
                         singleEntryClassClasspathProvider.getDirectory());
@@ -523,10 +514,7 @@ class DefaultPackagedProgramRetrieverITCase {
                 .contains(
                         new org.apache.flink.core.fs.Path(
                                 testJobEntryClassClasspathProvider.getJobJar().toURI()));
-        final List<String> actualClasspath =
-                streamGraph.getClasspaths().stream()
-                        .map(URL::toString)
-                        .collect(Collectors.toList());
+        final List<String> actualClasspath = getClasspaths(streamGraph);
         final List<String> expectedClasspath =
                 extractRelativizedURLsForJarsFromDirectory(
                         singleEntryClassClasspathProvider.getDirectory());
@@ -553,10 +541,7 @@ class DefaultPackagedProgramRetrieverITCase {
                 .contains(
                         new org.apache.flink.core.fs.Path(
                                 testJobEntryClassClasspathProvider.getJobJar().toURI()));
-        final List<String> actualClasspath =
-                streamGraph.getClasspaths().stream()
-                        .map(URL::toString)
-                        .collect(Collectors.toList());
+        final List<String> actualClasspath = getClasspaths(streamGraph);
         final List<String> expectedClasspath =
                 extractRelativizedURLsForJarsFromDirectory(actualUsrLib);
 
@@ -583,10 +568,7 @@ class DefaultPackagedProgramRetrieverITCase {
                 .contains(
                         new org.apache.flink.core.fs.Path(
                                 testJobEntryClassClasspathProvider.getJobJar().toURI()));
-        final List<String> actualClasspath =
-                streamGraph.getClasspaths().stream()
-                        .map(URL::toString)
-                        .collect(Collectors.toList());
+        final List<String> actualClasspath = getClasspaths(streamGraph);
         final List<String> expectedClasspath =
                 extractRelativizedURLsForJarsFromDirectory(
                         additionalArtifactClasspathProvider.getDirectory());
@@ -613,10 +595,7 @@ class DefaultPackagedProgramRetrieverITCase {
                 .contains(
                         new org.apache.flink.core.fs.Path(
                                 testJobEntryClassClasspathProvider.getJobJar().toURI()));
-        final List<String> actualClasspath =
-                streamGraph.getClasspaths().stream()
-                        .map(URL::toString)
-                        .collect(Collectors.toList());
+        final List<String> actualClasspath = getClasspaths(streamGraph);
         final List<String> expectedClasspath = new ArrayList<>();
         expectedClasspath.addAll(
                 extractRelativizedURLsForJarsFromDirectory(
@@ -642,10 +621,7 @@ class DefaultPackagedProgramRetrieverITCase {
         final StreamGraph streamGraph =
                 retrieveStreamGraph(retrieverUnderTest, new Configuration());
 
-        final List<String> actualClasspath =
-                streamGraph.getClasspaths().stream()
-                        .map(URL::toString)
-                        .collect(Collectors.toList());
+        final List<String> actualClasspath = getClasspaths(streamGraph);
         final List<String> expectedClasspath =
                 extractRelativizedURLsForJarsFromDirectory(
                         multipleEntryClassesClasspathProvider.getDirectory());
@@ -747,5 +723,9 @@ class DefaultPackagedProgramRetrieverITCase {
         }
 
         return relativizedURLs;
+    }
+
+    private List<String> getClasspaths(StreamGraph streamGraph) {
+        return streamGraph.getClasspaths().stream().map(URL::toString).collect(Collectors.toList());
     }
 }
