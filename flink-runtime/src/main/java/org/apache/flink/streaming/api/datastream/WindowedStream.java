@@ -28,6 +28,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.runtime.asyncprocessing.operators.windowing.triggers.AsyncTrigger;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.aggregation.AggregationFunction;
 import org.apache.flink.streaming.api.functions.aggregation.ComparableAggregator;
@@ -99,6 +100,19 @@ public class WindowedStream<T, K, W extends Window> {
     @PublicEvolving
     public WindowedStream<T, K, W> trigger(Trigger<? super T, ? super W> trigger) {
         builder.trigger(trigger);
+        return this;
+    }
+
+    /**
+     * Sets the {@code AsyncTrigger} that should be used to trigger window emission.
+     *
+     * <p>Will automatically enable async state for {@code WindowedStream}.
+     */
+    @Experimental
+    public WindowedStream<T, K, W> trigger(AsyncTrigger<? super T, ? super W> trigger) {
+        enableAsyncState();
+
+        builder.asyncTrigger(trigger);
         return this;
     }
 
