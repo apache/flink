@@ -403,6 +403,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
             for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
                 List<String> expectedResults = getExpectedResults(sinkTestStep, sinkTestStep.name);
                 assertThat(expectedResults)
+                        .as("%s", program.id)
                         .containsExactlyInAnyOrder(
                                 Stream.concat(
                                                 sinkTestStep
