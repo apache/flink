@@ -58,7 +58,10 @@ import java.util.function.Predicate;
 
 /**
  * Planner rule that reduces aggregate functions in {@link org.apache.calcite.rel.core.Aggregate}s
- * to simpler forms.
+ * to simpler forms. This rule is copied to fix the correctness issue in Flink before upgrading to
+ * the corresponding Calcite version. Flink modifications:
+ *
+ * <p>Lines 555 ~ 565 to fix CALCITE-7192.
  *
  * <p>Rewrites:
  *
@@ -549,6 +552,7 @@ public class AggregateReduceFunctionsRule extends RelRule<AggregateReduceFunctio
                 rexBuilder.makeCall(SqlStdOperatorTable.MULTIPLY, argRef, argRef);
         final int argSquaredOrdinal = lookupOrAdd(inputExprs, argSquared);
 
+        // FLINK MODIFICATION BEGIN
         final AggregateCall sumArgSquaredAggCall =
                 createAggregateCallWithBinding(
                         typeFactory,
@@ -557,7 +561,8 @@ public class AggregateReduceFunctionsRule extends RelRule<AggregateReduceFunctio
                         oldAggRel,
                         oldCall,
                         argSquaredOrdinal,
-                        -1);
+                        oldCall.filterArg);
+        // FLINK MODIFICATION END
 
         final RexNode sumArgSquared =
                 rexBuilder.addAggCall(
