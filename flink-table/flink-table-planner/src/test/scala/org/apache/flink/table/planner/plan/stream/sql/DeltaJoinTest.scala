@@ -373,6 +373,10 @@ class DeltaJoinTest extends TableTestBase {
 
   @Test
   def testCdcSource(): Unit = {
+    util.tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
+      UpsertMaterialize.NONE)
+
     util.tableEnv.executeSql(
       "create table cdc_src with ('changelog-mode' = 'I,UA,UB,D') " +
         "like src2 (OVERWRITING OPTIONS)")
@@ -398,6 +402,10 @@ class DeltaJoinTest extends TableTestBase {
 
   @Test
   def testWithAggregatingSourceTableBeforeJoin(): Unit = {
+    util.tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
+      UpsertMaterialize.NONE)
+
     util.verifyRelPlanInsert(
       "insert into snk select * from ( " +
         "  select distinct max(a0) as a0, a1, max(a2) as a2, max(a3) as a3 from src1 group by a1" +
@@ -408,6 +416,10 @@ class DeltaJoinTest extends TableTestBase {
 
   @Test
   def testWithAggregatingAfterJoin(): Unit = {
+    util.tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
+      UpsertMaterialize.NONE)
+
     util.verifyRelPlanInsert(
       "insert into snk " +
         "select a0, max(a1), max(a2), max(a3), max(b0), max(b2), b1 from src1 join src2 " +

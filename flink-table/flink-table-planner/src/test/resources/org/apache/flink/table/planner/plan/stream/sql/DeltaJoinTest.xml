@@ -55,7 +55,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
 +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
@@ -716,7 +716,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, EX
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, EXPR$2, EXPR$3, EXPR$4, EXPR$5, b1], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, EXPR$2, EXPR$3, EXPR$4, EXPR$5, b1])
 +- Calc(select=[a0, EXPR$1, EXPR$2, EXPR$3, EXPR$4, EXPR$5, b1])
    +- GroupAggregate(groupBy=[a0, b1], select=[a0, b1, MAX(a1) AS EXPR$1, MAX(a2) AS EXPR$2, MAX(a3) AS EXPR$3, MAX(b0) AS EXPR$4, MAX(b2) AS EXPR$5])
       +- Exchange(distribution=[hash[a0, b1]])
@@ -746,7 +746,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
 +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- Calc(select=[a0, a1, a2, a3])

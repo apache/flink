@@ -135,7 +135,7 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     @TestTemplate
     void testCalc() {
         String sql =
-                String.format("insert into %s select a,b,c from append_src1", getSinkTableName());
+                String.format("insert into %s select a, b, c from append_src1", getSinkTableName());
         verifyRelPlanInsert(sql);
     }
 
@@ -143,7 +143,7 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     void testCalcWithNonDeterministicFilter1() {
         String sql =
                 String.format(
-                        "insert into %s select a,b,c from append_src1 where c < cast(now() as bigint)",
+                        "insert into %s select a, b, c from append_src1 where c < cast(now() as bigint)",
                         getSinkTableName());
         verifyRelPlanInsert(sql);
     }
@@ -152,7 +152,7 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     void testCalcWithNonDeterministicFilter2() {
         String sql =
                 String.format(
-                        "insert into %s select a,b,c from append_src1 where a <> 1 and c < cast(now() as bigint)",
+                        "insert into %s select a, b, c from append_src1 where a <> 1 and c < cast(now() as bigint)",
                         getSinkTableName());
         verifyRelPlanInsert(sql);
     }
@@ -161,7 +161,7 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     void testCalcWithNestedNonDeterministicFilter() {
         String sql =
                 String.format(
-                        "insert into %s select a,b,c from append_src1 where c < cast(cast(now() as int) as bigint)",
+                        "insert into %s select a, b, c from append_src1 where c < cast(cast(now() as int) as bigint)",
                         getSinkTableName());
         verifyRelPlanInsert(sql);
     }
@@ -300,7 +300,7 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     void testDropUpdateBefore() {
         assumeTrue(testSinkWithPk);
 
-        String sql = "insert into pk_upsert_snk select a,b,c from retract_src";
+        String sql = "insert into pk_upsert_snk select a, b, c from retract_src";
         verifyRelPlanInsert(sql);
     }
 
@@ -316,7 +316,7 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
                                 + "  EXCLUDING CONSTRAINTS\n"
                                 + ")");
 
-        String sql = "insert into another_pk_upsert_snk select a,b,c from retract_src";
+        String sql = "insert into another_pk_upsert_snk select a, b, c from retract_src";
         verifyRelPlanInsert(sql);
     }
 
@@ -324,7 +324,7 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     void testRetractSink() {
         assumeTrue(testSinkWithPk);
 
-        String sql = "insert into pk_retract_snk select a,b,c from retract_src";
+        String sql = "insert into pk_retract_snk select a, b, c from retract_src";
         verifyRelPlanInsert(sql);
     }
 
@@ -332,7 +332,7 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     void testChangelogNormalize() {
         assumeTrue(testSinkWithPk);
 
-        String sql = "insert into pk_retract_snk select a,b,c from upsert_src";
+        String sql = "insert into pk_retract_snk select a, b, c from upsert_src";
         verifyRelPlanInsert(sql);
     }
 
@@ -383,7 +383,7 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     void testLimit() {
         String sql =
                 String.format(
-                        "insert into %s select a,b,c from append_src1 limit 10",
+                        "insert into %s select a, b, c from append_src1 limit 10",
                         getSinkTableName());
         verifyRelPlanInsert(sql);
     }
@@ -437,7 +437,7 @@ public class DuplicateChangesInferRuleTest extends TableTestBase {
     void testUnion() {
         String sql =
                 String.format(
-                        "insert into %s select a,b,c from append_src1 union all select a,b,c from append_src2",
+                        "insert into %s select a, b, c from append_src1 union all select a, b, c from append_src2",
                         getSinkTableName());
         verifyRelPlanInsert(sql);
     }
