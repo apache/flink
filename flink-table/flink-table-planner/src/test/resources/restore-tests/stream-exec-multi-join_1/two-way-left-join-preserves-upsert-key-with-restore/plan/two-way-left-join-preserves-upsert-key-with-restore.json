@@ -5,57 +5,6 @@
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
-        "identifier" : "`default_catalog`.`default_database`.`Users`",
-        "resolvedTable" : {
-          "schema" : {
-            "columns" : [ {
-              "name" : "user_id",
-              "dataType" : "INT NOT NULL"
-            }, {
-              "name" : "shard_id",
-              "dataType" : "INT NOT NULL"
-            }, {
-              "name" : "description",
-              "dataType" : "VARCHAR(2147483647)"
-            } ],
-            "primaryKey" : {
-              "name" : "PRIMARY",
-              "type" : "PRIMARY_KEY",
-              "columns" : [ "user_id" ]
-            }
-          }
-        }
-      },
-      "abilities" : [ {
-        "type" : "ProjectPushDown",
-        "projectedFields" : [ [ 0 ] ],
-        "producedType" : "ROW<`user_id` INT NOT NULL> NOT NULL"
-      }, {
-        "type" : "ReadingMetadata",
-        "metadataKeys" : [ ],
-        "producedType" : "ROW<`user_id` INT NOT NULL> NOT NULL"
-      } ]
-    },
-    "outputType" : "ROW<`user_id` INT NOT NULL>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id], metadata=[]]], fields=[user_id])"
-  }, {
-    "id" : 2,
-    "type" : "stream-exec-exchange_1",
-    "inputProperties" : [ {
-      "requiredDistribution" : {
-        "type" : "HASH",
-        "keys" : [ 0 ]
-      },
-      "damBehavior" : "PIPELINED",
-      "priority" : 0
-    } ],
-    "outputType" : "ROW<`user_id` INT NOT NULL>",
-    "description" : "Exchange(distribution=[hash[user_id]])"
-  }, {
-    "id" : 3,
-    "type" : "stream-exec-table-source-scan_1",
-    "scanTableSource" : {
-      "table" : {
         "identifier" : "`default_catalog`.`default_database`.`Orders`",
         "resolvedTable" : {
           "schema" : {
@@ -81,7 +30,7 @@
     "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL, `product` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[user_id, order_id, product])"
   }, {
-    "id" : 4,
+    "id" : 2,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -94,9 +43,60 @@
     "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL, `product` VARCHAR(2147483647)>",
     "description" : "Exchange(distribution=[hash[user_id]])"
   }, {
+    "id" : 3,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`Users`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "user_id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "shard_id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "description",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PRIMARY",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "user_id" ]
+            }
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ], [ 1 ] ],
+        "producedType" : "ROW<`user_id` INT NOT NULL, `shard_id` INT NOT NULL> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`user_id` INT NOT NULL, `shard_id` INT NOT NULL> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`user_id` INT NOT NULL, `shard_id` INT NOT NULL>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id, shard_id], metadata=[]]], fields=[user_id, shard_id])"
+  }, {
+    "id" : 4,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` INT NOT NULL, `shard_id` INT NOT NULL>",
+    "description" : "Exchange(distribution=[hash[user_id]])"
+  }, {
     "id" : 5,
     "type" : "stream-exec-multi-join_1",
-    "joinTypes" : [ "INNER", "INNER" ],
+    "joinTypes" : [ "INNER", "LEFT" ],
     "joinConditions" : [ {
       "kind" : "LITERAL",
       "value" : true,
@@ -107,11 +107,11 @@
       "internalName" : "$=$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
-        "inputIndex" : 0,
+        "inputIndex" : 3,
         "type" : "INT NOT NULL"
       }, {
         "kind" : "INPUT_REF",
-        "inputIndex" : 1,
+        "inputIndex" : 0,
         "type" : "INT NOT NULL"
       } ],
       "type" : "BOOLEAN NOT NULL"
@@ -122,11 +122,11 @@
       "internalName" : "$=$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
-        "inputIndex" : 0,
+        "inputIndex" : 3,
         "type" : "INT NOT NULL"
       }, {
         "kind" : "INPUT_REF",
-        "inputIndex" : 1,
+        "inputIndex" : 0,
         "type" : "INT NOT NULL"
       } ],
       "type" : "BOOLEAN NOT NULL"
@@ -145,7 +145,7 @@
         "rightFieldIndex" : 0
       } ]
     },
-    "inputUniqueKeys" : [ [ [ 0 ] ], [ [ 0, 1 ] ] ],
+    "inputUniqueKeys" : [ [ [ 0, 1 ] ], [ [ 0 ] ] ],
     "state" : [ {
       "index" : 0,
       "ttl" : "0 ms",
@@ -170,23 +170,27 @@
       "damBehavior" : "PIPELINED",
       "priority" : 1
     } ],
-    "outputType" : "ROW<`user_id` INT NOT NULL, `user_id0` INT NOT NULL, `order_id` BIGINT NOT NULL, `product` VARCHAR(2147483647)>",
-    "description" : "MultiJoin(joinFilter=[=($0, $1)], joinTypes=[[INNER, INNER]], joinConditions=[[true, =($0, $1)]], joinAttributeMap=[{0=[LeftInputId:-1;LeftFieldIndex:-1;RightInputId:0;RightFieldIndex:0;], 1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:0;]}], select=[user_id,user_id0,order_id,product], rowType=[RecordType(INTEGER user_id, INTEGER user_id0, BIGINT order_id, VARCHAR(2147483647) product)])"
+    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL, `product` VARCHAR(2147483647), `user_id0` INT, `shard_id` INT>",
+    "description" : "MultiJoin(joinFilter=[true], joinTypes=[[INNER, LEFT]], joinConditions=[[true, =($3, $0)]], joinAttributeMap=[{0=[LeftInputId:-1;LeftFieldIndex:-1;RightInputId:0;RightFieldIndex:0;], 1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:0;]}], select=[user_id,order_id,product,user_id0,shard_id], rowType=[RecordType(INTEGER user_id, BIGINT order_id, VARCHAR(2147483647) product, INTEGER user_id0, INTEGER shard_id)])"
   }, {
     "id" : 6,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
-      "inputIndex" : 1,
+      "inputIndex" : 0,
       "type" : "INT NOT NULL"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 2,
+      "inputIndex" : 1,
       "type" : "BIGINT NOT NULL"
     }, {
       "kind" : "INPUT_REF",
-      "inputIndex" : 3,
+      "inputIndex" : 2,
       "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : "INT"
     } ],
     "condition" : null,
     "inputProperties" : [ {
@@ -196,8 +200,8 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL, `product` VARCHAR(2147483647)>",
-    "description" : "Calc(select=[user_id0 AS user_id, order_id, product])"
+    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL, `product` VARCHAR(2147483647), `shard_id` INT>",
+    "description" : "Calc(select=[user_id, order_id, product, shard_id])"
   }, {
     "id" : 7,
     "type" : "stream-exec-sink_1",
@@ -222,6 +226,9 @@
             }, {
               "name" : "product",
               "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "user_shard_id",
+              "dataType" : "INT"
             } ],
             "primaryKey" : {
               "name" : "PRIMARY",
@@ -241,8 +248,8 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL, `product` VARCHAR(2147483647)>",
-    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[user_id, order_id, product])"
+    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL, `product` VARCHAR(2147483647), `shard_id` INT>",
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[user_id, order_id, product, shard_id])"
   } ],
   "edges" : [ {
     "source" : 1,

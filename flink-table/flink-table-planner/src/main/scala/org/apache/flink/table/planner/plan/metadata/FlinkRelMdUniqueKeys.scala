@@ -544,17 +544,19 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
    * 1) Concatenate unique keys from both sides.
    *    If both sides have unique keys, form the union across the join boundary
    *    (right indexes are offset by leftFieldsCount). This yields superset keys
-   *    that are guaranteed unique. Example: {k1} (t1) + {k3} (t2) -> {k1, k3} (offset on right applied).
+   *    that are guaranteed unique.
+   *    Example: {k1}, {k1, k2}; t2: {k3} -> {k1, k3} {k1, k2, k3}
    *
    * 2) Maintain unique keys from the left side.
    *    If the right is unique on its join columns and the join does not generate
    *    nulls on the left, then any left unique key remains unique in the result.
-   *    Intuition: each t1 row matches at most one t2 row.
+   *    Example: {k1} and {k1, k2} (t1) are unique keys in the result.
    *
    * 3) Maintain unique keys from the right.
    *    If the left is unique on its join columns and the join does not generate
    *    nulls on the right, then right unique keys (adjusted by offset) remain
    *    unique in the result.
+   *    Example: {k3} (t2) is a unique key in the result.
    */
   def getJoinUniqueKeys(
       joinRelType: JoinRelType,

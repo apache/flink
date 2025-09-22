@@ -273,15 +273,30 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
   }
 
   /*
-   * Concept: Upsert keys are unique keys that also include the distribution key(s).
-   * Why it matters: Including the distribution keys guarantees all rows for a given key
+   * * This method calculates the upsert keys for a multi-way join by
+   * progressively applying the two-way join logic from FlinkRelMdUniqueKeys.
+   *
+   * Upsert keys are unique keys that also include the distribution key(s).
+   * Including the distribution keys guarantees all rows for a given key
    * are routed to the same node, so updates overwrite correctly.
    *
    * Example:
    * - Tables: t1(k1, k2) and t2(k3, k4)
    * - Join/Distribution keys: t1.k1 = t2.k3
-   * - Candidate unique keys: t1: {k1}, {k1, k2}; t2: {k3}
-   * Any key on t1 that contains k1 (e.g., {k1} or {k1, k2}) qualifies as an upsert key.
+   * - Candidate unique keys: t1: {k1, k2}; t2: {k3}
+   * - Possibility results in upsert keys: {k1, k2}, {k3}, {k1, k2, k3}
+   *
+   * 1. Any key on t1 that contains k1 (i.e. {k1, k2}) qualifies as an upsert key if
+   *  - This is an inner join or left join, since it can't be null.
+   *  - The right side produces unique records. Valid since {k3} is in the join condition.
+   *
+   * 2. Any key on t2 that contains k3 (i.e. {k3}) qualifies as an upsert key if
+   *  - This is an inner join or right join, since it can't be null.
+   *  - The left side produces unique records. Invalid since {k1, k2} is not in the join condition.
+   *
+   * 3. The union between both keys from t1 and t2 (i.e. {k1, k2, k3}) qualifies as an upsert key
+   *   - This has no null checks, so part of this composite key can be null
+   *
    */
   def getUpsertKeys(
       multiJoin: StreamPhysicalMultiJoin,
@@ -294,7 +309,6 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
     var leftFieldCount = inputs.get(0).getRowType.getFieldCount
     var leftUpsertKeys = fmq.getUpsertKeys(inputs.get(0))
 
-    // todo gustavo are these adjusted? i think so
     val leftJoinKeyIndices = ImmutableBitSet.of(multiJoin.getJoinKeyIndices(0): _*)
 
     // Process each subsequent input as right side of join
