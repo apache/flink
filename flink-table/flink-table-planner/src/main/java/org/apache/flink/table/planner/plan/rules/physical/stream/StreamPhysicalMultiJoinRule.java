@@ -190,6 +190,18 @@ public class StreamPhysicalMultiJoinRule extends ConverterRule {
             rightRef = inputRef1;
         }
 
+        // Special case for input 0:
+        // Since we are building attribute references that do left -> right index,
+        // we need a special base case for input 0 which has no input to the left.
+        // So we do {-1, -1} -> {0, attributeIndex}
+        if (leftRef.inputIndex == 0) {
+            final ConditionAttributeRef firstAttrRef =
+                    new ConditionAttributeRef(-1, -1, leftRef.inputIndex, leftRef.attributeIndex);
+            joinAttributeMap
+                    .computeIfAbsent(leftRef.inputIndex, k -> new ArrayList<>())
+                    .add(firstAttrRef);
+        }
+
         final ConditionAttributeRef attrRef =
                 new ConditionAttributeRef(
                         leftRef.inputIndex,

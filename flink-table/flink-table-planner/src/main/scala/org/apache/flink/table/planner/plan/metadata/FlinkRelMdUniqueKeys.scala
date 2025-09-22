@@ -36,7 +36,7 @@ import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.RelOptTable
 import org.apache.calcite.plan.hep.HepRelVertex
 import org.apache.calcite.plan.volcano.RelSubset
-import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeFactory}
+import org.apache.calcite.rel.`type`.RelDataTypeFactory
 import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata._
@@ -487,11 +487,12 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
 
       getJoinUniqueKeys(
         join.joinType,
-        left.getRowType,
+        left.getRowType.getFieldCount,
         leftUniqueKeys,
         rightUniqueKeys,
         mq.areColumnsUnique(left, join.joinInfo.leftSet, ignoreNulls),
-        rightUniqueKeys != null)
+        rightUniqueKeys != null
+      )
     } else {
       null
     }
@@ -524,7 +525,7 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     val rightUniqueKeys = mq.getUniqueKeys(right, ignoreNulls)
     getJoinUniqueKeys(
       joinRelType,
-      left.getRowType,
+      left.getRowType.getFieldCount,
       leftUniqueKeys,
       rightUniqueKeys,
       mq.areColumnsUnique(left, joinInfo.leftSet, ignoreNulls),
@@ -532,9 +533,34 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     )
   }
 
+  /*
+   * Derive possible unique keys for a join with three complementary rules.
+   *
+   * Example context:
+   * - Tables: t1(k1, k2) and t2(k3, k4)
+   * - Join: t1.k1 = t2.k3
+   * - Candidate unique keys: t1: {k1}, {k1, k2}; t2: {k3}
+   *
+   * 1) Concatenate unique keys from both sides.
+   *    If both sides have unique keys, form the union across the join boundary
+   *    (right indexes are offset by leftFieldsCount). This yields superset keys
+   *    that are guaranteed unique.
+   *    Example: {k1}, {k1, k2}; t2: {k3} -> {k1, k3} {k1, k2, k3}
+   *
+   * 2) Maintain unique keys from the left side.
+   *    If the right is unique on its join columns and the join does not generate
+   *    nulls on the left, then any left unique key remains unique in the result.
+   *    Example: {k1} and {k1, k2} (t1) are unique keys in the result.
+   *
+   * 3) Maintain unique keys from the right.
+   *    If the left is unique on its join columns and the join does not generate
+   *    nulls on the right, then right unique keys (adjusted by offset) remain
+   *    unique in the result.
+   *    Example: {k3} (t2) is a unique key in the result.
+   */
   def getJoinUniqueKeys(
       joinRelType: JoinRelType,
-      leftType: RelDataType,
+      leftFieldsCount: Int,
       leftUniqueKeys: JSet[ImmutableBitSet],
       rightUniqueKeys: JSet[ImmutableBitSet],
       isLeftUnique: JBoolean,
@@ -549,7 +575,7 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     // that is undesirable, use RelMetadataQuery.areColumnsUnique() as
     // an alternative way of getting unique key information.
     val retSet = new JHashSet[ImmutableBitSet]
-    val nFieldsOnLeft = leftType.getFieldCount
+    val nFieldsOnLeft = leftFieldsCount
     val rightSet = if (rightUniqueKeys != null) {
       val res = new JHashSet[ImmutableBitSet]
       rightUniqueKeys.foreach {
@@ -560,6 +586,9 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       }
       if (leftUniqueKeys != null) {
         res.foreach {
+          // 1) Concatenate unique keys from both sides to get a superset that is unique.
+          // If left is unique on {0,1} and right on {0}, then {0,1} (after offset) remains unique,
+          // but {0} alone may not.
           colMaskRight =>
             leftUniqueKeys.foreach(colMaskLeft => retSet.add(colMaskLeft.union(colMaskRight)))
         }
@@ -574,9 +603,8 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     val leftUnique = isLeftUnique
     val rightUnique = isRightUnique
 
-    // if the right hand side is unique on its equijoin columns, then we can
-    // add the unique keys from left if the left hand side is not null
-    // generating
+    // 2) If right is unique on its equi-join columns and the join does not generate nulls on the left,
+    // then left unique keys remain unique in the result (one-to-one matching on the right).
     if (
       rightUnique != null
       && rightUnique
@@ -586,7 +614,8 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       retSet.addAll(leftUniqueKeys)
     }
 
-    // same as above except left and right are reversed
+    // 3) Mirror of rule (2): left unique on join columns implies right unique keys
+    // (offset) remain unique, provided the join does not generate nulls on the right.
     if (
       leftUnique != null
       && leftUnique

@@ -125,7 +125,7 @@ Sink(table=[default_catalog.default_database.sink1], fields=[a, day, EXPR$2, EXP
 +- GroupAggregate(advice=[1], groupBy=[a, day], select=[a, day, SUM_RETRACT(b) AS EXPR$2, COUNT_RETRACT(DISTINCT c) AS EXPR$3])
    +- Exchange(distribution=[hash[a, day]])
       +- Calc(select=[a, day, b0 AS b, c])
-         +- MultiJoin(joinFilter=[=($0, $4)], joinTypes=[[INNER, INNER]], joinConditions=[[true, =($0, $4)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:2;]}], select=[a,day,b0,c,d], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) day, BIGINT b0, VARCHAR(2147483647) c, INTEGER d)])
+         +- MultiJoin(joinFilter=[=($0, $4)], joinTypes=[[INNER, INNER]], joinConditions=[[true, =($0, $4)]], joinAttributeMap=[{0=[LeftInputId:-1;LeftFieldIndex:-1;RightInputId:0;RightFieldIndex:0;], 1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:2;]}], select=[a,day,b0,c,d], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) day, BIGINT b0, VARCHAR(2147483647) c, INTEGER d)])
             :- Exchange(distribution=[hash[a]])
             :  +- Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day])
             :     +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a], metadata=[]]], fields=[a])
@@ -134,7 +134,7 @@ Sink(table=[default_catalog.default_database.sink1], fields=[a, day, EXPR$2, EXP
 
 Sink(table=[default_catalog.default_database.sink2], fields=[a, day, b, c])
 +- Calc(select=[a, day, b0 AS b, c])
-   +- MultiJoin(joinFilter=[=($0, $4)], joinTypes=[[INNER, INNER]], joinConditions=[[true, =($0, $4)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:2;]}], select=[a,day,b0,c,d], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) day, BIGINT b0, VARCHAR(2147483647) c, INTEGER d)])
+   +- MultiJoin(joinFilter=[=($0, $4)], joinTypes=[[INNER, INNER]], joinConditions=[[true, =($0, $4)]], joinAttributeMap=[{0=[LeftInputId:-1;LeftFieldIndex:-1;RightInputId:0;RightFieldIndex:0;], 1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:2;]}], select=[a,day,b0,c,d], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) day, BIGINT b0, VARCHAR(2147483647) c, INTEGER d)])
       :- Exchange(distribution=[hash[a]])
       :  +- Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day])
       :     +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a], metadata=[]]], fields=[a])

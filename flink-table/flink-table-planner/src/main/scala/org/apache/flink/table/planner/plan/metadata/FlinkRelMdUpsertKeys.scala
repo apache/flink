@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalGr
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
-import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, RankUtil, UpsertKeyUtil}
+import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, RankUtil}
 
 import com.google.common.collect.ImmutableSet
 import org.apache.calcite.plan.hep.HepRelVertex
@@ -264,12 +264,79 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
 
     FlinkRelMdUniqueKeys.INSTANCE.getJoinUniqueKeys(
       join.joinType,
-      leftType,
+      leftType.getFieldCount,
       leftUpsertKeys,
       rightUpsertKeys,
-      areColumnsUpsertKeys(leftUpsertKeys, leftJoinKeys),
+      isSideUnique(leftUpsertKeys, leftJoinKeys),
       rightUpsertKeys != null
     )
+  }
+
+  /*
+   * * This method calculates the upsert keys for a multi-way join by
+   * progressively applying the two-way join logic from FlinkRelMdUniqueKeys.
+   *
+   * Upsert keys are unique keys that also include the distribution key(s).
+   * Including the distribution keys guarantees all rows for a given key
+   * are routed to the same node, so updates overwrite correctly.
+   *
+   * Example:
+   * - Tables: t1(k1, k2) and t2(k3, k4)
+   * - Join/Distribution keys: t1.k1 = t2.k3
+   * - Candidate unique keys: t1: {k1, k2}; t2: {k3}
+   * - Possibility results in upsert keys: {k1, k2}, {k3}, {k1, k2, k3}
+   *
+   * 1. Any key on t1 that contains k1 (i.e. {k1, k2}) qualifies as an upsert key if
+   *  - This is an inner join or left join, since it can't be null.
+   *  - The right side produces unique records. Valid since {k3} is in the join condition.
+   *
+   * 2. Any key on t2 that contains k3 (i.e. {k3}) qualifies as an upsert key if
+   *  - This is an inner join or right join, since it can't be null.
+   *  - The left side produces unique records. Invalid since {k1, k2} is not in the join condition.
+   *
+   * 3. The union between both keys from t1 and t2 (i.e. {k1, k2, k3}) qualifies as an upsert key
+   *   - This has no null checks, so part of this composite key can be null
+   *
+   */
+  def getUpsertKeys(
+      multiJoin: StreamPhysicalMultiJoin,
+      mq: RelMetadataQuery): JSet[ImmutableBitSet] = {
+    val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
+    val inputs = multiJoin.getInputs
+    val joinTypes = multiJoin.getJoinTypes
+
+    // Initialize with first input
+    var leftFieldCount = inputs.get(0).getRowType.getFieldCount
+    var leftUpsertKeys = fmq.getUpsertKeys(inputs.get(0))
+
+    val leftJoinKeyIndices = ImmutableBitSet.of(multiJoin.getJoinKeyIndices(0): _*)
+
+    // Process each subsequent input as right side of join
+    for (i <- 1 until inputs.size) {
+      val rightInput = inputs.get(i)
+      val rightUpsertKeys = fmq.getUpsertKeys(rightInput)
+      val joinType = joinTypes.get(i)
+      val rightJoinKeyIndices = ImmutableBitSet.of(multiJoin.getJoinKeyIndices(i): _*)
+
+      // We compute candidate unique keys that qualify as upsert keys if they include
+      // the distribution keys. Therefore, we can reuse getJoinUniqueKeys while passing
+      // the already filtered ("upsert-aware") unique keys.
+      val newUpsertKeys = FlinkRelMdUniqueKeys.INSTANCE.getJoinUniqueKeys(
+        joinType,
+        leftFieldCount,
+        leftUpsertKeys,
+        rightUpsertKeys,
+        // Check whether each side's equi-join columns form an upsert key on that side
+        // (i.e., contain at least one upsert key), implying at most one matching row per side.
+        isSideUnique(leftUpsertKeys, leftJoinKeyIndices),
+        isSideUnique(rightUpsertKeys, rightJoinKeyIndices)
+      )
+
+      leftUpsertKeys = newUpsertKeys
+      leftFieldCount += rightInput.getRowType.getFieldCount
+    }
+
+    leftUpsertKeys
   }
 
   private def getJoinUpsertKeys(
@@ -281,13 +348,18 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
     val fmq = FlinkRelMetadataQuery.reuseOrCreate(mq)
     val leftKeys = fmq.getUpsertKeys(left)
     val rightKeys = fmq.getUpsertKeys(right)
+
     FlinkRelMdUniqueKeys.INSTANCE.getJoinUniqueKeys(
       joinRelType,
-      left.getRowType,
+      left.getRowType.getFieldCount,
+      // Retain only keys whose columns are contained in the join's equi-join columns
+      // (the distribution keys), ensuring the result remains an upsert key.
+      // Note: An Exchange typically applies this filtering already via fmq.getUpsertKeys(...).
+      // We keep it here to be safe in case a join can appear without a preceding Exchange.
       filterKeys(leftKeys, joinInfo.leftSet),
       filterKeys(rightKeys, joinInfo.rightSet),
-      areColumnsUpsertKeys(leftKeys, joinInfo.leftSet),
-      areColumnsUpsertKeys(rightKeys, joinInfo.rightSet)
+      isSideUnique(leftKeys, joinInfo.leftSet),
+      isSideUnique(rightKeys, joinInfo.rightSet)
     )
   }
 
@@ -313,6 +385,16 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
     FlinkRelMetadataQuery.reuseOrCreate(mq).getUpsertKeys(subset.getInput)
   }
 
+  /*
+   * Keep only keys that include the distribution key(s).
+   * Why: Only keys that include the distribution keys are guaranteed to be co-located (same node),
+   * hence they can act as upsert keys.
+   *
+   * Example:
+   * - distributionKey = {k1}
+   * - keys = {{k1}, {k1, k2}, {k2}}
+   * Result: {{k1}, {k1, k2}} (drops {k2})
+   */
   private def filterKeys(
       keys: JSet[ImmutableBitSet],
       distributionKey: ImmutableBitSet): JSet[ImmutableBitSet] = {
@@ -323,11 +405,20 @@ class FlinkRelMdUpsertKeys private extends MetadataHandler[UpsertKeys] {
     }
   }
 
-  private def areColumnsUpsertKeys(
-      keys: JSet[ImmutableBitSet],
-      columns: ImmutableBitSet): Boolean = {
-    if (keys != null) {
-      keys.exists(columns.contains)
+  /*
+   * Check whether the given join keys qualify as an upsert key: return true if the
+   * join keys contain at least one of the upsert keys.
+   *
+   * Example:
+   * - joinKeys = {k1, k2}
+   * - upsertKeys = {{k1}}
+   * => true, because {k1, k2} contains {k1}.
+   */
+  private def isSideUnique(
+      upsertKeys: JSet[ImmutableBitSet],
+      joinKeys: ImmutableBitSet): Boolean = {
+    if (upsertKeys != null) {
+      upsertKeys.exists(joinKeys.contains)
     } else {
       false
     }
