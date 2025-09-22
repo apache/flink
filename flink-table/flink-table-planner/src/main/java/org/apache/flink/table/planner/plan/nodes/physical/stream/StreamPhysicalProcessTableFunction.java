@@ -252,7 +252,8 @@ public class StreamPhysicalProcessTableFunction extends AbstractRelNode
             // Disabling uid and time attributes for process table functions with implementation
             // is not supported for now. It can only be disabled for syntax purpose: for example
             // it's disabled for ML_PREDICT which is not processed by this rule.
-            throw new ValidationException("Disabling system arguments is not supported for PTF.");
+            throw new ValidationException(
+                    "Disabling system arguments is not supported for user-defined PTF.");
         }
     }
 

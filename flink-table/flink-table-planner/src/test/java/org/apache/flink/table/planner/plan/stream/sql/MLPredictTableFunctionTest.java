@@ -317,7 +317,7 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                                                 + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true', 'capacity', CAST(-1 AS STRING)]))"))
                 .hasCauseInstanceOf(ValidationException.class)
                 .hasStackTraceContaining(
-                        "Config param of ML_PREDICT function should be a MAP of String literals.");
+                        "Config parameter of ML_PREDICT function should be a MAP data type consisting String literals.");
 
         assertThatThrownBy(
                         () ->

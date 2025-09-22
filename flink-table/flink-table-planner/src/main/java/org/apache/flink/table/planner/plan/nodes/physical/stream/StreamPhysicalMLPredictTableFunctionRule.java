@@ -63,7 +63,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeFamily.CHARACTER_S
 public class StreamPhysicalMLPredictTableFunctionRule extends ConverterRule {
 
     private static final String CONFIG_ERROR_MESSAGE =
-            "Config param of ML_PREDICT function should be a MAP of String literals.";
+            "Config parameter of ML_PREDICT function should be a MAP data type consisting String literals.";
 
     public static final StreamPhysicalMLPredictTableFunctionRule INSTANCE =
             new StreamPhysicalMLPredictTableFunctionRule(
