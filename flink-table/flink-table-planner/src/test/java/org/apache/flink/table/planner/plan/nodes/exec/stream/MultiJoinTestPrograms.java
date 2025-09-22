@@ -1145,6 +1145,150 @@ public class MultiJoinTestPrograms {
                                     + "INNER JOIN OrdersNullSafe o ON u.user_id IS NOT DISTINCT FROM o.user_id")
                     .build();
 
+    static final TableTestProgram MULTI_JOIN_TWO_WAY_JOIN_PRESERVES_UPSERT_KEY_WITH_RESTORE =
+            TableTestProgram.of(
+                            "two-way-upsert-preserves-key-with-restore",
+                            "validates upsert with non key filter with restore")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Users")
+                                    .addOption("changelog-mode", "I, UA,D")
+                                    .addSchema(
+                                            "user_id INT NOT NULL",
+                                            "shard_id INT NOT NULL",
+                                            "description STRING",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`) NOT ENFORCED")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, 1, "shard_a"))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 3, 1, "another shard"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Orders")
+                                    .addOption("changelog-mode", "I, UA,D")
+                                    .addSchema(
+                                            "user_id INT NOT NULL",
+                                            "order_id BIGINT NOT NULL",
+                                            "product STRING",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `order_id`) NOT ENFORCED")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, 1L, "a"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, 1L, "a_updated"))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, 2L, "b"),
+                                            Row.ofKind(RowKind.DELETE, 1, 2L, "b"),
+                                            Row.ofKind(RowKind.INSERT, 3, 1L, "b"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addOption("changelog-mode", "I, UA, D")
+                                    .addSchema(
+                                            "`user_id` INT NOT NULL",
+                                            "`order_id` BIGINT NOT NULL",
+                                            "product STRING",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `order_id`) NOT ENFORCED")
+                                    .consumedBeforeRestore("+I[1, 1, a_updated]")
+                                    .consumedAfterRestore("+I[3, 1, b]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO `sink`\n"
+                                    + "SELECT\n"
+                                    + "    o.user_id,\n"
+                                    + "    o.order_id,\n"
+                                    + "    o.product\n"
+                                    + "FROM Users u\n"
+                                    + "JOIN `Orders` AS o\n"
+                                    + "  ON  u.user_id = o.user_id\n")
+                    .build();
+
+    static final TableTestProgram MULTI_JOIN_THREE_WAY_JOIN_PRESERVES_UPSERT_KEY_WITH_RESTORE =
+            TableTestProgram.of(
+                            "three-way-upsert-preserves-key-with-restore",
+                            "validates upsert with non key filter with restore")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Users")
+                                    .addOption("changelog-mode", "I, UA,D")
+                                    .addSchema(
+                                            "user_id INT NOT NULL",
+                                            "shard_id INT NOT NULL",
+                                            "description STRING",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`) NOT ENFORCED")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, 1, "shard_a"))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.INSERT, 2, 1, "shard_b"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Orders")
+                                    .addOption("changelog-mode", "I, UA,D")
+                                    .addSchema(
+                                            "user_id INT NOT NULL",
+                                            "order_id BIGINT NOT NULL",
+                                            "product STRING",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `order_id`) NOT ENFORCED")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, 1L, "a"),
+                                            Row.ofKind(RowKind.INSERT, 1, 2L, "b"))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.INSERT, 2, 1L, "c"),
+                                            Row.ofKind(RowKind.INSERT, 2, 2L, "d"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Payments")
+                                    .addOption("changelog-mode", "I, UA,D")
+                                    .addSchema(
+                                            "user_id INT NOT NULL",
+                                            "payment_id BIGINT NOT NULL",
+                                            "product STRING",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `payment_id`) NOT ENFORCED")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, 1L, "a"),
+                                            Row.ofKind(RowKind.INSERT, 1, 2L, "b"))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.INSERT, 2, 1L, "c"),
+                                            Row.ofKind(RowKind.INSERT, 2, 2L, "d"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addOption("changelog-mode", "I, UA, D")
+                                    .addSchema(
+                                            "`user_id` INT NOT NULL",
+                                            "`order_id` BIGINT NOT NULL",
+                                            "`user_id2` INT NOT NULL",
+                                            "payment_id BIGINT NOT NULL",
+                                            "`user_id3` INT NOT NULL",
+                                            "description STRING",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `order_id`, `user_id2`, `payment_id`, `user_id3`) NOT ENFORCED")
+                                    .consumedBeforeRestore(
+                                            "+I[1, 1, 1, 2, 1, shard_a]",
+                                            "+I[1, 1, 1, 1, 1, shard_a]",
+                                            "+I[1, 2, 1, 1, 1, shard_a]",
+                                            "+I[1, 2, 1, 2, 1, shard_a]")
+                                    .consumedAfterRestore(
+                                            "+I[2, 2, 2, 1, 2, shard_b]",
+                                            "+I[2, 1, 2, 2, 2, shard_b]",
+                                            "+I[2, 2, 2, 2, 2, shard_b]",
+                                            "+I[2, 1, 2, 1, 2, shard_b]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO `sink`\n"
+                                    + "SELECT\n"
+                                    + "    o.user_id,\n"
+                                    + "    o.order_id,\n"
+                                    + "    p.user_id,\n"
+                                    + "    p.payment_id,\n"
+                                    + "    u.user_id,\n"
+                                    + "    u.description\n"
+                                    + "FROM Users u\n"
+                                    + "JOIN `Orders` AS o\n"
+                                    + "  ON  o.user_id = u.user_id\n"
+                                    + "JOIN Payments p\n"
+                                    + "  ON  o.user_id = p.user_id")
+                    .build();
+
     public static final TableTestProgram
             MULTI_JOIN_WITH_TIME_ATTRIBUTES_IN_CONDITIONS_MATERIALIZATION =
                     TableTestProgram.of(
