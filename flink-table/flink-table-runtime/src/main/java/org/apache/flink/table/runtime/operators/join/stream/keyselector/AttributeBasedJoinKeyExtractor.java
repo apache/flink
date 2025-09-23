@@ -576,7 +576,11 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
         // by the current attribute's field index as a tie-breaker for stability. This
         // ensures that input 0's attribute order defines the canonical order.
         commonAttrsForThisInput.sort(
-                Comparator.<AttributeRef>comparingInt(a -> attributeToRoot.get(a).fieldIndex)
+                Comparator.<AttributeRef>comparingInt(
+                                a -> {
+                                    AttributeRef root = attributeToRoot.get(a);
+                                    return root != null ? root.fieldIndex : -1;
+                                })
                         // This is for stable ordering when two roots happen to have the same
                         // fieldIndex
                         .thenComparingInt(a -> a.fieldIndex));
@@ -678,7 +682,6 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
     public void validateKeyStructures() {
         final int numInputs = inputTypes == null ? 0 : inputTypes.size();
 
-        // We start at 1 because input 0 has no left-side extractors.
         for (int inputId = 0; inputId < numInputs; inputId++) {
             final List<KeyExtractor> leftExtractors = leftKeyExtractorsMap.get(inputId);
             final List<KeyExtractor> rightExtractors = rightKeyExtractorsMap.get(inputId);
@@ -687,9 +690,24 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
                     validateExtractorsLength(leftExtractors, rightExtractors, inputId);
 
             for (int j = 0; j < extractorsLength; j++) {
-                final LogicalType leftType = leftExtractors.get(j).fieldType;
-                final LogicalType rightType = rightExtractors.get(j).fieldType;
+                final KeyExtractor rightExtractor = rightExtractors.get(j);
+                final KeyExtractor leftExtractor = leftExtractors.get(j);
 
+                if (leftExtractor == null || rightExtractor == null) {
+                    throw new IllegalStateException(
+                            "Null extractor found when validating key structures for field "
+                                    + j
+                                    + " on input "
+                                    + inputId
+                                    + ": left extractor "
+                                    + leftExtractor
+                                    + ", right extractor "
+                                    + rightExtractor
+                                    + ".");
+                }
+
+                final LogicalType leftType = leftExtractor.fieldType;
+                final LogicalType rightType = rightExtractor.fieldType;
                 if (!Objects.equals(leftType.getTypeRoot(), rightType.getTypeRoot())) {
                     throw new IllegalStateException(
                             "Type mismatch for join key field "
