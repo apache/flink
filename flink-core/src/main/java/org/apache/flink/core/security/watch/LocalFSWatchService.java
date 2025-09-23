@@ -18,6 +18,8 @@
 
 package org.apache.flink.core.security.watch;
 
+import org.apache.flink.annotation.VisibleForTesting;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,7 +27,9 @@ import java.nio.file.Path;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
@@ -35,39 +39,58 @@ import static java.nio.file.StandardWatchEventKinds.OVERFLOW;
 public class LocalFSWatchService extends Thread {
     private static final Logger LOG = LoggerFactory.getLogger(LocalFSWatchService.class);
 
+    private final long sleepDurationMs;
+    @VisibleForTesting AtomicBoolean running = new AtomicBoolean(false);
+
+    public LocalFSWatchService() {
+        this(Duration.ofMillis(100));
+    }
+
+    public LocalFSWatchService(Duration sleepDuration) {
+        setDaemon(true);
+        setName("LocalFSWatchServiceThread");
+        sleepDurationMs = sleepDuration.toMillis();
+    }
+
     public void run() {
         try {
+            running.set(true);
             while (true) {
                 for (Map.Entry<WatchService, LocalFSWatchServiceListener> entry :
-                        LocalFSWatchSingleton.getInstance().watchers.entrySet()) {
-                    LOG.debug("Taking watch key");
+                        LocalFSWatchSingleton.getInstance().getWatchers()) {
                     WatchKey watchKey = entry.getKey().poll();
                     if (watchKey == null) {
                         continue;
                     }
-                    LOG.debug("Watch key arrived");
-                    for (WatchEvent<?> watchEvent : watchKey.pollEvents()) {
-                        System.out.println(watchEvent.kind());
-                        System.out.println(watchEvent.context());
-                        if (watchEvent.kind() == OVERFLOW) {
-                            LOG.error("Filesystem events may have been lost or discarded");
-                            Thread.yield();
-                        } else if (watchEvent.kind() == ENTRY_CREATE) {
-                            entry.getValue().onFileOrDirectoryCreated((Path) watchEvent.context());
-                        } else if (watchEvent.kind() == ENTRY_DELETE) {
-                            entry.getValue().onFileOrDirectoryDeleted((Path) watchEvent.context());
-                        } else if (watchEvent.kind() == ENTRY_MODIFY) {
-                            entry.getValue().onFileOrDirectoryModified((Path) watchEvent.context());
-                        } else {
-                            LOG.warn("Unhandled watch event {}", watchEvent.kind());
-                        }
-                    }
+                    LOG.debug("Watch key arrived - {}", watchKey);
+                    processWatchKey(entry, watchKey);
                     watchKey.reset();
                 }
+                Thread.sleep(sleepDurationMs);
             }
         } catch (Exception e) {
             LOG.error("Filesystem watcher received exception and stopped: ", e);
             throw new RuntimeException(e);
+        } finally {
+            running.set(false);
+        }
+    }
+
+    protected void processWatchKey(
+            Map.Entry<WatchService, LocalFSWatchServiceListener> entry, WatchKey watchKey) {
+        for (WatchEvent<?> watchEvent : watchKey.pollEvents()) {
+            if (watchEvent.kind() == OVERFLOW) {
+                LOG.error("Filesystem events may have been lost or discarded");
+                Thread.yield();
+            } else if (watchEvent.kind() == ENTRY_CREATE) {
+                entry.getValue().onFileOrDirectoryCreated((Path) watchEvent.context());
+            } else if (watchEvent.kind() == ENTRY_DELETE) {
+                entry.getValue().onFileOrDirectoryDeleted((Path) watchEvent.context());
+            } else if (watchEvent.kind() == ENTRY_MODIFY) {
+                entry.getValue().onFileOrDirectoryModified((Path) watchEvent.context());
+            } else {
+                LOG.warn("Unhandled watch event {}", watchEvent.kind());
+            }
         }
     }
 }

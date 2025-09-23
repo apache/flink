@@ -36,9 +36,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 import javax.net.ssl.SSLServerSocket;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
 import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.attribute.FileTime;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.MessageDigest;
@@ -518,6 +521,17 @@ public class SSLUtilsTest {
                     config.get(SecurityOptions.SSL_REST_KEYSTORE_PASSWORD).toCharArray());
         }
         return getSha1Fingerprint(keyStore.getCertificate(certificateAlias));
+    }
+
+    public static void touchKeyStore() throws IOException {
+        FileTime newTime = FileTime.fromMillis(System.currentTimeMillis());
+        Files.setLastModifiedTime(Paths.get(KEY_STORE_PATH), newTime);
+        Files.setLastModifiedTime(Paths.get(TRUST_STORE_PATH), newTime);
+    }
+
+    public static void touchTrustStore() throws IOException {
+        FileTime newTime = FileTime.fromMillis(System.currentTimeMillis());
+        Files.setLastModifiedTime(Paths.get(TRUST_STORE_PATH), newTime);
     }
 
     private static void addSslProviderConfig(Configuration config, String sslProvider) {

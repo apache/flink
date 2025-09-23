@@ -22,24 +22,26 @@ import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.WatchService;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
 
-public final class LocalFSWatchSingleton {
+public final class LocalFSWatchSingleton implements LocalFSDirectoryWatcher {
     // The field must be declared volatile so that double check lock would work
     // correctly.
-    private static volatile LocalFSWatchSingleton instance;
+    private static volatile LocalFSDirectoryWatcher instance;
 
     ConcurrentHashMap<WatchService, LocalFSWatchServiceListener> watchers =
             new ConcurrentHashMap<>();
 
     private LocalFSWatchSingleton() {}
 
-    public static LocalFSWatchSingleton getInstance() {
-        LocalFSWatchSingleton result = instance;
+    public static LocalFSDirectoryWatcher getInstance() {
+        LocalFSDirectoryWatcher result = instance;
         if (result != null) {
             return result;
         }
@@ -51,15 +53,20 @@ public final class LocalFSWatchSingleton {
         }
     }
 
-    public void registerPath(Path[] pathsToWatch, LocalFSWatchServiceListener callback)
+    public Set<Map.Entry<WatchService, LocalFSWatchServiceListener>> getWatchers() {
+        return watchers.entrySet();
+    }
+
+    @Override
+    public void registerDirectory(Path[] dirsToWatch, LocalFSWatchServiceListener listener)
             throws IOException {
 
         WatchService watcher = FileSystems.getDefault().newWatchService();
-        for (Path pathToWatch : pathsToWatch) {
+        for (Path pathToWatch : dirsToWatch) {
             Path realDirectoryPath = pathToWatch.toRealPath();
             realDirectoryPath.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
         }
-        callback.onWatchStarted(pathsToWatch[0]);
-        watchers.put(watcher, callback);
+        listener.onWatchStarted(dirsToWatch[0]);
+        watchers.put(watcher, listener);
     }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.runtime.blob;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.core.security.watch.LocalFSWatchSingleton;
 import org.apache.flink.runtime.net.SSLUtilsTest;
 
 import org.junit.jupiter.api.AfterAll;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** This class contains unit tests for the {@link BlobClient} with ssl enabled. */
@@ -159,5 +161,13 @@ class BlobClientSslTest extends BlobClientTest {
     @Test
     public void testNonSSLConnection4() throws Exception {
         uploadJarFile(blobNonSslServer, nonSslClientConfig);
+    }
+
+    /** Verify that blob server doesn't run watchers to watch the ssl certificates change. */
+    @Test
+    public void testNoWatchersRegistered() throws Exception {
+        LocalFSWatchSingleton watchSingleton =
+                (LocalFSWatchSingleton) LocalFSWatchSingleton.getInstance();
+        assertThat(watchSingleton.getWatchers().size()).isEqualTo(0);
     }
 }
