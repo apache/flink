@@ -25,6 +25,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.core.security.watch.LocalFSDirectoryWatcher;
 import org.apache.flink.core.security.watch.LocalFSWatchSingleton;
 import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableApplicationResource;
 import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
@@ -141,6 +142,8 @@ public class BlobServer extends Thread
     /** Timer task to execute the cleanup at regular intervals. */
     private final Timer cleanupTimer;
 
+    private final boolean socketRecreationIsNeeded;
+
     @VisibleForTesting
     public BlobServer(Configuration config, File storageDir, BlobStore blobStore)
             throws IOException {
@@ -201,10 +204,13 @@ public class BlobServer extends Thread
 
         //  ----------------------- start the server -------------------
 
+        socketRecreationIsNeeded =
+                SecurityOptions.isInternalSSLEnabled(config)
+                        && SecurityOptions.isCertificateReloadEnabled(config);
         blobServerSocket = new BlobServerSocket(config, backlog, maxConnections);
         if (SecurityOptions.isInternalSSLEnabled(config)
                 && config.get(BlobServerOptions.SSL_ENABLED)
-                && SecurityOptions.isReloadCertificate(config)) {
+                && SecurityOptions.isCertificateReloadEnabled(config)) {
             String keystoreFilePath =
                     config.get(
                             SecurityOptions.SSL_INTERNAL_KEYSTORE,
@@ -214,8 +220,8 @@ public class BlobServer extends Thread
                             SecurityOptions.SSL_INTERNAL_TRUSTSTORE,
                             config.get(SecurityOptions.SSL_TRUSTSTORE));
 
-            LocalFSWatchSingleton localFSWatchSingleton = LocalFSWatchSingleton.getInstance();
-            localFSWatchSingleton.registerPath(
+            LocalFSDirectoryWatcher localFSWatchSingleton = LocalFSWatchSingleton.getInstance();
+            localFSWatchSingleton.registerDirectory(
                     new Path[] {
                         Path.of(keystoreFilePath).getParent(),
                         Path.of(truststoreFilePath).getParent()
@@ -311,7 +317,7 @@ public class BlobServer extends Thread
     public void run() {
         try {
             while (!this.shutdownRequested.get()) {
-                if (this.blobServerSocket.reloadContextIfNeeded()) {
+                if (socketRecreationIsNeeded && this.blobServerSocket.reloadContextIfNeeded()) {
                     closeActiveConnections();
                 }
                 BlobServerConnection conn =
@@ -1360,8 +1366,15 @@ public class BlobServer extends Thread
     }
 
     /** Access to the server socket, for testing. */
+    @VisibleForTesting
     ServerSocket getServerSocket() {
         return this.blobServerSocket.getServerSocket();
+    }
+
+    /** Access to the reload counter, for testing. */
+    @VisibleForTesting
+    int getReloadCounter() {
+        return this.blobServerSocket.getReloadCounter();
     }
 
     void unregisterConnection(BlobServerConnection conn) {

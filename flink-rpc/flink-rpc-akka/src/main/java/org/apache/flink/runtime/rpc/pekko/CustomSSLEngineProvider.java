@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.rpc.pekko;
 
+import org.apache.flink.core.security.watch.LocalFSDirectoryWatcher;
 import org.apache.flink.core.security.watch.LocalFSWatchSingleton;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.util.FingerprintTrustManagerFactory;
@@ -46,19 +47,20 @@ public class CustomSSLEngineProvider implements SSLEngineProvider {
     private final SSLContextLoader sslContextLoader;
 
     public CustomSSLEngineProvider(ActorSystem system) throws IOException {
-        final Config securityConfig =
+        final Config pekkoSecurityConfig =
                 system.settings().config().getConfig("pekko.remote.classic.netty.ssl.security");
-        sslTrustStore = securityConfig.getString("trust-store");
-        String sslKeyStore = securityConfig.getString("key-store");
-        sslEnabledAlgorithms = securityConfig.getStringList("enabled-algorithms");
-        sslProtocol = securityConfig.getString("protocol");
-        sslRequireMutualAuthentication = securityConfig.getBoolean("require-mutual-authentication");
-        Boolean sslEnabledCertReload = securityConfig.getBoolean("enabled-cert-reload");
+        sslTrustStore = pekkoSecurityConfig.getString("trust-store");
+        String sslKeyStore = pekkoSecurityConfig.getString("key-store");
+        sslEnabledAlgorithms = pekkoSecurityConfig.getStringList("enabled-algorithms");
+        sslProtocol = pekkoSecurityConfig.getString("protocol");
+        sslRequireMutualAuthentication =
+                pekkoSecurityConfig.getBoolean("require-mutual-authentication");
+        Boolean sslEnabledCertReload = pekkoSecurityConfig.getBoolean("enabled-cert-reload");
 
-        sslContextLoader = new SSLContextLoader(sslTrustStore, sslProtocol, securityConfig);
+        sslContextLoader = new SSLContextLoader(sslTrustStore, sslProtocol, pekkoSecurityConfig);
         if (sslEnabledCertReload) {
-            LocalFSWatchSingleton localFSWatchSingleton = LocalFSWatchSingleton.getInstance();
-            localFSWatchSingleton.registerPath(
+            LocalFSDirectoryWatcher localFSWatchSingleton = LocalFSWatchSingleton.getInstance();
+            localFSWatchSingleton.registerDirectory(
                     new Path[] {
                         Path.of(sslTrustStore).getParent(), Path.of(sslKeyStore).getParent()
                     },
