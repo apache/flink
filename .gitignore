@@ -67,3 +67,5 @@ tools/japicmp-output
 /docs/go.mod
 /docs/go.sum
 /docs/.hugo_build.lock
+.pre-commit-config.yaml
+trufflehog/
