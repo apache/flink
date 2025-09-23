@@ -37,11 +37,10 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLSessionContext;
 import javax.net.ssl.TrustManagerFactory;
 
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.net.SSLUtils.getEnabledCipherSuites;
 import static org.apache.flink.runtime.net.SSLUtils.getEnabledProtocols;
@@ -59,7 +58,8 @@ public class ReloadableSslContext extends SslContext implements LocalFSWatchServ
     protected final SslProvider provider;
     protected volatile SslContext sslContext;
 
-    private final AtomicBoolean toReload = new AtomicBoolean(false);
+    private final AtomicReference<ReloadState> reloadState =
+            new AtomicReference<>(ReloadState.CLEAN);
 
     public ReloadableSslContext(
             Configuration config, boolean clientMode, ClientAuth clientAuth, SslProvider provider)
@@ -72,60 +72,49 @@ public class ReloadableSslContext extends SslContext implements LocalFSWatchServ
     }
 
     public SSLContext getSSLContext() {
-        reloadContextIfNeeded();
+        reloadContextIfNeeded(this::loadContext);
         return ((JdkSslContext) this.sslContext).context();
     }
 
     @Override
     public boolean isClient() {
-        reloadContextIfNeeded();
+        reloadContextIfNeeded(this::loadContext);
         return sslContext.isClient();
     }
 
     @Override
     public List<String> cipherSuites() {
-        reloadContextIfNeeded();
+        reloadContextIfNeeded(this::loadContext);
         return sslContext.cipherSuites();
     }
 
     @Override
     public ApplicationProtocolNegotiator applicationProtocolNegotiator() {
-        reloadContextIfNeeded();
+        reloadContextIfNeeded(this::loadContext);
         return sslContext.applicationProtocolNegotiator();
     }
 
     @Override
     public SSLEngine newEngine(ByteBufAllocator byteBufAllocator) {
-        reloadContextIfNeeded();
+        reloadContextIfNeeded(this::loadContext);
         return sslContext.newEngine(byteBufAllocator);
     }
 
     @Override
     public SSLEngine newEngine(ByteBufAllocator byteBufAllocator, String s, int i) {
-        reloadContextIfNeeded();
+        reloadContextIfNeeded(this::loadContext);
         return sslContext.newEngine(byteBufAllocator, s, i);
     }
 
     @Override
     public SSLSessionContext sessionContext() {
-        reloadContextIfNeeded();
+        reloadContextIfNeeded(this::loadContext);
         return sslContext.sessionContext();
     }
 
     @Override
-    public void onFileOrDirectoryModified(Path relativePath) {
-        toReload.set(true);
-    }
-
-    protected synchronized void reloadContextIfNeeded() {
-        if (toReload.compareAndSet(true, false)) {
-            try {
-                loadContext();
-            } catch (Exception e) {
-                LOG.warn("Failed to reload SSL context", e);
-                toReload.set(true);
-            }
-        }
+    public AtomicReference<ReloadState> getReloadStateReference() {
+        return reloadState;
     }
 
     protected void loadContext() throws Exception {
