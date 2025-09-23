@@ -189,9 +189,6 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
             keyExtractors.add(createKeyExtractor(leftAttrRef));
         }
 
-        keyExtractors.sort(
-                Comparator.comparingInt(KeyExtractor::getInputIdToAccess)
-                        .thenComparingInt(KeyExtractor::getFieldIndexInSourceRow));
         return keyExtractors;
     }
 
@@ -443,7 +440,14 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
                 }
             }
         }
-        commonAttrsForThisInput.sort(Comparator.comparingInt(attr -> attr.fieldIndex));
+
+        // Important: ensure a consistent conceptual attribute ordering derived from roots.
+        commonAttrsForThisInput.sort(
+                Comparator.<AttributeRef>comparingInt(a -> parent.get(a).fieldIndex)
+                        // This is for stable ordering when two roots happen to have the same
+                        // fieldIndex
+                        .thenComparingInt(a -> a.fieldIndex));
+
         return commonAttrsForThisInput;
     }
 
