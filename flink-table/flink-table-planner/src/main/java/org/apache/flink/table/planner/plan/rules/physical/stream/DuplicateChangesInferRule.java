@@ -166,7 +166,9 @@ public class DuplicateChangesInferRule extends RelRule<DuplicateChangesInferRule
         try {
             ChangelogMode sinkProvidedChangelogMode =
                     sink.tableSink().getChangelogMode(ChangelogMode.all());
-            if (sinkProvidedChangelogMode.containsOnly(RowKind.INSERT)) {
+            boolean sinkIsAppend = sinkProvidedChangelogMode.containsOnly(RowKind.INSERT);
+            boolean sinkIsRetract = sinkProvidedChangelogMode.contains(RowKind.UPDATE_BEFORE);
+            if (sinkIsAppend || sinkIsRetract) {
                 acceptUpdates = false;
             }
         } catch (Throwable t) {
