@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types.inference.strategies;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.DataTypes.Field;
 import org.apache.flink.table.api.ValidationException;
@@ -44,6 +45,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /** Type strategies for ML_PREDICT function. */
+@Internal
 public class MlPredictTypeStrategy {
     public static final InputTypeStrategy ML_PREDICT_INPUT_TYPE_STRATEGY =
             new InputTypeStrategy() {
