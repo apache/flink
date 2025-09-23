@@ -351,7 +351,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                                             DeterminismEnvelope.nondeterministicValue(
                                                     ResourceID.generate()));
 
-            if (SecurityOptions.isReloadCertificate(configuration)) {
+            if (SecurityOptions.isCertificateReloadEnabled(configuration)) {
                 LOG.debug("Initialize local file system watch service for certificate reloading.");
                 LocalFSWatchService localFSWatchService = new LocalFSWatchService();
                 localFSWatchService.start();
