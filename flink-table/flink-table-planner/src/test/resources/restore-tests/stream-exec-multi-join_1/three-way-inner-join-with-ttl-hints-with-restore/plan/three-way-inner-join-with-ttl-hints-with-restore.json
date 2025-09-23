@@ -1,7 +1,7 @@
 {
   "flinkVersion" : "2.2",
   "nodes" : [ {
-    "id" : 1,
+    "id" : 59,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -22,7 +22,7 @@
     "outputType" : "ROW<`user_id` VARCHAR(2147483647), `name` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id, name])"
   }, {
-    "id" : 2,
+    "id" : 60,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -35,7 +35,7 @@
     "outputType" : "ROW<`user_id` VARCHAR(2147483647), `name` VARCHAR(2147483647)>",
     "description" : "Exchange(distribution=[hash[user_id]])"
   }, {
-    "id" : 3,
+    "id" : 61,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -56,7 +56,7 @@
     "outputType" : "ROW<`user_id` VARCHAR(2147483647), `order_id` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[user_id, order_id])"
   }, {
-    "id" : 4,
+    "id" : 62,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -69,7 +69,7 @@
     "outputType" : "ROW<`user_id` VARCHAR(2147483647), `order_id` VARCHAR(2147483647)>",
     "description" : "Exchange(distribution=[hash[user_id]])"
   }, {
-    "id" : 5,
+    "id" : 63,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -90,7 +90,7 @@
     "outputType" : "ROW<`user_id` VARCHAR(2147483647), `payment_id` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[user_id, payment_id])"
   }, {
-    "id" : 6,
+    "id" : 64,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -103,7 +103,7 @@
     "outputType" : "ROW<`user_id` VARCHAR(2147483647), `payment_id` VARCHAR(2147483647)>",
     "description" : "Exchange(distribution=[hash[user_id]])"
   }, {
-    "id" : 7,
+    "id" : 65,
     "type" : "stream-exec-multi-join_1",
     "joinTypes" : [ "INNER", "INNER", "INNER" ],
     "joinConditions" : [ {
@@ -175,6 +175,17 @@
       "type" : "BOOLEAN"
     },
     "joinAttributeMap" : {
+      "0" : [ {
+        "leftInputId" : -1,
+        "leftFieldIndex" : -1,
+        "rightInputId" : 0,
+        "rightFieldIndex" : 0
+      }, {
+        "leftInputId" : -1,
+        "leftFieldIndex" : -1,
+        "rightInputId" : 0,
+        "rightFieldIndex" : 0
+      } ],
       "1" : [ {
         "leftInputId" : 0,
         "leftFieldIndex" : 0,
@@ -191,7 +202,7 @@
     "inputUniqueKeys" : [ [ ], [ ], [ ] ],
     "state" : [ {
       "index" : 0,
-      "ttl" : "0 ms",
+      "ttl" : "1 d",
       "name" : "input-state-0"
     }, {
       "index" : 1,
@@ -199,7 +210,7 @@
       "name" : "input-state-1"
     }, {
       "index" : 2,
-      "ttl" : "0 ms",
+      "ttl" : "2 d",
       "name" : "input-state-2"
     } ],
     "inputProperties" : [ {
@@ -225,9 +236,9 @@
       "priority" : 2
     } ],
     "outputType" : "ROW<`user_id` VARCHAR(2147483647), `name` VARCHAR(2147483647), `user_id0` VARCHAR(2147483647), `order_id` VARCHAR(2147483647), `user_id1` VARCHAR(2147483647), `payment_id` VARCHAR(2147483647)>",
-    "description" : "MultiJoin(joinFilter=[AND(=($0, $4), =($0, $2))], joinTypes=[[INNER, INNER, INNER]], joinConditions=[[true, =($0, $2), =($0, $4)]], joinAttributeMap=[{1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:0;], 2=[LeftInputId:0;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:0;]}], select=[user_id,name,user_id0,order_id,user_id1,payment_id], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id1, VARCHAR(2147483647) payment_id)])"
+    "description" : "MultiJoin(joinFilter=[AND(=($0, $4), =($0, $2))], joinTypes=[[INNER, INNER, INNER]], joinConditions=[[true, =($0, $2), =($0, $4)]], joinAttributeMap=[{0=[LeftInputId:-1;LeftFieldIndex:-1;RightInputId:0;RightFieldIndex:0;, LeftInputId:-1;LeftFieldIndex:-1;RightInputId:0;RightFieldIndex:0;], 1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:0;], 2=[LeftInputId:0;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:0;]}], select=[user_id,name,user_id0,order_id,user_id1,payment_id], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id1, VARCHAR(2147483647) payment_id)], stateTtlHints=[[[STATE_TTL options:[1d, 0s, 2d]]]])"
   }, {
-    "id" : 8,
+    "id" : 66,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -257,7 +268,7 @@
     "outputType" : "ROW<`user_id` VARCHAR(2147483647), `name` VARCHAR(2147483647), `order_id` VARCHAR(2147483647), `payment_id` VARCHAR(2147483647)>",
     "description" : "Calc(select=[user_id, name, order_id, payment_id])"
   }, {
-    "id" : 9,
+    "id" : 67,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -300,57 +311,57 @@
     "description" : "Sink(table=[default_catalog.default_database.sink], fields=[user_id, name, order_id, payment_id])"
   } ],
   "edges" : [ {
-    "source" : 1,
-    "target" : 2,
+    "source" : 59,
+    "target" : 60,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 3,
-    "target" : 4,
+    "source" : 61,
+    "target" : 62,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 5,
-    "target" : 6,
+    "source" : 63,
+    "target" : 64,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 2,
-    "target" : 7,
+    "source" : 60,
+    "target" : 65,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 4,
-    "target" : 7,
+    "source" : 62,
+    "target" : 65,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 6,
-    "target" : 7,
+    "source" : 64,
+    "target" : 65,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 7,
-    "target" : 8,
+    "source" : 65,
+    "target" : 66,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 8,
-    "target" : 9,
+    "source" : 66,
+    "target" : 67,
     "shuffle" : {
       "type" : "FORWARD"
     },
