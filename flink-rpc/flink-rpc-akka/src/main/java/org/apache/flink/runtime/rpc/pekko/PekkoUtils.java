@@ -359,7 +359,7 @@ class PekkoUtils {
                 Arrays.stream(sslAlgorithmsString.split(","))
                         .collect(Collectors.joining(",", "[", "]"));
 
-        final boolean enabledCertReloadConfig = SecurityOptions.isReloadCertificate(configuration);
+        final boolean enabledCertReloadConfig = SecurityOptions.isCertificateReloadEnabled(configuration);
         final String enabledCertReload = booleanToOnOrOff(enabledCertReloadConfig);
 
         final String sslEngineProviderName = CustomSSLEngineProvider.class.getCanonicalName();
