@@ -401,7 +401,7 @@ public class MultiJoinTestPrograms {
                                                     Row.ofKind(RowKind.INSERT, "1", "order1"),
                                                     Row.ofKind(RowKind.INSERT, "2", "order2"))
                                             .producedAfterRestore(
-                                                    Row.ofKind(RowKind.INSERT, "2", "order3"))
+                                                    Row.ofKind(RowKind.INSERT, "3", "order3"))
                                             .build())
                             .setupTableSource(
                                     SourceTestStep.newBuilder("Payments")
@@ -410,7 +410,7 @@ public class MultiJoinTestPrograms {
                                                     Row.ofKind(RowKind.INSERT, "1", "payment1"),
                                                     Row.ofKind(RowKind.INSERT, "2", "payment2"))
                                             .producedAfterRestore(
-                                                    Row.ofKind(RowKind.INSERT, "1", "payment3"))
+                                                    Row.ofKind(RowKind.INSERT, "3", "payment3"))
                                             .build())
                             .setupTableSink(
                                     SinkTestStep.newBuilder("sink")
@@ -422,9 +422,7 @@ public class MultiJoinTestPrograms {
                                             .consumedBeforeRestore(
                                                     "+I[1, Gus, order1, payment1]",
                                                     "+I[2, Bob, order2, payment2]")
-                                            .consumedAfterRestore(
-                                                    "+I[2, Bob, order3, payment2]",
-                                                    "+I[1, Gus, order1, payment3]")
+                                            .consumedAfterRestore("+I[3, Alice, order3, payment3]")
                                             .testMaterializedData()
                                             .build())
                             .runSql(
