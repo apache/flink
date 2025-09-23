@@ -37,7 +37,6 @@ import javax.net.ssl.TrustManagerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.security.KeyManagementException;
@@ -47,39 +46,37 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.UnrecoverableKeyException;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-public class SSLContextLoader implements LocalFSWatchServiceListener {
+public class SSLContextLoader
+        extends LocalFSWatchServiceListener.AbstractLocalFSWatchServiceListener {
 
     private static final Logger LOG = LoggerFactory.getLogger(SSLContextLoader.class);
 
     private final String sslTrustStore;
     private final String sslTrustStorePassword;
+    private final String sslKeyStore;
+    private final String sslKeyStorePassword;
     private final List<String> sslCertFingerprints;
     private final String sslKeyStoreType;
     private final String sslTrustStoreType;
     private final String sslProtocol;
-    private final String sslKeyStore;
-    private final String sslKeyStorePassword;
     private final String sslKeyPassword;
     private final String sslRandomNumberGenerator;
 
-    private final AtomicBoolean toReload = new AtomicBoolean(false);
-
     private volatile SSLContext sslContext;
 
-    public SSLContextLoader(String sslTrustStore, String sslProtocol, Config securityConfig) {
+    public SSLContextLoader(String sslTrustStore, String sslProtocol, Config pekkoSecurityConfig) {
         this.sslTrustStore = sslTrustStore;
         this.sslProtocol = sslProtocol;
 
-        this.sslTrustStorePassword = securityConfig.getString("trust-store-password");
-        this.sslCertFingerprints = securityConfig.getStringList("cert-fingerprints");
-        this.sslKeyStoreType = securityConfig.getString("key-store-type");
-        this.sslTrustStoreType = securityConfig.getString("trust-store-type");
-        this.sslKeyStore = securityConfig.getString("key-store");
-        sslKeyStorePassword = securityConfig.getString("key-store-password");
-        sslKeyPassword = securityConfig.getString("key-password");
-        sslRandomNumberGenerator = securityConfig.getString("random-number-generator");
+        this.sslTrustStorePassword = pekkoSecurityConfig.getString("trust-store-password");
+        this.sslCertFingerprints = pekkoSecurityConfig.getStringList("cert-fingerprints");
+        this.sslKeyStoreType = pekkoSecurityConfig.getString("key-store-type");
+        this.sslTrustStoreType = pekkoSecurityConfig.getString("trust-store-type");
+        this.sslKeyStore = pekkoSecurityConfig.getString("key-store");
+        this.sslKeyStorePassword = pekkoSecurityConfig.getString("key-store-password");
+        this.sslKeyPassword = pekkoSecurityConfig.getString("key-password");
+        this.sslRandomNumberGenerator = pekkoSecurityConfig.getString("random-number-generator");
 
         loadSSLContext();
     }
@@ -102,7 +99,7 @@ public class SSLContextLoader implements LocalFSWatchServiceListener {
     }
 
     public SSLEngine createSSLEngine() {
-        reloadContextIfNeeded();
+        reloadContextIfNeeded(this::loadSSLContext);
         return sslContext.createSSLEngine();
     }
 
@@ -115,17 +112,6 @@ public class SSLContextLoader implements LocalFSWatchServiceListener {
         }
         rng.nextInt();
         return rng;
-    }
-
-    @Override
-    public void onFileOrDirectoryModified(Path relativePath) {
-        toReload.set(true);
-    }
-
-    private synchronized void reloadContextIfNeeded() {
-        if (toReload.compareAndSet(true, false)) {
-            loadSSLContext();
-        }
     }
 
     /** Subclass may override to customize `KeyManager`. */

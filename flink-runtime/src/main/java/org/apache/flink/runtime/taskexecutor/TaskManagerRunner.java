@@ -193,7 +193,7 @@ public class TaskManagerRunner implements FatalErrorHandler {
                             Hardware.getNumberCPUCores(),
                             new ExecutorThreadFactory("taskmanager-future"));
 
-            if (SecurityOptions.isReloadCertificate(configuration)) {
+            if (SecurityOptions.isCertificateReloadEnabled(configuration)) {
                 LOG.debug("Initialize local file system watch service for certificate reloading.");
                 LocalFSWatchService localFSWatchService = new LocalFSWatchService();
                 localFSWatchService.start();
