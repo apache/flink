@@ -98,7 +98,12 @@ public class S3ConfigurationBuilder {
         this.region = hadoopConfig.get("fs.s3a.endpoint.region", region);
         String endpointStr = hadoopConfig.get("fs.s3a.endpoint");
         if (endpointStr != null && !endpointStr.trim().isEmpty()) {
-            this.endpoint = URI.create(endpointStr.trim());
+            // Ensure backward compatibility: add https:// if no scheme is provided
+            String trimmedEndpoint = endpointStr.trim();
+            if (!trimmedEndpoint.contains("://")) {
+                trimmedEndpoint = "https://" + trimmedEndpoint;
+            }
+            this.endpoint = URI.create(trimmedEndpoint);
         }
 
         // Service settings
