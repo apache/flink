@@ -1182,7 +1182,7 @@ class StreamingFourWayMixedOuterJoinOperatorTest extends StreamingMultiJoinOpera
         String userIdFieldName = String.format("user_id_%d", inputIndex);
         String pkFieldName = String.format("pk_%d", inputIndex); // Generic PK name
 
-        if (inputIndex == 0) { // Users: user_id (VARCHAR), pk (VARCHAR), details (BIGINT)
+        if (inputIndex == 0) { // Users: user_id (CHAR NOT NULL), pk (VARCHAR), details (BIGINT)
             return RowType.of(
                     new LogicalType[] {
                         new CharType(false, 20), VarCharType.STRING_TYPE, new BigIntType()
@@ -1191,7 +1191,7 @@ class StreamingFourWayMixedOuterJoinOperatorTest extends StreamingMultiJoinOpera
                         userIdFieldName, pkFieldName, String.format("details_%d", inputIndex)
                     });
         } else if (inputIndex
-                == 3) { // Shipments: user_id (VARCHAR), pk (VARCHAR), details (BIGINT)
+                == 3) { // Shipments: user_id (CHAR NOT NULL), pk (VARCHAR), details (BIGINT)
             return RowType.of(
                     new LogicalType[] {
                         new CharType(false, 20), VarCharType.STRING_TYPE, new BigIntType()
@@ -1199,7 +1199,8 @@ class StreamingFourWayMixedOuterJoinOperatorTest extends StreamingMultiJoinOpera
                     new String[] {
                         userIdFieldName, pkFieldName, String.format("details_%d", inputIndex)
                     });
-        } else { // Orders (1), Payments (2): user_id (VARCHAR), pk (VARCHAR), details (VARCHAR)
+        } else { // Orders (1), Payments (2): user_id (CHAR NOT NULL), pk (CHAR NOT NULL), details
+            // (VARCHAR)
             return super.createInputTypeInfo(inputIndex);
         }
     }
