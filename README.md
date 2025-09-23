@@ -95,7 +95,36 @@ windowCounts.print();
 env.execute();
 ```
 
+## Examples
 
+The Flink repository includes comprehensive examples demonstrating various features and patterns. These examples are located in the `flink-examples` directory and cover:
+
+### Streaming Examples
+* **Basic Operations**: Word count, data transformations, and stream processing patterns
+* **Windowing**: Time-based and count-based window operations
+* **State Management**: Stateful stream processing with checkpoints
+* **Timer Functionality**: Examples showing timer usage patterns and limitations
+
+#### Timer Examples
+The timer examples demonstrate important concepts about timer usage in Flink:
+
+* **`NonKeyedStreamTimerLimitation.java`**: Shows why timers cannot be used on non-keyed streams and the runtime limitations
+* **`NonKeyedStreamTimerAlternatives.java`**: Demonstrates alternative approaches for timer-like functionality on non-keyed streams:
+  - Using keyed streams with dummy keys
+  - Using processing time windows for periodic operations  
+  - Using event time windows with watermarks
+
+These examples highlight that **timers are only supported on keyed streams** and provide practical workarounds for common use cases.
+
+### Building and Running Examples
+```bash
+# Build the examples
+./mvnw clean package -DskipTests
+
+# Run a timer example
+java -cp flink-examples/flink-examples-streaming/target/flink-examples-streaming*.jar \
+  org.apache.flink.streaming.examples.timer.NonKeyedStreamTimerLimitation
+```
 
 ## Building Apache Flink from Source
 
