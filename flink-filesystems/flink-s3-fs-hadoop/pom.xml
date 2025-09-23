@@ -32,10 +32,8 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<surefire.module.config> <!--
-			S5CmdOnHadoopS3FileSystemITCase uses ArraysAsListSerializer indirectly
-			-->--add-opens=java.base/java.util=ALL-UNNAMED
-		</surefire.module.config>
+		<!-- S5CmdOnHadoopS3FileSystemITCase uses ArraysAsListSerializer indirectly -->
+		<surefire.module.config>--add-opens=java.base/java.util=ALL-UNNAMED</surefire.module.config>
 	</properties>
 
 	<dependencyManagement>

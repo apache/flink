@@ -67,6 +67,9 @@ public final class S3Configuration {
 
     // Buffer settings
     private final int bufferSize;
+    
+    // Hadoop configuration for credential provider access
+    private final org.apache.hadoop.conf.Configuration hadoopConfiguration;
 
     S3Configuration(S3ConfigurationBuilder builder) {
         this.connectionTimeout = builder.getConnectionTimeout();
@@ -88,6 +91,7 @@ public final class S3Configuration {
         this.trustStorePath = builder.getTrustStorePath();
         this.trustStorePassword = builder.getTrustStorePassword();
         this.bufferSize = builder.getBufferSize();
+        this.hadoopConfiguration = builder.getHadoopConfiguration();
     }
 
     // Getters
@@ -171,6 +175,11 @@ public final class S3Configuration {
 
     public int getBufferSize() {
         return bufferSize;
+    }
+    
+    @Nullable
+    public org.apache.hadoop.conf.Configuration getHadoopConfiguration() {
+        return hadoopConfiguration;
     }
 
     /**

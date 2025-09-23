@@ -68,6 +68,9 @@ public class S3ConfigurationBuilder {
 
     // Buffer settings
     private int bufferSize = 32 * 1024; // 32KB default
+    
+    // Hadoop configuration for credential provider access
+    private org.apache.hadoop.conf.Configuration hadoopConfiguration;
 
     public static S3ConfigurationBuilder fromHadoopConfiguration(Configuration hadoopConfig) {
         S3ConfigurationBuilder builder = new S3ConfigurationBuilder();
@@ -93,6 +96,9 @@ public class S3ConfigurationBuilder {
         this.accessKey = hadoopConfig.get("fs.s3a.access.key");
         this.secretKey = hadoopConfig.get("fs.s3a.secret.key");
         this.sessionToken = hadoopConfig.get("fs.s3a.session.token");
+        
+        // Store the Hadoop configuration for credential provider access
+        this.hadoopConfiguration = hadoopConfig;
 
         // Regional settings
         this.region = hadoopConfig.get("fs.s3a.endpoint.region", region);
@@ -275,5 +281,10 @@ public class S3ConfigurationBuilder {
 
     int getBufferSize() {
         return bufferSize;
+    }
+    
+    @Nullable
+    org.apache.hadoop.conf.Configuration getHadoopConfiguration() {
+        return hadoopConfiguration;
     }
 }

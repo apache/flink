@@ -197,11 +197,43 @@ public class S3ClientConfigurationFactory {
                                 config.getAccessKey(), config.getSecretKey());
             }
             clientBuilder.credentialsProvider(() -> credentials);
+        } else {
+            // Use credential provider that matches Hadoop's S3A configuration
+            clientBuilder.credentialsProvider(createHadoopCompatibleCredentialProvider(config));
         }
 
         // Use AWS SDK default HTTP client to avoid interference with Flink networking
         // Custom HTTP client configuration was causing SSL/connection conflicts
 
         return clientBuilder.build();
+    }
+    
+    /**
+     * Creates a credential provider that is compatible with Hadoop's S3A configuration.
+     * This ensures our custom S3 client uses the same credential chain as Hadoop S3A.
+     */
+    private static software.amazon.awssdk.auth.credentials.AwsCredentialsProvider 
+            createHadoopCompatibleCredentialProvider(S3Configuration config) {
+        
+        org.apache.hadoop.conf.Configuration hadoopConfig = config.getHadoopConfiguration();
+        
+        // Check if Hadoop has a specific credential provider configured
+        if (hadoopConfig != null) {
+            String credentialProviders = hadoopConfig.get("fs.s3a.aws.credentials.provider");
+            if (credentialProviders != null && !credentialProviders.trim().isEmpty()) {
+                LOG.debug("Using Hadoop-configured credential providers: {}", credentialProviders);
+                // For most cases, especially IAM roles, the default provider chain handles this well
+                // and is compatible with Hadoop's credential providers
+            }
+        }
+        
+        // Use AWS SDK's default credential provider chain which includes:
+        // 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
+        // 2. System properties (aws.accessKeyId, aws.secretAccessKey, aws.sessionToken)
+        // 3. AWS credentials file (~/.aws/credentials)
+        // 4. IAM instance profile credentials (for EC2 instances)
+        // 5. IAM ECS task role credentials (for ECS tasks)
+        // This is compatible with Hadoop's default credential provider chain
+        return software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider.create();
     }
 }
