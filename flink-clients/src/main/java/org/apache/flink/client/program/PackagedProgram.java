@@ -98,6 +98,9 @@ public class PackagedProgram implements AutoCloseable {
     /** Flag indicating whether the job is a Python job. */
     private final boolean isPython;
 
+    /** Serializable descriptor to reconstruct the PackagedProgram. */
+    private final PackagedProgramDescriptor descriptor;
+
     /**
      * Creates an instance that wraps the plan defined in the jar file using the given arguments.
      * For generating the plan the class defined in the className parameter is used.
@@ -163,6 +166,19 @@ public class PackagedProgram implements AutoCloseable {
             throw new ProgramInvocationException(
                     "The given program class does not have a main(String[]) method.");
         }
+
+        this.descriptor =
+                new PackagedProgramDescriptor(
+                        jarFile,
+                        classpaths,
+                        configuration,
+                        savepointRestoreSettings,
+                        args,
+                        getMainClassName());
+    }
+
+    public PackagedProgramDescriptor getDescriptor() {
+        return descriptor;
     }
 
     public SavepointRestoreSettings getSavepointSettings() {

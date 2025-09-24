@@ -21,6 +21,9 @@ package org.apache.flink.api.common;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.DeploymentOptions;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /** Possible states of an application. */
 @PublicEvolving
 public enum ApplicationState {
@@ -59,5 +62,29 @@ public enum ApplicationState {
 
     public boolean isTerminalState() {
         return terminalState;
+    }
+
+    private static final Map<JobStatus, ApplicationState> JOB_STATUS_APPLICATION_STATE_MAP =
+            new HashMap<>();
+
+    static {
+        // only globally terminal JobStatus can have a corresponding ApplicationState
+        JOB_STATUS_APPLICATION_STATE_MAP.put(JobStatus.FAILED, ApplicationState.FAILED);
+        JOB_STATUS_APPLICATION_STATE_MAP.put(JobStatus.CANCELED, ApplicationState.CANCELED);
+        JOB_STATUS_APPLICATION_STATE_MAP.put(JobStatus.FINISHED, ApplicationState.FINISHED);
+    }
+
+    /**
+     * Derives the ApplicationState that corresponds to the given JobStatus. This method only
+     * accepts globally terminal JobStatus. If the job status is not globally terminal, this method
+     * throws an IllegalArgumentException.
+     */
+    public static ApplicationState fromJobStatus(JobStatus jobStatus) {
+        if (!JOB_STATUS_APPLICATION_STATE_MAP.containsKey(jobStatus)) {
+            throw new IllegalArgumentException(
+                    "JobStatus " + jobStatus + " does not have a corresponding ApplicationState.");
+        }
+
+        return JOB_STATUS_APPLICATION_STATE_MAP.get(jobStatus);
     }
 }
