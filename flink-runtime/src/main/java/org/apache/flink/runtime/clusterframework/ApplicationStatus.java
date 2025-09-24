@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import org.apache.flink.api.common.ApplicationState;
 import org.apache.flink.api.common.JobStatus;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.BiMap;
@@ -88,5 +89,42 @@ public enum ApplicationStatus {
         }
 
         return JOB_STATUS_APPLICATION_STATUS_BI_MAP.inverse().get(this);
+    }
+
+    /**
+     * A bidirectional mapping between {@code ApplicationState} and {@code ApplicationStatus}.
+     *
+     * <p>{@code ApplicationState} covers the entire lifecycle of an application, representing
+     * various stages from created to finish.
+     *
+     * <p>{@code ApplicationStatus}, on the other hand, describes the final state of the cluster
+     * when shutdown. The class name may be changed in the future after refactoring its usage.
+     */
+    private static final BiMap<ApplicationState, ApplicationStatus>
+            APPLICATION_STATE_APPLICATION_STATUS_BI_MAP =
+                    EnumBiMap.create(ApplicationState.class, ApplicationStatus.class);
+
+    static {
+        APPLICATION_STATE_APPLICATION_STATUS_BI_MAP.put(
+                ApplicationState.FAILED, ApplicationStatus.FAILED);
+        APPLICATION_STATE_APPLICATION_STATUS_BI_MAP.put(
+                ApplicationState.CANCELED, ApplicationStatus.CANCELED);
+        APPLICATION_STATE_APPLICATION_STATUS_BI_MAP.put(
+                ApplicationState.FINISHED, ApplicationStatus.SUCCEEDED);
+    }
+
+    /**
+     * Derives the {@link ApplicationState} from the {@code ApplicationStatus}.
+     *
+     * @return The corresponding {@code ApplicationState}.
+     * @throws UnsupportedOperationException for {@link #UNKNOWN}.
+     */
+    public ApplicationState deriveApplicationState() {
+        if (!APPLICATION_STATE_APPLICATION_STATUS_BI_MAP.inverse().containsKey(this)) {
+            throw new UnsupportedOperationException(
+                    this.name() + " cannot be mapped to an ApplicationState.");
+        }
+
+        return APPLICATION_STATE_APPLICATION_STATUS_BI_MAP.inverse().get(this);
     }
 }

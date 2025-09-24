@@ -38,6 +38,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -63,7 +64,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * This class encapsulates represents a program, packaged in a jar file. It supplies functionality
  * to extract nested libraries, search for the program entry point, and extract a program plan.
  */
-public class PackagedProgram implements AutoCloseable {
+public class PackagedProgram implements AutoCloseable, Serializable {
 
     private static final Logger LOG = LoggerFactory.getLogger(PackagedProgram.class);
 
@@ -91,7 +92,9 @@ public class PackagedProgram implements AutoCloseable {
 
     private final List<URL> classpaths;
 
-    private final URLClassLoader userCodeClassLoader;
+    private final Configuration configuration;
+
+    private transient URLClassLoader userCodeClassLoader;
 
     private final SavepointRestoreSettings savepointSettings;
 
@@ -142,6 +145,9 @@ public class PackagedProgram implements AutoCloseable {
                 this.jarFile == null
                         ? Collections.emptyList()
                         : extractContainedLibraries(this.jarFile);
+
+        this.configuration = checkNotNull(configuration);
+
         this.userCodeClassLoader =
                 ClientUtils.buildUserCodeClassLoader(
                         getJobJarAndDependencies(),
@@ -241,6 +247,14 @@ public class PackagedProgram implements AutoCloseable {
      * @return The user code ClassLoader.
      */
     public ClassLoader getUserCodeClassLoader() {
+        if (this.userCodeClassLoader == null) {
+            this.userCodeClassLoader =
+                    ClientUtils.buildUserCodeClassLoader(
+                            getJobJarAndDependencies(),
+                            classpaths,
+                            getClass().getClassLoader(),
+                            configuration);
+        }
         return this.userCodeClassLoader;
     }
 
@@ -614,7 +628,9 @@ public class PackagedProgram implements AutoCloseable {
     @Override
     public void close() {
         try {
-            userCodeClassLoader.close();
+            if (userCodeClassLoader != null) {
+                userCodeClassLoader.close();
+            }
         } catch (IOException e) {
             LOG.debug("Error while closing user-code classloader.", e);
         }
