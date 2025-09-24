@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
-import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -171,7 +171,7 @@ public class MultiJoinTestPrograms {
                                             "name STRING",
                                             "cash INT",
                                             "user_id_0 STRING PRIMARY KEY NOT ENFORCED")
-                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addMode(ChangelogMode.upsert())
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "Gus", 100, "1"),
                                             Row.ofKind(RowKind.INSERT, "Joe no order", 10, "8"),
@@ -195,7 +195,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING PRIMARY KEY NOT ENFORCED",
                                             "product STRING",
                                             "user_id_1 STRING")
-                                    .addOption("changelog-mode", "I,D")
+                                    .addMode(ChangelogMode.insertOnly())
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "order0", "ProdB", "1"),
                                             Row.ofKind(RowKind.INSERT, "order6", "ProdF", "6"),
@@ -212,7 +212,7 @@ public class MultiJoinTestPrograms {
                                             "payment_id STRING PRIMARY KEY NOT ENFORCED",
                                             "price INT",
                                             "user_id_2 STRING")
-                                    .addOption("changelog-mode", "I")
+                                    .addMode(ChangelogMode.insertOnly())
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "payment1", 50, "1"),
                                             Row.ofKind(RowKind.INSERT, "payment5", -1, "5"),
@@ -225,7 +225,7 @@ public class MultiJoinTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("Shipments")
                                     .addSchema("location STRING", "user_id_3 STRING")
-                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .addMode(ChangelogMode.all())
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "London", "1"),
                                             Row.ofKind(RowKind.INSERT, "Paris", "2"),
@@ -242,7 +242,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING",
                                             "payment_id STRING",
                                             "location STRING")
-                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .addMode(ChangelogMode.all())
                                     .consumedValues(
                                             "+I[3, Nomad, order3, payment3, New York]",
                                             "+I[1, Gus, order0, payment1, London]",
@@ -276,6 +276,7 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-left-outer-join-with-restore",
                             "three way left outer join with restore")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema("user_id STRING", "name STRING")
@@ -329,6 +330,7 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "three-way-inner-join-with-restore",
                             "three way inner join with restore")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema("user_id STRING", "name STRING")
@@ -376,6 +378,61 @@ public class MultiJoinTestPrograms {
                                     + "INNER JOIN Orders o ON u.user_id = o.user_id "
                                     + "INNER JOIN Payments p ON u.user_id = p.user_id")
                     .build();
+
+    public static final TableTestProgram
+            MULTI_JOIN_THREE_WAY_INNER_JOIN_WITH_TTL_HINTS_WITH_RESTORE =
+                    TableTestProgram.of(
+                                    "three-way-inner-join-with-ttl-hints-with-restore",
+                                    "three way inner join with restore and ttl hints")
+                            .setupConfig(
+                                    OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("Users")
+                                            .addSchema("user_id STRING", "name STRING")
+                                            .producedBeforeRestore(
+                                                    Row.ofKind(RowKind.INSERT, "1", "Gus"),
+                                                    Row.ofKind(RowKind.INSERT, "2", "Bob"))
+                                            .producedAfterRestore(
+                                                    Row.ofKind(RowKind.INSERT, "3", "Alice"))
+                                            .build())
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("Orders")
+                                            .addSchema("user_id STRING", "order_id STRING")
+                                            .producedBeforeRestore(
+                                                    Row.ofKind(RowKind.INSERT, "1", "order1"),
+                                                    Row.ofKind(RowKind.INSERT, "2", "order2"))
+                                            .producedAfterRestore(
+                                                    Row.ofKind(RowKind.INSERT, "3", "order3"))
+                                            .build())
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("Payments")
+                                            .addSchema("user_id STRING", "payment_id STRING")
+                                            .producedBeforeRestore(
+                                                    Row.ofKind(RowKind.INSERT, "1", "payment1"),
+                                                    Row.ofKind(RowKind.INSERT, "2", "payment2"))
+                                            .producedAfterRestore(
+                                                    Row.ofKind(RowKind.INSERT, "3", "payment3"))
+                                            .build())
+                            .setupTableSink(
+                                    SinkTestStep.newBuilder("sink")
+                                            .addSchema(
+                                                    "user_id STRING",
+                                                    "name STRING",
+                                                    "order_id STRING",
+                                                    "payment_id STRING")
+                                            .consumedBeforeRestore(
+                                                    "+I[1, Gus, order1, payment1]",
+                                                    "+I[2, Bob, order2, payment2]")
+                                            .consumedAfterRestore("+I[3, Alice, order3, payment3]")
+                                            .testMaterializedData()
+                                            .build())
+                            .runSql(
+                                    "INSERT INTO sink "
+                                            + "SELECT /*+ STATE_TTL('u' = '1d', 'p' = '2d') */u.user_id, u.name, o.order_id, p.payment_id "
+                                            + "FROM Users u "
+                                            + "INNER JOIN Orders o ON u.user_id = o.user_id "
+                                            + "INNER JOIN Payments p ON u.user_id = p.user_id")
+                            .build();
 
     public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_JOIN_NO_JOIN_KEY =
             TableTestProgram.of(
@@ -454,14 +511,14 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "four-way-join-no-common-join-key-with-restore",
                             "four way join no common join key with restore")
-                    .setupConfig(TableConfigOptions.PLAN_FORCE_RECOMPILE, true)
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema(
                                             "name STRING",
                                             "user_id_0 STRING PRIMARY KEY NOT ENFORCED",
                                             "cash INT")
-                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addMode(ChangelogMode.upsert())
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "Gus", "1", 100),
                                             Row.ofKind(RowKind.INSERT, "Nomad", "3", 50),
@@ -486,7 +543,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING PRIMARY KEY NOT ENFORCED",
                                             "product STRING",
                                             "user_id_1 STRING")
-                                    .addOption("changelog-mode", "I,D")
+                                    .addMode(ChangelogMode.insertOnly())
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "order2", "ProdB", "2"),
                                             Row.ofKind(RowKind.INSERT, "order0", "ProdB", "1"),
@@ -504,7 +561,7 @@ public class MultiJoinTestPrograms {
                                             "user_id_2 STRING",
                                             "payment_id STRING PRIMARY KEY NOT ENFORCED",
                                             "price INT")
-                                    .addOption("changelog-mode", "I")
+                                    .addMode(ChangelogMode.insertOnly())
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "3", "3", 30),
                                             Row.ofKind(RowKind.INSERT, "1", "1", 50),
@@ -518,7 +575,7 @@ public class MultiJoinTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("Shipments")
                                     .addSchema("location STRING", "user_id_3 STRING")
-                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .addMode(ChangelogMode.all())
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "Paris", "2"),
                                             Row.ofKind(RowKind.INSERT, "London", "1"),
@@ -536,7 +593,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING",
                                             "payment_id STRING",
                                             "location STRING")
-                                    .addOption("sink-changelog-mode-enforced", "I,UA,UB,D")
+                                    .addMode(ChangelogMode.all())
                                     .consumedBeforeRestore(
                                             "+I[1, Gus, order0, 1, London]",
                                             "+I[1, Gus, order1, 1, London]",
@@ -569,7 +626,7 @@ public class MultiJoinTestPrograms {
                                             "name STRING",
                                             "cash INT",
                                             "user_id_0 STRING PRIMARY KEY NOT ENFORCED")
-                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addMode(ChangelogMode.upsert())
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "Gus", 100, "1"),
                                             Row.ofKind(RowKind.INSERT, "Joe no order", 10, "8"),
@@ -593,7 +650,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING PRIMARY KEY NOT ENFORCED",
                                             "product STRING",
                                             "user_id_1 STRING")
-                                    .addOption("changelog-mode", "I,D")
+                                    .addMode(ChangelogMode.insertOnly())
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "order0", "ProdB", "1"),
                                             Row.ofKind(RowKind.INSERT, "order6", "ProdF", "6"),
@@ -610,7 +667,7 @@ public class MultiJoinTestPrograms {
                                             "payment_id STRING PRIMARY KEY NOT ENFORCED",
                                             "price INT",
                                             "user_id_2 STRING")
-                                    .addOption("changelog-mode", "I")
+                                    .addMode(ChangelogMode.insertOnly())
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "1", 50, "1"),
                                             Row.ofKind(RowKind.INSERT, "5", -1, "5"),
@@ -623,7 +680,7 @@ public class MultiJoinTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("Shipments")
                                     .addSchema("location STRING", "user_id_3 STRING")
-                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .addMode(ChangelogMode.all())
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "London", "1"),
                                             Row.ofKind(RowKind.INSERT, "Paris", "2"),
@@ -640,7 +697,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING",
                                             "payment_id STRING",
                                             "location STRING")
-                                    .addOption("sink-changelog-mode-enforced", "I,UA,UB,D")
+                                    .addMode(ChangelogMode.all())
                                     .consumedValues(
                                             "+I[1, Gus, order0, 1, London]",
                                             "+I[1, Gus, order1, 1, London]",
@@ -665,14 +722,14 @@ public class MultiJoinTestPrograms {
             TableTestProgram.of(
                             "four-way-complex-updating-join-with-restore",
                             "four way complex updating join with restore")
-                    .setupConfig(TableConfigOptions.PLAN_FORCE_RECOMPILE, true)
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
                             SourceTestStep.newBuilder("Users")
                                     .addSchema(
                                             "name STRING",
                                             "user_id_0 STRING PRIMARY KEY NOT ENFORCED",
                                             "cash INT")
-                                    .addOption("changelog-mode", "I,UA,D")
+                                    .addMode(ChangelogMode.upsert())
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "Gus", "1", 100),
                                             Row.ofKind(RowKind.INSERT, "Nomad", "3", 50),
@@ -697,7 +754,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING PRIMARY KEY NOT ENFORCED",
                                             "product STRING",
                                             "user_id_1 STRING")
-                                    .addOption("changelog-mode", "I,D")
+                                    .addMode(ChangelogMode.insertOnly())
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "order2", "ProdB", "2"),
                                             Row.ofKind(RowKind.INSERT, "order0", "ProdB", "1"),
@@ -715,7 +772,7 @@ public class MultiJoinTestPrograms {
                                             "user_id_2 STRING",
                                             "payment_id STRING PRIMARY KEY NOT ENFORCED",
                                             "price INT")
-                                    .addOption("changelog-mode", "I")
+                                    .addMode(ChangelogMode.insertOnly())
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "3", "payment3", 30),
                                             Row.ofKind(RowKind.INSERT, "1", "payment1", 50),
@@ -729,7 +786,7 @@ public class MultiJoinTestPrograms {
                     .setupTableSource(
                             SourceTestStep.newBuilder("Shipments")
                                     .addSchema("location STRING", "user_id_3 STRING")
-                                    .addOption("changelog-mode", "I,UA,UB,D")
+                                    .addMode(ChangelogMode.all())
                                     .producedBeforeRestore(
                                             Row.ofKind(RowKind.INSERT, "Paris", "2"),
                                             Row.ofKind(RowKind.INSERT, "London", "1"),
@@ -747,7 +804,7 @@ public class MultiJoinTestPrograms {
                                             "order_id STRING",
                                             "payment_id STRING",
                                             "location STRING")
-                                    .addOption("sink-changelog-mode-enforced", "I,UA,UB,D")
+                                    .addMode(ChangelogMode.all())
                                     .consumedBeforeRestore(
                                             "+I[1, Gus, order0, payment1, London]",
                                             "+I[1, Gus, order1, payment1, London]",
@@ -768,6 +825,106 @@ public class MultiJoinTestPrograms {
                                     + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) "
                                     + "LEFT JOIN Shipments s ON p.user_id_2 = s.user_id_3")
                     .build();
+
+    public static final TableTestProgram
+            MULTI_JOIN_FOUR_WAY_COMPLEX_PRESERVES_UPSERT_KEY_WITH_RESTORE =
+                    TableTestProgram.of(
+                                    "four-way-complex-preserves-upsert-key-with-restore",
+                                    "four way complex preserves upsert key with restore")
+                            .setupConfig(
+                                    OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("Users")
+                                            .addSchema(
+                                                    "user_id_0 STRING PRIMARY KEY NOT ENFORCED",
+                                                    "name STRING")
+                                            .producedBeforeRestore(
+                                                    Row.ofKind(RowKind.INSERT, "1", "Gus"),
+                                                    Row.ofKind(RowKind.INSERT, "3", "Joe"))
+                                            .producedAfterRestore(
+                                                    Row.ofKind(RowKind.INSERT, "2", "Bob"))
+                                            .build())
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("Orders")
+                                            .addSchema(
+                                                    "order_id STRING NOT NULL",
+                                                    "user_id_1 STRING NOT NULL",
+                                                    "product STRING",
+                                                    "CONSTRAINT `PRIMARY` PRIMARY KEY (`order_id`, `user_id_1`) NOT ENFORCED")
+                                            .addMode(ChangelogMode.insertOnly())
+                                            .producedBeforeRestore(
+                                                    Row.ofKind(
+                                                            RowKind.INSERT, "order1", "1", "ProdA"))
+                                            .producedAfterRestore(
+                                                    Row.ofKind(
+                                                            RowKind.INSERT, "order2", "2", "ProdB"))
+                                            .build())
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("Payments")
+                                            .addSchema(
+                                                    "payment_id STRING NOT NULL",
+                                                    "user_id_2 STRING NOT NULL",
+                                                    "price INT",
+                                                    "CONSTRAINT `PRIMARY` PRIMARY KEY (`payment_id`, `user_id_2`) NOT ENFORCED")
+                                            .addMode(ChangelogMode.insertOnly())
+                                            .producedBeforeRestore(
+                                                    Row.ofKind(
+                                                            RowKind.INSERT, "payment1", "1", 100),
+                                                    Row.ofKind(
+                                                            RowKind.INSERT, "payment3", "3", 300))
+                                            .producedAfterRestore(
+                                                    Row.ofKind(
+                                                            RowKind.INSERT, "payment2", "2", 200))
+                                            .build())
+                            .setupTableSource(
+                                    SourceTestStep.newBuilder("Address")
+                                            .addSchema(
+                                                    "user_id_3 STRING NOT NULL",
+                                                    "location STRING",
+                                                    "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id_3`) NOT ENFORCED")
+                                            .addMode(ChangelogMode.insertOnly())
+                                            .producedBeforeRestore(
+                                                    Row.ofKind(RowKind.INSERT, "1", "London"),
+                                                    Row.ofKind(RowKind.INSERT, "3", "Berlin"))
+                                            .producedAfterRestore(
+                                                    Row.ofKind(RowKind.INSERT, "2", "Paris"))
+                                            .build())
+                            .setupTableSink(
+                                    SinkTestStep.newBuilder("sink")
+                                            .addMode(ChangelogMode.upsert())
+                                            .addSchema(
+                                                    "user_id_0 STRING NOT NULL",
+                                                    "order_id STRING NOT NULL",
+                                                    "user_id_1 STRING NOT NULL",
+                                                    "payment_id STRING NOT NULL",
+                                                    "user_id_2 STRING NOT NULL",
+                                                    "name STRING",
+                                                    "location STRING",
+                                                    "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id_0`, `order_id`, `user_id_1`, `payment_id`, `user_id_2`) NOT ENFORCED")
+                                            .consumedBeforeRestore(
+                                                    "+I[1, order1, 1, payment1, 1, Gus, London]")
+                                            .consumedAfterRestore(
+                                                    "+I[2, order2, 2, payment2, 2, Bob, Paris]")
+                                            .testMaterializedData()
+                                            .build())
+                            .runSql(
+                                    "INSERT INTO `sink`\n"
+                                            + "SELECT\n"
+                                            + "    u.user_id_0,\n"
+                                            + "    o.order_id,\n"
+                                            + "    o.user_id_1,\n"
+                                            + "    p.payment_id,\n"
+                                            + "    p.user_id_2,\n"
+                                            + "    u.name,\n"
+                                            + "    a.location\n"
+                                            + "FROM Users u\n"
+                                            + "JOIN Orders o\n"
+                                            + "  ON  u.user_id_0 = o.user_id_1 AND o.product IS NOT NULL\n"
+                                            + "JOIN Payments p\n"
+                                            + "  ON  u.user_id_0 = p.user_id_2 AND p.price >= 0\n"
+                                            + "JOIN Address a\n"
+                                            + "  ON  u.user_id_0 = a.user_id_3 AND a.location IS NOT NULL")
+                            .build();
 
     public static final TableTestProgram MULTI_JOIN_WITH_TIME_ATTRIBUTES_MATERIALIZATION =
             TableTestProgram.of(
@@ -896,6 +1053,65 @@ public class MultiJoinTestPrograms {
                                             + "INNER JOIN Payments p ON u.user_id_0 = p.user_id_2")
                             .build();
 
+    public static final TableTestProgram MULTI_JOIN_MIXED_CHANGELOG_MODES =
+            TableTestProgram.of(
+                            "three-way-mixed-changelog-modes",
+                            "three way join with mixed changelog modes and primary key configurations")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("AppendTable")
+                                    .addSchema("id STRING PRIMARY KEY NOT ENFORCED, val STRING")
+                                    .addMode(ChangelogMode.insertOnly())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "1", "append1"),
+                                            Row.ofKind(RowKind.INSERT, "2", "append2"),
+                                            Row.ofKind(RowKind.INSERT, "3", "append3"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("RetractTable")
+                                    .addSchema("ref_id STRING, data STRING")
+                                    .addMode(ChangelogMode.all())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "1", "retract1"),
+                                            Row.ofKind(RowKind.INSERT, "2", "retract2"),
+                                            Row.ofKind(RowKind.INSERT, "3", "retract3"),
+                                            Row.ofKind(RowKind.DELETE, "3", "retract3"),
+                                            Row.ofKind(RowKind.INSERT, "1", "retract1_new"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("UpsertTable")
+                                    .addSchema(
+                                            "key_id STRING PRIMARY KEY NOT ENFORCED, status STRING")
+                                    .addMode(ChangelogMode.upsert())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "1", "active"),
+                                            Row.ofKind(RowKind.INSERT, "2", "pending"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, "2", "active"),
+                                            Row.ofKind(RowKind.INSERT, "3", "inactive"),
+                                            Row.ofKind(RowKind.DELETE, "3", "inactive"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "id STRING",
+                                            "val STRING",
+                                            "data STRING",
+                                            "status STRING")
+                                    .addMode(ChangelogMode.all())
+                                    .consumedValues(
+                                            "+I[1, append1, retract1, active]",
+                                            "+I[2, append2, retract2, active]",
+                                            "+I[1, append1, retract1_new, active]",
+                                            "+I[3, append3, null, null]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT a.id, a.val, r.data, u.status "
+                                    + "FROM AppendTable a "
+                                    + "LEFT JOIN RetractTable r ON a.id = r.ref_id "
+                                    + "LEFT JOIN UpsertTable u ON a.id = u.key_id")
+                    .build();
+
     public static final TableTestProgram MULTI_JOIN_THREE_WAY_LEFT_OUTER_JOIN_WITH_CTE =
             TableTestProgram.of(
                             "left-outer-join-with-cte",
@@ -907,7 +1123,7 @@ public class MultiJoinTestPrograms {
                                             "user_id STRING",
                                             "order_id STRING PRIMARY KEY NOT ENFORCED",
                                             "product STRING")
-                                    .addOption("changelog-mode", "I, UA,D")
+                                    .addMode(ChangelogMode.upsert())
                                     .producedValues(
                                             Row.ofKind(RowKind.INSERT, "2", "order2", "Product B"),
                                             Row.ofKind(
@@ -1028,64 +1244,151 @@ public class MultiJoinTestPrograms {
                                     + "INNER JOIN OrdersNullSafe o ON u.user_id IS NOT DISTINCT FROM o.user_id")
                     .build();
 
-    public static final TableTestProgram MULTI_JOIN_MIXED_CHANGELOG_MODES =
+    static final TableTestProgram MULTI_JOIN_TWO_WAY_LEFT_JOIN_PRESERVES_UPSERT_KEY_WITH_RESTORE =
             TableTestProgram.of(
-                            "three-way-mixed-changelog-modes",
-                            "three way join with mixed changelog modes and primary key configurations")
+                            "two-way-left-join-preserves-upsert-key-with-restore",
+                            "validates upsert with non key filter with restore")
                     .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
                     .setupTableSource(
-                            SourceTestStep.newBuilder("AppendTable")
-                                    .addSchema("id STRING PRIMARY KEY NOT ENFORCED, val STRING")
-                                    .addOption("changelog-mode", "I")
-                                    .producedValues(
-                                            Row.ofKind(RowKind.INSERT, "1", "append1"),
-                                            Row.ofKind(RowKind.INSERT, "2", "append2"),
-                                            Row.ofKind(RowKind.INSERT, "3", "append3"))
-                                    .build())
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("RetractTable")
-                                    .addSchema("ref_id STRING, data STRING")
-                                    .addOption("changelog-mode", "I,UA,UB,D")
-                                    .producedValues(
-                                            Row.ofKind(RowKind.INSERT, "1", "retract1"),
-                                            Row.ofKind(RowKind.INSERT, "2", "retract2"),
-                                            Row.ofKind(RowKind.INSERT, "3", "retract3"),
-                                            Row.ofKind(RowKind.DELETE, "3", "retract3"),
-                                            Row.ofKind(RowKind.INSERT, "1", "retract1_new"))
-                                    .build())
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("UpsertTable")
+                            SourceTestStep.newBuilder("Users")
+                                    .addMode(ChangelogMode.upsert())
                                     .addSchema(
-                                            "key_id STRING PRIMARY KEY NOT ENFORCED, status STRING")
-                                    .addOption("changelog-mode", "I,UA,D")
-                                    .producedValues(
-                                            Row.ofKind(RowKind.INSERT, "1", "active"),
-                                            Row.ofKind(RowKind.INSERT, "2", "pending"),
-                                            Row.ofKind(RowKind.UPDATE_AFTER, "2", "active"),
-                                            Row.ofKind(RowKind.INSERT, "3", "inactive"),
-                                            Row.ofKind(RowKind.DELETE, "3", "inactive"))
+                                            "user_id INT NOT NULL",
+                                            "shard_id INT NOT NULL",
+                                            "description STRING",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`) NOT ENFORCED")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, 1, "shard_a"))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 3, 1, "another shard"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Orders")
+                                    .addMode(ChangelogMode.upsert())
+                                    .addSchema(
+                                            "user_id INT NOT NULL",
+                                            "order_id BIGINT NOT NULL",
+                                            "product STRING",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `order_id`) NOT ENFORCED")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, 1L, "a"),
+                                            Row.ofKind(RowKind.UPDATE_AFTER, 1, 1L, "a_updated"))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, 2L, "b"),
+                                            Row.ofKind(RowKind.DELETE, 1, 2L, "b"),
+                                            Row.ofKind(RowKind.INSERT, 3, 1L, "b"),
+                                            Row.ofKind(RowKind.INSERT, 9, 9L, "b"))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
+                                    .addMode(ChangelogMode.upsert())
                                     .addSchema(
-                                            "id STRING",
-                                            "val STRING",
-                                            "data STRING",
-                                            "status STRING")
-                                    .addOption("sink-changelog-mode-enforced", "I,UA,UB,D")
-                                    .consumedValues(
-                                            "+I[1, append1, retract1, active]",
-                                            "+I[2, append2, retract2, active]",
-                                            "+I[1, append1, retract1_new, active]",
-                                            "+I[3, append3, null, null]")
+                                            "`user_id` INT NOT NULL",
+                                            "`order_id` BIGINT NOT NULL",
+                                            "product STRING",
+                                            "user_shard_id INT",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `order_id`) NOT ENFORCED")
+                                    .consumedBeforeRestore("+I[1, 1, a_updated, 1]")
+                                    .consumedAfterRestore("+I[3, 1, b, 1]", "+I[9, 9, b, null]")
                                     .testMaterializedData()
                                     .build())
                     .runSql(
-                            "INSERT INTO sink "
-                                    + "SELECT a.id, a.val, r.data, u.status "
-                                    + "FROM AppendTable a "
-                                    + "LEFT JOIN RetractTable r ON a.id = r.ref_id "
-                                    + "LEFT JOIN UpsertTable u ON a.id = u.key_id")
+                            "INSERT INTO `sink`\n"
+                                    + "SELECT\n"
+                                    + "    o.user_id,\n"
+                                    + "    o.order_id,\n"
+                                    + "    o.product,\n"
+                                    + "    u.shard_id\n"
+                                    + "FROM Orders o\n"
+                                    + "LEFT JOIN Users u\n"
+                                    + "  ON  u.user_id = o.user_id\n")
+                    .build();
+
+    static final TableTestProgram MULTI_JOIN_THREE_WAY_JOIN_PRESERVES_UPSERT_KEY_WITH_RESTORE =
+            TableTestProgram.of(
+                            "three-way-upsert-preserves-key-with-restore",
+                            "validates upsert with non key filter with restore")
+                    .setupConfig(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Users")
+                                    .addMode(ChangelogMode.upsert())
+                                    .addSchema(
+                                            "user_id INT NOT NULL",
+                                            "shard_id INT NOT NULL",
+                                            "description STRING",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`) NOT ENFORCED")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, 1, "shard_a"))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.INSERT, 2, 1, "shard_b"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Orders")
+                                    .addMode(ChangelogMode.upsert())
+                                    .addSchema(
+                                            "user_id INT NOT NULL",
+                                            "order_id BIGINT NOT NULL",
+                                            "product STRING",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `order_id`) NOT ENFORCED")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, 1L, "a"),
+                                            Row.ofKind(RowKind.INSERT, 1, 2L, "b"))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.INSERT, 2, 1L, "c"),
+                                            Row.ofKind(RowKind.INSERT, 2, 2L, "d"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Payments")
+                                    .addMode(ChangelogMode.upsert())
+                                    .addSchema(
+                                            "user_id INT NOT NULL",
+                                            "payment_id BIGINT NOT NULL",
+                                            "product STRING",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `payment_id`) NOT ENFORCED")
+                                    .producedBeforeRestore(
+                                            Row.ofKind(RowKind.INSERT, 1, 1L, "a"),
+                                            Row.ofKind(RowKind.INSERT, 1, 2L, "b"))
+                                    .producedAfterRestore(
+                                            Row.ofKind(RowKind.INSERT, 2, 1L, "c"),
+                                            Row.ofKind(RowKind.INSERT, 2, 2L, "d"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addMode(ChangelogMode.upsert())
+                                    .addSchema(
+                                            "`user_id` INT NOT NULL",
+                                            "`order_id` BIGINT NOT NULL",
+                                            "`user_id2` INT NOT NULL",
+                                            "payment_id BIGINT NOT NULL",
+                                            "`user_id3` INT NOT NULL",
+                                            "description STRING",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `order_id`, `user_id2`, `payment_id`, `user_id3`) NOT ENFORCED")
+                                    .consumedBeforeRestore(
+                                            "+I[1, 1, 1, 2, 1, shard_a]",
+                                            "+I[1, 1, 1, 1, 1, shard_a]",
+                                            "+I[1, 2, 1, 1, 1, shard_a]",
+                                            "+I[1, 2, 1, 2, 1, shard_a]")
+                                    .consumedAfterRestore(
+                                            "+I[2, 2, 2, 1, 2, shard_b]",
+                                            "+I[2, 1, 2, 2, 2, shard_b]",
+                                            "+I[2, 2, 2, 2, 2, shard_b]",
+                                            "+I[2, 1, 2, 1, 2, shard_b]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO `sink`\n"
+                                    + "SELECT\n"
+                                    + "    o.user_id,\n"
+                                    + "    o.order_id,\n"
+                                    + "    p.user_id,\n"
+                                    + "    p.payment_id,\n"
+                                    + "    u.user_id,\n"
+                                    + "    u.description\n"
+                                    + "FROM Users u\n"
+                                    + "JOIN `Orders` AS o\n"
+                                    + "  ON  o.user_id = u.user_id\n"
+                                    + "JOIN Payments p\n"
+                                    + "  ON  o.user_id = p.user_id")
                     .build();
 
     public static final TableTestProgram
@@ -1104,7 +1407,7 @@ public class MultiJoinTestPrograms {
                                                     "auctionDateTime AS TO_TIMESTAMP(auctionTimestamp)",
                                                     "expires AS TO_TIMESTAMP(expiresTimestamp)",
                                                     "WATERMARK FOR auctionDateTime AS auctionDateTime - INTERVAL '1' SECOND")
-                                            .addOption("changelog-mode", "I")
+                                            .addMode(ChangelogMode.insertOnly())
                                             .producedValues(
                                                     Row.ofKind(
                                                             RowKind.INSERT,
@@ -1133,7 +1436,7 @@ public class MultiJoinTestPrograms {
                                                     "bidTimestamp STRING",
                                                     "bidDateTime AS TO_TIMESTAMP(bidTimestamp)",
                                                     "WATERMARK FOR bidDateTime AS bidDateTime - INTERVAL '1' SECOND")
-                                            .addOption("changelog-mode", "I")
+                                            .addMode(ChangelogMode.insertOnly())
                                             .producedValues(
                                                     Row.ofKind(
                                                             RowKind.INSERT,
@@ -1184,4 +1487,340 @@ public class MultiJoinTestPrograms {
                                             + ") Q "
                                             + "GROUP BY Q.category")
                             .build();
+
+    public static final TableTestProgram MULTI_JOIN_TWO_WAY_INNER_JOIN_WITH_WHERE_IN =
+            TableTestProgram.of(
+                            "two-way-inner-join-with-where-in",
+                            "two way inner join with WHERE IN clause")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Records")
+                                    .addSchema(
+                                            "`record_id` STRING PRIMARY KEY NOT ENFORCED",
+                                            "`user_id` INT")
+                                    .addMode(ChangelogMode.upsert())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "record_1", 1),
+                                            Row.ofKind(RowKind.INSERT, "record_2", 2),
+                                            Row.ofKind(RowKind.INSERT, "record_3", 3))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Users")
+                                    .addSchema(
+                                            "`user_id` INT PRIMARY KEY NOT ENFORCED", "`id` STRING")
+                                    .addMode(ChangelogMode.upsert())
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, "record_1"),
+                                            Row.ofKind(RowKind.INSERT, 2, "record_2"),
+                                            Row.ofKind(RowKind.INSERT, 3, "record_3"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("record_id STRING", "`user_id` INT", "id STRING")
+                                    .addMode(ChangelogMode.all())
+                                    .consumedValues(
+                                            // Only records with user_id 1 and 2 should be
+                                            // included due to WHERE IN clause
+                                            "+I[record_1, 1, record_1]",
+                                            "+I[record_2, 2, record_2]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT r.`record_id`, r.`user_id`, u.`id` "
+                                    + "FROM Records r "
+                                    + "INNER JOIN Users u ON u.`user_id` = r.`user_id` AND u.`id` = r.`record_id` "
+                                    + "WHERE r.`user_id` IN (1, 2)")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_THREE_WAY_INNER_JOIN_MULTI_KEY_TYPES =
+            TableTestProgram.of(
+                            "three-way-inner-join-three-keys-shuffled",
+                            "three way inner join with three keys in shuffled order")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Users3K")
+                                    .addSchema("k1 STRING", "k2 INT", "k3 BOOLEAN", "name STRING")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "K1", 100, true, "Gus"),
+                                            Row.ofKind(RowKind.INSERT, "A1", 200, false, "Bob"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Orders3K")
+                                    .addSchema(
+                                            // Shuffled key order: k2 first, then k3, then k1
+                                            "k2 INT PRIMARY KEY NOT ENFORCED,"
+                                                    + "order_id STRING,"
+                                                    + "k3 BOOLEAN,"
+                                                    + "k1 STRING,"
+                                                    + "k4 STRING")
+                                    .producedValues(
+                                            // Matches Gus (Users3K: K1,100,true)
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    100,
+                                                    "order1",
+                                                    true,
+                                                    "K1",
+                                                    "k4_val1"),
+                                            // Matches Bob (Users3K: A1,200,false)
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    200,
+                                                    "order2",
+                                                    false,
+                                                    "A1",
+                                                    "k4_val2"),
+                                            // Partial matches that should NOT join (one key wrong)
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    100,
+                                                    "order_partial1",
+                                                    true,
+                                                    "WRONG",
+                                                    "k4_u"),
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    100,
+                                                    "order_partial2",
+                                                    false,
+                                                    "K1",
+                                                    "k4_u"),
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    200,
+                                                    "order_partial3",
+                                                    false,
+                                                    "WRONG",
+                                                    "k4_u"),
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    200,
+                                                    "order_partial4",
+                                                    true,
+                                                    "A1",
+                                                    "k4_u"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Payments3K")
+                                    .addSchema(
+                                            // Shuffled key order: k1 first, then k3, then k2
+                                            "k1 STRING",
+                                            "payment_id STRING",
+                                            "k3 BOOLEAN",
+                                            "k2 INT")
+                                    .producedValues(
+                                            // Matches Gus (Users3K: K1,100,true)
+                                            Row.ofKind(RowKind.INSERT, "K1", "payment1", true, 100),
+                                            // Matches Bob (Users3K: A1,200,false)
+                                            Row.ofKind(
+                                                    RowKind.INSERT, "A1", "payment2", false, 200),
+                                            // Partial matches that should NOT join (one key wrong)
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    "K1",
+                                                    "payment_partial1",
+                                                    false,
+                                                    100),
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    "A1",
+                                                    "payment_partial2",
+                                                    false,
+                                                    300))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "name STRING",
+                                            "order_id STRING",
+                                            "payment_id STRING",
+                                            "k1 STRING",
+                                            "k2 INT",
+                                            "k3 BOOLEAN")
+                                    .addMode(ChangelogMode.insertOnly())
+                                    .consumedValues(
+                                            "+I[Gus, order1, payment1, K1, 100, true]",
+                                            "+I[Bob, order2, payment2, A1, 200, false]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT U.name, O.order_id, P.payment_id, U.k1, U.k2, U.k3 "
+                                    + "FROM Users3K AS U "
+                                    + "JOIN Orders3K AS O ON U.k1 = O.k1 AND U.k2 = O.k2 AND U.k3 = O.k3 "
+                                    + "JOIN Payments3K AS P ON U.k1 = P.k1 AND U.k2 = P.k2 AND U.k3 = P.k3")
+                    .build();
+
+    public static final TableTestProgram MULTI_JOIN_FOUR_WAY_MIXED_JOIN_MULTI_KEY_TYPES_SHUFFLED =
+            TableTestProgram.of(
+                            "four-way-mixed-join-multi-key-types-shuffled",
+                            "four way mixed join with three keys in shuffled order and a final join with two conditions")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Users4K")
+                                    .addSchema(
+                                            "k1 STRING PRIMARY KEY NOT ENFORCED",
+                                            "k2 INT",
+                                            "k3 BOOLEAN",
+                                            "k4 STRING",
+                                            "name STRING")
+                                    .producedValues(
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    "K1",
+                                                    100,
+                                                    true,
+                                                    "k4_val1",
+                                                    "Gus"),
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    "A1",
+                                                    200,
+                                                    false,
+                                                    "k4_val2",
+                                                    "Bob"),
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    "A1",
+                                                    200,
+                                                    false,
+                                                    "k4_val2",
+                                                    "John"),
+                                            Row.ofKind(
+                                                    RowKind.DELETE,
+                                                    "A1",
+                                                    200,
+                                                    false,
+                                                    "k4_val2",
+                                                    "John"),
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    "U_NO_MATCH",
+                                                    1,
+                                                    true,
+                                                    "k4_u",
+                                                    "UserNoMatch"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Orders4K")
+                                    .addSchema(
+                                            // Shuffled key order: k2 first, then k3, then k1
+                                            "k2 INT PRIMARY KEY NOT ENFORCED",
+                                            "order_id STRING",
+                                            "k3 BOOLEAN",
+                                            "k1 STRING",
+                                            "k4 STRING")
+                                    .producedValues(
+                                            // Matches Gus (Users4K: K1,100,true,k4_val1)
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    100,
+                                                    "order1",
+                                                    true,
+                                                    "K1",
+                                                    "k4_val1"),
+                                            // Matches Bob (Users4K: A1,200,false,k4_val2)
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    200,
+                                                    "order2",
+                                                    false,
+                                                    "A1",
+                                                    "k4_val2"),
+                                            // No match
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    2,
+                                                    "O_NO_MATCH",
+                                                    true,
+                                                    "K_O",
+                                                    "k4_o"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Payments4K")
+                                    .addSchema(
+                                            // Shuffled key order: k1 first, then k3, then
+                                            // k2
+                                            "k1 STRING PRIMARY KEY NOT ENFORCED,"
+                                                    + "payment_id STRING,"
+                                                    + "k3 BOOLEAN,"
+                                                    + "k2 INT,"
+                                                    + "k4 STRING")
+                                    .producedValues(
+                                            // Matches Gus (Users4K: K1,100,true,k4_val1)
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    "K1",
+                                                    "payment1",
+                                                    true,
+                                                    100,
+                                                    "k4_val1"),
+                                            // Matches Bob (Users4K: A1,200,false,k4_val2)
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    "A1",
+                                                    "payment2",
+                                                    false,
+                                                    200,
+                                                    "k4_val2"),
+                                            // No match
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    "P_NO_MATCH",
+                                                    "P_NO_MATCH_ID",
+                                                    true,
+                                                    3,
+                                                    "k4_p"))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("Shipments4K")
+                                    .addSchema(
+                                            "k3 BOOLEAN PRIMARY KEY NOT ENFORCED",
+                                            "k4 STRING",
+                                            "ship_id STRING")
+                                    .producedValues(
+                                            // Matches Gus
+                                            Row.ofKind(RowKind.INSERT, true, "k4_val1", "ship1"),
+                                            // Does not match anyone
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    false,
+                                                    "k4_val_no_match",
+                                                    "ship2"),
+                                            // No match
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    true,
+                                                    "k4_val_another_no_match",
+                                                    "ship3"),
+                                            // No match
+                                            Row.ofKind(
+                                                    RowKind.INSERT,
+                                                    false,
+                                                    "k4_s_no_match",
+                                                    "ship_no_match"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(
+                                            "name STRING",
+                                            "order_id STRING",
+                                            "payment_id STRING",
+                                            "ship_id STRING",
+                                            "k1 STRING",
+                                            "k2 INT",
+                                            "k3 BOOLEAN",
+                                            "k4 STRING")
+                                    .addMode(ChangelogMode.all())
+                                    .consumedValues(
+                                            "+I[Bob, order2, payment2, null, A1, 200, false, k4_val2]")
+                                    .testMaterializedData()
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink "
+                                    + "SELECT U.name, O.order_id, P.payment_id, S.ship_id, U.k1, U.k2, U.k3, U.k4 "
+                                    + "FROM Users4K AS U "
+                                    + "JOIN Orders4K AS O ON O.k2 > 100 AND U.k2 = O.k2 AND U.k1 = O.k1 AND U.k3 = O.k3 AND U.k4 = O.k4 "
+                                    + "JOIN Payments4K AS P ON U.k1 = P.k1 AND O.k3 = P.k3 AND U.k4 = P.k4 AND O.k2 = P.k2 AND P.k2 > 100 "
+                                    + "LEFT JOIN Shipments4K AS S ON U.k3 = S.k3 AND U.k2 > 150 AND U.k4 = S.k4 "
+                                    + "WHERE U.k2 > 50")
+                    .build();
 }

@@ -25,6 +25,7 @@ import org.apache.flink.table.runtime.operators.join.stream.keyselector.Attribut
 import org.apache.flink.table.runtime.operators.join.stream.utils.JoinInputSideSpec;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.CharType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
@@ -1181,24 +1182,25 @@ class StreamingFourWayMixedOuterJoinOperatorTest extends StreamingMultiJoinOpera
         String userIdFieldName = String.format("user_id_%d", inputIndex);
         String pkFieldName = String.format("pk_%d", inputIndex); // Generic PK name
 
-        if (inputIndex == 0) { // Users: user_id (VARCHAR), pk (VARCHAR), details (BIGINT)
+        if (inputIndex == 0) { // Users: user_id (CHAR NOT NULL), pk (VARCHAR), details (BIGINT)
             return RowType.of(
                     new LogicalType[] {
-                        VarCharType.STRING_TYPE, VarCharType.STRING_TYPE, new BigIntType()
+                        new CharType(false, 20), VarCharType.STRING_TYPE, new BigIntType()
                     },
                     new String[] {
                         userIdFieldName, pkFieldName, String.format("details_%d", inputIndex)
                     });
         } else if (inputIndex
-                == 3) { // Shipments: user_id (VARCHAR), pk (VARCHAR), details (BIGINT)
+                == 3) { // Shipments: user_id (CHAR NOT NULL), pk (VARCHAR), details (BIGINT)
             return RowType.of(
                     new LogicalType[] {
-                        VarCharType.STRING_TYPE, VarCharType.STRING_TYPE, new BigIntType()
+                        new CharType(false, 20), VarCharType.STRING_TYPE, new BigIntType()
                     },
                     new String[] {
                         userIdFieldName, pkFieldName, String.format("details_%d", inputIndex)
                     });
-        } else { // Orders (1), Payments (2): user_id (VARCHAR), pk (VARCHAR), details (VARCHAR)
+        } else { // Orders (1), Payments (2): user_id (CHAR NOT NULL), pk (CHAR NOT NULL), details
+            // (VARCHAR)
             return super.createInputTypeInfo(inputIndex);
         }
     }
