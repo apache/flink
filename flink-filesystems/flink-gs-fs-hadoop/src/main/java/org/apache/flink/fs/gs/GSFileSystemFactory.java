@@ -25,7 +25,10 @@ import org.apache.flink.core.fs.FileSystemFactory;
 import org.apache.flink.fs.gs.utils.ConfigUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableMap;
+
 import com.google.api.gax.retrying.RetrySettings;
+import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.ServiceOptions;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
@@ -94,7 +97,17 @@ public class GSFileSystemFactory implements FileSystemFactory {
         this.fileSystemOptions = new GSFileSystemOptions(flinkConfig);
         LOGGER.info("Using file system options {}", fileSystemOptions);
 
-        StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder();
+        String version = GSFileSystemFactory.class.getPackage().getImplementationVersion();
+        if (version == null) {
+            version = "unknown";
+        }
+        String userAgent = "apache-flink/" + version + " (GPN:apache-flink)";
+
+        StorageOptions.Builder storageOptionsBuilder =
+                StorageOptions.newBuilder()
+                        .setHeaderProvider(
+                                FixedHeaderProvider.create(
+                                        ImmutableMap.of("User-agent", userAgent)));
         storageOptionsBuilder.setTransportOptions(getHttpTransportOptions(fileSystemOptions));
         storageOptionsBuilder.setRetrySettings(getRetrySettings(fileSystemOptions));
 
