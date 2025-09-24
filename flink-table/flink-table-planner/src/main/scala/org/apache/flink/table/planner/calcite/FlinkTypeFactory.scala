@@ -642,10 +642,6 @@ object FlinkTypeFactory {
       case typeName if YEAR_INTERVAL_TYPES.contains(typeName) =>
         DataTypes.INTERVAL(DataTypes.MONTH).getLogicalType
       case typeName if DAY_INTERVAL_TYPES.contains(typeName) =>
-        if (relDataType.getPrecision > 3) {
-          throw new TableException(
-            s"DAY_INTERVAL_TYPES precision is not supported: ${relDataType.getPrecision}")
-        }
         DataTypes.INTERVAL(DataTypes.SECOND(3)).getLogicalType
 
       case NULL =>
