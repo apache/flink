@@ -155,4 +155,13 @@ public class DeploymentOptions {
                                                     + "regardless of this setting.",
                                             TextElement.text(PROGRAM_CONFIG_WILDCARDS.key()))
                                     .build());
+
+    @Experimental
+    public static final ConfigOption<Boolean> TERMINATE_APPLICATION_ON_ANY_JOB_EXCEPTION =
+            ConfigOptions.key("execution.terminate-application-on-any-job-terminated-exceptionally")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "When it is set to true, the application will complete exceptionally if any job fails or is canceled."
+                                    + " When it is set to false, the application will finish after all jobs reach terminal states.");
 }
