@@ -18,9 +18,7 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
-import org.apache.flink.annotation.Experimental;
-import org.apache.flink.runtime.asyncprocessing.operators.windowing.triggers.AsyncTrigger;
-import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.annotation.Internal;
 
 import javax.annotation.Nonnull;
 
@@ -28,13 +26,15 @@ import javax.annotation.Nonnull;
  * Interface for declaring the ability to convert a sync {@code Trigger} to {@code AsyncTrigger}.
  * The trigger conversion happens in {@code AsyncTriggerConverter}.
  */
-@Experimental
-public interface AsyncTriggerConvertable<T, W extends Window> {
+@Internal
+public interface AsyncTriggerConvertable {
     /**
      * Convert to an {@code AsyncTrigger}.
+     *
+     * <p>TODO: Return {@code AsyncTrigger} if {@code AsyncTrigger} becomes @PublicEvolving.
      *
      * @return The {@code AsyncTrigger} for async state processing.
      */
     @Nonnull
-    AsyncTrigger<T, W> convertToAsync();
+    Object convertToAsync();
 }
