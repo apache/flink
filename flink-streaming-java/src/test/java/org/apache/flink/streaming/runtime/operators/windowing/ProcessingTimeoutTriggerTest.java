@@ -18,15 +18,21 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import org.apache.flink.runtime.asyncprocessing.operators.windowing.triggers.AsyncCountTrigger;
+import org.apache.flink.runtime.asyncprocessing.operators.windowing.triggers.AsyncTrigger;
+import org.apache.flink.streaming.api.windowing.triggers.AsyncProcessingTimeoutTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.CountTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.ProcessingTimeoutTrigger;
 import org.apache.flink.streaming.api.windowing.triggers.PurgingTrigger;
+import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
 
@@ -35,14 +41,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ProcessingTimeoutTrigger}. */
 class ProcessingTimeoutTriggerTest {
-
-    @Test
-    void testWindowFireWithoutResetTimer() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testWindowFireWithoutResetTimer(boolean enableAsyncState) throws Exception {
+        Trigger<Object, TimeWindow> trigger =
+                ProcessingTimeoutTrigger.of(CountTrigger.of(3), Duration.ofMillis(50), false, true);
         TriggerTestHarness<Object, TimeWindow> testHarness =
-                new TriggerTestHarness<>(
-                        ProcessingTimeoutTrigger.of(
-                                CountTrigger.of(3), Duration.ofMillis(50), false, true),
-                        new TimeWindow.Serializer());
+                enableAsyncState
+                        ? new AsyncTriggerTestHarness<>(
+                                AsyncTriggerConverter.convertToAsync(trigger),
+                                new TimeWindow.Serializer())
+                        : new TriggerTestHarness<>(trigger, new TimeWindow.Serializer());
 
         assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
                 .isEqualTo(TriggerResult.CONTINUE);
@@ -76,13 +85,17 @@ class ProcessingTimeoutTriggerTest {
                 .isEqualTo(TriggerResult.FIRE);
     }
 
-    @Test
-    void testWindowFireWithResetTimer() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testWindowFireWithResetTimer(boolean enableAsyncState) throws Exception {
+        Trigger<Object, TimeWindow> trigger =
+                ProcessingTimeoutTrigger.of(CountTrigger.of(3), Duration.ofMillis(50), true, true);
         TriggerTestHarness<Object, TimeWindow> testHarness =
-                new TriggerTestHarness<>(
-                        ProcessingTimeoutTrigger.of(
-                                CountTrigger.of(3), Duration.ofMillis(50), true, true),
-                        new TimeWindow.Serializer());
+                enableAsyncState
+                        ? new AsyncTriggerTestHarness<>(
+                                AsyncTriggerConverter.convertToAsync(trigger),
+                                new TimeWindow.Serializer())
+                        : new TriggerTestHarness<>(trigger, new TimeWindow.Serializer());
 
         assertThrows(
                 "Must have exactly one timer firing. Fired timers: []",
@@ -125,13 +138,18 @@ class ProcessingTimeoutTriggerTest {
                 .isEqualTo(TriggerResult.FIRE);
     }
 
-    @Test
-    void testWindowFireWithoutClearOnTimeout() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testWindowFireWithoutClearOnTimeout(boolean enableAsyncState) throws Exception {
+        Trigger<Object, TimeWindow> trigger =
+                ProcessingTimeoutTrigger.of(
+                        CountTrigger.of(3), Duration.ofMillis(50), false, false);
         TriggerTestHarness<Object, TimeWindow> testHarness =
-                new TriggerTestHarness<>(
-                        ProcessingTimeoutTrigger.of(
-                                CountTrigger.of(3), Duration.ofMillis(50), false, false),
-                        new TimeWindow.Serializer());
+                enableAsyncState
+                        ? new AsyncTriggerTestHarness<>(
+                                AsyncTriggerConverter.convertToAsync(trigger),
+                                new TimeWindow.Serializer())
+                        : new TriggerTestHarness<>(trigger, new TimeWindow.Serializer());
 
         assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
                 .isEqualTo(TriggerResult.CONTINUE);
@@ -153,16 +171,21 @@ class ProcessingTimeoutTriggerTest {
         assertThat(testHarness.numEventTimeTimers()).isZero();
     }
 
-    @Test
-    void testWindowPurgingWhenInnerTriggerIsPurging() throws Exception {
+    @ParameterizedTest(name = "Enable async state = {0}")
+    @ValueSource(booleans = {false, true})
+    void testWindowPurgingWhenInnerTriggerIsPurging(boolean enableAsyncState) throws Exception {
+        Trigger<Object, TimeWindow> trigger =
+                ProcessingTimeoutTrigger.of(
+                        PurgingTrigger.of(ProcessingTimeTrigger.create()),
+                        Duration.ofMillis(50),
+                        false,
+                        false);
         TriggerTestHarness<Object, TimeWindow> testHarness =
-                new TriggerTestHarness<>(
-                        ProcessingTimeoutTrigger.of(
-                                PurgingTrigger.of(ProcessingTimeTrigger.create()),
-                                Duration.ofMillis(50),
-                                false,
-                                false),
-                        new TimeWindow.Serializer());
+                enableAsyncState
+                        ? new AsyncTriggerTestHarness<>(
+                                AsyncTriggerConverter.convertToAsync(trigger),
+                                new TimeWindow.Serializer())
+                        : new TriggerTestHarness<>(trigger, new TimeWindow.Serializer());
 
         assertThat(testHarness.processElement(new StreamRecord<>(1), new TimeWindow(0, 2)))
                 .isEqualTo(TriggerResult.CONTINUE);
@@ -184,5 +207,26 @@ class ProcessingTimeoutTriggerTest {
         assertThat(testHarness.numStateEntries()).isOne();
         assertThat(testHarness.numProcessingTimeTimers()).isOne();
         assertThat(testHarness.numEventTimeTimers()).isZero();
+    }
+
+    @Test
+    void testConvertToAsync() {
+        Trigger<Object, TimeWindow> syncTrigger =
+                ProcessingTimeoutTrigger.of(
+                        CountTrigger.of(2333), Duration.ofMillis(233), false, false);
+
+        AsyncTrigger<Object, TimeWindow> asyncTrigger =
+                AsyncTriggerConverter.convertToAsync(syncTrigger);
+        assertThat(asyncTrigger).isInstanceOf(AsyncProcessingTimeoutTrigger.class);
+        AsyncProcessingTimeoutTrigger<Object, TimeWindow> asyncProcessingTimeoutTrigger =
+                (AsyncProcessingTimeoutTrigger<Object, TimeWindow>) asyncTrigger;
+        assertThat(asyncProcessingTimeoutTrigger.getInterval()).isEqualTo(233);
+        assertThat(asyncProcessingTimeoutTrigger.isResetTimerOnNewRecord()).isFalse();
+        assertThat(asyncProcessingTimeoutTrigger.isShouldClearOnTimeout()).isFalse();
+
+        AsyncTrigger<Object, TimeWindow> nestedTrigger =
+                asyncProcessingTimeoutTrigger.getNestedTrigger();
+        assertThat(nestedTrigger).isInstanceOf(AsyncCountTrigger.class);
+        assertThat(nestedTrigger.toString()).isEqualTo("AsyncCountTrigger(2333)");
     }
 }
