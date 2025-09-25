@@ -54,13 +54,13 @@ import java.util.Collections;
 /** Utility for testing {@link Trigger} behaviour. */
 public class TriggerTestHarness<T, W extends Window> {
 
-    private static final Integer KEY = 1;
+    protected static final Integer KEY = 1;
 
     private final Trigger<T, W> trigger;
-    private final TypeSerializer<W> windowSerializer;
+    protected final TypeSerializer<W> windowSerializer;
 
-    private final HeapKeyedStateBackend<Integer> stateBackend;
-    private final TestInternalTimerService<Integer, W> internalTimerService;
+    protected final HeapKeyedStateBackend<Integer> stateBackend;
+    protected final TestInternalTimerService<Integer, W> internalTimerService;
 
     public TriggerTestHarness(Trigger<T, W> trigger, TypeSerializer<W> windowSerializer)
             throws Exception {
