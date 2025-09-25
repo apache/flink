@@ -26,7 +26,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
-import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
@@ -35,6 +34,7 @@ import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
 import org.apache.flink.table.runtime.generated.FilterCondition;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
+import org.apache.flink.table.runtime.operators.AbstractAsyncFunctionRunner;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 
 import java.util.ArrayList;
@@ -45,18 +45,15 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 /** The async join runner to lookup the dimension table. */
-public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
+public class AsyncLookupJoinRunner extends AbstractAsyncFunctionRunner<Object> {
     private static final long serialVersionUID = -6664660022391632480L;
 
-    private final GeneratedFunction<AsyncFunction<RowData, Object>> generatedFetcher;
     private final DataStructureConverter<RowData, Object> fetcherConverter;
     private final GeneratedResultFuture<TableFunctionResultFuture<RowData>> generatedResultFuture;
     private final GeneratedFunction<FilterCondition> generatedPreFilterCondition;
 
     private final boolean isLeftOuterJoin;
     private final int asyncBufferCapacity;
-
-    private transient AsyncFunction<RowData, Object> fetcher;
 
     protected final RowDataSerializer rightRowSerializer;
 
@@ -83,7 +80,7 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
             RowDataSerializer rightRowSerializer,
             boolean isLeftOuterJoin,
             int asyncBufferCapacity) {
-        this.generatedFetcher = generatedFetcher;
+        super(generatedFetcher);
         this.fetcherConverter = fetcherConverter;
         this.generatedResultFuture = generatedResultFuture;
         this.generatedPreFilterCondition = generatedPreFilterCondition;
@@ -96,11 +93,9 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
     public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
         ClassLoader cl = getRuntimeContext().getUserCodeClassLoader();
-        this.fetcher = generatedFetcher.newInstance(cl);
         this.preFilterCondition = generatedPreFilterCondition.newInstance(cl);
         FunctionUtils.setFunctionRuntimeContext(fetcher, getRuntimeContext());
         FunctionUtils.setFunctionRuntimeContext(preFilterCondition, getRuntimeContext());
-        FunctionUtils.openFunction(fetcher, openContext);
         FunctionUtils.openFunction(preFilterCondition, openContext);
 
         // try to compile the generated ResultFuture, fail fast if the code is corrupt.
@@ -152,9 +147,6 @@ public class AsyncLookupJoinRunner extends RichAsyncFunction<RowData, RowData> {
     @Override
     public void close() throws Exception {
         super.close();
-        if (fetcher != null) {
-            FunctionUtils.closeFunction(fetcher);
-        }
         if (preFilterCondition != null) {
             FunctionUtils.closeFunction(preFilterCondition);
         }
