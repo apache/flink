@@ -64,7 +64,7 @@ public class AsyncTriggerConverter {
                     AsyncPurgingTrigger.of(
                             convertToAsync(((PurgingTrigger<?, ?>) trigger).getNestedTrigger()));
         } else if (trigger instanceof AsyncTriggerConvertable) {
-            return ((AsyncTriggerConvertable<T, W>) trigger).convertToAsync();
+            return (AsyncTrigger<T, W>) ((AsyncTriggerConvertable) trigger).convertToAsync();
         } else {
             return UserDefinedAsyncTrigger.of(trigger);
         }
