@@ -49,6 +49,7 @@ import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.LastHttpConten
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.stream.ChunkedFile;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,8 +100,23 @@ public class HistoryServerStaticFileServerHandler
     /** The path in which the static documents are. */
     private final File rootPath;
 
-    public HistoryServerStaticFileServerHandler(File rootPath) throws IOException {
+    private final HistoryServerArchiveFetcher archiveFetcher;
+
+    private final boolean enableRemoteArchiveRefresh;
+
+    public HistoryServerStaticFileServerHandler(
+            File rootPath,
+            boolean enableRemoteArchiveFetch,
+            HistoryServerArchiveFetcher historyServerArchiveFetcher)
+            throws IOException {
         this.rootPath = checkNotNull(rootPath).getCanonicalFile();
+        this.enableRemoteArchiveRefresh = enableRemoteArchiveFetch;
+
+        if (enableRemoteArchiveFetch) {
+            this.archiveFetcher = checkNotNull(historyServerArchiveFetcher);
+        } else {
+            this.archiveFetcher = null;
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -138,7 +154,38 @@ public class HistoryServerStaticFileServerHandler
         }
 
         // convert to absolute path
-        final File file = new File(rootPath, requestPath);
+        File file = new File(rootPath, requestPath);
+
+        if (enableRemoteArchiveRefresh) {
+            // Attempt to fetch files from the remote file system or the local cache of archives
+            // that were retrieved from the remote file system.
+            if (!file.exists()) {
+                String jobID = retrieveJobId(requestPath);
+                String jobArchiveDirectoryPath = "/jobs/" + jobID;
+
+                File localCacheJobArchivePath = new File(rootPath, jobArchiveDirectoryPath);
+                boolean fileExistsInCache = localCacheJobArchivePath.exists();
+                boolean remoteFileFetched = false;
+                try {
+                    // We only attempt to retrieve from the remote job archives if the
+                    // jobID directory doesn't exist in the local job archive cache, which would
+                    // indicate the job has already been fetched before.
+                    if (!fileExistsInCache) {
+                        archiveFetcher.fetchArchiveByJobId(jobID);
+                        file = new File(rootPath, requestPath);
+                        remoteFileFetched = true;
+                    }
+                } catch (Throwable t) {
+                    LOG.error("Error while responding.", t);
+                } finally {
+                    if (!remoteFileFetched && !fileExistsInCache) {
+                        LOG.debug(
+                                "Unable to load requested file {} from remote directory",
+                                requestPath);
+                    }
+                }
+            }
+        }
 
         if (!file.exists()) {
             // file does not exist. Try to load it with the classloader
@@ -278,5 +325,10 @@ public class HistoryServerStaticFileServerHandler
                     INTERNAL_SERVER_ERROR,
                     Collections.emptyMap());
         }
+    }
+
+    private String retrieveJobId(String requestPath) {
+        String[] jobPath = requestPath.split("[\\./]");
+        return jobPath.length >= 2 ? jobPath[2] : StringUtils.EMPTY;
     }
 }
