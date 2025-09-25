@@ -40,7 +40,7 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDa
 
 /** The {@link CallContext} of a {@link LookupTableSource} runtime function. */
 @Internal
-public class LookupCallContext extends AbstractSqlCallContext {
+public class FunctionCallContext extends AbstractSqlCallContext {
 
     private final List<FunctionParam> lookupKeys;
 
@@ -48,7 +48,7 @@ public class LookupCallContext extends AbstractSqlCallContext {
 
     private final DataType outputDataType;
 
-    public LookupCallContext(
+    public FunctionCallContext(
             DataTypeFactory dataTypeFactory,
             UserDefinedFunction function,
             LogicalType inputType,

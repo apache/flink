@@ -28,12 +28,14 @@ import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.functions.{AsyncLookupFunction, AsyncPredictFunction, AsyncTableFunction, LookupFunction, PredictFunction, TableFunction, UserDefinedFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
+import org.apache.flink.table.planner.codegen.FunctionCallCodeGenerator.GeneratedTableFunctionWithDataType
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
+import org.apache.flink.table.planner.codegen.LookupJoinCodeGenerator.generateCallWithDataType
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.verifyFunctionAwareImplementation
 import org.apache.flink.table.planner.delegation.PlannerBase
-import org.apache.flink.table.planner.functions.inference.LookupCallContext
+import org.apache.flink.table.planner.functions.inference.FunctionCallContext
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.{Constant, FieldRef, FunctionParam}
 import org.apache.flink.table.planner.plan.utils.RexLiteralUtil
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
@@ -57,10 +59,6 @@ import scala.collection.JavaConverters._
 
 object LookupJoinCodeGenerator {
 
-  case class GeneratedTableFunctionWithDataType[F <: Function](
-      tableFunc: GeneratedFunction[F],
-      dataType: DataType)
-
   private val ARRAY_LIST = className[util.ArrayList[_]]
 
   /** Generates a lookup function ([[TableFunction]]) */
@@ -76,29 +74,26 @@ object LookupJoinCodeGenerator {
       functionName: String,
       fieldCopy: Boolean): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
 
-    val bodyCode: GeneratedExpression => String = call => {
-      val resultCollectorTerm = call.resultTerm
-      s"""
-         |$resultCollectorTerm.setCollector($DEFAULT_COLLECTOR_TERM);
-         |${call.code}
-         |""".stripMargin
-    }
-
-    generateLookupFunction(
-      classOf[FlatMapFunction[RowData, RowData]],
-      tableConfig,
-      classLoader,
-      dataTypeFactory,
-      inputType,
-      tableSourceType,
-      returnType,
-      lookupKeys,
-      classOf[TableFunction[_]],
-      syncLookupFunction,
-      functionName,
-      fieldCopy,
-      bodyCode
-    ).tableFunc
+    FunctionCallCodeGenerator
+      .generateSyncFunctionCall(
+        tableConfig,
+        classLoader,
+        dataTypeFactory,
+        inputType,
+        tableSourceType,
+        returnType,
+        lookupKeys,
+        syncLookupFunction,
+        generateCallWithDataType(
+          dataTypeFactory,
+          functionName,
+          tableSourceType,
+          classOf[TableFunction[_]]),
+        functionName,
+        "LookupFunction",
+        fieldCopy
+      )
+      .tableFunc
   }
 
   /** Generates a async lookup function ([[AsyncTableFunction]]) */
@@ -112,9 +107,7 @@ object LookupJoinCodeGenerator {
       lookupKeys: util.List[FunctionParam],
       asyncLookupFunction: AsyncTableFunction[_],
       functionName: String): GeneratedTableFunctionWithDataType[AsyncFunction[RowData, AnyRef]] = {
-
-    generateLookupFunction(
-      classOf[AsyncFunction[RowData, AnyRef]],
+    FunctionCallCodeGenerator.generateAsyncFunctionCall(
       tableConfig,
       classLoader,
       dataTypeFactory,
@@ -122,98 +115,66 @@ object LookupJoinCodeGenerator {
       tableSourceType,
       returnType,
       lookupKeys,
-      classOf[AsyncTableFunction[_]],
       asyncLookupFunction,
+      generateCallWithDataType(
+        dataTypeFactory,
+        functionName,
+        tableSourceType,
+        classOf[AsyncTableFunction[_]]),
       functionName,
-      fieldCopy = true, // always copy input field because of async buffer
-      _.code
+      "AsyncLookupFunction"
     )
   }
 
-  private def generateLookupFunction[F <: Function](
-      generatedClass: Class[F],
-      tableConfig: ReadableConfig,
-      classLoader: ClassLoader,
+  private def generateCallWithDataType(
       dataTypeFactory: DataTypeFactory,
-      inputType: LogicalType,
-      tableSourceType: LogicalType,
-      returnType: LogicalType,
-      lookupKeys: util.List[FunctionParam],
-      lookupFunctionBase: Class[_],
-      lookupFunction: UserDefinedFunction,
       functionName: String,
-      fieldCopy: Boolean,
-      bodyCode: GeneratedExpression => String): GeneratedTableFunctionWithDataType[F] = {
-
-    val callContext =
-      new LookupCallContext(dataTypeFactory, lookupFunction, inputType, lookupKeys, tableSourceType)
-
-    // create the final UDF for runtime
-    val udf = UserDefinedFunctionHelper.createSpecializedFunction(
-      functionName,
-      lookupFunction,
-      callContext,
-      classOf[PlannerBase].getClassLoader,
-      tableConfig,
-      // no need to support expression evaluation at this point
-      null)
-
-    val inference =
-      createLookupTypeInference(dataTypeFactory, callContext, lookupFunctionBase, udf, functionName)
-
-    val ctx = new CodeGeneratorContext(tableConfig, classLoader)
-    val operands = prepareOperands(ctx, inputType, lookupKeys, fieldCopy)
-
-    // TODO: filter all records when there are any nulls on the join key, because
-    //  "IS NOT DISTINCT FROM" is not supported yet.
-    // Note: AsyncPredictFunction or PredictFunction does not use Lookup Syntax.
-    val skipIfArgsNull = !lookupFunction.isInstanceOf[PredictFunction] && !lookupFunction
-      .isInstanceOf[AsyncPredictFunction]
-
-    val callWithDataType = BridgingFunctionGenUtil.generateFunctionAwareCallWithDataType(
-      ctx,
-      operands,
-      tableSourceType,
-      inference,
-      callContext,
-      udf,
-      functionName,
-      skipIfArgsNull = skipIfArgsNull
-    )
-
-    val function = FunctionCodeGenerator.generateFunction(
-      ctx,
-      "LookupFunction",
-      generatedClass,
-      bodyCode(callWithDataType._1),
-      returnType,
-      inputType)
-
-    GeneratedTableFunctionWithDataType(function, callWithDataType._2)
-  }
-
-  private def prepareOperands(
+      tableSourceType: LogicalType,
+      baseClass: Class[_]
+  ) = (
       ctx: CodeGeneratorContext,
-      inputType: LogicalType,
-      lookupKeys: util.List[FunctionParam],
-      fieldCopy: Boolean): Seq[GeneratedExpression] = {
+      callContext: FunctionCallContext,
+      udf: UserDefinedFunction,
+      operands: Seq[GeneratedExpression]) => {
+    def inferCallWithDataType(
+        ctx: CodeGeneratorContext,
+        callContext: FunctionCallContext,
+        udf: UserDefinedFunction,
+        operands: Seq[GeneratedExpression],
+        legacy: Boolean,
+        e: Exception = null): (GeneratedExpression, DataType) = {
+      val inference = createLookupTypeInference(
+        dataTypeFactory,
+        callContext,
+        baseClass,
+        udf,
+        functionName,
+        legacy,
+        e)
 
-    lookupKeys.asScala
-      .map {
-        case constantKey: Constant =>
-          val res = RexLiteralUtil.toFlinkInternalValue(constantKey.literal)
-          generateLiteral(ctx, res.f0, res.f1)
-        case fieldKey: FieldRef =>
-          generateInputAccess(
-            ctx,
-            inputType,
-            DEFAULT_INPUT1_TERM,
-            fieldKey.index,
-            nullableInput = false,
-            fieldCopy)
-        case _ =>
-          throw new CodeGenException("Invalid lookup key.")
-      }
+      // TODO: filter all records when there is any nulls on the join key, because
+      //  "IS NOT DISTINCT FROM" is not supported yet.
+      val callWithDataType = BridgingFunctionGenUtil.generateFunctionAwareCallWithDataType(
+        ctx,
+        operands,
+        tableSourceType,
+        inference,
+        callContext,
+        udf,
+        functionName,
+        skipIfArgsNull = true
+      )
+      callWithDataType
+    }
+
+    try {
+      // user provided type inference has precedence
+      // this ensures that all functions work in the same way
+      inferCallWithDataType(ctx, callContext, udf, operands, legacy = false)
+    } catch {
+      case e: Exception =>
+        inferCallWithDataType(ctx, callContext, udf, operands, legacy = true, e)
+    }
   }
 
   /**
@@ -225,57 +186,55 @@ object LookupJoinCodeGenerator {
    */
   private def createLookupTypeInference(
       dataTypeFactory: DataTypeFactory,
-      callContext: LookupCallContext,
+      callContext: FunctionCallContext,
       baseClass: Class[_],
       udf: UserDefinedFunction,
-      functionName: String): TypeInference = {
+      functionName: String,
+      legacy: Boolean,
+      e: Exception): TypeInference = {
 
-    try {
+    if (!legacy) {
       // user provided type inference has precedence
       // this ensures that all functions work in the same way
       udf.getTypeInference(dataTypeFactory)
-    } catch {
-      case e: Exception =>
-        // for convenience, we assume internal or default external data structures
-        // of expected logical types
-        val defaultArgDataTypes = callContext.getArgumentDataTypes.asScala
-        val defaultOutputDataType = callContext.getOutputDataType.get()
+    } else {
+      // for convenience, we assume internal or default external data structures
+      // of expected logical types
+      val defaultArgDataTypes = callContext.getArgumentDataTypes.asScala
+      val defaultOutputDataType = callContext.getOutputDataType.get()
 
-        val outputClass =
-          if (
-            udf.isInstanceOf[LookupFunction] || udf.isInstanceOf[AsyncLookupFunction] || udf
-              .isInstanceOf[PredictFunction] || udf.isInstanceOf[AsyncPredictFunction]
-          ) {
-            Some(classOf[RowData])
-          } else {
-            toScala(extractSimpleGeneric(baseClass, udf.getClass, 0))
-          }
-        val (argDataTypes, outputDataType) = outputClass match {
-          case Some(c) if c == classOf[Row] =>
-            (defaultArgDataTypes, defaultOutputDataType)
-          case Some(c) if c == classOf[RowData] =>
-            val internalArgDataTypes = defaultArgDataTypes
-              .map(dt => transform(dt, TypeTransformations.TO_INTERNAL_CLASS))
-            val internalOutputDataType =
-              transform(defaultOutputDataType, TypeTransformations.TO_INTERNAL_CLASS)
-            (internalArgDataTypes, internalOutputDataType)
-          case _ =>
-            throw new ValidationException(
-              s"Could not determine a type inference for lookup function '$functionName'. " +
-                s"Lookup functions support regular type inference. However, for convenience, the " +
-                s"output class can simply be a ${classOf[Row].getSimpleName} or " +
-                s"${classOf[RowData].getSimpleName} class in which case the input and output " +
-                s"types are derived from the table's schema with default conversion.",
-              e)
+      val outputClass =
+        if (udf.isInstanceOf[LookupFunction] || udf.isInstanceOf[AsyncLookupFunction]) {
+          Some(classOf[RowData])
+        } else {
+          toScala(extractSimpleGeneric(baseClass, udf.getClass, 0))
         }
+      val (argDataTypes, outputDataType) = outputClass match {
+        case Some(c) if c == classOf[Row] =>
+          (defaultArgDataTypes, defaultOutputDataType)
+        case Some(c) if c == classOf[RowData] =>
+          val internalArgDataTypes = defaultArgDataTypes
+            .map(dt => transform(dt, TypeTransformations.TO_INTERNAL_CLASS))
+          val internalOutputDataType =
+            transform(defaultOutputDataType, TypeTransformations.TO_INTERNAL_CLASS)
+          (internalArgDataTypes, internalOutputDataType)
+        case _ =>
+          throw new ValidationException(
+            s"Could not determine a type inference for lookup function '$functionName'. " +
+              s"Lookup functions support regular type inference. However, for convenience, the " +
+              s"output class can simply be a ${classOf[Row].getSimpleName} or " +
+              s"${classOf[RowData].getSimpleName} class in which case the input and output " +
+              s"types are derived from the table's schema with default conversion.",
+            e)
+      }
 
-        verifyFunctionAwareImplementation(argDataTypes, outputDataType, udf, functionName)
+      verifyFunctionAwareImplementation(argDataTypes, outputDataType, udf, functionName)
 
-        TypeInference
-          .newBuilder()
-          .typedArguments(argDataTypes.asJava)
-          .outputTypeStrategy(TypeStrategies.explicit(outputDataType))
-          .build()
+      TypeInference
+        .newBuilder()
+        .typedArguments(argDataTypes.asJava)
+        .outputTypeStrategy(TypeStrategies.explicit(outputDataType))
+        .build()
     }
   }
 
