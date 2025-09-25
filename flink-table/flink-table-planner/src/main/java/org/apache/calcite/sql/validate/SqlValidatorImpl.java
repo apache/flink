@@ -17,6 +17,7 @@
 package org.apache.calcite.sql.validate;
 
 import org.apache.flink.table.planner.calcite.FlinkSqlCallBinding;
+import org.apache.flink.table.planner.functions.sql.ml.SqlVectorSearchTableFunction;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -172,6 +173,8 @@ import static org.apache.calcite.util.Util.first;
  *
  * <p>Lines 2012 ~ 2032, Flink improves error message for functions without appropriate arguments in
  * handleUnresolvedFunction at {@link SqlValidatorImpl#handleUnresolvedFunction}.
+ *
+ * <p>Lines 2608 ~ 2619, Flink sets correct scope for {@link SqlVectorSearchTableFunction}.
  *
  * <p>Lines 3840 ~ 3844, 6511 ~ 6517 Flink improves Optimize the retrieval of sub-operands in
  * SqlCall when using NamedParameters at {@link SqlValidatorImpl#checkRollUp}.
@@ -2599,6 +2602,21 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                         scopes.put(node, getSelectScope(call1.operand(0)));
                         return newNode;
                     }
+
+                    // Related to CALCITE-4077
+                    // ----- FLINK MODIFICATION BEGIN -----
+                    FlinkSqlCallBinding binding =
+                            new FlinkSqlCallBinding(this, getEmptyScope(), call1);
+                    if (op instanceof SqlVectorSearchTableFunction
+                            && binding.operand(0)
+                                    .isA(
+                                            new HashSet<>(
+                                                    Collections.singletonList(SqlKind.SELECT)))) {
+                        SqlValidatorScope scope = getSelectScope((SqlSelect) binding.operand(0));
+                        scopes.put(node, scope);
+                        return newNode;
+                    }
+                    // ----- FLINK MODIFICATION END -----
                 }
                 // Put the usingScope which can be a JoinScope
                 // or a SelectScope, in order to see the left items

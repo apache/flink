@@ -160,27 +160,33 @@ public class SqlValidatorUtils {
     /**
      * Make output field names unique from input field names by appending index. For example, Input
      * has field names {@code a, b, c} and output has field names {@code b, c, d}. After calling
-     * this function, new output field names will be {@code b0, c0, d}. Duplicate names are not
-     * checked inside input and output itself.
+     * this function, new output field names will be {@code b0, c0, d}.
+     *
+     * <p>We assume that input fields in the input parameter are uniquely named, just as the output
+     * fields in the output parameter are.
      *
      * @param input Input fields
      * @param output Output fields
-     * @return
+     * @return output fields with unique names.
      */
     public static List<RelDataTypeField> makeOutputUnique(
             List<RelDataTypeField> input, List<RelDataTypeField> output) {
-        final Set<String> inputFieldNames = new HashSet<>();
+        final Set<String> uniqueNames = new HashSet<>();
         for (RelDataTypeField field : input) {
-            inputFieldNames.add(field.getName());
+            uniqueNames.add(field.getName());
         }
 
         List<RelDataTypeField> result = new ArrayList<>();
         for (RelDataTypeField field : output) {
             String fieldName = field.getName();
-            if (inputFieldNames.contains(fieldName)) {
-                fieldName += "0"; // Append index to make it unique
+            int count = 0;
+            String candidate = fieldName;
+            while (uniqueNames.contains(candidate)) {
+                candidate = fieldName + count;
+                count++;
             }
-            result.add(new RelDataTypeFieldImpl(fieldName, field.getIndex(), field.getType()));
+            uniqueNames.add(candidate);
+            result.add(new RelDataTypeFieldImpl(candidate, field.getIndex(), field.getType()));
         }
         return result;
     }
