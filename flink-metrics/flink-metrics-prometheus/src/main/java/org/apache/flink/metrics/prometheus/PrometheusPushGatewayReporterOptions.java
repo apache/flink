@@ -98,4 +98,11 @@ public class PrometheusPushGatewayReporterOptions {
                                                     "https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels",
                                                     "Prometheus requirements"))
                                     .build());
+
+    public static final ConfigOption<String> WHITE_LIST =
+            ConfigOptions.key("whiteList")
+                    .stringType()
+                    .defaultValue("")
+                    .withDescription(
+                            "The white-list of metric name. The default is to report all metrics");
 }
