@@ -71,7 +71,7 @@ import java.util.function.Supplier;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration tests related to {@link ApplicationDispatcherBootstrap}. */
-class ApplicationDispatcherBootstrapITCase {
+class PackagedProgramApplicationITCase {
 
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =

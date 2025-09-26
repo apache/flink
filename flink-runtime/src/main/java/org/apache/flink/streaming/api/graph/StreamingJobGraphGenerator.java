@@ -19,6 +19,7 @@ package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.RuntimeExecutionMode;
@@ -134,12 +135,16 @@ public class StreamingJobGraphGenerator {
                         Thread.currentThread().getContextClassLoader(),
                         streamGraph,
                         streamGraph.getJobID(),
+                        streamGraph.getApplicationId(),
                         Runnable::run)
                 .createJobGraph();
     }
 
     public static JobGraph createJobGraph(
-            ClassLoader userClassLoader, StreamGraph streamGraph, @Nullable JobID jobID) {
+            ClassLoader userClassLoader,
+            StreamGraph streamGraph,
+            @Nullable JobID jobId,
+            @Nullable ApplicationID applicationId) {
         // TODO Currently, we construct a new thread pool for the compilation of each job. In the
         // future, we may refactor the job submission framework and make it reusable across jobs.
         final ExecutorService serializationExecutor =
@@ -152,7 +157,11 @@ public class StreamingJobGraphGenerator {
                         new ExecutorThreadFactory("flink-operator-serialization-io"));
         try {
             return new StreamingJobGraphGenerator(
-                            userClassLoader, streamGraph, jobID, serializationExecutor)
+                            userClassLoader,
+                            streamGraph,
+                            jobId,
+                            applicationId,
+                            serializationExecutor)
                     .createJobGraph();
         } finally {
             serializationExecutor.shutdown();
@@ -177,14 +186,15 @@ public class StreamingJobGraphGenerator {
     private StreamingJobGraphGenerator(
             ClassLoader userClassloader,
             StreamGraph streamGraph,
-            @Nullable JobID jobID,
+            @Nullable JobID jobId,
+            @Nullable ApplicationID applicationId,
             Executor serializationExecutor) {
         this.userClassloader = userClassloader;
         this.streamGraph = streamGraph;
         this.defaultStreamGraphHasher = new StreamGraphHasherV2();
         this.legacyStreamGraphHashers = Arrays.asList(new StreamGraphUserHashHasher());
         this.serializationExecutor = Preconditions.checkNotNull(serializationExecutor);
-        jobGraph = createAndInitializeJobGraph(streamGraph, jobID);
+        jobGraph = createAndInitializeJobGraph(streamGraph, jobId, applicationId);
 
         // Generate deterministic hashes for the nodes in order to identify them across
         // submission iff they didn't change.
@@ -886,8 +896,8 @@ public class StreamingJobGraphGenerator {
     }
 
     public static JobGraph createAndInitializeJobGraph(
-            StreamGraph streamGraph, @Nullable JobID jobId) {
-        JobGraph jobGraph = new JobGraph(jobId, streamGraph.getJobName());
+            StreamGraph streamGraph, @Nullable JobID jobId, @Nullable ApplicationID applicationId) {
+        JobGraph jobGraph = new JobGraph(jobId, applicationId, streamGraph.getJobName());
         jobGraph.setJobType(streamGraph.getJobType());
         jobGraph.setDynamic(streamGraph.isDynamic());
 
