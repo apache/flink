@@ -164,13 +164,14 @@ public class ForStExtension implements BeforeEachCallback, AfterEachCallback {
 
         resourceGuard = new ResourceGuard();
         File localWorkingDir = TempDirUtils.newFolder(rocksFolder.toPath(), "local-working-dir");
+        Path localJobPath = new Path(localWorkingDir.getAbsolutePath());
+        Path localBasePath = new Path(localJobPath, "base");
         this.resourceContainer =
                 new ForStResourceContainer(
                         new Configuration(),
                         optionsFactory,
                         null,
-                        new Path(localWorkingDir.getAbsolutePath()),
-                        null,
+                        ForStPathContainer.ofLocal(localJobPath, localBasePath),
                         null,
                         null,
                         null,
@@ -191,8 +192,8 @@ public class ForStExtension implements BeforeEachCallback, AfterEachCallback {
         // by setting the dbPath to "/" when the dfs directory existed.
         // TODO: use localForStPath as dbPath after ForSt Support mixing local-dir and remote-dir
         Path instanceForStPath =
-                resourceContainer.getRemoteForStPath() == null
-                        ? resourceContainer.getLocalForStPath()
+                resourceContainer.getPathContainer().getRemoteForStPath() == null
+                        ? resourceContainer.getPathContainer().getLocalForStPath()
                         : new Path("/");
 
         this.columnFamilyHandles = new ArrayList<>(1);

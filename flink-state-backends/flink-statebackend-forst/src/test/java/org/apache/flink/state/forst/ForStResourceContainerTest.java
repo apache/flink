@@ -308,15 +308,17 @@ public class ForStResourceContainerTest {
 
     @Test
     public void testDirectoryResources() throws Exception {
-        Path localBasePath = new Path(TMP_FOLDER.newFolder().getPath());
-        Path remoteBasePath = new Path(TMP_FOLDER.newFolder().getPath());
+        Path localJobPath = new Path(TMP_FOLDER.newFolder().getPath());
+        Path localBasePath = new Path(localJobPath, "base");
+        Path remoteJobPath = new Path(TMP_FOLDER.newFolder().getPath());
+        Path remoteBasePath = new Path(remoteJobPath, "base");
         try (final ForStResourceContainer optionsContainer =
                 new ForStResourceContainer(
                         new Configuration(),
                         null,
                         null,
-                        localBasePath,
-                        remoteBasePath,
+                        ForStPathContainer.of(
+                                localJobPath, localBasePath, remoteJobPath, remoteBasePath),
                         null,
                         new FsCheckpointStorageAccess(
                                 new Path(TMP_FOLDER.newFolder().getPath()),

@@ -130,7 +130,8 @@ class ForStStateBackendTest extends StateBackendTestBase<ForStStateBackend> {
         ForStStateBackend backend = new ForStStateBackend();
         ForStSyncKeyedStateBackend keyedStateBackend1 =
                 (ForStSyncKeyedStateBackend) createKeyedBackend(IntSerializer.INSTANCE);
-        assertThat(keyedStateBackend1.getOptionsContainer().getRemoteBasePath()).isNull();
+        assertThat(keyedStateBackend1.getOptionsContainer().getPathContainer().getRemoteBasePath())
+                .isNull();
         Configuration config = new Configuration();
         config.set(ForStOptions.SYNC_ENFORCE_LOCAL, false);
         backend = backend.configure(config, Thread.currentThread().getContextClassLoader());
@@ -151,6 +152,7 @@ class ForStStateBackendTest extends StateBackendTestBase<ForStStateBackend> {
                                         Collections.emptyList(),
                                         new CloseableRegistry(),
                                         1.0d));
-        assertThat(keyedStateBackend2.getOptionsContainer().getRemoteBasePath()).isNotNull();
+        assertThat(keyedStateBackend2.getOptionsContainer().getPathContainer().getRemoteBasePath())
+                .isNotNull();
     }
 }
