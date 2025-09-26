@@ -23,7 +23,6 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.streaming.api.windowing.windows.Window;
-import org.apache.flink.streaming.runtime.operators.windowing.AsyncTriggerConvertable;
 import org.apache.flink.streaming.runtime.operators.windowing.AsyncTriggerConverter;
 
 import javax.annotation.Nonnull;
@@ -44,7 +43,7 @@ import java.time.Duration;
  */
 @PublicEvolving
 public class ProcessingTimeoutTrigger<T, W extends Window> extends Trigger<T, W>
-        implements AsyncTriggerConvertable {
+        implements AsyncTriggerConverter {
 
     private static final long serialVersionUID = 1L;
 
