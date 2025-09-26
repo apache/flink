@@ -744,6 +744,13 @@ public class TaskManagerOptions {
                     .withDeprecatedKeys("local.number-taskmanager")
                     .withDescription("The number of task managers of MiniCluster.");
 
+    @Documentation.Section(Documentation.Sections.ALL_TASK_MANAGER)
+    public static final ConfigOption<Integer> MINI_CLUSTER_NUMBER_SLOTS_PER_TASK_MANAGER =
+            ConfigOptions.key("minicluster.number-of-slots-per-taskmanager")
+                    .intType()
+                    .defaultValue(4)
+                    .withDescription("The number of slots per task managers of MiniCluster.");
+
     /** Type of redirection of {@link System#out} and {@link System#err}. */
     public enum SystemOutMode {
 
