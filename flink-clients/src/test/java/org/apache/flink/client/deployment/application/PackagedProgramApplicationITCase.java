@@ -69,8 +69,8 @@ import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Integration tests related to {@link ApplicationDispatcherBootstrap}. */
-class ApplicationDispatcherBootstrapITCase {
+/** Integration tests related to {@link PackagedProgramApplication}. */
+class PackagedProgramApplicationITCase {
 
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
@@ -238,8 +238,7 @@ class ApplicationDispatcherBootstrapITCase {
             final ArchivedExecutionGraph graph = cluster.getArchivedExecutionGraph(jobId).get();
 
             assertThat(graph.getJobID()).isEqualTo(jobId);
-            assertThat(graph.getJobName())
-                    .isEqualTo(ApplicationDispatcherBootstrap.FAILED_JOB_NAME);
+            assertThat(graph.getJobName()).isEqualTo(PackagedProgramApplication.FAILED_JOB_NAME);
             assertThat(graph.getFailureInfo())
                     .isNotNull()
                     .extracting(ErrorInfo::getException)
