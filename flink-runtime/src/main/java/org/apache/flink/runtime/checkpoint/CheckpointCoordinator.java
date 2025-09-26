@@ -1385,8 +1385,8 @@ public class CheckpointCoordinator {
                 lastSubsumed = null;
             }
 
-            pendingCheckpoint.getCompletionFuture().complete(completedCheckpoint);
             reportCompletedCheckpoint(completedCheckpoint);
+            pendingCheckpoint.getCompletionFuture().complete(completedCheckpoint);
         } catch (Exception exception) {
             // For robustness reasons, we need catch exception and try marking the checkpoint
             // completed.
