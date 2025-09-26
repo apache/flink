@@ -197,15 +197,7 @@ public class HistoryServer {
         webRefreshIntervalMillis =
                 config.get(HistoryServerOptions.HISTORY_SERVER_WEB_REFRESH_INTERVAL).toMillis();
 
-        String webDirectory = config.get(HistoryServerOptions.HISTORY_SERVER_WEB_DIR);
-        if (webDirectory == null) {
-            webDirectory =
-                    System.getProperty("java.io.tmpdir")
-                            + File.separator
-                            + "flink-web-history-"
-                            + UUID.randomUUID();
-        }
-        webDir = new File(webDirectory);
+        webDir = clearWebDir(config);
 
         boolean cleanupExpiredArchives =
                 config.get(HistoryServerOptions.HISTORY_SERVER_CLEANUP_EXPIRED_JOBS);
@@ -255,6 +247,34 @@ public class HistoryServer {
         this.shutdownHook =
                 ShutdownHookUtil.addShutdownHook(
                         HistoryServer.this::stop, HistoryServer.class.getSimpleName(), LOG);
+    }
+
+    private File clearWebDir(Configuration config) throws IOException {
+        String webDirectory = config.get(HistoryServerOptions.HISTORY_SERVER_WEB_DIR);
+        if (webDirectory == null) {
+            webDirectory =
+                    System.getProperty("java.io.tmpdir")
+                            + File.separator
+                            + "flink-web-history-"
+                            + UUID.randomUUID();
+        }
+        final File webDir = new File(webDirectory);
+        LOG.info("Clear the web directory {}", webDir);
+        if (webDir.exists() && webDir.isDirectory() && webDir.listFiles() != null) {
+            // Reset the current working directory to eliminate the risk of local file leakage.
+            // This is because when the current process is forcibly terminated by an external
+            // command,
+            // the hook methods for cleaning up local files will not be called.
+            for (File subFile : webDir.listFiles()) {
+                FileUtils.deleteFileOrDirectory(subFile);
+            }
+        }
+        return webDir;
+    }
+
+    @VisibleForTesting
+    File getWebDir() {
+        return webDir;
     }
 
     @VisibleForTesting
