@@ -488,18 +488,13 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
             columnFamilyOptions.forEach(IOUtils::closeQuietly);
 
             LOG.info(
-                    "Closed ForSt State Backend. Cleaning up ForSt local working directory {}, remote working directory {}.",
-                    optionsContainer.getLocalBasePath(),
-                    optionsContainer.getRemoteBasePath());
+                    "Closed ForSt State Backend. Cleaning up ForSt: {}.",
+                    optionsContainer.getPathContainer());
 
             try {
                 optionsContainer.clearDirectories();
             } catch (Exception ex) {
-                LOG.warn(
-                        "Could not delete ForSt local working directory {}, remote working directory {}.",
-                        optionsContainer.getLocalBasePath(),
-                        optionsContainer.getRemoteBasePath(),
-                        ex);
+                LOG.warn("Could not delete ForSt: {}.", optionsContainer.getPathContainer(), ex);
             }
 
             IOUtils.closeQuietly(optionsContainer);
