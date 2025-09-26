@@ -131,12 +131,10 @@ public class HistoryServerOptions {
             "historyserver.archive.retained-jobs";
     private static final String HISTORY_SERVER_RETAINED_TTL_KEY =
             "historyserver.archive.retained-ttl";
-    private static final String DESC_FORMAT =
-            "When this option is enabled together with the `%s` option, the job archive will be removed if its TTL has expired or the retained job count has been reached. ";
     private static final String NOTE_MESSAGE =
-            "Note, when there are multiple history server instances, please enable the configuration option like following: ";
+            "Note, when there are multiple history server instances, two recommended approaches when using this option are: ";
     private static final String CONFIGURE_SINGLE_INSTANCE =
-            "Enable this feature in only one HistoryServer instance to avoid errors caused by multiple instances simultaneously cleaning up remote files, ";
+            "Specify the option in only one HistoryServer instance to avoid errors caused by multiple instances simultaneously cleaning up remote files, ";
     private static final String CONFIGURE_CONSISTENT =
             "Or you can keep the value of this configuration consistent across them. ";
 
@@ -147,17 +145,24 @@ public class HistoryServerOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            String.format(
-                                                    "The maximum number of jobs to retain in each archive directory defined by `%s`. ",
-                                                    HISTORY_SERVER_ARCHIVE_DIRS.key()))
+                                            "The maximum number of jobs to retain in each archive directory defined by %s. ",
+                                            code(HISTORY_SERVER_ARCHIVE_DIRS.key()))
+                                    .list(
+                                            text(
+                                                    "If the option is not specified as a positive number without specified %s, the all of jobs archive will be retained. ",
+                                                    code(HISTORY_SERVER_RETAINED_TTL_KEY)),
+                                            text(
+                                                    "If the option is specified as a positive number without specified value of %s, the jobs archive whose order index based modification time is equals to or less than the value will be retained. ",
+                                                    code(HISTORY_SERVER_RETAINED_TTL_KEY)),
+                                            text(
+                                                    "If this option is specified as a positive number together with the specified %s option, the job archive will be removed if its TTL has expired or the retained job count has been reached. ",
+                                                    code(HISTORY_SERVER_RETAINED_TTL_KEY)))
                                     .text(
-                                            String.format(
-                                                    DESC_FORMAT, HISTORY_SERVER_RETAINED_TTL_KEY))
-                                    .text(
-                                            "If set to `-1`(default), there is no limit to the number of archives. ")
-                                    .text(
-                                            "If set to `0` or less than `-1` HistoryServer will throw an %s. ",
+                                            "If set to %s or less than %s, HistoryServer will throw an %s. ",
+                                            code("0"),
+                                            code("-1"),
                                             code("IllegalConfigurationException"))
+                                    .linebreak()
                                     .text(NOTE_MESSAGE)
                                     .list(
                                             text(CONFIGURE_SINGLE_INSTANCE),
@@ -171,12 +176,24 @@ public class HistoryServerOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            String.format(
-                                                    "The time-to-live duration to retain the jobs archived in each archive directory defined by `%s`. ",
-                                                    HISTORY_SERVER_ARCHIVE_DIRS.key()))
+                                            "The time-to-live duration to retain the jobs archived in each archive directory defined by %s. ",
+                                            code(HISTORY_SERVER_ARCHIVE_DIRS.key()))
+                                    .list(
+                                            text(
+                                                    "If the option is not specified without specified %s, the all of jobs archive will be retained. ",
+                                                    code(HISTORY_SERVER_RETAINED_JOBS_KEY)),
+                                            text(
+                                                    "If the option is specified without specified %s, the jobs archive whose modification time in the time-to-live duration will be retained. ",
+                                                    code(HISTORY_SERVER_RETAINED_JOBS_KEY)),
+                                            text(
+                                                    "If this option is specified as a positive time duration together with the %s option, the job archive will be removed if its TTL has expired or the retained job count has been reached. ",
+                                                    code(HISTORY_SERVER_RETAINED_JOBS_KEY)))
                                     .text(
-                                            String.format(
-                                                    DESC_FORMAT, HISTORY_SERVER_RETAINED_JOBS_KEY))
+                                            "If set to %s or less than %s milliseconds, HistoryServer will throw an %s. ",
+                                            code("0"),
+                                            code("-1"),
+                                            code("IllegalConfigurationException"))
+                                    .linebreak()
                                     .text(NOTE_MESSAGE)
                                     .list(
                                             text(CONFIGURE_SINGLE_INSTANCE),

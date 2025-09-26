@@ -39,10 +39,6 @@ public class CompositeJobRetainedStrategy implements JobRetainedStrategy {
 
     public static JobRetainedStrategy createFrom(ReadableConfig config) {
         int maxHistorySizeByOldKey = config.get(HISTORY_SERVER_RETAINED_JOBS);
-        if (maxHistorySizeByOldKey == 0 || maxHistorySizeByOldKey < -1) {
-            throw new IllegalConfigurationException(
-                    "Cannot set %s to 0 or less than -1", HISTORY_SERVER_RETAINED_JOBS.key());
-        }
         Optional<Duration> retainedTtlOpt = config.getOptional(HISTORY_SERVER_RETAINED_TTL);
         return new CompositeJobRetainedStrategy(
                 new QuantityJobRetainedStrategy(maxHistorySizeByOldKey),
@@ -73,12 +69,17 @@ class TimeToLiveJobRetainedStrategy implements JobRetainedStrategy {
     @Nullable private final Duration ttlThreshold;
 
     TimeToLiveJobRetainedStrategy(Duration ttlThreshold) {
+        if (ttlThreshold != null && ttlThreshold.toMillis() <= 0) {
+            throw new IllegalConfigurationException(
+                    "Cannot set %s to 0 or less than 0 milliseconds",
+                    HISTORY_SERVER_RETAINED_TTL.key());
+        }
         this.ttlThreshold = ttlThreshold;
     }
 
     @Override
     public boolean shouldRetain(FileStatus file, int fileOrderedIndex) {
-        if (ttlThreshold == null || ttlThreshold.toMillis() <= 0L) {
+        if (ttlThreshold == null) {
             return true;
         }
         return Instant.now().toEpochMilli() - file.getModificationTime() < ttlThreshold.toMillis();
@@ -91,12 +92,16 @@ class QuantityJobRetainedStrategy implements JobRetainedStrategy {
     private final int quantityThreshold;
 
     QuantityJobRetainedStrategy(int quantityThreshold) {
+        if (quantityThreshold == 0 || quantityThreshold < -1) {
+            throw new IllegalConfigurationException(
+                    "Cannot set %s to 0 or less than -1", HISTORY_SERVER_RETAINED_JOBS.key());
+        }
         this.quantityThreshold = quantityThreshold;
     }
 
     @Override
     public boolean shouldRetain(FileStatus file, int fileOrderedIndex) {
-        if (quantityThreshold <= 0) {
+        if (quantityThreshold == -1) {
             return true;
         }
         return fileOrderedIndex <= quantityThreshold;
