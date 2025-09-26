@@ -533,7 +533,8 @@ public class PackagedProgramApplication extends AbstractApplication {
                     configuration,
                     program,
                     enforceSingleJobExecution,
-                    true /* suppress sysout */);
+                    true /* suppress sysout */,
+                    getApplicationId());
 
             if (applicationJobIds.isEmpty()) {
                 jobIdsFuture.completeExceptionally(
