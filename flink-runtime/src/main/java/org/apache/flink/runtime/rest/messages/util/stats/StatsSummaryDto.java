@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.rest.messages.checkpoints;
+package org.apache.flink.runtime.rest.messages.util.stats;
 
-import org.apache.flink.runtime.checkpoint.StatsSummary;
-import org.apache.flink.runtime.checkpoint.StatsSummarySnapshot;
+import org.apache.flink.runtime.util.stats.StatsSummary;
+import org.apache.flink.runtime.util.stats.StatsSummarySnapshot;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
