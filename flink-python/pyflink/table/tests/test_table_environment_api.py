@@ -700,6 +700,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
                                1.98932, bytearray(b'pyflink'), 'pyflink',
                                datetime.date(2014, 9, 13), datetime.time(12, 0, 0, 123000),
                                datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
+                               datetime.datetime(2025, 9, 26, 1, 2, 3, 123000),
                                [['a', 'b'], ['c', 'd'], ['e', 'f']],
                                [Row('pyflink'), Row('pyflink'), Row('pyflink')],
                                {1: Row('flink'), 2: Row('pyflink')},
@@ -712,6 +713,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
               datetime.date(2014, 9, 13), datetime.time(hour=12, minute=0, second=0,
                                                         microsecond=123000),
               datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
+              datetime.datetime(2025, 9, 26, 1, 2, 3, 123000),
               [['a', 'b'], ['c', 'd'], ['e', 'f']],
               [Row('pyflink'), Row('pyflink'), Row('pyflink')],
               {1: Row('flink'), 2: Row('pyflink')},
@@ -733,20 +735,21 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
                  DataTypes.FIELD("k", DataTypes.DATE()),
                  DataTypes.FIELD("l", DataTypes.TIME()),
                  DataTypes.FIELD("m", DataTypes.TIMESTAMP(3)),
-                 DataTypes.FIELD("n", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))),
+                 DataTypes.FIELD("n", DataTypes.TIMESTAMP_LTZ(3)),
+                 DataTypes.FIELD("o", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))),
                  DataTypes.FIELD(
-                     "o",
+                     "p",
                      DataTypes.ARRAY(
                          DataTypes.ROW([DataTypes.FIELD("ss2", DataTypes.STRING())])
                      )),
                  DataTypes.FIELD(
-                     "p",
+                     "q",
                      DataTypes.MAP(
                          DataTypes.BIGINT(),
                          DataTypes.ROW([DataTypes.FIELD("ss", DataTypes.STRING())]),
                      )),
                  DataTypes.FIELD(
-                     "q",
+                     "r",
                      DataTypes.ARRAY(
                          DataTypes.ROW(
                              [
@@ -774,8 +777,8 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
                              ]
                          )
                      )),
-                 DataTypes.FIELD("r", DataTypes.DECIMAL(38, 18)),
-                 DataTypes.FIELD("s", DataTypes.DECIMAL(38, 18))
+                 DataTypes.FIELD("s", DataTypes.DECIMAL(38, 18)),
+                 DataTypes.FIELD("t", DataTypes.DECIMAL(38, 18))
                  ]
             )
         )
