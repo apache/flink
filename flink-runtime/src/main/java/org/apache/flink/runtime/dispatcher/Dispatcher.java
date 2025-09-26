@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -36,10 +37,12 @@ import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.application.AbstractApplication;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.client.DuplicateApplicationSubmissionException;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -133,6 +136,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * Base class for the Dispatcher component. The Dispatcher component is responsible for receiving
@@ -211,6 +215,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
      * can prevent race conditions.
      */
     private final Set<JobID> pendingJobResourceRequirementsUpdates = new HashSet<>();
+
+    private final Map<ApplicationID, AbstractApplication> applications = new HashMap<>();
+
+    private final Map<ApplicationID, Set<JobID>> recoveredApplicationJobIds = new HashMap<>();
 
     /** Enum to distinguish between initial job submission and re-submission for recovery. */
     protected enum ExecutionType {
@@ -366,6 +374,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                         getSelfGateway(DispatcherGateway.class),
                         this.getRpcService().getScheduledExecutor(),
                         this::onFatalError);
+
+        if (dispatcherBootstrap instanceof ApplicationBootstrap) {
+            submitApplication(((ApplicationBootstrap) dispatcherBootstrap).getApplication()).get();
+        }
     }
 
     private void startDispatcherServices() throws Exception {
@@ -409,6 +421,13 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private void runRecoveredJob(final ExecutionPlan recoveredJob) {
         checkNotNull(recoveredJob);
+
+        if (recoveredJob.getApplicationId().isPresent()) {
+            recoveredApplicationJobIds
+                    .computeIfAbsent(
+                            recoveredJob.getApplicationId().get(), ignored -> new HashSet<>())
+                    .add(recoveredJob.getJobID());
+        }
 
         initJobClientExpiredTime(recoveredJob);
 
@@ -497,6 +516,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 () -> {
                     dispatcherBootstrap.stop();
 
+                    for (AbstractApplication application : applications.values()) {
+                        application.dispose();
+                    }
+
                     stopDispatcherServices();
 
                     log.info("Stopped dispatcher {}.", getAddress());
@@ -579,6 +602,34 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         return archiveExecutionGraphToHistoryServer(executionGraphInfo);
     }
 
+    /** This method must be called from the main thread. */
+    private CompletableFuture<Acknowledge> submitApplication(AbstractApplication application) {
+        final ApplicationID applicationId = application.getApplicationId();
+        log.info(
+                "Received application submission '{}' ({}).", application.getName(), applicationId);
+
+        if (applications.containsKey(applicationId)) {
+            log.warn("Application with id {} already exists.", applicationId);
+            throw new CompletionException(
+                    new DuplicateApplicationSubmissionException(applicationId));
+        }
+        applications.put(applicationId, application);
+        Set<JobID> jobs = recoveredApplicationJobIds.remove(applicationId);
+        if (jobs != null) {
+            jobs.forEach(application::addJob);
+        }
+        return application.execute(
+                getSelfGateway(DispatcherGateway.class),
+                getRpcService().getScheduledExecutor(),
+                getMainThreadExecutor(),
+                this::onFatalError);
+    }
+
+    @VisibleForTesting
+    Map<ApplicationID, AbstractApplication> getApplications() {
+        return applications;
+    }
+
     /**
      * Checks whether the given job has already been executed.
      *
@@ -595,7 +646,28 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
             applyParallelismOverrides((JobGraph) executionPlan);
         }
 
-        log.info("Submitting job '{}' ({}).", executionPlan.getName(), executionPlan.getJobID());
+        final JobID jobId = executionPlan.getJobID();
+        final String jobName = executionPlan.getName();
+
+        if (executionPlan.getApplicationId().isPresent()) {
+            ApplicationID applicationId = executionPlan.getApplicationId().get();
+            log.info(
+                    "Submitting job '{}' ({}) with associated application ({}).",
+                    jobName,
+                    jobId,
+                    applicationId);
+            checkState(
+                    applications.containsKey(applicationId),
+                    "Application %s not found.",
+                    applicationId);
+            applications.get(applicationId).addJob(jobId);
+        } else {
+            // TODO update the message after SingleJobApplication is implemented
+            // This can occur in two cases:
+            // 1. CLI/REST submissions of jobs without an application
+            // 2. Tests for submitJob that submit jobs without an application
+            log.info("Submitting job '{}' ({}) without associated application.", jobName, jobId);
+        }
 
         // track as an outstanding job
         submittedAndWaitingTerminationJobIDs.add(executionPlan.getJobID());
@@ -649,7 +721,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     private JobManagerRunner createJobMasterRunner(ExecutionPlan executionPlan) throws Exception {
-        Preconditions.checkState(!jobManagerRunnerRegistry.isRegistered(executionPlan.getJobID()));
+        checkState(!jobManagerRunnerRegistry.isRegistered(executionPlan.getJobID()));
         return jobManagerRunnerFactory.createJobManagerRunner(
                 executionPlan,
                 configuration,
@@ -664,7 +736,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     private JobManagerRunner createJobCleanupRunner(JobResult dirtyJobResult) throws Exception {
-        Preconditions.checkState(!jobManagerRunnerRegistry.isRegistered(dirtyJobResult.getJobId()));
+        checkState(!jobManagerRunnerRegistry.isRegistered(dirtyJobResult.getJobId()));
         return cleanupRunnerFactory.create(
                 dirtyJobResult,
                 highAvailabilityServices.getCheckpointRecoveryFactory(),
@@ -684,7 +756,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                         .getResultFuture()
                         .handleAsync(
                                 (jobManagerRunnerResult, throwable) -> {
-                                    Preconditions.checkState(
+                                    checkState(
                                             jobManagerRunnerRegistry.isRegistered(jobId)
                                                     && jobManagerRunnerRegistry.get(jobId)
                                                             == jobManagerRunner,
@@ -1277,7 +1349,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     @VisibleForTesting
     void registerJobManagerRunnerTerminationFuture(
             JobID jobId, CompletableFuture<Void> jobManagerRunnerTerminationFuture) {
-        Preconditions.checkState(!jobManagerRunnerTerminationFutures.containsKey(jobId));
+        checkState(!jobManagerRunnerTerminationFutures.containsKey(jobId));
         jobManagerRunnerTerminationFutures.put(jobId, jobManagerRunnerTerminationFuture);
 
         // clean up the pending termination future
