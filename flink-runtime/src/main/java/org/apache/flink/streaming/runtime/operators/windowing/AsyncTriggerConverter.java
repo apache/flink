@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.v2.StateFuture;
@@ -37,6 +39,8 @@ import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 
+import javax.annotation.Nonnull;
+
 /**
  * A converter from {@code Trigger} to {@code AsyncTrigger}.
  *
@@ -48,10 +52,24 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
  * <p>Other triggers are wrapped as an {@code AsyncTrigger}, whose internal functions are executed
  * in sync mode.
  */
-public class AsyncTriggerConverter {
+@Internal
+public interface AsyncTriggerConverter {
+
+    /**
+     * Convert to an {@code AsyncTrigger}. The default implementation is only a wrapper of the
+     * trigger, whose behaviours are all sync.
+     *
+     * <p>TODO: Return {@code AsyncTrigger} if {@code AsyncTrigger} becomes @PublicEvolving.
+     *
+     * @return The {@code AsyncTrigger} for async state processing.
+     */
+    @Nonnull
+    default Object convertToAsync() {
+        return UserDefinedAsyncTrigger.of((Trigger<?, ?>) AsyncTriggerConverter.this);
+    }
 
     @SuppressWarnings("unchecked")
-    public static <T, W extends Window> AsyncTrigger<T, W> convertToAsync(Trigger<T, W> trigger) {
+    static <T, W extends Window> AsyncTrigger<T, W> convertToAsync(Trigger<T, W> trigger) {
         if (trigger instanceof CountTrigger) {
             return (AsyncTrigger<T, W>)
                     AsyncCountTrigger.of(((CountTrigger<?>) trigger).getMaxCount());
@@ -63,15 +81,15 @@ public class AsyncTriggerConverter {
             return (AsyncTrigger<T, W>)
                     AsyncPurgingTrigger.of(
                             convertToAsync(((PurgingTrigger<?, ?>) trigger).getNestedTrigger()));
-        } else if (trigger instanceof AsyncTriggerConvertable) {
-            return (AsyncTrigger<T, W>) ((AsyncTriggerConvertable) trigger).convertToAsync();
+        } else if (trigger instanceof AsyncTriggerConverter) {
+            return (AsyncTrigger<T, W>) ((AsyncTriggerConverter) trigger).convertToAsync();
         } else {
             return UserDefinedAsyncTrigger.of(trigger);
         }
     }
 
     /** Convert non-support user-defined trigger to {@code AsyncTrigger}. */
-    private static class UserDefinedAsyncTrigger<T, W extends Window> extends AsyncTrigger<T, W> {
+    class UserDefinedAsyncTrigger<T, W extends Window> extends AsyncTrigger<T, W> {
         private final Trigger<T, W> userDefinedTrigger;
 
         private UserDefinedAsyncTrigger(Trigger<T, W> userDefinedTrigger) {
@@ -174,6 +192,11 @@ public class AsyncTriggerConverter {
                     AsyncTrigger.TriggerContext asyncTriggerContext) {
                 return new AsyncTriggerContextConvertor(asyncTriggerContext);
             }
+        }
+
+        @VisibleForTesting
+        public Trigger<T, W> getUserDefinedTrigger() {
+            return userDefinedTrigger;
         }
     }
 }
