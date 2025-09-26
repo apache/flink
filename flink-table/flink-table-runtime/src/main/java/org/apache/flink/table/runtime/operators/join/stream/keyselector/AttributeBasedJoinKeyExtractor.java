@@ -212,10 +212,6 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
     }
 
     private List<KeyExtractor> createRightJoinKeyExtractors(final int inputId) {
-        if (inputId == 0) {
-            return Collections.emptyList();
-        }
-
         final List<ConditionAttributeRef> attributeMapping = joinAttributeMap.get(inputId);
         if (attributeMapping == null) {
             return Collections.emptyList();
@@ -684,6 +680,19 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
         final int numInputs = inputTypes == null ? 0 : inputTypes.size();
 
         for (int inputId = 0; inputId < numInputs; inputId++) {
+            if (inputId == 0) {
+                if (!leftKeyExtractorsMap.get(inputId).isEmpty()) {
+                    throw new IllegalStateException(
+                            "Input 0 should not have left key extractors, but found left extractors "
+                                    + leftKeyExtractorsMap.get(inputId)
+                                    + ".");
+                }
+
+                // We skip validating the extracted keys type equality for input 0
+                // because it has no left-side extractors.
+                continue;
+            }
+
             final List<KeyExtractor> leftExtractors = leftKeyExtractorsMap.get(inputId);
             final List<KeyExtractor> rightExtractors = rightKeyExtractorsMap.get(inputId);
 
