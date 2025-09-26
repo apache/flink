@@ -48,6 +48,7 @@ import org.apache.flink.state.rocksdb.RocksDBWriteBatchWrapper;
 import org.apache.flink.state.rocksdb.RocksIteratorWrapper;
 import org.apache.flink.state.rocksdb.StateHandleDownloadSpec;
 import org.apache.flink.state.rocksdb.ttl.RocksDbTtlCompactFiltersManager;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
@@ -61,8 +62,6 @@ import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ColumnFamilyOptions;
 import org.rocksdb.DBOptions;
 import org.rocksdb.ExportImportFilesMetaData;
-import org.rocksdb.ReadOptions;
-import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,7 +87,6 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.metrics.MetricNames.DOWNLOAD_STATE_DURATION;
 import static org.apache.flink.runtime.metrics.MetricNames.RESTORE_ASYNC_COMPACTION_DURATION;
@@ -492,7 +490,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                             notImportableHandles);
 
             if (exportedColumnFamilyMetaData.isEmpty()) {
-                // Nothing coule be exported, so we fall back to
+                // Nothing could be exported, so we fall back to
                 // #mergeStateHandlesWithCopyFromTemporaryInstance
                 mergeStateHandlesWithCopyFromTemporaryInstance(
                         notImportableHandles, startKeyGroupPrefixBytes, stopKeyGroupPrefixBytes);
@@ -542,74 +540,39 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         int minExportKeyGroup = Integer.MAX_VALUE;
         int maxExportKeyGroup = Integer.MIN_VALUE;
         int index = 0;
+
         for (IncrementalLocalKeyedStateHandle stateHandle : localKeyedStateHandles) {
+            KeyedBackendSerializationProxy<K> serializationProxy =
+                    readMetaData(stateHandle.getMetaDataStateHandle());
+            List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
+                    serializationProxy.getStateMetaInfoSnapshots();
+            // Use Helper to encapsulate single stateHandle processing
+            try (DistributeStateHandlerHelper helper =
+                    new DistributeStateHandlerHelper(
+                            stateHandle,
+                            stateMetaInfoSnapshots,
+                            rocksHandle.getColumnFamilyOptionsFactory(),
+                            rocksHandle.getDbOptions(),
+                            rocksHandle.getTtlCompactFiltersManager(),
+                            rocksHandle.getWriteBufferManagerCapacity(),
+                            keyGroupPrefixBytes,
+                            keyGroupRange,
+                            operatorIdentifier,
+                            index)) {
 
-            final String logLineSuffix =
-                    " for state handle at index "
-                            + index
-                            + " with proclaimed key-group range "
-                            + stateHandle.getKeyGroupRange().prettyPrintInterval()
-                            + " for backend with range "
-                            + keyGroupRange.prettyPrintInterval()
-                            + " in operator "
-                            + operatorIdentifier
-                            + ".";
+                Either<KeyGroupRange, IncrementalLocalKeyedStateHandle> result =
+                        helper.tryDistribute(exportCfBasePath, exportedColumnFamiliesOut);
 
-            logger.debug("Opening temporary database" + logLineSuffix);
-            try (RestoredDBInstance tmpRestoreDBInfo =
-                    restoreTempDBInstanceFromLocalState(stateHandle)) {
-
-                List<ColumnFamilyHandle> tmpColumnFamilyHandles =
-                        tmpRestoreDBInfo.columnFamilyHandles;
-
-                logger.debug("Checking actual keys of sst files" + logLineSuffix);
-
-                // Check if the data in all SST files referenced in the handle is within the
-                // proclaimed key-groups range of the handle.
-                RocksDBIncrementalCheckpointUtils.RangeCheckResult rangeCheckResult =
-                        RocksDBIncrementalCheckpointUtils.checkSstDataAgainstKeyGroupRange(
-                                tmpRestoreDBInfo.db,
-                                keyGroupPrefixBytes,
-                                stateHandle.getKeyGroupRange());
-
-                logger.info("{}" + logLineSuffix, rangeCheckResult);
-
-                if (rangeCheckResult.allInRange()) {
-
-                    logger.debug("Start exporting" + logLineSuffix);
-
-                    List<RegisteredStateMetaInfoBase> registeredStateMetaInfoBases =
-                            tmpRestoreDBInfo.stateMetaInfoSnapshots.stream()
-                                    .map(RegisteredStateMetaInfoBase::fromMetaInfoSnapshot)
-                                    .collect(Collectors.toList());
-
-                    // Export all the Column Families and store the result in
-                    // exportedColumnFamiliesOut
-                    RocksDBIncrementalCheckpointUtils.exportColumnFamilies(
-                            tmpRestoreDBInfo.db,
-                            tmpColumnFamilyHandles,
-                            registeredStateMetaInfoBases,
-                            exportCfBasePath,
-                            exportedColumnFamiliesOut);
-
+                // Handle the result and collect skipped handles
+                if (result.isLeft()) {
+                    KeyGroupRange exportedRange = result.left();
                     minExportKeyGroup =
-                            Math.min(
-                                    minExportKeyGroup,
-                                    stateHandle.getKeyGroupRange().getStartKeyGroup());
-                    maxExportKeyGroup =
-                            Math.max(
-                                    maxExportKeyGroup,
-                                    stateHandle.getKeyGroupRange().getEndKeyGroup());
-
-                    logger.debug("Done exporting" + logLineSuffix);
+                            Math.min(minExportKeyGroup, exportedRange.getStartKeyGroup());
+                    maxExportKeyGroup = Math.max(maxExportKeyGroup, exportedRange.getEndKeyGroup());
                 } else {
-                    // Actual key range in files exceeds proclaimed range, cannot import. We
-                    // will copy this handle using a temporary DB later.
-                    skipped.add(stateHandle);
-                    logger.debug("Skipped export" + logLineSuffix);
+                    skipped.add(result.right());
                 }
             }
-
             ++index;
         }
 
@@ -737,7 +700,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
     /**
      * Restores the base DB from local state of a single state handle.
      *
-     * @param localKeyedStateHandle the state handle tor estore from.
+     * @param localKeyedStateHandle the state handle to restore from.
      * @throws Exception on any restore error.
      */
     private void restoreBaseDBFromLocalState(IncrementalLocalKeyedStateHandle localKeyedStateHandle)
@@ -750,7 +713,12 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         Path restoreSourcePath = localKeyedStateHandle.getDirectoryStateHandle().getDirectory();
 
         this.rocksHandle.openDB(
-                createColumnFamilyDescriptors(stateMetaInfoSnapshots, true),
+                RestoredDBInstance.createColumnFamilyDescriptors(
+                        stateMetaInfoSnapshots,
+                        rocksHandle.getColumnFamilyOptionsFactory(),
+                        rocksHandle.getTtlCompactFiltersManager(),
+                        rocksHandle.getWriteBufferManagerCapacity(),
+                        true),
                 stateMetaInfoSnapshots,
                 restoreSourcePath,
                 cancelStreamRegistryForRestore);
@@ -812,10 +780,20 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
                         cancelStreamRegistryForRestore.registerCloseableTemporarily(
                                 writeBatchWrapper.getCancelCloseable())) {
             for (IncrementalLocalKeyedStateHandle handleToCopy : toImport) {
-                try (RestoredDBInstance restoredDBInstance =
-                        restoreTempDBInstanceFromLocalState(handleToCopy)) {
+                KeyedBackendSerializationProxy<K> serializationProxy =
+                        readMetaData(handleToCopy.getMetaDataStateHandle());
+                List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
+                        serializationProxy.getStateMetaInfoSnapshots();
+                try (RestoredDBInstance restoredDbInstance =
+                        RestoredDBInstance.restoreTempDBInstanceFromLocalState(
+                                handleToCopy,
+                                stateMetaInfoSnapshots,
+                                rocksHandle.getColumnFamilyOptionsFactory(),
+                                rocksHandle.getDbOptions(),
+                                rocksHandle.getTtlCompactFiltersManager(),
+                                rocksHandle.getWriteBufferManagerCapacity())) {
                     copyTempDbIntoBaseDb(
-                            restoredDBInstance,
+                            restoredDbInstance,
                             writeBatchWrapper,
                             startKeyGroupPrefixBytes,
                             stopKeyGroupPrefixBytes);
@@ -824,7 +802,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         }
 
         logger.info(
-                "Competed copying state handles for backend with range {} in operator {} using temporary instances.",
+                "Completed copying state handles for backend with range {} in operator {} using temporary instances.",
                 keyGroupRange.prettyPrintInterval(),
                 operatorIdentifier);
     }
@@ -856,8 +834,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         List<ColumnFamilyHandle> tmpColumnFamilyHandles = tmpRestoreDBInfo.columnFamilyHandles;
 
         // iterating only the requested descriptors automatically skips the default
-        // column
-        // family handle
+        // column family handle
         for (int descIdx = 0; descIdx < tmpColumnFamilyDescriptors.size(); ++descIdx) {
             ColumnFamilyHandle tmpColumnFamilyHandle = tmpColumnFamilyHandles.get(descIdx);
 
@@ -905,114 +882,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         try {
             FileUtils.deleteDirectory(path.toFile());
         } catch (IOException ex) {
-            logger.warn("Failed to clean up path " + path, ex);
+            logger.warn("Failed to clean up path {}", path, ex);
         }
-    }
-
-    /** Entity to hold the temporary RocksDB instance created for restore. */
-    private static class RestoredDBInstance implements AutoCloseable {
-
-        @Nonnull private final RocksDB db;
-
-        @Nonnull private final ColumnFamilyHandle defaultColumnFamilyHandle;
-
-        @Nonnull private final List<ColumnFamilyHandle> columnFamilyHandles;
-
-        @Nonnull private final List<ColumnFamilyDescriptor> columnFamilyDescriptors;
-
-        @Nonnull private final List<StateMetaInfoSnapshot> stateMetaInfoSnapshots;
-
-        private final ReadOptions readOptions;
-
-        private final IncrementalLocalKeyedStateHandle srcStateHandle;
-
-        private RestoredDBInstance(
-                @Nonnull RocksDB db,
-                @Nonnull List<ColumnFamilyHandle> columnFamilyHandles,
-                @Nonnull List<ColumnFamilyDescriptor> columnFamilyDescriptors,
-                @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots,
-                @Nonnull IncrementalLocalKeyedStateHandle srcStateHandle) {
-            this.db = db;
-            this.defaultColumnFamilyHandle = columnFamilyHandles.remove(0);
-            this.columnFamilyHandles = columnFamilyHandles;
-            this.columnFamilyDescriptors = columnFamilyDescriptors;
-            this.stateMetaInfoSnapshots = stateMetaInfoSnapshots;
-            this.readOptions = new ReadOptions();
-            this.srcStateHandle = srcStateHandle;
-        }
-
-        @Override
-        public void close() {
-            List<ColumnFamilyOptions> columnFamilyOptions =
-                    new ArrayList<>(columnFamilyDescriptors.size() + 1);
-            columnFamilyDescriptors.forEach((cfd) -> columnFamilyOptions.add(cfd.getOptions()));
-            RocksDBOperationUtils.addColumnFamilyOptionsToCloseLater(
-                    columnFamilyOptions, defaultColumnFamilyHandle);
-            IOUtils.closeQuietly(defaultColumnFamilyHandle);
-            IOUtils.closeAllQuietly(columnFamilyHandles);
-            IOUtils.closeQuietly(db);
-            IOUtils.closeAllQuietly(columnFamilyOptions);
-            IOUtils.closeQuietly(readOptions);
-        }
-    }
-
-    private RestoredDBInstance restoreTempDBInstanceFromLocalState(
-            IncrementalLocalKeyedStateHandle stateHandle) throws Exception {
-        KeyedBackendSerializationProxy<K> serializationProxy =
-                readMetaData(stateHandle.getMetaDataStateHandle());
-        // read meta data
-        List<StateMetaInfoSnapshot> stateMetaInfoSnapshots =
-                serializationProxy.getStateMetaInfoSnapshots();
-
-        List<ColumnFamilyDescriptor> columnFamilyDescriptors =
-                createColumnFamilyDescriptors(stateMetaInfoSnapshots, false);
-
-        List<ColumnFamilyHandle> columnFamilyHandles =
-                new ArrayList<>(stateMetaInfoSnapshots.size() + 1);
-
-        RocksDB restoreDb =
-                RocksDBOperationUtils.openDB(
-                        stateHandle.getDirectoryStateHandle().getDirectory().toString(),
-                        columnFamilyDescriptors,
-                        columnFamilyHandles,
-                        RocksDBOperationUtils.createColumnFamilyOptions(
-                                this.rocksHandle.getColumnFamilyOptionsFactory(), "default"),
-                        this.rocksHandle.getDbOptions());
-
-        return new RestoredDBInstance(
-                restoreDb,
-                columnFamilyHandles,
-                columnFamilyDescriptors,
-                stateMetaInfoSnapshots,
-                stateHandle);
-    }
-
-    /**
-     * This method recreates and registers all {@link ColumnFamilyDescriptor} from Flink's state
-     * metadata snapshot.
-     */
-    private List<ColumnFamilyDescriptor> createColumnFamilyDescriptors(
-            List<StateMetaInfoSnapshot> stateMetaInfoSnapshots, boolean registerTtlCompactFilter) {
-
-        List<ColumnFamilyDescriptor> columnFamilyDescriptors =
-                new ArrayList<>(stateMetaInfoSnapshots.size());
-
-        for (StateMetaInfoSnapshot stateMetaInfoSnapshot : stateMetaInfoSnapshots) {
-            RegisteredStateMetaInfoBase metaInfoBase =
-                    RegisteredStateMetaInfoBase.fromMetaInfoSnapshot(stateMetaInfoSnapshot);
-
-            ColumnFamilyDescriptor columnFamilyDescriptor =
-                    RocksDBOperationUtils.createColumnFamilyDescriptor(
-                            metaInfoBase,
-                            this.rocksHandle.getColumnFamilyOptionsFactory(),
-                            registerTtlCompactFilter
-                                    ? this.rocksHandle.getTtlCompactFiltersManager()
-                                    : null,
-                            this.rocksHandle.getWriteBufferManagerCapacity());
-
-            columnFamilyDescriptors.add(columnFamilyDescriptor);
-        }
-        return columnFamilyDescriptors;
     }
 
     private void runAndReportDuration(RunnableWithException runnable, String metricName)
