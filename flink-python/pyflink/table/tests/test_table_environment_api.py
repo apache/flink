@@ -18,6 +18,7 @@
 import datetime
 import decimal
 import sys
+import time
 import unittest
 
 from py4j.protocol import Py4JJavaError
@@ -700,6 +701,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
                                1.98932, bytearray(b'pyflink'), 'pyflink',
                                datetime.date(2014, 9, 13), datetime.time(12, 0, 0, 123000),
                                datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
+                               datetime.datetime(2025, 9, 26, 1, 2, 3, 123000),
                                [['a', 'b'], ['c', 'd'], ['e', 'f']],
                                [Row('pyflink'), Row('pyflink'), Row('pyflink')],
                                {1: Row('flink'), 2: Row('pyflink')},
@@ -712,6 +714,7 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
               datetime.date(2014, 9, 13), datetime.time(hour=12, minute=0, second=0,
                                                         microsecond=123000),
               datetime.datetime(2018, 3, 11, 3, 0, 0, 123000),
+              datetime.datetime(2025, 9, 26, 1, 2, 3, 123000),
               [['a', 'b'], ['c', 'd'], ['e', 'f']],
               [Row('pyflink'), Row('pyflink'), Row('pyflink')],
               {1: Row('flink'), 2: Row('pyflink')},
@@ -733,20 +736,21 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
                  DataTypes.FIELD("k", DataTypes.DATE()),
                  DataTypes.FIELD("l", DataTypes.TIME()),
                  DataTypes.FIELD("m", DataTypes.TIMESTAMP(3)),
-                 DataTypes.FIELD("n", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))),
+                 DataTypes.FIELD("n", DataTypes.TIMESTAMP_LTZ(3)),
+                 DataTypes.FIELD("o", DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.STRING()))),
                  DataTypes.FIELD(
-                     "o",
+                     "p",
                      DataTypes.ARRAY(
                          DataTypes.ROW([DataTypes.FIELD("ss2", DataTypes.STRING())])
                      )),
                  DataTypes.FIELD(
-                     "p",
+                     "q",
                      DataTypes.MAP(
                          DataTypes.BIGINT(),
                          DataTypes.ROW([DataTypes.FIELD("ss", DataTypes.STRING())]),
                      )),
                  DataTypes.FIELD(
-                     "q",
+                     "r",
                      DataTypes.ARRAY(
                          DataTypes.ROW(
                              [
@@ -774,8 +778,8 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
                              ]
                          )
                      )),
-                 DataTypes.FIELD("r", DataTypes.DECIMAL(38, 18)),
-                 DataTypes.FIELD("s", DataTypes.DECIMAL(38, 18))
+                 DataTypes.FIELD("s", DataTypes.DECIMAL(38, 18)),
+                 DataTypes.FIELD("t", DataTypes.DECIMAL(38, 18))
                  ]
             )
         )
@@ -785,6 +789,35 @@ class StreamTableEnvironmentTests(PyFlinkStreamTableTestCase):
             for i in result:
                 collected_result.append(i)
             self.assertEqual(expected_result, collected_result)
+
+    def test_timestamp_ltz_collection(self):
+        test_cases = [
+            (datetime.datetime(2025, 9, 26, 1, 2, 3, 123000),),
+            (datetime.datetime(2025, 9, 26, 12, 30, 45, 500000),),
+            (datetime.datetime(2025, 12, 31, 23, 59, 59, 999000),),
+        ]
+
+        schema = DataTypes.ROW([
+            DataTypes.FIELD("ts", DataTypes.TIMESTAMP_LTZ(3))
+        ])
+
+        table = self.t_env.from_elements(test_cases, schema=schema)
+        result = list(table.execute().collect())
+
+        self.assertEqual(len(result), 3)
+        for row in result:
+            self.assertIsInstance(row[0], datetime.datetime)
+
+        # Verify epoch preservation: TIMESTAMP_LTZ stores epoch time, not local time
+        test_dt = datetime.datetime(2025, 9, 26, 12, 0, 0, 500000)
+        input_epoch = time.mktime(test_dt.timetuple()) + test_dt.microsecond / 1e6
+
+        table2 = self.t_env.from_elements([(test_dt,)], schema=schema)
+        result2 = list(table2.execute().collect())
+        retrieved = result2[0][0]
+
+        retrieved_epoch = time.mktime(retrieved.timetuple()) + retrieved.microsecond / 1e6
+        self.assertAlmostEqual(input_epoch, retrieved_epoch, places=5)
 
     def test_row_form_consistency_with_elements(self):
         schema = DataTypes.ROW(
