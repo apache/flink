@@ -174,6 +174,9 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
             org.apache.hadoop.conf.Configuration hadoopConfig =
                     hadoopConfigLoader.getOrLoadHadoopConfig();
             AbstractS3DelegationTokenReceiver.updateHadoopConfig(hadoopConfig);
+            if (HadoopS3Compatibility.isAwsSdkV1Present()) {
+                HadoopS3Compatibility.applyV1Compatibility(hadoopConfig, flinkConfig);
+            }
             org.apache.hadoop.fs.FileSystem fs = createHadoopFileSystem();
             fs.initialize(getInitURI(fsUri, hadoopConfig), hadoopConfig);
 
