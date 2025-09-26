@@ -373,6 +373,39 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testMultiIndexesInSourceWhileJoinKeyContainsOneOfThem">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
+   +- LogicalJoin(condition=[=($2, $5)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, tmp_src11]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+
+LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
+   +- LogicalJoin(condition=[=($2, $5)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, tmp_src12]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
++- Union(all=[true], union=[a0, a1, a2, a3, b0, b2, b1])
+   :- DeltaJoin(joinType=[InnerJoin], where=[=(a2, b2)], select=[a0, a1, a2, a3, b0, b2, b1])
+   :  :- Exchange(distribution=[hash[a2]])
+   :  :  +- TableSourceScan(table=[[default_catalog, default_database, tmp_src11]], fields=[a0, a1, a2, a3])
+   :  +- Exchange(distribution=[hash[b2]])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
+   +- DeltaJoin(joinType=[InnerJoin], where=[=(a2, b2)], select=[a0, a1, a2, a3, b0, b2, b1])
+      :- Exchange(distribution=[hash[a2]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, tmp_src12]], fields=[a0, a1, a2, a3])
+      +- Exchange(distribution=[hash[b2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMultiRootsWithoutReusingDeltaJoin1">
     <Resource name="ast">
       <![CDATA[
