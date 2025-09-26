@@ -100,10 +100,14 @@ public class RestoredDBInstance implements AutoCloseable {
             Long writeBufferManagerCapacity)
             throws Exception {
 
+        Function<String, ColumnFamilyOptions> tempDBCfFactory =
+                stateName ->
+                        columnFamilyOptionsFactory.apply(stateName).setDisableAutoCompactions(true);
+
         List<ColumnFamilyDescriptor> columnFamilyDescriptors =
                 createColumnFamilyDescriptors(
                         stateMetaInfoSnapshots,
-                        columnFamilyOptionsFactory,
+                        tempDBCfFactory,
                         ttlCompactFiltersManager,
                         writeBufferManagerCapacity,
                         false);
@@ -118,8 +122,7 @@ public class RestoredDBInstance implements AutoCloseable {
                         restoreSourcePath.toString(),
                         columnFamilyDescriptors,
                         columnFamilyHandles,
-                        RocksDBOperationUtils.createColumnFamilyOptions(
-                                columnFamilyOptionsFactory, "default"),
+                        RocksDBOperationUtils.createColumnFamilyOptions(tempDBCfFactory, "default"),
                         dbOptions);
 
         return new RestoredDBInstance(
