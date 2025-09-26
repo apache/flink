@@ -22,7 +22,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.internal.SqlAuxiliaryGroupAggFunction;
 import org.apache.flink.table.planner.functions.sql.ml.SqlMLEvaluateTableFunction;
-import org.apache.flink.table.planner.functions.sql.ml.SqlMLPredictTableFunction;
 import org.apache.flink.table.planner.plan.type.FlinkReturnTypes;
 import org.apache.flink.table.planner.plan.type.NumericExceptFirstOperandChecker;
 
@@ -1327,7 +1326,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     public static final SqlFunction SESSION = new SqlSessionTableFunction();
 
     // MODEL TABLE FUNCTIONS
-    public static final SqlFunction ML_PREDICT = new SqlMLPredictTableFunction();
     public static final SqlFunction ML_EVALUATE = new SqlMLEvaluateTableFunction();
 
     // Catalog Functions
