@@ -29,6 +29,7 @@ import org.apache.flink.runtime.state.IncrementalKeyedStateHandle.HandleAndLocal
 import org.apache.flink.runtime.state.StateUtil;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.state.forst.ForStKeyedStateBackend;
+import org.apache.flink.state.forst.ForStPathContainer;
 import org.apache.flink.state.forst.StateHandleTransferSpec;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.util.ExceptionUtils;
@@ -231,6 +232,7 @@ public class ForStStateDataTransfer implements Closeable {
      * @throws Exception If anything about the transfer goes wrong.
      */
     public void transferAllStateDataToDirectory(
+            ForStPathContainer forStPathContainer,
             Collection<StateHandleTransferSpec> transferSpecs,
             CloseableRegistry closeableRegistry,
             RecoveryClaimMode recoveryClaimMode)
@@ -244,7 +246,10 @@ public class ForStStateDataTransfer implements Closeable {
         try {
             List<CompletableFuture<Void>> futures =
                     transferAllStateDataToDirectoryAsync(
-                                    transferSpecs, internalCloser, recoveryClaimMode)
+                                    forStPathContainer,
+                                    transferSpecs,
+                                    internalCloser,
+                                    recoveryClaimMode)
                             .collect(Collectors.toList());
 
             // Wait until either all futures completed successfully or one failed exceptionally.
@@ -276,12 +281,13 @@ public class ForStStateDataTransfer implements Closeable {
 
     /** Asynchronously runs the specified transfer requests on executorService. */
     private Stream<CompletableFuture<Void>> transferAllStateDataToDirectoryAsync(
+            ForStPathContainer forStPathContainer,
             Collection<StateHandleTransferSpec> transferSpecs,
             CloseableRegistry closeableRegistry,
             RecoveryClaimMode recoveryClaimMode) {
         DataTransferStrategy strategy =
                 DataTransferStrategyBuilder.buildForRestore(
-                        forStFs, transferSpecs, recoveryClaimMode);
+                        forStFs, forStPathContainer, transferSpecs, recoveryClaimMode);
 
         return transferSpecs.stream()
                 .flatMap(

@@ -35,6 +35,7 @@ import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.TestStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.state.forst.ForStPathContainer;
 import org.apache.flink.state.forst.StateHandleTransferSpec;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.IOUtils;
@@ -70,6 +71,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ForStStateDataTransferTest extends TestLogger {
 
     @TempDir private java.nio.file.Path temporaryFolder;
+
+    private ForStPathContainer createPathContainer() throws IOException {
+        Path localJobPath = Path.fromLocalFile(TempDirUtils.newFolder(temporaryFolder));
+        Path localBasePath = new Path(localJobPath, "base");
+        Path remoteJobPath = Path.fromLocalFile(TempDirUtils.newFolder(temporaryFolder));
+        Path remoteBasePath = new Path(remoteJobPath, "base");
+        return ForStPathContainer.of(localJobPath, localBasePath, remoteJobPath, remoteBasePath);
+    }
 
     /** Test that the exception arose in the thread pool will rethrow to the main thread. */
     @Test
@@ -465,11 +474,13 @@ class ForStStateDataTransferTest extends TestLogger {
                         stateHandle);
 
         try (ForStStateDataTransfer stateTransfer = new ForStStateDataTransfer(5)) {
+            ForStPathContainer pathContainer = createPathContainer();
             stateTransfer.transferAllStateDataToDirectory(
+                    pathContainer,
                     Collections.singletonList(
                             new StateHandleTransferSpec(
                                     incrementalKeyedStateHandle,
-                                    Path.fromLocalFile(TempDirUtils.newFolder(temporaryFolder)))),
+                                    pathContainer.getRemoteForStPath())),
                     new CloseableRegistry(),
                     RecoveryClaimMode.DEFAULT);
             fail();
@@ -494,8 +505,12 @@ class ForStStateDataTransferTest extends TestLogger {
         }
 
         try (ForStStateDataTransfer stateTransfer = new ForStStateDataTransfer(4)) {
+            ForStPathContainer pathContainer = createPathContainer();
             stateTransfer.transferAllStateDataToDirectory(
-                    transferRequests, new CloseableRegistry(), RecoveryClaimMode.DEFAULT);
+                    pathContainer,
+                    transferRequests,
+                    new CloseableRegistry(),
+                    RecoveryClaimMode.DEFAULT);
         }
 
         for (int i = 0; i < numRemoteHandles; ++i) {
@@ -540,8 +555,9 @@ class ForStStateDataTransferTest extends TestLogger {
 
         CloseableRegistry closeableRegistry = new CloseableRegistry();
         try (ForStStateDataTransfer stateTransfer = new ForStStateDataTransfer(5)) {
+            ForStPathContainer pathContainer = createPathContainer();
             stateTransfer.transferAllStateDataToDirectory(
-                    transferRequests, closeableRegistry, RecoveryClaimMode.DEFAULT);
+                    pathContainer, transferRequests, closeableRegistry, RecoveryClaimMode.DEFAULT);
             fail("Exception is expected");
         } catch (IOException ignore) {
         }
