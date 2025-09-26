@@ -86,6 +86,8 @@ public final class ForStResourceContainer implements AutoCloseable {
 
     @Nullable private final Path remoteForStPath;
 
+    private boolean remotePathNewlyCreated;
+
     @Nullable private final Path localBasePath;
 
     @Nullable private final Path localForStPath;
@@ -369,7 +371,7 @@ public final class ForStResourceContainer implements AutoCloseable {
      */
     public void prepareDirectories() throws Exception {
         if (remoteBasePath != null && remoteForStPath != null) {
-            prepareDirectories(remoteBasePath, remoteForStPath);
+            remotePathNewlyCreated = prepareDirectories(remoteBasePath, remoteForStPath);
         }
         if (localBasePath != null && localForStPath != null) {
             prepareDirectories(
@@ -402,23 +404,26 @@ public final class ForStResourceContainer implements AutoCloseable {
         return forStFileSystem;
     }
 
-    private static void prepareDirectories(Path basePath, Path dbPath) throws IOException {
+    private static boolean prepareDirectories(Path basePath, Path dbPath) throws IOException {
+        boolean allNewlyCreated = true;
         FileSystem fileSystem = basePath.getFileSystem();
         if (fileSystem.exists(basePath)) {
             if (!fileSystem.getFileStatus(basePath).isDir()) {
                 throw new IOException("Not a directory: " + basePath);
             }
+            allNewlyCreated = false;
         } else if (!fileSystem.mkdirs(basePath)) {
             throw new IOException(
                     String.format("Could not create ForSt directory at %s.", basePath));
         }
         if (fileSystem.exists(dbPath)) {
-            fileSystem.delete(dbPath, true);
-        }
-        if (!fileSystem.mkdirs(dbPath)) {
+            LOG.info("Reusing previous ForSt db directory at {}.", dbPath);
+            allNewlyCreated = false;
+        } else if (!fileSystem.mkdirs(dbPath)) {
             throw new IOException(
                     String.format("Could not create ForSt db directory at %s.", dbPath));
         }
+        return allNewlyCreated;
     }
 
     /**
@@ -436,7 +441,7 @@ public final class ForStResourceContainer implements AutoCloseable {
     }
 
     public void forceClearRemoteDirectories() throws Exception {
-        if (remoteBasePath != null) {
+        if (remoteBasePath != null && remotePathNewlyCreated) {
             clearDirectories(remoteBasePath);
         }
     }
