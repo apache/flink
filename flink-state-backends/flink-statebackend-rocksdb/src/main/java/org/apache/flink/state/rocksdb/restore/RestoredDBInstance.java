@@ -113,13 +113,18 @@ public class RestoredDBInstance implements AutoCloseable {
         List<ColumnFamilyHandle> columnFamilyHandles =
                 new ArrayList<>(stateMetaInfoSnapshots.size() + 1);
 
+        for (ColumnFamilyDescriptor columnFamilyDescriptor : columnFamilyDescriptors) {
+            columnFamilyDescriptor.getOptions().setDisableAutoCompactions(true);
+        }
+
         RocksDB db =
                 RocksDBOperationUtils.openDB(
                         restoreSourcePath.toString(),
                         columnFamilyDescriptors,
                         columnFamilyHandles,
                         RocksDBOperationUtils.createColumnFamilyOptions(
-                                columnFamilyOptionsFactory, "default"),
+                                        columnFamilyOptionsFactory, "default")
+                                .setDisableAutoCompactions(true),
                         dbOptions);
 
         return new RestoredDBInstance(
