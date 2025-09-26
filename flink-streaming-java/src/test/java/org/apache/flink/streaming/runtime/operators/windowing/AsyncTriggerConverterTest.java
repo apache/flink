@@ -24,8 +24,9 @@ import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
+
+import javax.annotation.Nonnull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -58,7 +59,7 @@ public class AsyncTriggerConverterTest {
 
     private static class DummyTriggerWithAsyncConverter extends DummyTriggerWithoutAsyncConverter {
         @Override
-        @NotNull
+        @Nonnull
         public Object convertToAsync() {
             return new DummyAsyncTrigger();
         }
