@@ -287,6 +287,10 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
             throw new NumberFormatException("text does not start with a number");
         }
 
+        if(unit.startsWith(".")) {
+            throw new IllegalArgumentException("Memory size must be an integer value. Fractional values are not supported. Found: " + text);
+        }
+
         final long value;
         try {
             value = Long.parseLong(number); // this throws a NumberFormatException on overflow
