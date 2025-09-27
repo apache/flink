@@ -111,6 +111,23 @@ Calc(select=[f0, f1, f2, f00, f10, f20])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testFunctionCoalesce">
+    <Resource name="sql">
+      <![CDATA[SELECT COALESCE(f0, JSON_VALUE('{"a": true}', '$.a')) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[COALESCE($0, JSON_VALUE(_UTF-16LE'{"a": true}', _UTF-16LE'$.a'))])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[CAST(CASE(IS NOT NULL(f0), f0, 'true') AS VARCHAR(2147483647)) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMultipleCoalesces">
     <Resource name="sql">
       <![CDATA[SELECT COALESCE(1),
