@@ -18,25 +18,34 @@
 
 package org.apache.flink.runtime.jobmaster.slotpool;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
+
+import javax.annotation.Nonnull;
 
 /** Represents a request for a physical slot. */
-public class PhysicalSlotRequest {
+public class PhysicalSlotRequest implements WeightLoadable {
 
     private final SlotRequestId slotRequestId;
 
     private final SlotProfile slotProfile;
+
+    private final LoadingWeight loadingWeight;
 
     private final boolean slotWillBeOccupiedIndefinitely;
 
     public PhysicalSlotRequest(
             final SlotRequestId slotRequestId,
             final SlotProfile slotProfile,
+            final LoadingWeight loadingWeight,
             final boolean slotWillBeOccupiedIndefinitely) {
 
         this.slotRequestId = slotRequestId;
         this.slotProfile = slotProfile;
+        this.loadingWeight = loadingWeight;
         this.slotWillBeOccupiedIndefinitely = slotWillBeOccupiedIndefinitely;
     }
 
@@ -48,8 +57,31 @@ public class PhysicalSlotRequest {
         return slotProfile;
     }
 
+    public ResourceProfile getPhysicalSlotResourceProfile() {
+        return slotProfile.getPhysicalSlotResourceProfile();
+    }
+
     public boolean willSlotBeOccupiedIndefinitely() {
         return slotWillBeOccupiedIndefinitely;
+    }
+
+    PendingRequest toPendingRequest() {
+        return slotWillBeOccupiedIndefinitely
+                ? PendingRequest.createNormalRequest(
+                        slotRequestId,
+                        slotProfile.getPhysicalSlotResourceProfile(),
+                        loadingWeight,
+                        slotProfile.getPreferredAllocations())
+                : PendingRequest.createBatchRequest(
+                        slotRequestId,
+                        slotProfile.getPhysicalSlotResourceProfile(),
+                        loadingWeight,
+                        slotProfile.getPreferredAllocations());
+    }
+
+    @Override
+    public @Nonnull LoadingWeight getLoading() {
+        return loadingWeight;
     }
 
     /** Result of a {@link PhysicalSlotRequest}. */
