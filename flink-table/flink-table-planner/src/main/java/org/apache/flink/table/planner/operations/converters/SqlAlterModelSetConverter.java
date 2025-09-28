@@ -44,7 +44,7 @@ public class SqlAlterModelSetConverter extends AbstractSqlAlterModelConverter<Sq
                         sqlAlterModelSet.ifModelExists());
 
         Map<String, String> changeModelOptions =
-                OperationConverterUtils.extractProperties(sqlAlterModelSet.getOptionList());
+                OperationConverterUtils.getTableOptions(sqlAlterModelSet.getOptionList());
         if (changeModelOptions.isEmpty()) {
             throw new ValidationException("ALTER MODEL SET does not support empty option.");
         }

@@ -72,7 +72,7 @@ public class SqlCreateMaterializedTableConverter
 
         // get comment
         String tableComment =
-                OperationConverterUtils.getTableComment(sqlCreateMaterializedTable.getComment());
+                OperationConverterUtils.getComment(sqlCreateMaterializedTable.getComment());
 
         // get options
         Map<String, String> options = new HashMap<>();

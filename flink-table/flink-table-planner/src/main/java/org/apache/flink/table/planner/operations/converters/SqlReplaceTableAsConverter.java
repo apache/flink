@@ -61,12 +61,6 @@ public class SqlReplaceTableAsConverter implements SqlNodeConverter<SqlReplaceTa
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
         FlinkPlannerImpl flinkPlanner = context.getFlinkPlanner();
 
-        MergeTableAsUtil mergeTableAsUtil =
-                new MergeTableAsUtil(
-                        context.getSqlValidator(),
-                        sqlNode -> sqlNode.toString(),
-                        catalogManager.getDataTypeFactory());
-
         PlannerQueryOperation query =
                 (PlannerQueryOperation)
                         SqlNodeToOperationConversion.convert(
@@ -81,6 +75,8 @@ public class SqlReplaceTableAsConverter implements SqlNodeConverter<SqlReplaceTa
                                                                         .getAsQuery()
                                                                         .getClass()
                                                                         .getSimpleName()));
+
+        MergeTableAsUtil mergeTableAsUtil = new MergeTableAsUtil(context);
 
         // get table
         ResolvedCatalogTable tableWithResolvedSchema =
@@ -115,8 +111,7 @@ public class SqlReplaceTableAsConverter implements SqlNodeConverter<SqlReplaceTa
         CatalogManager catalogManager = context.getCatalogManager();
 
         // get table comment
-        String tableComment =
-                OperationConverterUtils.getTableComment(sqlReplaceTableAs.getComment());
+        String tableComment = OperationConverterUtils.getComment(sqlReplaceTableAs.getComment());
 
         // get table properties
         Map<String, String> properties = new HashMap<>();

@@ -21,6 +21,9 @@ package org.apache.flink.table.planner.operations.converters;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.planner.operations.SqlCreateTableAsConverter;
+import org.apache.flink.table.planner.operations.SqlCreateTableConverter;
+import org.apache.flink.table.planner.operations.SqlCreateTableLikeConverter;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
 
 import org.apache.calcite.sql.SqlKind;
@@ -79,6 +82,9 @@ public class SqlNodeConverters {
         register(new SqlShowCatalogsConverter());
         register(new SqlDescribeFunctionConverter());
         register(new SqlDescribeModelConverter());
+        register(new SqlCreateTableAsConverter());
+        register(new SqlCreateTableConverter());
+        register(new SqlCreateTableLikeConverter());
     }
 
     /**

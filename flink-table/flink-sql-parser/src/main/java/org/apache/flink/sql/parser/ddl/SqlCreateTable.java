@@ -63,7 +63,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
     private final List<SqlTableConstraint> tableConstraints;
 
-    public SqlDistribution getDistribution() {
+    public final SqlDistribution getDistribution() {
         return distribution;
     }
 

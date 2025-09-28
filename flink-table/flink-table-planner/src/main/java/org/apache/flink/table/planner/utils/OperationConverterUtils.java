@@ -92,11 +92,11 @@ public class OperationConverterUtils {
                 .orElse(null);
     }
 
-    public static @Nullable String getTableComment(Optional<SqlCharStringLiteral> tableComment) {
+    public static @Nullable String getComment(Optional<SqlCharStringLiteral> tableComment) {
         return tableComment.map(comment -> comment.getValueAs(String.class)).orElse(null);
     }
 
-    public static Map<String, String> extractProperties(SqlNodeList propList) {
+    public static Map<String, String> getTableOptions(SqlNodeList propList) {
         Map<String, String> properties = new HashMap<>();
         if (propList != null) {
             propList.getList()
@@ -107,6 +107,12 @@ public class OperationConverterUtils {
                                             ((SqlTableOption) p).getValueString()));
         }
         return properties;
+    }
+
+    public static List<String> getPartitionKeyColumnNames(SqlNodeList partitionKey) {
+        return partitionKey.getList().stream()
+                .map(p -> ((SqlIdentifier) p).getSimple())
+                .collect(Collectors.toList());
     }
 
     public static TableDistribution getDistributionFromSqlDistribution(

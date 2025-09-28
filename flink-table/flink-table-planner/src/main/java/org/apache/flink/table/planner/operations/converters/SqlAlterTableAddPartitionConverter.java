@@ -46,8 +46,7 @@ public class SqlAlterTableAddPartitionConverter implements SqlNodeConverter<SqlA
         for (int i = 0; i < sqlAddPartitions.getPartSpecs().size(); i++) {
             specs.add(new CatalogPartitionSpec(sqlAddPartitions.getPartitionKVs(i)));
             Map<String, String> props =
-                    OperationConverterUtils.extractProperties(
-                            sqlAddPartitions.getPartProps().get(i));
+                    OperationConverterUtils.getTableOptions(sqlAddPartitions.getPartProps().get(i));
             partitions.add(new CatalogPartitionImpl(props, null));
         }
         return new AddPartitionsOperation(

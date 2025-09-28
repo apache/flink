@@ -51,8 +51,7 @@ public class SqlCreateViewConverter implements SqlNodeConverter<SqlCreateView> {
                         .map(c -> c.getValueAs(NlsString.class).getValue())
                         .orElse(null);
         Map<String, String> viewOptions =
-                OperationConverterUtils.extractProperties(
-                        sqlCreateView.getProperties().orElse(null));
+                OperationConverterUtils.getTableOptions(sqlCreateView.getProperties().orElse(null));
         CatalogView catalogView =
                 SqlNodeConvertUtils.toCatalogView(
                         query, viewFields, viewOptions, viewComment, context);

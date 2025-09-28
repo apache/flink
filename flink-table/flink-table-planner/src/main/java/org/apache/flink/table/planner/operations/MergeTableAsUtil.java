@@ -38,6 +38,7 @@ import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.SqlRewriterUtils;
+import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -77,6 +78,13 @@ public class MergeTableAsUtil {
         this.validator = validator;
         this.escapeExpression = escapeExpression;
         this.dataTypeFactory = dataTypeFactory;
+    }
+
+    public MergeTableAsUtil(ConvertContext context) {
+        this(
+                context.getSqlValidator(),
+                context::toQuotedSqlString,
+                context.getCatalogManager().getDataTypeFactory());
     }
 
     /**
@@ -204,9 +212,7 @@ public class MergeTableAsUtil {
         Optional<SqlTableConstraint> primaryKey =
                 sqlTableConstraints.stream().filter(SqlTableConstraint::isPrimaryKey).findAny();
 
-        if (primaryKey.isPresent()) {
-            schemaBuilder.setPrimaryKey(primaryKey.get());
-        }
+        primaryKey.ifPresent(schemaBuilder::setPrimaryKey);
 
         return schemaBuilder.build();
     }
@@ -233,9 +239,9 @@ public class MergeTableAsUtil {
      */
     private static class SchemaBuilder extends SchemaBuilderUtil {
         // Mapping required when evaluating compute expressions and watermark columns.
-        private Map<String, RelDataType> regularAndMetadataFieldNamesToTypes =
+        private final Map<String, RelDataType> regularAndMetadataFieldNamesToTypes =
                 new LinkedHashMap<>();
-        private Map<String, RelDataType> computeFieldNamesToTypes = new LinkedHashMap<>();
+        private final Map<String, RelDataType> computeFieldNamesToTypes = new LinkedHashMap<>();
 
         FlinkTypeFactory typeFactory;
 
