@@ -144,6 +144,8 @@ public class StreamRecordUtils {
                 writer.writeInt(j, (Integer) value);
             } else if (value instanceof String) {
                 writer.writeString(j, StringData.fromString((String) value));
+            } else if (value instanceof StringData) {
+                writer.writeString(j, (StringData) value);
             } else if (value instanceof Double) {
                 writer.writeDouble(j, (Double) value);
             } else if (value instanceof Float) {

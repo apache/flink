@@ -725,6 +725,32 @@ public class ExecutionConfigOptions {
                             "Set whether to use the SQL/Table operators based on the asynchronous state api. "
                                     + "Default value is false.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_DELTA_JOIN_CACHE_ENABLED =
+            key("table.exec.delta-join.cache-enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Whether enable the cache of delta join. If enabled, the delta join would cache the records from remote dim table.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Long> TABLE_EXEC_DELTA_JOIN_LEFT_CACHE_SIZE =
+            key("table.exec.delta-join.left.cache-size")
+                    .longType()
+                    .defaultValue(10000L)
+                    .withDescription(
+                            "The cache size used to cache the lookup results of the left table in delta join. "
+                                    + "This value must be positive when enabling cache.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Long> TABLE_EXEC_DELTA_JOIN_RIGHT_CACHE_SIZE =
+            key("table.exec.delta-join.right.cache-size")
+                    .longType()
+                    .defaultValue(10000L)
+                    .withDescription(
+                            "The cache size used to cache the lookup results of the right table in delta join. "
+                                    + "This value must be positive when enabling cache.");
+
     // ------------------------------------------------------------------------------------------
     // Enum option types
     // ------------------------------------------------------------------------------------------
