@@ -35,6 +35,7 @@ import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.FlinkException;
@@ -82,6 +83,7 @@ class ExecutionGraphCoLocationRestartTest {
 
         final ManuallyTriggeredScheduledExecutorService delayExecutor =
                 new ManuallyTriggeredScheduledExecutorService();
+        final DirectScheduledExecutorService futureExecutor = new DirectScheduledExecutorService();
         final SchedulerBase scheduler =
                 new DefaultSchedulerBuilder(
                                 jobGraph,
@@ -95,6 +97,7 @@ class ExecutionGraphCoLocationRestartTest {
                                                                 TestingPhysicalSlot.builder()
                                                                         .build()))))
                         .setDelayExecutor(delayExecutor)
+                        .setFutureExecutor(futureExecutor)
                         .setRestartBackoffTimeStrategy(
                                 new FixedDelayRestartBackoffTimeStrategy
                                                 .FixedDelayRestartBackoffTimeStrategyFactory(1, 0)
