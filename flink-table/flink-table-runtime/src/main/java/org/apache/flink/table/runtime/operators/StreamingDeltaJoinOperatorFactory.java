@@ -36,12 +36,16 @@ public class StreamingDeltaJoinOperatorFactory extends AbstractStreamOperatorFac
                 YieldingOperatorFactory<RowData> {
 
     private final AsyncDeltaJoinRunner rightLookupTableAsyncFunction;
-    private final RowDataKeySelector rightJoinKeySelector;
     private final AsyncDeltaJoinRunner leftLookupTableAsyncFunction;
+
     private final RowDataKeySelector leftJoinKeySelector;
+    private final RowDataKeySelector rightJoinKeySelector;
 
     private final long timeout;
     private final int capacity;
+
+    private final long leftSideCacheSize;
+    private final long rightSideCacheSize;
 
     private final RowType leftStreamType;
     private final RowType rightStreamType;
@@ -53,6 +57,8 @@ public class StreamingDeltaJoinOperatorFactory extends AbstractStreamOperatorFac
             RowDataKeySelector rightJoinKeySelector,
             long timeout,
             int capacity,
+            long leftSideCacheSize,
+            long rightSideCacheSize,
             RowType leftStreamType,
             RowType rightStreamType) {
         this.rightLookupTableAsyncFunction = rightLookupTableAsyncFunction;
@@ -61,6 +67,8 @@ public class StreamingDeltaJoinOperatorFactory extends AbstractStreamOperatorFac
         this.rightJoinKeySelector = rightJoinKeySelector;
         this.timeout = timeout;
         this.capacity = capacity;
+        this.leftSideCacheSize = leftSideCacheSize;
+        this.rightSideCacheSize = rightSideCacheSize;
         this.leftStreamType = leftStreamType;
         this.rightStreamType = rightStreamType;
     }
@@ -79,6 +87,8 @@ public class StreamingDeltaJoinOperatorFactory extends AbstractStreamOperatorFac
                         capacity,
                         processingTimeService,
                         mailboxExecutor,
+                        leftSideCacheSize,
+                        rightSideCacheSize,
                         leftStreamType,
                         rightStreamType);
         deltaJoinOperator.setup(
