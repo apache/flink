@@ -82,9 +82,52 @@ public class BigPbProtoToRowTest {
                         .putMapField33("key2", "value2")
                         .build();
 
+        String[][] projectedField =
+                new String[][] {
+                    new String[] {"int_field_1"},
+                    new String[] {"bool_field_2"},
+                    new String[] {"string_field_3"},
+                    new String[] {"bytes_field_4"},
+                    new String[] {"double_field_5"},
+                    new String[] {"float_field_6"},
+                    new String[] {"uint32_field_7"},
+                    new String[] {"int64_field_8"},
+                    new String[] {"uint64_field_9"},
+                    new String[] {"bytes_field_10"},
+                    new String[] {"double_field_11"},
+                    new String[] {"bytes_field_12"},
+                    new String[] {"bool_field_13"},
+                    new String[] {"string_field_14"},
+                    new String[] {"float_field_15"},
+                    new String[] {"int32_field_16"},
+                    new String[] {"bytes_field_17"},
+                    new String[] {"bool_field_18"},
+                    new String[] {"string_field_19"},
+                    new String[] {"float_field_20"},
+                    new String[] {"fixed32_field_21"},
+                    new String[] {"fixed64_field_22"},
+                    new String[] {"sfixed32_field_23"},
+                    new String[] {"sfixed64_field_24"},
+                    new String[] {"double_field_25"},
+                    new String[] {"uint32_field_26"},
+                    new String[] {"uint64_field_27"},
+                    new String[] {"bool_field_28"},
+                    new String[] {"field_29"},
+                    new String[] {"float_field_30"},
+                    new String[] {"string_field_31"},
+                    new String[] {"map_field_32"},
+                    new String[] {"map_field_33"}
+                };
+
+        RowType schema = PbToRowTypeUtil.generateRowType(BigPbClass.BigPbMessage.getDescriptor());
+
         RowData row =
-                ProtobufTestHelper.pbBytesToRow(
-                        BigPbClass.BigPbMessage.class, bigPbMessage.toByteArray());
+                ProtobufTestProjectHelper.pbBytesToRowProjected(
+                        schema,
+                        bigPbMessage.toByteArray(),
+                        new PbFormatConfig(
+                                BigPbClass.BigPbMessage.class.getName(), false, false, ""),
+                        projectedField);
 
         assertEquals(5, row.getInt(0));
         assertFalse(row.getBoolean(1));
@@ -130,9 +173,46 @@ public class BigPbProtoToRowTest {
         RowType rowType = PbToRowTypeUtil.generateRowType(BigPbClass.BigPbMessage.getDescriptor());
         PbFormatConfig formatConfig =
                 new PbFormatConfig(BigPbClass.BigPbMessage.class.getName(), false, false, "");
+        String[][] projectedField =
+                new String[][] {
+                    new String[] {"int_field_1"},
+                    new String[] {"bool_field_2"},
+                    new String[] {"string_field_3"},
+                    new String[] {"bytes_field_4"},
+                    new String[] {"double_field_5"},
+                    new String[] {"float_field_6"},
+                    new String[] {"uint32_field_7"},
+                    new String[] {"int64_field_8"},
+                    new String[] {"uint64_field_9"},
+                    new String[] {"bytes_field_10"},
+                    new String[] {"double_field_11"},
+                    new String[] {"bytes_field_12"},
+                    new String[] {"bool_field_13"},
+                    new String[] {"string_field_14"},
+                    new String[] {"float_field_15"},
+                    new String[] {"int32_field_16"},
+                    new String[] {"bytes_field_17"},
+                    new String[] {"bool_field_18"},
+                    new String[] {"string_field_19"},
+                    new String[] {"float_field_20"},
+                    new String[] {"fixed32_field_21"},
+                    new String[] {"fixed64_field_22"},
+                    new String[] {"sfixed32_field_23"},
+                    new String[] {"sfixed64_field_24"},
+                    new String[] {"double_field_25"},
+                    new String[] {"uint32_field_26"},
+                    new String[] {"uint64_field_27"},
+                    new String[] {"bool_field_28"},
+                    new String[] {"field_29"},
+                    new String[] {"float_field_30"},
+                    new String[] {"string_field_31"},
+                    new String[] {"map_field_32"},
+                    new String[] {"map_field_33"}
+                };
+
         PbRowDataDeserializationSchema pbRowDataDeserializationSchema =
                 new PbRowDataDeserializationSchema(
-                        rowType, InternalTypeInfo.of(rowType), formatConfig);
+                        rowType, InternalTypeInfo.of(rowType), formatConfig, projectedField);
         pbRowDataDeserializationSchema.open(null);
         // make sure code is split
         assertTrue(pbRowDataDeserializationSchema.isCodeSplit());

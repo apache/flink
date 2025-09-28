@@ -21,9 +21,16 @@ package org.apache.flink.formats.protobuf;
 import org.apache.flink.formats.protobuf.testproto.RepeatedMessageTest;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Test;
 
+import static org.apache.flink.table.api.DataTypes.ARRAY;
+import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.FIELD;
+import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.junit.Assert.assertEquals;
 
 /** Test conversion of proto repeated message data to flink internal data. */
@@ -42,9 +49,16 @@ public class RepeatedMessageProtoToRowTest {
                         .addD(innerMessageTest1)
                         .build();
 
+        DataType dataType = ROW(FIELD("d", ARRAY(ROW(FIELD("a", INT()), FIELD("b", BIGINT())))));
+        RowType schema = (RowType) dataType.getLogicalType();
+        String[][] projectedField = new String[][] {new String[] {"d"}};
+
         RowData row =
-                ProtobufTestHelper.pbBytesToRow(
-                        RepeatedMessageTest.class, repeatedMessageTest.toByteArray());
+                ProtobufTestProjectHelper.pbBytesToRowProjected(
+                        schema,
+                        repeatedMessageTest.toByteArray(),
+                        new PbFormatConfig(RepeatedMessageTest.class.getName(), false, false, ""),
+                        projectedField);
 
         ArrayData objs = row.getArray(0);
         RowData subRow = objs.getRow(0, 2);

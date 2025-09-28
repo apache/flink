@@ -19,7 +19,6 @@
 package org.apache.flink.formats.protobuf;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.formats.protobuf.deserialize.PbRowDataDeserializationSchema;
 import org.apache.flink.formats.protobuf.serialize.PbRowDataSerializationSchema;
 import org.apache.flink.formats.protobuf.util.PbFormatUtils;
 import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
@@ -92,33 +91,6 @@ public class ProtobufTestHelper {
         serializationSchema.open(null);
         byte[] bytes = serializationSchema.serialize(row);
         return bytes;
-    }
-
-    public static RowData pbBytesToRow(Class messageClass, byte[] bytes) throws Exception {
-        return pbBytesToRow(messageClass, bytes, false);
-    }
-
-    public static RowData pbBytesToRow(Class messageClass, byte[] bytes, boolean enumAsInt)
-            throws Exception {
-        return pbBytesToRow(
-                messageClass,
-                bytes,
-                new PbFormatConfig(messageClass.getName(), false, false, ""),
-                enumAsInt);
-    }
-
-    public static RowData pbBytesToRow(
-            Class messageClass, byte[] bytes, PbFormatConfig formatConfig, boolean enumAsInt)
-            throws Exception {
-        RowType rowType =
-                PbToRowTypeUtil.generateRowType(
-                        PbFormatUtils.getDescriptor(messageClass.getName()), enumAsInt);
-        PbRowDataDeserializationSchema deserializationSchema =
-                new PbRowDataDeserializationSchema(
-                        rowType, InternalTypeInfo.of(rowType), formatConfig);
-        deserializationSchema.open(null);
-        RowData row = deserializationSchema.deserialize(bytes);
-        return ProtobufTestHelper.validateRow(row, rowType);
     }
 
     public static <K, V> Map<K, V> mapOf(Object... keyValues) {

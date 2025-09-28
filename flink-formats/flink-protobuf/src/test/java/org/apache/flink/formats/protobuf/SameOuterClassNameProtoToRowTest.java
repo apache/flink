@@ -19,7 +19,9 @@
 package org.apache.flink.formats.protobuf;
 
 import org.apache.flink.formats.protobuf.testproto.TestSameOuterClassNameOuterClass;
+import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Test;
 
@@ -35,10 +37,23 @@ public class SameOuterClassNameProtoToRowTest {
                         .setA(1)
                         .setB(TestSameOuterClassNameOuterClass.FooBar.BAR)
                         .build();
+
+        RowType schema =
+                PbToRowTypeUtil.generateRowType(
+                        TestSameOuterClassNameOuterClass.TestSameOuterClassName.getDescriptor());
+        String[][] projectedField = new String[][] {new String[] {"a"}, new String[] {"b"}};
+
         RowData row =
-                ProtobufTestHelper.pbBytesToRow(
-                        TestSameOuterClassNameOuterClass.TestSameOuterClassName.class,
-                        testSameOuterClassName.toByteArray());
+                ProtobufTestProjectHelper.pbBytesToRowProjected(
+                        schema,
+                        testSameOuterClassName.toByteArray(),
+                        new PbFormatConfig(
+                                TestSameOuterClassNameOuterClass.TestSameOuterClassName.class
+                                        .getName(),
+                                false,
+                                false,
+                                ""),
+                        projectedField);
 
         assertEquals(1, row.getInt(0));
         assertEquals("BAR", row.getString(1).toString());
@@ -51,11 +66,23 @@ public class SameOuterClassNameProtoToRowTest {
                         .setB(TestSameOuterClassNameOuterClass.FooBar.BAR)
                         .build();
 
-        RowData row =
-                ProtobufTestHelper.pbBytesToRow(
-                        TestSameOuterClassNameOuterClass.TestSameOuterClassName.class,
-                        testSameOuterClassName.toByteArray(),
+        RowType schema =
+                PbToRowTypeUtil.generateRowType(
+                        TestSameOuterClassNameOuterClass.TestSameOuterClassName.getDescriptor(),
                         true);
+        String[][] projectedField = new String[][] {new String[] {"a"}, new String[] {"b"}};
+
+        RowData row =
+                ProtobufTestProjectHelper.pbBytesToRowProjected(
+                        schema,
+                        testSameOuterClassName.toByteArray(),
+                        new PbFormatConfig(
+                                TestSameOuterClassNameOuterClass.TestSameOuterClassName.class
+                                        .getName(),
+                                false,
+                                false,
+                                ""),
+                        projectedField);
         assertEquals(1, row.getInt(1));
     }
 }

@@ -46,23 +46,30 @@ public class PbRowDataDeserializationSchema implements DeserializationSchema<Row
     private final RowType rowType;
     private final TypeInformation<RowData> resultTypeInfo;
     private final PbFormatConfig formatConfig;
+    private final String[][] projectedFields;
     private transient ProtoToRowConverter protoToRowConverter;
 
     public PbRowDataDeserializationSchema(
-            RowType rowType, TypeInformation<RowData> resultTypeInfo, PbFormatConfig formatConfig) {
+            RowType rowType,
+            TypeInformation<RowData> resultTypeInfo,
+            PbFormatConfig formatConfig,
+            String[][] projectedFields) {
         checkNotNull(rowType, "rowType cannot be null");
         this.rowType = rowType;
         this.resultTypeInfo = resultTypeInfo;
         this.formatConfig = formatConfig;
+        this.projectedFields = projectedFields;
         // do it in client side to report error in the first place
         PbSchemaValidationUtils.validate(
-                PbFormatUtils.getDescriptor(formatConfig.getMessageClassName()), rowType);
+                PbFormatUtils.getDescriptor(formatConfig.getMessageClassName()),
+                rowType,
+                projectedFields);
         // this step is only used to validate codegen in client side in the first place
     }
 
     @Override
     public void open(InitializationContext context) throws Exception {
-        protoToRowConverter = new ProtoToRowConverter(rowType, formatConfig);
+        protoToRowConverter = new ProtoToRowConverter(rowType, formatConfig, projectedFields);
     }
 
     @Override

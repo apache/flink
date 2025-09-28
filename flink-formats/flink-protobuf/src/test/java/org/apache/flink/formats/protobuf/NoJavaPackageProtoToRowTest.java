@@ -19,6 +19,8 @@
 package org.apache.flink.formats.protobuf;
 
 import org.apache.flink.formats.protobuf.proto.SimpleTestNoJavaPackage;
+import org.apache.flink.formats.protobuf.util.PbToRowTypeUtil;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.junit.Test;
 
@@ -27,6 +29,25 @@ public class NoJavaPackageProtoToRowTest {
     @Test
     public void testMessage() throws Exception {
         SimpleTestNoJavaPackage simple = SimpleTestNoJavaPackage.newBuilder().build();
-        ProtobufTestHelper.pbBytesToRow(SimpleTestNoJavaPackage.class, simple.toByteArray());
+
+        RowType schema = PbToRowTypeUtil.generateRowType(SimpleTestNoJavaPackage.getDescriptor());
+        String[][] projectedField =
+                new String[][] {
+                    new String[] {"a"},
+                    new String[] {"b"},
+                    new String[] {"c"},
+                    new String[] {"d"},
+                    new String[] {"e"},
+                    new String[] {"f"},
+                    new String[] {"g"},
+                    new String[] {"h"},
+                    new String[] {"f_abc_7d"}
+                };
+
+        ProtobufTestProjectHelper.pbBytesToRowProjected(
+                schema,
+                simple.toByteArray(),
+                new PbFormatConfig(SimpleTestNoJavaPackage.class.getName(), false, false, ""),
+                projectedField);
     }
 }

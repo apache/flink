@@ -36,7 +36,8 @@ public class PbCodegenSimpleDeserializer implements PbCodegenDeserializer {
     }
 
     @Override
-    public String codegen(String resultVar, String pbObjectCode, int indent)
+    public String codegen(
+            String resultVar, String pbObjectCode, int indent, String[] projectField, int depth)
             throws PbCodegenException {
         // the type of pbObjectCode must not be primitive type,
         // it should convert to internal flink row type like StringData.
