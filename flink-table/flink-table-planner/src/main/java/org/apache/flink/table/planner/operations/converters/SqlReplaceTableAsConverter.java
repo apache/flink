@@ -30,8 +30,6 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ReplaceTableAsOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
-import org.apache.flink.table.planner.operations.AbstractCreateTableConverter;
-import org.apache.flink.table.planner.operations.MergeTableAsUtil;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.operations.SqlNodeToOperationConversion;
 

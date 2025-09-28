@@ -96,7 +96,7 @@ public class OperationConverterUtils {
         return tableComment.map(comment -> comment.getValueAs(String.class)).orElse(null);
     }
 
-    public static Map<String, String> getTableOptions(SqlNodeList propList) {
+    public static Map<String, String> getProperties(SqlNodeList propList) {
         Map<String, String> properties = new HashMap<>();
         if (propList != null) {
             propList.getList()
@@ -109,8 +109,8 @@ public class OperationConverterUtils {
         return properties;
     }
 
-    public static List<String> getPartitionKeyColumnNames(SqlNodeList partitionKey) {
-        return partitionKey.getList().stream()
+    public static List<String> getColumnNames(SqlNodeList sqlNodeList) {
+        return sqlNodeList.getList().stream()
                 .map(p -> ((SqlIdentifier) p).getSimple())
                 .collect(Collectors.toList());
     }

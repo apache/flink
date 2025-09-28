@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.operations;
+package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.table.api.Schema;
@@ -28,7 +28,6 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
-import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import java.util.LinkedHashSet;
@@ -45,6 +44,7 @@ import java.util.stream.Collectors;
 public abstract class AbstractCreateTableConverter<T extends SqlCreateTable>
         implements SqlNodeConverter<T> {
 
+    /** Context of create table converters while mering source and derived items. */
     protected interface MergeContext {
         Schema getMergedSchema(ResolvedSchema schemaToMerge);
 
@@ -63,12 +63,11 @@ public abstract class AbstractCreateTableConverter<T extends SqlCreateTable>
     }
 
     protected final List<String> getDerivedPartitionKeys(T sqlCreateTable) {
-        return OperationConverterUtils.getPartitionKeyColumnNames(
-                sqlCreateTable.getPartitionKeyList());
+        return OperationConverterUtils.getColumnNames(sqlCreateTable.getPartitionKeyList());
     }
 
     protected final Map<String, String> getDerivedTableOptions(T sqlCreateTable) {
-        return OperationConverterUtils.getTableOptions(sqlCreateTable.getPropertyList());
+        return OperationConverterUtils.getProperties(sqlCreateTable.getPropertyList());
     }
 
     protected final String getComment(T sqlCreateTable) {

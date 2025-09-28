@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.operations.converters;
 import org.apache.flink.sql.parser.SqlConstraintValidator;
 import org.apache.flink.sql.parser.ddl.SqlCreateMaterializedTable;
 import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
-import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.table.api.Schema;
@@ -41,11 +40,9 @@ import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 
-import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -75,15 +72,8 @@ public class SqlCreateMaterializedTableConverter
                 OperationConverterUtils.getComment(sqlCreateMaterializedTable.getComment());
 
         // get options
-        Map<String, String> options = new HashMap<>();
-        sqlCreateMaterializedTable
-                .getPropertyList()
-                .getList()
-                .forEach(
-                        p ->
-                                options.put(
-                                        ((SqlTableOption) p).getKeyString(),
-                                        ((SqlTableOption) p).getValueString()));
+        final Map<String, String> tableOptions =
+                OperationConverterUtils.getProperties(sqlCreateMaterializedTable.getPropertyList());
 
         // get freshness
         IntervalFreshness intervalFreshness =
@@ -138,13 +128,12 @@ public class SqlCreateMaterializedTableConverter
 
         // get and verify partition key
         List<String> partitionKeys =
-                sqlCreateMaterializedTable.getPartitionKeyList().getList().stream()
-                        .map(p -> ((SqlIdentifier) p).getSimple())
-                        .collect(Collectors.toList());
+                OperationConverterUtils.getColumnNames(
+                        sqlCreateMaterializedTable.getPartitionKeyList());
         verifyPartitioningColumnsExist(
                 resolvedSchema,
                 partitionKeys,
-                options.keySet().stream()
+                tableOptions.keySet().stream()
                         .filter(k -> k.startsWith(PARTITION_FIELDS))
                         .collect(Collectors.toSet()));
 
@@ -166,7 +155,7 @@ public class SqlCreateMaterializedTableConverter
                         .comment(tableComment)
                         .distribution(tableDistribution.orElse(null))
                         .partitionKeys(partitionKeys)
-                        .options(options)
+                        .options(tableOptions)
                         .definitionQuery(definitionQuery)
                         .freshness(intervalFreshness)
                         .logicalRefreshMode(logicalRefreshMode)

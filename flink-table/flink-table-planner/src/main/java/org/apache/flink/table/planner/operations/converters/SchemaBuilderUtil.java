@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.operations;
+package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlComputedColumn;
@@ -243,10 +243,7 @@ public class SchemaBuilderUtil {
 
     /** Converts a {@link SqlTableConstraint} to an {@link UnresolvedPrimaryKey} object. */
     public UnresolvedPrimaryKey toUnresolvedPrimaryKey(SqlTableConstraint primaryKey) {
-        List<String> columnNames =
-                primaryKey.getColumns().getList().stream()
-                        .map(n -> ((SqlIdentifier) n).getSimple())
-                        .collect(Collectors.toList());
+        List<String> columnNames = List.of(primaryKey.getColumnNames());
 
         String constraintName =
                 primaryKey

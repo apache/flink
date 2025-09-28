@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.operations;
+package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTableLike;
 import org.apache.flink.sql.parser.ddl.SqlTableLike;
@@ -111,8 +111,7 @@ public class SqlCreateTableLikeConverter extends AbstractCreateTableConverter<Sq
             @Override
             public Map<String, String> getMergedTableOptions() {
                 final Map<String, String> derivedTableOptions =
-                        OperationConverterUtils.getTableOptions(
-                                sqlCreateTableLike.getPropertyList());
+                        OperationConverterUtils.getProperties(sqlCreateTableLike.getPropertyList());
                 return mergeTableLikeUtil.mergeOptions(
                         mergingStrategies.get(SqlTableLike.FeatureOption.OPTIONS),
                         table.getOptions(),

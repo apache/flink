@@ -473,7 +473,7 @@ public class SqlNodeToOperationConversion {
                                                             tableIdentifier)));
             Map<String, String> newProps = new HashMap<>(catalogPartition.getProperties());
             newProps.putAll(
-                    OperationConverterUtils.getTableOptions(alterTableOptions.getPropertyList()));
+                    OperationConverterUtils.getProperties(alterTableOptions.getPropertyList()));
             return new AlterPartitionPropertiesOperation(
                     tableIdentifier,
                     partitionSpec,
@@ -481,7 +481,7 @@ public class SqlNodeToOperationConversion {
         } else {
             // it's altering a table
             Map<String, String> changeOptions =
-                    OperationConverterUtils.getTableOptions(alterTableOptions.getPropertyList());
+                    OperationConverterUtils.getProperties(alterTableOptions.getPropertyList());
             Map<String, String> newOptions = new HashMap<>(oldTable.getOptions());
             newOptions.putAll(changeOptions);
             return new AlterTableChangeOperation(
@@ -771,15 +771,8 @@ public class SqlNodeToOperationConversion {
                         .map(comment -> comment.getValueAs(NlsString.class).getValue())
                         .orElse(null);
         // set with properties
-        Map<String, String> properties = new HashMap<>();
-        sqlCreateDatabase
-                .getPropertyList()
-                .getList()
-                .forEach(
-                        p ->
-                                properties.put(
-                                        ((SqlTableOption) p).getKeyString(),
-                                        ((SqlTableOption) p).getValueString()));
+        final Map<String, String> properties =
+                OperationConverterUtils.getProperties(sqlCreateDatabase.getPropertyList());
         CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(properties, databaseComment);
         return new CreateDatabaseOperation(
                 catalogName, databaseName, catalogDatabase, ignoreIfExists);
@@ -831,14 +824,8 @@ public class SqlNodeToOperationConversion {
             throw new ValidationException(String.format("Catalog %s not exists", catalogName));
         }
         // set with properties
-        sqlAlterDatabase
-                .getPropertyList()
-                .getList()
-                .forEach(
-                        p ->
-                                properties.put(
-                                        ((SqlTableOption) p).getKeyString(),
-                                        ((SqlTableOption) p).getValueString()));
+        properties.putAll(
+                OperationConverterUtils.getProperties(sqlAlterDatabase.getPropertyList()));
         CatalogDatabase catalogDatabase =
                 new CatalogDatabaseImpl(properties, originCatalogDatabase.getComment());
         return new AlterDatabaseOperation(catalogName, databaseName, catalogDatabase);
