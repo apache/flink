@@ -34,6 +34,7 @@ import org.apache.flink.runtime.scheduler.DefaultScheduler;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerBuilder;
 import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
+import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 
@@ -212,6 +213,7 @@ class DefaultSchedulerCheckpointCoordinatorTest {
                         EXECUTOR_EXTENSION.getExecutor())
                 .setCheckpointRecoveryFactory(new TestingCheckpointRecoveryFactory(store, counter))
                 .setRpcTimeout(timeout)
+                .setFutureExecutor(new DirectScheduledExecutorService())
                 .build();
     }
 }
