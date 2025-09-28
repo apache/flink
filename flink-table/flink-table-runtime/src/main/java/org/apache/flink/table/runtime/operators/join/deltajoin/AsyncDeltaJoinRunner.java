@@ -31,15 +31,21 @@ import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
+import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
@@ -64,6 +70,20 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
 
     private final boolean treatRightAsLookupTable;
 
+    private final boolean enableCache;
+
+    /** Selector to get join key from left input. */
+    private final RowDataKeySelector leftJoinKeySelector;
+    /** Selector to get upsert key from left input. */
+    private final RowDataKeySelector leftUpsertKeySelector;
+
+    /** Selector to get join key from right input. */
+    private final RowDataKeySelector rightJoinKeySelector;
+    /** Selector to get upsert key from right input. */
+    private final RowDataKeySelector rightUpsertKeySelector;
+
+    private transient DeltaJoinCache cache;
+
     /**
      * Buffers {@link ResultFuture} to avoid newInstance cost when processing elements every time.
      * We use {@link BlockingQueue} to make sure the head {@link ResultFuture}s are available.
@@ -85,14 +105,28 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
             DataStructureConverter<RowData, Object> fetcherConverter,
             GeneratedResultFuture<TableFunctionResultFuture<RowData>> generatedResultFuture,
             RowDataSerializer lookupSideRowSerializer,
+            RowDataKeySelector leftJoinKeySelector,
+            RowDataKeySelector leftUpsertKeySelector,
+            RowDataKeySelector rightJoinKeySelector,
+            RowDataKeySelector rightUpsertKeySelector,
             int asyncBufferCapacity,
-            boolean treatRightAsLookupTable) {
+            boolean treatRightAsLookupTable,
+            boolean enableCache) {
         this.generatedFetcher = generatedFetcher;
         this.fetcherConverter = fetcherConverter;
         this.generatedResultFuture = generatedResultFuture;
         this.lookupSideRowSerializer = lookupSideRowSerializer;
+        this.leftJoinKeySelector = leftJoinKeySelector;
+        this.leftUpsertKeySelector = leftUpsertKeySelector;
+        this.rightJoinKeySelector = rightJoinKeySelector;
+        this.rightUpsertKeySelector = rightUpsertKeySelector;
         this.asyncBufferCapacity = asyncBufferCapacity;
         this.treatRightAsLookupTable = treatRightAsLookupTable;
+        this.enableCache = enableCache;
+    }
+
+    public void setCache(DeltaJoinCache cache) {
+        this.cache = cache;
     }
 
     @Override
@@ -121,7 +155,11 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
                             resultFutureBuffer,
                             createFetcherResultFuture(openContext),
                             fetcherConverter,
-                            treatRightAsLookupTable);
+                            enableCache,
+                            cache,
+                            treatRightAsLookupTable,
+                            leftUpsertKeySelector,
+                            rightUpsertKeySelector);
             // add will throw exception immediately if the queue is full which should never happen
             resultFutureBuffer.add(rf);
             allResultFutures.add(rf);
@@ -141,8 +179,27 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
     public void asyncInvoke(RowData input, ResultFuture<RowData> resultFuture) throws Exception {
         JoinedRowResultFuture outResultFuture = resultFutureBuffer.take();
 
+        RowData streamJoinKey = null;
+        if (enableCache) {
+            if (treatRightAsLookupTable) {
+                streamJoinKey = leftJoinKeySelector.getKey(input);
+                cache.requestRightCache();
+            } else {
+                streamJoinKey = rightJoinKeySelector.getKey(input);
+                cache.requestLeftCache();
+            }
+        }
+
         // the input row is copied when object reuse in StreamDeltaJoinOperator
-        outResultFuture.reset(input, resultFuture);
+        outResultFuture.reset(streamJoinKey, input, resultFuture);
+
+        if (enableCache) {
+            Optional<Collection<Object>> dataFromCache = tryGetDataFromCache(streamJoinKey);
+            if (dataFromCache.isPresent()) {
+                outResultFuture.complete(dataFromCache.get());
+                return;
+            }
+        }
 
         long startTime = System.currentTimeMillis();
         // fetcher has copied the input field when object reuse is enabled
@@ -177,6 +234,30 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
         return fetcher;
     }
 
+    @VisibleForTesting
+    public DeltaJoinCache getCache() {
+        return cache;
+    }
+
+    private Optional<Collection<Object>> tryGetDataFromCache(RowData joinKey) {
+        Preconditions.checkState(enableCache);
+
+        if (treatRightAsLookupTable) {
+            LinkedHashMap<RowData, Object> rightRows = cache.getData(joinKey, true);
+            if (rightRows != null) {
+                cache.hitRightCache();
+                return Optional.of(rightRows.values());
+            }
+        } else {
+            LinkedHashMap<RowData, Object> leftRows = cache.getData(joinKey, false);
+            if (leftRows != null) {
+                cache.hitLeftCache();
+                return Optional.of(leftRows.values());
+            }
+        }
+        return Optional.empty();
+    }
+
     /**
      * The {@link JoinedRowResultFuture} is used to combine left {@link RowData} and right {@link
      * RowData} into {@link JoinedRowData}.
@@ -191,9 +272,16 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
         private final TableFunctionResultFuture<RowData> joinConditionResultFuture;
         private final DataStructureConverter<RowData, Object> resultConverter;
 
+        private final boolean enableCache;
+        private final DeltaJoinCache cache;
+
         private final DelegateResultFuture delegate;
         private final boolean treatRightAsLookupTable;
 
+        private final RowDataKeySelector leftUpsertKeySelector;
+        private final RowDataKeySelector rightUpsertKeySelector;
+
+        private @Nullable RowData streamJoinKey;
         private RowData streamRow;
         private ResultFuture<RowData> realOutput;
 
@@ -201,16 +289,28 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
                 BlockingQueue<JoinedRowResultFuture> resultFutureBuffer,
                 TableFunctionResultFuture<RowData> joinConditionResultFuture,
                 DataStructureConverter<RowData, Object> resultConverter,
-                boolean treatRightAsLookupTable) {
+                boolean enableCache,
+                DeltaJoinCache cache,
+                boolean treatRightAsLookupTable,
+                RowDataKeySelector leftUpsertKeySelector,
+                RowDataKeySelector rightUpsertKeySelector) {
             this.resultFutureBuffer = resultFutureBuffer;
             this.joinConditionResultFuture = joinConditionResultFuture;
             this.resultConverter = resultConverter;
+            this.enableCache = enableCache;
+            this.cache = cache;
             this.delegate = new DelegateResultFuture();
             this.treatRightAsLookupTable = treatRightAsLookupTable;
+            this.leftUpsertKeySelector = leftUpsertKeySelector;
+            this.rightUpsertKeySelector = rightUpsertKeySelector;
         }
 
-        public void reset(RowData row, ResultFuture<RowData> realOutput) {
+        public void reset(
+                @Nullable RowData joinKey, RowData row, ResultFuture<RowData> realOutput) {
+            Preconditions.checkState(
+                    (enableCache && joinKey != null) || (!enableCache && joinKey == null));
             this.realOutput = realOutput;
+            this.streamJoinKey = joinKey;
             this.streamRow = row;
             joinConditionResultFuture.setInput(row);
             joinConditionResultFuture.setResultFuture(delegate);
@@ -219,6 +319,19 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
 
         @Override
         public void complete(Collection<Object> result) {
+            if (result == null) {
+                result = Collections.emptyList();
+            }
+
+            // now we have received the rows from the lookup table, try to set them to the cache
+            try {
+                updateCacheIfNecessary(result);
+            } catch (Throwable t) {
+                LOG.info("Failed to update the cache", t);
+                completeExceptionally(t);
+                return;
+            }
+
             Collection<RowData> rowDataCollection = convertToInternalData(result);
             // call condition collector first,
             // the filtered result will be routed to the delegateCollector
@@ -271,6 +384,61 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
 
         public void close() throws Exception {
             joinConditionResultFuture.close();
+        }
+
+        private void updateCacheIfNecessary(Collection<Object> lookupRows) throws Exception {
+            if (!enableCache) {
+                return;
+            }
+
+            // 1. build the cache in lookup side if not exists
+            // 2. update the cache in stream side if exists
+            if (treatRightAsLookupTable) {
+                if (cache.getData(streamJoinKey, true) == null) {
+                    cache.buildCache(streamJoinKey, buildMapWithUkAsKeys(lookupRows, true), true);
+                }
+
+                LinkedHashMap<RowData, Object> leftCacheData = cache.getData(streamJoinKey, false);
+                if (leftCacheData != null) {
+                    RowData uk = leftUpsertKeySelector.getKey(streamRow);
+                    cache.upsertCache(streamJoinKey, uk, streamRow, false);
+                }
+            } else {
+                if (cache.getData(streamJoinKey, false) == null) {
+                    cache.buildCache(streamJoinKey, buildMapWithUkAsKeys(lookupRows, false), false);
+                }
+
+                LinkedHashMap<RowData, Object> rightCacheData = cache.getData(streamJoinKey, true);
+                if (rightCacheData != null) {
+                    RowData uk = rightUpsertKeySelector.getKey(streamRow);
+                    cache.upsertCache(streamJoinKey, uk, streamRow, true);
+                }
+            }
+        }
+
+        private LinkedHashMap<RowData, Object> buildMapWithUkAsKeys(
+                Collection<Object> lookupRows, boolean treatRightAsLookupTable) throws Exception {
+            LinkedHashMap<RowData, Object> map = new LinkedHashMap<>();
+            for (Object lookupRow : lookupRows) {
+                RowData rowData = convertToInternalData(lookupRow);
+                RowData uk;
+                if (treatRightAsLookupTable) {
+                    uk = rightUpsertKeySelector.getKey(rowData);
+                    map.put(uk, lookupRow);
+                } else {
+                    uk = leftUpsertKeySelector.getKey(rowData);
+                    map.put(uk, lookupRow);
+                }
+            }
+            return map;
+        }
+
+        private RowData convertToInternalData(Object data) {
+            if (resultConverter.isIdentityConversion()) {
+                return (RowData) data;
+            } else {
+                return resultConverter.toInternal(data);
+            }
         }
 
         @SuppressWarnings({"unchecked", "rawtypes"})
