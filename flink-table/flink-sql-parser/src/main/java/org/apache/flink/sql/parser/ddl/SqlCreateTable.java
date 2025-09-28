@@ -63,10 +63,6 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
     private final List<SqlTableConstraint> tableConstraints;
 
-    public final SqlDistribution getDistribution() {
-        return distribution;
-    }
-
     private final SqlDistribution distribution;
 
     private final SqlNodeList partitionKeyList;
@@ -101,7 +97,8 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
                 watermark,
                 comment,
                 isTemporary,
-                ifNotExists);
+                ifNotExists,
+                false);
     }
 
     protected SqlCreateTable(
@@ -116,8 +113,9 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
             @Nullable SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
             boolean isTemporary,
-            boolean ifNotExists) {
-        super(operator, pos, false, ifNotExists);
+            boolean ifNotExists,
+            boolean replace) {
+        super(operator, pos, replace, ifNotExists);
         this.tableName = requireNonNull(tableName, "tableName should not be null");
         this.columnList = requireNonNull(columnList, "columnList should not be null");
         this.tableConstraints =
@@ -154,6 +152,10 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
 
     public SqlNodeList getColumnList() {
         return columnList;
+    }
+
+    public final SqlDistribution getDistribution() {
+        return distribution;
     }
 
     public SqlNodeList getPropertyList() {

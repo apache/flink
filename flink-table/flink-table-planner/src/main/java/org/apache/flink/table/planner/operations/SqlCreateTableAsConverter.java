@@ -61,15 +61,15 @@ public class SqlCreateTableAsConverter extends AbstractCreateTableConverter<SqlC
         ResolvedCatalogTable tableWithResolvedSchema =
                 getResolvedCatalogTable(sqlCreateTableAs, context, query.getResolvedSchema());
 
-        MergeTableAsUtil mergeTableAsUtil = new MergeTableAsUtil(context);
         // If needed, rewrite the query to include the new sink fields in the select list
         query =
-                mergeTableAsUtil.maybeRewriteQuery(
-                        catalogManager,
-                        flinkPlanner,
-                        query,
-                        validatedAsQuery,
-                        tableWithResolvedSchema);
+                new MergeTableAsUtil(context)
+                        .maybeRewriteQuery(
+                                catalogManager,
+                                flinkPlanner,
+                                query,
+                                validatedAsQuery,
+                                tableWithResolvedSchema);
 
         ObjectIdentifier identifier = getIdentifier(sqlCreateTableAs, context);
         CreateTableOperation createTableOperation =
