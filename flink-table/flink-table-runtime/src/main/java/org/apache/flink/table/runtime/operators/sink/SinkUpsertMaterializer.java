@@ -31,6 +31,8 @@ import org.apache.flink.table.data.utils.ProjectedRowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
 
@@ -221,5 +223,19 @@ public class SinkUpsertMaterializer extends TableStreamOperator<RowData>
                     upsertKeyProjectedRow2.replaceRow(oldRow));
         }
         return equaliser.equals(newRow, oldRow);
+    }
+
+    public static SinkUpsertMaterializer create(
+            StateTtlConfig ttlConfig,
+            RowType physicalRowType,
+            GeneratedRecordEqualiser rowEqualiser,
+            GeneratedRecordEqualiser upsertKeyEqualiser,
+            int[] inputUpsertKey) {
+        return new SinkUpsertMaterializer(
+                ttlConfig,
+                InternalSerializers.create(physicalRowType),
+                rowEqualiser,
+                upsertKeyEqualiser,
+                inputUpsertKey);
     }
 }
