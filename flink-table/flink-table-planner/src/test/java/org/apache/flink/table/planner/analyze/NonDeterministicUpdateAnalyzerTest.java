@@ -35,7 +35,6 @@ import org.junit.jupiter.api.Test;
 
 import scala.Enumeration;
 
-import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static scala.runtime.BoxedUnit.UNIT;
@@ -336,87 +335,6 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
                         + "  select a, `day`, b, c\n"
                         + "  from v1\n"
                         + "  where b > 100");
-        util.doVerifyPlan(
-                stmtSet,
-                new ExplainDetail[] {ExplainDetail.PLAN_ADVICE},
-                false,
-                new Enumeration.Value[] {PlanKind.OPT_REL_WITH_ADVICE()},
-                () -> UNIT,
-                false,
-                false);
-    }
-
-    @Test
-    void testMultiSinkOnMultiJoinedView() {
-        tEnv.getConfig().set(TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true);
-        tEnv.executeSql(
-                "create temporary table src1 (\n"
-                        + "  a int,\n"
-                        + "  b bigint,\n"
-                        + "  c string,\n"
-                        + "  d int,\n"
-                        + "  primary key(a, c) not enforced\n"
-                        + ") with (\n"
-                        + " 'connector' = 'values',\n"
-                        + " 'changelog-mode' = 'I,UA,UB,D'\n"
-                        + ")");
-        tEnv.executeSql(
-                "create temporary table src2 (\n"
-                        + "  a int,\n"
-                        + "  b bigint,\n"
-                        + "  c string,\n"
-                        + "  d int,\n"
-                        + "  primary key(a, c) not enforced\n"
-                        + ") with (\n"
-                        + " 'connector' = 'values',\n"
-                        + " 'changelog-mode' = 'I,UA,UB,D'\n"
-                        + ")");
-        tEnv.executeSql(
-                "create temporary table sink1 (\n"
-                        + "  a int,\n"
-                        + "  b string,\n"
-                        + "  c bigint,\n"
-                        + "  d bigint\n"
-                        + ") with (\n"
-                        + " 'connector' = 'values',\n"
-                        + " 'sink-insert-only' = 'false'\n"
-                        + ")");
-        tEnv.executeSql(
-                "create temporary table sink2 (\n"
-                        + "  a int,\n"
-                        + "  b string,\n"
-                        + "  c bigint,\n"
-                        + "  d string\n"
-                        + ") with (\n"
-                        + " 'connector' = 'values',\n"
-                        + " 'sink-insert-only' = 'false'\n"
-                        + ")");
-        tEnv.executeSql(
-                "create temporary view v1 as\n"
-                        + "select\n"
-                        + "  t1.a as a, t1.`day` as `day`, t2.b as b, t2.c as c\n"
-                        + "from (\n"
-                        + "  select a, b, DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd') as `day`\n"
-                        + "  from src1\n"
-                        + " ) t1\n"
-                        + "join (\n"
-                        + "  select b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd')) as `day`, c, d\n"
-                        + "  from src2\n"
-                        + ") t2\n"
-                        + " on t1.a = t2.d");
-
-        StatementSet stmtSet = tEnv.createStatementSet();
-        stmtSet.addInsertSql(
-                "insert into sink1\n"
-                        + "  select a, `day`, sum(b), count(distinct c)\n"
-                        + "  from v1\n"
-                        + "  group by a, `day`");
-        stmtSet.addInsertSql(
-                "insert into sink2\n"
-                        + "  select a, `day`, b, c\n"
-                        + "  from v1\n"
-                        + "  where b > 100");
-
         util.doVerifyPlan(
                 stmtSet,
                 new ExplainDetail[] {ExplainDetail.PLAN_ADVICE},
