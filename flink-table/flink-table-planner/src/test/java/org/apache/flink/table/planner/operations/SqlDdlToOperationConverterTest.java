@@ -41,6 +41,7 @@ import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.TableDistribution.Kind;
@@ -839,10 +840,8 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                         createTestItem("DATE", DataTypes.DATE()),
                         createTestItem("TIME", DataTypes.TIME()),
                         createTestItem("TIME WITHOUT TIME ZONE", DataTypes.TIME()),
-                        // Expect to be TIME(3).
-                        createTestItem("TIME(3)", DataTypes.TIME()),
-                        // Expect to be TIME(3).
-                        createTestItem("TIME(3) WITHOUT TIME ZONE", DataTypes.TIME()),
+                        createTestItem("TIME(3)", DataTypes.TIME(3)),
+                        createTestItem("TIME(3) WITHOUT TIME ZONE", DataTypes.TIME(3)),
                         createTestItem("TIMESTAMP", DataTypes.TIMESTAMP(6)),
                         createTestItem("TIMESTAMP WITHOUT TIME ZONE", DataTypes.TIMESTAMP(6)),
                         createTestItem("TIMESTAMP(3)", DataTypes.TIMESTAMP(3)),
@@ -949,11 +948,15 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
         SqlNode node = parser.parse(sql);
         assertThat(node).isInstanceOf(SqlCreateTable.class);
-        Operation operation =
-                SqlNodeToOperationConversion.convert(planner, catalogManager, node).get();
-        TableSchema schema = ((CreateTableOperation) operation).getCatalogTable().getSchema();
-        Object[] expectedDataTypes = testItems.stream().map(item -> item.expectedType).toArray();
-        assertThat(schema.getFieldDataTypes()).isEqualTo(expectedDataTypes);
+        final Optional<Operation> convert =
+                SqlNodeToOperationConversion.convert(planner, catalogManager, node);
+        assertThat(convert).isPresent();
+        Operation operation = convert.get();
+        ResolvedSchema schema =
+                ((CreateTableOperation) operation).getCatalogTable().getResolvedSchema();
+        List<Object> expectedDataTypes =
+                testItems.stream().map(item -> item.expectedType).collect(Collectors.toList());
+        assertThat(schema.getColumnDataTypes()).isEqualTo(expectedDataTypes);
     }
 
     @Test

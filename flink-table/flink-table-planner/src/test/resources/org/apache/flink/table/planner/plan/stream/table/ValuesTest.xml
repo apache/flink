@@ -230,9 +230,9 @@ Union(all=[true], union=[a, b])
     <Resource name="ast">
       <![CDATA[
 LogicalUnion(all=[true])
-:- LogicalProject(number=[CAST(1:DOUBLE):DOUBLE], row=[ROW(_UTF-16LE'A    ', 2:DECIMAL(10, 2), ROW(00:00:00))], array=[ARRAY(1:BIGINT)])
+:- LogicalProject(number=[CAST(1:DOUBLE):DOUBLE], row=[ROW(_UTF-16LE'A    ', 2:DECIMAL(10, 2), ROW(00:00:00:TIME(3)))], array=[ARRAY(1:BIGINT)])
 :  +- LogicalValues(tuples=[[{ 0 }]])
-+- LogicalProject(number=[CAST(3.141592653589793E0:DOUBLE):DOUBLE], row=[ROW(_UTF-16LE'ABC  ', 3.0E0:DECIMAL(10, 2), ROW(00:00:00))], array=[ARRAY(3:BIGINT)])
++- LogicalProject(number=[CAST(3.141592653589793E0:DOUBLE):DOUBLE], row=[ROW(_UTF-16LE'ABC  ', 3.0E0:DECIMAL(10, 2), ROW(00:00:00.1:TIME(3)))], array=[ARRAY(3:BIGINT)])
    +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
@@ -241,7 +241,7 @@ LogicalUnion(all=[true])
 Union(all=[true], union=[number, row, array])
 :- Calc(select=[CAST(1 AS DOUBLE) AS number, ROW('A    ', 2, ROW(00:00:00)) AS row, ARRAY(1) AS array])
 :  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
-+- Calc(select=[CAST(3.141592653589793E0 AS DOUBLE) AS number, ROW('ABC  ', 3.0E0, ROW(00:00:00)) AS row, ARRAY(3) AS array])
++- Calc(select=[CAST(3.141592653589793E0 AS DOUBLE) AS number, ROW('ABC  ', 3.0E0, ROW(00:00:00.1)) AS row, ARRAY(3) AS array])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>
