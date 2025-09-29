@@ -21,24 +21,25 @@ package org.apache.flink.table.planner.utils;
 import org.apache.flink.sql.parser.ddl.SqlDistribution;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
-import org.apache.flink.table.catalog.Column;
-import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
+import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
+import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlNumericLiteral;
+import org.apache.calcite.sql.dialect.CalciteSqlDialect;
+import org.apache.calcite.sql.parser.SqlParser;
 
 import javax.annotation.Nullable;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -46,44 +47,6 @@ import java.util.stream.Collectors;
 public class OperationConverterUtils {
 
     private OperationConverterUtils() {}
-
-    public static List<TableChange> buildModifyColumnChange(
-            Column oldColumn,
-            Column newColumn,
-            @Nullable TableChange.ColumnPosition columnPosition) {
-        if (oldColumn.isPhysical() && newColumn.isPhysical()) {
-            List<TableChange> changes = new ArrayList<>();
-            String newComment = newColumn.getComment().orElse(oldColumn.getComment().orElse(null));
-            if (!newColumn.getComment().equals(oldColumn.getComment())) {
-                changes.add(TableChange.modifyColumnComment(oldColumn, newComment));
-            }
-
-            if (!oldColumn
-                    .getDataType()
-                    .getLogicalType()
-                    .equals(newColumn.getDataType().getLogicalType())) {
-                changes.add(
-                        TableChange.modifyPhysicalColumnType(
-                                oldColumn.withComment(newComment), newColumn.getDataType()));
-            }
-
-            if (!Objects.equals(newColumn.getName(), oldColumn.getName())) {
-                changes.add(
-                        TableChange.modifyColumnName(
-                                oldColumn.withComment(newComment).copy(newColumn.getDataType()),
-                                newColumn.getName()));
-            }
-
-            if (columnPosition != null) {
-                changes.add(TableChange.modifyColumnPosition(newColumn, columnPosition));
-            }
-
-            return changes;
-        } else {
-            return Collections.singletonList(
-                    TableChange.modify(oldColumn, newColumn, columnPosition));
-        }
-    }
 
     public static @Nullable String getComment(SqlTableColumn column) {
         return column.getComment()
@@ -138,5 +101,17 @@ public class OperationConverterUtils {
                             .collect(Collectors.toList());
         }
         return TableDistribution.of(kind, bucketCount, bucketColumns);
+    }
+
+    public static String getQuotedSqlString(SqlNode sqlNode, FlinkPlannerImpl flinkPlanner) {
+        SqlParser.Config parserConfig = flinkPlanner.config().getParserConfig();
+        SqlDialect dialect =
+                new CalciteSqlDialect(
+                        SqlDialect.EMPTY_CONTEXT
+                                .withQuotedCasing(parserConfig.unquotedCasing())
+                                .withConformance(parserConfig.conformance())
+                                .withUnquotedCasing(parserConfig.unquotedCasing())
+                                .withIdentifierQuoteString(parserConfig.quoting().string));
+        return sqlNode.toSqlString(dialect).getSql();
     }
 }
