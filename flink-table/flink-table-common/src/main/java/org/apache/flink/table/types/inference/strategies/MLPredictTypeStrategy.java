@@ -46,7 +46,7 @@ import java.util.stream.Collectors;
 
 /** Type strategies for ML_PREDICT function. */
 @Internal
-public class MlPredictTypeStrategy {
+public class MLPredictTypeStrategy {
     public static final InputTypeStrategy ML_PREDICT_INPUT_TYPE_STRATEGY =
             new InputTypeStrategy() {
                 @Override

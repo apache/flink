@@ -196,7 +196,7 @@ public final class SpecificTypeStrategies {
 
     /** Type strategy specific for {@link BuiltInFunctionDefinitions#ML_PREDICT}. */
     public static final TypeStrategy ML_PREDICT_OUTPUT_TYPE_STRATEGY =
-            MlPredictTypeStrategy.ML_PREDICT_OUTPUT_TYPE_STRATEGY;
+            MLPredictTypeStrategy.ML_PREDICT_OUTPUT_TYPE_STRATEGY;
 
     private SpecificTypeStrategies() {
         // no instantiation
