@@ -2541,7 +2541,6 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         // SQL language cannot use JAR but can use ARTIFACT
         sql("create temporary function function1 as 'org.apache.flink.function.function1' language ^sql^ using jar 'file:///path/to/test.jar'")
                 .fails("CREATE FUNCTION USING JAR syntax is not applicable to SQL language.");
-        
         sql("create temporary function function1 as 'org.apache.flink.function.function1' language sql using artifact 'file:///path/to/test.artifact'")
                 .ok(
                         "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE SQL USING ARTIFACT 'file:///path/to/test.artifact'");
@@ -2549,7 +2548,6 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         // PYTHON language cannot use JAR but can use ARTIFACT
         sql("create temporary function function1 as 'org.apache.flink.function.function1' language ^python^ using jar 'file:///path/to/test.jar'")
                 .fails("CREATE FUNCTION USING JAR syntax is not applicable to PYTHON language.");
-        
         sql("create temporary function function1 as 'org.apache.flink.function.function1' language python using artifact 'file:///path/to/test.artifact'")
                 .ok(
                         "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE PYTHON USING ARTIFACT 'file:///path/to/test.artifact'");
