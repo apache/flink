@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.operations;
+package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlComputedColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlMetadataColumn;

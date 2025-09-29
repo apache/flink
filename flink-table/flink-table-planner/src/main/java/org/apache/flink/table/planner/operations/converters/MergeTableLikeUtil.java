@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.operations;
+package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
@@ -81,6 +81,13 @@ class MergeTableLikeUtil {
         this.validator = validator;
         this.escapeExpression = escapeExpression;
         this.dataTypeFactory = dataTypeFactory;
+    }
+
+    MergeTableLikeUtil(SqlNodeConverter.ConvertContext context) {
+        this(
+                context.getSqlValidator(),
+                context::toQuotedSqlString,
+                context.getCatalogManager().getDataTypeFactory());
     }
 
     /**

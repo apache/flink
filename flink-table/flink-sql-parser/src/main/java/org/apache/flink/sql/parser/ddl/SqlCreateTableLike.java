@@ -100,7 +100,8 @@ public class SqlCreateTableLike extends SqlCreateTable {
                 watermark,
                 comment,
                 isTemporary,
-                ifNotExists);
+                ifNotExists,
+                false);
         this.tableLike =
                 requireNonNull(tableLike, "LIKE clause is required for CREATE TABLE LIKE DDL");
     }

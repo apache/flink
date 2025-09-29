@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.ddl.SqlReplaceTableAs;
+import org.apache.flink.sql.parser.ddl.SqlCreateTableAs;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -26,98 +26,95 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableDistribution;
+import org.apache.flink.table.operations.CreateTableASOperation;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.ReplaceTableAsOperation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.operations.SqlNodeToOperationConversion;
 
+import org.apache.calcite.sql.SqlNode;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/** A converter for {@link SqlReplaceTableAs}. */
-public class SqlReplaceTableAsConverter extends AbstractCreateTableConverter<SqlReplaceTableAs> {
+/** Helper class for converting {@link SqlCreateTableAs} to {@link CreateTableASOperation}. */
+public class SqlCreateTableAsConverter extends AbstractCreateTableConverter<SqlCreateTableAs> {
 
     @Override
-    public Operation convertSqlNode(SqlReplaceTableAs sqlReplaceTableAs, ConvertContext context) {
-        CatalogManager catalogManager = context.getCatalogManager();
-        FlinkPlannerImpl flinkPlanner = context.getFlinkPlanner();
+    public Operation convertSqlNode(SqlCreateTableAs sqlCreateTableAs, ConvertContext context) {
+        final FlinkPlannerImpl flinkPlanner = context.getFlinkPlanner();
+        final CatalogManager catalogManager = context.getCatalogManager();
+        SqlNode asQuerySqlNode = sqlCreateTableAs.getAsQuery();
+        SqlNode validatedAsQuery = flinkPlanner.validate(asQuerySqlNode);
 
         PlannerQueryOperation query =
                 (PlannerQueryOperation)
                         SqlNodeToOperationConversion.convert(
-                                        flinkPlanner,
-                                        catalogManager,
-                                        sqlReplaceTableAs.getAsQuery())
+                                        flinkPlanner, catalogManager, validatedAsQuery)
                                 .orElseThrow(
                                         () ->
                                                 new TableException(
-                                                        "RTAS unsupported node type "
-                                                                + sqlReplaceTableAs
-                                                                        .getAsQuery()
+                                                        "CTAS unsupported node type "
+                                                                + validatedAsQuery
                                                                         .getClass()
                                                                         .getSimpleName()));
-
-        // get table
         ResolvedCatalogTable tableWithResolvedSchema =
-                getResolvedCatalogTable(sqlReplaceTableAs, context, query.getResolvedSchema());
+                getResolvedCatalogTable(sqlCreateTableAs, context, query.getResolvedSchema());
 
         // If needed, rewrite the query to include the new sink fields in the select list
         query =
                 new MergeTableAsUtil(context)
                         .maybeRewriteQuery(
-                                context.getCatalogManager(),
+                                catalogManager,
                                 flinkPlanner,
                                 query,
-                                sqlReplaceTableAs.getAsQuery(),
+                                validatedAsQuery,
                                 tableWithResolvedSchema);
 
-        ObjectIdentifier identifier = getIdentifier(sqlReplaceTableAs, context);
+        ObjectIdentifier identifier = getIdentifier(sqlCreateTableAs, context);
         CreateTableOperation createTableOperation =
-                getCreateTableOperation(identifier, tableWithResolvedSchema, sqlReplaceTableAs);
+                getCreateTableOperation(identifier, tableWithResolvedSchema, sqlCreateTableAs);
 
-        return new ReplaceTableAsOperation(
-                createTableOperation, query, sqlReplaceTableAs.isCreateOrReplace());
+        return new CreateTableASOperation(createTableOperation, Map.of(), query, false);
     }
 
     @Override
     protected MergeContext getMergeContext(
-            SqlReplaceTableAs sqlReplaceTableAs, ConvertContext context) {
+            SqlCreateTableAs sqlCreateTableAs, ConvertContext context) {
         return new MergeContext() {
             private final MergeTableAsUtil mergeTableAsUtil = new MergeTableAsUtil(context);
 
             @Override
-            public Schema getMergedSchema(ResolvedSchema querySchema) {
-                if (sqlReplaceTableAs.isSchemaWithColumnsIdentifiersOnly()) {
+            public Schema getMergedSchema(ResolvedSchema schemaToMerge) {
+                if (sqlCreateTableAs.isSchemaWithColumnsIdentifiersOnly()) {
                     // If only column identifiers are provided, then these are used to
                     // order the columns in the schema.
                     return mergeTableAsUtil.reorderSchema(
-                            sqlReplaceTableAs.getColumnList(), querySchema);
+                            sqlCreateTableAs.getColumnList(), schemaToMerge);
                 } else {
                     return mergeTableAsUtil.mergeSchemas(
-                            sqlReplaceTableAs.getColumnList(),
-                            sqlReplaceTableAs.getWatermark().orElse(null),
-                            sqlReplaceTableAs.getFullConstraints(),
-                            querySchema);
+                            sqlCreateTableAs.getColumnList(),
+                            sqlCreateTableAs.getWatermark().orElse(null),
+                            sqlCreateTableAs.getFullConstraints(),
+                            schemaToMerge);
                 }
             }
 
             @Override
             public Map<String, String> getMergedTableOptions() {
-                return SqlReplaceTableAsConverter.this.getDerivedTableOptions(sqlReplaceTableAs);
+                return SqlCreateTableAsConverter.this.getDerivedTableOptions(sqlCreateTableAs);
             }
 
             @Override
             public List<String> getMergedPartitionKeys() {
-                return SqlReplaceTableAsConverter.this.getDerivedPartitionKeys(sqlReplaceTableAs);
+                return SqlCreateTableAsConverter.this.getDerivedPartitionKeys(sqlCreateTableAs);
             }
 
             @Override
             public Optional<TableDistribution> getMergedTableDistribution() {
-                return SqlReplaceTableAsConverter.this.getDerivedTableDistribution(
-                        sqlReplaceTableAs);
+                return SqlCreateTableAsConverter.this.getDerivedTableDistribution(sqlCreateTableAs);
             }
         };
     }
