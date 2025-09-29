@@ -761,7 +761,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
                         checkpointStorageAccess.resolveCheckpointStorageLocation(
                                 checkpointId, locationReference));
 
-        return new OperatorSnapshotFinalizer(operatorStateResult);
+        return OperatorSnapshotFinalizer.create(operatorStateResult);
     }
 
     /**
