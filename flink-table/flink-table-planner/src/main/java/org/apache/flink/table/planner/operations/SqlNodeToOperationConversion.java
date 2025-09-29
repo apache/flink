@@ -615,6 +615,9 @@ public class SqlNodeToOperationConversion {
                                 case ARCHIVE:
                                     resourceType = ResourceType.ARCHIVE;
                                     break;
+                                case ARTIFACT:
+                                    resourceType = ResourceType.ARTIFACT;
+                                    break;
                                 default:
                                     throw new ValidationException(
                                             String.format(
