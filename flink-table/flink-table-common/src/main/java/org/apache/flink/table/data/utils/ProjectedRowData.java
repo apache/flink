@@ -45,11 +45,17 @@ import java.util.Arrays;
 public class ProjectedRowData implements RowData {
 
     private final int[] indexMapping;
+    private final boolean isNullAtNonProjected;
 
     private RowData row;
 
     private ProjectedRowData(int[] indexMapping) {
+        this(indexMapping, false);
+    }
+
+    protected ProjectedRowData(int[] indexMapping, boolean isNullAtNonProjected) {
         this.indexMapping = indexMapping;
+        this.isNullAtNonProjected = isNullAtNonProjected;
     }
 
     /**
@@ -82,7 +88,8 @@ public class ProjectedRowData implements RowData {
 
     @Override
     public boolean isNullAt(int pos) {
-        return row.isNullAt(indexMapping[pos]);
+        return (pos >= indexMapping.length && isNullAtNonProjected)
+                || row.isNullAt(indexMapping[pos]);
     }
 
     @Override
@@ -184,6 +191,15 @@ public class ProjectedRowData implements RowData {
                 + ", mutableRow="
                 + row
                 + '}';
+    }
+
+    /**
+     * Returns a new {@link ProjectedRowData} that, depending on isNullAtNonProjected, returns null
+     * from {@link #isNullAt} if the index is out of range or throws {@link
+     * ArrayIndexOutOfBoundsException}.
+     */
+    public ProjectedRowData withNullAtNonProjected(boolean isNullAtNonProjected) {
+        return new ProjectedRowData(this.indexMapping, isNullAtNonProjected);
     }
 
     /**
