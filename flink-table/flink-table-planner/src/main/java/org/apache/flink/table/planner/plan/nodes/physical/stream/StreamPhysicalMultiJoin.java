@@ -174,15 +174,11 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
                 .item("inputUniqueKeys", formatInputUniqueKeysWithFieldNames())
                 .item("joinConditions", formatJoinConditionsWithFieldNames(pw))
                 .itemIf(
-                        "joinFilter",
-                        formatExpressionWithFieldNames(joinFilter, pw),
-                        joinFilter != null)
-                .itemIf(
                         "postJoinFilter",
                         formatExpressionWithFieldNames(postJoinFilter, pw),
                         postJoinFilter != null)
                 .item("select", String.join(",", getRowType().getFieldNames()))
-                .item("outputRowType", getRowType())
+                .item("rowType", getRowType())
                 .itemIf("stateTtlHints", RelExplainUtil.hintsToString(hints), !hints.isEmpty());
     }
 
