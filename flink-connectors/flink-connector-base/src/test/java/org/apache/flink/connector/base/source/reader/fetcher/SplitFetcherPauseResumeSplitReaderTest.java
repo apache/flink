@@ -254,7 +254,7 @@ class SplitFetcherPauseResumeSplitReaderTest {
                 throws Exception {
             final AtomicReference<Exception> exception = new AtomicReference<>();
             final AtomicInteger numFetches = new AtomicInteger();
-            CommonTestUtils.waitUtil(
+            CommonTestUtils.waitUntil(
                     () -> {
                         try {
                             this.fetcherManager.runEachOnce();
