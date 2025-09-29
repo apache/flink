@@ -45,11 +45,17 @@ import java.util.Arrays;
 public class ProjectedRowData implements RowData {
 
     private final int[] indexMapping;
+    private final boolean isNullAtNonProjected;
 
     private RowData row;
 
     private ProjectedRowData(int[] indexMapping) {
+        this(indexMapping, false);
+    }
+
+    protected ProjectedRowData(int[] indexMapping, boolean isNullAtNonProjected) {
         this.indexMapping = indexMapping;
+        this.isNullAtNonProjected = isNullAtNonProjected;
     }
 
     /**
@@ -82,7 +88,8 @@ public class ProjectedRowData implements RowData {
 
     @Override
     public boolean isNullAt(int pos) {
-        return row.isNullAt(indexMapping[pos]);
+        return (pos >= indexMapping.length && isNullAtNonProjected)
+                || row.isNullAt(indexMapping[pos]);
     }
 
     @Override
@@ -224,6 +231,21 @@ public class ProjectedRowData implements RowData {
      */
     public static ProjectedRowData from(int[] projection) {
         return new ProjectedRowData(projection);
+    }
+
+    /**
+     * Create an empty {@link ProjectedRowData} starting from a {@code projection} array with nulls
+     * allowed for non-projected fields.
+     *
+     * <p>The array represents the mapping of the fields of the original {@link DataType}. For
+     * example, {@code [0, 2, 1]} specifies to include in the following order the 1st field, the 3rd
+     * field and the 2nd field of the row.
+     *
+     * @see Projection
+     * @see ProjectedRowData
+     */
+    public static ProjectedRowData from(int[] projection, boolean isNullAtNonProjected) {
+        return new ProjectedRowData(projection, isNullAtNonProjected);
     }
 
     /**
