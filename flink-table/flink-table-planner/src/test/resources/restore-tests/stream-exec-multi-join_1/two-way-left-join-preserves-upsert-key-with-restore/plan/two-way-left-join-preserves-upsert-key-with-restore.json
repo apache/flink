@@ -1,7 +1,7 @@
 {
   "flinkVersion" : "2.2",
   "nodes" : [ {
-    "id" : 1,
+    "id" : 82,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -30,7 +30,7 @@
     "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL, `product` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[user_id, order_id, product])"
   }, {
-    "id" : 2,
+    "id" : 83,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -43,7 +43,7 @@
     "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL, `product` VARCHAR(2147483647)>",
     "description" : "Exchange(distribution=[hash[user_id]])"
   }, {
-    "id" : 3,
+    "id" : 84,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -81,7 +81,7 @@
     "outputType" : "ROW<`user_id` INT NOT NULL, `shard_id` INT NOT NULL>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id, shard_id], metadata=[]]], fields=[user_id, shard_id])"
   }, {
-    "id" : 4,
+    "id" : 85,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -94,7 +94,7 @@
     "outputType" : "ROW<`user_id` INT NOT NULL, `shard_id` INT NOT NULL>",
     "description" : "Exchange(distribution=[hash[user_id]])"
   }, {
-    "id" : 5,
+    "id" : 86,
     "type" : "stream-exec-multi-join_1",
     "joinTypes" : [ "INNER", "LEFT" ],
     "joinConditions" : [ {
@@ -171,9 +171,9 @@
       "priority" : 1
     } ],
     "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL, `product` VARCHAR(2147483647), `user_id0` INT, `shard_id` INT>",
-    "description" : "MultiJoin(joinFilter=[true], joinTypes=[[INNER, LEFT]], joinConditions=[[true, =($3, $0)]], joinAttributeMap=[{0=[LeftInputId:-1;LeftFieldIndex:-1;RightInputId:0;RightFieldIndex:0;], 1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:0;]}], select=[user_id,order_id,product,user_id0,shard_id], rowType=[RecordType(INTEGER user_id, BIGINT order_id, VARCHAR(2147483647) product, INTEGER user_id0, INTEGER shard_id)])"
+    "description" : "MultiJoin(commonJoinKey=[user_id], joinTypes=[LEFT], inputUniqueKeys=[(user_id, order_id), (user_id)], joinConditions=[(user_id0 = user_id)], select=[user_id,order_id,product,user_id0,shard_id], rowType=[RecordType(INTEGER user_id, BIGINT order_id, VARCHAR(2147483647) product, INTEGER user_id0, INTEGER shard_id)])"
   }, {
-    "id" : 6,
+    "id" : 87,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -203,7 +203,7 @@
     "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL, `product` VARCHAR(2147483647), `shard_id` INT>",
     "description" : "Calc(select=[user_id, order_id, product, shard_id])"
   }, {
-    "id" : 7,
+    "id" : 88,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -239,7 +239,7 @@
         }
       }
     },
-    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER", "DELETE" ],
+    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER", "~DELETE" ],
     "inputUpsertKey" : [ 0, 1 ],
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -252,43 +252,43 @@
     "description" : "Sink(table=[default_catalog.default_database.sink], fields=[user_id, order_id, product, shard_id])"
   } ],
   "edges" : [ {
-    "source" : 1,
-    "target" : 2,
+    "source" : 82,
+    "target" : 83,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 3,
-    "target" : 4,
+    "source" : 84,
+    "target" : 85,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 2,
-    "target" : 5,
+    "source" : 83,
+    "target" : 86,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 4,
-    "target" : 5,
+    "source" : 85,
+    "target" : 86,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 5,
-    "target" : 6,
+    "source" : 86,
+    "target" : 87,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 6,
-    "target" : 7,
+    "source" : 87,
+    "target" : 88,
     "shuffle" : {
       "type" : "FORWARD"
     },
