@@ -166,20 +166,16 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
         }
 
         return pw.item("commonJoinKey", getCommonJoinKeyFieldNames())
-                .item(
-                        "joinTypes",
-                        joinTypes.stream()
-                                .map(JoinRelType::toString)
-                                .collect(Collectors.joining(", ")))
+                .item("joinTypes", formatJoinTypes())
                 .item("inputUniqueKeys", formatInputUniqueKeysWithFieldNames())
+                .itemIf("stateTtlHints", RelExplainUtil.hintsToString(hints), !hints.isEmpty())
                 .item("joinConditions", formatJoinConditionsWithFieldNames(pw))
                 .itemIf(
                         "postJoinFilter",
                         formatExpressionWithFieldNames(postJoinFilter, pw),
                         postJoinFilter != null)
                 .item("select", String.join(",", getRowType().getFieldNames()))
-                .item("rowType", getRowType())
-                .itemIf("stateTtlHints", RelExplainUtil.hintsToString(hints), !hints.isEmpty());
+                .item("rowType", getRowType());
     }
 
     @Override
@@ -338,8 +334,16 @@ public class StreamPhysicalMultiJoin extends AbstractRelNode implements StreamPh
      */
     private String formatJoinConditionsWithFieldNames(final RelWriter pw) {
         return joinConditions.stream()
+                .skip(1)
                 .filter(Objects::nonNull)
                 .map(condition -> formatExpressionWithFieldNames(condition, pw))
+                .collect(Collectors.joining(", "));
+    }
+
+    private String formatJoinTypes() {
+        return joinTypes.stream()
+                .skip(1)
+                .map(JoinRelType::toString)
                 .collect(Collectors.joining(", "));
     }
 
