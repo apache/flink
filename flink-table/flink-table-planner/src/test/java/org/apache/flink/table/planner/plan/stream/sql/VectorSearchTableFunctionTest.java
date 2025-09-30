@@ -1,0 +1,212 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.flink.table.planner.plan.stream.sql;
+
+import org.apache.flink.core.testutils.FlinkAssertions;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.planner.functions.sql.ml.SqlVectorSearchTableFunction;
+import org.apache.flink.table.planner.utils.TableTestBase;
+import org.apache.flink.table.planner.utils.TableTestUtil;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/** Test for {@link SqlVectorSearchTableFunction}. */
+public class VectorSearchTableFunctionTest extends TableTestBase {
+
+    private TableTestUtil util;
+
+    @BeforeEach
+    public void setup() {
+        util = streamTestUtil(TableConfig.getDefault());
+
+        // Create test table
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE QueryTable (\n"
+                                + "  a INT,\n"
+                                + "  b BIGINT,\n"
+                                + "  c STRING,\n"
+                                + "  d ARRAY<FLOAT>,\n"
+                                + "  rowtime TIMESTAMP(3),\n"
+                                + "  proctime as PROCTIME(),\n"
+                                + "  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND\n"
+                                + ") with (\n"
+                                + "  'connector' = 'values'\n"
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE VectorTable (\n"
+                                + "  e INT,\n"
+                                + "  f BIGINT,\n"
+                                + "  g ARRAY<FLOAT>\n"
+                                + ") with (\n"
+                                + "  'connector' = 'values'\n"
+                                + ")");
+    }
+
+    @Test
+    void testSimple() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTable, DESCRIPTOR(`g`), QueryTable.d, 10"
+                        + ")\n"
+                        + ")";
+        util.verifyRelPlan(sql);
+    }
+
+    @Test
+    void testLiteralValue() {
+        String sql =
+                "SELECT * FROM LATERAL TABLE(VECTOR_SEARCH(TABLE VectorTable, DESCRIPTOR(`g`), ARRAY[1.5, 2.0], 10))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                TableException.class,
+                                "FlinkLogicalTableFunctionScan(invocation=[VECTOR_SEARCH(TABLE(#0), DESCRIPTOR(_UTF-16LE'g'), ARRAY(1.5:DECIMAL(2, 1), 2.0:DECIMAL(2, 1)), 10)], rowType=[RecordType(INTEGER e, BIGINT f, FLOAT ARRAY g, DOUBLE score)])\n"
+                                        + "+- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, VectorTable]], fields=[e, f, g])"));
+    }
+
+    @Test
+    void testNamedArgument() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    SEARCH_TABLE => TABLE VectorTable,\n"
+                        + "    COLUMN_TO_QUERY => QueryTable.d,\n"
+                        + "    COLUMN_TO_SEARCH => DESCRIPTOR(`g`),\n"
+                        + "    TOP_K => 10"
+                        + "  )\n"
+                        + ")";
+        util.verifyRelPlan(sql);
+    }
+
+    @Test
+    void testOutOfOrderNamedArgument() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    COLUMN_TO_QUERY => QueryTable.d,\n"
+                        + "    COLUMN_TO_SEARCH => DESCRIPTOR(`g`),\n"
+                        + "    TOP_K => 10,\n"
+                        + "    SEARCH_TABLE => TABLE VectorTable\n"
+                        + "  )\n"
+                        + ")";
+        util.verifyRelPlan(sql);
+    }
+
+    @Test
+    void testNameConflicts() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE NameConflictTable(\n"
+                                + "  a INT,\n"
+                                + "  score ARRAY<FLOAT>,\n"
+                                + "  score0 ARRAY<FLOAT>,\n"
+                                + "  score1 ARRAY<FLOAT>\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'values'\n"
+                                + ")");
+        util.verifyRelPlan(
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE NameConflictTable, DESCRIPTOR(`score`), QueryTable.d, 10))");
+    }
+
+    @Test
+    void testDescriptorTypeIsNotExpected() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTable, DESCRIPTOR(`f`), QueryTable.d, 10"
+                        + ")\n"
+                        + ")";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                ValidationException.class,
+                                "Expect search column `f` type is ARRAY<FLOAT> or ARRAY<DOUBLE>, but its type is BIGINT."));
+    }
+
+    @Test
+    void testDescriptorContainsMultipleColumns() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTable, DESCRIPTOR(`f`, `g`), QueryTable.d, 10"
+                        + ")\n"
+                        + ")";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                ValidationException.class,
+                                "Expect parameter COLUMN_TO_SEARCH for VECTOR_SEARCH only contains one column, but multiple columns are found in operand DESCRIPTOR(`f`, `g`)."));
+    }
+
+    @Test
+    void testQueryColumnIsNotArray() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTable, DESCRIPTOR(`g`), QueryTable.c, 10"
+                        + ")\n"
+                        + ")";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                ValidationException.class,
+                                "Can not cast the query column type STRING to target type FLOAT ARRAY. Please keep the query column type is same to the search column type."));
+    }
+
+    @Test
+    void testIllegalTopKValue1() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTable, DESCRIPTOR(`g`), QueryTable.d, 10.0"
+                        + ")\n"
+                        + ")";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                ValidationException.class,
+                                "Expect parameter topK is integer literal in VECTOR_SEARCH, but it is 10.0 with type DECIMAL(3, 1) NOT NULL."));
+    }
+
+    @Test
+    void testIllegalTopKValue2() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTable, DESCRIPTOR(`g`), QueryTable.d, QueryTable.a"
+                        + ")\n"
+                        + ")";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                ValidationException.class,
+                                "Expect parameter topK is integer literal in VECTOR_SEARCH, but it is QueryTable.a with type INT."));
+    }
+}
