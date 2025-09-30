@@ -299,6 +299,11 @@ public class ChangelogMigrationRestoreTarget<K> implements ChangelogRestoreTarge
                 keyedStateBackend.dispose();
                 changelogStateFactory.dispose();
             }
+
+            @Override
+            public String getBackendTypeIdentifier() {
+                return keyedStateBackend.getBackendTypeIdentifier();
+            }
         };
     }
 }

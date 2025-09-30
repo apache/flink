@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.InternalCheckpointListener;
 import org.apache.flink.api.common.state.v2.State;
@@ -140,4 +141,11 @@ public interface AsyncKeyedStateBackend<K>
 
     @Override
     void dispose();
+
+    /**
+     * @return fixed lower-case string identifying the type of the underlying state backend, e.g.
+     *     rocksdb, hashmap, or unknown.
+     */
+    @Experimental
+    String getBackendTypeIdentifier();
 }

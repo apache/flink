@@ -287,6 +287,11 @@ public class TestSharedBuffer<V> extends SharedBuffer<V> {
             throw new UnsupportedOperationException();
         }
 
+        @Override
+        public String getBackendTypeIdentifier() {
+            return "mock";
+        }
+
         private class CountingIterator<T> implements Iterator<T> {
 
             private final Iterator<T> iterator;

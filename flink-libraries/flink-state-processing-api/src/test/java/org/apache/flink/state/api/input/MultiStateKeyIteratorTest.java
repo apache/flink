@@ -324,6 +324,11 @@ public class MultiStateKeyIteratorTest {
                     "Operations other than getKeys() are not supported on this testing StateBackend.");
         }
 
+        @Override
+        public String getBackendTypeIdentifier() {
+            return "test";
+        }
+
         @Nonnull
         @Override
         public SavepointResources<Integer> savepoint() throws UnsupportedOperationException {

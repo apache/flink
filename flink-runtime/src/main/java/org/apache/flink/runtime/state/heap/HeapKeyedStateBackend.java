@@ -46,6 +46,7 @@ import org.apache.flink.runtime.state.SnapshotExecutionType;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
@@ -404,6 +405,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         final StateSnapshotRestore stateSnapshotRestore = registeredKVStates.get(state);
         StateTable<K, N, ?> table = (StateTable<K, N, ?>) stateSnapshotRestore;
         return table.getKeysAndNamespaces();
+    }
+
+    @Override
+    public String getBackendTypeIdentifier() {
+        return StateBackendLoader.HASHMAP_STATE_BACKEND_NAME;
     }
 
     @Override
