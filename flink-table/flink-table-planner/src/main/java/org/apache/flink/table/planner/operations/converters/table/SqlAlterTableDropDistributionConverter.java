@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
+import org.apache.flink.sql.parser.ddl.SqlAlterTable;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropDistribution;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 
 import java.util.List;
 
@@ -45,17 +45,17 @@ public class SqlAlterTableDropDistributionConverter
         }
 
         List<TableChange> tableChanges = List.of(TableChange.dropDistribution());
-        CatalogTable.Builder builder =
-                CatalogTable.newBuilder()
-                        .comment(resolvedCatalogTable.getComment())
-                        .options(resolvedCatalogTable.getOptions())
-                        .schema(resolvedCatalogTable.getUnresolvedSchema())
-                        .partitionKeys(resolvedCatalogTable.getPartitionKeys());
+        return buildAlterTableChangeOperation(
+                sqlAlterTable,
+                tableChanges,
+                resolvedCatalogTable.getUnresolvedSchema(),
+                resolvedCatalogTable,
+                context.getCatalogManager());
+    }
 
-        resolvedCatalogTable.getSnapshot().ifPresent(builder::snapshot);
-
-        CatalogTable newTable = builder.build();
-        return new AlterTableChangeOperation(
-                tableIdentifier, tableChanges, newTable, sqlAlterTable.ifTableExists());
+    @Override
+    protected TableDistribution getTableDistribution(
+            SqlAlterTable alterTable, ResolvedCatalogTable oldTable) {
+        return null;
     }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.operations.converters.table;
 import org.apache.flink.sql.parser.ddl.SqlAlterTableDropColumn;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.operations.Operation;
@@ -76,8 +77,16 @@ public class SqlAlterTableDropColumnConverter
             tableChanges.add(TableChange.dropColumn(columnToDrop));
         }
 
+        final Schema schema = getUpdatedSchema(oldTable, columnsToDrop);
+
+        return buildAlterTableChangeOperation(
+                dropColumn, tableChanges, schema, oldTable, context.getCatalogManager());
+    }
+
+    private Schema getUpdatedSchema(
+            ResolvedCatalogBaseTable<?> oldTable, Set<String> columnsToDrop) {
         Schema.Builder schemaBuilder = Schema.newBuilder();
-        buildUpdatedColumn(
+        SchemaReferencesManager.buildUpdatedColumn(
                 schemaBuilder,
                 oldTable,
                 (builder, column) -> {
@@ -85,14 +94,9 @@ public class SqlAlterTableDropColumnConverter
                         builder.fromColumns(Collections.singletonList(column));
                     }
                 });
-        buildUpdatedPrimaryKey(schemaBuilder, oldTable, Function.identity());
-        buildUpdatedWatermark(schemaBuilder, oldTable);
-
-        return buildAlterTableChangeOperation(
-                dropColumn,
-                tableChanges,
-                schemaBuilder.build(),
-                oldTable,
-                context.getCatalogManager());
+        SchemaReferencesManager.buildUpdatedPrimaryKey(
+                schemaBuilder, oldTable, Function.identity());
+        SchemaReferencesManager.buildUpdatedWatermark(schemaBuilder, oldTable);
+        return schemaBuilder.build();
     }
 }

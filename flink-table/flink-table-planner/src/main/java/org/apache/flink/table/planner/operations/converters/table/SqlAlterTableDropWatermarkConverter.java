@@ -24,8 +24,9 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.planner.operations.converters.SchemaReferencesManager;
 
-import java.util.Collections;
+import java.util.List;
 import java.util.function.Function;
 
 /** Convert ALTER TABLE DROP WATERMARK to generate an updated {@link Schema}. */
@@ -44,15 +45,14 @@ public class SqlAlterTableDropWatermarkConverter
         }
 
         Schema.Builder schemaBuilder = Schema.newBuilder();
-        buildUpdatedColumn(
-                schemaBuilder,
-                oldTable,
-                (builder, column) -> builder.fromColumns(Collections.singletonList(column)));
-        buildUpdatedPrimaryKey(schemaBuilder, oldTable, Function.identity());
+        SchemaReferencesManager.buildUpdatedColumn(
+                schemaBuilder, oldTable, (builder, column) -> builder.fromColumns(List.of(column)));
+        SchemaReferencesManager.buildUpdatedPrimaryKey(
+                schemaBuilder, oldTable, Function.identity());
 
         return buildAlterTableChangeOperation(
                 dropWatermark,
-                Collections.singletonList(TableChange.dropWatermark()),
+                List.of(TableChange.dropWatermark()),
                 schemaBuilder.build(),
                 oldTable,
                 context.getCatalogManager());

@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.planner.expressions.ColumnReferenceFinder;
@@ -30,6 +32,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -178,5 +182,44 @@ public class SchemaReferencesManager {
                             "%sThe column `%s` is used as a distribution key.",
                             errorMsg.get(), columnName));
         }
+    }
+
+    public static void buildUpdatedColumn(
+            Schema.Builder builder,
+            ResolvedCatalogBaseTable<?> oldTable,
+            BiConsumer<Schema.Builder, Schema.UnresolvedColumn> columnConsumer) {
+        // build column
+        oldTable.getUnresolvedSchema()
+                .getColumns()
+                .forEach(column -> columnConsumer.accept(builder, column));
+    }
+
+    public static void buildUpdatedWatermark(
+            Schema.Builder builder, ResolvedCatalogBaseTable<?> oldTable) {
+        oldTable.getUnresolvedSchema()
+                .getWatermarkSpecs()
+                .forEach(
+                        watermarkSpec ->
+                                builder.watermark(
+                                        watermarkSpec.getColumnName(),
+                                        watermarkSpec.getWatermarkExpression()));
+    }
+
+    public static void buildUpdatedPrimaryKey(
+            Schema.Builder builder,
+            ResolvedCatalogBaseTable<?> oldTable,
+            Function<String, String> columnRenamer) {
+        oldTable.getUnresolvedSchema()
+                .getPrimaryKey()
+                .ifPresent(
+                        pk -> {
+                            List<String> oldPrimaryKeyNames = pk.getColumnNames();
+                            String constrainName = pk.getConstraintName();
+                            List<String> newPrimaryKeyNames =
+                                    oldPrimaryKeyNames.stream()
+                                            .map(columnRenamer)
+                                            .collect(Collectors.toList());
+                            builder.primaryKeyNamed(constrainName, newPrimaryKeyNames);
+                        });
     }
 }

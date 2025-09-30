@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.planner.operations.converters.SchemaReferencesManager;
 
 import java.util.List;
 import java.util.Optional;
@@ -44,10 +45,11 @@ public class SqlAlterTableDropPrimaryKeyConverter
                     String.format(
                             "%sThe base table does not define any primary key.", EX_MSG_PREFIX));
         }
+
         Schema.Builder schemaBuilder = Schema.newBuilder();
-        buildUpdatedColumn(
+        SchemaReferencesManager.buildUpdatedColumn(
                 schemaBuilder, oldTable, (builder, column) -> builder.fromColumns(List.of(column)));
-        buildUpdatedWatermark(schemaBuilder, oldTable);
+        SchemaReferencesManager.buildUpdatedWatermark(schemaBuilder, oldTable);
 
         return buildAlterTableChangeOperation(
                 sqlAlterTable,

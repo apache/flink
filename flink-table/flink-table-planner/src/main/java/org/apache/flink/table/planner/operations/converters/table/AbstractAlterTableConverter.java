@@ -41,10 +41,8 @@ import org.apache.flink.table.planner.utils.OperationConverterUtils;
 import org.apache.calcite.sql.SqlIdentifier;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /** Abstract class for ALTER TABLE converters. */
 public abstract class AbstractAlterTableConverter<T extends SqlAlterTable>
@@ -54,8 +52,29 @@ public abstract class AbstractAlterTableConverter<T extends SqlAlterTable>
     protected abstract Operation convertToOperation(
             T sqlAlterTable, ResolvedCatalogTable oldTable, ConvertContext context);
 
+    protected final Schema getOldSchema(ResolvedCatalogTable resolvedCatalogTable) {
+        return resolvedCatalogTable.getUnresolvedSchema();
+    }
+
+    protected final TableDistribution getOldTableDistribution(
+            ResolvedCatalogTable resolvedCatalogTable) {
+        return resolvedCatalogTable.getDistribution().orElse(null);
+    }
+
+    protected final List<String> getOldPartitionKeys(ResolvedCatalogTable resolvedCatalogTable) {
+        return resolvedCatalogTable.getPartitionKeys();
+    }
+
+    protected final String getOldComment(ResolvedCatalogTable resolvedCatalogTable) {
+        return resolvedCatalogTable.getComment();
+    }
+
+    protected final Map<String, String> getOldOptions(ResolvedCatalogTable resolvedCatalogTable) {
+        return resolvedCatalogTable.getOptions();
+    }
+
     @Override
-    public Operation convertSqlNode(T sqlAlterTable, ConvertContext context) {
+    public final Operation convertSqlNode(T sqlAlterTable, ConvertContext context) {
         CatalogManager catalogManager = context.getCatalogManager();
         final ObjectIdentifier tableIdentifier = getIdentifier(sqlAlterTable, context);
         Optional<ContextResolvedTable> optionalCatalogTable =
@@ -78,45 +97,6 @@ public abstract class AbstractAlterTableConverter<T extends SqlAlterTable>
                 sqlAlterTable, optionalCatalogTable.get().getResolvedTable(), context);
     }
 
-    protected final void buildUpdatedColumn(
-            Schema.Builder builder,
-            ResolvedCatalogTable oldTable,
-            BiConsumer<Schema.Builder, Schema.UnresolvedColumn> columnConsumer) {
-        // build column
-        oldTable.getUnresolvedSchema()
-                .getColumns()
-                .forEach(column -> columnConsumer.accept(builder, column));
-    }
-
-    protected final void buildUpdatedWatermark(
-            Schema.Builder builder, ResolvedCatalogTable oldTable) {
-        oldTable.getUnresolvedSchema()
-                .getWatermarkSpecs()
-                .forEach(
-                        watermarkSpec ->
-                                builder.watermark(
-                                        watermarkSpec.getColumnName(),
-                                        watermarkSpec.getWatermarkExpression()));
-    }
-
-    protected final void buildUpdatedPrimaryKey(
-            Schema.Builder builder,
-            ResolvedCatalogTable oldTable,
-            Function<String, String> columnRenamer) {
-        oldTable.getUnresolvedSchema()
-                .getPrimaryKey()
-                .ifPresent(
-                        pk -> {
-                            List<String> oldPrimaryKeyNames = pk.getColumnNames();
-                            String constrainName = pk.getConstraintName();
-                            List<String> newPrimaryKeyNames =
-                                    oldPrimaryKeyNames.stream()
-                                            .map(columnRenamer)
-                                            .collect(Collectors.toList());
-                            builder.primaryKeyNamed(constrainName, newPrimaryKeyNames);
-                        });
-    }
-
     protected final Operation buildAlterTableChangeOperation(
             SqlAlterTable alterTable,
             List<TableChange> tableChanges,
@@ -133,26 +113,14 @@ public abstract class AbstractAlterTableConverter<T extends SqlAlterTable>
                         .distribution(tableDistribution)
                         .options(oldTable.getOptions());
 
+        oldTable.getSnapshot().ifPresent(builder::snapshot);
+
         return new AlterTableChangeOperation(
                 catalogManager.qualifyIdentifier(
                         UnresolvedIdentifier.of(alterTable.fullTableName())),
                 tableChanges,
                 builder.build(),
                 alterTable.ifTableExists());
-    }
-
-    private TableDistribution getTableDistribution(
-            SqlAlterTable alterTable, ResolvedCatalogTable oldTable) {
-        if (alterTable instanceof SqlAlterTableSchema) {
-            final Optional<TableDistribution> tableDistribution =
-                    ((SqlAlterTableSchema) alterTable)
-                            .getDistribution()
-                            .map(OperationConverterUtils::getDistributionFromSqlDistribution);
-            if (tableDistribution.isPresent()) {
-                return tableDistribution.get();
-            }
-        }
-        return oldTable.getDistribution().orElse(null);
     }
 
     protected static String getColumnName(SqlIdentifier identifier) {
@@ -168,5 +136,19 @@ public abstract class AbstractAlterTableConverter<T extends SqlAlterTable>
     protected final ObjectIdentifier getIdentifier(SqlAlterTable node, ConvertContext context) {
         UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.fullTableName());
         return context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
+    }
+
+    protected TableDistribution getTableDistribution(
+            SqlAlterTable alterTable, ResolvedCatalogTable oldTable) {
+        if (alterTable instanceof SqlAlterTableSchema) {
+            final Optional<TableDistribution> tableDistribution =
+                    ((SqlAlterTableSchema) alterTable)
+                            .getDistribution()
+                            .map(OperationConverterUtils::getDistributionFromSqlDistribution);
+            if (tableDistribution.isPresent()) {
+                return tableDistribution.get();
+            }
+        }
+        return oldTable.getDistribution().orElse(null);
     }
 }

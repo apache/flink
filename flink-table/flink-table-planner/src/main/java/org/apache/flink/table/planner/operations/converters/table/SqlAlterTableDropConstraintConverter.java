@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.planner.operations.converters.SchemaReferencesManager;
 
 import org.apache.calcite.sql.SqlIdentifier;
 
@@ -55,10 +56,11 @@ public class SqlAlterTableDropConstraintConverter
                                     + "Available constraint name: ['%s'].",
                             EX_MSG_PREFIX, constraintIdentifier.getSimple(), constraintName));
         }
+
         Schema.Builder schemaBuilder = Schema.newBuilder();
-        buildUpdatedColumn(
+        SchemaReferencesManager.buildUpdatedColumn(
                 schemaBuilder, oldTable, (builder, column) -> builder.fromColumns(List.of(column)));
-        buildUpdatedWatermark(schemaBuilder, oldTable);
+        SchemaReferencesManager.buildUpdatedWatermark(schemaBuilder, oldTable);
 
         return buildAlterTableChangeOperation(
                 dropConstraint,

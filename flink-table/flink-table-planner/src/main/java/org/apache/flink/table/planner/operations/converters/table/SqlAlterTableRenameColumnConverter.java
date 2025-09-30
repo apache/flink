@@ -51,7 +51,7 @@ public class SqlAlterTableRenameColumnConverter
 
         // generate new schema
         Schema.Builder schemaBuilder = Schema.newBuilder();
-        buildUpdatedColumn(
+        SchemaReferencesManager.buildUpdatedColumn(
                 schemaBuilder,
                 oldTable,
                 (builder, column) -> {
@@ -61,9 +61,9 @@ public class SqlAlterTableRenameColumnConverter
                         builder.fromColumns(List.of(column));
                     }
                 });
-        buildUpdatedPrimaryKey(
+        SchemaReferencesManager.buildUpdatedPrimaryKey(
                 schemaBuilder, oldTable, (pk) -> pk.equals(oldColumnName) ? newColumnName : pk);
-        buildUpdatedWatermark(schemaBuilder, oldTable);
+        SchemaReferencesManager.buildUpdatedWatermark(schemaBuilder, oldTable);
 
         return buildAlterTableChangeOperation(
                 renameColumn,
