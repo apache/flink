@@ -262,6 +262,17 @@
       "type" : "BOOLEAN"
     },
     "joinAttributeMap" : {
+      "0" : [ {
+        "leftInputId" : -1,
+        "leftFieldIndex" : -1,
+        "rightInputId" : 0,
+        "rightFieldIndex" : 1
+      }, {
+        "leftInputId" : -1,
+        "leftFieldIndex" : -1,
+        "rightInputId" : 0,
+        "rightFieldIndex" : 1
+      } ],
       "1" : [ {
         "leftInputId" : 0,
         "leftFieldIndex" : 1,
@@ -312,7 +323,7 @@
       "priority" : 2
     } ],
     "outputType" : "ROW<`name` VARCHAR(2147483647), `user_id_0` VARCHAR(2147483647) NOT NULL, `order_id` VARCHAR(2147483647), `user_id_1` VARCHAR(2147483647), `user_id_2` VARCHAR(2147483647), `payment_id` VARCHAR(2147483647) NOT NULL>",
-    "description" : "MultiJoin(commonJoinKey=[user_id_0], joinTypes=[INNER, LEFT, INNER], inputUniqueKeys=[(user_id_0), (order_id), (payment_id)], joinConditions=[true, (user_id_0 = user_id_1), (user_id_0 = user_id_2)], joinFilter=[(user_id_0 = user_id_2)], select=[name,user_id_0,order_id,user_id_1,user_id_2,payment_id], outputRowType=[RecordType(VARCHAR(2147483647) name, VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) user_id_2, VARCHAR(2147483647) payment_id)])"
+    "description" : "MultiJoin(commonJoinKey=[user_id_0], joinTypes=[LEFT, INNER], inputUniqueKeys=[(user_id_0), (order_id), (payment_id)], joinConditions=[(user_id_0 = user_id_1), (user_id_0 = user_id_2)], select=[name,user_id_0,order_id,user_id_1,user_id_2,payment_id], rowType=[RecordType(VARCHAR(2147483647) name, VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) user_id_2, VARCHAR(2147483647) payment_id)])"
   }, {
     "id" : 41,
     "type" : "stream-exec-calc_1",
@@ -429,6 +440,12 @@
       "type" : "BOOLEAN"
     },
     "joinAttributeMap" : {
+      "0" : [ {
+        "leftInputId" : -1,
+        "leftFieldIndex" : -1,
+        "rightInputId" : 0,
+        "rightFieldIndex" : 3
+      } ],
       "1" : [ {
         "leftInputId" : 0,
         "leftFieldIndex" : 3,
@@ -462,7 +479,7 @@
       "priority" : 1
     } ],
     "outputType" : "ROW<`name` VARCHAR(2147483647), `user_id_0` VARCHAR(2147483647) NOT NULL, `order_id` VARCHAR(2147483647), `payment_id` VARCHAR(2147483647) NOT NULL, `location` VARCHAR(2147483647), `user_id_3` VARCHAR(2147483647)>",
-    "description" : "MultiJoin(commonJoinKey=[payment_id], joinTypes=[INNER, LEFT], inputUniqueKeys=[noUniqueKey, noUniqueKey], joinConditions=[true, (payment_id = user_id_3)], joinFilter=[true], select=[name,user_id_0,order_id,payment_id,location,user_id_3], outputRowType=[RecordType(VARCHAR(2147483647) name, VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) order_id, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) location, VARCHAR(2147483647) user_id_3)])"
+    "description" : "MultiJoin(commonJoinKey=[payment_id], joinTypes=[LEFT], inputUniqueKeys=[noUniqueKey, noUniqueKey], joinConditions=[(payment_id = user_id_3)], select=[name,user_id_0,order_id,payment_id,location,user_id_3], rowType=[RecordType(VARCHAR(2147483647) name, VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) order_id, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) location, VARCHAR(2147483647) user_id_3)])"
   }, {
     "id" : 46,
     "type" : "stream-exec-calc_1",
