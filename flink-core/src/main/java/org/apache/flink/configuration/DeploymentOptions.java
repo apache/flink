@@ -32,6 +32,21 @@ import static org.apache.flink.configuration.description.TextElement.text;
 @PublicEvolving
 public class DeploymentOptions {
 
+    public enum LocalExecutionMode {
+        PRE_JOB,
+        SESSION
+    }
+
+    public static final ConfigOption<LocalExecutionMode> LOCAL_EXECTION_MODE =
+            key("local.execution.mode")
+                    .enumType(LocalExecutionMode.class)
+                    .defaultValue(LocalExecutionMode.PRE_JOB)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The local execution mode when execution.target is local.")
+                                    .build());
+
     public static final ConfigOption<String> TARGET =
             key("execution.target")
                     .stringType()
