@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.operations.converters;
+package org.apache.flink.table.planner.operations.converters.table;
 
 import org.apache.flink.sql.parser.dml.SqlTruncateTable;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -28,6 +28,7 @@ import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.TruncateTableOperation;
 import org.apache.flink.table.operations.utils.ValidationUtils;
+import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
 
 /** A converter for {@link SqlTruncateTable}. */
 public class SqlTruncateTableConverter implements SqlNodeConverter<SqlTruncateTable> {
