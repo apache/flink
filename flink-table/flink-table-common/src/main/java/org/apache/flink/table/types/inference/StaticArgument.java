@@ -73,6 +73,7 @@ public class StaticArgument {
         checkTraits(traits);
         checkOptionalType();
         checkTableType();
+        checkModelType();
     }
 
     /**
@@ -142,6 +143,23 @@ public class StaticArgument {
             EnumSet<StaticArgumentTrait> traits) {
         Preconditions.checkNotNull(dataType, "Data type must not be null.");
         return new StaticArgument(name, dataType, null, isOptional, enrichTableTraits(traits));
+    }
+
+    /**
+     * Declares a model argument such as {@code f(m => myModel)} or {@code f(m => MODEL myModel))}.
+     *
+     * <p>By using this method, the argument supports a "polymorphic" behavior. In other words: it
+     * accepts models with arbitrary schemas or types.
+     *
+     * @param name name for the assignment operator e.g. {@code f(myArg => myModel)}
+     * @param isOptional whether the argument is optional
+     * @param traits set of {@link StaticArgumentTrait} requiring {@link StaticArgumentTrait#MODEL}
+     */
+    public static StaticArgument model(
+            String name, boolean isOptional, EnumSet<StaticArgumentTrait> traits) {
+        final EnumSet<StaticArgumentTrait> enrichedTraits = EnumSet.copyOf(traits);
+        enrichedTraits.add(StaticArgumentTrait.MODEL);
+        return new StaticArgument(name, null, null, isOptional, enrichedTraits);
     }
 
     private static EnumSet<StaticArgumentTrait> enrichTableTraits(
@@ -283,6 +301,13 @@ public class StaticArgument {
         checkTypedTableType();
     }
 
+    private void checkModelType() {
+        if (!traits.contains(StaticArgumentTrait.MODEL)) {
+            return;
+        }
+        checkModelNotOptional();
+    }
+
     private void checkTableNotOptional() {
         if (isOptional) {
             throw new ValidationException("Table arguments must not be optional.");
@@ -321,6 +346,12 @@ public class StaticArgument {
                             "Invalid data type '%s' for table argument '%s'. "
                                     + "Table arguments that support updates must use a row type.",
                             type, name));
+        }
+    }
+
+    private void checkModelNotOptional() {
+        if (isOptional) {
+            throw new ValidationException("Model arguments must not be optional.");
         }
     }
 }
