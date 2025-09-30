@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.sink;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.OperatorStateHandle;
@@ -29,9 +30,13 @@ import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
+import org.apache.flink.table.api.config.ExecutionConfigOptions.SinkUpsertMaterializeStrategy;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.GeneratedHashFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
+import org.apache.flink.table.runtime.generated.HashFunction;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
+import org.apache.flink.table.runtime.sequencedmultisetstate.SequencedMultiSetStateConfig;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -49,10 +54,13 @@ import org.junit.runners.Parameterized.Parameter;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.api.java.tuple.Tuple2.of;
+import static org.apache.flink.streaming.api.TimeDomain.PROCESSING_TIME;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
@@ -66,16 +74,22 @@ public class SinkUpsertMaterializerTest {
 
     static final int UPSERT_KEY = 0;
 
-    @Parameter public SinkUpsertMaterializerStateBackend stateBackend;
+    @Parameter(0)
+    public SinkUpsertMaterializeStrategy strategy;
 
-    @Parameterized.Parameters(name = "stateBackend={0}")
-    public static Object[][] generateTestParameters() {
+    @Parameter(1)
+    public SinkUpsertMaterializerStateBackend stateBackend;
+
+    @Parameterized.Parameters(name = "stateStrategy={0}, stateBackend={1}, ")
+    public static Collection<Object[]> generateTestParameters() {
         List<Object[]> result = new ArrayList<>();
         for (SinkUpsertMaterializerStateBackend backend :
                 SinkUpsertMaterializerStateBackend.values()) {
-            result.add(new Object[] {backend});
+            for (SinkUpsertMaterializeStrategy strategy : SinkUpsertMaterializeStrategy.values()) {
+                result.add(new Object[] {strategy, backend});
+            }
         }
-        return result.toArray(new Object[0][]);
+        return result;
     }
 
     static final StateTtlConfig TTL_CONFIG = StateConfigUtil.createTtlConfig(1000);
@@ -92,11 +106,27 @@ public class SinkUpsertMaterializerTest {
                 }
             };
 
+    static final GeneratedHashFunction GENERATED_HASH_FUNCTION =
+            new GeneratedHashFunction("", "", new Object[0], new Configuration()) {
+                @Override
+                public HashFunction newInstance(ClassLoader classLoader) {
+                    return new TestRecordEqualiser();
+                }
+            };
+
     static final GeneratedRecordEqualiser UPSERT_KEY_EQUALISER =
             new GeneratedRecordEqualiser("", "", new Object[0]) {
 
                 @Override
                 public RecordEqualiser newInstance(ClassLoader classLoader) {
+                    return new TestUpsertKeyEqualiser();
+                }
+            };
+
+    static final GeneratedHashFunction GENERATED_UPSERT_HASH_FUNCTION =
+            new GeneratedHashFunction("", "", new Object[0], new Configuration()) {
+                @Override
+                public HashFunction newInstance(ClassLoader classLoader) {
                     return new TestUpsertKeyEqualiser();
                 }
             };
@@ -203,7 +233,11 @@ public class SinkUpsertMaterializerTest {
         testHarness.setStateTtlProcessingTime(1002);
 
         testHarness.processElement(deleteRecord(4L, 1, "a4"));
-        ASSERTOR.shouldEmitNothing(testHarness);
+        if (isTtlSupported()) {
+            ASSERTOR.shouldEmitNothing(testHarness);
+        } else {
+            ASSERTOR.shouldEmit(testHarness, rowOfKind(RowKind.DELETE, 4L, 1, "a4"));
+        }
 
         testHarness.close();
     }
@@ -240,7 +274,11 @@ public class SinkUpsertMaterializerTest {
         testHarness.setStateTtlProcessingTime(1002);
 
         testHarness.processElement(deleteRecord(4L, 1, "a4"));
-        ASSERTOR.shouldEmitNothing(testHarness);
+        if (isTtlSupported()) {
+            ASSERTOR.shouldEmitNothing(testHarness);
+        } else {
+            ASSERTOR.shouldEmit(testHarness, rowOfKind(RowKind.DELETE, 4L, 1, "a4"));
+        }
 
         testHarness.close();
     }
@@ -335,7 +373,7 @@ public class SinkUpsertMaterializerTest {
         testHarness.close();
     }
 
-    private static class TestRecordEqualiser implements RecordEqualiser {
+    private static class TestRecordEqualiser implements RecordEqualiser, HashFunction {
         @Override
         public boolean equals(RowData row1, RowData row2) {
             return row1.getRowKind() == row2.getRowKind()
@@ -343,14 +381,25 @@ public class SinkUpsertMaterializerTest {
                     && row1.getInt(1) == row2.getInt(1)
                     && row1.getString(2).equals(row2.getString(2));
         }
+
+        @Override
+        public int hashCode(Object data) {
+            RowData rd = (RowData) data;
+            return Objects.hash(rd.getRowKind(), rd.getLong(0), rd.getInt(1), rd.getString(2));
+        }
     }
 
-    private static class TestUpsertKeyEqualiser implements RecordEqualiser {
-
+    private static class TestUpsertKeyEqualiser implements RecordEqualiser, HashFunction {
         @Override
         public boolean equals(RowData row1, RowData row2) {
             return row1.getRowKind() == row2.getRowKind()
                     && row1.getLong(UPSERT_KEY) == row2.getLong(UPSERT_KEY);
+        }
+
+        @Override
+        public int hashCode(Object data) {
+            RowData rd = (RowData) data;
+            return Objects.hash(rd.getRowKind(), rd.getLong(UPSERT_KEY));
         }
     }
 
@@ -360,8 +409,51 @@ public class SinkUpsertMaterializerTest {
 
     private OneInputStreamOperator<RowData, RowData> createOperator(
             LogicalType[] types, int... upsertKey) {
-        return SinkUpsertMaterializer.create(
-                TTL_CONFIG, RowType.of(types), EQUALISER, UPSERT_KEY_EQUALISER, upsertKey);
+        switch (strategy) {
+            case LEGACY:
+                return SinkUpsertMaterializer.create(
+                        TTL_CONFIG, RowType.of(types), EQUALISER, UPSERT_KEY_EQUALISER, upsertKey);
+            case MAP:
+                return createV2(
+                        types,
+                        upsertKey,
+                        SequencedMultiSetStateConfig.forMap(PROCESSING_TIME, getStateTtlConfig()));
+            case VALUE:
+                return createV2(
+                        types,
+                        upsertKey,
+                        SequencedMultiSetStateConfig.forValue(
+                                PROCESSING_TIME, getStateTtlConfig()));
+            case ADAPTIVE:
+                return createV2(
+                        types,
+                        upsertKey,
+                        SequencedMultiSetStateConfig.adaptive(
+                                PROCESSING_TIME, 10L, 5L, getStateTtlConfig()));
+            default:
+                throw new IllegalArgumentException(
+                        "Unknown SinkUpsertMaterializeStrategy" + strategy);
+        }
+    }
+
+    private StateTtlConfig getStateTtlConfig() {
+        SinkUpsertMaterializerVersion version =
+                strategy == SinkUpsertMaterializeStrategy.LEGACY
+                        ? SinkUpsertMaterializerVersion.V1
+                        : SinkUpsertMaterializerVersion.V2;
+        return version.reconfigureTtl(TTL_CONFIG);
+    }
+
+    private static SinkUpsertMaterializerV2 createV2(
+            LogicalType[] types, int[] upsertKey, SequencedMultiSetStateConfig stateSettings) {
+        return SinkUpsertMaterializerV2.create(
+                RowType.of(types),
+                EQUALISER,
+                UPSERT_KEY_EQUALISER,
+                GENERATED_HASH_FUNCTION,
+                GENERATED_UPSERT_HASH_FUNCTION,
+                upsertKey,
+                stateSettings);
     }
 
     private KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> createHarness(
@@ -459,5 +551,9 @@ public class SinkUpsertMaterializerTest {
             harness.open();
             return harness.snapshotWithLocalState(newCheckpointID, newCheckpointID);
         }
+    }
+
+    private boolean isTtlSupported() {
+        return strategy == SinkUpsertMaterializeStrategy.LEGACY;
     }
 }

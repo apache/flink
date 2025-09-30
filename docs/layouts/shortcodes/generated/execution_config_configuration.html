@@ -246,6 +246,24 @@ By default no operator is disabled.</td>
             <td>Because of the disorder of ChangeLog data caused by Shuffle in distributed system, the data received by Sink may not be the order of global upsert. So add upsert materialize operator before upsert sink. It receives the upstream changelog records and generate an upsert view for the downstream.<br />By default, the materialize operator will be added when a distributed disorder occurs on unique keys. You can also choose no materialization(NONE) or force materialization(FORCE).<br /><br />Possible values:<ul><li>"NONE"</li><li>"AUTO"</li><li>"FORCE"</li></ul></td>
         </tr>
         <tr>
+            <td><h5>table.exec.sink.upsert-materialize-strategy.adaptive.threshold.high</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Long</td>
+            <td>When using strategy=ADAPTIVE, defines the number of entries per key when the implementation is changed from VALUE to MAP. If not specified, Flink uses state-backend specific defaults (400 for hashmap state backend and 50 for RocksDB and the rest).<br />The option takes effect during job (re)starting<br /></td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.sink.upsert-materialize-strategy.adaptive.threshold.low</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Long</td>
+            <td>When using strategy=ADAPTIVE, defines the number of entries per key when the implementation is changed from MAP to VALUE. If not specified, Flink uses state-backend specific defaults (300 for hashmap state backend and 40 for RocksDB and the rest).<br />The option takes effect during job (re)starting<br /></td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.sink.upsert-materialize-strategy.type</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">LEGACY</td>
+            <td><p>Enum</p></td>
+            <td>Which strategy of SinkUpsertMaterializer to use. Supported strategies:<br />LEGACY: Simple implementation based on ValueState&lt;List&gt; (the original implementation).<br />MAP: OrderedMultiSetState-based implementation based on a combination of several MapState maintaining ordering and fast lookup properties.<br />VALUE: Similar to LEGACY, but compatible with MAP and therefore allows to switch to ADAPTIVE.<br />ADAPTIVE: Alternate between MAP and VALUE depending on the number of entries for the given key starting with VALUE and switching to MAP upon reaching threshold.high value (and back to VALUE, when reaching low).<br /><br />Possible values:<ul><li>"LEGACY"</li><li>"MAP"</li><li>"VALUE"</li><li>"ADAPTIVE"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>table.exec.sort.async-merge-enabled</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>

@@ -20,24 +20,28 @@ package org.apache.flink.table.runtime.sequencedmultisetstate;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.streaming.api.TimeDomain;
+import org.apache.flink.table.runtime.sequencedmultisetstate.SequencedMultiSetState.Strategy;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Configuration for {@link SequencedMultiSetState}. */
-public class SequencedMultiSetStateConfig {
+public class SequencedMultiSetStateConfig implements Serializable {
 
-    private final SequencedMultiSetState.Strategy strategy;
+    private static final long serialVersionUID = 1L;
+
+    private final Strategy strategy;
     private final @Nullable Long adaptiveHighThresholdOverride;
     private final @Nullable Long adaptiveLowThresholdOverride;
     private final StateTtlConfig ttlConfig;
     private final TimeSelector ttlTimeSelector;
 
     public SequencedMultiSetStateConfig(
-            SequencedMultiSetState.Strategy strategy,
+            Strategy strategy,
             @Nullable Long adaptiveHighThresholdOverride,
             @Nullable Long adaptiveLowThresholdOverride,
             StateTtlConfig ttlConfig,
@@ -51,7 +55,7 @@ public class SequencedMultiSetStateConfig {
     }
 
     public SequencedMultiSetStateConfig(
-            SequencedMultiSetState.Strategy strategy,
+            Strategy strategy,
             @Nullable Long adaptiveHighThresholdOverride,
             @Nullable Long adaptiveLowThresholdOverride,
             StateTtlConfig ttlConfig,
@@ -74,22 +78,22 @@ public class SequencedMultiSetStateConfig {
     public static SequencedMultiSetStateConfig forMap(
             TimeDomain ttlTimeDomain, StateTtlConfig ttlConfig) {
         return new SequencedMultiSetStateConfig(
-                SequencedMultiSetState.Strategy.MAP_STATE, null, null, ttlConfig, ttlTimeDomain);
+                Strategy.MAP_STATE, null, null, ttlConfig, ttlTimeDomain);
     }
 
     public static SequencedMultiSetStateConfig forValue(
             TimeDomain ttlTimeDomain, StateTtlConfig ttl) {
         return new SequencedMultiSetStateConfig(
-                SequencedMultiSetState.Strategy.VALUE_STATE, null, null, ttl, ttlTimeDomain);
+                Strategy.VALUE_STATE, null, null, ttl, ttlTimeDomain);
     }
 
     public static SequencedMultiSetStateConfig adaptive(
             TimeDomain ttlTimeDomain,
-            long adaptiveHighThresholdOverride,
-            long adaptiveLowThresholdOverride,
+            @Nullable Long adaptiveHighThresholdOverride,
+            @Nullable Long adaptiveLowThresholdOverride,
             StateTtlConfig ttl) {
         return new SequencedMultiSetStateConfig(
-                SequencedMultiSetState.Strategy.ADAPTIVE,
+                Strategy.ADAPTIVE,
                 adaptiveHighThresholdOverride,
                 adaptiveLowThresholdOverride,
                 ttl,
@@ -100,7 +104,7 @@ public class SequencedMultiSetStateConfig {
         return ttlTimeSelector;
     }
 
-    public SequencedMultiSetState.Strategy getStrategy() {
+    public Strategy getStrategy() {
         return strategy;
     }
 

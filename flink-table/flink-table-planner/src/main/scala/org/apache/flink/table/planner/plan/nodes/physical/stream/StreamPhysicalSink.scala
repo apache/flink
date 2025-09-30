@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY
 import org.apache.flink.table.catalog.ContextResolvedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -102,13 +103,17 @@ class StreamPhysicalSink(
       .reuseOrCreate(cluster.getMetadataQuery)
       .getUpsertKeys(inputRel)
 
+    val config = unwrapTableConfig(this)
     new StreamExecSink(
-      unwrapTableConfig(this),
+      config,
       tableSinkSpec,
       inputChangelogMode,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       upsertMaterialize,
+      // persist upsertMaterialize strategy separately in the compiled plan to make it immutable;
+      // later on, it can't be obtained from the node config because it is merged with the new environment
+      config.get(TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY),
       UpsertKeyUtil.getSmallestKey(inputUpsertKeys),
       getRelDetailedDescription)
   }
