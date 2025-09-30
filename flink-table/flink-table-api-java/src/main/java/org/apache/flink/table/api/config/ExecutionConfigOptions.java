@@ -160,6 +160,74 @@ public class ExecutionConfigOptions {
                                     .build());
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Long>
+            TABLE_EXEC_SINK_UPSERT_MATERIALIZE_ADAPTIVE_THRESHOLD_LOW =
+                    key("table.exec.sink.upsert-materialize-strategy.adaptive.threshold.low")
+                            .longType()
+                            .noDefaultValue()
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "When using strategy="
+                                                            + SinkUpsertMaterializeStrategy.ADAPTIVE
+                                                            + ", defines the number of entries per key when the implementation is changed from "
+                                                            + SinkUpsertMaterializeStrategy.MAP
+                                                            + " to "
+                                                            + SinkUpsertMaterializeStrategy.VALUE
+                                                            + ". "
+                                                            + "If not specified, Flink uses state-backend specific defaults (300 for hashmap state backend and 40 for RocksDB and the rest).")
+                                            .linebreak()
+                                            .build());
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Long>
+            TABLE_EXEC_SINK_UPSERT_MATERIALIZE_ADAPTIVE_THRESHOLD_HIGH =
+                    key("table.exec.sink.upsert-materialize-strategy.adaptive.threshold.high")
+                            .longType()
+                            .noDefaultValue()
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "When using strategy="
+                                                            + SinkUpsertMaterializeStrategy.ADAPTIVE
+                                                            + ", defines the number of entries per key when the implementation is changed from "
+                                                            + SinkUpsertMaterializeStrategy.VALUE
+                                                            + " to "
+                                                            + SinkUpsertMaterializeStrategy.MAP
+                                                            + ". "
+                                                            + "If not specified, Flink uses state-backend specific defaults (400 for hashmap state backend and 50 for RocksDB and the rest).")
+                                            .linebreak()
+                                            .build());
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<SinkUpsertMaterializeStrategy>
+            TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY =
+                    key("table.exec.sink.upsert-materialize-strategy.type")
+                            .enumType(SinkUpsertMaterializeStrategy.class)
+                            .defaultValue(SinkUpsertMaterializeStrategy.LEGACY)
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "Which strategy of SinkUpsertMaterializer to use. Supported strategies:")
+                                            .linebreak()
+                                            .text(
+                                                    SinkUpsertMaterializeStrategy.LEGACY
+                                                            + ": Simple implementation based on ValueState<List> (the original implementation).")
+                                            .linebreak()
+                                            .text(
+                                                    SinkUpsertMaterializeStrategy.MAP
+                                                            + ": SequencedMultiSetState implementation based on a combination of several MapState maintaining ordering and fast lookup properties.")
+                                            .linebreak()
+                                            .text(
+                                                    SinkUpsertMaterializeStrategy.VALUE
+                                                            + ": Similar to LEGACY, but compatible with MAP and therefore allows to switch to ADAPTIVE.")
+                                            .linebreak()
+                                            .text(
+                                                    SinkUpsertMaterializeStrategy.ADAPTIVE
+                                                            + ": Alternate between MAP and VALUE depending on the number of entries for the given key starting with VALUE and switching to MAP upon reaching threshold.high value (and back to VALUE, when reaching low).")
+                                            .build());
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<SinkKeyedShuffle> TABLE_EXEC_SINK_KEYED_SHUFFLE =
             key("table.exec.sink.keyed-shuffle")
                     .enumType(SinkKeyedShuffle.class)
@@ -926,6 +994,43 @@ public class ExecutionConfigOptions {
 
         /** A fixed delay before retrying again. */
         FIXED_DELAY
+    }
+
+    /** SinkUpsertMaterializer strategy. */
+    @PublicEvolving
+    public enum SinkUpsertMaterializeStrategy {
+        /**
+         * Simple implementation based on {@code ValueState<List>} (the original implementation).
+         *
+         * <ul>
+         *   <li>optimal for cases with history under approx. 100 elements
+         *   <li>limited TTL support (per key granularity, i.e. no expiration for old history
+         *       elements)
+         * </ul>
+         */
+        LEGACY,
+        /**
+         * OrderedMultiSetState-based implementation based on a combination of several MapState
+         * maintaining ordering and fast lookup properties.
+         *
+         * <ul>
+         *   <li>faster and more memory-efficient on long histories
+         *   <li>slower on short histories
+         *   <li>currently, no TTL support (to be added in the future)
+         *   <li>requires more space
+         * </ul>
+         */
+        MAP,
+        /**
+         * Similar to LEGACY, but compatible with MAP and therefore allows to switch to ADAPTIVE.
+         */
+        VALUE,
+        /**
+         * Alternate between MAP and VALUE depending on the number of entries for the given key
+         * starting with VALUE and switching to MAP upon reaching threshold.high value (and back to
+         * VALUE, when reaching low).
+         */
+        ADAPTIVE
     }
 
     /** Determine if CAST operates using the legacy behaviour or the new one. */

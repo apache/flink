@@ -59,6 +59,7 @@ import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.sequencedmultisetstate.SequencedMultiSetState.StateChangeInfo;
 import org.apache.flink.table.runtime.sequencedmultisetstate.SequencedMultiSetState.StateChangeType;
 import org.apache.flink.table.runtime.sequencedmultisetstate.SequencedMultiSetState.Strategy;
+import org.apache.flink.table.runtime.sequencedmultisetstate.SequencedMultiSetStateContext.KeyExtractor;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
@@ -79,7 +80,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.stream.LongStream;
 
 import static org.apache.flink.table.runtime.sequencedmultisetstate.SequencedMultiSetState.StateChangeType.REMOVAL_ALL;
@@ -304,7 +304,7 @@ public class SequencedMultiSetStateTest {
     /** Test that loading and clearing the cache doesn't impact correctness. */
     @TestTemplate
     public void testKeyExtraction() throws Exception {
-        final Function<RowData, RowData> keyExtractor =
+        final KeyExtractor keyExtractor =
                 row -> ProjectedRowData.from(new int[] {1}).replaceRow(row);
 
         runTest(
@@ -471,14 +471,14 @@ public class SequencedMultiSetStateTest {
                             SequencedMultiSetState<RowData>, InternalKeyContext<String>, Exception>
                     test)
             throws Exception {
-        runTest(test, Function.identity(), KEY_POS);
+        runTest(test, new IdentityKeyExtractor(), KEY_POS);
     }
 
     private void runTest(
             BiConsumerWithException<
                             SequencedMultiSetState<RowData>, InternalKeyContext<String>, Exception>
                     test,
-            Function<RowData, RowData> keyExtractor,
+            KeyExtractor keyExtractor,
             int keyPos)
             throws Exception {
         SequencedMultiSetStateContext p =
@@ -642,6 +642,14 @@ public class SequencedMultiSetStateTest {
                 assertFalse(state.isEmpty(), "state is expected to be non-empty");
                 assertEquals(Optional.of(expectedReturnedRow[0]), ret.getPayload());
                 break;
+        }
+    }
+
+    private static class IdentityKeyExtractor implements KeyExtractor {
+
+        @Override
+        public RowData apply(RowData rowData) {
+            return rowData;
         }
     }
 }

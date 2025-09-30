@@ -23,24 +23,30 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedHashFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 
+import java.io.Serializable;
 import java.util.function.Function;
 
 /** {@link SequencedMultiSetState} (creation) context. */
-public class SequencedMultiSetStateContext {
+public class SequencedMultiSetStateContext implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     public final SequencedMultiSetStateConfig config;
     public final TypeSerializer<RowData> keySerializer;
     public final GeneratedRecordEqualiser generatedKeyEqualiser;
     public final GeneratedHashFunction generatedKeyHashFunction;
     public final TypeSerializer<RowData> recordSerializer;
-    public final Function<RowData, RowData> keyExtractor;
+    public final KeyExtractor keyExtractor;
+
+    /** */
+    public interface KeyExtractor extends Function<RowData, RowData>, Serializable {}
 
     public SequencedMultiSetStateContext(
             TypeSerializer<RowData> keySerializer,
             GeneratedRecordEqualiser generatedKeyEqualiser,
             GeneratedHashFunction generatedKeyHashFunction,
             TypeSerializer<RowData> recordSerializer,
-            Function<RowData, RowData> keyExtractor,
+            KeyExtractor keyExtractor,
             SequencedMultiSetStateConfig config) {
         this.keySerializer = keySerializer;
         this.generatedKeyEqualiser = generatedKeyEqualiser;
