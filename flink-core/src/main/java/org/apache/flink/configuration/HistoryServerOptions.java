@@ -149,10 +149,10 @@ public class HistoryServerOptions {
                                             code(HISTORY_SERVER_ARCHIVE_DIRS.key()))
                                     .list(
                                             text(
-                                                    "If the option is not specified as a positive number without specified %s, the all of jobs archive will be retained. ",
+                                                    "If the option is not specified as a positive number without specifying %s, all of the jobs archives will be retained. ",
                                                     code(HISTORY_SERVER_RETAINED_TTL_KEY)),
                                             text(
-                                                    "If the option is specified as a positive number without specified value of %s, the jobs archive whose order index based modification time is equals to or less than the value will be retained. ",
+                                                    "If the option is specified as a positive number without specifying a value of %s, the jobs archive whose order index based modification time is equals to or less than the value will be retained. ",
                                                     code(HISTORY_SERVER_RETAINED_TTL_KEY)),
                                             text(
                                                     "If this option is specified as a positive number together with the specified %s option, the job archive will be removed if its TTL has expired or the retained job count has been reached. ",
@@ -180,19 +180,17 @@ public class HistoryServerOptions {
                                             code(HISTORY_SERVER_ARCHIVE_DIRS.key()))
                                     .list(
                                             text(
-                                                    "If the option is not specified without specified %s, the all of jobs archive will be retained. ",
+                                                    "If the option is not specified without specifying %s, all of the jobs archives will be retained. ",
                                                     code(HISTORY_SERVER_RETAINED_JOBS_KEY)),
                                             text(
-                                                    "If the option is specified without specified %s, the jobs archive whose modification time in the time-to-live duration will be retained. ",
+                                                    "If the option is specified without specifying %s, the jobs archive whose modification time in the time-to-live duration will be retained. ",
                                                     code(HISTORY_SERVER_RETAINED_JOBS_KEY)),
                                             text(
                                                     "If this option is specified as a positive time duration together with the %s option, the job archive will be removed if its TTL has expired or the retained job count has been reached. ",
                                                     code(HISTORY_SERVER_RETAINED_JOBS_KEY)))
                                     .text(
-                                            "If set to %s or less than %s milliseconds, HistoryServer will throw an %s. ",
-                                            code("0"),
-                                            code("-1"),
-                                            code("IllegalConfigurationException"))
+                                            "If set to equal to or less than %s milliseconds, HistoryServer will throw an %s. ",
+                                            code("0"), code("IllegalConfigurationException"))
                                     .linebreak()
                                     .text(NOTE_MESSAGE)
                                     .list(
