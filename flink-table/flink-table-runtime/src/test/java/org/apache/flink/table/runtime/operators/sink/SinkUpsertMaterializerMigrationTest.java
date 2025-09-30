@@ -19,11 +19,14 @@
 package org.apache.flink.table.runtime.operators.sink;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.orderedmultisetstate.StateSettings;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.test.util.MigrationTest;
@@ -44,6 +47,8 @@ import static org.apache.flink.FlinkVersion.current;
 import static org.apache.flink.streaming.util.OperatorSnapshotUtil.getResourceFilename;
 import static org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterializerTest.ASSERTOR;
 import static org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterializerTest.EQUALISER;
+import static org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterializerTest.GENERATED_HASH_FUNCTION;
+import static org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterializerTest.GENERATED_UPSERT_HASH_FUNCTION;
 import static org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterializerTest.LOGICAL_TYPES;
 import static org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterializerTest.TTL_CONFIG;
 import static org.apache.flink.table.runtime.operators.sink.SinkUpsertMaterializerTest.UPSERT_KEY;
@@ -73,11 +78,13 @@ public class SinkUpsertMaterializerMigrationTest implements MigrationTest {
         Set<FlinkVersion> versions = FlinkVersion.rangeOf(FlinkVersion.v2_2, FlinkVersion.v2_2);
         for (FlinkVersion fromVersion : versions) {
             for (SumStateBackend backend : SumStateBackend.values()) {
-                result.add(
-                        new Object[] {
-                            new SinkOperationMode(fromVersion, backend),
-                            new SinkOperationMode(current(), backend)
-                        });
+                for (SumVersion sumVersion : SumVersion.values()) {
+                    result.add(
+                            new Object[] {
+                                new SinkOperationMode(fromVersion, backend, sumVersion),
+                                new SinkOperationMode(current(), backend, sumVersion)
+                            });
+                }
             }
         }
         return result;
@@ -95,13 +102,32 @@ public class SinkUpsertMaterializerMigrationTest implements MigrationTest {
     private OneInputStreamOperatorTestHarness<RowData, RowData> createHarness(
             SinkOperationMode mode, String snapshotPath) throws Exception {
         int[] inputUpsertKey = {UPSERT_KEY};
-        OneInputStreamOperator<RowData, RowData> materializer =
-                SinkUpsertMaterializer.create(
-                        TTL_CONFIG,
-                        RowType.of(LOGICAL_TYPES),
-                        EQUALISER,
-                        UPSERT_KEY_EQUALISER,
-                        inputUpsertKey);
+        StateTtlConfig ttlConfig = mode.sumVersion.reconfigureTtl(TTL_CONFIG);
+        OneInputStreamOperator<RowData, RowData> materializer;
+        switch (mode.sumVersion) {
+            case V1:
+                materializer =
+                        SinkUpsertMaterializer.create(
+                                ttlConfig,
+                                RowType.of(LOGICAL_TYPES),
+                                EQUALISER,
+                                UPSERT_KEY_EQUALISER,
+                                inputUpsertKey);
+                break;
+            case V2:
+                materializer =
+                        SinkUpsertMaterializerV2.create(
+                                RowType.of(LOGICAL_TYPES),
+                                EQUALISER,
+                                UPSERT_KEY_EQUALISER,
+                                GENERATED_HASH_FUNCTION,
+                                GENERATED_UPSERT_HASH_FUNCTION,
+                                inputUpsertKey,
+                                StateSettings.defaults(TimeDomain.PROCESSING_TIME, ttlConfig));
+                break;
+            default:
+                throw new IllegalArgumentException(mode.sumVersion.name());
+        }
         KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> harness =
                 SinkUpsertMaterializerTest.createHarness(
                         materializer, mode.stateBackend, LOGICAL_TYPES);
@@ -140,25 +166,32 @@ public class SinkUpsertMaterializerMigrationTest implements MigrationTest {
 
         testHarness.setStateTtlProcessingTime(1002);
         testHarness.processElement(deleteRecord(4L, 1, "a4"));
-        ASSERTOR.shouldEmitNothing(testHarness);
+        if (migrateTo.sumVersion.isTtlSupported()) {
+            ASSERTOR.shouldEmitNothing(testHarness);
+        } else {
+            ASSERTOR.shouldEmit(testHarness, rowOfKind(RowKind.DELETE, 4L, 1, "a4"));
+        }
     }
 
     private static String getFileName(SinkOperationMode mode) {
         return String.format(
-                "migration-flink-%s-%s-%s-snapshot", mode.version, mode.stateBackend, "V1");
+                "migration-flink-%s-%s-%s-snapshot",
+                mode.version, mode.stateBackend, mode.sumVersion);
     }
 
     @SnapshotsGenerator
     public void writeSnapshot(FlinkVersion version) throws Exception {
         for (SumStateBackend stateBackend : SumStateBackend.values()) {
-            SinkOperationMode mode = new SinkOperationMode(version, stateBackend);
-            try (OneInputStreamOperatorTestHarness<RowData, RowData> harness =
-                    createHarness(mode, null)) {
-                testCorrectnessBeforeSnapshot(harness);
-                Path parent = Paths.get("src/test/resources", FOLDER_NAME);
-                Files.createDirectories(parent);
-                OperatorSnapshotUtil.writeStateHandle(
-                        harness.snapshot(1L, 1L), parent.resolve(getFileName(mode)).toString());
+            for (SumVersion sumVersion : SumVersion.values()) {
+                SinkOperationMode mode = new SinkOperationMode(version, stateBackend, sumVersion);
+                try (OneInputStreamOperatorTestHarness<RowData, RowData> harness =
+                        createHarness(mode, null)) {
+                    testCorrectnessBeforeSnapshot(harness);
+                    Path parent = Paths.get("src/test/resources", FOLDER_NAME);
+                    Files.createDirectories(parent);
+                    OperatorSnapshotUtil.writeStateHandle(
+                            harness.snapshot(1L, 1L), parent.resolve(getFileName(mode)).toString());
+                }
             }
         }
     }
@@ -172,15 +205,18 @@ public class SinkUpsertMaterializerMigrationTest implements MigrationTest {
     private static class SinkOperationMode {
         private final FlinkVersion version;
         private final SumStateBackend stateBackend;
+        private final SumVersion sumVersion;
 
-        private SinkOperationMode(FlinkVersion version, SumStateBackend stateBackend) {
+        private SinkOperationMode(
+                FlinkVersion version, SumStateBackend stateBackend, SumVersion sumVersion) {
             this.version = version;
             this.stateBackend = stateBackend;
+            this.sumVersion = sumVersion;
         }
 
         @Override
         public String toString() {
-            return String.format("flink=%s, state=%s}", version, stateBackend);
+            return String.format("flink=%s, state=%s, sum=%s}", version, stateBackend, sumVersion);
         }
     }
 }

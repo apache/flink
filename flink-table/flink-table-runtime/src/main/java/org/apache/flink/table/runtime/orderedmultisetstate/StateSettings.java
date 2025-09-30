@@ -81,6 +81,7 @@ public class StateSettings {
                 ttl);
     }
 
+    // todo: move this out to sink?
     public static StateSettings forStrategy(
             ExecutionConfigOptions.SinkUpsertMaterializeStrategy sinkUpsertMaterializeStrategy,
             ReadableConfig config,

@@ -20,18 +20,23 @@ package org.apache.flink.table.runtime.operators.sink;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.StateObject;
+import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.GeneratedHashFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
+import org.apache.flink.table.runtime.generated.HashFunction;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
+import org.apache.flink.table.runtime.orderedmultisetstate.StateSettings;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -50,6 +55,7 @@ import org.junit.runners.Parameterized.Parameter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.api.java.tuple.Tuple2.of;
@@ -66,15 +72,18 @@ public class SinkUpsertMaterializerTest {
 
     static final int UPSERT_KEY = 0;
 
-    @SuppressWarnings("ClassEscapesDefinedScope")
-    @Parameter
+    @Parameter public SumVersion sumVersion;
+
+    @Parameter(1)
     public SumStateBackend stateBackend;
 
-    @Parameterized.Parameters(name = "stateBackend={0}")
+    @Parameterized.Parameters(name = "sumVersion={0}, stateBackend={1}")
     public static Object[][] generateTestParameters() {
         List<Object[]> result = new ArrayList<>();
-        for (SumStateBackend backend : SumStateBackend.values()) {
-            result.add(new Object[] {backend});
+        for (SumVersion sumVersion : SumVersion.values()) {
+            for (SumStateBackend backend : SumStateBackend.values()) {
+                result.add(new Object[] {sumVersion, backend});
+            }
         }
         return result.toArray(new Object[0][]);
     }
@@ -93,11 +102,27 @@ public class SinkUpsertMaterializerTest {
                 }
             };
 
+    static final GeneratedHashFunction GENERATED_HASH_FUNCTION =
+            new GeneratedHashFunction("", "", new Object[0], new Configuration()) {
+                @Override
+                public HashFunction newInstance(ClassLoader classLoader) {
+                    return new TestRecordEqualiser();
+                }
+            };
+
     static final GeneratedRecordEqualiser UPSERT_KEY_EQUALISER =
             new GeneratedRecordEqualiser("", "", new Object[0]) {
 
                 @Override
                 public RecordEqualiser newInstance(ClassLoader classLoader) {
+                    return new TestUpsertKeyEqualiser();
+                }
+            };
+
+    static final GeneratedHashFunction GENERATED_UPSERT_HASH_FUNCTION =
+            new GeneratedHashFunction("", "", new Object[0], new Configuration()) {
+                @Override
+                public HashFunction newInstance(ClassLoader classLoader) {
                     return new TestUpsertKeyEqualiser();
                 }
             };
@@ -204,7 +229,11 @@ public class SinkUpsertMaterializerTest {
         testHarness.setStateTtlProcessingTime(1002);
 
         testHarness.processElement(deleteRecord(4L, 1, "a4"));
-        ASSERTOR.shouldEmitNothing(testHarness);
+        if (sumVersion.isTtlSupported()) {
+            ASSERTOR.shouldEmitNothing(testHarness);
+        } else {
+            ASSERTOR.shouldEmit(testHarness, rowOfKind(RowKind.DELETE, 4L, 1, "a4"));
+        }
 
         testHarness.close();
     }
@@ -241,7 +270,11 @@ public class SinkUpsertMaterializerTest {
         testHarness.setStateTtlProcessingTime(1002);
 
         testHarness.processElement(deleteRecord(4L, 1, "a4"));
-        ASSERTOR.shouldEmitNothing(testHarness);
+        if (sumVersion.isTtlSupported()) {
+            ASSERTOR.shouldEmitNothing(testHarness);
+        } else {
+            ASSERTOR.shouldEmit(testHarness, rowOfKind(RowKind.DELETE, 4L, 1, "a4"));
+        }
 
         testHarness.close();
     }
@@ -336,7 +369,7 @@ public class SinkUpsertMaterializerTest {
         testHarness.close();
     }
 
-    private static class TestRecordEqualiser implements RecordEqualiser {
+    private static class TestRecordEqualiser implements RecordEqualiser, HashFunction {
         @Override
         public boolean equals(RowData row1, RowData row2) {
             return row1.getRowKind() == row2.getRowKind()
@@ -344,14 +377,25 @@ public class SinkUpsertMaterializerTest {
                     && row1.getInt(1) == row2.getInt(1)
                     && row1.getString(2).equals(row2.getString(2));
         }
+
+        @Override
+        public int hashCode(Object data) {
+            RowData rd = (RowData) data;
+            return Objects.hash(rd.getRowKind(), rd.getLong(0), rd.getInt(1), rd.getString(2));
+        }
     }
 
-    private static class TestUpsertKeyEqualiser implements RecordEqualiser {
-
+    private static class TestUpsertKeyEqualiser implements RecordEqualiser, HashFunction {
         @Override
         public boolean equals(RowData row1, RowData row2) {
             return row1.getRowKind() == row2.getRowKind()
                     && row1.getLong(UPSERT_KEY) == row2.getLong(UPSERT_KEY);
+        }
+
+        @Override
+        public int hashCode(Object data) {
+            RowData rd = (RowData) data;
+            return Objects.hash(rd.getRowKind(), rd.getLong(UPSERT_KEY));
         }
     }
 
@@ -458,7 +502,22 @@ public class SinkUpsertMaterializerTest {
 
     private OneInputStreamOperator<RowData, RowData> createOperator(
             LogicalType[] types, int... upsertKey) {
-        return SinkUpsertMaterializer.create(
-                TTL_CONFIG, RowType.of(types), EQUALISER, UPSERT_KEY_EQUALISER, upsertKey);
+        switch (sumVersion) {
+            case V1:
+                return SinkUpsertMaterializer.create(
+                        TTL_CONFIG, RowType.of(types), EQUALISER, UPSERT_KEY_EQUALISER, upsertKey);
+            case V2:
+                return SinkUpsertMaterializerV2.create(
+                        RowType.of(types),
+                        EQUALISER,
+                        UPSERT_KEY_EQUALISER,
+                        GENERATED_HASH_FUNCTION,
+                        GENERATED_UPSERT_HASH_FUNCTION,
+                        upsertKey,
+                        StateSettings.defaults(
+                                TimeDomain.PROCESSING_TIME, sumVersion.reconfigureTtl(TTL_CONFIG)));
+            default:
+                throw new IllegalArgumentException();
+        }
     }
 }

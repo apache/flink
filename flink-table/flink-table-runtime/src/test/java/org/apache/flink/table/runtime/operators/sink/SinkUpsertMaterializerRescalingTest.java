@@ -19,20 +19,24 @@
 package org.apache.flink.table.runtime.operators.sink;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.generated.GeneratedHashFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.HashFunction;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.orderedmultisetstate.StateSettings;
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.logical.BigIntType;
@@ -65,45 +69,50 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.rowOfKind;
 @RunWith(Parameterized.class)
 public class SinkUpsertMaterializerRescalingTest {
 
-    @Parameter public SumStateBackend backend;
+    @Parameter public SumVersion sumVersion;
 
-    @Parameterized.Parameters(name = "stateBackend={0}")
+    @Parameter(1)
+    public SumStateBackend backend;
+
+    @Parameterized.Parameters(name = "sumVersion={0}, stateBackend={1}")
     public static Object[][] generateTestParameters() {
         List<Object[]> result = new ArrayList<>();
-        for (SumStateBackend backend : SumStateBackend.values()) {
-            result.add(new Object[] {backend});
+        for (SumVersion sumVersion : SumVersion.values()) {
+            for (SumStateBackend backend : SumStateBackend.values()) {
+                result.add(new Object[] {sumVersion, backend});
+            }
         }
         return result.toArray(new Object[0][]);
     }
 
     @Test
     public void testScaleUpThenDown() throws Exception {
-        testRescaleFromToFrom(10, 2, 3, backend, backend);
+        testRescaleFromToFrom(10, 2, 3, backend, backend, sumVersion);
     }
 
     @Test
     public void testScaleDownThenUp() throws Exception {
-        testRescaleFromToFrom(10, 3, 2, backend, backend);
+        testRescaleFromToFrom(10, 3, 2, backend, backend, sumVersion);
     }
 
     @Test
     public void testRecovery() throws Exception {
-        testRescaleFromToFrom(1, 1, 1, backend, backend);
+        testRescaleFromToFrom(1, 1, 1, backend, backend, sumVersion);
     }
 
     @Test
     public void testForwardAndBackwardMigration() throws Exception {
-        testRescaleFromToFrom(7, 3, 3, backend, getOtherBackend(backend));
+        testRescaleFromToFrom(7, 3, 3, backend, getOtherBackend(backend), sumVersion);
     }
 
     @Test
     public void testScaleUpThenDownWithMigration() throws Exception {
-        testRescaleFromToFrom(7, 1, 5, backend, getOtherBackend(backend));
+        testRescaleFromToFrom(7, 1, 5, backend, getOtherBackend(backend), sumVersion);
     }
 
     @Test
     public void testScaleDownThenUpWithMigration() throws Exception {
-        testRescaleFromToFrom(7, 5, 1, backend, getOtherBackend(SumStateBackend.HEAP));
+        testRescaleFromToFrom(7, 5, 1, backend, getOtherBackend(SumStateBackend.HEAP), sumVersion);
     }
 
     private SumStateBackend getOtherBackend(SumStateBackend backend) {
@@ -116,7 +125,8 @@ public class SinkUpsertMaterializerRescalingTest {
             final int fromParallelism,
             final int toParallelism,
             final SumStateBackend fromBackend,
-            final SumStateBackend toBackend)
+            final SumStateBackend toBackend,
+            final SumVersion sumVersion)
             throws Exception {
 
         int[] currentParallelismRef = new int[] {fromParallelism};
@@ -145,7 +155,13 @@ public class SinkUpsertMaterializerRescalingTest {
                 };
 
         initHarnessesAndMaterializers(
-                harnesses, materializers, fromBackend, maxParallelism, fromParallelism, null);
+                harnesses,
+                materializers,
+                fromBackend,
+                maxParallelism,
+                fromParallelism,
+                null,
+                sumVersion);
 
         int idx = combinedHarnesses.applyAsInt(insertRecord(1L, 1, "a1"));
         ASSERTOR.shouldEmit(harnesses[idx], rowOfKind(RowKind.INSERT, 1L, 1, "a1"));
@@ -158,7 +174,13 @@ public class SinkUpsertMaterializerRescalingTest {
 
         currentParallelismRef[0] = toParallelism;
         initHarnessesAndMaterializers(
-                harnesses, materializers, toBackend, maxParallelism, toParallelism, subtaskStates);
+                harnesses,
+                materializers,
+                toBackend,
+                maxParallelism,
+                toParallelism,
+                subtaskStates,
+                sumVersion);
 
         idx = combinedHarnesses.applyAsInt(insertRecord(3L, 1, "a3"));
         ASSERTOR.shouldEmit(harnesses[idx], rowOfKind(RowKind.UPDATE_AFTER, 3L, 1, "a3"));
@@ -175,7 +197,8 @@ public class SinkUpsertMaterializerRescalingTest {
                 fromBackend,
                 maxParallelism,
                 fromParallelism,
-                subtaskStates);
+                subtaskStates,
+                sumVersion);
 
         idx = combinedHarnesses.applyAsInt(deleteRecord(4L, 1, "a4"));
         ASSERTOR.shouldEmit(harnesses[idx], rowOfKind(RowKind.UPDATE_AFTER, 3L, 1, "a3"));
@@ -197,7 +220,11 @@ public class SinkUpsertMaterializerRescalingTest {
                 .forEach(h -> h.setStateTtlProcessingTime(1002));
 
         idx = combinedHarnesses.applyAsInt(deleteRecord(4L, 1, "a4"));
-        ASSERTOR.shouldEmitNothing(harnesses[idx]);
+        if (sumVersion.isTtlSupported()) {
+            ASSERTOR.shouldEmitNothing(harnesses[idx]);
+        } else {
+            ASSERTOR.shouldEmit(harnesses[idx], rowOfKind(RowKind.DELETE, 4L, 1, "a4"));
+        }
 
         Arrays.stream(harnesses)
                 .filter(Objects::nonNull)
@@ -217,16 +244,36 @@ public class SinkUpsertMaterializerRescalingTest {
             SumStateBackend backend,
             int maxParallelism,
             int parallelism,
-            @Nullable List<OperatorSubtaskState> subtaskStates)
+            @Nullable List<OperatorSubtaskState> subtaskStates,
+            SumVersion sumVersion)
             throws Exception {
         for (int i = 0; i < parallelism; ++i) {
-            materializers[i] =
-                    SinkUpsertMaterializer.create(
-                            TTL_CONFIG,
-                            RowType.of(LOGICAL_TYPES),
-                            EQUALISER,
-                            UPSERT_KEY_EQUALISER,
-                            null);
+            switch (sumVersion) {
+                case V1:
+                    materializers[i] =
+                            SinkUpsertMaterializer.create(
+                                    TTL_CONFIG,
+                                    RowType.of(LOGICAL_TYPES),
+                                    EQUALISER,
+                                    UPSERT_KEY_EQUALISER,
+                                    null);
+                    break;
+                case V2:
+                    materializers[i] =
+                            SinkUpsertMaterializerV2.create(
+                                    RowType.of(LOGICAL_TYPES),
+                                    EQUALISER,
+                                    UPSERT_KEY_EQUALISER,
+                                    HASH_FUNCTION,
+                                    UPSERT_KEY_HASH_FUNCTION,
+                                    null,
+                                    StateSettings.defaults(
+                                            TimeDomain.PROCESSING_TIME,
+                                            sumVersion.reconfigureTtl(TTL_CONFIG)));
+                    break;
+                default:
+                    throw new IllegalArgumentException("unknown version: " + sumVersion);
+            }
             harnesses[i] =
                     new KeyedOneInputStreamOperatorTestHarness<>(
                             materializers[i],
@@ -324,6 +371,18 @@ public class SinkUpsertMaterializerRescalingTest {
         }
     }
 
+    private static class MyGeneratedHashFunction extends GeneratedHashFunction {
+
+        public MyGeneratedHashFunction() {
+            super("", "", new Object[0], new Configuration());
+        }
+
+        @Override
+        public HashFunction newInstance(ClassLoader classLoader) {
+            return new TestRecordEqualiser();
+        }
+    }
+
     private static final StateTtlConfig TTL_CONFIG = StateConfigUtil.createTtlConfig(1000);
 
     private static final LogicalType[] LOGICAL_TYPES =
@@ -337,11 +396,22 @@ public class SinkUpsertMaterializerRescalingTest {
 
     private static final GeneratedRecordEqualiser EQUALISER = new MyGeneratedRecordEqualiser();
 
+    private static final GeneratedHashFunction HASH_FUNCTION = new MyGeneratedHashFunction();
+
     private static final GeneratedRecordEqualiser UPSERT_KEY_EQUALISER =
             new GeneratedRecordEqualiser("", "", new Object[0]) {
 
                 @Override
                 public RecordEqualiser newInstance(ClassLoader classLoader) {
+                    return new TestUpsertKeyEqualiser();
+                }
+            };
+
+    private static final GeneratedHashFunction UPSERT_KEY_HASH_FUNCTION =
+            new GeneratedHashFunction("", "", new Object[0], new Configuration()) {
+
+                @Override
+                public HashFunction newInstance(ClassLoader classLoader) {
                     return new TestUpsertKeyEqualiser();
                 }
             };
