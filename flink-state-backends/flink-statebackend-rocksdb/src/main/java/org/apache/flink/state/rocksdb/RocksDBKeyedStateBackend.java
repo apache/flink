@@ -50,6 +50,7 @@ import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
@@ -1103,6 +1104,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     @Override
     public boolean isSafeToReuseKVState() {
         return true;
+    }
+
+    @Override
+    public String getBackendTypeIdentifier() {
+        return StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME;
     }
 
     /** Rocks DB specific information about the k/v states. */

@@ -623,6 +623,11 @@ public class ChangelogKeyedStateBackend<K>
         return keyedStateBackend.isSafeToReuseKVState();
     }
 
+    @Override
+    public String getBackendTypeIdentifier() {
+        return keyedStateBackend.getBackendTypeIdentifier();
+    }
+
     @Nonnull
     @Override
     public SavepointResources<K> savepoint() throws Exception {

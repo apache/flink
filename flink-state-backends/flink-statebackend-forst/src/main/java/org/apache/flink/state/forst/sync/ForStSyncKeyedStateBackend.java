@@ -50,6 +50,7 @@ import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
@@ -950,6 +951,11 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
         ForStOperationUtils.ForStKvStateInfo kvStateInfo =
                 kvStateInformation.get(stateDesc.getName());
         db.compactRange(kvStateInfo.columnFamilyHandle);
+    }
+
+    @Override
+    public String getBackendTypeIdentifier() {
+        return StateBackendLoader.FORST_STATE_BACKEND_NAME;
     }
 
     @Nonnegative
