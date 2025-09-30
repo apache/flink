@@ -27,8 +27,10 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.MaterializedTableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
@@ -65,6 +67,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -83,6 +86,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static java.lang.String.format;
+import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.MATERIALIZED_TABLE_FRESHNESS_THRESHOLD;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -124,13 +128,16 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
 
     private SqlFactory sqlFactory;
 
+    private final MaterializedTableEnricher materializedTableEnricher;
+
     private CatalogManager(
             String defaultCatalogName,
             Catalog defaultCatalog,
             DataTypeFactory typeFactory,
             List<CatalogModificationListener> catalogModificationListeners,
             CatalogStoreHolder catalogStoreHolder,
-            SqlFactory sqlFactory) {
+            SqlFactory sqlFactory,
+            MaterializedTableEnricher materializedTableEnricher) {
         checkArgument(
                 !StringUtils.isNullOrWhitespaceOnly(defaultCatalogName),
                 "Default catalog name cannot be null or empty");
@@ -153,6 +160,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         this.catalogStoreHolder = catalogStoreHolder;
 
         this.sqlFactory = sqlFactory;
+        this.materializedTableEnricher =
+                checkNotNull(materializedTableEnricher, "MaterializedTableEnricher cannot be null");
     }
 
     @VisibleForTesting
@@ -189,6 +198,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         private CatalogStoreHolder catalogStoreHolder;
 
         private SqlFactory sqlFactory = DefaultSqlFactory.INSTANCE;
+
+        private MaterializedTableEnricher materializedTableEnricher;
 
         public Builder classLoader(ClassLoader classLoader) {
             this.classLoader = classLoader;
@@ -232,6 +243,12 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             return this;
         }
 
+        public Builder materializedTableEnricher(
+                MaterializedTableEnricher materializedTableEnricher) {
+            this.materializedTableEnricher = materializedTableEnricher;
+            return this;
+        }
+
         public CatalogManager build() {
             checkNotNull(classLoader, "Class loader cannot be null");
             checkNotNull(config, "Config cannot be null");
@@ -249,7 +266,29 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                             : executionConfig.getSerializerConfig()),
                     catalogModificationListeners,
                     catalogStoreHolder,
-                    sqlFactory);
+                    sqlFactory,
+                    materializedTableEnricher != null
+                            ? materializedTableEnricher
+                            : createDefaultMaterializedTableEnricher());
+        }
+
+        private MaterializedTableEnricher createDefaultMaterializedTableEnricher() {
+            final Duration defaultDurationContinuous =
+                    catalogStoreHolder
+                            .config()
+                            .get(
+                                    MaterializedTableConfigOptions
+                                            .MATERIALIZED_TABLE_DEFAULT_FRESHNESS_CONTINUOUS);
+            final Duration defaultDurationFull =
+                    catalogStoreHolder
+                            .config()
+                            .get(
+                                    MaterializedTableConfigOptions
+                                            .MATERIALIZED_TABLE_DEFAULT_FRESHNESS_FULL);
+            final Duration freshnessThreshold =
+                    catalogStoreHolder.config().get(MATERIALIZED_TABLE_FRESHNESS_THRESHOLD);
+            return DefaultMaterializedTableEnricher.create(
+                    defaultDurationContinuous, defaultDurationFull, freshnessThreshold);
         }
     }
 
@@ -1869,6 +1908,10 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
 
         final ResolvedSchema resolvedSchema = table.getUnresolvedSchema().resolve(schemaResolver);
 
+        final EnrichmentResult enrichmentResult = this.materializedTableEnricher.enrich(table);
+        IntervalFreshness freshness = enrichmentResult.getFreshness();
+        RefreshMode resolvedRefreshMode = enrichmentResult.getRefreshMode();
+
         // Validate partition keys are included in physical columns
         final List<String> physicalColumns =
                 resolvedSchema.getColumns().stream()
@@ -1888,7 +1931,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                             }
                         });
 
-        return new ResolvedCatalogMaterializedTable(table, resolvedSchema);
+        return new ResolvedCatalogMaterializedTable(
+                table, resolvedSchema, resolvedRefreshMode, freshness);
     }
 
     /** Resolves a {@link CatalogView} to a validated {@link ResolvedCatalogView}. */

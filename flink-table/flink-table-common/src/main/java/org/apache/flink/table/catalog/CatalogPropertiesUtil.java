@@ -139,7 +139,7 @@ public final class CatalogPropertiesUtil {
                     properties, resolvedMaterializedTable.getResolvedSchema(), sqlFactory);
 
             final String comment = resolvedMaterializedTable.getComment();
-            if (comment != null && comment.length() > 0) {
+            if (comment != null && !comment.isEmpty()) {
                 properties.put(COMMENT, comment);
             }
 
@@ -158,7 +158,7 @@ public final class CatalogPropertiesUtil {
 
             IntervalFreshness intervalFreshness =
                     resolvedMaterializedTable.getDefinitionFreshness();
-            properties.put(FRESHNESS_INTERVAL, intervalFreshness.getInterval());
+            properties.put(FRESHNESS_INTERVAL, String.valueOf(intervalFreshness.getIntervalInt()));
             properties.put(FRESHNESS_UNIT, intervalFreshness.getTimeUnit().name());
 
             properties.put(

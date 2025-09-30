@@ -63,26 +63,6 @@ class MaterializedTableStatementParserTest {
                         + "AS SELECT a, b, h, t m FROM source";
         sql(sql).fails(
                         "MATERIALIZED TABLE only supports define interval type FRESHNESS, please refer to the materialized table document.");
-
-        final String sql2 =
-                "CREATE MATERIALIZED TABLE tbl1\n"
-                        + "(\n"
-                        + "   PRIMARY KEY (a, b)\n"
-                        + ")\n"
-                        + "COMMENT 'table comment'\n"
-                        + "PARTITIONED BY (a, h)\n"
-                        + "WITH (\n"
-                        + "  'group.id' = 'latest', \n"
-                        + "  'kafka.topic' = 'log.test'\n"
-                        + ")\n"
-                        + "^AS^ SELECT a, b, h, t m FROM source";
-
-        sql(sql2)
-                .fails(
-                        "Encountered \"AS\" at line 11, column 1.\n"
-                                + "Was expecting:\n"
-                                + "    \"FRESHNESS\" ...\n"
-                                + "    ");
     }
 
     @Test
@@ -395,7 +375,8 @@ class MaterializedTableStatementParserTest {
         return Stream.of(
                 Arguments.of(fullExample()),
                 Arguments.of(withoutTableConstraint()),
-                Arguments.of(withPrimaryKey()));
+                Arguments.of(withPrimaryKey()),
+                Arguments.of(withoutFreshness()));
     }
 
     private static Map.Entry<String, String> fullExample() {
@@ -463,6 +444,30 @@ class MaterializedTableStatementParserTest {
                         + "COMMENT 'table comment'\n"
                         + "FRESHNESS = INTERVAL '3' DAY\n"
                         + "REFRESH_MODE = FULL\n"
+                        + "AS\n"
+                        + "SELECT `A`, `B`, `H`, `T` AS `M`\n"
+                        + "FROM `SOURCE`");
+    }
+
+    private static Map.Entry<String, String> withoutFreshness() {
+        return new AbstractMap.SimpleEntry<>(
+                "CREATE MATERIALIZED TABLE tbl1\n"
+                        + "(\n"
+                        + "   PRIMARY KEY (a, b)\n"
+                        + ")\n"
+                        + "WITH (\n"
+                        + "  'group.id' = 'latest', \n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")\n"
+                        + "AS SELECT a, b, h, t m FROM source",
+                "CREATE MATERIALIZED TABLE `TBL1`\n"
+                        + "(\n"
+                        + "  PRIMARY KEY (`A`, `B`)\n"
+                        + ")\n"
+                        + "WITH (\n"
+                        + "  'group.id' = 'latest',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")\n"
                         + "AS\n"
                         + "SELECT `A`, `B`, `H`, `T` AS `M`\n"
                         + "FROM `SOURCE`");

@@ -110,7 +110,9 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
                             .refreshMode(CatalogMaterializedTable.RefreshMode.CONTINUOUS)
                             .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
                             .build(),
-                    CREATE_RESOLVED_SCHEMA);
+                    CREATE_RESOLVED_SCHEMA,
+                    CatalogMaterializedTable.RefreshMode.CONTINUOUS,
+                    FRESHNESS);
 
     private static final TestRefreshHandler REFRESH_HANDLER =
             new TestRefreshHandler("jobID: xxx, clusterId: yyy");

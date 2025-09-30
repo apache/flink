@@ -19,13 +19,8 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.IntervalFreshness;
-
-import org.apache.commons.lang3.math.NumberUtils;
-
-import java.time.Duration;
 
 /** Utilities to {@link IntervalFreshness}. */
 @Internal
@@ -42,35 +37,28 @@ public class IntervalFreshnessUtils {
 
     private IntervalFreshnessUtils() {}
 
-    @VisibleForTesting
-    static void validateIntervalFreshness(IntervalFreshness intervalFreshness) {
-        if (!NumberUtils.isParsable(intervalFreshness.getInterval())) {
-            throw new ValidationException(
-                    String.format(
-                            "The interval freshness value '%s' is an illegal integer type value.",
-                            intervalFreshness.getInterval()));
-        }
-
-        if (!NumberUtils.isDigits(intervalFreshness.getInterval())) {
-            throw new ValidationException(
-                    "The freshness interval currently only supports integer type values.");
-        }
-    }
-
-    public static Duration convertFreshnessToDuration(IntervalFreshness intervalFreshness) {
-        // validate the freshness value firstly
-        validateIntervalFreshness(intervalFreshness);
-
-        long interval = Long.parseLong(intervalFreshness.getInterval());
+    /**
+     * Validates that the given freshness can be converted to a cron expression in full refresh
+     * mode. Since freshness and cron expression cannot be converted equivalently, there are
+     * currently only a limited patterns of freshness that are supported.
+     *
+     * @param intervalFreshness the freshness to validate
+     * @throws ValidationException if the freshness cannot be converted to a valid cron expression
+     */
+    public static void validateFreshnessForCron(IntervalFreshness intervalFreshness) {
         switch (intervalFreshness.getTimeUnit()) {
-            case DAY:
-                return Duration.ofDays(interval);
-            case HOUR:
-                return Duration.ofHours(interval);
-            case MINUTE:
-                return Duration.ofMinutes(interval);
             case SECOND:
-                return Duration.ofSeconds(interval);
+                validateCronConstraints(intervalFreshness, SECOND_CRON_UPPER_BOUND);
+                break;
+            case MINUTE:
+                validateCronConstraints(intervalFreshness, MINUTE_CRON_UPPER_BOUND);
+                break;
+            case HOUR:
+                validateCronConstraints(intervalFreshness, HOUR_CRON_UPPER_BOUND);
+                break;
+            case DAY:
+                validateDayConstraints(intervalFreshness);
+                break;
             default:
                 throw new ValidationException(
                         String.format(
@@ -80,28 +68,30 @@ public class IntervalFreshnessUtils {
     }
 
     /**
-     * This is an util method that is used to convert the freshness of materialized table to cron
-     * expression in full refresh mode. Since freshness and cron expression cannot be converted
-     * equivalently, there are currently only a limited patterns of freshness that can be converted
-     * to cron expression.
+     * Converts the freshness of materialized table to cron expression in full refresh mode. The
+     * freshness must first pass validation via {@link #validateFreshnessForCron}.
+     *
+     * @param intervalFreshness the freshness to convert
+     * @return the corresponding cron expression
+     * @throws ValidationException if the freshness cannot be converted to a valid cron expression
      */
     public static String convertFreshnessToCron(IntervalFreshness intervalFreshness) {
+        // First validate that conversion is possible
+        validateFreshnessForCron(intervalFreshness);
+
+        // Then perform the conversion
         switch (intervalFreshness.getTimeUnit()) {
             case SECOND:
-                return validateAndConvertCron(
-                        intervalFreshness,
-                        SECOND_CRON_UPPER_BOUND,
-                        SECOND_CRON_EXPRESSION_TEMPLATE);
+                return String.format(
+                        SECOND_CRON_EXPRESSION_TEMPLATE, intervalFreshness.getIntervalInt());
             case MINUTE:
-                return validateAndConvertCron(
-                        intervalFreshness,
-                        MINUTE_CRON_UPPER_BOUND,
-                        MINUTE_CRON_EXPRESSION_TEMPLATE);
+                return String.format(
+                        MINUTE_CRON_EXPRESSION_TEMPLATE, intervalFreshness.getIntervalInt());
             case HOUR:
-                return validateAndConvertCron(
-                        intervalFreshness, HOUR_CRON_UPPER_BOUND, HOUR_CRON_EXPRESSION_TEMPLATE);
+                return String.format(
+                        HOUR_CRON_EXPRESSION_TEMPLATE, intervalFreshness.getIntervalInt());
             case DAY:
-                return validateAndConvertDayCron(intervalFreshness);
+                return ONE_DAY_CRON_EXPRESSION_TEMPLATE;
             default:
                 throw new ValidationException(
                         String.format(
@@ -110,9 +100,9 @@ public class IntervalFreshnessUtils {
         }
     }
 
-    private static String validateAndConvertCron(
-            IntervalFreshness intervalFreshness, long cronUpperBound, String cronTemplate) {
-        long interval = Long.parseLong(intervalFreshness.getInterval());
+    private static void validateCronConstraints(
+            IntervalFreshness intervalFreshness, long cronUpperBound) {
+        int interval = intervalFreshness.getIntervalInt();
         IntervalFreshness.TimeUnit timeUnit = intervalFreshness.getTimeUnit();
         // Freshness must be less than cronUpperBound for corresponding time unit when convert it
         // to cron expression
@@ -129,18 +119,15 @@ public class IntervalFreshnessUtils {
                             "In full refresh mode, only freshness that are factors of %s are currently supported when the time unit is %s.",
                             cronUpperBound, timeUnit));
         }
-
-        return String.format(cronTemplate, interval);
     }
 
-    private static String validateAndConvertDayCron(IntervalFreshness intervalFreshness) {
+    private static void validateDayConstraints(IntervalFreshness intervalFreshness) {
         // Since the number of days in each month is different, only one day of freshness is
         // currently supported when the time unit is DAY
-        long interval = Long.parseLong(intervalFreshness.getInterval());
+        int interval = intervalFreshness.getIntervalInt();
         if (interval > 1) {
             throw new ValidationException(
                     "In full refresh mode, freshness must be 1 when the time unit is DAY.");
         }
-        return ONE_DAY_CRON_EXPRESSION_TEMPLATE;
     }
 }
