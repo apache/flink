@@ -148,14 +148,18 @@ public class WatermarkOutputMultiplexer {
 
     /**
      * Checks whether we need to update the combined watermark. Should be called when a newly
-     * emitted per-output watermark is higher than the max so far or if we need to combined the
+     * emitted per-output watermark is higher than the max so far or if we need to combine the
      * deferred per-output updates.
+     *
+     * <p>It also handles scenarios where both emitting a watermark and entering the idle state
+     * occur within the same invocation.
      */
     private void updateCombinedWatermark() {
         if (combinedWatermarkStatus.updateCombinedWatermark()) {
             underlyingOutput.emitWatermark(
                     new Watermark(combinedWatermarkStatus.getCombinedWatermark()));
-        } else if (combinedWatermarkStatus.isIdle()) {
+        }
+        if (combinedWatermarkStatus.isIdle()) {
             underlyingOutput.markIdle();
         }
     }
