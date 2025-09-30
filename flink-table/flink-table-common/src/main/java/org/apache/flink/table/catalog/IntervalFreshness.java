@@ -19,7 +19,9 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.ValidationException;
 
+import java.time.Duration;
 import java.util.Objects;
 
 /**
@@ -31,40 +33,107 @@ import java.util.Objects;
 @PublicEvolving
 public class IntervalFreshness {
 
-    private final String interval;
+    private final int interval;
     private final TimeUnit timeUnit;
 
-    private IntervalFreshness(String interval, TimeUnit timeUnit) {
+    private IntervalFreshness(int interval, TimeUnit timeUnit) {
         this.interval = interval;
         this.timeUnit = timeUnit;
     }
 
     public static IntervalFreshness of(String interval, TimeUnit timeUnit) {
-        return new IntervalFreshness(interval, timeUnit);
+        final int validateIntervalInput = validateIntervalInput(interval);
+        return new IntervalFreshness(validateIntervalInput, timeUnit);
+    }
+
+    private static int validateIntervalInput(final String interval) {
+        final String errorMessage =
+                String.format(
+                        "The freshness interval currently only supports positive integer type values. But was: %s",
+                        interval);
+        final int parsedInt;
+        try {
+            parsedInt = Integer.parseInt(interval);
+        } catch (Exception e) {
+            throw new ValidationException(errorMessage, e);
+        }
+
+        if (parsedInt <= 0) {
+            throw new ValidationException(errorMessage);
+        }
+        return parsedInt;
     }
 
     public static IntervalFreshness ofSecond(String interval) {
-        return new IntervalFreshness(interval, TimeUnit.SECOND);
+        return IntervalFreshness.of(interval, TimeUnit.SECOND);
     }
 
     public static IntervalFreshness ofMinute(String interval) {
-        return new IntervalFreshness(interval, TimeUnit.MINUTE);
+        return IntervalFreshness.of(interval, TimeUnit.MINUTE);
     }
 
     public static IntervalFreshness ofHour(String interval) {
-        return new IntervalFreshness(interval, TimeUnit.HOUR);
+        return IntervalFreshness.of(interval, TimeUnit.HOUR);
     }
 
     public static IntervalFreshness ofDay(String interval) {
-        return new IntervalFreshness(interval, TimeUnit.DAY);
+        return IntervalFreshness.of(interval, TimeUnit.DAY);
     }
 
+    /**
+     * @deprecated Use {@link #getIntervalInt()} instead.
+     */
+    @Deprecated
     public String getInterval() {
+        return String.valueOf(interval);
+    }
+
+    public int getIntervalInt() {
         return interval;
     }
 
     public TimeUnit getTimeUnit() {
         return timeUnit;
+    }
+
+    public Duration toDuration() {
+        switch (timeUnit) {
+            case SECOND:
+                return Duration.ofSeconds(interval);
+            case MINUTE:
+                return Duration.ofMinutes(interval);
+            case HOUR:
+                return Duration.ofHours(interval);
+            case DAY:
+                return Duration.ofDays(interval);
+            default:
+                throw new IllegalStateException("Unexpected value: " + timeUnit);
+        }
+    }
+
+    /**
+     * Creates an IntervalFreshness from a Duration, choosing the most appropriate time unit.
+     * Prefers larger units when possible (e.g., 60 seconds → 1 minute).
+     */
+    public static IntervalFreshness fromDuration(Duration duration) {
+        long totalSeconds = duration.getSeconds();
+
+        long days = duration.toDays();
+        if (days * 24 * 60 * 60 == totalSeconds) {
+            return IntervalFreshness.ofDay(String.valueOf(days));
+        }
+
+        long hours = duration.toHours();
+        if (hours * 60 * 60 == totalSeconds) {
+            return IntervalFreshness.ofHour(String.valueOf(hours));
+        }
+
+        long minutes = duration.toMinutes();
+        if (minutes * 60 == totalSeconds) {
+            return IntervalFreshness.ofMinute(String.valueOf(minutes));
+        }
+
+        return IntervalFreshness.ofSecond(String.valueOf(totalSeconds));
     }
 
     @Override

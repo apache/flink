@@ -23,6 +23,8 @@ import org.apache.flink.table.api.FunctionDescriptor;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.IntervalFreshness;
@@ -146,13 +148,127 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                         .partitionKeys(Arrays.asList("a", "d"))
                         .freshness(IntervalFreshness.ofSecond("30"))
                         .logicalRefreshMode(CatalogMaterializedTable.LogicalRefreshMode.FULL)
-                        .refreshMode(CatalogMaterializedTable.RefreshMode.FULL)
+                        .refreshMode(RefreshMode.FULL)
                         .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
                         .definitionQuery(
                                 "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
                                         + "FROM `builtin`.`default`.`t1` AS `t1`")
                         .build();
 
+        final IntervalFreshness resolvedFreshness = materializedTable.getDefinitionFreshness();
+        assertThat(resolvedFreshness).isEqualTo(IntervalFreshness.ofSecond("30"));
+
+        final RefreshMode resolvedRefreshMode = materializedTable.getRefreshMode();
+        assertThat(resolvedRefreshMode).isEqualTo(RefreshMode.FULL);
+
+        assertThat(materializedTable.getOrigin()).isEqualTo(expected);
+    }
+
+    @Test
+    void testCreateMaterializedTableWithoutFreshness() {
+        final String sql =
+                "CREATE MATERIALIZED TABLE mtbl1 (\n"
+                        + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED"
+                        + ")\n"
+                        + "COMMENT 'materialized table comment'\n"
+                        + "PARTITIONED BY (a, d)\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'filesystem', \n"
+                        + "  'format' = 'json'\n"
+                        + ")\n"
+                        + "REFRESH_MODE = FULL\n"
+                        + "AS SELECT * FROM t1";
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
+
+        CreateMaterializedTableOperation op = (CreateMaterializedTableOperation) operation;
+        ResolvedCatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
+        assertThat(materializedTable).isInstanceOf(ResolvedCatalogMaterializedTable.class);
+
+        Map<String, String> options = new HashMap<>();
+        options.put("connector", "filesystem");
+        options.put("format", "json");
+
+        CatalogMaterializedTable expected =
+                CatalogMaterializedTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("a", DataTypes.BIGINT().notNull())
+                                        .column("b", DataTypes.VARCHAR(Integer.MAX_VALUE))
+                                        .column("c", DataTypes.INT())
+                                        .column("d", DataTypes.VARCHAR(Integer.MAX_VALUE))
+                                        .primaryKeyNamed("ct1", Collections.singletonList("a"))
+                                        .build())
+                        .comment("materialized table comment")
+                        .options(options)
+                        .partitionKeys(Arrays.asList("a", "d"))
+                        .logicalRefreshMode(LogicalRefreshMode.FULL)
+                        .freshness(null)
+                        .refreshMode(RefreshMode.FULL)
+                        .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
+                        .definitionQuery(
+                                "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
+                                        + "FROM `builtin`.`default`.`t1` AS `t1`")
+                        .build();
+
+        // The resolved freshness should default to 1 minute
+        final IntervalFreshness resolvedFreshness = materializedTable.getDefinitionFreshness();
+        assertThat(resolvedFreshness).isEqualTo(IntervalFreshness.ofHour("1"));
+
+        final RefreshMode resolvedRefreshMode = materializedTable.getRefreshMode();
+        assertThat(resolvedRefreshMode).isEqualTo(RefreshMode.FULL);
+
+        assertThat(materializedTable.getOrigin()).isEqualTo(expected);
+    }
+
+    @Test
+    void testCreateMaterializedTableWithoutFreshnessAndRefreshMode() {
+        final String sql =
+                "CREATE MATERIALIZED TABLE mtbl1 (\n"
+                        + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED"
+                        + ")\n"
+                        + "COMMENT 'materialized table comment'\n"
+                        + "PARTITIONED BY (a, d)\n"
+                        + "WITH (\n"
+                        + "  'connector' = 'filesystem', \n"
+                        + "  'format' = 'json'\n"
+                        + ")\n"
+                        + "AS SELECT * FROM t1";
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
+
+        CreateMaterializedTableOperation op = (CreateMaterializedTableOperation) operation;
+        ResolvedCatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
+        assertThat(materializedTable).isInstanceOf(ResolvedCatalogMaterializedTable.class);
+
+        Map<String, String> options = new HashMap<>();
+        options.put("connector", "filesystem");
+        options.put("format", "json");
+
+        CatalogMaterializedTable expected =
+                CatalogMaterializedTable.newBuilder()
+                        .schema(
+                                Schema.newBuilder()
+                                        .column("a", DataTypes.BIGINT().notNull())
+                                        .column("b", DataTypes.VARCHAR(Integer.MAX_VALUE))
+                                        .column("c", DataTypes.INT())
+                                        .column("d", DataTypes.VARCHAR(Integer.MAX_VALUE))
+                                        .primaryKeyNamed("ct1", Collections.singletonList("a"))
+                                        .build())
+                        .comment("materialized table comment")
+                        .options(options)
+                        .partitionKeys(Arrays.asList("a", "d"))
+                        .logicalRefreshMode(LogicalRefreshMode.AUTOMATIC)
+                        .freshness(null)
+                        .refreshMode(null)
+                        .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
+                        .definitionQuery(
+                                "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
+                                        + "FROM `builtin`.`default`.`t1` AS `t1`")
+                        .build();
+
+        final IntervalFreshness resolvedFreshness = materializedTable.getDefinitionFreshness();
+        assertThat(resolvedFreshness).isEqualTo(IntervalFreshness.ofMinute("3"));
         assertThat(materializedTable.getOrigin()).isEqualTo(expected);
     }
 
@@ -206,8 +322,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
 
         assertThat(materializedTable.getLogicalRefreshMode())
                 .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC);
-        assertThat(materializedTable.getRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.RefreshMode.CONTINUOUS);
+        assertThat(materializedTable.getRefreshMode()).isEqualTo(RefreshMode.CONTINUOUS);
 
         // test continuous mode by manual specify
         final String sql2 =
@@ -242,8 +357,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
 
         assertThat(materializedTable.getLogicalRefreshMode())
                 .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC);
-        assertThat(materializedTable.getRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.RefreshMode.FULL);
+        assertThat(materializedTable.getRefreshMode()).isEqualTo(RefreshMode.FULL);
 
         // test full mode by manual specify
         final String sql2 =
@@ -259,14 +373,23 @@ public class SqlMaterializedTableNodeToOperationConverterTest
 
         assertThat(materializedTable2.getLogicalRefreshMode())
                 .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.FULL);
-        assertThat(materializedTable2.getRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.RefreshMode.FULL);
-
+        assertThat(materializedTable2.getRefreshMode()).isEqualTo(RefreshMode.FULL);
         final String sql3 =
                 "CREATE MATERIALIZED TABLE mtbl1\n"
                         + "FRESHNESS = INTERVAL '40' MINUTE\n"
+                        + "REFRESH_MODE = FULL\n"
                         + "AS SELECT * FROM t1";
         assertThatThrownBy(() -> parse(sql3))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        "In full refresh mode, only freshness that are factors of 60 are currently supported when the time unit is MINUTE.");
+
+        final String sql4 =
+                "CREATE MATERIALIZED TABLE mtbl1\n"
+                        + "FRESHNESS = INTERVAL '40' MINUTE\n"
+                        + "AS SELECT * FROM t1";
+
+        assertThatThrownBy(() -> parse(sql4))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "In full refresh mode, only freshness that are factors of 60 are currently supported when the time unit is MINUTE.");

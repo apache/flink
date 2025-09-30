@@ -321,7 +321,7 @@ public class ShowCreateUtil {
         final IntervalFreshness definitionFreshness = materializedTable.getDefinitionFreshness();
         return String.format(
                 "FRESHNESS = INTERVAL '%s' %s",
-                definitionFreshness.getInterval(), definitionFreshness.getTimeUnit());
+                definitionFreshness.getIntervalInt(), definitionFreshness.getTimeUnit());
     }
 
     static String extractRefreshMode(ResolvedCatalogMaterializedTable materializedTable) {

@@ -9,6 +9,18 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>materialized-table.default-freshness.continuous</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">3 min</td>
+            <td>Duration</td>
+            <td>The default freshness interval for continuous refresh mode when the FRESHNESS clause is omitted in a materialized table definition.</td>
+        </tr>
+        <tr>
+            <td><h5>materialized-table.default-freshness.full</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">1 h</td>
+            <td>Duration</td>
+            <td>The default freshness interval for full refresh mode when the FRESHNESS clause is omitted in a materialized table definition.</td>
+        </tr>
+        <tr>
             <td><h5>materialized-table.refresh-mode.freshness-threshold</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">30 min</td>
             <td>Duration</td>

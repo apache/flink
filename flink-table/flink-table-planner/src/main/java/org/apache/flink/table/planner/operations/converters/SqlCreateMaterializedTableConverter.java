@@ -26,6 +26,8 @@ import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -50,10 +52,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.DATE_FORMATTER;
-import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.MATERIALIZED_TABLE_FRESHNESS_THRESHOLD;
 import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.PARTITION_FIELDS;
-import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToCron;
-import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToDuration;
+import static org.apache.flink.table.utils.IntervalFreshnessUtils.validateFreshnessForCron;
 
 /** A converter for {@link SqlCreateMaterializedTable}. */
 public class SqlCreateMaterializedTableConverter
@@ -77,33 +77,27 @@ public class SqlCreateMaterializedTableConverter
 
         // get freshness
         IntervalFreshness intervalFreshness =
-                MaterializedTableUtils.getMaterializedTableFreshness(
-                        sqlCreateMaterializedTable.getFreshness());
+                Optional.ofNullable(sqlCreateMaterializedTable.getFreshness())
+                        .map(MaterializedTableUtils::getMaterializedTableFreshness)
+                        .orElse(null);
 
-        // get refresh mode
-        SqlRefreshMode sqlRefreshMode = null;
-        if (sqlCreateMaterializedTable.getRefreshMode().isPresent()) {
-            sqlRefreshMode =
-                    sqlCreateMaterializedTable
-                            .getRefreshMode()
-                            .get()
-                            .getValueAs(SqlRefreshMode.class);
-        }
-        CatalogMaterializedTable.LogicalRefreshMode logicalRefreshMode =
+        // Get the logical refresh mode from SQL
+        SqlRefreshMode sqlRefreshMode =
+                Optional.ofNullable(sqlCreateMaterializedTable.getRefreshMode())
+                        .map(mode -> mode.getValueAs(SqlRefreshMode.class))
+                        .orElse(null);
+
+        final LogicalRefreshMode logicalRefreshMode =
                 MaterializedTableUtils.deriveLogicalRefreshMode(sqlRefreshMode);
-        // only MATERIALIZED_TABLE_FRESHNESS_THRESHOLD configured in flink conf yaml work, so we get
-        // it from rootConfiguration instead of table config
-        CatalogMaterializedTable.RefreshMode refreshMode =
-                MaterializedTableUtils.deriveRefreshMode(
-                        context.getTableConfig()
-                                .getRootConfiguration()
-                                .get(MATERIALIZED_TABLE_FRESHNESS_THRESHOLD),
-                        convertFreshnessToDuration(intervalFreshness),
-                        logicalRefreshMode);
-        // If the refresh mode is full, validate whether the freshness can convert to cron
-        // expression in advance
-        if (CatalogMaterializedTable.RefreshMode.FULL == refreshMode) {
-            convertFreshnessToCron(intervalFreshness);
+
+        // get the physical refresh mode from SQL
+        final RefreshMode refreshMode =
+                sqlRefreshMode == null
+                        ? null
+                        : MaterializedTableUtils.fromSqltoRefreshMode(sqlRefreshMode);
+
+        if (CatalogMaterializedTable.RefreshMode.FULL == refreshMode && intervalFreshness != null) {
+            validateFreshnessForCron(intervalFreshness);
         }
 
         // get query schema and definition query

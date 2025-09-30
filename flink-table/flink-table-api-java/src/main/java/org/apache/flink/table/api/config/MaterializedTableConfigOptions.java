@@ -58,4 +58,20 @@ public class MaterializedTableConfigOptions {
                     .withDescription(
                             "Specifies the time partition formatter for the partitioned materialized table, where '#' denotes a string-based partition field name."
                                     + " This serves as a hint to the framework regarding which partition to refresh in full refresh mode.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Duration> MATERIALIZED_TABLE_DEFAULT_FRESHNESS_CONTINUOUS =
+            key("materialized-table.default-freshness.continuous")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(3))
+                    .withDescription(
+                            "The default freshness interval for continuous refresh mode when the FRESHNESS clause is omitted in a materialized table definition.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Duration> MATERIALIZED_TABLE_DEFAULT_FRESHNESS_FULL =
+            key("materialized-table.default-freshness.full")
+                    .durationType()
+                    .defaultValue(Duration.ofHours(1))
+                    .withDescription(
+                            "The default freshness interval for full refresh mode when the FRESHNESS clause is omitted in a materialized table definition.");
 }
