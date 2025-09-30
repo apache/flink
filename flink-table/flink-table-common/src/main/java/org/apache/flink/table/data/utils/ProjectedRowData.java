@@ -190,6 +190,8 @@ public class ProjectedRowData implements RowData {
                 + Arrays.toString(indexMapping)
                 + ", mutableRow="
                 + row
+                + ", isNullAtNonProjected="
+                + isNullAtNonProjected
                 + '}';
     }
 
