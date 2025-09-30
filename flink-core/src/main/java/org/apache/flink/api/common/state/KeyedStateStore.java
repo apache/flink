@@ -338,4 +338,13 @@ public interface KeyedStateStore {
                             org.apache.flink.api.common.state.v2.AggregatingStateDescriptor<
                                             IN, ACC, OUT>
                                     stateProperties);
+
+    /**
+     * @return fixed lower-case string identifying the type of the underlying state backend, e.g.
+     *     rocksdb, hashmap, or unknown.
+     */
+    @Experimental
+    default String getBackendTypeIdentifier() {
+        return "unknown";
+    }
 }
