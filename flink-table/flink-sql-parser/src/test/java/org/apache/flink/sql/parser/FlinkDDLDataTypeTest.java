@@ -326,10 +326,6 @@ class FlinkDDLDataTypeTest {
 
                 // Test parse throws error.
                 createArgumentsTestItem(
-                        "TIMESTAMP WITH ^TIME^ ZONE", "(?s).*Encountered \"TIME\" at .*"),
-                createArgumentsTestItem(
-                        "TIMESTAMP(3) WITH ^TIME^ ZONE", "(?s).*Encountered \"TIME\" at .*"),
-                createArgumentsTestItem(
                         "^NULL^",
                         "(?s).*Incorrect syntax near the keyword 'NULL' at line 2, column 6..*"),
                 createArgumentsTestItem("cat.db.MyType", null, "`cat`.`db`.`MyType`"),

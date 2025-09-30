@@ -72,13 +72,14 @@ import java.util.function.Predicate;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.util.Objects.requireNonNull;
+import static org.apache.calcite.rel.type.RelDataType.PRECISION_NOT_SPECIFIED;
 
 /**
  * Default implementation of {@link org.apache.calcite.rex.RexUtil}, the class was copied over
  * because of current Calcite way of inferring constants from IS NOT DISTINCT FROM clashes with
  * filter push down.
  *
- * <p>Lines 399 ~ 401, Use Calcite 1.32.0 behavior for {@link RexUtil#gatherConstraints(Class,
+ * <p>Lines 402 ~ 404, Use Calcite 1.32.0 behavior for {@link RexUtil#gatherConstraints(Class,
  * RexNode, Map, Set, RexBuilder)}.
  */
 public class RexUtil {
@@ -398,9 +399,9 @@ public class RexUtil {
         final RexNode right;
         switch (predicate.getKind()) {
             case EQUALS:
-                // FLINK BEGIN MODIFICATION
+                // ----- FLINK MODIFICATION BEGIN -----
                 // case IS_NOT_DISTINCT_FROM:
-                // FLINK END MODIFICATION
+                // ----- FLINK MODIFICATION END -----
                 left = ((RexCall) predicate).getOperands().get(0);
                 right = ((RexCall) predicate).getOperands().get(1);
                 break;
@@ -761,6 +762,16 @@ public class RexUtil {
 
         @Override
         public Boolean visitPatternFieldRef(RexPatternFieldRef fieldRef) {
+            return false;
+        }
+
+        @Override
+        public Boolean visitLambda(RexLambda rexLambda) {
+            return false;
+        }
+
+        @Override
+        public Boolean visitLambdaRef(RexLambdaRef rexLambdaRef) {
             return false;
         }
 
@@ -1647,7 +1658,8 @@ public class RexUtil {
      *
      * @param source source type
      * @param target target type
-     * @return true iff the conversion is a loss-less cast
+     * @return 'true' when the conversion can certainly be determined to be loss-less cast, but may
+     *     return 'false' for some lossless casts.
      */
     @API(since = "1.22", status = API.Status.EXPERIMENTAL)
     public static boolean isLosslessCast(RelDataType source, RelDataType target) {
@@ -1671,7 +1683,8 @@ public class RexUtil {
             if (source.getScale() != -1 && source.getScale() != 0) {
                 sourceLength += source.getScale() + 1; // include decimal mark
             }
-            return target.getPrecision() >= sourceLength;
+            final int targetPrecision = target.getPrecision();
+            return targetPrecision == PRECISION_NOT_SPECIFIED || targetPrecision >= sourceLength;
         }
         // Return FALSE by default
         return false;
@@ -2858,6 +2871,33 @@ public class RexUtil {
                 return new RexInputRef(ref.getIndex(), refType2);
             }
             throw new AssertionError("mismatched type " + ref + " " + rightType);
+        }
+    }
+
+    /**
+     * Visitor that collects all the top level SubQueries {@link RexSubQuery} in a projection list
+     * of a given {@link Project}.
+     */
+    public static class SubQueryCollector extends RexVisitorImpl<Void> {
+        private List<RexSubQuery> subQueries;
+
+        private SubQueryCollector() {
+            super(true);
+            this.subQueries = new ArrayList<>();
+        }
+
+        @Override
+        public Void visitSubQuery(RexSubQuery subQuery) {
+            subQueries.add(subQuery);
+            return null;
+        }
+
+        public static List<RexSubQuery> collect(Project project) {
+            SubQueryCollector subQueryCollector = new SubQueryCollector();
+            for (RexNode node : project.getProjects()) {
+                node.accept(subQueryCollector);
+            }
+            return subQueryCollector.subQueries;
         }
     }
 

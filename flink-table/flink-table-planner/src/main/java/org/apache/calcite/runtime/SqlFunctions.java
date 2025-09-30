@@ -39,6 +39,7 @@ import org.apache.calcite.linq4j.function.Deterministic;
 import org.apache.calcite.linq4j.function.Experimental;
 import org.apache.calcite.linq4j.function.Function1;
 import org.apache.calcite.linq4j.function.NonDeterministic;
+import org.apache.calcite.linq4j.function.Predicate1;
 import org.apache.calcite.linq4j.tree.Primitive;
 import org.apache.calcite.rel.type.TimeFrame;
 import org.apache.calcite.rel.type.TimeFrameSet;
@@ -61,7 +62,6 @@ import org.apache.commons.codec.language.Soundex;
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.apache.commons.text.similarity.LevenshteinDistance;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.lang.reflect.Field;
 import java.math.BigDecimal;
@@ -280,7 +280,7 @@ public class SqlFunctions {
     }
 
     /** SQL FROM_BASE64(string) function. */
-    public static @Nullable ByteString fromBase64(String base64) {
+    public static ByteString fromBase64(String base64) {
         try {
             base64 = FROM_BASE64_REGEXP.matcher(base64).replaceAll("");
             return new ByteString(Base64.getDecoder().decode(base64));
@@ -399,10 +399,18 @@ public class SqlFunctions {
          * else returns a Pattern object.
          */
         private Pattern validateRegexPattern(String regex, String methodName) {
+            return validateRegexPattern(regex, methodName, 0);
+        }
+
+        /**
+         * Validate regex arguments in REGEXP_* fns, throws an exception for invalid regex patterns,
+         * else returns a Pattern object.
+         */
+        private Pattern validateRegexPattern(String regex, String methodName, int flags) {
             try {
                 // Uses java.util.regex as a standard for regex processing
                 // in Calcite instead of RE2 used by BigQuery/GoogleSQL
-                return cache.getUnchecked(new Key(0, regex));
+                return cache.getUnchecked(new Key(flags, regex));
             } catch (UncheckedExecutionException e) {
                 if (e.getCause() instanceof PatternSyntaxException) {
                     throw RESOURCE.invalidRegexInputForRegexpFunctions(
@@ -500,11 +508,22 @@ public class SqlFunctions {
         }
 
         /**
+         * SQL {@code REGEXP_LIKE(value, regexp, flags)} function. Throws a runtime exception for
+         * invalid regular expressions.
+         */
+        @SuppressWarnings("unused")
+        public boolean regexpLike(String value, String regex, String stringFlags) {
+            final Pattern pattern =
+                    validateRegexPattern(regex, "REGEXP_LIKE", makeRegexpFlags(stringFlags));
+            return pattern.matcher(value).find();
+        }
+
+        /**
          * SQL {@code REGEXP_EXTRACT(value, regexp)} function. Returns NULL if there is no match.
          * Returns an exception if regex is invalid. Uses position=1 and occurrence=1 as default
          * values when not specified.
          */
-        public @Nullable String regexpExtract(String value, String regex) {
+        public String regexpExtract(String value, String regex) {
             return regexpExtract(value, regex, 1, 1);
         }
 
@@ -513,7 +532,7 @@ public class SqlFunctions {
          * match, or if position is beyond range. Returns an exception if regex or position is
          * invalid. Uses occurrence=1 as default value when not specified.
          */
-        public @Nullable String regexpExtract(String value, String regex, int position) {
+        public String regexpExtract(String value, String regex, int position) {
             return regexpExtract(value, regex, position, 1);
         }
 
@@ -522,8 +541,7 @@ public class SqlFunctions {
          * there is no match, or if position or occurrence are beyond range. Returns an exception if
          * regex, position or occurrence are invalid.
          */
-        public @Nullable String regexpExtract(
-                String value, String regex, int position, int occurrence) {
+        public String regexpExtract(String value, String regex, int position, int occurrence) {
             // Uses java.util.regex as a standard for regex processing
             // in Calcite instead of RE2 used by BigQuery/GoogleSQL
             final String methodName = "REGEXP_EXTRACT";
@@ -665,7 +683,7 @@ public class SqlFunctions {
                 String replacement,
                 int pos,
                 int occurrence,
-                @Nullable String matchType) {
+                String matchType) {
             if (pos < 1 || pos > s.length()) {
                 throw RESOURCE.invalidInputForRegexpReplace(Integer.toString(pos)).ex();
             }
@@ -711,7 +729,15 @@ public class SqlFunctions {
                         flags |= Pattern.DOTALL;
                         break;
                     case 'm':
+                        // PostgreSQL should actually interpret m to be a synonym for n, but this is
+                        // relaxed for consistency.
                         flags |= Pattern.MULTILINE;
+                        break;
+                    case 's':
+                        // This flag is in PostgreSQL but doesn't apply to other libraries. This is
+                        // relaxed
+                        // for consistency.
+                        flags &= ~Pattern.DOTALL;
                         break;
                     default:
                         throw RESOURCE.invalidInputForRegexpReplace(stringFlags).ex();
@@ -908,7 +934,7 @@ public class SqlFunctions {
     }
 
     /** SQL <code>CONTAINS_SUBSTR(rows, substr)</code> operator. */
-    public static @Nullable Boolean containsSubstr(Object[] rows, String substr) {
+    public static Boolean containsSubstr(Object[] rows, String substr) {
         // If rows have null arguments, it should return TRUE if substr is found, otherwise NULL
         boolean nullFlag = false;
         for (Object row : rows) {
@@ -926,7 +952,7 @@ public class SqlFunctions {
     }
 
     /** SQL <code>CONTAINS_SUBSTR(arr, substr)</code> operator. */
-    public static @Nullable Boolean containsSubstr(List arr, String substr) {
+    public static Boolean containsSubstr(List arr, String substr) {
         // If array has null arguments, it should return TRUE if substr is found, otherwise NULL
         boolean nullFlag = false;
         for (Object item : arr) {
@@ -1004,14 +1030,34 @@ public class SqlFunctions {
 
     /** SQL SUBSTRING(string FROM ...) function. */
     public static String substring(String c, int s) {
-        final int s0 = s - 1;
-        if (s0 <= 0) {
+        if (s <= 1) {
             return c;
         }
         if (s > c.length()) {
             return "";
         }
+        final int s0 = s - 1;
         return c.substring(s0);
+    }
+
+    // Clamp very large long values to integer values.
+    // Used by the substring functions.
+    // Java strings do not support long indexes anyway,
+    // so this is most likely a safe approximation.
+    // But if a string has more than 2^31 characters
+    // the result of calling String.substring will be wrong anyway.
+    static int clamp(long s) {
+        if (s < Integer.MIN_VALUE) {
+            return Integer.MIN_VALUE;
+        }
+        if (s > Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
+        return (int) s;
+    }
+
+    public static String substring(String c, long s) {
+        return substring(c, clamp(s));
     }
 
     /** SQL SUBSTRING(string FROM ... FOR ...) function. */
@@ -1031,15 +1077,27 @@ public class SqlFunctions {
         return c.substring(s0, (int) e0);
     }
 
+    public static String substring(String c, int s, long l) {
+        return substring(c, s, clamp(l));
+    }
+
+    public static String substring(String c, long s, int l) {
+        return substring(c, clamp(s), l);
+    }
+
+    public static String substring(String c, long s, long l) {
+        return substring(c, clamp(s), clamp(l));
+    }
+
     /** SQL SUBSTRING(binary FROM ...) function for binary. */
     public static ByteString substring(ByteString c, int s) {
-        final int s0 = s - 1;
-        if (s0 <= 0) {
+        if (s <= 1) {
             return c;
         }
         if (s > c.length()) {
             return ByteString.EMPTY;
         }
+        final int s0 = s - 1;
         return c.substring(s0);
     }
 
@@ -1177,7 +1235,7 @@ public class SqlFunctions {
      * matchStr in the comma-delimited list textStr. Returns 0, if the matchStr is not found or if
      * the matchStr contains a comma.
      */
-    public static @Nullable Integer findInSet(@Nullable String matchStr, @Nullable String textStr) {
+    public static Integer findInSet(String matchStr, String textStr) {
         if (matchStr == null || textStr == null) {
             return null;
         }
@@ -1295,7 +1353,7 @@ public class SqlFunctions {
      *
      * <p>Returns the ASCII character of {@code n} modulo 256, or null if {@code n} &lt; 0.
      */
-    public static @Nullable String charFromAscii(int n) {
+    public static String charFromAscii(int n) {
         if (n < 0) {
             return null;
         }
@@ -1312,7 +1370,7 @@ public class SqlFunctions {
     }
 
     /** SQL CODE_POINTS_TO_BYTES(list) function. */
-    public static @Nullable ByteString codePointsToBytes(List codePoints) {
+    public static ByteString codePointsToBytes(List codePoints) {
         int length = codePoints.size();
         byte[] bytes = new byte[length];
         for (int i = 0; i < length; i++) {
@@ -1334,7 +1392,7 @@ public class SqlFunctions {
     }
 
     /** SQL CODE_POINTS_TO_STRING(list) function. */
-    public static @Nullable String codePointsToString(List codePoints) {
+    public static String codePointsToString(List codePoints) {
         StringBuilder sb = new StringBuilder();
         for (Object codePoint : codePoints) {
             if (codePoint == null) {
@@ -1357,7 +1415,7 @@ public class SqlFunctions {
     }
 
     /** SQL TO_CODE_POINTS(string) function. */
-    public static @Nullable List<Integer> toCodePoints(String s) {
+    public static List<Integer> toCodePoints(String s) {
         if (s.length() == 0) {
             return null;
         }
@@ -1373,7 +1431,7 @@ public class SqlFunctions {
     }
 
     /** SQL TO_CODE_POINTS(string) function for binary string. */
-    public static @Nullable List<Integer> toCodePoints(ByteString s) {
+    public static List<Integer> toCodePoints(ByteString s) {
         if (s.length() == 0) {
             return null;
         }
@@ -1446,7 +1504,7 @@ public class SqlFunctions {
      * Concatenates two strings. Returns null only when both s0 and s1 are null, otherwise null is
      * treated as empty string.
      */
-    public static @Nullable String concatWithNull(@Nullable String s0, @Nullable String s1) {
+    public static String concatWithNull(String s0, String s1) {
         if (s0 == null) {
             return s1;
         } else if (s1 == null) {
@@ -1541,7 +1599,7 @@ public class SqlFunctions {
                         .build(CacheLoader.from(ParseUrlFunction::keyToPattern));
 
         /** SQL {@code PARSE_URL(urlStr, partToExtract, keyToExtract)} function. */
-        public @Nullable String parseUrl(String urlStr, String partToExtract, String keyToExtract) {
+        public String parseUrl(String urlStr, String partToExtract, String keyToExtract) {
             if (!partToExtract.equals("QUERY")) {
                 return null;
             }
@@ -1557,7 +1615,7 @@ public class SqlFunctions {
         }
 
         /** SQL {@code PARSE_URL(urlStr, partToExtract)} function. */
-        public @Nullable String parseUrl(String urlStr, String partToExtract) {
+        public String parseUrl(String urlStr, String partToExtract) {
             URI uri;
             try {
                 uri = new URI(urlStr);
@@ -1710,10 +1768,10 @@ public class SqlFunctions {
         /** Key for cache of compiled regular expressions. */
         private static final class Key {
             final String pattern;
-            final @Nullable String escape;
+            final String escape;
             final int flags;
 
-            Key(String pattern, @Nullable String escape, int flags) {
+            Key(String pattern, String escape, int flags) {
                 this.pattern = pattern;
                 this.escape = escape;
                 this.flags = flags;
@@ -1725,7 +1783,7 @@ public class SqlFunctions {
             }
 
             @Override
-            public boolean equals(@Nullable Object obj) {
+            public boolean equals(Object obj) {
                 return this == obj
                         || obj instanceof Key
                                 && pattern.equals(((Key) obj).pattern)
@@ -1845,7 +1903,7 @@ public class SqlFunctions {
     }
 
     /** SQL <code>=</code> operator applied to Object[] values (neither may be null). */
-    public static boolean eq(@Nullable Object[] b0, @Nullable Object[] b1) {
+    public static boolean eq(Object[] b0, Object[] b1) {
         return Arrays.deepEquals(b0, b1);
     }
 
@@ -2378,7 +2436,7 @@ public class SqlFunctions {
     }
 
     /** SQL <code>SAFE_ADD</code> function applied to long values. */
-    public static @Nullable Long safeAdd(long b0, long b1) {
+    public static Long safeAdd(long b0, long b1) {
         try {
             return Math.addExact(b0, b1);
         } catch (ArithmeticException e) {
@@ -2387,59 +2445,59 @@ public class SqlFunctions {
     }
 
     /** SQL <code>SAFE_ADD</code> function applied to long and BigDecimal values. */
-    public static @Nullable BigDecimal safeAdd(long b0, BigDecimal b1) {
+    public static BigDecimal safeAdd(long b0, BigDecimal b1) {
         BigDecimal ans = BigDecimal.valueOf(b0).add(b1);
         return safeDecimal(ans) ? ans : null;
     }
 
     /** SQL <code>SAFE_ADD</code> function applied to BigDecimal and long values. */
-    public static @Nullable BigDecimal safeAdd(BigDecimal b0, long b1) {
+    public static BigDecimal safeAdd(BigDecimal b0, long b1) {
         return safeAdd(b1, b0);
     }
 
     /** SQL <code>SAFE_ADD</code> function applied to BigDecimal values. */
-    public static @Nullable BigDecimal safeAdd(BigDecimal b0, BigDecimal b1) {
+    public static BigDecimal safeAdd(BigDecimal b0, BigDecimal b1) {
         BigDecimal ans = b0.add(b1);
         return safeDecimal(ans) ? ans : null;
     }
 
     /** SQL <code>SAFE_ADD</code> function applied to double and long values. */
-    public static @Nullable Double safeAdd(double b0, long b1) {
+    public static Double safeAdd(double b0, long b1) {
         double ans = b0 + b1;
         return safeDouble(ans) || !Double.isFinite(b0) ? ans : null;
     }
 
     /** SQL <code>SAFE_ADD</code> function applied to long and double values. */
-    public static @Nullable Double safeAdd(long b0, double b1) {
+    public static Double safeAdd(long b0, double b1) {
         return safeAdd(b1, b0);
     }
 
     /** SQL <code>SAFE_ADD</code> function applied to double and BigDecimal values. */
-    public static @Nullable Double safeAdd(double b0, BigDecimal b1) {
+    public static Double safeAdd(double b0, BigDecimal b1) {
         double ans = b0 + b1.doubleValue();
         return safeDouble(ans) || !Double.isFinite(b0) ? ans : null;
     }
 
     /** SQL <code>SAFE_ADD</code> function applied to BigDecimal and double values. */
-    public static @Nullable Double safeAdd(BigDecimal b0, double b1) {
+    public static Double safeAdd(BigDecimal b0, double b1) {
         return safeAdd(b1, b0);
     }
 
     /** SQL <code>SAFE_ADD</code> function applied to double values. */
-    public static @Nullable Double safeAdd(double b0, double b1) {
+    public static Double safeAdd(double b0, double b1) {
         double ans = b0 + b1;
         boolean isFinite = Double.isFinite(b0) && Double.isFinite(b1);
         return safeDouble(ans) || !isFinite ? ans : null;
     }
 
     /** SQL <code>SAFE_MULTIPLY</code> function applied to long values. */
-    public static @Nullable Double safeDivide(long b0, long b1) {
+    public static Double safeDivide(long b0, long b1) {
         double ans = (double) b0 / b1;
         return safeDouble(ans) && b1 != 0 ? ans : null;
     }
 
     /** SQL <code>SAFE_DIVIDE</code> function applied to long and BigDecimal values. */
-    public static @Nullable BigDecimal safeDivide(long b0, BigDecimal b1) {
+    public static BigDecimal safeDivide(long b0, BigDecimal b1) {
         try {
             BigDecimal ans = BigDecimal.valueOf(b0).divide(b1);
             return safeDecimal(ans) ? ans : null;
@@ -2449,7 +2507,7 @@ public class SqlFunctions {
     }
 
     /** SQL <code>SAFE_DIVIDE</code> function applied to BigDecimal and long values. */
-    public static @Nullable BigDecimal safeDivide(BigDecimal b0, long b1) {
+    public static BigDecimal safeDivide(BigDecimal b0, long b1) {
         try {
             BigDecimal ans = b0.divide(BigDecimal.valueOf(b1));
             return safeDecimal(ans) ? ans : null;
@@ -2459,7 +2517,7 @@ public class SqlFunctions {
     }
 
     /** SQL <code>SAFE_DIVIDE</code> function applied to BigDecimal values. */
-    public static @Nullable BigDecimal safeDivide(BigDecimal b0, BigDecimal b1) {
+    public static BigDecimal safeDivide(BigDecimal b0, BigDecimal b1) {
         try {
             BigDecimal ans = b0.divide(b1);
             return safeDecimal(ans) ? ans : null;
@@ -2469,38 +2527,38 @@ public class SqlFunctions {
     }
 
     /** SQL <code>SAFE_DIVIDE</code> function applied to double and long values. */
-    public static @Nullable Double safeDivide(double b0, long b1) {
+    public static Double safeDivide(double b0, long b1) {
         double ans = b0 / b1;
         return safeDouble(ans) || !Double.isFinite(b0) ? ans : null;
     }
 
     /** SQL <code>SAFE_DIVIDE</code> function applied to long and double values. */
-    public static @Nullable Double safeDivide(long b0, double b1) {
+    public static Double safeDivide(long b0, double b1) {
         double ans = b0 / b1;
         return safeDouble(ans) || !Double.isFinite(b1) ? ans : null;
     }
 
     /** SQL <code>SAFE_DIVIDE</code> function applied to double and BigDecimal values. */
-    public static @Nullable Double safeDivide(double b0, BigDecimal b1) {
+    public static Double safeDivide(double b0, BigDecimal b1) {
         double ans = b0 / b1.doubleValue();
         return safeDouble(ans) || !Double.isFinite(b0) ? ans : null;
     }
 
     /** SQL <code>SAFE_DIVIDE</code> function applied to BigDecimal and double values. */
-    public static @Nullable Double safeDivide(BigDecimal b0, double b1) {
+    public static Double safeDivide(BigDecimal b0, double b1) {
         double ans = b0.doubleValue() / b1;
         return safeDouble(ans) || !Double.isFinite(b1) ? ans : null;
     }
 
     /** SQL <code>SAFE_DIVIDE</code> function applied to double values. */
-    public static @Nullable Double safeDivide(double b0, double b1) {
+    public static Double safeDivide(double b0, double b1) {
         double ans = b0 / b1;
         boolean isFinite = Double.isFinite(b0) && Double.isFinite(b1);
         return safeDouble(ans) || !isFinite ? ans : null;
     }
 
     /** SQL <code>SAFE_MULTIPLY</code> function applied to long values. */
-    public static @Nullable Long safeMultiply(long b0, long b1) {
+    public static Long safeMultiply(long b0, long b1) {
         try {
             return Math.multiplyExact(b0, b1);
         } catch (ArithmeticException e) {
@@ -2509,53 +2567,53 @@ public class SqlFunctions {
     }
 
     /** SQL <code>SAFE_MULTIPLY</code> function applied to long and BigDecimal values. */
-    public static @Nullable BigDecimal safeMultiply(long b0, BigDecimal b1) {
+    public static BigDecimal safeMultiply(long b0, BigDecimal b1) {
         BigDecimal ans = BigDecimal.valueOf(b0).multiply(b1);
         return safeDecimal(ans) ? ans : null;
     }
 
     /** SQL <code>SAFE_MULTIPLY</code> function applied to BigDecimal and long values. */
-    public static @Nullable BigDecimal safeMultiply(BigDecimal b0, long b1) {
+    public static BigDecimal safeMultiply(BigDecimal b0, long b1) {
         return safeMultiply(b1, b0);
     }
 
     /** SQL <code>SAFE_MULTIPLY</code> function applied to BigDecimal values. */
-    public static @Nullable BigDecimal safeMultiply(BigDecimal b0, BigDecimal b1) {
+    public static BigDecimal safeMultiply(BigDecimal b0, BigDecimal b1) {
         BigDecimal ans = b0.multiply(b1);
         return safeDecimal(ans) ? ans : null;
     }
 
     /** SQL <code>SAFE_MULTIPLY</code> function applied to double and long values. */
-    public static @Nullable Double safeMultiply(double b0, long b1) {
+    public static Double safeMultiply(double b0, long b1) {
         double ans = b0 * b1;
         return safeDouble(ans) || !Double.isFinite(b0) ? ans : null;
     }
 
     /** SQL <code>SAFE_MULTIPLY</code> function applied to long and double values. */
-    public static @Nullable Double safeMultiply(long b0, double b1) {
+    public static Double safeMultiply(long b0, double b1) {
         return safeMultiply(b1, b0);
     }
 
     /** SQL <code>SAFE_MULTIPLY</code> function applied to double and BigDecimal values. */
-    public static @Nullable Double safeMultiply(double b0, BigDecimal b1) {
+    public static Double safeMultiply(double b0, BigDecimal b1) {
         double ans = b0 * b1.doubleValue();
         return safeDouble(ans) || !Double.isFinite(b0) ? ans : null;
     }
 
     /** SQL <code>SAFE_MULTIPLY</code> function applied to BigDecimal and double values. */
-    public static @Nullable Double safeMultiply(BigDecimal b0, double b1) {
+    public static Double safeMultiply(BigDecimal b0, double b1) {
         return safeMultiply(b1, b0);
     }
 
     /** SQL <code>SAFE_MULTIPLY</code> function applied to double values. */
-    public static @Nullable Double safeMultiply(double b0, double b1) {
+    public static Double safeMultiply(double b0, double b1) {
         double ans = b0 * b1;
         boolean isFinite = Double.isFinite(b0) && Double.isFinite(b1);
         return safeDouble(ans) || !isFinite ? ans : null;
     }
 
     /** SQL <code>SAFE_SUBTRACT</code> function applied to long values. */
-    public static @Nullable Long safeSubtract(long b0, long b1) {
+    public static Long safeSubtract(long b0, long b1) {
         try {
             return Math.subtractExact(b0, b1);
         } catch (ArithmeticException e) {
@@ -2564,49 +2622,49 @@ public class SqlFunctions {
     }
 
     /** SQL <code>SAFE_SUBTRACT</code> function applied to long and BigDecimal values. */
-    public static @Nullable BigDecimal safeSubtract(long b0, BigDecimal b1) {
+    public static BigDecimal safeSubtract(long b0, BigDecimal b1) {
         BigDecimal ans = BigDecimal.valueOf(b0).subtract(b1);
         return safeDecimal(ans) ? ans : null;
     }
 
     /** SQL <code>SAFE_SUBTRACT</code> function applied to BigDecimal and long values. */
-    public static @Nullable BigDecimal safeSubtract(BigDecimal b0, long b1) {
+    public static BigDecimal safeSubtract(BigDecimal b0, long b1) {
         BigDecimal ans = b0.subtract(BigDecimal.valueOf(b1));
         return safeDecimal(ans) ? ans : null;
     }
 
     /** SQL <code>SAFE_SUBTRACT</code> function applied to BigDecimal values. */
-    public static @Nullable BigDecimal safeSubtract(BigDecimal b0, BigDecimal b1) {
+    public static BigDecimal safeSubtract(BigDecimal b0, BigDecimal b1) {
         BigDecimal ans = b0.subtract(b1);
         return safeDecimal(ans) ? ans : null;
     }
 
     /** SQL <code>SAFE_SUBTRACT</code> function applied to double and long values. */
-    public static @Nullable Double safeSubtract(double b0, long b1) {
+    public static Double safeSubtract(double b0, long b1) {
         double ans = b0 - b1;
         return safeDouble(ans) || !Double.isFinite(b0) ? ans : null;
     }
 
     /** SQL <code>SAFE_SUBTRACT</code> function applied to long and double values. */
-    public static @Nullable Double safeSubtract(long b0, double b1) {
+    public static Double safeSubtract(long b0, double b1) {
         double ans = b0 - b1;
         return safeDouble(ans) || !Double.isFinite(b1) ? ans : null;
     }
 
     /** SQL <code>SAFE_SUBTRACT</code> function applied to double and BigDecimal values. */
-    public static @Nullable Double safeSubtract(double b0, BigDecimal b1) {
+    public static Double safeSubtract(double b0, BigDecimal b1) {
         double ans = b0 - b1.doubleValue();
         return safeDouble(ans) || !Double.isFinite(b0) ? ans : null;
     }
 
     /** SQL <code>SAFE_SUBTRACT</code> function applied to BigDecimal and double values. */
-    public static @Nullable Double safeSubtract(BigDecimal b0, double b1) {
+    public static Double safeSubtract(BigDecimal b0, double b1) {
         double ans = b0.doubleValue() - b1;
         return safeDouble(ans) || !Double.isFinite(b1) ? ans : null;
     }
 
     /** SQL <code>SAFE_SUBTRACT</code> function applied to double values. */
-    public static @Nullable Double safeSubtract(double b0, double b1) {
+    public static Double safeSubtract(double b0, double b1) {
         double ans = b0 - b1;
         boolean isFinite = Double.isFinite(b0) && Double.isFinite(b1);
         return safeDouble(ans) || !isFinite ? ans : null;
@@ -2732,7 +2790,7 @@ public class SqlFunctions {
         return Math.pow(b0.doubleValue(), b1.doubleValue());
     }
 
-    // LN, LOG, LOG10
+    // LN, LOG, LOG10, LOG2
 
     /** SQL {@code LOG(number, number2)} function applied to double values. */
     public static double log(double d0, double d1) {
@@ -2752,6 +2810,16 @@ public class SqlFunctions {
     /** SQL {@code LOG(number, number2)} function applied to double values. */
     public static double log(BigDecimal d0, BigDecimal d1) {
         return Math.log(d0.doubleValue()) / Math.log(d1.doubleValue());
+    }
+
+    /** SQL {@code LOG2(number)} function applied to double values. */
+    public static Double log2(double number) {
+        return (number <= 0) ? null : log(number, 2);
+    }
+
+    /** SQL {@code LOG2(number)} function applied to BigDecimal values. */
+    public static Double log2(BigDecimal number) {
+        return log2(number.doubleValue());
     }
 
     // MOD
@@ -3131,7 +3199,7 @@ public class SqlFunctions {
     }
 
     /** SQL <code>FACTORIAL</code> operator. */
-    public static @Nullable Long factorial(int b0) {
+    public static Long factorial(int b0) {
         if (b0 < 0 || b0 > 20) {
             return null;
         }
@@ -3960,7 +4028,7 @@ public class SqlFunctions {
             return sb.toString();
         }
 
-        public String formatTimestamp(DataContext ctx, String fmtString, long timestamp) {
+        public String formatTimestamp(String fmtString, long timestamp) {
             return internalFormatDatetime(fmtString, internalToTimestamp(timestamp));
         }
 
@@ -3974,11 +4042,47 @@ public class SqlFunctions {
             return sb.toString().trim();
         }
 
-        public String formatDate(DataContext ctx, String fmtString, int date) {
+        public int toDate(String dateString, String fmtString) {
+            return toInt(new java.sql.Date(internalToDateTime(dateString, fmtString)));
+        }
+
+        public long toTimestamp(String timestampString, String fmtString) {
+            return toLong(new java.sql.Timestamp(internalToDateTime(timestampString, fmtString)));
+        }
+
+        private long internalToDateTime(String dateString, String fmtString) {
+            final ParsePosition pos = new ParsePosition(0);
+
+            sb.setLength(0);
+            withElements(
+                    FormatModels.POSTGRESQL,
+                    fmtString,
+                    elements -> elements.forEach(element -> element.toPattern(sb)));
+            final String dateFormatString = sb.toString().trim();
+
+            final SimpleDateFormat sdf = new SimpleDateFormat(dateFormatString, Locale.ENGLISH);
+            final Date date = sdf.parse(dateString, pos);
+            if (pos.getErrorIndex() >= 0 || pos.getIndex() != dateString.length()) {
+                SQLException e =
+                        new SQLException(
+                                String.format(
+                                        Locale.ROOT,
+                                        "Invalid format: '%s' for datetime string: '%s'.",
+                                        fmtString,
+                                        dateString));
+                throw Util.toUnchecked(e);
+            }
+
+            @SuppressWarnings("JavaUtilDate")
+            final long millisSinceEpoch = date.getTime();
+            return millisSinceEpoch;
+        }
+
+        public String formatDate(String fmtString, int date) {
             return internalFormatDatetime(fmtString, internalToDate(date));
         }
 
-        public String formatTime(DataContext ctx, String fmtString, int time) {
+        public String formatTime(String fmtString, int time) {
             return internalFormatDatetime(fmtString, internalToTime(time));
         }
     }
@@ -4070,7 +4174,7 @@ public class SqlFunctions {
             }
 
             @Override
-            public boolean equals(@Nullable Object obj) {
+            public boolean equals(Object obj) {
                 return this == obj
                         || obj instanceof Key
                                 && fmt.equals(((Key) obj).fmt)
@@ -4457,6 +4561,14 @@ public class SqlFunctions {
         }
     }
 
+    public static ByteString stringToBinary(String s, Charset charset) {
+        if (s == null) {
+            return null;
+        } else {
+            return new ByteString(s.getBytes(charset));
+        }
+    }
+
     /** Helper for CAST(... AS VARBINARY(maxLength)). */
     public static ByteString truncate(ByteString s, int maxLength) {
         if (s == null) {
@@ -4793,7 +4905,7 @@ public class SqlFunctions {
 
     /** SQL {@code CURRENT_DATETIME} function with a specified timezone. */
     @NonDeterministic
-    public static @Nullable Long currentDatetime(DataContext root, @Nullable String timezone) {
+    public static Long currentDatetime(DataContext root, String timezone) {
         if (timezone == null) {
             return null;
         }
@@ -4958,7 +5070,7 @@ public class SqlFunctions {
      * <p>The {@code ITEM}, {@code SAFE_OFFSET}, and {@code SAFE_ORDINAL} operators return null if
      * the index is out of bounds, while the others throw an error.
      */
-    public static @Nullable Object arrayItem(List list, int item, int offset, boolean safe) {
+    public static Object arrayItem(List list, int item, int offset, boolean safe) {
         if (item < offset || item > list.size() + 1 - offset) {
             if (safe) {
                 return null;
@@ -4973,14 +5085,14 @@ public class SqlFunctions {
      * Helper for "map element reference". Caller has already ensured that array and index are not
      * null. Index is 1-based, per SQL.
      */
-    public static @Nullable Object mapItem(Map map, Object item) {
+    public static Object mapItem(Map map, Object item) {
         return map.get(item);
     }
 
     /**
      * Implements the {@code [ ... ]} operator on an object whose type is not known until runtime.
      */
-    public static @Nullable Object item(Object object, Object index) {
+    public static Object item(Object object, Object index) {
         if (object instanceof Map) {
             return mapItem((Map) object, index);
         }
@@ -4998,8 +5110,7 @@ public class SqlFunctions {
     }
 
     /** As {@link #arrayItem} method, but allows array to be nullable. */
-    public static @Nullable Object arrayItemOptional(
-            @Nullable List list, int item, int offset, boolean safe) {
+    public static Object arrayItemOptional(List list, int item, int offset, boolean safe) {
         if (list == null) {
             return null;
         }
@@ -5007,7 +5118,7 @@ public class SqlFunctions {
     }
 
     /** As {@link #mapItem} method, but allows map to be nullable. */
-    public static @Nullable Object mapItemOptional(@Nullable Map map, Object item) {
+    public static Object mapItemOptional(Map map, Object item) {
         if (map == null) {
             return null;
         }
@@ -5015,7 +5126,7 @@ public class SqlFunctions {
     }
 
     /** As {@link #item} method, but allows object to be nullable. */
-    public static @Nullable Object itemOptional(@Nullable Object object, Object index) {
+    public static Object itemOptional(Object object, Object index) {
         if (object == null) {
             return null;
         }
@@ -5023,22 +5134,22 @@ public class SqlFunctions {
     }
 
     /** NULL &rarr; FALSE, FALSE &rarr; FALSE, TRUE &rarr; TRUE. */
-    public static boolean isTrue(@Nullable Boolean b) {
+    public static boolean isTrue(Boolean b) {
         return b != null && b;
     }
 
     /** NULL &rarr; FALSE, FALSE &rarr; TRUE, TRUE &rarr; FALSE. */
-    public static boolean isFalse(@Nullable Boolean b) {
+    public static boolean isFalse(Boolean b) {
         return b != null && !b;
     }
 
     /** NULL &rarr; TRUE, FALSE &rarr; TRUE, TRUE &rarr; FALSE. */
-    public static boolean isNotTrue(@Nullable Boolean b) {
+    public static boolean isNotTrue(Boolean b) {
         return b == null || !b;
     }
 
     /** NULL &rarr; TRUE, FALSE &rarr; FALSE, TRUE &rarr; TRUE. */
-    public static boolean isNotFalse(@Nullable Boolean b) {
+    public static boolean isNotFalse(Boolean b) {
         return b == null || b;
     }
 
@@ -5083,7 +5194,7 @@ public class SqlFunctions {
     }
 
     /** Support the ARRAYS_OVERLAP function. */
-    public static @Nullable Boolean arraysOverlap(List list1, List list2) {
+    public static Boolean arraysOverlap(List list1, List list2) {
         if (list1.size() > list2.size()) {
             return arraysOverlap(list2, list1);
         }
@@ -5162,8 +5273,7 @@ public class SqlFunctions {
     }
 
     /** Support the ARRAY_MAX function. */
-    public static @Nullable <T extends Object & Comparable<? super T>> T arrayMax(
-            List<? extends T> list) {
+    public static <T extends Object & Comparable<? super T>> T arrayMax(List<? extends T> list) {
 
         T max = null;
         for (int i = 0; i < list.size(); i++) {
@@ -5176,8 +5286,7 @@ public class SqlFunctions {
     }
 
     /** Support the ARRAY_MIN function. */
-    public static @Nullable <T extends Object & Comparable<? super T>> T arrayMin(
-            List<? extends T> list) {
+    public static <T extends Object & Comparable<? super T>> T arrayMin(List<? extends T> list) {
 
         T min = null;
         for (int i = 0; i < list.size(); i++) {
@@ -5218,7 +5327,7 @@ public class SqlFunctions {
     }
 
     /** Support the ARRAY_REPEAT function. */
-    public static @Nullable List<Object> repeat(Object element, Object count) {
+    public static List<Object> arrayRepeat(Object element, Object count) {
         if (count == null) {
             return null;
         }
@@ -5237,7 +5346,7 @@ public class SqlFunctions {
     }
 
     /** Support the ARRAY_INSERT function. */
-    public static @Nullable List arrayInsert(List baselist, Object pos, Object val) {
+    public static List arrayInsert(List baselist, Object pos, Object val) {
         if (baselist == null || pos == null) {
             return null;
         }
@@ -5250,6 +5359,10 @@ public class SqlFunctions {
                             + "and not exceeds the allowed limit.");
         }
 
+        if (posInt == -1) {
+            // This means "append to the array"
+            posInt = baseArray.length + 1;
+        }
         boolean usePositivePos = posInt > 0;
 
         if (usePositivePos) {
@@ -5278,7 +5391,10 @@ public class SqlFunctions {
 
             return Arrays.asList(newArray);
         } else {
-            int posIndex = posInt;
+            // 1-based index.
+            // The behavior of this function was changed in Spark 3.4.0.
+            // https://issues.apache.org/jira/browse/SPARK-44840
+            int posIndex = posInt + 1;
 
             boolean newPosExtendsArrayLeft = baseArray.length + posIndex < 0;
 
@@ -5366,6 +5482,22 @@ public class SqlFunctions {
         return list;
     }
 
+    /** Support the EXISTS(list, function1) function. */
+    public static Boolean exists(List list, Function1<Object, Boolean> function1) {
+        return nullableExists(list, function1);
+    }
+
+    /** Support the EXISTS(list, predicate1) function. */
+    public static Boolean exists(List list, Predicate1 predicate1) {
+        for (Object element : list) {
+            boolean ret = predicate1.apply(element);
+            if (ret) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Support the MAP_CONCAT function. */
     public static Map mapConcat(Map... maps) {
         final Map result = new LinkedHashMap();
@@ -5392,6 +5524,11 @@ public class SqlFunctions {
         return new ArrayList<>(map.values());
     }
 
+    /** Support the MAP_CONTAINS_KEY function. */
+    public static Boolean mapContainsKey(Map map, Object key) {
+        return map.containsKey(key);
+    }
+
     /** Support the MAP_FROM_ARRAYS function. */
     public static Map mapFromArrays(List keysArray, List valuesArray) {
         if (keysArray.size() != valuesArray.size()) {
@@ -5406,7 +5543,7 @@ public class SqlFunctions {
     }
 
     /** Support the MAP_FROM_ENTRIES function. */
-    public static @Nullable Map mapFromEntries(List entries) {
+    public static Map mapFromEntries(List entries) {
         final Map map = new LinkedHashMap<>();
         for (Object entry : entries) {
             if (entry == null) {
@@ -5455,7 +5592,7 @@ public class SqlFunctions {
     }
 
     /** Support the ELEMENT function. */
-    public static @Nullable Object element(List list) {
+    public static Object element(List list) {
         switch (list.size()) {
             case 0:
                 return null;
@@ -5467,7 +5604,7 @@ public class SqlFunctions {
     }
 
     /** Support the MEMBER OF function. */
-    public static boolean memberOf(@Nullable Object object, Collection collection) {
+    public static boolean memberOf(Object object, Collection collection) {
         return collection.contains(object);
     }
 
@@ -5571,7 +5708,7 @@ public class SqlFunctions {
     }
 
     /** SQL {@code ARRAY_TO_STRING(array, delimiter, nullText)} function. */
-    public static String arrayToString(List list, String delimiter, @Nullable String nullText) {
+    public static String arrayToString(List list, String delimiter, String nullText) {
         // Note that the SQL function ARRAY_TO_STRING that we implement will return
         // 'NULL' when the nullText argument is NULL. However, that is handled by
         // the nullPolicy of the RexToLixTranslator. So here a NULL value
@@ -5686,7 +5823,7 @@ public class SqlFunctions {
      * {@code true} for any element of {@code list}, the result will be {@code null}, not {@code
      * false}.
      */
-    public static @Nullable <E> Boolean nullableExists(
+    public static <E> Boolean nullableExists(
             List<? extends E> list, Function1<E, Boolean> predicate) {
         boolean nullExists = false;
         for (E e : list) {
@@ -5705,8 +5842,7 @@ public class SqlFunctions {
      * predicate} returns null for any element of {@code list} and does not return {@code false} for
      * any element, the result will be {@code null}, not {@code true}.
      */
-    public static @Nullable <E> Boolean nullableAll(
-            List<? extends E> list, Function1<E, Boolean> predicate) {
+    public static <E> Boolean nullableAll(List<? extends E> list, Function1<E, Boolean> predicate) {
         boolean nullExists = false;
         for (E e : list) {
             Boolean res = predicate.apply(e);
@@ -5744,8 +5880,7 @@ public class SqlFunctions {
      * {@link org.apache.calcite.adapter.enumerable.JavaRowFormat}.
      */
     @Experimental
-    public static @Nullable Object structAccess(
-            @Nullable Object structObject, int index, @Nullable String fieldName) {
+    public static Object structAccess(Object structObject, int index, String fieldName) {
         if (structObject == null) {
             return null;
         }
