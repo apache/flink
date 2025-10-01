@@ -23,8 +23,6 @@ import org.apache.flink.annotation.Internal;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.apache.flink.util.Preconditions.checkState;
-
 /**
  * A {@link CombinedWatermarkStatus} combines the watermark (and idleness) updates of multiple
  * partitions/shards/splits into one combined watermark.
@@ -57,34 +55,51 @@ final class CombinedWatermarkStatus {
     }
 
     /**
-     * Checks whether we need to update the combined watermark.
+     * Checks whether we need to update the combined watermark. It can update {@link #isIdle()}
+     * status.
      *
-     * <p><b>NOTE:</b>It can update {@link #isIdle()} status.
+     * <p><b>NOTE:</b>The logic here should be kept in sync with {@code StatusWatermarkValve}.
      *
      * @return true, if the combined watermark changed
      */
     public boolean updateCombinedWatermark() {
-        long minimumOverAllOutputs = Long.MAX_VALUE;
-
-        // if we don't have any outputs minimumOverAllOutputs is not valid, it's still
-        // at its initial Long.MAX_VALUE state and we must not emit that
+        // if we don't have any outputs, we should not emit
         if (partialWatermarks.isEmpty()) {
             return false;
         }
 
+        long maximumOverAllOutputs = Long.MIN_VALUE;
+        long minimumOverAllActiveOutputs = Long.MAX_VALUE;
+
         boolean allIdle = true;
         for (PartialWatermark partialWatermark : partialWatermarks) {
+            final long watermark = partialWatermark.getWatermark();
+            maximumOverAllOutputs = Math.max(maximumOverAllOutputs, watermark);
             if (!partialWatermark.isIdle()) {
-                minimumOverAllOutputs =
-                        Math.min(minimumOverAllOutputs, partialWatermark.getWatermark());
+                minimumOverAllActiveOutputs = Math.min(minimumOverAllActiveOutputs, watermark);
                 allIdle = false;
             }
         }
 
         this.idle = allIdle;
 
-        if (!allIdle && minimumOverAllOutputs > combinedWatermark) {
-            combinedWatermark = minimumOverAllOutputs;
+        final long combinedWatermark;
+        if (allIdle) {
+            // If all splits are idle, we should flush all watermarks, which effectively
+            // means emitting the maximum watermark over all outputs.
+            // Otherwise, there could be a race condition between splits when idleness is triggered.
+            // E.g., split 1 of 2 emits 5 and goes into idle, split 2 of 2 emits 4 and goes into
+            // idle. If split 2 is idle first, watermark 5 wins. If split 1 is idle first, watermark
+            // 4 wins. But if both are idle, we should conclude on 5.
+            combinedWatermark = maximumOverAllOutputs;
+        } else {
+            // Active splits should determine the progression of the watermark. Therefore, the
+            // minimum watermark across all active splits takes precedence over that of idle splits.
+            combinedWatermark = minimumOverAllActiveOutputs;
+        }
+
+        if (combinedWatermark > this.combinedWatermark) {
+            this.combinedWatermark = combinedWatermark;
             return true;
         }
 
@@ -102,12 +117,8 @@ final class CombinedWatermarkStatus {
             this.onWatermarkUpdate = onWatermarkUpdate;
         }
 
-        /**
-         * Returns the current watermark timestamp. This will throw {@link IllegalStateException} if
-         * the output is currently idle.
-         */
+        /** Returns the current watermark timestamp. */
         private long getWatermark() {
-            checkState(!idle, "Output is idle.");
             return watermark;
         }
 

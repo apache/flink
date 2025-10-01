@@ -110,6 +110,55 @@ class WatermarkOutputMultiplexerTest {
     }
 
     @Test
+    void whenAllImmediateOutputsBecomeIdleWatermarkAdvances() {
+        TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
+        WatermarkOutputMultiplexer multiplexer =
+                new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+
+        WatermarkOutput watermarkOutput1 = createImmediateOutput(multiplexer);
+        WatermarkOutput watermarkOutput2 = createImmediateOutput(multiplexer);
+
+        watermarkOutput1.emitWatermark(new Watermark(5));
+        watermarkOutput2.emitWatermark(new Watermark(2));
+
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(2));
+        assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
+
+        // No race condition between watermarkOutput1 and watermarkOutput2.
+        // Even if watermarkOutput1 becomes idle first, the final result is 5.
+        watermarkOutput1.markIdle();
+        watermarkOutput2.markIdle();
+
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(5));
+        assertThat(underlyingWatermarkOutput.isIdle()).isTrue();
+    }
+
+    @Test
+    void whenAllDeferredOutputsEmitAndIdleWatermarkAdvances() {
+        TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
+        WatermarkOutputMultiplexer multiplexer =
+                new WatermarkOutputMultiplexer(underlyingWatermarkOutput);
+
+        WatermarkOutput watermarkOutput1 = createDeferredOutput(multiplexer);
+        WatermarkOutput watermarkOutput2 = createDeferredOutput(multiplexer);
+
+        // Both emitting a watermark and becoming idle happen in the same invocation
+        watermarkOutput1.emitWatermark(new Watermark(5));
+        watermarkOutput1.markIdle();
+        // Both emitting a watermark and becoming idle happen in the same invocation
+        watermarkOutput2.emitWatermark(new Watermark(2));
+        watermarkOutput2.markIdle();
+
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isNull();
+        assertThat(underlyingWatermarkOutput.isIdle()).isFalse();
+
+        multiplexer.onPeriodicEmit();
+
+        assertThat(underlyingWatermarkOutput.lastWatermark()).isEqualTo(new Watermark(5));
+        assertThat(underlyingWatermarkOutput.isIdle()).isTrue();
+    }
+
+    @Test
     void combinedWatermarkDoesNotRegressWhenIdleOutputRegresses() {
         TestingWatermarkOutput underlyingWatermarkOutput = createTestingWatermarkOutput();
         WatermarkOutputMultiplexer multiplexer =
