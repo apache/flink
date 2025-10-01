@@ -86,7 +86,7 @@ final class CombinedWatermarkStatus {
         final long combinedWatermark;
         if (allIdle) {
             // If all splits are idle, we should flush all watermarks, which effectively
-            // means emitting the maximum watermark.
+            // means emitting the maximum watermark over all outputs.
             // Otherwise, there could be a race condition between splits when idleness is triggered.
             // E.g., split 1 of 2 emits 5 and goes into idle, split 2 of 2 emits 4 and goes into
             // idle. If split 2 is idle first, watermark 5 wins. If split 1 is idle first, watermark
