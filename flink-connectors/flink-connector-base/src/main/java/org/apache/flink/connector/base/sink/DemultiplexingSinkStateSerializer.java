@@ -17,6 +17,7 @@
 
 package org.apache.flink.connector.base.sink;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
@@ -52,6 +53,7 @@ import java.util.Map;
  *
  * @param <RouteT> The type of route keys
  */
+@PublicEvolving
 public class DemultiplexingSinkStateSerializer<RouteT>
         implements SimpleVersionedSerializer<DemultiplexingSinkState<RouteT>> {
 

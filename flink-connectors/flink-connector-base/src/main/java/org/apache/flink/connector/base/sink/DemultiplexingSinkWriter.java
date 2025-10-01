@@ -17,6 +17,7 @@
 
 package org.apache.flink.connector.base.sink;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
@@ -55,6 +56,7 @@ import java.util.Map;
  * @param <InputT> The type of input elements
  * @param <RouteT> The type of route keys used for sink selection
  */
+@PublicEvolving
 public class DemultiplexingSinkWriter<InputT, RouteT>
         implements StatefulSinkWriter<InputT, DemultiplexingSinkState<RouteT>> {
 

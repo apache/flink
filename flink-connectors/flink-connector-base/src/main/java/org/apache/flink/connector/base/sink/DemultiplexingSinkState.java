@@ -17,6 +17,7 @@
 
 package org.apache.flink.connector.base.sink;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
@@ -38,6 +39,7 @@ import java.util.Objects;
  *
  * @param <RouteT> The type of route keys
  */
+@PublicEvolving
 public class DemultiplexingSinkState<RouteT> implements Serializable {
 
     private static final long serialVersionUID = 1L;
