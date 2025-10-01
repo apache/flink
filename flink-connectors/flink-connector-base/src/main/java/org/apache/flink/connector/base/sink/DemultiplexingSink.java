@@ -37,9 +37,9 @@ import java.util.Collection;
  * runtime based on the content of each element. This is useful for scenarios such as:
  *
  * <ul>
- *   <li>Routing messages to different Kafka topics based on message type
- *   <li>Writing to different databases based on tenant ID
- *   <li>Sending data to different Elasticsearch clusters based on data characteristics
+ *   <li>Routing messages to different Kafka topics based on message type or contents
+ *   <li>Writing to different databases based on a tenant identifier
+ *   <li>Sending data to different Elasticsearch clusters or indices based on data characteristics
  * </ul>
  *
  * <p>The sink maintains an internal cache of sink instances, creating new sinks on-demand when

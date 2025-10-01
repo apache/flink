@@ -65,11 +65,12 @@ class DemultiplexingSinkWriterTest {
 
     @Test
     void testWriteToMultipleRoutes() throws IOException, InterruptedException {
-        // Write elements that route to different destinations
+        // Write elements that route to different destinations ("apple" and "apricot" should resolve
+        // to the same)
         writer.write("apple", createContext());
         writer.write("banana", createContext());
         writer.write("cherry", createContext());
-        writer.write("apricot", createContext()); // Same route as apple
+        writer.write("apricot", createContext());
 
         // Should have created three sinks (a, b, c)
         assertThat(router.getSinkCreationCount()).isEqualTo(3);
@@ -139,8 +140,6 @@ class DemultiplexingSinkWriterTest {
 
         // Should return state (even if empty for our test implementation)
         assertThat(states).isNotNull();
-        // Our test implementation doesn't have stateful writers, so state should be empty or
-        // minimal
     }
 
     private SinkWriter.Context createContext() {

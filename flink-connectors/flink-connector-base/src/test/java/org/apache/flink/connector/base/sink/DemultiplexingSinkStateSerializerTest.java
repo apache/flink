@@ -48,11 +48,11 @@ class DemultiplexingSinkStateSerializerTest {
         final DemultiplexingSinkStateSerializer<String> serializer =
                 new DemultiplexingSinkStateSerializer<>();
 
-        // Create state with multiple routes
+        // Create state with multiple routes ("route3" -> empty state)
         final Map<String, byte[]> routeStates = new HashMap<>();
         routeStates.put("route1", new byte[] {1, 2, 3});
         routeStates.put("route2", new byte[] {4, 5, 6, 7});
-        routeStates.put("route3", new byte[0]); // Empty state
+        routeStates.put("route3", new byte[0]);
 
         final DemultiplexingSinkState<String> originalState =
                 new DemultiplexingSinkState<>(routeStates);

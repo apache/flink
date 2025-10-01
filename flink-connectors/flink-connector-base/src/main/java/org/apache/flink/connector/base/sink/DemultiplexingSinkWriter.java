@@ -21,13 +21,20 @@ import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.connector.sink2.StatefulSinkWriter;
+import org.apache.flink.api.connector.sink2.SupportsWriterState;
 import org.apache.flink.api.connector.sink2.WriterInitContext;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -65,6 +72,9 @@ public class DemultiplexingSinkWriter<InputT, RouteT>
     /** Cache of sink instances by route key for creating writers. */
     private final Map<RouteT, Sink<InputT>> sinks;
 
+    /** Cache of recovered states by route key for lazy restoration. */
+    private final Map<RouteT, List<Object>> recoveredStates;
+
     /**
      * Creates a new demultiplexing sink writer.
      *
@@ -77,6 +87,7 @@ public class DemultiplexingSinkWriter<InputT, RouteT>
         this.context = Preconditions.checkNotNull(context);
         this.sinkWriters = new HashMap<>();
         this.sinks = new HashMap<>();
+        this.recoveredStates = new HashMap<>();
     }
 
     /**
@@ -93,15 +104,25 @@ public class DemultiplexingSinkWriter<InputT, RouteT>
             throws IOException {
         this(sinkRouter, context);
 
-        // Restore state for each route
+        // Process recovered states and prepare them for lazy restoration
         for (DemultiplexingSinkState<RouteT> state : recoveredStates) {
             for (RouteT route : state.getRoutes()) {
                 byte[] routeStateBytes = state.getRouteState(route);
-                if (routeStateBytes != null) {
-                    // We'll restore the sink writer when we first encounter an element for this
-                    // route
-                    // For now, just log that we have state to restore
-                    LOG.debug("Found state to restore for route: {}", route);
+                if (routeStateBytes != null && routeStateBytes.length > 0) {
+                    try {
+                        // Deserialize the writer states for this route
+                        List<Object> writerStates = deserializeWriterStates(route, routeStateBytes);
+                        this.recoveredStates.put(route, writerStates);
+                        LOG.debug(
+                                "Prepared state restoration for route: {} with {} states",
+                                route,
+                                writerStates.size());
+                    } catch (Exception e) {
+                        LOG.warn(
+                                "Failed to deserialize state for route: {}, will start with empty state",
+                                route,
+                                e);
+                    }
                 }
             }
         }
@@ -172,14 +193,13 @@ public class DemultiplexingSinkWriter<InputT, RouteT>
 
             // Only collect state from stateful sink writers
             if (writer instanceof StatefulSinkWriter) {
-                @SuppressWarnings("unchecked")
                 StatefulSinkWriter<InputT, ?> statefulWriter =
                         (StatefulSinkWriter<InputT, ?>) writer;
 
                 try {
                     List<?> writerStates = statefulWriter.snapshotState(checkpointId);
                     if (!writerStates.isEmpty()) {
-                        // Serialize the writer states
+                        // Serialize the writer states and store them
                         byte[] serializedState = serializeWriterStates(route, writerStates);
                         routeStates.put(route, serializedState);
                     }
@@ -238,20 +258,129 @@ public class DemultiplexingSinkWriter<InputT, RouteT>
             Sink<InputT> sink = sinkRouter.createSink(route, element);
             sinks.put(route, sink);
 
-            // Create a writer from the sink
-            writer = sink.createWriter(context);
-            sinkWriters.put(route, writer);
+            // Check if we have recovered state for this route
+            List<Object> routeRecoveredStates = recoveredStates.remove(route);
 
-            LOG.debug("Created new sink writer for route: {}", route);
+            if (routeRecoveredStates != null && !routeRecoveredStates.isEmpty()) {
+                // Restore writer with state if the sink supports it
+                if (sink instanceof SupportsWriterState) {
+                    @SuppressWarnings("unchecked")
+                    SupportsWriterState<InputT, Object> statefulSink =
+                            (SupportsWriterState<InputT, Object>) sink;
+
+                    try {
+                        // Check if we need to deserialize raw bytes using the sink's serializer
+                        List<Object> processedStates =
+                                processRecoveredStates(statefulSink, routeRecoveredStates);
+
+                        StatefulSinkWriter<InputT, Object> statefulWriter =
+                                statefulSink.restoreWriter(context, processedStates);
+                        writer = statefulWriter;
+                        LOG.debug(
+                                "Restored sink writer for route: {} with {} states",
+                                route,
+                                processedStates.size());
+                    } catch (Exception e) {
+                        LOG.warn(
+                                "Failed to restore writer state for route: {}, creating new writer",
+                                route,
+                                e);
+                        writer = sink.createWriter(context);
+                    }
+                } else {
+                    // Sink doesn't support state, just create a new writer
+                    writer = sink.createWriter(context);
+                    LOG.debug("Sink for route {} doesn't support state, created new writer", route);
+                }
+            } else {
+                // No recovered state, create a new writer
+                writer = sink.createWriter(context);
+                LOG.debug("Created new sink writer for route: {} (no recovered state)", route);
+            }
+
+            sinkWriters.put(route, writer);
         }
         return writer;
     }
 
     /**
+     * Processes recovered states, deserializing raw bytes if necessary.
+     *
+     * @param statefulSink The stateful sink that can provide a state serializer
+     * @param recoveredStates The recovered states (may contain raw bytes)
+     * @return Processed states ready for restoration
+     * @throws IOException If processing fails
+     */
+    private List<Object> processRecoveredStates(
+            SupportsWriterState<InputT, Object> statefulSink, List<Object> recoveredStates)
+            throws IOException {
+
+        List<Object> processedStates = new ArrayList<>();
+        SimpleVersionedSerializer<Object> serializer = statefulSink.getWriterStateSerializer();
+
+        for (Object state : recoveredStates) {
+            if (state instanceof byte[]) {
+                // This is raw bytes that need to be deserialized using the sink's serializer
+                byte[] rawBytes = (byte[]) state;
+                try {
+                    List<Object> deserializedStates =
+                            deserializeWithSinkSerializer(serializer, rawBytes);
+                    processedStates.addAll(deserializedStates);
+                    LOG.debug(
+                            "Successfully deserialized {} states from raw bytes using sink serializer",
+                            deserializedStates.size());
+                } catch (Exception e) {
+                    LOG.warn(
+                            "Failed to deserialize raw bytes using sink serializer, skipping state",
+                            e);
+                }
+            } else {
+                // This is already a deserialized state object
+                processedStates.add(state);
+            }
+        }
+
+        return processedStates;
+    }
+
+    /**
+     * Deserializes states using the sink's state serializer.
+     *
+     * @param serializer The sink's state serializer
+     * @param rawBytes The raw serialized bytes
+     * @return List of deserialized state objects
+     * @throws IOException If deserialization fails
+     */
+    private List<Object> deserializeWithSinkSerializer(
+            SimpleVersionedSerializer<Object> serializer, byte[] rawBytes) throws IOException {
+
+        List<Object> states = new ArrayList<>();
+
+        try (final ByteArrayInputStream bais = new ByteArrayInputStream(rawBytes);
+                final java.io.DataInputStream dis = new java.io.DataInputStream(bais)) {
+
+            // Read the number of states
+            int numStates = dis.readInt();
+
+            // Read each state
+            for (int i = 0; i < numStates; i++) {
+                int stateLength = dis.readInt();
+                byte[] stateBytes = new byte[stateLength];
+                dis.readFully(stateBytes);
+
+                Object state = serializer.deserialize(serializer.getVersion(), stateBytes);
+                states.add(state);
+            }
+        }
+
+        return states;
+    }
+
+    /**
      * Serializes the writer states for a given route.
      *
-     * <p>This is a placeholder implementation that uses Java serialization. In a production
-     * implementation, this should use the proper state serializers from the underlying sinks.
+     * <p>This implementation attempts to use the proper state serializer from the underlying sink
+     * if available, otherwise falls back to Java serialization.
      *
      * @param route The route key
      * @param writerStates The writer states to serialize
@@ -259,14 +388,94 @@ public class DemultiplexingSinkWriter<InputT, RouteT>
      * @throws IOException If serialization fails
      */
     private byte[] serializeWriterStates(RouteT route, List<?> writerStates) throws IOException {
-        // TODO: This is a simplified implementation. In practice, we should:
-        // 1. Get the proper state serializer from the underlying sink
-        // 2. Use that serializer to serialize the states
-        // 3. Handle version compatibility properly
+        if (writerStates == null || writerStates.isEmpty()) {
+            return new byte[0];
+        }
 
-        // For now, we'll use a simple approach and store empty state
-        // This will be improved in subsequent iterations
-        return new byte[0];
+        Sink<InputT> sink = sinks.get(route);
+        if (sink instanceof SupportsWriterState) {
+            try {
+                @SuppressWarnings("unchecked")
+                SupportsWriterState<InputT, Object> statefulSink =
+                        (SupportsWriterState<InputT, Object>) sink;
+                SimpleVersionedSerializer<Object> serializer =
+                        statefulSink.getWriterStateSerializer();
+
+                // Serialize each state and combine them
+                try (final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        final DataOutputStream dos = new DataOutputStream(baos)) {
+
+                    // Write the number of states
+                    dos.writeInt(writerStates.size());
+
+                    // Write each state
+                    for (Object state : writerStates) {
+                        byte[] stateBytes = serializer.serialize(state);
+                        dos.writeInt(stateBytes.length);
+                        dos.write(stateBytes);
+                    }
+
+                    dos.flush();
+                    return baos.toByteArray();
+                }
+            } catch (Exception e) {
+                LOG.warn(
+                        "Failed to serialize state using sink serializer for route: {}, "
+                                + "falling back to Java serialization",
+                        route,
+                        e);
+            }
+        }
+
+        // Fallback to Java serialization
+        try (final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                final ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+            oos.writeObject(writerStates);
+            oos.flush();
+            return baos.toByteArray();
+        } catch (Exception e) {
+            throw new IOException("Failed to serialize writer states for route: " + route, e);
+        }
+    }
+
+    /**
+     * Deserializes the writer states for a given route.
+     *
+     * <p>This method attempts to deserialize states using Java serialization as a fallback. The
+     * proper sink-specific deserialization will happen later when the sink is created and we can
+     * access its state serializer.
+     *
+     * @param route The route key
+     * @param stateBytes The serialized state bytes
+     * @return The deserialized writer states (or raw bytes to be deserialized later)
+     * @throws IOException If deserialization fails
+     */
+    private List<Object> deserializeWriterStates(RouteT route, byte[] stateBytes)
+            throws IOException {
+        if (stateBytes == null || stateBytes.length == 0) {
+            return new ArrayList<>();
+        }
+
+        // Try Java deserialization first (this handles the fallback case)
+        try (final ByteArrayInputStream bais = new ByteArrayInputStream(stateBytes);
+                final ObjectInputStream ois = new ObjectInputStream(bais)) {
+            @SuppressWarnings("unchecked")
+            List<Object> states = (List<Object>) ois.readObject();
+            LOG.debug(
+                    "Successfully deserialized {} states for route {} using Java serialization",
+                    states.size(),
+                    route);
+            return states;
+        } catch (Exception e) {
+            LOG.debug(
+                    "Java deserialization failed for route {}, will store raw bytes for later processing",
+                    route);
+            // If Java deserialization fails, store the raw bytes
+            // They will be processed when we have access to the sink's serializer
+            List<Object> rawStates = new ArrayList<>();
+            rawStates.add(stateBytes); // Store as raw bytes
+            return rawStates;
+        }
     }
 
     /**

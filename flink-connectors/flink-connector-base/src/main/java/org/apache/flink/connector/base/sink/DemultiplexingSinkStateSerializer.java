@@ -21,7 +21,11 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -124,8 +128,8 @@ public class DemultiplexingSinkStateSerializer<RouteT>
      * @throws IOException If serialization fails
      */
     private byte[] serializeRouteKey(RouteT routeKey) throws IOException {
-        try (final java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-                final java.io.ObjectOutputStream oos = new java.io.ObjectOutputStream(baos)) {
+        try (final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                final ObjectOutputStream oos = new ObjectOutputStream(baos)) {
             oos.writeObject(routeKey);
             oos.flush();
             return baos.toByteArray();
@@ -143,9 +147,8 @@ public class DemultiplexingSinkStateSerializer<RouteT>
      */
     @SuppressWarnings("unchecked")
     private RouteT deserializeRouteKey(byte[] routeBytes) throws IOException {
-        try (final java.io.ByteArrayInputStream bais =
-                        new java.io.ByteArrayInputStream(routeBytes);
-                final java.io.ObjectInputStream ois = new java.io.ObjectInputStream(bais)) {
+        try (final ByteArrayInputStream bais = new ByteArrayInputStream(routeBytes);
+                final ObjectInputStream ois = new ObjectInputStream(bais)) {
             return (RouteT) ois.readObject();
         } catch (Exception e) {
             throw new IOException("Failed to deserialize route key", e);
