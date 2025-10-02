@@ -988,7 +988,7 @@ public class OperationExecutor {
         ops.put(AlterCatalogFunctionOperation.class, "ALTER FUNCTION");
         ops.put(AlterCatalogOptionsOperation.class, "ALTER CATALOG SET");
         ops.put(AlterCatalogResetOperation.class, "ALTER CATALOG RESET");
-        ops.put(AlterCatalogCommentOperation.class, "ALTER CATALOG SET COMMENT");
+        ops.put(AlterCatalogCommentOperation.class, "ALTER CATALOG COMMENT");
         ops.put(AlterModelChangeOperation.class, "ALTER MODEL");
         ops.put(AlterModelRenameOperation.class, "ALTER MODEL");
         ops.put(AlterMaterializedTableOperation.class, "ALTER MATERIALIZED TABLE");
