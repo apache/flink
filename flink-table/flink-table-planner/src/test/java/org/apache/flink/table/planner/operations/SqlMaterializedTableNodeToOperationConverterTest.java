@@ -126,8 +126,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
 
         CreateMaterializedTableOperation op = (CreateMaterializedTableOperation) operation;
-        CatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
-        assertThat(materializedTable).isInstanceOf(ResolvedCatalogMaterializedTable.class);
+        ResolvedCatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
 
         Map<String, String> options = new HashMap<>();
         options.put("connector", "filesystem");
@@ -152,8 +151,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                         .definitionQuery("SELECT *\n" + "FROM `builtin`.`default`.`t1`")
                         .build();
 
-        assertThat(((ResolvedCatalogMaterializedTable) materializedTable).getOrigin())
-                .isEqualTo(expected);
+        assertThat(materializedTable.getOrigin()).isEqualTo(expected);
     }
 
     @Test
@@ -202,8 +200,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
 
         CreateMaterializedTableOperation op = (CreateMaterializedTableOperation) operation;
-        CatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
-        assertThat(materializedTable).isInstanceOf(ResolvedCatalogMaterializedTable.class);
+        ResolvedCatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
 
         assertThat(materializedTable.getLogicalRefreshMode())
                 .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC);
@@ -220,8 +217,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(operation2).isInstanceOf(CreateMaterializedTableOperation.class);
 
         CreateMaterializedTableOperation op2 = (CreateMaterializedTableOperation) operation2;
-        CatalogMaterializedTable materializedTable2 = op2.getCatalogMaterializedTable();
-        assertThat(materializedTable2).isInstanceOf(ResolvedCatalogMaterializedTable.class);
+        ResolvedCatalogMaterializedTable materializedTable2 = op2.getCatalogMaterializedTable();
 
         assertThat(materializedTable2.getLogicalRefreshMode())
                 .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.CONTINUOUS);
@@ -240,8 +236,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
 
         CreateMaterializedTableOperation op = (CreateMaterializedTableOperation) operation;
-        CatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
-        assertThat(materializedTable).isInstanceOf(ResolvedCatalogMaterializedTable.class);
+        ResolvedCatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
 
         assertThat(materializedTable.getLogicalRefreshMode())
                 .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC);
@@ -258,8 +253,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(operation2).isInstanceOf(CreateMaterializedTableOperation.class);
 
         CreateMaterializedTableOperation op2 = (CreateMaterializedTableOperation) operation2;
-        CatalogMaterializedTable materializedTable2 = op2.getCatalogMaterializedTable();
-        assertThat(materializedTable2).isInstanceOf(ResolvedCatalogMaterializedTable.class);
+        ResolvedCatalogMaterializedTable materializedTable2 = op2.getCatalogMaterializedTable();
 
         assertThat(materializedTable2.getLogicalRefreshMode())
                 .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.FULL);

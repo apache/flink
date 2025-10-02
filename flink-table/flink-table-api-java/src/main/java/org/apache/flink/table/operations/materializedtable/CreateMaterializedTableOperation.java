@@ -21,7 +21,6 @@ package org.apache.flink.table.operations.materializedtable;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.internal.TableResultImpl;
 import org.apache.flink.table.api.internal.TableResultInternal;
-import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.operations.Operation;
@@ -38,7 +37,7 @@ public class CreateMaterializedTableOperation
         implements CreateOperation, MaterializedTableOperation {
 
     private final ObjectIdentifier tableIdentifier;
-    private final CatalogMaterializedTable materializedTable;
+    private final ResolvedCatalogMaterializedTable materializedTable;
 
     public CreateMaterializedTableOperation(
             ObjectIdentifier tableIdentifier, ResolvedCatalogMaterializedTable materializedTable) {
@@ -57,7 +56,7 @@ public class CreateMaterializedTableOperation
         return tableIdentifier;
     }
 
-    public CatalogMaterializedTable getCatalogMaterializedTable() {
+    public ResolvedCatalogMaterializedTable getCatalogMaterializedTable() {
         return materializedTable;
     }
 

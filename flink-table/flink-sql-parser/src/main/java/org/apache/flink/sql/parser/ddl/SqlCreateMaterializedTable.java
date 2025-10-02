@@ -124,7 +124,7 @@ public class SqlCreateMaterializedTable extends SqlCreate {
         return Optional.ofNullable(tableConstraint);
     }
 
-    public SqlDistribution getDistribution() {
+    public @Nullable SqlDistribution getDistribution() {
         return distribution;
     }
 
