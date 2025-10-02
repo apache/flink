@@ -20,11 +20,11 @@ package org.apache.flink.table.planner.codegen.runtimefilter
 import org.apache.flink.runtime.operators.util.BloomFilter
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, OperatorCodeGenerator, ProjectionCodeGenerator}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName, DEFAULT_INPUT1_TERM, DEFAULT_INPUT2_TERM, ROW_DATA}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName, DEFAULT_INPUT1_TERM, DEFAULT_INPUT2_TERM}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.{generateCollect, INPUT_SELECTION}
-import org.apache.flink.table.planner.typeutils.RowTypeUtils
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.table.typeutils.RowTypeUtils
 import org.apache.flink.util.Preconditions
 
 /** Operator code generator for runtime filter operator. */

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.typeutils;
+package org.apache.flink.table.typeutils;
 
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.logical.BigIntType;

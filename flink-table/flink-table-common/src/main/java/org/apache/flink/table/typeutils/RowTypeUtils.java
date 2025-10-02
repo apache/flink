@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.typeutils;
+package org.apache.flink.table.typeutils;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -28,7 +29,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-/** Utils for deriving row types of {@link org.apache.calcite.rel.RelNode}s. */
+/** Utils for deriving row types of org.apache.calcite.rel.RelNode. */
+@Internal
 public class RowTypeUtils {
 
     public static String getUniqueName(String oldName, List<String> checklist) {

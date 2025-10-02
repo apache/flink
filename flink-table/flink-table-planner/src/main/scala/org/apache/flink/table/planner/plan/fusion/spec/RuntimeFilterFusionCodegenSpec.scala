@@ -22,8 +22,8 @@ import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName, newNames}
 import org.apache.flink.table.planner.plan.fusion.{OpFusionCodegenSpecBase, OpFusionContext}
-import org.apache.flink.table.planner.typeutils.RowTypeUtils
 import org.apache.flink.table.types.logical.RowType
+import org.apache.flink.table.typeutils.RowTypeUtils
 import org.apache.flink.util.Preconditions
 
 import java.util
