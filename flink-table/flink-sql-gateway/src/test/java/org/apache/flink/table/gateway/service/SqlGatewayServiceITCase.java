@@ -991,9 +991,8 @@ public class SqlGatewayServiceITCase {
                                         + "DROP TEMPORARY SYSTEM FUNCTION, DROP CATALOG, "
                                         + "DROP MODEL, DROP MATERIALIZED TABLE, "
                                         + "ALTER TABLE, ALTER VIEW, ALTER DATABASE, ALTER FUNCTION, "
-                                        + "ALTER CATALOG SET, ALTER CATALOG RESET, "
-                                        + "ALTER CATALOG SET COMMENT, ALTER MODEL, ALTER MODEL, "
-                                        + "ALTER MATERIALIZED TABLE, "
+                                        + "ALTER CATALOG SET, ALTER CATALOG RESET, ALTER CATALOG COMMENT, "
+                                        + "ALTER MODEL, ALTER MODEL, ALTER MATERIALIZED TABLE, "
                                         + "USE CATALOG, USE [CATALOG.]DATABASE, USE MODULES, "
                                         + "LOAD MODULE, UNLOAD MODULE, "
                                         + "ADD JAR"));
