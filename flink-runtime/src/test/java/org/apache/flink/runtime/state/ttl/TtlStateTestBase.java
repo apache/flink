@@ -87,6 +87,7 @@ public abstract class TtlStateTestBase {
                 new TtlValueStateTestContext(),
                 new TtlFixedLenElemListStateTestContext(),
                 new TtlNonFixedLenElemListStateTestContext(),
+                new TtlListStateWithKryoTestContext(),
                 new TtlMapStateAllEntriesTestContext(),
                 new TtlMapStatePerElementTestContext(),
                 new TtlMapStatePerNullElementTestContext(),
