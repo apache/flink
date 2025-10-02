@@ -89,11 +89,12 @@ public abstract class StateBackendTestContext {
         }
     }
 
-    public void createAndRestoreKeyedStateBackend(KeyedStateHandle snapshot) {
+    public void createAndRestoreKeyedStateBackend(KeyedStateHandle snapshot) throws IOException {
         createAndRestoreKeyedStateBackend(NUMBER_OF_KEY_GROUPS, snapshot);
     }
 
-    void createAndRestoreKeyedStateBackend(int numberOfKeyGroups, KeyedStateHandle snapshot) {
+    void createAndRestoreKeyedStateBackend(int numberOfKeyGroups, KeyedStateHandle snapshot)
+            throws IOException {
         Collection<KeyedStateHandle> stateHandles;
         if (snapshot == null) {
             stateHandles = Collections.emptyList();
@@ -102,6 +103,8 @@ public abstract class StateBackendTestContext {
             stateHandles.add(snapshot);
         }
         env = MockEnvironment.builder().build();
+        env.setCheckpointStorageAccess(
+                createCheckpointStorage().createCheckpointStorage(new JobID()));
         try {
             disposeKeyedStateBackend();
             keyedStateBackend =
