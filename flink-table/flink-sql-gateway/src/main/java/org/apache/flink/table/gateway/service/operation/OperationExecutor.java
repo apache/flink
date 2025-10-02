@@ -82,7 +82,9 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
-import org.apache.flink.table.operations.UseOperation;
+import org.apache.flink.table.operations.UseCatalogOperation;
+import org.apache.flink.table.operations.UseDatabaseOperation;
+import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
 import org.apache.flink.table.operations.command.DescribeJobOperation;
 import org.apache.flink.table.operations.command.ExecutePlanOperation;
@@ -92,11 +94,32 @@ import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.operations.command.ShowJarsOperation;
 import org.apache.flink.table.operations.command.ShowJobsOperation;
 import org.apache.flink.table.operations.command.StopJobOperation;
-import org.apache.flink.table.operations.ddl.AlterOperation;
+import org.apache.flink.table.operations.ddl.AlterCatalogCommentOperation;
+import org.apache.flink.table.operations.ddl.AlterCatalogFunctionOperation;
+import org.apache.flink.table.operations.ddl.AlterCatalogOptionsOperation;
+import org.apache.flink.table.operations.ddl.AlterCatalogResetOperation;
+import org.apache.flink.table.operations.ddl.AlterDatabaseOperation;
+import org.apache.flink.table.operations.ddl.AlterModelChangeOperation;
+import org.apache.flink.table.operations.ddl.AlterModelRenameOperation;
+import org.apache.flink.table.operations.ddl.AlterTableOperation;
+import org.apache.flink.table.operations.ddl.AlterViewOperation;
 import org.apache.flink.table.operations.ddl.CreateCatalogFunctionOperation;
-import org.apache.flink.table.operations.ddl.CreateOperation;
+import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
+import org.apache.flink.table.operations.ddl.CreateDatabaseOperation;
+import org.apache.flink.table.operations.ddl.CreateModelOperation;
+import org.apache.flink.table.operations.ddl.CreateTableOperation;
 import org.apache.flink.table.operations.ddl.CreateTempSystemFunctionOperation;
-import org.apache.flink.table.operations.ddl.DropOperation;
+import org.apache.flink.table.operations.ddl.CreateViewOperation;
+import org.apache.flink.table.operations.ddl.DropCatalogFunctionOperation;
+import org.apache.flink.table.operations.ddl.DropCatalogOperation;
+import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
+import org.apache.flink.table.operations.ddl.DropModelOperation;
+import org.apache.flink.table.operations.ddl.DropTableOperation;
+import org.apache.flink.table.operations.ddl.DropTempSystemFunctionOperation;
+import org.apache.flink.table.operations.ddl.DropViewOperation;
+import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableOperation;
+import org.apache.flink.table.operations.materializedtable.CreateMaterializedTableOperation;
+import org.apache.flink.table.operations.materializedtable.DropMaterializedTableOperation;
 import org.apache.flink.table.operations.materializedtable.MaterializedTableOperation;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.utils.DateTimeUtils;
@@ -144,6 +167,9 @@ public class OperationExecutor {
 
     private static final Logger LOG = LoggerFactory.getLogger(OperationExecutor.class);
 
+    private static final Map<Class<?>, String> SUPPORTED_CONFIG_SESSION_OPERATIONS =
+            createSupportedOperations();
+
     protected final SessionContext sessionContext;
 
     private final Configuration executionConfig;
@@ -182,28 +208,14 @@ public class OperationExecutor {
         }
         Operation op = parsedOperations.get(0);
 
-        // Use LinkedHashMap to preserve insertion order
-        Map<Class<?>, String> ops = new LinkedHashMap<>();
-        ops.put(SetOperation.class, "SET");
-        ops.put(ResetOperation.class, "RESET");
-        ops.put(
-                CreateOperation.class,
-                "CREATE TABLE, CREATE DATABASE, CREATE FUNCTION, CREATE CATALOG, CREATE VIEW");
-        ops.put(
-                DropOperation.class,
-                "DROP TABLE, DROP DATABASE, DROP FUNCTION, DROP CATALOG, DROP VIEW");
-        ops.put(AlterOperation.class, "ALTER TABLE, ALTER DATABASE, ALTER FUNCTION");
-        ops.put(UseOperation.class, "USE CATALOG, USE [CATALOG.]DATABASE, USE MODULE");
-        ops.put(LoadModuleOperation.class, "LOAD MODULE");
-        ops.put(UnloadModuleOperation.class, "UNLOAD MODULE");
-        ops.put(AddJarOperation.class, "ADD JAR");
-
-        if (ops.keySet().stream().noneMatch(c -> c.isInstance(op))) {
+        if (SUPPORTED_CONFIG_SESSION_OPERATIONS.keySet().stream()
+                .noneMatch(c -> c.isInstance(op))) {
             throw new UnsupportedOperationException(
                     String.format(
                             "Unsupported statement for configuring session: %s\n"
                                     + "The configureSession API only supports executing statements of type %s.",
-                            statement, String.join(", ", ops.values())));
+                            statement,
+                            String.join(", ", SUPPORTED_CONFIG_SESSION_OPERATIONS.values())));
         }
 
         if (op instanceof SetOperation) {
@@ -943,6 +955,53 @@ public class OperationExecutor {
         } catch (FlinkException e) {
             throw new SqlExecutionException("Failed to run cluster action.", e);
         }
+    }
+
+    private static Map<Class<?>, String> createSupportedOperations() {
+        // Use LinkedHashMap to preserve insertion order
+        Map<Class<?>, String> ops = new LinkedHashMap<>();
+        // Configuration operations
+        ops.put(SetOperation.class, "SET");
+        ops.put(ResetOperation.class, "RESET");
+        // CREATE operations
+        ops.put(CreateTableOperation.class, "CREATE TABLE");
+        ops.put(CreateViewOperation.class, "CREATE VIEW");
+        ops.put(CreateDatabaseOperation.class, "CREATE DATABASE");
+        ops.put(CreateCatalogFunctionOperation.class, "CREATE FUNCTION");
+        ops.put(CreateTempSystemFunctionOperation.class, "CREATE TEMPORARY SYSTEM FUNCTION");
+        ops.put(CreateCatalogOperation.class, "CREATE CATALOG");
+        ops.put(CreateModelOperation.class, "CREATE MODEL");
+        ops.put(CreateMaterializedTableOperation.class, "CREATE MATERIALIZED TABLE");
+        // DROP operations
+        ops.put(DropTableOperation.class, "DROP TABLE");
+        ops.put(DropViewOperation.class, "DROP VIEW");
+        ops.put(DropDatabaseOperation.class, "DROP DATABASE");
+        ops.put(DropCatalogFunctionOperation.class, "DROP FUNCTION");
+        ops.put(DropTempSystemFunctionOperation.class, "DROP TEMPORARY SYSTEM FUNCTION");
+        ops.put(DropCatalogOperation.class, "DROP CATALOG");
+        ops.put(DropModelOperation.class, "DROP MODEL");
+        ops.put(DropMaterializedTableOperation.class, "DROP MATERIALIZED TABLE");
+        // ALTER operations
+        ops.put(AlterTableOperation.class, "ALTER TABLE");
+        ops.put(AlterViewOperation.class, "ALTER VIEW");
+        ops.put(AlterDatabaseOperation.class, "ALTER DATABASE");
+        ops.put(AlterCatalogFunctionOperation.class, "ALTER FUNCTION");
+        ops.put(AlterCatalogOptionsOperation.class, "ALTER CATALOG SET");
+        ops.put(AlterCatalogResetOperation.class, "ALTER CATALOG RESET");
+        ops.put(AlterCatalogCommentOperation.class, "ALTER CATALOG SET COMMENT");
+        ops.put(AlterModelChangeOperation.class, "ALTER MODEL");
+        ops.put(AlterModelRenameOperation.class, "ALTER MODEL");
+        ops.put(AlterMaterializedTableOperation.class, "ALTER MATERIALIZED TABLE");
+        // USE operations
+        ops.put(UseCatalogOperation.class, "USE CATALOG");
+        ops.put(UseDatabaseOperation.class, "USE [CATALOG.]DATABASE");
+        ops.put(UseModulesOperation.class, "USE MODULES");
+        // Module operations
+        ops.put(LoadModuleOperation.class, "LOAD MODULE");
+        ops.put(UnloadModuleOperation.class, "UNLOAD MODULE");
+        // AddJar operation
+        ops.put(AddJarOperation.class, "ADD JAR");
+        return Collections.unmodifiableMap(ops);
     }
 
     /**
