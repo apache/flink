@@ -23,6 +23,9 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.streaming.api.windowing.windows.Window;
+import org.apache.flink.streaming.runtime.operators.windowing.AsyncTriggerConverter;
+
+import javax.annotation.Nonnull;
 
 import java.time.Duration;
 
@@ -39,7 +42,8 @@ import java.time.Duration;
  * @param <W> The type of {@link Window} on which this trigger can operate.
  */
 @PublicEvolving
-public class ProcessingTimeoutTrigger<T, W extends Window> extends Trigger<T, W> {
+public class ProcessingTimeoutTrigger<T, W extends Window> extends Trigger<T, W>
+        implements AsyncTriggerConverter {
 
     private static final long serialVersionUID = 1L;
 
@@ -168,5 +172,15 @@ public class ProcessingTimeoutTrigger<T, W extends Window> extends Trigger<T, W>
             boolean shouldClearOnTimeout) {
         return new ProcessingTimeoutTrigger<>(
                 nestedTrigger, timeout.toMillis(), resetTimerOnNewRecord, shouldClearOnTimeout);
+    }
+
+    @Override
+    @Nonnull
+    public Object convertToAsync() {
+        return AsyncProcessingTimeoutTrigger.of(
+                AsyncTriggerConverter.convertToAsync(this.nestedTrigger),
+                Duration.ofMillis(interval),
+                resetTimerOnNewRecord,
+                shouldClearOnTimeout);
     }
 }
