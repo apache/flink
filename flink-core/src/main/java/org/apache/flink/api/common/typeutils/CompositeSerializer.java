@@ -228,8 +228,15 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
             this.stateful = stateful;
         }
 
-        static PrecomputedParameters precompute(
+        public static PrecomputedParameters precompute(
                 boolean immutableTargetType, TypeSerializer<Object>[] fieldSerializers) {
+            return precompute(immutableTargetType, false, fieldSerializers);
+        }
+
+        public static PrecomputedParameters precompute(
+                boolean immutableTargetType,
+                boolean forceFieldsImmutable,
+                TypeSerializer<Object>[] fieldSerializers) {
             Preconditions.checkNotNull(fieldSerializers);
             int totalLength = 0;
             boolean fieldsImmutable = true;
@@ -239,7 +246,7 @@ public abstract class CompositeSerializer<T> extends TypeSerializer<T> {
                 if (fieldSerializer != fieldSerializer.duplicate()) {
                     stateful = true;
                 }
-                if (!fieldSerializer.isImmutableType()) {
+                if (!forceFieldsImmutable && !fieldSerializer.isImmutableType()) {
                     fieldsImmutable = false;
                 }
                 if (fieldSerializer.getLength() < 0) {
