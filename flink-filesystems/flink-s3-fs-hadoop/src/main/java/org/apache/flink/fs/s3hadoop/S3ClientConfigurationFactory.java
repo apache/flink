@@ -236,4 +236,29 @@ public class S3ClientConfigurationFactory {
         // This is compatible with Hadoop's default credential provider chain
         return software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider.create();
     }
+    
+    /**
+     * Releases the shared S3 client reference. Used for cleanup in tests and shutdown.
+     * This decrements the reference count and closes the client if no more references exist.
+     */
+    public static void releaseS3Client() {
+        synchronized (clientLock) {
+            if (clientRefCount > 0) {
+                clientRefCount--;
+                LOG.debug("Released S3 client reference, remaining references: {}", clientRefCount);
+                
+                if (clientRefCount == 0 && sharedClient != null) {
+                    try {
+                        sharedClient.close();
+                        LOG.debug("Closed shared S3 client");
+                    } catch (Exception e) {
+                        LOG.warn("Error closing S3 client", e);
+                    } finally {
+                        sharedClient = null;
+                        sharedConfigHash = null;
+                    }
+                }
+            }
+        }
+    }
 }

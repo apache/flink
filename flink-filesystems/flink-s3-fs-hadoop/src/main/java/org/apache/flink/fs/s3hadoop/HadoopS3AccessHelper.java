@@ -112,15 +112,24 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                 }
 
                 try {
-                    // Access the S3 client from S3AFileSystem's internals
-                    software.amazon.awssdk.services.s3.S3Client s3Client =
-                            getS3ClientFromFileSystem();
+                    // Try to use Hadoop's own S3 client via reflection to ensure exact credential match
+                    software.amazon.awssdk.services.s3.S3Client hadoopS3Client = 
+                            getHadoopInternalS3Client();
+                    
+                    if (hadoopS3Client != null) {
+                        // Use Hadoop's actual S3 client for perfect credential compatibility
+                        software.amazon.awssdk.services.s3.model.UploadPartResponse response =
+                                hadoopS3Client.uploadPart(uploadPartRequest, requestBody);
+                        return response;
+                    } else {
+                        // Fallback to our custom S3 client if we can't access Hadoop's
+                        software.amazon.awssdk.services.s3.S3Client s3Client =
+                                getS3ClientFromFileSystem();
 
-                    // Perform the actual S3 upload operation
-                    software.amazon.awssdk.services.s3.model.UploadPartResponse response =
-                            s3Client.uploadPart(uploadPartRequest, requestBody);
-
-                    return response;
+                        software.amazon.awssdk.services.s3.model.UploadPartResponse response =
+                                s3Client.uploadPart(uploadPartRequest, requestBody);
+                        return response;
+                    }
                 } catch (Exception e) {
                     // Callback methods can't throw checked exceptions, so wrap IOException in
                     // RuntimeException
@@ -140,17 +149,27 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                 }
 
                 try {
-                    // Access the S3 client from S3AFileSystem's internals
-                    software.amazon.awssdk.services.s3.S3Client s3Client =
-                            getS3ClientFromFileSystem();
+                    // Try to use Hadoop's own S3 client via reflection to ensure exact credential match
+                    software.amazon.awssdk.services.s3.S3Client hadoopS3Client = 
+                            getHadoopInternalS3Client();
+                    
+                    if (hadoopS3Client != null) {
+                        // Use Hadoop's actual S3 client for perfect credential compatibility
+                        software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse
+                                response = hadoopS3Client.completeMultipartUpload(
+                                        completeMultipartUploadRequest);
+                        return response;
+                    } else {
+                        // Fallback to our custom S3 client if we can't access Hadoop's
+                        software.amazon.awssdk.services.s3.S3Client s3Client =
+                                getS3ClientFromFileSystem();
 
-                    // Perform the actual S3 complete multipart upload operation
-                    software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse
-                            response =
-                                    s3Client.completeMultipartUpload(
-                                            completeMultipartUploadRequest);
-
-                    return response;
+                        software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse
+                                response =
+                                        s3Client.completeMultipartUpload(
+                                                completeMultipartUploadRequest);
+                        return response;
+                    }
                 } catch (Exception e) {
                     // Callback methods can't throw checked exceptions, so wrap IOException in
                     // RuntimeException
@@ -296,6 +315,66 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         }
 
         return s3Client;
+    }
+    
+    /**
+     * Attempts to access Hadoop's internal S3 client via reflection to ensure perfect credential
+     * compatibility. This is a best-effort approach to use the exact same S3 client that Hadoop
+     * uses internally, which should have identical credential configuration.
+     * 
+     * @return Hadoop's internal S3 client if accessible, null otherwise
+     */
+    private software.amazon.awssdk.services.s3.S3Client getHadoopInternalS3Client() {
+        try {
+            // Try to access S3AFileSystem's internal S3 client via reflection
+            // This ensures we use the exact same credentials as Hadoop
+            
+            // First, try to get the S3 client from the WriteOperationHelper
+            if (s3accessHelper != null) {
+                try {
+                    java.lang.reflect.Field s3ClientField = 
+                        s3accessHelper.getClass().getDeclaredField("s3Client");
+                    s3ClientField.setAccessible(true);
+                    Object s3ClientObj = s3ClientField.get(s3accessHelper);
+                    
+                    if (s3ClientObj instanceof software.amazon.awssdk.services.s3.S3Client) {
+                        return (software.amazon.awssdk.services.s3.S3Client) s3ClientObj;
+                    }
+                } catch (Exception e) {
+                    // Try alternative field names or approaches
+                }
+            }
+            
+            // Alternative: Try to get S3 client directly from S3AFileSystem
+            if (s3a != null) {
+                try {
+                    // Look for common S3 client field names in S3AFileSystem
+                    String[] possibleFieldNames = {"s3", "s3Client", "client", "amazonS3Client"};
+                    
+                    for (String fieldName : possibleFieldNames) {
+                        try {
+                            java.lang.reflect.Field field = s3a.getClass().getDeclaredField(fieldName);
+                            field.setAccessible(true);
+                            Object clientObj = field.get(s3a);
+                            
+                            if (clientObj instanceof software.amazon.awssdk.services.s3.S3Client) {
+                                return (software.amazon.awssdk.services.s3.S3Client) clientObj;
+                            }
+                        } catch (NoSuchFieldException e) {
+                            // Continue trying other field names
+                        }
+                    }
+                } catch (Exception e) {
+                    // Reflection failed, will fall back to our custom client
+                }
+            }
+            
+            return null; // Could not access Hadoop's internal S3 client
+            
+        } catch (Exception e) {
+            // Any reflection errors - fall back to our custom client
+            return null;
+        }
     }
 
     /** Validates that a key parameter is not null or empty. */
