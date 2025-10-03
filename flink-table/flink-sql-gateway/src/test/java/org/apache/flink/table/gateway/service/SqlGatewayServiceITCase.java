@@ -981,13 +981,21 @@ public class SqlGatewayServiceITCase {
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 UnsupportedOperationException.class,
-                                "Unsupported statement for configuring session:SELECT 1;\n"
-                                        + "The configureSession API only supports to execute statement of type "
-                                        + "CREATE TABLE, DROP TABLE, ALTER TABLE, "
-                                        + "CREATE DATABASE, DROP DATABASE, ALTER DATABASE, "
-                                        + "CREATE FUNCTION, DROP FUNCTION, ALTER FUNCTION, "
-                                        + "CREATE CATALOG, DROP CATALOG, USE CATALOG, USE [CATALOG.]DATABASE, "
-                                        + "CREATE VIEW, DROP VIEW, LOAD MODULE, UNLOAD MODULE, USE MODULE, ADD JAR."));
+                                "Unsupported statement for configuring session: SELECT 1;\n"
+                                        + "The configureSession API only supports executing statements of type "
+                                        + "SET, RESET, "
+                                        + "CREATE TABLE, CREATE VIEW, CREATE DATABASE, "
+                                        + "CREATE FUNCTION, CREATE TEMPORARY SYSTEM FUNCTION, "
+                                        + "CREATE CATALOG, CREATE MODEL, CREATE MATERIALIZED TABLE, "
+                                        + "DROP TABLE, DROP VIEW, DROP DATABASE, DROP FUNCTION, "
+                                        + "DROP TEMPORARY SYSTEM FUNCTION, DROP CATALOG, "
+                                        + "DROP MODEL, DROP MATERIALIZED TABLE, "
+                                        + "ALTER TABLE, ALTER VIEW, ALTER DATABASE, ALTER FUNCTION, "
+                                        + "ALTER CATALOG SET, ALTER CATALOG RESET, ALTER CATALOG COMMENT, "
+                                        + "ALTER MODEL, ALTER MODEL, ALTER MATERIALIZED TABLE, "
+                                        + "USE CATALOG, USE [CATALOG.]DATABASE, USE MODULES, "
+                                        + "LOAD MODULE, UNLOAD MODULE, "
+                                        + "ADD JAR"));
     }
 
     @Test
