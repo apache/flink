@@ -74,6 +74,7 @@ import org.forstdb.ColumnFamilyHandle;
 import org.forstdb.ColumnFamilyOptions;
 import org.forstdb.ReadOptions;
 import org.forstdb.RocksDB;
+import org.forstdb.RocksDBException;
 import org.forstdb.Snapshot;
 import org.forstdb.WriteOptions;
 import org.slf4j.Logger;
@@ -942,6 +943,13 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
     @Override
     public boolean isSafeToReuseKVState() {
         return true;
+    }
+
+    @VisibleForTesting
+    public void compactState(StateDescriptor<?, ?> stateDesc) throws RocksDBException {
+        ForStOperationUtils.ForStKvStateInfo kvStateInfo =
+                kvStateInformation.get(stateDesc.getName());
+        db.compactRange(kvStateInfo.columnFamilyHandle);
     }
 
     @Nonnegative
