@@ -68,7 +68,6 @@ public final class TestModelProviderFactory implements ModelProviderFactory {
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(TASK);
         options.add(ENDPOINT);
         return options;
     }
@@ -77,6 +76,7 @@ public final class TestModelProviderFactory implements ModelProviderFactory {
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(MODEL_VERSION);
+        options.add(TASK);
         return options;
     }
 
