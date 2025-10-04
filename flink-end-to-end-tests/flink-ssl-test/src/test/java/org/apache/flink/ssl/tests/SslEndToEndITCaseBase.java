@@ -43,6 +43,7 @@ import static org.junit.Assert.assertEquals;
 
 /**
  * Base class for SSL end-to-end tests. Contains shared fields and utility methods for SSL testing.
+ * In part repeats the bash implementation of the `common_ssl.sh`
  */
 public abstract class SslEndToEndITCaseBase extends TestLogger {
     protected static final Logger LOG = LoggerFactory.getLogger(SslEndToEndITCaseBase.class);
@@ -265,7 +266,7 @@ public abstract class SslEndToEndITCaseBase extends TestLogger {
         return Optional.empty();
     }
 
-    protected void verifyCertificatesAreNotAccessed(
+    protected void verifyCertFilesAreNotAccessed(
             FileTime keystoreAccessTimeBefore, FileTime truststoreAccessTimeBefore)
             throws InterruptedException, IOException {
         LOG.info(

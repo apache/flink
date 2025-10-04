@@ -47,9 +47,9 @@ public class BlobServerSocket
     private final Configuration config;
     private final int backlog;
     private final String serverPortRange;
-    private ServerSocket serverSocket;
     private final int maxConnections;
-    private int reloadCounter = 0;
+    private ServerSocket serverSocket;
+    private int reloadCounter;
 
     private final AtomicBoolean firstCreation = new AtomicBoolean(true);
 
