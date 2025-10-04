@@ -1205,6 +1205,41 @@ under the License.
 		</profile>
 
 		<profile>
+			<id>java25</id>
+			<activation>
+				<jdk>[25,)</jdk>
+			</activation>
+
+			<build>
+				<pluginManagement>
+					<plugins>
+						<plugin>
+							<groupId>org.apache.maven.plugins</groupId>
+							<artifactId>maven-surefire-plugin</artifactId>
+							<configuration>
+								<excludedGroups>
+									${surefire.excludedGroups.github-actions},
+									${surefire.excludedGroups.adaptive-scheduler},
+									${surefire.excludedGroups.jdk},
+								</excludedGroups>
+							</configuration>
+						</plugin>
+						<plugin>
+							<groupId>com.diffplug.spotless</groupId>
+							<artifactId>spotless-maven-plugin</artifactId>
+							<configuration>
+								<!-- Current google format does not run on Java 25.
+									 Don't upgrade it in this profile because it formats code differently.
+									 Re-evaluate once support for Java 11 is dropped. -->
+								<skip>true</skip>
+							</configuration>
+						</plugin>
+					</plugins>
+				</pluginManagement>
+			</build>
+		</profile>
+
+		<profile>
 			<id>fast</id>
 			<activation>
 				<property>
