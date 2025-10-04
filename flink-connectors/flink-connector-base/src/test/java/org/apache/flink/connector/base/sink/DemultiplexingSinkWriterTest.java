@@ -40,7 +40,7 @@ class DemultiplexingSinkWriterTest {
     private DemultiplexingSinkWriter<String, String> writer;
 
     @BeforeEach
-    void setUp() throws IOException {
+    void setUp() {
         router = new TestSinkRouter();
         context = new TestSinkInitContext();
         writer = new DemultiplexingSinkWriter<>(router, context);

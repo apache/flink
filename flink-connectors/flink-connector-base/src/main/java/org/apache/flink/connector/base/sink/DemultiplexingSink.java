@@ -104,8 +104,7 @@ public class DemultiplexingSink<InputT, RouteT>
 
     @Override
     public StatefulSinkWriter<InputT, DemultiplexingSinkState<RouteT>> restoreWriter(
-            WriterInitContext context, Collection<DemultiplexingSinkState<RouteT>> recoveredState)
-            throws IOException {
+            WriterInitContext context, Collection<DemultiplexingSinkState<RouteT>> recoveredState) {
 
         return new DemultiplexingSinkWriter<>(sinkRouter, context, recoveredState);
     }

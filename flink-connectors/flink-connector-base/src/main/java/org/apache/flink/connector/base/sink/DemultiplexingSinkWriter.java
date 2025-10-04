@@ -102,8 +102,7 @@ public class DemultiplexingSinkWriter<InputT, RouteT>
     public DemultiplexingSinkWriter(
             SinkRouter<InputT, RouteT> sinkRouter,
             WriterInitContext context,
-            Collection<DemultiplexingSinkState<RouteT>> recoveredStates)
-            throws IOException {
+            Collection<DemultiplexingSinkState<RouteT>> recoveredStates) {
         this(sinkRouter, context);
 
         // Process recovered states and prepare them for lazy restoration
@@ -275,9 +274,7 @@ public class DemultiplexingSinkWriter<InputT, RouteT>
                         List<Object> processedStates =
                                 processRecoveredStates(statefulSink, routeRecoveredStates);
 
-                        StatefulSinkWriter<InputT, Object> statefulWriter =
-                                statefulSink.restoreWriter(context, processedStates);
-                        writer = statefulWriter;
+                        writer = statefulSink.restoreWriter(context, processedStates);
                         LOG.debug(
                                 "Restored sink writer for route: {} with {} states",
                                 route,
@@ -311,11 +308,9 @@ public class DemultiplexingSinkWriter<InputT, RouteT>
      * @param statefulSink The stateful sink that can provide a state serializer
      * @param recoveredStates The recovered states (may contain raw bytes)
      * @return Processed states ready for restoration
-     * @throws IOException If processing fails
      */
     private List<Object> processRecoveredStates(
-            SupportsWriterState<InputT, Object> statefulSink, List<Object> recoveredStates)
-            throws IOException {
+            SupportsWriterState<InputT, Object> statefulSink, List<Object> recoveredStates) {
 
         List<Object> processedStates = new ArrayList<>();
         SimpleVersionedSerializer<Object> serializer = statefulSink.getWriterStateSerializer();
@@ -450,10 +445,8 @@ public class DemultiplexingSinkWriter<InputT, RouteT>
      * @param route The route key
      * @param stateBytes The serialized state bytes
      * @return The deserialized writer states (or raw bytes to be deserialized later)
-     * @throws IOException If deserialization fails
      */
-    private List<Object> deserializeWriterStates(RouteT route, byte[] stateBytes)
-            throws IOException {
+    private List<Object> deserializeWriterStates(RouteT route, byte[] stateBytes) {
         if (stateBytes == null || stateBytes.length == 0) {
             return new ArrayList<>();
         }
