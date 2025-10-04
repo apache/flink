@@ -26,7 +26,7 @@ import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.RecordDeserializer;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfOutputChannelStateEvent;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.runtime.plugable.NonReusingDeserializationDelegate;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
@@ -270,7 +270,7 @@ public abstract class AbstractStreamTaskNetworkInput<
             if (checkpointedInputGate.isFinished()) {
                 return DataInputStatus.END_OF_INPUT;
             }
-        } else if (event.getClass() == EndOfChannelStateEvent.class) {
+        } else if (event.getClass() == EndOfOutputChannelStateEvent.class) {
             if (checkpointedInputGate.allChannelsRecovered()) {
                 return DataInputStatus.END_OF_RECOVERY;
             }
