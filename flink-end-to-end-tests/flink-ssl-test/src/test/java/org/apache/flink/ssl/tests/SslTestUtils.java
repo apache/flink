@@ -138,6 +138,10 @@ public class SslTestUtils {
     /**
      * Generates SSL certificates and installs them in the specified directory.
      *
+     * <p>To avoid breaking file watchers during certificate reload, this method only deletes the
+     * certificate files inside the directory, not the directory itself. This ensures that file
+     * watchers monitoring the directory remain registered and can detect the new certificate files.
+     *
      * @param sslDir the directory where certificates will be stored
      * @param password the password for keystores
      * @param validityDays certificate validity period in days
@@ -146,12 +150,22 @@ public class SslTestUtils {
     public static void generateAndInstallCertificates(
             Path sslDir, String password, int validityDays) throws IOException {
 
-        // Clean up and create SSL directory
-        if (Files.exists(sslDir)) {
-            LOG.info("Directory {} exists. Deleting it...", sslDir);
-            deleteRecursively(sslDir);
-        }
+        // Ensure SSL directory exists
         Files.createDirectories(sslDir);
+
+        // Clean up existing certificate files (but keep the directory to preserve file watchers)
+        if (Files.exists(sslDir)) {
+            LOG.info("Directory {} exists. Deleting existing certificate files...", sslDir);
+            try (var stream = Files.list(sslDir)) {
+                List<Path> files = stream.collect(Collectors.toList());
+                for (Path file : files) {
+                    if (Files.isRegularFile(file)) {
+                        Files.delete(file);
+                        LOG.debug("Deleted existing certificate file: {}", file.getFileName());
+                    }
+                }
+            }
+        }
 
         // Build SAN string
         String nodeName = getNodeName();
@@ -372,16 +386,20 @@ public class SslTestUtils {
      */
     public static String[] getCertificateValidityDates(String host, int port) {
         try {
+            // Use timeout command to ensure the process terminates even if openssl hangs
+            // -servername enables SNI, -showcerts shows the full cert chain
+            // 2>&1 captures stderr to help debug connection issues
             ProcessBuilder pb =
                     new ProcessBuilder(
                             "sh",
                             "-c",
                             String.format(
-                                    "openssl s_client -connect %s:%d </dev/null 2>/dev/null | openssl x509 -noout -dates",
-                                    host, port));
+                                    "timeout 10 openssl s_client -connect %s:%d -servername %s </dev/null 2>&1 | openssl x509 -noout -dates 2>&1",
+                                    host, port, host));
 
             Process process = pb.start();
             StringBuilder output = new StringBuilder();
+            StringBuilder errorOutput = new StringBuilder();
 
             try (var reader =
                     new java.io.BufferedReader(
@@ -392,10 +410,35 @@ public class SslTestUtils {
                 }
             }
 
-            process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
-            process.destroyForcibly();
+            try (var errorReader =
+                    new java.io.BufferedReader(
+                            new java.io.InputStreamReader(process.getErrorStream()))) {
+                String line;
+                while ((line = errorReader.readLine()) != null) {
+                    errorOutput.append(line).append("\n");
+                }
+            }
 
+            boolean completed = process.waitFor(15, java.util.concurrent.TimeUnit.SECONDS);
+            if (!completed) {
+                LOG.warn("Process timed out when retrieving certificate from {}:{}", host, port);
+                process.destroyForcibly();
+                return null;
+            }
+
+            int exitCode = process.exitValue();
             String result = output.toString();
+
+            // Log stderr if there were issues
+            if (exitCode != 0 || errorOutput.length() > 0) {
+                LOG.debug(
+                        "openssl command for {}:{} exited with code {}, stderr: {}",
+                        host,
+                        port,
+                        exitCode,
+                        errorOutput.toString().trim());
+            }
+
             String notBefore = null;
             String notAfter = null;
 
@@ -418,10 +461,14 @@ public class SslTestUtils {
                 return new String[] {notBefore, notAfter};
             }
 
-            LOG.warn("Could not retrieve certificate validity dates from {}:{}", host, port);
+            LOG.warn(
+                    "Could not retrieve certificate validity dates from {}:{}. Output: {}",
+                    host,
+                    port,
+                    result.trim());
             return null;
         } catch (Exception e) {
-            LOG.debug("Failed to get certificate dates from {}:{}", host, port, e);
+            LOG.warn("Failed to get certificate dates from {}:{}", host, port, e);
             return null;
         }
     }

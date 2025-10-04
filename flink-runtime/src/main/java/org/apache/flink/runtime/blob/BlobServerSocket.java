@@ -47,9 +47,9 @@ public class BlobServerSocket
     private final Configuration config;
     private final int backlog;
     private final String serverPortRange;
-    private ServerSocket serverSocket;
     private final int maxConnections;
-    private int reloadCounter = 0;
+    private ServerSocket serverSocket;
+    private int reloadCounter;
 
     private final AtomicBoolean firstCreation = new AtomicBoolean(true);
 
@@ -79,8 +79,7 @@ public class BlobServerSocket
     private void reloadContext() throws IOException {
         LOG.info("Reloading blob server context.");
         close();
-        // in case of SSL reload, at this moment we cannot serve requests (we hope clients would
-        // retry)
+        // if during the SSL reload, when cannot serve requests (we hope clients would retry)
         createSocket();
         reloadCounter++;
     }

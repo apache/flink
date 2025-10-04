@@ -24,10 +24,31 @@ import java.nio.file.WatchService;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Interface for watching file system directories and notifying listeners of changes.
+ *
+ * <p>Implementations monitor directories for file modifications and invoke registered {@link
+ * LocalFSWatchServiceListener} callbacks when changes occur.
+ */
 public interface LocalFSDirectoryWatcher {
 
+    /**
+     * Returns the current set of registered watchers.
+     *
+     * @return an immutable set of watch service and listener pairs
+     */
     Set<Map.Entry<WatchService, LocalFSWatchServiceListener>> getWatchers();
 
+    /**
+     * Registers directories for monitoring and associates them with a listener.
+     *
+     * <p>The listener will be notified when files within these directories are created, modified,
+     * or deleted.
+     *
+     * @param dirsToWatch the directories to watch (must be directories, not files)
+     * @param listener the listener to notify when changes occur in the watched directories
+     * @throws IOException if an I/O error occurs or if a file (not directory) is provided
+     */
     void registerDirectory(Path[] dirsToWatch, LocalFSWatchServiceListener listener)
             throws IOException;
 }
