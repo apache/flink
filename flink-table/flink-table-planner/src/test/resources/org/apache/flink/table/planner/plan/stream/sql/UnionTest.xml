@@ -16,6 +16,43 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testCalcWithNonDeterministicFilterAfterUnion">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM (
+      SELECT a, c FROM MyTable1
+      UNION
+      SELECT a, c FROM MyTable2
+)
+WHERE TO_TIMESTAMP(c, 'yyyy-MM-dd HH:mm:ss')
+      < NOW()
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$1])
++- LogicalFilter(condition=[<(TO_TIMESTAMP($1, _UTF-16LE'yyyy-MM-dd HH:mm:ss'), NOW())])
+   +- LogicalUnion(all=[false])
+      :- LogicalProject(a=[$0], c=[$2])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      +- LogicalProject(a=[$0], c=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c], where=[(TO_TIMESTAMP(c, 'yyyy-MM-dd HH:mm:ss') < NOW())])
++- GroupAggregate(groupBy=[a, c], select=[a, c])
+   +- Exchange(distribution=[hash[a, c]])
+      +- Union(all=[true], union=[a, c])
+         :- Calc(select=[a, c])
+         :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+         +- Calc(select=[a, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testUnionDiffRowTime">
     <Resource name="sql">
       <![CDATA[
