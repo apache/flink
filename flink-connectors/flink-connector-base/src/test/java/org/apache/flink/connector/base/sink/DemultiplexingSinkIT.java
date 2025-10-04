@@ -17,6 +17,7 @@
 
 package org.apache.flink.connector.base.sink;
 
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.junit5.MiniClusterExtension;
@@ -24,6 +25,7 @@ import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,7 +56,7 @@ class DemultiplexingSinkIT {
         final DemultiplexingSink<String, String> demuxSink = new DemultiplexingSink<>(router);
 
         // Create a data stream with elements that will route to different sinks
-        env.fromElements("apple", "banana", "apricot", "blueberry", "avocado", "cherry")
+        env.fromData("apple", "banana", "apricot", "blueberry", "avocado", "cherry")
                 .sinkTo(demuxSink);
 
         // Execute the job
@@ -117,8 +119,7 @@ class DemultiplexingSinkIT {
     }
 
     /** A simple collecting sink writer for testing. */
-    private static class CollectingSinkWriter
-            implements org.apache.flink.api.connector.sink2.SinkWriter<String> {
+    private static class CollectingSinkWriter implements SinkWriter<String>, Serializable {
         private static final long serialVersionUID = 1L;
 
         private final String route;

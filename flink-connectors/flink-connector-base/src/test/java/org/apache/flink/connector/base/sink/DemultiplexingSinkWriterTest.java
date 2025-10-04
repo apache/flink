@@ -20,13 +20,18 @@ package org.apache.flink.connector.base.sink;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.StatefulSinkWriter;
+import org.apache.flink.api.connector.sink2.SupportsWriterState;
+import org.apache.flink.api.connector.sink2.WriterInitContext;
 import org.apache.flink.connector.base.sink.writer.TestSinkInitContext;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -59,7 +64,7 @@ class DemultiplexingSinkWriterTest {
         assertThat(writer.getActiveRoutes()).containsExactly("a");
 
         // All elements should be in the same sink writer
-        DummySinkWriter sinkWriter = router.getSinkWriter("a");
+        TestSinkWriter sinkWriter = router.getSinkWriter("a");
         assertThat(sinkWriter.getElements()).containsExactly("apple", "avocado", "apricot");
     }
 
@@ -142,6 +147,45 @@ class DemultiplexingSinkWriterTest {
         assertThat(states).isNotNull();
     }
 
+    @Test
+    void testJavaSerializationFallback() throws Exception {
+        // Create a router that creates sinks without proper state serializers
+        JavaSerializationFallbackRouter fallbackRouter = new JavaSerializationFallbackRouter();
+        DemultiplexingSinkWriter<String, String> writer =
+                new DemultiplexingSinkWriter<>(fallbackRouter, context);
+
+        // Write elements to create stateful sink writers
+        writer.write("apple", createContext());
+        writer.write("banana", createContext());
+
+        // Verify sink writers were created
+        assertThat(writer.getActiveSinkWriterCount()).isEqualTo(2);
+
+        // Add some state to the stateful sink writers
+        JavaSerializationFallbackSink sinkA = fallbackRouter.getCreatedSink("a");
+        JavaSerializationFallbackSink sinkB = fallbackRouter.getCreatedSink("b");
+
+        assertThat(sinkA).isNotNull();
+        assertThat(sinkB).isNotNull();
+
+        // The stateful writers should have received the elements
+        assertThat(sinkA.getCreatedWriter().getElements()).containsExactly("apple");
+        assertThat(sinkB.getCreatedWriter().getElements()).containsExactly("banana");
+
+        // Snapshot state - this should trigger Java serialization fallback
+        // since our test sink has a failing state serializer
+        List<DemultiplexingSinkState<String>> snapshotStates = writer.snapshotState(1L);
+
+        // Should have successfully created state using Java serialization fallback
+        assertThat(snapshotStates).hasSize(1);
+        DemultiplexingSinkState<String> state = snapshotStates.get(0);
+        assertThat(state.size()).isEqualTo(2);
+        assertThat(state.getRoutes()).containsExactlyInAnyOrder("a", "b");
+
+        writer.close();
+    }
+
+    /** Test implementation of {@link SinkWriter.Context}. */
     private SinkWriter.Context createContext() {
         return new SinkWriter.Context() {
             @Override
@@ -159,7 +203,7 @@ class DemultiplexingSinkWriterTest {
     /** Test implementation of {@link SinkRouter}. */
     private static class TestSinkRouter implements SinkRouter<String, String> {
         private final AtomicInteger sinkCreationCount = new AtomicInteger(0);
-        private final List<DummySink> createdSinks = new ArrayList<>();
+        private final List<TestSink> createdSinks = new ArrayList<>();
 
         @Override
         public String getRoute(String element) {
@@ -170,7 +214,7 @@ class DemultiplexingSinkWriterTest {
         @Override
         public Sink<String> createSink(String route, String element) {
             sinkCreationCount.incrementAndGet();
-            DummySink sink = new DummySink(route);
+            TestSink sink = new TestSink(route);
             createdSinks.add(sink);
             return sink;
         }
@@ -179,28 +223,28 @@ class DemultiplexingSinkWriterTest {
             return sinkCreationCount.get();
         }
 
-        public DummySinkWriter getSinkWriter(String route) {
+        public TestSinkWriter getSinkWriter(String route) {
             return createdSinks.stream()
                     .filter(sink -> sink.getRoute().equals(route))
                     .findFirst()
-                    .map(DummySink::getCreatedWriter)
+                    .map(TestSink::getCreatedWriter)
                     .orElse(null);
         }
     }
 
     /** Test implementation of {@link Sink}. */
-    private static class DummySink implements Sink<String> {
+    private static class TestSink implements Sink<String> {
         private final String route;
-        private DummySinkWriter createdWriter;
+        private TestSinkWriter createdWriter;
 
-        public DummySink(String route) {
+        public TestSink(String route) {
             this.route = route;
         }
 
         @Override
         public SinkWriter<String> createWriter(
                 org.apache.flink.api.connector.sink2.WriterInitContext context) {
-            createdWriter = new DummySinkWriter(route);
+            createdWriter = new TestSinkWriter(route);
             return createdWriter;
         }
 
@@ -208,20 +252,20 @@ class DemultiplexingSinkWriterTest {
             return route;
         }
 
-        public DummySinkWriter getCreatedWriter() {
+        public TestSinkWriter getCreatedWriter() {
             return createdWriter;
         }
     }
 
     /** Test implementation of {@link SinkWriter}. */
-    private static class DummySinkWriter implements SinkWriter<String> {
+    private static class TestSinkWriter implements SinkWriter<String> {
         private final String route;
         private final List<String> elements = new ArrayList<>();
         private final List<Watermark> watermarksReceived = new ArrayList<>();
         private int flushCount = 0;
         private boolean closed = false;
 
-        public DummySinkWriter(String route) {
+        public TestSinkWriter(String route) {
             this.route = route;
         }
 
@@ -266,6 +310,121 @@ class DemultiplexingSinkWriterTest {
 
         public boolean isClosed() {
             return closed;
+        }
+    }
+
+    /** Test serialization fallback implementation of {@link SinkRouter}. */
+    private static class JavaSerializationFallbackRouter implements SinkRouter<String, String> {
+        private final java.util.Map<String, JavaSerializationFallbackSink> createdSinks =
+                new java.util.HashMap<>();
+
+        @Override
+        public String getRoute(String element) {
+            return element.substring(0, 1);
+        }
+
+        @Override
+        public Sink<String> createSink(String route, String element) {
+            JavaSerializationFallbackSink sink = new JavaSerializationFallbackSink(route);
+            createdSinks.put(route, sink);
+            return sink;
+        }
+
+        public JavaSerializationFallbackSink getCreatedSink(String route) {
+            return createdSinks.get(route);
+        }
+    }
+
+    /** Test serialization fallback implementation of {@link Sink}. */
+    private static class JavaSerializationFallbackSink
+            implements Sink<String>, SupportsWriterState<String, String> {
+        private final String route;
+        private JavaSerializationFallbackWriter createdWriter;
+
+        public JavaSerializationFallbackSink(String route) {
+            this.route = route;
+        }
+
+        @Override
+        public SinkWriter<String> createWriter(WriterInitContext context) {
+            createdWriter = new JavaSerializationFallbackWriter(route);
+            return createdWriter;
+        }
+
+        @Override
+        public StatefulSinkWriter<String, String> restoreWriter(
+                WriterInitContext context, Collection<String> recoveredState) {
+            createdWriter = new JavaSerializationFallbackWriter(route);
+            // Restore the state
+            for (String state : recoveredState) {
+                createdWriter.addElement(state);
+            }
+            return createdWriter;
+        }
+
+        @Override
+        public SimpleVersionedSerializer<String> getWriterStateSerializer() {
+            // Return a serializer that will fail, forcing fallback to Java serialization
+            return new SimpleVersionedSerializer<String>() {
+                @Override
+                public int getVersion() {
+                    return 1;
+                }
+
+                @Override
+                public byte[] serialize(String obj) throws IOException {
+                    throw new IOException("Intentional serialization failure to test fallback");
+                }
+
+                @Override
+                public String deserialize(int version, byte[] serialized) throws IOException {
+                    throw new IOException("Intentional deserialization failure to test fallback");
+                }
+            };
+        }
+
+        public JavaSerializationFallbackWriter getCreatedWriter() {
+            return createdWriter;
+        }
+    }
+
+    /** Test serialization fallback implementation of {@link StatefulSinkWriter}. */
+    private static class JavaSerializationFallbackWriter
+            implements StatefulSinkWriter<String, String> {
+        private final String route;
+        private final List<String> elements = new ArrayList<>();
+
+        public JavaSerializationFallbackWriter(String route) {
+            this.route = route;
+        }
+
+        @Override
+        public void write(String element, Context context) {
+            elements.add(element);
+        }
+
+        @Override
+        public void flush(boolean endOfInput) {
+            // No-op for test
+        }
+
+        @Override
+        public void close() {
+            // No-op for test
+        }
+
+        @Override
+        public List<String> snapshotState(long checkpointId) {
+            // Return the elements as state (this will be Java-serialized as fallback)
+            return new ArrayList<>(elements);
+        }
+
+        public List<String> getElements() {
+            return new ArrayList<>(elements);
+        }
+
+        public void addElement(String element) {
+            elements.add(element);
         }
     }
 }

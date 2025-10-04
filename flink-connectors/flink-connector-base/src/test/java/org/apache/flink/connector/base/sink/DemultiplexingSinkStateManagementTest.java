@@ -29,7 +29,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -133,8 +132,7 @@ class DemultiplexingSinkStateManagementTest {
 
         // Create writer with restored state
         DemultiplexingSinkWriter<String, String> writer =
-                new DemultiplexingSinkWriter<>(
-                        nonStatefulRouter, context, Arrays.asList(dummyState));
+                new DemultiplexingSinkWriter<>(nonStatefulRouter, context, List.of(dummyState));
 
         // Write to trigger sink creation
         writer.write("apple", createContext());

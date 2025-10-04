@@ -94,7 +94,7 @@ class DemultiplexingSinkStateSerializerTest {
     void testDeserializeWithWrongVersion() {
         final DemultiplexingSinkStateSerializer<String> serializer =
                 new DemultiplexingSinkStateSerializer<>();
-        final byte[] serialized = new byte[] {1, 2, 3, 4}; // Some dummy data
+        final byte[] serialized = new byte[] {1, 2, 3, 4};
 
         assertThatThrownBy(() -> serializer.deserialize(999, serialized))
                 .isInstanceOf(IOException.class)
@@ -107,6 +107,158 @@ class DemultiplexingSinkStateSerializerTest {
                 new DemultiplexingSinkStateSerializer<>();
 
         assertThat(serializer.getVersion()).isEqualTo(1);
+    }
+
+    @Test
+    void testSetRouteStateWithNullState() {
+        DemultiplexingSinkState<String> state = new DemultiplexingSinkState<>();
+
+        // Add a route first
+        state.setRouteState("route1", new byte[] {1, 2, 3});
+        assertThat(state.getRoutes()).containsExactly("route1");
+
+        // Setting null state should remove the route
+        state.setRouteState("route1", null);
+        assertThat(state.getRoutes()).isEmpty();
+        assertThat(state.getRouteState("route1")).isNull();
+    }
+
+    @Test
+    void testSetRouteStateWithNullStateOnNonExistentRoute() {
+        DemultiplexingSinkState<String> state = new DemultiplexingSinkState<>();
+
+        // Setting null state on non-existent route should be no-op
+        state.setRouteState("nonExistent", null);
+        assertThat(state.getRoutes()).isEmpty();
+    }
+
+    @Test
+    void testEqualsWithSameInstance() {
+        DemultiplexingSinkState<String> state = new DemultiplexingSinkState<>();
+        state.setRouteState("route1", new byte[] {1, 2, 3});
+
+        assertThat(state.equals(state)).isTrue();
+    }
+
+    @Test
+    void testEqualsWithNull() {
+        DemultiplexingSinkState<String> state = new DemultiplexingSinkState<>();
+
+        assertThat(state.equals(null)).isFalse();
+    }
+
+    @Test
+    void testEqualsWithDifferentClass() {
+        DemultiplexingSinkState<String> state = new DemultiplexingSinkState<>();
+
+        assertThat(state.equals("not a state")).isFalse();
+    }
+
+    @Test
+    void testEqualsWithDifferentRouteSizes() {
+        DemultiplexingSinkState<String> state1 = new DemultiplexingSinkState<>();
+        state1.setRouteState("route1", new byte[] {1, 2, 3});
+
+        DemultiplexingSinkState<String> state2 = new DemultiplexingSinkState<>();
+        state2.setRouteState("route1", new byte[] {1, 2, 3});
+        state2.setRouteState("route2", new byte[] {4, 5, 6});
+
+        assertThat(state1.equals(state2)).isFalse();
+        assertThat(state2.equals(state1)).isFalse();
+    }
+
+    @Test
+    void testEqualsWithSameRoutesButDifferentStates() {
+        DemultiplexingSinkState<String> state1 = new DemultiplexingSinkState<>();
+        state1.setRouteState("route1", new byte[] {1, 2, 3});
+
+        DemultiplexingSinkState<String> state2 = new DemultiplexingSinkState<>();
+        state2.setRouteState("route1", new byte[] {4, 5, 6});
+
+        assertThat(state1.equals(state2)).isFalse();
+    }
+
+    @Test
+    void testEqualsWithSameRoutesAndStates() {
+        DemultiplexingSinkState<String> state1 = new DemultiplexingSinkState<>();
+        state1.setRouteState("route1", new byte[] {1, 2, 3});
+        state1.setRouteState("route2", new byte[] {4, 5, 6});
+
+        DemultiplexingSinkState<String> state2 = new DemultiplexingSinkState<>();
+        state2.setRouteState("route1", new byte[] {1, 2, 3});
+        state2.setRouteState("route2", new byte[] {4, 5, 6});
+
+        assertThat(state1.equals(state2)).isTrue();
+        assertThat(state2.equals(state1)).isTrue();
+    }
+
+    @Test
+    void testHashCodeConsistency() {
+        DemultiplexingSinkState<String> state1 = new DemultiplexingSinkState<>();
+        state1.setRouteState("route1", new byte[] {1, 2, 3});
+        state1.setRouteState("route2", new byte[] {4, 5, 6});
+
+        DemultiplexingSinkState<String> state2 = new DemultiplexingSinkState<>();
+        state2.setRouteState("route1", new byte[] {1, 2, 3});
+        state2.setRouteState("route2", new byte[] {4, 5, 6});
+
+        // Equal objects must have equal hash codes
+        assertThat(state1.equals(state2)).isTrue();
+        assertThat(state1.hashCode()).isEqualTo(state2.hashCode());
+    }
+
+    @Test
+    void testHashCodeWithEmptyState() {
+        DemultiplexingSinkState<String> state1 = new DemultiplexingSinkState<>();
+        DemultiplexingSinkState<String> state2 = new DemultiplexingSinkState<>();
+
+        assertThat(state1.hashCode()).isEqualTo(state2.hashCode());
+    }
+
+    @Test
+    void testHashCodeWithDifferentStates() {
+        DemultiplexingSinkState<String> state1 = new DemultiplexingSinkState<>();
+        state1.setRouteState("route1", new byte[] {1, 2, 3});
+
+        DemultiplexingSinkState<String> state2 = new DemultiplexingSinkState<>();
+        state2.setRouteState("route1", new byte[] {4, 5, 6});
+
+        // Different objects should typically have different hash codes
+        assertThat(state1.hashCode()).isNotEqualTo(state2.hashCode());
+    }
+
+    @Test
+    void testToStringWithEmptyState() {
+        DemultiplexingSinkState<String> state = new DemultiplexingSinkState<>();
+
+        String toString = state.toString();
+        assertThat(toString).contains("DemultiplexingSinkState");
+        assertThat(toString).contains("routeCount=0");
+        assertThat(toString).contains("routes=[]");
+    }
+
+    @Test
+    void testToStringWithSingleRoute() {
+        DemultiplexingSinkState<String> state = new DemultiplexingSinkState<>();
+        state.setRouteState("route1", new byte[] {1, 2, 3});
+
+        String toString = state.toString();
+        assertThat(toString).contains("DemultiplexingSinkState");
+        assertThat(toString).contains("routeCount=1");
+        assertThat(toString).contains("route1");
+    }
+
+    @Test
+    void testToStringWithMultipleRoutes() {
+        DemultiplexingSinkState<String> state = new DemultiplexingSinkState<>();
+        state.setRouteState("route1", new byte[] {1, 2, 3});
+        state.setRouteState("route2", new byte[] {4, 5, 6});
+
+        String toString = state.toString();
+        assertThat(toString).contains("DemultiplexingSinkState");
+        assertThat(toString).contains("routeCount=2");
+        assertThat(toString).contains("route1");
+        assertThat(toString).contains("route2");
     }
 
     /** A complex route key for testing serialization. */

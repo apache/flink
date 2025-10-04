@@ -70,6 +70,51 @@ class DemultiplexingSinkTest {
                 .isInstanceOf(DemultiplexingSinkStateSerializer.class);
     }
 
+    @Test
+    void testRestoreWriter() {
+        final TestSinkRouter router = new TestSinkRouter();
+        final DemultiplexingSink<String, String> sink = new DemultiplexingSink<>(router);
+        final TestSinkInitContext context = new TestSinkInitContext();
+
+        // Create some state to restore from
+        final DemultiplexingSinkState<String> state1 = new DemultiplexingSinkState<>();
+        state1.setRouteState("a", new byte[] {1, 2, 3});
+        state1.setRouteState("b", new byte[] {4, 5, 6});
+
+        final DemultiplexingSinkState<String> state2 = new DemultiplexingSinkState<>();
+        state2.setRouteState("c", new byte[] {7, 8, 9});
+
+        final java.util.List<DemultiplexingSinkState<String>> recoveredStates =
+                java.util.Arrays.asList(state1, state2);
+
+        // Restore the writer with the states
+        final var restoredWriter = sink.restoreWriter(context, recoveredStates);
+
+        // Verify that the restored writer is the correct type
+        assertThat(restoredWriter).isInstanceOf(DemultiplexingSinkWriter.class);
+
+        // Verify that the writer was created successfully
+        assertThat(restoredWriter).isNotNull();
+    }
+
+    @Test
+    void testRestoreWriterWithEmptyState() {
+        final TestSinkRouter router = new TestSinkRouter();
+        final DemultiplexingSink<String, String> sink = new DemultiplexingSink<>(router);
+        final TestSinkInitContext context = new TestSinkInitContext();
+
+        // Create an empty state
+        final DemultiplexingSinkState<String> emptyState = new DemultiplexingSinkState<>();
+        final java.util.List<DemultiplexingSinkState<String>> recoveredStates = List.of(emptyState);
+
+        // Restore the writer with empty state
+        final var restoredWriter = sink.restoreWriter(context, recoveredStates);
+
+        // Verify that the restored writer is created successfully even with empty state
+        assertThat(restoredWriter).isNotNull();
+        assertThat(restoredWriter).isInstanceOf(DemultiplexingSinkWriter.class);
+    }
+
     /** Test implementation of {@link SinkRouter}. */
     private static class TestSinkRouter implements SinkRouter<String, String> {
         private final AtomicInteger sinkCreationCount = new AtomicInteger(0);
