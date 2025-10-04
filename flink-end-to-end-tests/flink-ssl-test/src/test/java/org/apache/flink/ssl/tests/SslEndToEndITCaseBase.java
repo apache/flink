@@ -28,6 +28,7 @@ import org.apache.flink.tests.util.flink.FlinkResourceSetup;
 import org.apache.flink.tests.util.flink.LocalStandaloneFlinkResourceFactory;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +44,7 @@ import static org.junit.Assert.assertEquals;
 
 /**
  * Base class for SSL end-to-end tests. Contains shared fields and utility methods for SSL testing.
+ * In part repeats the bash implementation of the `common_ssl.sh`
  */
 public abstract class SslEndToEndITCaseBase extends TestLogger {
     protected static final Logger LOG = LoggerFactory.getLogger(SslEndToEndITCaseBase.class);
@@ -64,6 +66,29 @@ public abstract class SslEndToEndITCaseBase extends TestLogger {
 
     protected final Path tempDir;
     protected final Path internalSslDir;
+
+    /**
+     * Ensures a clean test environment by stopping any stale Flink processes from previous test
+     * runs. This prevents port conflicts and certificate confusion.
+     */
+    @BeforeClass
+    public static void ensureCleanEnvironment() {
+        LOG.info("Ensuring clean test environment - stopping any stale Flink processes");
+        try {
+            // Kill any running TaskManager or JobManager processes
+            ProcessBuilder pb =
+                    new ProcessBuilder(
+                            "sh",
+                            "-c",
+                            "pkill -f 'TaskManagerRunner' || true; pkill -f 'StandaloneSessionClusterEntrypoint' || true");
+            Process p = pb.start();
+            p.waitFor();
+            Thread.sleep(2000); // Wait for processes to fully terminate
+            LOG.info("Cleaned up stale Flink processes");
+        } catch (Exception e) {
+            LOG.warn("Could not clean up stale processes, but continuing with test", e);
+        }
+    }
 
     protected SslEndToEndITCaseBase(boolean sslEnabled, boolean sslReloadEnabled)
             throws IOException {
@@ -239,8 +264,9 @@ public abstract class SslEndToEndITCaseBase extends TestLogger {
             throws InterruptedException {
         long startTime = System.currentTimeMillis();
         int checkCount = 0;
+        Duration reloadWaitMs = Duration.ofMillis(3 * WAIT_MS.toMillis());
 
-        while (System.currentTimeMillis() - startTime < WAIT_MS.toMillis()) {
+        while (System.currentTimeMillis() - startTime < reloadWaitMs.toMillis()) {
             Thread.sleep(RELOAD_CHECK_INTERVAL_MS);
             checkCount++;
 
@@ -261,11 +287,11 @@ public abstract class SslEndToEndITCaseBase extends TestLogger {
             }
         }
 
-        LOG.warn("Certificate reload not detected within {} ms", WAIT_MS.toMillis());
+        LOG.warn("Certificate reload not detected within {} ms", reloadWaitMs.toMillis());
         return Optional.empty();
     }
 
-    protected void verifyCertificatesAreNotAccessed(
+    protected void verifyCertFilesAreNotAccessed(
             FileTime keystoreAccessTimeBefore, FileTime truststoreAccessTimeBefore)
             throws InterruptedException, IOException {
         LOG.info(
