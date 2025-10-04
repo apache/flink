@@ -168,7 +168,8 @@ public class BlobClientSslReloadTest {
 
                 // Check if this is a retryable SSL/connection error
                 if (isRetryableError(e)) {
-                    long delayMs = baseDelayMs * (1L << (attempt - 1)); // Exponential backoff
+                    long delayMs =
+                            baseDelayMs * (1L << attempt); // Exponential backoff: 100, 200, 400ms
                     LOG.debug(
                             "Upload failed on attempt {} with retryable error: {}. Retrying in {}ms",
                             attempt,
@@ -226,7 +227,8 @@ public class BlobClientSslReloadTest {
     private static int prepare() throws Exception {
         LOG.debug("Initial upload of jar files");
 
-        BlobClientTest.uploadJarFile(blobReloadableSslServer, reloadableSslClientConfig);
+        // Use retry logic to handle server startup timing issues
+        uploadJarFileWithRetry(blobReloadableSslServer, reloadableSslClientConfig, 5, 100);
 
         return blobReloadableSslServer.getReloadCounter();
     }

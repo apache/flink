@@ -40,7 +40,7 @@ public class LocalFSWatchService extends Thread {
     private static final Logger LOG = LoggerFactory.getLogger(LocalFSWatchService.class);
 
     private final long sleepDurationMs;
-    @VisibleForTesting AtomicBoolean running = new AtomicBoolean(false);
+    @VisibleForTesting final AtomicBoolean running = new AtomicBoolean(false);
 
     public LocalFSWatchService() {
         this(Duration.ofMillis(100));
