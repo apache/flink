@@ -25,7 +25,9 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver;
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
@@ -153,6 +155,14 @@ public class PlannerMocks {
                                 tableName),
                         false);
 
+        return this;
+    }
+
+    public PlannerMocks registerFunction(
+            String functionName, Class<? extends UserDefinedFunction> functionClass) {
+        this.getFunctionCatalog()
+                .registerCatalogFunction(
+                        UnresolvedIdentifier.of(functionName), functionClass, true);
         return this;
     }
 
