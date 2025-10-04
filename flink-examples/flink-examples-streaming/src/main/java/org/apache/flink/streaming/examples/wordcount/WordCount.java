@@ -187,6 +187,16 @@ public class WordCount {
      * Implements the string tokenizer that splits sentences into words as a user-defined
      * FlatMapFunction. The function takes a line (String) and splits it into multiple pairs in the
      * form of "(word,1)" ({@code Tuple2<String, Integer>}).
+     *
+     * <p>The tokenizer performs the following operations:
+     * <ul>
+     *   <li>Converts input text to lowercase for case-insensitive word counting</li>
+     *   <li>Splits text using non-word characters (\\W+) as delimiters</li>
+     *   <li>Filters out empty tokens</li>
+     *   <li>Emits each valid word as a tuple with count 1</li>
+     * </ul>
+     *
+     * @see FlatMapFunction
      */
     public static final class Tokenizer
             implements FlatMapFunction<String, Tuple2<String, Integer>> {
