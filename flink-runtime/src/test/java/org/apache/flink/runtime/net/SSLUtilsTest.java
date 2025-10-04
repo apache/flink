@@ -25,8 +25,8 @@ import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 
 import org.apache.flink.shaded.netty4.io.netty.buffer.UnpooledByteBufAllocator;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.ClientAuth;
-import org.apache.flink.shaded.netty4.io.netty.handler.ssl.JdkSslContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.OpenSsl;
+import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslContext;
 import org.apache.flink.shaded.netty4.io.netty.handler.ssl.SslHandler;
 
 import org.junit.jupiter.api.Test;
@@ -170,9 +170,8 @@ public class SSLUtilsTest {
         Configuration config = createRestSslConfigWithTrustStore(sslProvider);
         config.set(SecurityOptions.SSL_REST_ENABLED, true);
         config.setString(SecurityOptions.SSL_ALGORITHMS.key(), testSSLAlgorithms);
-        JdkSslContext nettySSLContext =
-                (JdkSslContext)
-                        SSLUtils.createRestNettySSLContext(config, true, ClientAuth.NONE, JDK);
+        SslContext nettySSLContext =
+                SSLUtils.createRestNettySSLContext(config, true, ClientAuth.NONE, JDK);
         List<String> cipherSuites = checkNotNull(nettySSLContext).cipherSuites();
         assertThat(cipherSuites).hasSize(2);
         assertThat(cipherSuites).containsExactlyInAnyOrder(testSSLAlgorithms.split(","));
@@ -526,7 +525,6 @@ public class SSLUtilsTest {
     public static void touchKeyStore() throws IOException {
         FileTime newTime = FileTime.fromMillis(System.currentTimeMillis());
         Files.setLastModifiedTime(Paths.get(KEY_STORE_PATH), newTime);
-        Files.setLastModifiedTime(Paths.get(TRUST_STORE_PATH), newTime);
     }
 
     public static void touchTrustStore() throws IOException {
