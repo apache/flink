@@ -93,7 +93,7 @@ class OperatorSnapshotFinalizerTest {
             assertThat(f).isNotDone();
         }
 
-        OperatorSnapshotFinalizer finalizer = new OperatorSnapshotFinalizer(snapshotFutures);
+        OperatorSnapshotFinalizer finalizer = OperatorSnapshotFinalizer.create(snapshotFutures);
 
         for (Future<?> f : snapshotFutures.getAllFutures()) {
             assertThat(f).isDone();

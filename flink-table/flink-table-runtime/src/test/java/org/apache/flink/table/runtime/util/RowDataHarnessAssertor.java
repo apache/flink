@@ -61,6 +61,14 @@ public class RowDataHarnessAssertor {
         assertThat(getEmittedRows(harness)).containsExactly(expected);
     }
 
+    /** Assert the test harness should emit records exactly same as the expected records. */
+    public void shouldEmit(
+            AbstractStreamOperatorTestHarness<RowData> harness,
+            String description,
+            RowData... expected) {
+        assertThat(getEmittedRows(harness)).describedAs(description).containsExactly(expected);
+    }
+
     /** Assert the test harness should emit all records regardless of the order. */
     public void shouldEmitAll(
             AbstractStreamOperatorTestHarness<RowData> harness, RowData... expected) {

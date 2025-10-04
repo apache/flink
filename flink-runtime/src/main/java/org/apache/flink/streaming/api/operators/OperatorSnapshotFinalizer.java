@@ -27,12 +27,11 @@ import org.apache.flink.runtime.state.OutputStateHandle;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import javax.annotation.Nonnull;
-
 import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.emptyIfNull;
 import static org.apache.flink.runtime.checkpoint.StateObjectCollection.singletonOrEmpty;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This class finalizes {@link OperatorSnapshotFutures}. Each object is created with a {@link
@@ -47,8 +46,9 @@ public class OperatorSnapshotFinalizer {
     /** Secondary replica of the operator subtask state for faster, local recovery on TM. */
     private final OperatorSubtaskState taskLocalState;
 
-    public OperatorSnapshotFinalizer(@Nonnull OperatorSnapshotFutures snapshotFutures)
+    public static OperatorSnapshotFinalizer create(OperatorSnapshotFutures snapshotFutures)
             throws ExecutionException, InterruptedException {
+        checkNotNull(snapshotFutures);
 
         SnapshotResult<KeyedStateHandle> keyedManaged =
                 FutureUtils.runIfNotDoneAndGet(snapshotFutures.getKeyedStateManagedFuture());
@@ -68,7 +68,7 @@ public class OperatorSnapshotFinalizer {
         SnapshotResult<StateObjectCollection<OutputStateHandle>> resultSubpartition =
                 snapshotFutures.getResultSubpartitionStateFuture().get();
 
-        jobManagerOwnedState =
+        OperatorSubtaskState jobManagerOwnedState =
                 OperatorSubtaskState.builder()
                         .setManagedOperatorState(
                                 singletonOrEmpty(operatorManaged.getJobManagerOwnedSnapshot()))
@@ -83,7 +83,7 @@ public class OperatorSnapshotFinalizer {
                                 emptyIfNull(resultSubpartition.getJobManagerOwnedSnapshot()))
                         .build();
 
-        taskLocalState =
+        OperatorSubtaskState taskLocalState =
                 OperatorSubtaskState.builder()
                         .setManagedOperatorState(
                                 singletonOrEmpty(operatorManaged.getTaskLocalSnapshot()))
@@ -94,6 +94,14 @@ public class OperatorSnapshotFinalizer {
                         .setResultSubpartitionState(
                                 emptyIfNull(resultSubpartition.getTaskLocalSnapshot()))
                         .build();
+
+        return new OperatorSnapshotFinalizer(jobManagerOwnedState, taskLocalState);
+    }
+
+    public OperatorSnapshotFinalizer(
+            OperatorSubtaskState jobManagerOwnedState, OperatorSubtaskState taskLocalState) {
+        this.jobManagerOwnedState = checkNotNull(jobManagerOwnedState);
+        this.taskLocalState = checkNotNull(taskLocalState);
     }
 
     public OperatorSubtaskState getTaskLocalState() {
