@@ -58,15 +58,16 @@ public class SslWithReloadIT extends SslEndToEndITCaseBase {
             LOG.info("Generating new SSL certificates with {}-day validity", NEW_VALIDITY_DAYS);
             SslTestUtils.generateAndInstallCertificates(
                     internalSslDir, SSL_PASSWORD, NEW_VALIDITY_DAYS);
-            LOG.info("New certificates generated, waiting for reload...");
+            LOG.info("New certificates were generated, waiting for reload...");
 
-            // Wait for certificate reload on all ports
             final CertificateDates newCertDates =
                     getAllNewCertificateDates(ports, initialCertDates);
 
-            // Verify all certificates were reloaded
             assertTrue(
-                    "All certificates should be reloaded: " + newCertDates,
+                    "All certificates should be reloaded: "
+                            + newCertDates
+                            + ", intial certificate dates: "
+                            + initialCertDates,
                     newCertDates.isAllPresent());
 
             // Verify certificate dates changed after reload

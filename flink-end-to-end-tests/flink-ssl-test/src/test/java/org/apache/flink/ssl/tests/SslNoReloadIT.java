@@ -63,7 +63,7 @@ public class SslNoReloadIT extends SslEndToEndITCaseBase {
             FileTime truststoreAccessTimeBefore =
                     getFileAccessTime(internalSslDir.resolve(TRUSTSTORE_FILENAME));
 
-            verifyCertificatesAreNotAccessed(keystoreAccessTimeBefore, truststoreAccessTimeBefore);
+            verifyCertFilesAreNotAccessed(keystoreAccessTimeBefore, truststoreAccessTimeBefore);
         }
     }
 }

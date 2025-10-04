@@ -51,7 +51,6 @@ import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
-import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.util.ArrayList;
@@ -1003,11 +1002,7 @@ public class BlobServer extends Thread
     public InetAddress getAddress() {
         InetAddress bindAddr = blobServerSocket.getServerSocket().getInetAddress();
         if (bindAddr.getHostAddress().equals(NetUtils.getWildcardIPAddress())) {
-            try {
-                return InetAddress.getLocalHost();
-            } catch (UnknownHostException e) {
-                throw new RuntimeException(e);
-            }
+            return InetAddress.getLoopbackAddress();
         }
         return bindAddr;
     }
