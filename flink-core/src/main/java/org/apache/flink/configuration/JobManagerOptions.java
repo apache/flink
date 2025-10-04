@@ -665,6 +665,58 @@ public class JobManagerOptions {
                                                             .key()))
                                     .build());
 
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Boolean> SCHEDULER_RESCALE_ACTIVE_CHECKPOINT_ENABLED =
+            key("jobmanager.adaptive-scheduler.rescale.active-checkpoint.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Controls whether the Adaptive Scheduler actively triggers a checkpoint when rescaling after desired resources become available. "
+                                                    + "When enabled, active triggers should respect %s and should not commence if a checkpoint is already in-flight.",
+                                            code(
+                                                    CheckpointingOptions
+                                                            .MIN_PAUSE_BETWEEN_CHECKPOINTS
+                                                            .key()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> SCHEDULER_RESCALE_ACTIVE_CHECKPOINT_TIMEOUT =
+            key("jobmanager.adaptive-scheduler.rescale.active-checkpoint.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(5))
+                    .withDescription(
+                            "Maximum time to wait for the rescale-synchronizing checkpoint to complete before falling back to waiting for periodic checkpoints.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> SCHEDULER_RESCALE_ACTIVE_CHECKPOINT_MAX_RETRIES =
+            key("jobmanager.adaptive-scheduler.rescale.active-checkpoint.max-retries")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription(
+                            "Maximum number of retries for actively triggering a rescale-synchronizing checkpoint before falling back to waiting for periodic checkpoints.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Duration> SCHEDULER_RESCALE_ACTIVE_CHECKPOINT_BACKOFF =
+            key("jobmanager.adaptive-scheduler.rescale.active-checkpoint.backoff")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(5))
+                    .withDescription(
+                            "Backoff between retries when actively triggering a rescale-synchronizing checkpoint.");
+
     /**
      * @deprecated Use {@link
      *     JobManagerOptions#SCHEDULER_SUBMISSION_RESOURCE_STABILIZATION_TIMEOUT}.
