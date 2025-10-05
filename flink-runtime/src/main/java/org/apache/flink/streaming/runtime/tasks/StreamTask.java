@@ -106,6 +106,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.PeriodTimer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkException;
@@ -697,6 +698,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     protected void endData(StopMode mode) throws Exception {
 
         if (mode == StopMode.DRAIN) {
+            emitFinishedStatus();
             advanceToEndOfEventTime();
         }
         // finish all operators in a chain effect way
@@ -712,6 +714,30 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     protected void notifyEndOfData() {
         environment.getTaskManagerActions().notifyEndOfData(environment.getExecutionId());
+    }
+
+    /**
+     * Emits FINISHED watermark status to indicate this task has permanently completed and should be
+     * excluded from watermark aggregation in downstream operators. This addresses the issue where
+     * finished tasks with MAX_WATERMARK incorrectly dominate watermark aggregation when other
+     * inputs become idle.
+     */
+    private void emitFinishedStatus() {
+        try {
+            if (operatorChain != null) {
+                RecordWriterOutput<?>[] streamOutputs = operatorChain.getStreamOutputs();
+                for (RecordWriterOutput<?> output : streamOutputs) {
+                    output.emitWatermarkStatus(WatermarkStatus.FINISHED);
+                }
+                LOG.debug(
+                        "Successfully emitted FINISHED watermark status via {} outputs",
+                        streamOutputs.length);
+            } else {
+                LOG.warn("Cannot emit FINISHED watermark status: operator chain is null");
+            }
+        } catch (Exception e) {
+            LOG.warn("Failed to emit FINISHED watermark status", e);
+        }
     }
 
     protected void setSynchronousSavepoint(long checkpointId) {

@@ -81,21 +81,25 @@ public final class WatermarkStatus extends StreamElement {
 
     public static final int IDLE_STATUS = -1;
     public static final int ACTIVE_STATUS = 0;
+    public static final int FINISHED_STATUS = 1;
 
     public static final WatermarkStatus IDLE = new WatermarkStatus(IDLE_STATUS);
     public static final WatermarkStatus ACTIVE = new WatermarkStatus(ACTIVE_STATUS);
+    public static final WatermarkStatus FINISHED = new WatermarkStatus(FINISHED_STATUS);
 
     public final int status;
 
     public WatermarkStatus(int status) {
-        if (status != IDLE_STATUS && status != ACTIVE_STATUS) {
+        if (status != IDLE_STATUS && status != ACTIVE_STATUS && status != FINISHED_STATUS) {
             throw new IllegalArgumentException(
                     "Invalid status value for WatermarkStatus; "
                             + "allowed values are "
                             + ACTIVE_STATUS
-                            + " (for ACTIVE) and "
+                            + " (for ACTIVE), "
                             + IDLE_STATUS
-                            + " (for IDLE).");
+                            + " (for IDLE), and "
+                            + FINISHED_STATUS
+                            + " (for FINISHED).");
         }
 
         this.status = status;
@@ -106,7 +110,11 @@ public final class WatermarkStatus extends StreamElement {
     }
 
     public boolean isActive() {
-        return !isIdle();
+        return this.status == ACTIVE_STATUS;
+    }
+
+    public boolean isFinished() {
+        return this.status == FINISHED_STATUS;
     }
 
     public int getStatus() {
@@ -128,7 +136,20 @@ public final class WatermarkStatus extends StreamElement {
 
     @Override
     public String toString() {
-        String statusStr = (status == ACTIVE_STATUS) ? "ACTIVE" : "IDLE";
+        String statusStr;
+        switch (status) {
+            case ACTIVE_STATUS:
+                statusStr = "ACTIVE";
+                break;
+            case IDLE_STATUS:
+                statusStr = "IDLE";
+                break;
+            case FINISHED_STATUS:
+                statusStr = "FINISHED";
+                break;
+            default:
+                statusStr = "UNKNOWN";
+        }
         return "WatermarkStatus(" + statusStr + ")";
     }
 }
