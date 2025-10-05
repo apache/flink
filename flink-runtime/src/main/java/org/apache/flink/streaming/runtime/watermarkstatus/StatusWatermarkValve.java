@@ -330,7 +330,7 @@ public class StatusWatermarkValve {
         }
     }
 
-    // Helper to calculate and emit new watermark if it progresses.
+    // Calculate and emit new watermark if it progresses.
     private void tryEmitNewWatermark(DataOutput<?> output) throws Exception {
         Long newWatermark = calculateWatermarkByAggregationRules();
         if (newWatermark != null && newWatermark > lastOutputWatermark) {
@@ -339,7 +339,7 @@ public class StatusWatermarkValve {
         }
     }
 
-    // Calculate and emit new operator-level (global) status
+    // Calculate and emit new operator-level (global) status.
     private void tryEmitNewGlobalWatermarkStatus(DataOutput<?> output) throws Exception {
         WatermarkStatus newGlobalStatus = calculateGlobalWatermarkStatus();
         if (!newGlobalStatus.equals(lastOutputWatermarkStatus)) {
