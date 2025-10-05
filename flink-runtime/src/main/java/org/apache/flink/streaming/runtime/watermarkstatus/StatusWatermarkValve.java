@@ -282,24 +282,25 @@ public class StatusWatermarkValve {
                                 + subpartitionIndexes[channelIndex]);
             }
         } else if (currentSubpartitionStatus.isIdle()) {
+            // When transitioning from IDLE, no watermark emission is needed because:
+            // - If there are ACTIVE subpartitions: this IDLE subpartition wasn't contributing to
+            //   min watermark calculation, so its transition doesn't change the min
+            // - If all subpartitions are IDLE: lastOutputWatermark = max(idle subpartitions),
+            //   and this subpartition's watermark <= lastOutputWatermark (by definition of max)
+            // - Watermarks never rewind, so no new watermark can be emitted at this transition
+
             if (watermarkStatus.isActive()) {
                 subpartitionStatus.watermarkStatus = WatermarkStatus.ACTIVE;
                 // Check if watermark has caught up
                 if (subpartitionStatus.watermark >= lastOutputWatermark) {
                     markWatermarkAligned(subpartitionStatus);
                 }
-
-                // No watermark emission needed - IDLE subpartitions don't contribute to watermark
                 // Update and emit global watermark status
                 tryEmitNewGlobalWatermarkStatus(output);
             } else if (watermarkStatus.isFinished()) {
                 subpartitionStatus.watermarkStatus = WatermarkStatus.FINISHED;
-                subpartitionStatus.watermark = Long.MAX_VALUE;
                 markWatermarkUnaligned(subpartitionStatus);
-
-                // No watermark emission needed - subpartition was IDLE (not contributing) before
-                // transition
-                // Update and emit global watermark status.
+                // Update and emit global watermark status
                 tryEmitNewGlobalWatermarkStatus(output);
             } else {
                 throw new IllegalStateException(
@@ -366,7 +367,7 @@ public class StatusWatermarkValve {
         } else {
             // Rule 3: All subpartitions FINISHED -> emit Long.MAX_VALUE only when all have received
             // it
-            if (allChannelsFinishedWithMaxValue()) {
+            if (allSubpartitionsFinishedWithMaxValue()) {
                 return Long.MAX_VALUE;
             } else {
                 return null; // Wait for all subpartitions to receive Long.MAX_VALUE from upstream
@@ -424,7 +425,7 @@ public class StatusWatermarkValve {
      * Checks if all subpartitions are FINISHED and have received Long.MAX_VALUE watermark. This is
      * the condition for emitting Long.MAX_VALUE downstream.
      */
-    private boolean allChannelsFinishedWithMaxValue() {
+    private boolean allSubpartitionsFinishedWithMaxValue() {
         for (Map<Integer, SubpartitionStatus> map : subpartitionStatuses) {
             for (SubpartitionStatus status : map.values()) {
                 if (!status.watermarkStatus.isFinished() || status.watermark != Long.MAX_VALUE) {

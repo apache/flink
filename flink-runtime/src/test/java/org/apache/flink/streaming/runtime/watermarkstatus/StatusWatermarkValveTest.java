@@ -485,9 +485,15 @@ class StatusWatermarkValveTest {
     }
 
     /**
-     * Tests that FINISHED channels reject non-MAX_VALUE watermarks, accept Long.MAX_VALUE, and
-     * properly aggregate across channels to emit Long.MAX_VALUE once when all FINISHED channels
-     * receive it.
+     * Comprehensive test for FINISHED channels.
+     *
+     * <ol>
+     *   <li>Reject non-MAX_VALUE watermarks
+     *   <li>Accept MAX_VALUE
+     *   <li>Aggregate across channels to emit Long.MAX_VALUE once when all FINISHED channels
+     *       receive it
+     *   <li>Prevent duplicate emissions
+     * </ol>
      */
     @Test
     void testFinishedChannelWatermarkHandling() throws Exception {
@@ -565,6 +571,14 @@ class StatusWatermarkValveTest {
     /**
      * Tests ACTIVE to IDLE and ACTIVE to FINISHED transitions in various configurations, including
      * global status changes.
+     *
+     * <ol>
+     *   <li>ACTIVE → IDLE when other ACTIVE channels exist (global stays ACTIVE)
+     *   <li>ACTIVE → FINISHED when other ACTIVE channels exist (global stays ACTIVE)
+     *   <li>Last ACTIVE → IDLE (global becomes IDLE)
+     *   <li>Last ACTIVE → FINISHED when IDLE channels exist (global becomes IDLE)
+     *   <li>All IDLE → FINISHED (global becomes FINISHED)
+     * </ol>
      */
     @Test
     void testActiveTransitions() throws Exception {
@@ -613,6 +627,11 @@ class StatusWatermarkValveTest {
     /**
      * Tests IDLE to ACTIVE transitions with both aligned and unaligned watermarks, verifying
      * realignment behavior.
+     *
+     * <ol>
+     *   <li>IDLE → ACTIVE when already caught up (watermark >= lastOutput)
+     *   <li>IDLE → ACTIVE when behind (watermark < lastOutput)
+     * </ol>
      */
     @Test
     void testIdleToActiveTransition() throws Exception {
@@ -660,6 +679,12 @@ class StatusWatermarkValveTest {
     /**
      * Tests IDLE to FINISHED transitions in various configurations, verifying global status changes
      * and watermark progression.
+     *
+     * <ol>
+     *   <li>IDLE → FINISHED when ACTIVE channels exist (global stays ACTIVE)
+     *   <li>IDLE → FINISHED when other IDLE channels exist (global stays IDLE)
+     *   <li>IDLE → FINISHED as last channel (global becomes FINISHED)
+     * </ol>
      */
     @Test
     void testIdleToFinishedTransition() throws Exception {
