@@ -36,7 +36,9 @@ import org.apache.flink.streaming.api.checkpoint.ExternallyInducedSource;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxDefaultAction;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkException;
@@ -177,6 +179,25 @@ public class SourceStreamTask<
                         MetricNames.CHECKPOINT_START_DELAY_TIME,
                         this::getAsyncCheckpointStartDelayNanos);
         recordWriter.setMaxOverdraftBuffersPerGate(0);
+    }
+
+    @Override
+    protected void emitFinishedStatus() {
+        try {
+            if (operatorChain != null) {
+                RecordWriterOutput<?>[] streamOutputs = operatorChain.getStreamOutputs();
+                for (RecordWriterOutput<?> output : streamOutputs) {
+                    output.emitWatermarkStatus(WatermarkStatus.FINISHED);
+                }
+                LOG.debug(
+                        "Successfully emitted FINISHED watermark status via {} outputs",
+                        streamOutputs.length);
+            } else {
+                LOG.warn("Cannot emit FINISHED watermark status: operator chain is null");
+            }
+        } catch (Exception e) {
+            LOG.warn("Failed to emit FINISHED watermark status", e);
+        }
     }
 
     @Override
