@@ -36,7 +36,6 @@ import org.apache.flink.streaming.api.graph.StreamEdge;
 import org.apache.flink.streaming.api.operators.MultipleInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.watermark.Watermark;
-import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessorFactory;
 import org.apache.flink.streaming.runtime.io.StreamTaskSourceInput;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHandler;
@@ -46,7 +45,6 @@ import org.apache.flink.streaming.runtime.metrics.MinWatermarkGauge;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
@@ -345,20 +343,6 @@ public class MultipleInputStreamTask<OUT>
 
     @Override
     protected void emitFinishedStatus() {
-        try {
-            if (operatorChain != null) {
-                RecordWriterOutput<?>[] streamOutputs = operatorChain.getStreamOutputs();
-                for (RecordWriterOutput<?> output : streamOutputs) {
-                    output.emitWatermarkStatus(WatermarkStatus.FINISHED);
-                }
-                LOG.debug(
-                        "Successfully emitted FINISHED watermark status via {} outputs",
-                        streamOutputs.length);
-            } else {
-                LOG.warn("Cannot emit FINISHED watermark status: operator chain is null");
-            }
-        } catch (Exception e) {
-            LOG.warn("Failed to emit FINISHED watermark status", e);
-        }
+        emitFinishedStatusToOutputs();
     }
 }
