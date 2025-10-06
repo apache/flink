@@ -27,6 +27,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
@@ -58,6 +59,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Random;
 
+import static org.apache.flink.configuration.RestartStrategyOptions.RestartStrategyType.NO_RESTART_STRATEGY;
+
 /**
  * Integration test for rescaling jobs with mixed (UC-supported and UC-unsupported) exchanges from
  * an unaligned checkpoint.
@@ -81,7 +84,8 @@ public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogg
                 UnalignedCheckpointRescaleWithMixedExchangesITCase::createMultiOutputDAG,
                 UnalignedCheckpointRescaleWithMixedExchangesITCase::createMultiInputDAG,
                 UnalignedCheckpointRescaleWithMixedExchangesITCase::createRescalePartitionerDAG,
-                UnalignedCheckpointRescaleWithMixedExchangesITCase::createMixedComplexityDAG);
+                UnalignedCheckpointRescaleWithMixedExchangesITCase::createMixedComplexityDAG,
+                UnalignedCheckpointRescaleWithMixedExchangesITCase::createPartEmptyHashExchangeDAG);
     }
 
     @Before
@@ -138,6 +142,7 @@ public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogg
         conf.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1));
         // Disable aligned timeout to ensure it works with unaligned checkpoint directly
         conf.set(CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT, Duration.ofSeconds(0));
+        conf.set(RestartStrategyOptions.RESTART_STRATEGY, NO_RESTART_STRATEGY.getMainValue());
         conf.set(
                 CheckpointingOptions.EXTERNALIZED_CHECKPOINT_RETENTION,
                 ExternalizedCheckpointRetention.RETAIN_ON_CANCELLATION);
@@ -333,6 +338,53 @@ public class UnalignedCheckpointRescaleWithMixedExchangesITCase extends TestLogg
                         })
                 .name("Map after forward")
                 .setParallelism(multiInputMap.getParallelism());
+
+        return env.executeAsync();
+    }
+
+    /**
+     * Creates a DAG where the downstream MapAfterKeyBy task receives input from two hash exchanges:
+     * one with actual data and one that is empty due to filtering. This tests unaligned checkpoint
+     * rescaling with mixed empty and non-empty hash partitions.
+     */
+    private static JobClient createPartEmptyHashExchangeDAG(StreamExecutionEnvironment env)
+            throws Exception {
+        int source1Parallelism = getRandomParallelism();
+        DataGeneratorSource<Long> source1 =
+                new DataGeneratorSource<>(
+                        index -> index,
+                        Long.MAX_VALUE,
+                        RateLimiterStrategy.perSecond(5000),
+                        Types.LONG);
+        DataStream<Long> sourceStream1 =
+                env.fromSource(source1, WatermarkStrategy.noWatermarks(), "Source 1")
+                        .setParallelism(source1Parallelism);
+
+        int source2Parallelism = getRandomParallelism();
+        DataGeneratorSource<Long> source2 =
+                new DataGeneratorSource<>(
+                        index -> index,
+                        Long.MAX_VALUE,
+                        RateLimiterStrategy.perSecond(5000),
+                        Types.LONG);
+
+        // Filter all records to simulate empty state exchange
+        DataStream<Long> sourceStream2 =
+                env.fromSource(source2, WatermarkStrategy.noWatermarks(), "Source 2")
+                        .setParallelism(source2Parallelism)
+                        .filter(value -> false)
+                        .setParallelism(source2Parallelism);
+
+        sourceStream1
+                .union(sourceStream2)
+                .keyBy((KeySelector<Long, Long>) value -> value)
+                .map(
+                        x -> {
+                            Thread.sleep(5);
+                            return x;
+                        })
+                .name("MapAfterKeyBy")
+                .setParallelism(getRandomParallelism());
 
         return env.executeAsync();
     }
