@@ -27,31 +27,25 @@ import java.util.Arrays;
 import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link InflightDataRescalingDescriptor}. */
 class InflightDataRescalingDescriptorTest {
 
     @Test
-    void testNoStateDescriptorThrowsOnGetOldSubtaskInstances() {
+    void testNoStateDescriptorReturnsEmptyOldSubtaskInstances() {
         InflightDataGateOrPartitionRescalingDescriptor noStateDescriptor =
                 InflightDataGateOrPartitionRescalingDescriptor.NO_STATE;
 
-        assertThatThrownBy(noStateDescriptor::getOldSubtaskInstances)
-                .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessageContaining(
-                        "Cannot get old subtasks from a descriptor that represents no state");
+        assertThat(noStateDescriptor.getOldSubtaskInstances()).isEqualTo(new int[0]);
     }
 
     @Test
-    void testNoStateDescriptorThrowsOnGetRescaleMappings() {
+    void testNoStateDescriptorReturnsSymmetricIdentity() {
         InflightDataGateOrPartitionRescalingDescriptor noStateDescriptor =
                 InflightDataGateOrPartitionRescalingDescriptor.NO_STATE;
 
-        assertThatThrownBy(noStateDescriptor::getRescaleMappings)
-                .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessageContaining(
-                        "Cannot get rescale mappings from a descriptor that represents no state");
+        assertThat(noStateDescriptor.getRescaleMappings())
+                .isEqualTo(RescaleMappings.SYMMETRIC_IDENTITY);
     }
 
     @Test
@@ -108,11 +102,10 @@ class InflightDataRescalingDescriptorTest {
         InflightDataRescalingDescriptor rescalingDescriptor =
                 new InflightDataRescalingDescriptor(descriptors);
 
-        // First gate/partition has NO_STATE
-        assertThatThrownBy(() -> rescalingDescriptor.getOldSubtaskIndexes(0))
-                .isInstanceOf(UnsupportedOperationException.class);
-        assertThatThrownBy(() -> rescalingDescriptor.getChannelMapping(0))
-                .isInstanceOf(UnsupportedOperationException.class);
+        // First gate/partition has NO_STATE - should return empty array and SYMMETRIC_IDENTITY
+        assertThat(rescalingDescriptor.getOldSubtaskIndexes(0)).isEqualTo(new int[0]);
+        assertThat(rescalingDescriptor.getChannelMapping(0))
+                .isEqualTo(RescaleMappings.SYMMETRIC_IDENTITY);
 
         // Second gate/partition has normal state
         assertThat(rescalingDescriptor.getOldSubtaskIndexes(1)).isEqualTo(new int[] {0, 1});

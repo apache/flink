@@ -33,6 +33,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class InflightDataRescalingDescriptor implements Serializable {
 
+    private static final int[] EMPTY_INT_ARRAY = new int[0];
+
     public static final InflightDataRescalingDescriptor NO_RESCALE = new NoRescalingDescriptor();
 
     private static final long serialVersionUID = -3396674344669796295L;
@@ -115,8 +117,8 @@ public class InflightDataRescalingDescriptor implements Serializable {
 
         public static final InflightDataGateOrPartitionRescalingDescriptor NO_STATE =
                 new InflightDataGateOrPartitionRescalingDescriptor(
-                        new int[0],
-                        RescaleMappings.identity(0, 0),
+                        EMPTY_INT_ARRAY,
+                        RescaleMappings.SYMMETRIC_IDENTITY,
                         Collections.emptySet(),
                         MappingType.IDENTITY) {
 
@@ -124,14 +126,12 @@ public class InflightDataRescalingDescriptor implements Serializable {
 
                     @Override
                     public int[] getOldSubtaskInstances() {
-                        throw new UnsupportedOperationException(
-                                "Cannot get old subtasks from a descriptor that represents no state.");
+                        return EMPTY_INT_ARRAY;
                     }
 
                     @Override
                     public RescaleMappings getRescaleMappings() {
-                        throw new UnsupportedOperationException(
-                                "Cannot get rescale mappings from a descriptor that represents no state.");
+                        return RescaleMappings.SYMMETRIC_IDENTITY;
                     }
                 };
 
@@ -228,7 +228,7 @@ public class InflightDataRescalingDescriptor implements Serializable {
 
         @Override
         public int[] getOldSubtaskIndexes(int gateOrPartitionIndex) {
-            return new int[0];
+            return EMPTY_INT_ARRAY;
         }
 
         @Override
