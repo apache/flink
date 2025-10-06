@@ -34,6 +34,7 @@ import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput.DataOutput;
+import org.apache.flink.streaming.runtime.io.RecordWriterOutput;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskExternallyInducedSourceInput;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
@@ -216,6 +217,25 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
     @Override
     protected void advanceToEndOfEventTime() {
         output.emitWatermark(Watermark.MAX_WATERMARK);
+    }
+
+    @Override
+    protected void emitFinishedStatus() {
+        try {
+            if (operatorChain != null) {
+                RecordWriterOutput<?>[] streamOutputs = operatorChain.getStreamOutputs();
+                for (RecordWriterOutput<?> streamOutput : streamOutputs) {
+                    streamOutput.emitWatermarkStatus(WatermarkStatus.FINISHED);
+                }
+                LOG.debug(
+                        "Successfully emitted FINISHED watermark status via {} outputs",
+                        streamOutputs.length);
+            } else {
+                LOG.warn("Cannot emit FINISHED watermark status: operator chain is null");
+            }
+        } catch (Exception e) {
+            LOG.warn("Failed to emit FINISHED watermark status", e);
+        }
     }
 
     @Override
