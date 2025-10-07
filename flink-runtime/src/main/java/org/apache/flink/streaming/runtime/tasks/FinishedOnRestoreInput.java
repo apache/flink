@@ -30,6 +30,7 @@ public class FinishedOnRestoreInput<IN> implements Input<IN> {
     private final int inputCount;
 
     private int watermarksSeen = 0;
+    private int finishedStatusSeen = 0;
 
     public FinishedOnRestoreInput(RecordWriterOutput<?>[] streamOutputs, int inputCount) {
         this.streamOutputs = streamOutputs;
@@ -58,7 +59,22 @@ public class FinishedOnRestoreInput<IN> implements Input<IN> {
 
     @Override
     public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
-        throw new IllegalStateException();
+        // Tasks that finished on restore may receive FINISHED watermark status from upstream.
+        // Aggregate FINISHED status from all inputs and emit once all are received, similar to
+        // how MAX_WATERMARK is handled. This ensures proper watermark status propagation.
+        if (watermarkStatus.isFinished()) {
+            if (++finishedStatusSeen == inputCount) {
+                for (RecordWriterOutput<?> streamOutput : streamOutputs) {
+                    streamOutput.emitWatermarkStatus(watermarkStatus);
+                }
+            }
+            return;
+        }
+        // Other watermark statuses (ACTIVE, IDLE) should not occur for finished tasks
+        throw new IllegalStateException(
+                String.format(
+                        "Unexpected watermark status [%s] received for finished on restore task",
+                        watermarkStatus));
     }
 
     @Override
