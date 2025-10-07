@@ -168,7 +168,9 @@ public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
     /**
      * Add row, replacing any matching existing ones.
      *
-     * @return RowKind.UPDATE_AFTER if an existing row was replaced; INSERT otherwise
+     * @return {@link
+     *     org.apache.flink.table.runtime.sequencedmultisetstate.SequencedMultiSetState.SizeChangeInfo}
+     *     representing the result of the operation
      */
     @Override
     public SizeChangeInfo add(RowData row, long timestamp) throws Exception {
