@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.orderedmultisetstate.linked;
+package org.apache.flink.table.runtime.sequencedmultisetstate.linked;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -32,9 +32,9 @@ import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.HashFunction;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
-import org.apache.flink.table.runtime.orderedmultisetstate.OrderedMultiSetState;
-import org.apache.flink.table.runtime.orderedmultisetstate.OrderedMultiSetStateContext;
-import org.apache.flink.table.runtime.orderedmultisetstate.TimeSelector;
+import org.apache.flink.table.runtime.sequencedmultisetstate.SequencedMultiSetState;
+import org.apache.flink.table.runtime.sequencedmultisetstate.SequencedMultiSetStateContext;
+import org.apache.flink.table.runtime.sequencedmultisetstate.TimeSelector;
 
 import javax.annotation.Nullable;
 
@@ -46,10 +46,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
-import static org.apache.flink.table.runtime.orderedmultisetstate.OrderedMultiSetState.RemovalResultType.ALL_REMOVED;
-import static org.apache.flink.table.runtime.orderedmultisetstate.OrderedMultiSetState.RemovalResultType.NOTHING_REMOVED;
-import static org.apache.flink.table.runtime.orderedmultisetstate.OrderedMultiSetState.RemovalResultType.REMOVED_LAST_ADDED;
-import static org.apache.flink.table.runtime.orderedmultisetstate.OrderedMultiSetState.RemovalResultType.REMOVED_OTHER;
+import static org.apache.flink.table.runtime.sequencedmultisetstate.SequencedMultiSetState.RemovalResultType.ALL_REMOVED;
+import static org.apache.flink.table.runtime.sequencedmultisetstate.SequencedMultiSetState.RemovalResultType.NOTHING_REMOVED;
+import static org.apache.flink.table.runtime.sequencedmultisetstate.SequencedMultiSetState.RemovalResultType.REMOVED_LAST_ADDED;
+import static org.apache.flink.table.runtime.sequencedmultisetstate.SequencedMultiSetState.RemovalResultType.REMOVED_OTHER;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -83,12 +83,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *       types.
  * </ul>
  *
- * @see OrderedMultiSetState
+ * @see SequencedMultiSetState
  * @see org.apache.flink.api.common.state.MapState
  * @see org.apache.flink.api.common.state.ValueState
  */
 @Internal
-public class LinkedMultiSetState implements OrderedMultiSetState<RowData> {
+public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
 
     // maps rows to SQNs (single SQN per RowData in case of upsert key; last SQN otherwise)
     private final MapState<RowDataKey, Long> rowToSqnState;
@@ -119,7 +119,7 @@ public class LinkedMultiSetState implements OrderedMultiSetState<RowData> {
         this.timeSelector = timeSelector;
     }
 
-    public static LinkedMultiSetState create(OrderedMultiSetStateContext p, RuntimeContext ctx) {
+    public static LinkedMultiSetState create(SequencedMultiSetStateContext p, RuntimeContext ctx) {
 
         RecordEqualiser keyEqualiser =
                 p.generatedKeyEqualiser.newInstance(ctx.getUserCodeClassLoader());

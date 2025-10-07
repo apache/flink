@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.orderedmultisetstate;
+package org.apache.flink.table.runtime.sequencedmultisetstate;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
@@ -24,7 +24,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.orderedmultisetstate.linked.LinkedMultiSetState;
+import org.apache.flink.table.runtime.sequencedmultisetstate.linked.LinkedMultiSetState;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -49,7 +49,7 @@ import java.util.Optional;
  */
 @Internal
 @Experimental
-public interface OrderedMultiSetState<T> {
+public interface SequencedMultiSetState<T> {
 
     /**
      * Add the given element using a normal (non-multi) set semantics: if a matching element exists
@@ -151,8 +151,8 @@ public interface OrderedMultiSetState<T> {
         }
     }
 
-    static OrderedMultiSetState<RowData> create(
-            OrderedMultiSetStateContext parameters,
+    static SequencedMultiSetState<RowData> create(
+            SequencedMultiSetStateContext parameters,
             RuntimeContext ctx,
             String backendTypeIdentifier) {
         switch (parameters.config.getStrategy()) {
@@ -161,7 +161,7 @@ public interface OrderedMultiSetState<T> {
             case VALUE_STATE:
                 return ValueStateMultiSetState.create(parameters, ctx);
             case ADAPTIVE:
-                return AdaptiveOrderedMultiSetState.create(
+                return AdaptiveSequencedMultiSetState.create(
                         parameters.config,
                         backendTypeIdentifier,
                         ValueStateMultiSetState.create(parameters, ctx),

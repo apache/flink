@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.orderedmultisetstate;
+package org.apache.flink.table.runtime.sequencedmultisetstate;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.data.RowData;
@@ -25,23 +25,23 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 
 import java.util.function.Function;
 
-/** {@link OrderedMultiSetState} (creation) context. */
-public class OrderedMultiSetStateContext {
+/** {@link SequencedMultiSetState} (creation) context. */
+public class SequencedMultiSetStateContext {
 
-    public final OrderedMultiSetStateConfig config;
+    public final SequencedMultiSetStateConfig config;
     public final TypeSerializer<RowData> keySerializer;
     public final GeneratedRecordEqualiser generatedKeyEqualiser;
     public final GeneratedHashFunction generatedKeyHashFunction;
     public final TypeSerializer<RowData> recordSerializer;
     public final Function<RowData, RowData> keyExtractor;
 
-    public OrderedMultiSetStateContext(
+    public SequencedMultiSetStateContext(
             TypeSerializer<RowData> keySerializer,
             GeneratedRecordEqualiser generatedKeyEqualiser,
             GeneratedHashFunction generatedKeyHashFunction,
             TypeSerializer<RowData> recordSerializer,
             Function<RowData, RowData> keyExtractor,
-            OrderedMultiSetStateConfig config) {
+            SequencedMultiSetStateConfig config) {
         this.keySerializer = keySerializer;
         this.generatedKeyEqualiser = generatedKeyEqualiser;
         this.generatedKeyHashFunction = generatedKeyHashFunction;

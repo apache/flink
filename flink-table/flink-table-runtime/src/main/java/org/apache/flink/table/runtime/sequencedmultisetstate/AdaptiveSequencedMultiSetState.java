@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.orderedmultisetstate;
+package org.apache.flink.table.runtime.sequencedmultisetstate;
 
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.runtime.orderedmultisetstate.linked.LinkedMultiSetState;
+import org.apache.flink.table.runtime.sequencedmultisetstate.linked.LinkedMultiSetState;
 import org.apache.flink.util.function.FunctionWithException;
 
 import org.slf4j.Logger;
@@ -35,18 +35,18 @@ import java.util.function.Function;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * An {@link OrderedMultiSetState} that switches dynamically between {@link ValueStateMultiSetState}
- * and {@link LinkedMultiSetState} based on the number of elements.
+ * An {@link SequencedMultiSetState} that switches dynamically between {@link
+ * ValueStateMultiSetState} and {@link LinkedMultiSetState} based on the number of elements.
  */
-class AdaptiveOrderedMultiSetState implements OrderedMultiSetState<RowData> {
-    private static final Logger LOG = LoggerFactory.getLogger(AdaptiveOrderedMultiSetState.class);
+class AdaptiveSequencedMultiSetState implements SequencedMultiSetState<RowData> {
+    private static final Logger LOG = LoggerFactory.getLogger(AdaptiveSequencedMultiSetState.class);
 
     private final ValueStateMultiSetState smallState;
     private final LinkedMultiSetState largeState;
     private final long switchToLargeThreshold;
     private final long switchToSmallThreshold;
 
-    AdaptiveOrderedMultiSetState(
+    AdaptiveSequencedMultiSetState(
             ValueStateMultiSetState smallState,
             LinkedMultiSetState largeState,
             long switchToLargeThreshold,
@@ -114,7 +114,7 @@ class AdaptiveOrderedMultiSetState implements OrderedMultiSetState<RowData> {
     }
 
     private <T> T execute(
-            FunctionWithException<OrderedMultiSetState<RowData>, T, Exception> stateOp,
+            FunctionWithException<SequencedMultiSetState<RowData>, T, Exception> stateOp,
             Function<T, SizeChangeInfo> getSizeChangeInfo,
             String action)
             throws Exception {
@@ -122,8 +122,8 @@ class AdaptiveOrderedMultiSetState implements OrderedMultiSetState<RowData> {
         final boolean isUsingLarge = isIsUsingLargeState();
 
         // start with small state, i.e. choose smallState when both are empty
-        OrderedMultiSetState<RowData> currentState = isUsingLarge ? largeState : smallState;
-        OrderedMultiSetState<RowData> otherState = isUsingLarge ? smallState : largeState;
+        SequencedMultiSetState<RowData> currentState = isUsingLarge ? largeState : smallState;
+        SequencedMultiSetState<RowData> otherState = isUsingLarge ? smallState : largeState;
 
         T result = stateOp.apply(currentState);
         SizeChangeInfo sizeInfo = getSizeChangeInfo.apply(result);
@@ -157,7 +157,8 @@ class AdaptiveOrderedMultiSetState implements OrderedMultiSetState<RowData> {
         return !largeState.isEmpty();
     }
 
-    private void switchState(OrderedMultiSetState<RowData> src, OrderedMultiSetState<RowData> dst)
+    private void switchState(
+            SequencedMultiSetState<RowData> src, SequencedMultiSetState<RowData> dst)
             throws Exception {
         Iterator<Tuple2<RowData, Long>> it = src.iterator();
         while (it.hasNext()) {
@@ -167,21 +168,21 @@ class AdaptiveOrderedMultiSetState implements OrderedMultiSetState<RowData> {
         src.clear();
     }
 
-    public static AdaptiveOrderedMultiSetState create(
-            OrderedMultiSetStateConfig orderedMultiSetStateConfig,
+    public static AdaptiveSequencedMultiSetState create(
+            SequencedMultiSetStateConfig sequencedMultiSetStateConfig,
             String backendTypeIdentifier,
             ValueStateMultiSetState smallState,
             LinkedMultiSetState largeState) {
-        return new AdaptiveOrderedMultiSetState(
+        return new AdaptiveSequencedMultiSetState(
                 smallState,
                 largeState,
-                orderedMultiSetStateConfig
+                sequencedMultiSetStateConfig
                         .getAdaptiveHighThresholdOverride()
                         .orElse(
                                 isHeap(backendTypeIdentifier)
                                         ? ADAPTIVE_HEAP_HIGH_THRESHOLD
                                         : ADAPTIVE_ROCKSDB_HIGH_THRESHOLD),
-                orderedMultiSetStateConfig
+                sequencedMultiSetStateConfig
                         .getAdaptiveLowThresholdOverride()
                         .orElse(
                                 isHeap(backendTypeIdentifier)

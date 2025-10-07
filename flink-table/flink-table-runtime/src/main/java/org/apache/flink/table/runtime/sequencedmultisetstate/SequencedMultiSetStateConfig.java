@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.orderedmultisetstate;
+package org.apache.flink.table.runtime.sequencedmultisetstate;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.streaming.api.TimeDomain;
@@ -27,17 +27,17 @@ import java.util.Optional;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/** Configuration for {@link OrderedMultiSetState}. */
-public class OrderedMultiSetStateConfig {
+/** Configuration for {@link SequencedMultiSetState}. */
+public class SequencedMultiSetStateConfig {
 
-    private final OrderedMultiSetState.Strategy strategy;
+    private final SequencedMultiSetState.Strategy strategy;
     private final @Nullable Long adaptiveHighThresholdOverride;
     private final @Nullable Long adaptiveLowThresholdOverride;
     private final StateTtlConfig ttlConfig;
     private final TimeSelector ttlTimeSelector;
 
-    public OrderedMultiSetStateConfig(
-            OrderedMultiSetState.Strategy strategy,
+    public SequencedMultiSetStateConfig(
+            SequencedMultiSetState.Strategy strategy,
             @Nullable Long adaptiveHighThresholdOverride,
             @Nullable Long adaptiveLowThresholdOverride,
             StateTtlConfig ttlConfig,
@@ -50,8 +50,8 @@ public class OrderedMultiSetStateConfig {
                 TimeSelector.getTimeDomain(ttlTimeDomain));
     }
 
-    public OrderedMultiSetStateConfig(
-            OrderedMultiSetState.Strategy strategy,
+    public SequencedMultiSetStateConfig(
+            SequencedMultiSetState.Strategy strategy,
             @Nullable Long adaptiveHighThresholdOverride,
             @Nullable Long adaptiveLowThresholdOverride,
             StateTtlConfig ttlConfig,
@@ -66,30 +66,30 @@ public class OrderedMultiSetStateConfig {
         this.ttlTimeSelector = ttlTimeSelector;
     }
 
-    public static OrderedMultiSetStateConfig defaults(
+    public static SequencedMultiSetStateConfig defaults(
             TimeDomain ttlTimeDomain, StateTtlConfig ttlConfig) {
         return forValue(ttlTimeDomain, ttlConfig);
     }
 
-    public static OrderedMultiSetStateConfig forMap(
+    public static SequencedMultiSetStateConfig forMap(
             TimeDomain ttlTimeDomain, StateTtlConfig ttlConfig) {
-        return new OrderedMultiSetStateConfig(
-                OrderedMultiSetState.Strategy.MAP_STATE, null, null, ttlConfig, ttlTimeDomain);
+        return new SequencedMultiSetStateConfig(
+                SequencedMultiSetState.Strategy.MAP_STATE, null, null, ttlConfig, ttlTimeDomain);
     }
 
-    public static OrderedMultiSetStateConfig forValue(
+    public static SequencedMultiSetStateConfig forValue(
             TimeDomain ttlTimeDomain, StateTtlConfig ttl) {
-        return new OrderedMultiSetStateConfig(
-                OrderedMultiSetState.Strategy.VALUE_STATE, null, null, ttl, ttlTimeDomain);
+        return new SequencedMultiSetStateConfig(
+                SequencedMultiSetState.Strategy.VALUE_STATE, null, null, ttl, ttlTimeDomain);
     }
 
-    public static OrderedMultiSetStateConfig adaptive(
+    public static SequencedMultiSetStateConfig adaptive(
             TimeDomain ttlTimeDomain,
             @Nullable Long adaptiveHighThresholdOverride,
             @Nullable Long adaptiveLowThresholdOverride,
             StateTtlConfig ttl) {
-        return new OrderedMultiSetStateConfig(
-                OrderedMultiSetState.Strategy.ADAPTIVE,
+        return new SequencedMultiSetStateConfig(
+                SequencedMultiSetState.Strategy.ADAPTIVE,
                 adaptiveHighThresholdOverride,
                 adaptiveLowThresholdOverride,
                 ttl,
@@ -100,7 +100,7 @@ public class OrderedMultiSetStateConfig {
         return ttlTimeSelector;
     }
 
-    public OrderedMultiSetState.Strategy getStrategy() {
+    public SequencedMultiSetState.Strategy getStrategy() {
         return strategy;
     }
 

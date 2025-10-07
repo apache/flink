@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.orderedmultisetstate;
+package org.apache.flink.table.runtime.sequencedmultisetstate;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.TimeDomain;

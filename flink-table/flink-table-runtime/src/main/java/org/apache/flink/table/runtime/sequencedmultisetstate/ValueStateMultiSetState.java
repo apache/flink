@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.orderedmultisetstate;
+package org.apache.flink.table.runtime.sequencedmultisetstate;
 
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ValueState;
@@ -39,9 +39,9 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /**
- * Simple implementation of {@link OrderedMultiSetState} based on plain {@code ValueState<List>}.
+ * Simple implementation of {@link SequencedMultiSetState} based on plain {@code ValueState<List>}.
  */
-class ValueStateMultiSetState implements OrderedMultiSetState<RowData> {
+class ValueStateMultiSetState implements SequencedMultiSetState<RowData> {
 
     private final ValueState<List<Tuple2<RowData, Long>>> valuesState;
     private final RecordEqualiser keyEqualiser;
@@ -61,7 +61,7 @@ class ValueStateMultiSetState implements OrderedMultiSetState<RowData> {
     }
 
     public static ValueStateMultiSetState create(
-            OrderedMultiSetStateContext p, RuntimeContext ctx) {
+            SequencedMultiSetStateContext p, RuntimeContext ctx) {
         //noinspection rawtypes,unchecked
         return new ValueStateMultiSetState(
                 ctx.getState(
