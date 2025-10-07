@@ -60,7 +60,7 @@ class ValueStateMultiSetState implements OrderedMultiSetState<RowData> {
         this.timeSelector = timeSelector;
     }
 
-    public static OrderedMultiSetState<RowData> create(
+    public static ValueStateMultiSetState create(
             OrderedMultiSetStateContext p, RuntimeContext ctx) {
         //noinspection rawtypes,unchecked
         return new ValueStateMultiSetState(

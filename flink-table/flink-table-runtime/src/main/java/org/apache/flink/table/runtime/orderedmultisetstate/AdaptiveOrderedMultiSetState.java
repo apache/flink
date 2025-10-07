@@ -41,14 +41,14 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 class AdaptiveOrderedMultiSetState implements OrderedMultiSetState<RowData> {
     private static final Logger LOG = LoggerFactory.getLogger(AdaptiveOrderedMultiSetState.class);
 
-    private final OrderedMultiSetState<RowData> smallState;
-    private final OrderedMultiSetState<RowData> largeState;
+    private final ValueStateMultiSetState smallState;
+    private final LinkedMultiSetState largeState;
     private final long switchToLargeThreshold;
     private final long switchToSmallThreshold;
 
     AdaptiveOrderedMultiSetState(
-            OrderedMultiSetState<RowData> smallState,
-            OrderedMultiSetState<RowData> largeState,
+            ValueStateMultiSetState smallState,
+            LinkedMultiSetState largeState,
             long switchToLargeThreshold,
             long switchToSmallThreshold) {
         checkArgument(switchToLargeThreshold > switchToSmallThreshold);
@@ -170,8 +170,8 @@ class AdaptiveOrderedMultiSetState implements OrderedMultiSetState<RowData> {
     public static AdaptiveOrderedMultiSetState create(
             OrderedMultiSetStateConfig orderedMultiSetStateConfig,
             String backendTypeIdentifier,
-            OrderedMultiSetState<RowData> smallState,
-            OrderedMultiSetState<RowData> largeState) {
+            ValueStateMultiSetState smallState,
+            LinkedMultiSetState largeState) {
         return new AdaptiveOrderedMultiSetState(
                 smallState,
                 largeState,

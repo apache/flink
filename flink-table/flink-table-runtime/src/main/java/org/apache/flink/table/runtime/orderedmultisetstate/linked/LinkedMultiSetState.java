@@ -119,8 +119,7 @@ public class LinkedMultiSetState implements OrderedMultiSetState<RowData> {
         this.timeSelector = timeSelector;
     }
 
-    public static OrderedMultiSetState<RowData> create(
-            OrderedMultiSetStateContext p, RuntimeContext ctx) {
+    public static LinkedMultiSetState create(OrderedMultiSetStateContext p, RuntimeContext ctx) {
 
         RecordEqualiser keyEqualiser =
                 p.generatedKeyEqualiser.newInstance(ctx.getUserCodeClassLoader());
