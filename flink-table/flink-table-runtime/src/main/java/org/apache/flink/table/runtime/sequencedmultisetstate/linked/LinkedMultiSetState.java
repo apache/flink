@@ -182,9 +182,25 @@ public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
         final boolean isNewRowKey = rowSqn == null; // it's a 1st such record 'row'
         final boolean isNewContextKey = highSqn == null; // 1st a record for current context key
 
-        final Long oldSqn = isNewRowKey ? null : rowSqn;
-        final long newSqn = isNewRowKey ? (isNewContextKey ? 0 : highSqn + 1) : oldSqn;
-        final long newSize = isNewContextKey ? 1 : (isNewRowKey ? oldSize + 1 : oldSize);
+        final Long oldSqn;
+        final long newSqn;
+        final long newSize;
+
+        if (isNewContextKey && isNewRowKey) {
+            // no state at all for this context key
+            oldSqn = null;
+            newSqn = 0;
+            newSize = 0;
+        } else if (isNewRowKey) {
+            // add new rowKey "to the end"
+            oldSqn = null;
+            newSqn = highSqn + 1;
+            newSize = oldSize + 1;
+        } else {
+            // replace an existing row by rowKey
+            oldSqn = newSqn = rowSqn;
+            newSize = oldSize;
+        }
 
         timestamp = timeSelector.getTimestamp(timestamp);
 
