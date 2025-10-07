@@ -230,9 +230,17 @@ public class StatusWatermarkValve {
     public void inputWatermarkStatus(
             WatermarkStatus watermarkStatus, int channelIndex, DataOutput<?> output)
             throws Exception {
-        // Shared input channel is only enabled in batch jobs, which do not have watermark status
-        // events.
-        Preconditions.checkState(!isInputChannelShared);
+        // Shared input channel is only enabled in batch jobs. Batch jobs do not perform
+        // watermark-based processing, so watermark status events can be safely ignored.
+        // Note: Tasks may emit FINISHED status on completion regardless of execution mode.
+        if (isInputChannelShared) {
+            LOG.debug(
+                    "Ignoring watermark status {} on channel {} (shared input channels indicate batch mode)",
+                    watermarkStatus,
+                    channelIndex);
+            return;
+        }
+
         SubpartitionStatus subpartitionStatus =
                 subpartitionStatuses.get(channelIndex).get(subpartitionIndexes[channelIndex]);
 
