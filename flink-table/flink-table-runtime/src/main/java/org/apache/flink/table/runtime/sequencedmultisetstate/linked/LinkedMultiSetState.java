@@ -179,24 +179,24 @@ public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
         final Long highSqn = highSqnAndSize == null ? null : highSqnAndSize.f0;
         final long oldSize = highSqnAndSize == null ? 0 : highSqnAndSize.f1;
         final Long rowSqn = rowToSqnState.get(key);
-        final boolean append = rowSqn == null;
-        final boolean existed = highSqn != null;
+        final boolean isNewRowKey = rowSqn == null; // it's a 1st such record 'row'
+        final boolean isNewContextKey = highSqn == null; // 1st a record for current context key
 
-        final Long oldSqn = append ? null : rowSqn;
-        final long newSqn = append ? (existed ? highSqn + 1 : 0) : oldSqn;
-        final long newSize = existed ? (append ? oldSize + 1 : oldSize) : 1;
+        final Long oldSqn = isNewRowKey ? null : rowSqn;
+        final long newSqn = isNewRowKey ? (isNewContextKey ? 0 : highSqn + 1) : oldSqn;
+        final long newSize = isNewContextKey ? 1 : (isNewRowKey ? oldSize + 1 : oldSize);
 
         timestamp = timeSelector.getTimestamp(timestamp);
 
         sqnToNodeState.put(
                 newSqn,
-                append
+                isNewRowKey
                         ? new Node(row, newSqn, highSqn, null, null, timestamp)
                         : sqnToNodeState.get(oldSqn).withRow(row, timestamp));
         highestSqnAndSizeState.update(Tuple2.of(newSqn, newSize));
-        if (append) {
+        if (isNewRowKey) {
             rowToSqnState.put(key, newSqn);
-            if (existed) {
+            if (!isNewContextKey) {
                 sqnToNodeState.put(highSqn, sqnToNodeState.get(highSqn).withNext(newSqn));
             }
         }
