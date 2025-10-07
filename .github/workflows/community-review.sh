@@ -116,7 +116,8 @@ main() {
     receivedPullRequests=$(jq '[.[] | select((.node.isDraft = false))]' <<< "$receivedPullRequests")
     printf " %2s PR retained" "$(JSONArrayLength "$receivedPullRequests")"
 
-    pullRequests=$(jq --argjson a1 "$pullRequests" --argjson a2 "$receivedPullRequests" '$a1 + $a2' <<< '{}')
+    # the below line is coded so as to avoid command-line argument limits.
+    pullRequests=$(jq -s '.[0] + .[1]' <(echo "$pullRequests") <(echo "$receivedPullRequests"))
 
     hasNextPage=$(jq  '.data.repository.pullRequests.pageInfo.hasNextPage' <<< "$restResponse")
     cursor=$(jq -r '.data.repository.pullRequests.pageInfo.endCursor' <<< "$restResponse")
