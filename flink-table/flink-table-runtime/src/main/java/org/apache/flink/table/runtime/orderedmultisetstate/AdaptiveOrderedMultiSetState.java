@@ -119,7 +119,7 @@ class AdaptiveOrderedMultiSetState implements OrderedMultiSetState<RowData> {
             String action)
             throws Exception {
 
-        final boolean isUsingLarge = isEmptyCaching(smallState) && !isEmptyCaching(largeState);
+        final boolean isUsingLarge = isIsUsingLargeState();
 
         // start with small state, i.e. choose smallState when both are empty
         OrderedMultiSetState<RowData> currentState = isUsingLarge ? largeState : smallState;
@@ -148,9 +148,13 @@ class AdaptiveOrderedMultiSetState implements OrderedMultiSetState<RowData> {
         return result;
     }
 
-    private boolean isEmptyCaching(OrderedMultiSetState<RowData> state) throws IOException {
-        state.loadCache();
-        return state.isEmpty();
+    private boolean isIsUsingLargeState() throws IOException {
+        smallState.loadCache();
+        if (!smallState.isEmpty()) {
+            return false;
+        }
+        largeState.loadCache();
+        return !largeState.isEmpty();
     }
 
     private void switchState(OrderedMultiSetState<RowData> src, OrderedMultiSetState<RowData> dst)
