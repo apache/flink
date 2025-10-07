@@ -171,8 +171,7 @@ class StreamTaskMultipleInputSelectiveReadingTest {
             testHarness.waitForTaskCompletion();
 
             // Filter out WatermarkStatus (e.g., FINISHED watermark status when task finishes) -
-            // this
-            // test focuses on selective reading behavior.
+            // this test focuses on selective reading behavior.
             Queue<Object> filteredOutput =
                     TestHarnessUtil.filterOutWatermarkStatus(testHarness.getOutput());
 
