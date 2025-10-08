@@ -56,21 +56,12 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
     /** Configuration object with validated settings. */
     private final S3Configuration s3Configuration;
 
-    /**
-     * S3 client for this helper instance - shared with reference counting to prevent HTTP pool
-     * exhaustion.
-     */
-    private final software.amazon.awssdk.services.s3.S3Client s3Client;
-
     public HadoopS3AccessHelper(S3AFileSystem s3a, Configuration conf) {
         checkNotNull(s3a, "S3AFileSystem cannot be null");
         checkNotNull(conf, "Configuration cannot be null");
 
-        // Build configuration with validation
+        // Build configuration with validation (mainly for backward compatibility checks)
         this.s3Configuration = S3ConfigurationBuilder.fromHadoopConfiguration(conf).build();
-
-        // Acquire shared S3 client with reference counting to prevent HTTP pool exhaustion
-        this.s3Client = S3ClientConfigurationFactory.acquireS3Client(s3a);
 
         // Create WriteOperationHelper with callbacks for Hadoop 3.4.2
         this.s3accessHelper =
@@ -112,23 +103,20 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                 }
 
                 try {
-                    // Try to use Hadoop's own S3 client via reflection to ensure exact credential match
+                    // Use Hadoop's S3A client directly via reflection to ensure all S3A configuration is respected
                     software.amazon.awssdk.services.s3.S3Client hadoopS3Client = 
                             getHadoopInternalS3Client();
                     
                     if (hadoopS3Client != null) {
-                        // Use Hadoop's actual S3 client for perfect credential compatibility
+                        // Use Hadoop's actual S3 client - this respects ALL fs.s3a.* configuration
                         software.amazon.awssdk.services.s3.model.UploadPartResponse response =
                                 hadoopS3Client.uploadPart(uploadPartRequest, requestBody);
                         return response;
                     } else {
-                        // Fallback to our custom S3 client if we can't access Hadoop's
-                        software.amazon.awssdk.services.s3.S3Client s3Client =
-                                getS3ClientFromFileSystem();
-
-                        software.amazon.awssdk.services.s3.model.UploadPartResponse response =
-                                s3Client.uploadPart(uploadPartRequest, requestBody);
-                        return response;
+                        // If reflection fails, throw an exception rather than using our custom client
+                        // This ensures we always use Hadoop's configuration
+                        throw new RuntimeException("Could not access Hadoop's internal S3 client. " +
+                                "All S3 operations should use Hadoop's S3A client to respect fs.s3a.* configuration.");
                     }
                 } catch (Exception e) {
                     // Callback methods can't throw checked exceptions, so wrap IOException in
@@ -149,26 +137,21 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                 }
 
                 try {
-                    // Try to use Hadoop's own S3 client via reflection to ensure exact credential match
+                    // Use Hadoop's S3A client directly via reflection to ensure all S3A configuration is respected
                     software.amazon.awssdk.services.s3.S3Client hadoopS3Client = 
                             getHadoopInternalS3Client();
                     
                     if (hadoopS3Client != null) {
-                        // Use Hadoop's actual S3 client for perfect credential compatibility
+                        // Use Hadoop's actual S3 client - this respects ALL fs.s3a.* configuration
                         software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse
                                 response = hadoopS3Client.completeMultipartUpload(
                                         completeMultipartUploadRequest);
                         return response;
                     } else {
-                        // Fallback to our custom S3 client if we can't access Hadoop's
-                        software.amazon.awssdk.services.s3.S3Client s3Client =
-                                getS3ClientFromFileSystem();
-
-                        software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse
-                                response =
-                                        s3Client.completeMultipartUpload(
-                                                completeMultipartUploadRequest);
-                        return response;
+                        // If reflection fails, throw an exception rather than using our custom client
+                        // This ensures we always use Hadoop's configuration
+                        throw new RuntimeException("Could not access Hadoop's internal S3 client. " +
+                                "All S3 operations should use Hadoop's S3A client to respect fs.s3a.* configuration.");
                     }
                 } catch (Exception e) {
                     // Callback methods can't throw checked exceptions, so wrap IOException in
@@ -304,18 +287,6 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         throw lastException;
     }
 
-    /**
-     * Gets the shared S3 client for this helper instance. The client is managed with reference
-     * counting to prevent HTTP connection pool exhaustion while ensuring proper resource cleanup.
-     */
-    private software.amazon.awssdk.services.s3.S3Client getS3ClientFromFileSystem() {
-        if (closed) {
-            throw new IllegalStateException(
-                    "HadoopS3AccessHelper has been closed and cannot be used");
-        }
-
-        return s3Client;
-    }
     
     /**
      * Attempts to access Hadoop's internal S3 client via reflection to ensure perfect credential
@@ -711,16 +682,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         // Mark as closed first to prevent concurrent operations
         closed = true;
 
-        // Release the shared S3 client reference
-        // The factory will close the client when the last reference is released
-        try {
-            S3ClientConfigurationFactory.releaseS3Client(s3Client);
-        } catch (Exception e) {
-            // Log warning but don't throw - close() should be best-effort
-            System.err.println(
-                    "Warning: Failed to release S3 client in HadoopS3AccessHelper: "
-                            + e.getMessage());
-        }
+        // No custom S3 client to release - we only use Hadoop's internal client via reflection
 
         instanceCount.decrementAndGet();
     }
