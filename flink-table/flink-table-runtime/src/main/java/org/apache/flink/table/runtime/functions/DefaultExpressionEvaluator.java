@@ -76,7 +76,9 @@ public class DefaultExpressionEvaluator implements ExpressionEvaluator {
     @Override
     public void close() {
         try {
-            instance.close();
+            if (instance != null) {
+                instance.close();
+            }
         } catch (Exception e) {
             throw new TableException(
                     String.format(
