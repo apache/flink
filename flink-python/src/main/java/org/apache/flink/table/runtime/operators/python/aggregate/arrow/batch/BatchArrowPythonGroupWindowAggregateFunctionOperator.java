@@ -129,7 +129,9 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperator
     @Override
     public void close() throws Exception {
         super.close();
-        windowsGrouping.close();
+        if (windowsGrouping != null) {
+            windowsGrouping.close();
+        }
     }
 
     @Override

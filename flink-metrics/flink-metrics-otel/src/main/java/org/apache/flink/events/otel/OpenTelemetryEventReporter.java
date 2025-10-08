@@ -100,10 +100,14 @@ public class OpenTelemetryEventReporter extends OpenTelemetryReporterBase implem
 
     @Override
     public void close() {
-        logRecordProcessor.forceFlush();
-        logRecordProcessor.close();
-        logRecordExporter.flush();
-        logRecordExporter.close();
+        if (logRecordProcessor != null) {
+            logRecordProcessor.forceFlush();
+            logRecordProcessor.close();
+        }
+        if (logRecordExporter != null) {
+            logRecordExporter.flush();
+            logRecordExporter.close();
+        }
     }
 
     @Override
