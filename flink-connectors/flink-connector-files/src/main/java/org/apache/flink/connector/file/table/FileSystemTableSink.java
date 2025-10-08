@@ -471,8 +471,10 @@ public class FileSystemTableSink extends AbstractFileSystemTable
 
             @Override
             public void close() throws IOException {
-                this.output.flush();
-                this.output.close();
+                if (output != null) {
+                    this.output.flush();
+                    this.output.close();
+                }
             }
         };
     }
