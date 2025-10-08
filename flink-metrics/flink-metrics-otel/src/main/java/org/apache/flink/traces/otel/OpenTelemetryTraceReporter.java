@@ -70,10 +70,14 @@ public class OpenTelemetryTraceReporter extends OpenTelemetryReporterBase implem
 
     @Override
     public void close() {
-        spanProcessor.forceFlush();
-        spanProcessor.close();
-        spanExporter.flush();
-        spanExporter.close();
+        if (spanProcessor != null) {
+            spanProcessor.forceFlush();
+            spanProcessor.close();
+        }
+        if (spanExporter != null) {
+            spanExporter.flush();
+            spanExporter.close();
+        }
     }
 
     private void notifyOfAddedSpanInternal(Span span, io.opentelemetry.api.trace.Span parent) {
