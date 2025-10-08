@@ -113,10 +113,18 @@ public final class ArrowSerializer {
     }
 
     public void close() throws Exception {
-        arrowStreamWriter.end();
-        arrowStreamReader.close();
-        rootWriter.close();
-        allocator.close();
+        if (arrowStreamWriter != null) {
+            arrowStreamWriter.end();
+        }
+        if (arrowStreamReader != null) {
+            arrowStreamReader.close();
+        }
+        if (rootWriter != null) {
+            rootWriter.close();
+        }
+        if (allocator != null) {
+            allocator.close();
+        }
     }
 
     /** Creates an {@link ArrowWriter}. */
