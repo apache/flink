@@ -211,11 +211,7 @@ public class PrestoS3FileSystemMinioTest {
         @Override
         public void run(SourceContext<Tuple2<Integer, String>> ctx) throws Exception {
             String[] messages = {
-                "Hello Presto S3",
-                "Testing MinIO",
-                "Flink rocks",
-                "End-to-end test",
-                "Success!"
+                "Hello Presto S3", "Testing MinIO", "Flink rocks", "End-to-end test", "Success!"
             };
 
             for (int i = 0; i < messages.length && running; i++) {
