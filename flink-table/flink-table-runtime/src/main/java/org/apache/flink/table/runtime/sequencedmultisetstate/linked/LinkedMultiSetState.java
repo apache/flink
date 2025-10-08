@@ -24,11 +24,9 @@ import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.HashFunction;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
@@ -91,11 +89,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
 
     // maps rows to SQNs (first and last SQN for a row (same in case of upsert key))
-    private final MapState<RowDataKey, Tuple2<Long, Long>> rowToSqnState;
+    private final MapState<RowDataKey, RowSqnInfo> rowToSqnState;
     // maps SQNs to Nodes, which comprise a doubly-linked list
     private final MapState<Long, Node> sqnToNodeState;
     // highest sequence number; also latest emitted downstream
-    private final ValueState<Tuple2<Long, Long>> highestSqnAndSizeState;
+    private final ValueState<MetaSqnInfo> highestSqnAndSizeState;
 
     private final RecordEqualiser keyEqualiser;
     private final HashFunction keyHashFunction;
@@ -103,9 +101,9 @@ public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
     private final TimeSelector timeSelector;
 
     private LinkedMultiSetState(
-            MapState<RowDataKey, Tuple2<Long, Long>> rowToSqnState,
+            MapState<RowDataKey, RowSqnInfo> rowToSqnState,
             MapState<Long, Node> sqnToNodeState,
-            ValueState<Tuple2<Long, Long>> highestSqnAndSizeState,
+            ValueState<MetaSqnInfo> highestSqnAndSizeState,
             RecordEqualiser keyEqualiser,
             HashFunction keyHashFunction,
             Function<RowData, RowData> keyExtractor,
@@ -126,8 +124,7 @@ public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
         HashFunction keyHashFunction =
                 p.generatedKeyHashFunction.newInstance(ctx.getUserCodeClassLoader());
 
-        //noinspection rawtypes,unchecked
-        MapState<RowDataKey, Tuple2<Long, Long>> rowToSqnState =
+        MapState<RowDataKey, RowSqnInfo> rowToSqnState =
                 ctx.getMapState(
                         new MapStateDescriptor<>(
                                 "rowToSqnState",
@@ -137,11 +134,7 @@ public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
                                         keyHashFunction,
                                         p.generatedKeyEqualiser,
                                         p.generatedKeyHashFunction),
-                                new TupleSerializer(
-                                        Tuple2.class,
-                                        new TypeSerializer[] {
-                                            LongSerializer.INSTANCE, LongSerializer.INSTANCE
-                                        })));
+                                new RowSqnInfoSerializer()));
         MapState<Long, Node> sqnToNodeState =
                 ctx.getMapState(
                         new MapStateDescriptor<>(
@@ -149,17 +142,10 @@ public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
                                 LongSerializer.INSTANCE,
                                 new NodeSerializer(p.recordSerializer)));
 
-        //noinspection rawtypes,unchecked
-        ValueState<Tuple2<Long, Long>> highestSqnState =
+        ValueState<MetaSqnInfo> highestSqnState =
                 ctx.getState(
-                        new ValueStateDescriptor<Tuple2<Long, Long>>(
-                                "highestSqnState",
-                                new TupleSerializer(
-                                        Tuple2.class,
-                                        new TypeSerializer[] {
-                                            LongSerializer.INSTANCE, LongSerializer.INSTANCE
-                                        })));
-
+                        new ValueStateDescriptor<MetaSqnInfo>(
+                                "highestSqnState", new MetaSqnInfoSerializer()));
         return new LinkedMultiSetState(
                 rowToSqnState,
                 sqnToNodeState,
@@ -180,11 +166,11 @@ public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
     @Override
     public SizeChangeInfo add(RowData row, long timestamp) throws Exception {
         final RowDataKey key = toKey(row);
-        final Tuple2<Long, Long> highSqnAndSize = highestSqnAndSizeState.value();
-        final Long highSqn = highSqnAndSize == null ? null : highSqnAndSize.f0;
-        final long oldSize = highSqnAndSize == null ? 0 : highSqnAndSize.f1;
-        final Tuple2<Long, Long> t2 = rowToSqnState.get(key);
-        final Long rowSqn = t2 == null ? null : rowToSqnState.get(key).f0;
+        final MetaSqnInfo highSqnAndSize = highestSqnAndSizeState.value();
+        final Long highSqn = highSqnAndSize == null ? null : highSqnAndSize.highSqn;
+        final long oldSize = highSqnAndSize == null ? 0 : highSqnAndSize.size;
+        final RowSqnInfo rowSqnInfo = rowToSqnState.get(key);
+        final Long rowSqn = rowSqnInfo == null ? null : rowToSqnState.get(key).firstSqn;
         final boolean isNewRowKey = rowSqn == null; // it's a 1st such record 'row'
         final boolean isNewContextKey = highSqn == null; // 1st a record for current context key
 
@@ -215,9 +201,9 @@ public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
                 isNewRowKey
                         ? new Node(row, newSqn, highSqn, null, null, timestamp)
                         : sqnToNodeState.get(oldSqn).withRow(row, timestamp));
-        highestSqnAndSizeState.update(Tuple2.of(newSqn, newSize));
+        highestSqnAndSizeState.update(MetaSqnInfo.of(newSqn, newSize));
         if (isNewRowKey) {
-            rowToSqnState.put(key, Tuple2.of(newSqn, newSize));
+            rowToSqnState.put(key, RowSqnInfo.ofSingle(newSqn));
             if (!isNewContextKey) {
                 sqnToNodeState.put(highSqn, sqnToNodeState.get(highSqn).withNext(newSqn));
             }
@@ -228,9 +214,9 @@ public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
     @Override
     public SizeChangeInfo append(RowData row, long timestamp) throws Exception {
         final RowDataKey key = toKey(row);
-        final Tuple2<Long, Long> highSqnAndSize = highestSqnAndSizeState.value();
-        final Long highSqn = highSqnAndSize == null ? null : highSqnAndSize.f0;
-        final long oldSize = highSqnAndSize == null ? 0 : highSqnAndSize.f1;
+        final MetaSqnInfo highSqnAndSize = highestSqnAndSizeState.value();
+        final Long highSqn = highSqnAndSize == null ? null : highSqnAndSize.highSqn;
+        final long oldSize = highSqnAndSize == null ? 0 : highSqnAndSize.size;
         final boolean existed = highSqn != null;
         final long newSqn = (existed ? highSqn + 1 : 0);
         final Node newNode =
@@ -243,15 +229,16 @@ public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
                         timeSelector.getTimestamp(timestamp));
         final long newSize = oldSize + 1;
 
-        final Tuple2<Long, Long> t2 = existed ? rowToSqnState.get(key) : null;
-        final Long rowSqn = t2 == null ? null : t2.f0;
+        final RowSqnInfo sqnInfo = existed ? rowToSqnState.get(key) : null;
+        final Long rowSqn = sqnInfo == null ? null : sqnInfo.firstSqn;
         if (rowSqn == null) {
-            rowToSqnState.put(key, Tuple2.of(newSqn, newSqn));
+            rowToSqnState.put(key, RowSqnInfo.ofSingle(newSqn));
         } else {
-            rowToSqnState.put(key, Tuple2.of(rowSqn, newSqn));
-            sqnToNodeState.put(t2.f1, sqnToNodeState.get(t2.f1).withNextForRecord(newSqn));
+            rowToSqnState.put(key, RowSqnInfo.of(rowSqn, newSqn));
+            sqnToNodeState.put(
+                    sqnInfo.lastSqn, sqnToNodeState.get(sqnInfo.lastSqn).withNextForRecord(newSqn));
         }
-        highestSqnAndSizeState.update(Tuple2.of(newSqn, newSize));
+        highestSqnAndSizeState.update(MetaSqnInfo.of(newSqn, newSize));
         sqnToNodeState.put(newSqn, newNode);
         if (existed) {
             sqnToNodeState.put(highSqn, sqnToNodeState.get(highSqn).withNext(newSqn));
@@ -263,10 +250,10 @@ public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
     public Tuple3<RemovalResultType, Optional<RowData>, SizeChangeInfo> remove(RowData row)
             throws Exception {
         final RowDataKey key = toKey(row);
-        final Tuple2<Long, Long> t2 = rowToSqnState.get(key);
-        final Long rowSqn = t2 == null ? null : t2.f0;
-        final Tuple2<Long, Long> highSqnStateAndSize = highestSqnAndSizeState.value();
-        final long oldSize = highSqnStateAndSize == null ? 0L : highSqnStateAndSize.f1;
+        final RowSqnInfo sqnInfo = rowToSqnState.get(key);
+        final Long rowSqn = sqnInfo == null ? null : sqnInfo.firstSqn;
+        final MetaSqnInfo highSqnStateAndSize = highestSqnAndSizeState.value();
+        final long oldSize = highSqnStateAndSize == null ? 0L : highSqnStateAndSize.size;
         if (rowSqn == null) {
             return toRemovalResult(NOTHING_REMOVED, null, oldSize);
         }
@@ -299,7 +286,7 @@ public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
     @Override
     public void clearCache() {}
 
-    private Node removeNode(Node node, RowDataKey key, Tuple2<Long, Long> highSqnStateAndSize)
+    private Node removeNode(Node node, RowDataKey key, MetaSqnInfo highSqnStateAndSize)
             throws Exception {
 
         if (node.isLowestSqn() && node.isHighestSqn()) {
@@ -310,13 +297,13 @@ public class LinkedMultiSetState implements SequencedMultiSetState<RowData> {
 
         sqnToNodeState.remove(node.getSqn());
         highestSqnAndSizeState.update(
-                Tuple2.of(
-                        node.isHighestSqn() ? node.prevSqn : highSqnStateAndSize.f0,
-                        highSqnStateAndSize.f1 - 1));
+                MetaSqnInfo.of(
+                        node.isHighestSqn() ? node.prevSqn : highSqnStateAndSize.highSqn,
+                        highSqnStateAndSize.size - 1));
         if (node.isLastForRecord()) {
             rowToSqnState.remove(key);
         } else {
-            rowToSqnState.put(key, Tuple2.of(node.nextSqnForRecord, rowToSqnState.get(key).f1));
+            rowToSqnState.put(key, rowToSqnState.get(key).withFirstSqn(node.nextSqnForRecord));
         }
         // link prev node to next
         Node prev = null;
