@@ -299,25 +299,22 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
     assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalInnerJoinWithoutEquiCond).toSet)
     assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalInnerJoinWithEquiAndNonEquiCond).toSet)
 
-    assertEquals(
-      uniqueKeys(Array(1), Array(1, 5), Array(1, 5, 6)),
-      mq.getUniqueKeys(logicalLeftJoinOnUniqueKeys).toSet)
+    assertEquals(uniqueKeys(Array(1)), mq.getUniqueKeys(logicalLeftJoinOnUniqueKeys).toSet)
+
     assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalLeftJoinNotOnUniqueKeys).toSet)
     assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalLeftJoinOnRHSUniqueKeys).toSet)
     assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalLeftJoinWithoutEquiCond).toSet)
     assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalLeftJoinWithEquiAndNonEquiCond).toSet)
 
     assertEquals(
-      uniqueKeys(Array(5), Array(1, 5), Array(5, 6), Array(1, 5, 6)),
+      uniqueKeys(Array(5), Array(5, 6)),
       mq.getUniqueKeys(logicalRightJoinOnUniqueKeys).toSet)
     assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalRightJoinNotOnUniqueKeys).toSet)
     assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalRightJoinOnLHSUniqueKeys).toSet)
     assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalRightJoinWithoutEquiCond).toSet)
     assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalRightJoinWithEquiAndNonEquiCond).toSet)
 
-    assertEquals(
-      uniqueKeys(Array(1, 5), Array(1, 5, 6)),
-      mq.getUniqueKeys(logicalFullJoinOnUniqueKeys).toSet)
+    assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalFullJoinOnUniqueKeys).toSet)
     assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalFullJoinNotOnUniqueKeys).toSet)
     assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalFullJoinOnRHSUniqueKeys).toSet)
     assertEquals(uniqueKeys(), mq.getUniqueKeys(logicalFullJoinWithoutEquiCond).toSet)
@@ -381,11 +378,11 @@ class FlinkRelMdUniqueKeysTest extends FlinkRelMdHandlerTestBase {
   @Test
   def testGetUniqueKeysOnTableScanTable(): Unit = {
     assertEquals(
-      uniqueKeys(Array(0, 1), Array(0, 1, 5)),
+      uniqueKeys(Array(0, 1)),
       mq.getUniqueKeys(logicalLeftJoinOnContainedUniqueKeys).toSet
     )
     assertEquals(
-      uniqueKeys(Array(0, 1, 5)),
+      uniqueKeys(),
       mq.getUniqueKeys(logicalLeftJoinOnDisjointUniqueKeys).toSet
     )
     assertEquals(
