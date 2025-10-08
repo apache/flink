@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.runtime.sequencedmultisetstate;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -48,7 +47,6 @@ import java.util.Optional;
  * @param <T> The type of elements stored in the state.
  */
 @Internal
-@Experimental
 public interface SequencedMultiSetState<T> {
 
     /**
