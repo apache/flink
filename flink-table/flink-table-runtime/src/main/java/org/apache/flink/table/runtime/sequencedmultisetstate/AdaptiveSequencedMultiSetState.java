@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.sequencedmultisetstate;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.table.data.RowData;
@@ -85,7 +86,7 @@ class AdaptiveSequencedMultiSetState implements SequencedMultiSetState<RowData> 
     @Override
     public boolean isEmpty() throws IOException {
         // large state check is faster
-        return largeState.isEmpty() || smallState.isEmpty();
+        return largeState.isEmpty() && smallState.isEmpty();
     }
 
     @Override
@@ -148,7 +149,8 @@ class AdaptiveSequencedMultiSetState implements SequencedMultiSetState<RowData> 
         return result;
     }
 
-    private boolean isIsUsingLargeState() throws IOException {
+    @VisibleForTesting
+    boolean isIsUsingLargeState() throws IOException {
         smallState.loadCache();
         if (!smallState.isEmpty()) {
             return false;

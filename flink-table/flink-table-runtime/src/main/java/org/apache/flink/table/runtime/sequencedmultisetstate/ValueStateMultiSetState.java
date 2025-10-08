@@ -139,11 +139,14 @@ class ValueStateMultiSetState implements SequencedMultiSetState<RowData> {
             }
             i++;
         }
+        final RowData removed;
         if (dropIdx >= 0) {
-            list.remove(dropIdx);
+            removed = list.remove(dropIdx).f0;
             valuesState.update(list);
+        } else {
+            removed = null;
         }
-        return toRemovalResult(new SizeChangeInfo(oldSize, list.size()), dropIdx, row, last);
+        return toRemovalResult(new SizeChangeInfo(oldSize, list.size()), dropIdx, removed, last);
     }
 
     @Override
@@ -180,7 +183,7 @@ class ValueStateMultiSetState implements SequencedMultiSetState<RowData> {
     @Override
     public boolean isEmpty() throws IOException {
         List<Tuple2<RowData, Long>> list = cache == null ? valuesState.value() : cache;
-        return list != null && list.isEmpty();
+        return list == null || list.isEmpty();
     }
 
     private RowData asKey(RowData row) {
@@ -192,11 +195,11 @@ class ValueStateMultiSetState implements SequencedMultiSetState<RowData> {
     }
 
     private static Tuple3<RemovalResultType, Optional<RowData>, SizeChangeInfo> toRemovalResult(
-            SizeChangeInfo sizeChangeInfo, int dropIdx, RowData row, RowData last) {
-        if (sizeChangeInfo.wasEmpty()) {
+            SizeChangeInfo sizeChangeInfo, int dropIdx, RowData removed, RowData last) {
+        if (dropIdx < 0) {
             return Tuple3.of(RemovalResultType.NOTHING_REMOVED, Optional.empty(), sizeChangeInfo);
         } else if (sizeChangeInfo.isEmpty()) {
-            return Tuple3.of(RemovalResultType.ALL_REMOVED, Optional.of(row), sizeChangeInfo);
+            return Tuple3.of(RemovalResultType.ALL_REMOVED, Optional.of(removed), sizeChangeInfo);
         } else if (dropIdx + 1 == sizeChangeInfo.sizeBefore) {
             return Tuple3.of(
                     RemovalResultType.REMOVED_LAST_ADDED, Optional.of(last), sizeChangeInfo);
