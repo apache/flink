@@ -24,8 +24,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.legacy.OutputFormatSinkFunction;
 import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 
-import static org.junit.Assert.fail;
-
 /**
  * Tests for non rich DataSource and DataSink input output formats being correctly used at runtime.
  */
@@ -38,12 +36,7 @@ public class InputOutputITCase extends JavaProgramTestBaseJUnit4 {
         TestNonRichOutputFormat output = new TestNonRichOutputFormat();
         env.createInput(new TestNonRichInputFormat())
                 .addSink(new OutputFormatSinkFunction<>(output));
-        try {
-            env.execute();
-        } catch (Exception e) {
-            // we didn't break anything by making everything rich.
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        env.execute();
+        // we didn't break anything by making everything rich.
     }
 }
