@@ -226,13 +226,11 @@ abstract class AbstractTaskManagerProcessFailureRecoveryTest {
 
             // all seems well :-)
         } catch (Exception e) {
-            e.printStackTrace();
             printProcessLog("TaskManager 1", taskManagerProcess1);
             printProcessLog("TaskManager 2", taskManagerProcess2);
             printProcessLog("TaskManager 3", taskManagerProcess3);
-            fail(e.getMessage());
+            throw e;
         } catch (Error e) {
-            e.printStackTrace();
             printProcessLog("TaskManager 1", taskManagerProcess1);
             printProcessLog("TaskManager 2", taskManagerProcess2);
             printProcessLog("TaskManager 3", taskManagerProcess3);
