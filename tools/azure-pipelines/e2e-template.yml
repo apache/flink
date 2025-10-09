@@ -51,6 +51,17 @@ jobs:
     - task: UsePythonVersion@0
       inputs:
         versionSpec: '3.12'
+    # Install upstream kubectl so we don't use the agent's FIPS-patched build.
+    - bash: |
+        set -euo pipefail
+        echo ">>> Installing upstream kubectl"
+        curl -sSL -o kubectl "https://dl.k8s.io/release/$(curl -sSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        sudo install -m 0755 kubectl /usr/local/bin/kubectl
+        echo ">>> kubectl on PATH:"
+        which kubectl
+        kubectl version --client=true -o=yaml
+      displayName: "Use upstream kubectl (avoid host FIPS build)"
+      condition: not(eq(variables['SKIP'], '1'))
     # the cache task does not create directories on a cache miss, and can later fail when trying to tar the directory if the test haven't created it
     # this may for example happen if a given directory is only used by a subset of tests, which are run in a different 'group'
     - bash: |
