@@ -51,8 +51,6 @@ import java.net.ServerSocket;
 import java.util.Enumeration;
 import java.util.List;
 
-import static org.junit.Assert.fail;
-
 /** Test proper handling of IPv6 address literals in URLs. */
 @SuppressWarnings("serial")
 public class IPv6HostnamesITCase extends TestLogger {
@@ -83,52 +81,44 @@ public class IPv6HostnamesITCase extends TestLogger {
     }
 
     @Test
-    public void testClusterWithIPv6host() {
-        try {
+    public void testClusterWithIPv6host() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
 
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(4);
+        // get input data
+        DataStream<String> text = env.fromData(WordCountData.TEXT.split("\n"));
 
-            // get input data
-            DataStream<String> text = env.fromData(WordCountData.TEXT.split("\n"));
-
-            DataStream<Tuple2<String, Integer>> counts =
-                    text.flatMap(
-                                    new FlatMapFunction<String, Tuple2<String, Integer>>() {
-                                        @Override
-                                        public void flatMap(
-                                                String value,
-                                                Collector<Tuple2<String, Integer>> out)
-                                                throws Exception {
-                                            for (String token : value.toLowerCase().split("\\W+")) {
-                                                if (token.length() > 0) {
-                                                    out.collect(
-                                                            new Tuple2<String, Integer>(token, 1));
-                                                }
+        DataStream<Tuple2<String, Integer>> counts =
+                text.flatMap(
+                                new FlatMapFunction<String, Tuple2<String, Integer>>() {
+                                    @Override
+                                    public void flatMap(
+                                            String value, Collector<Tuple2<String, Integer>> out)
+                                            throws Exception {
+                                        for (String token : value.toLowerCase().split("\\W+")) {
+                                            if (token.length() > 0) {
+                                                out.collect(new Tuple2<String, Integer>(token, 1));
                                             }
                                         }
-                                    })
-                            .keyBy(x -> x.f0)
-                            .window(GlobalWindows.createWithEndOfStreamTrigger())
-                            .reduce(
-                                    new ReduceFunction<Tuple2<String, Integer>>() {
-                                        @Override
-                                        public Tuple2<String, Integer> reduce(
-                                                Tuple2<String, Integer> value1,
-                                                Tuple2<String, Integer> value2)
-                                                throws Exception {
-                                            return Tuple2.of(value1.f0, value1.f1 + value2.f1);
-                                        }
-                                    });
+                                    }
+                                })
+                        .keyBy(x -> x.f0)
+                        .window(GlobalWindows.createWithEndOfStreamTrigger())
+                        .reduce(
+                                new ReduceFunction<Tuple2<String, Integer>>() {
+                                    @Override
+                                    public Tuple2<String, Integer> reduce(
+                                            Tuple2<String, Integer> value1,
+                                            Tuple2<String, Integer> value2)
+                                            throws Exception {
+                                        return Tuple2.of(value1.f0, value1.f1 + value2.f1);
+                                    }
+                                });
 
-            List<Tuple2<String, Integer>> result =
-                    CollectionUtil.iteratorToList(counts.executeAndCollect());
+        List<Tuple2<String, Integer>> result =
+                CollectionUtil.iteratorToList(counts.executeAndCollect());
 
-            TestBaseUtils.compareResultAsText(result, WordCountData.COUNTS_AS_TUPLES);
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        TestBaseUtils.compareResultAsText(result, WordCountData.COUNTS_AS_TUPLES);
     }
 
     private Inet6Address getLocalIPv6Address() {

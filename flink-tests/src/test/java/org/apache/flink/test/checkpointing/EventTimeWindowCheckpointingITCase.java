@@ -76,7 +76,6 @@ import java.util.stream.Collectors;
 import static org.apache.flink.test.checkpointing.EventTimeWindowCheckpointingITCase.StateBackendEnum.ROCKSDB_INCREMENTAL_ZK;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * This verifies that checkpointing works correctly with event time windows. This is more strict
@@ -308,435 +307,405 @@ public class EventTimeWindowCheckpointingITCase extends TestLogger {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testTumblingTimeWindow() {
+    public void testTumblingTimeWindow() throws Exception {
         final int numElementsPerKey = numElementsPerKey();
         final int windowSize = windowSize();
         final int numKeys = numKeys();
 
-        try {
-            StreamExecutionEnvironment env =
-                    StreamExecutionEnvironment.getExecutionEnvironment(configuration);
-            env.setParallelism(PARALLELISM);
-            env.enableCheckpointing(100);
-            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
-            env.getConfig().setUseSnapshotCompression(true);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        env.setParallelism(PARALLELISM);
+        env.enableCheckpointing(100);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
+        env.getConfig().setUseSnapshotCompression(true);
 
-            env.addSource(
-                            new FailingSource(
-                                    new KeyedEventTimeGenerator(numKeys, windowSize),
-                                    numElementsPerKey))
-                    .rebalance()
-                    .keyBy(x -> x.f0)
-                    .window(TumblingEventTimeWindows.of(Duration.ofMillis(windowSize)))
-                    .apply(
-                            new RichWindowFunction<
-                                    Tuple2<Long, IntType>,
-                                    Tuple4<Long, Long, Long, IntType>,
-                                    Long,
-                                    TimeWindow>() {
+        env.addSource(
+                        new FailingSource(
+                                new KeyedEventTimeGenerator(numKeys, windowSize),
+                                numElementsPerKey))
+                .rebalance()
+                .keyBy(x -> x.f0)
+                .window(TumblingEventTimeWindows.of(Duration.ofMillis(windowSize)))
+                .apply(
+                        new RichWindowFunction<
+                                Tuple2<Long, IntType>,
+                                Tuple4<Long, Long, Long, IntType>,
+                                Long,
+                                TimeWindow>() {
 
-                                private boolean open = false;
+                            private boolean open = false;
 
-                                @Override
-                                public void open(OpenContext openContext) {
-                                    assertEquals(
-                                            PARALLELISM,
-                                            getRuntimeContext()
-                                                    .getTaskInfo()
-                                                    .getNumberOfParallelSubtasks());
-                                    open = true;
+                            @Override
+                            public void open(OpenContext openContext) {
+                                assertEquals(
+                                        PARALLELISM,
+                                        getRuntimeContext()
+                                                .getTaskInfo()
+                                                .getNumberOfParallelSubtasks());
+                                open = true;
+                            }
+
+                            @Override
+                            public void apply(
+                                    Long l,
+                                    TimeWindow window,
+                                    Iterable<Tuple2<Long, IntType>> values,
+                                    Collector<Tuple4<Long, Long, Long, IntType>> out) {
+
+                                // validate that the function has been opened properly
+                                assertTrue(open);
+
+                                int sum = 0;
+                                long key = -1;
+
+                                for (Tuple2<Long, IntType> value : values) {
+                                    sum += value.f1.value;
+                                    key = value.f0;
                                 }
 
-                                @Override
-                                public void apply(
-                                        Long l,
-                                        TimeWindow window,
-                                        Iterable<Tuple2<Long, IntType>> values,
-                                        Collector<Tuple4<Long, Long, Long, IntType>> out) {
+                                final Tuple4<Long, Long, Long, IntType> result =
+                                        new Tuple4<>(
+                                                key,
+                                                window.getStart(),
+                                                window.getEnd(),
+                                                new IntType(sum));
+                                out.collect(result);
+                            }
+                        })
+                .addSink(
+                        new ValidatingSink<>(
+                                new SinkValidatorUpdateFun(numElementsPerKey),
+                                new SinkValidatorCheckFun(numKeys, numElementsPerKey, windowSize)))
+                .setParallelism(1);
 
-                                    // validate that the function has been opened properly
-                                    assertTrue(open);
-
-                                    int sum = 0;
-                                    long key = -1;
-
-                                    for (Tuple2<Long, IntType> value : values) {
-                                        sum += value.f1.value;
-                                        key = value.f0;
-                                    }
-
-                                    final Tuple4<Long, Long, Long, IntType> result =
-                                            new Tuple4<>(
-                                                    key,
-                                                    window.getStart(),
-                                                    window.getEnd(),
-                                                    new IntType(sum));
-                                    out.collect(result);
-                                }
-                            })
-                    .addSink(
-                            new ValidatingSink<>(
-                                    new SinkValidatorUpdateFun(numElementsPerKey),
-                                    new SinkValidatorCheckFun(
-                                            numKeys, numElementsPerKey, windowSize)))
-                    .setParallelism(1);
-
-            env.execute("Tumbling Window Test");
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        env.execute("Tumbling Window Test");
     }
 
     @Test
-    public void testTumblingTimeWindowWithKVStateMinMaxParallelism() {
+    public void testTumblingTimeWindowWithKVStateMinMaxParallelism() throws Exception {
         doTestTumblingTimeWindowWithKVState(PARALLELISM);
     }
 
     @Test
-    public void testTumblingTimeWindowWithKVStateMaxMaxParallelism() {
+    public void testTumblingTimeWindowWithKVStateMaxMaxParallelism() throws Exception {
         doTestTumblingTimeWindowWithKVState(1 << 15);
     }
 
-    public void doTestTumblingTimeWindowWithKVState(int maxParallelism) {
+    public void doTestTumblingTimeWindowWithKVState(int maxParallelism) throws Exception {
         final int numElementsPerKey = numElementsPerKey();
         final int windowSize = windowSize();
         final int numKeys = numKeys();
 
-        try {
-            StreamExecutionEnvironment env =
-                    StreamExecutionEnvironment.getExecutionEnvironment(configuration);
-            env.setParallelism(PARALLELISM);
-            env.setMaxParallelism(maxParallelism);
-            env.enableCheckpointing(100);
-            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
-            env.getConfig().setUseSnapshotCompression(true);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        env.setParallelism(PARALLELISM);
+        env.setMaxParallelism(maxParallelism);
+        env.enableCheckpointing(100);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
+        env.getConfig().setUseSnapshotCompression(true);
 
-            env.addSource(
-                            new FailingSource(
-                                    new KeyedEventTimeGenerator(numKeys, windowSize),
-                                    numElementsPerKey))
-                    .rebalance()
-                    .keyBy(x -> x.f0)
-                    .window(TumblingEventTimeWindows.of(Duration.ofMillis(windowSize)))
-                    .apply(
-                            new RichWindowFunction<
-                                    Tuple2<Long, IntType>,
-                                    Tuple4<Long, Long, Long, IntType>,
-                                    Long,
-                                    TimeWindow>() {
+        env.addSource(
+                        new FailingSource(
+                                new KeyedEventTimeGenerator(numKeys, windowSize),
+                                numElementsPerKey))
+                .rebalance()
+                .keyBy(x -> x.f0)
+                .window(TumblingEventTimeWindows.of(Duration.ofMillis(windowSize)))
+                .apply(
+                        new RichWindowFunction<
+                                Tuple2<Long, IntType>,
+                                Tuple4<Long, Long, Long, IntType>,
+                                Long,
+                                TimeWindow>() {
 
-                                private boolean open = false;
+                            private boolean open = false;
 
-                                private ValueState<Integer> count;
+                            private ValueState<Integer> count;
 
-                                @Override
-                                public void open(OpenContext openContext) {
-                                    assertEquals(
-                                            PARALLELISM,
-                                            getRuntimeContext()
-                                                    .getTaskInfo()
-                                                    .getNumberOfParallelSubtasks());
-                                    open = true;
-                                    count =
-                                            getRuntimeContext()
-                                                    .getState(
-                                                            new ValueStateDescriptor<>(
-                                                                    "count", Integer.class, 0));
+                            @Override
+                            public void open(OpenContext openContext) {
+                                assertEquals(
+                                        PARALLELISM,
+                                        getRuntimeContext()
+                                                .getTaskInfo()
+                                                .getNumberOfParallelSubtasks());
+                                open = true;
+                                count =
+                                        getRuntimeContext()
+                                                .getState(
+                                                        new ValueStateDescriptor<>(
+                                                                "count", Integer.class, 0));
+                            }
+
+                            @Override
+                            public void apply(
+                                    Long l,
+                                    TimeWindow window,
+                                    Iterable<Tuple2<Long, IntType>> values,
+                                    Collector<Tuple4<Long, Long, Long, IntType>> out)
+                                    throws Exception {
+
+                                // the window count state starts with the key, so that we get
+                                // different count results for each key
+                                if (count.value() == 0) {
+                                    count.update(l.intValue());
                                 }
 
-                                @Override
-                                public void apply(
-                                        Long l,
-                                        TimeWindow window,
-                                        Iterable<Tuple2<Long, IntType>> values,
-                                        Collector<Tuple4<Long, Long, Long, IntType>> out)
-                                        throws Exception {
+                                // validate that the function has been opened properly
+                                assertTrue(open);
 
-                                    // the window count state starts with the key, so that we get
-                                    // different count results for each key
-                                    if (count.value() == 0) {
-                                        count.update(l.intValue());
-                                    }
+                                count.update(count.value() + 1);
+                                out.collect(
+                                        new Tuple4<>(
+                                                l,
+                                                window.getStart(),
+                                                window.getEnd(),
+                                                new IntType(count.value())));
+                            }
+                        })
+                .addSink(
+                        new ValidatingSink<>(
+                                new CountingSinkValidatorUpdateFun(),
+                                new SinkValidatorCheckFun(numKeys, numElementsPerKey, windowSize)))
+                .setParallelism(1);
 
-                                    // validate that the function has been opened properly
-                                    assertTrue(open);
-
-                                    count.update(count.value() + 1);
-                                    out.collect(
-                                            new Tuple4<>(
-                                                    l,
-                                                    window.getStart(),
-                                                    window.getEnd(),
-                                                    new IntType(count.value())));
-                                }
-                            })
-                    .addSink(
-                            new ValidatingSink<>(
-                                    new CountingSinkValidatorUpdateFun(),
-                                    new SinkValidatorCheckFun(
-                                            numKeys, numElementsPerKey, windowSize)))
-                    .setParallelism(1);
-
-            env.execute("Tumbling Window Test");
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        env.execute("Tumbling Window Test");
     }
 
     @Test
-    public void testSlidingTimeWindow() {
+    public void testSlidingTimeWindow() throws Exception {
         final int numElementsPerKey = numElementsPerKey();
         final int windowSize = windowSize();
         final int windowSlide = windowSlide();
         final int numKeys = numKeys();
 
-        try {
-            StreamExecutionEnvironment env =
-                    StreamExecutionEnvironment.getExecutionEnvironment(configuration);
-            env.setMaxParallelism(2 * PARALLELISM);
-            env.setParallelism(PARALLELISM);
-            env.enableCheckpointing(100);
-            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
-            env.getConfig().setUseSnapshotCompression(true);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        env.setMaxParallelism(2 * PARALLELISM);
+        env.setParallelism(PARALLELISM);
+        env.enableCheckpointing(100);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
+        env.getConfig().setUseSnapshotCompression(true);
 
-            env.addSource(
-                            new FailingSource(
-                                    new KeyedEventTimeGenerator(numKeys, windowSlide),
-                                    numElementsPerKey))
-                    .rebalance()
-                    .keyBy(x -> x.f0)
-                    .window(
-                            SlidingEventTimeWindows.of(
-                                    Duration.ofMillis(windowSize), Duration.ofMillis(windowSlide)))
-                    .apply(
-                            new RichWindowFunction<
-                                    Tuple2<Long, IntType>,
-                                    Tuple4<Long, Long, Long, IntType>,
-                                    Long,
-                                    TimeWindow>() {
+        env.addSource(
+                        new FailingSource(
+                                new KeyedEventTimeGenerator(numKeys, windowSlide),
+                                numElementsPerKey))
+                .rebalance()
+                .keyBy(x -> x.f0)
+                .window(
+                        SlidingEventTimeWindows.of(
+                                Duration.ofMillis(windowSize), Duration.ofMillis(windowSlide)))
+                .apply(
+                        new RichWindowFunction<
+                                Tuple2<Long, IntType>,
+                                Tuple4<Long, Long, Long, IntType>,
+                                Long,
+                                TimeWindow>() {
 
-                                private boolean open = false;
+                            private boolean open = false;
 
-                                @Override
-                                public void open(OpenContext openContext) {
-                                    assertEquals(
-                                            PARALLELISM,
-                                            getRuntimeContext()
-                                                    .getTaskInfo()
-                                                    .getNumberOfParallelSubtasks());
-                                    open = true;
+                            @Override
+                            public void open(OpenContext openContext) {
+                                assertEquals(
+                                        PARALLELISM,
+                                        getRuntimeContext()
+                                                .getTaskInfo()
+                                                .getNumberOfParallelSubtasks());
+                                open = true;
+                            }
+
+                            @Override
+                            public void apply(
+                                    Long l,
+                                    TimeWindow window,
+                                    Iterable<Tuple2<Long, IntType>> values,
+                                    Collector<Tuple4<Long, Long, Long, IntType>> out) {
+
+                                // validate that the function has been opened properly
+                                assertTrue(open);
+
+                                int sum = 0;
+                                long key = -1;
+
+                                for (Tuple2<Long, IntType> value : values) {
+                                    sum += value.f1.value;
+                                    key = value.f0;
                                 }
+                                final Tuple4<Long, Long, Long, IntType> output =
+                                        new Tuple4<>(
+                                                key,
+                                                window.getStart(),
+                                                window.getEnd(),
+                                                new IntType(sum));
+                                out.collect(output);
+                            }
+                        })
+                .addSink(
+                        new ValidatingSink<>(
+                                new SinkValidatorUpdateFun(numElementsPerKey),
+                                new SinkValidatorCheckFun(numKeys, numElementsPerKey, windowSlide)))
+                .setParallelism(1);
 
-                                @Override
-                                public void apply(
-                                        Long l,
-                                        TimeWindow window,
-                                        Iterable<Tuple2<Long, IntType>> values,
-                                        Collector<Tuple4<Long, Long, Long, IntType>> out) {
+        env.execute("Tumbling Window Test");
+    }
 
-                                    // validate that the function has been opened properly
-                                    assertTrue(open);
+    @Test
+    public void testPreAggregatedTumblingTimeWindow() throws Exception {
+        final int numElementsPerKey = numElementsPerKey();
+        final int windowSize = windowSize();
+        final int numKeys = numKeys();
 
-                                    int sum = 0;
-                                    long key = -1;
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        env.setParallelism(PARALLELISM);
+        env.enableCheckpointing(100);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
+        env.getConfig().setUseSnapshotCompression(true);
 
-                                    for (Tuple2<Long, IntType> value : values) {
-                                        sum += value.f1.value;
-                                        key = value.f0;
-                                    }
+        env.addSource(
+                        new FailingSource(
+                                new KeyedEventTimeGenerator(numKeys, windowSize),
+                                numElementsPerKey))
+                .rebalance()
+                .keyBy(x -> x.f0)
+                .window(TumblingEventTimeWindows.of(Duration.ofMillis(windowSize)))
+                .reduce(
+                        new ReduceFunction<Tuple2<Long, IntType>>() {
+
+                            @Override
+                            public Tuple2<Long, IntType> reduce(
+                                    Tuple2<Long, IntType> a, Tuple2<Long, IntType> b) {
+                                return new Tuple2<>(a.f0, new IntType(a.f1.value + b.f1.value));
+                            }
+                        },
+                        new RichWindowFunction<
+                                Tuple2<Long, IntType>,
+                                Tuple4<Long, Long, Long, IntType>,
+                                Long,
+                                TimeWindow>() {
+
+                            private boolean open = false;
+
+                            @Override
+                            public void open(OpenContext openContext) {
+                                assertEquals(
+                                        PARALLELISM,
+                                        getRuntimeContext()
+                                                .getTaskInfo()
+                                                .getNumberOfParallelSubtasks());
+                                open = true;
+                            }
+
+                            @Override
+                            public void apply(
+                                    Long l,
+                                    TimeWindow window,
+                                    Iterable<Tuple2<Long, IntType>> input,
+                                    Collector<Tuple4<Long, Long, Long, IntType>> out) {
+
+                                // validate that the function has been opened properly
+                                assertTrue(open);
+
+                                for (Tuple2<Long, IntType> in : input) {
                                     final Tuple4<Long, Long, Long, IntType> output =
                                             new Tuple4<>(
-                                                    key,
+                                                    in.f0,
                                                     window.getStart(),
                                                     window.getEnd(),
-                                                    new IntType(sum));
+                                                    in.f1);
                                     out.collect(output);
                                 }
-                            })
-                    .addSink(
-                            new ValidatingSink<>(
-                                    new SinkValidatorUpdateFun(numElementsPerKey),
-                                    new SinkValidatorCheckFun(
-                                            numKeys, numElementsPerKey, windowSlide)))
-                    .setParallelism(1);
+                            }
+                        })
+                .addSink(
+                        new ValidatingSink<>(
+                                new SinkValidatorUpdateFun(numElementsPerKey),
+                                new SinkValidatorCheckFun(numKeys, numElementsPerKey, windowSize)))
+                .setParallelism(1);
 
-            env.execute("Tumbling Window Test");
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        env.execute("Tumbling Window Test");
     }
 
     @Test
-    public void testPreAggregatedTumblingTimeWindow() {
-        final int numElementsPerKey = numElementsPerKey();
-        final int windowSize = windowSize();
-        final int numKeys = numKeys();
-
-        try {
-            StreamExecutionEnvironment env =
-                    StreamExecutionEnvironment.getExecutionEnvironment(configuration);
-            env.setParallelism(PARALLELISM);
-            env.enableCheckpointing(100);
-            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
-            env.getConfig().setUseSnapshotCompression(true);
-
-            env.addSource(
-                            new FailingSource(
-                                    new KeyedEventTimeGenerator(numKeys, windowSize),
-                                    numElementsPerKey))
-                    .rebalance()
-                    .keyBy(x -> x.f0)
-                    .window(TumblingEventTimeWindows.of(Duration.ofMillis(windowSize)))
-                    .reduce(
-                            new ReduceFunction<Tuple2<Long, IntType>>() {
-
-                                @Override
-                                public Tuple2<Long, IntType> reduce(
-                                        Tuple2<Long, IntType> a, Tuple2<Long, IntType> b) {
-                                    return new Tuple2<>(a.f0, new IntType(a.f1.value + b.f1.value));
-                                }
-                            },
-                            new RichWindowFunction<
-                                    Tuple2<Long, IntType>,
-                                    Tuple4<Long, Long, Long, IntType>,
-                                    Long,
-                                    TimeWindow>() {
-
-                                private boolean open = false;
-
-                                @Override
-                                public void open(OpenContext openContext) {
-                                    assertEquals(
-                                            PARALLELISM,
-                                            getRuntimeContext()
-                                                    .getTaskInfo()
-                                                    .getNumberOfParallelSubtasks());
-                                    open = true;
-                                }
-
-                                @Override
-                                public void apply(
-                                        Long l,
-                                        TimeWindow window,
-                                        Iterable<Tuple2<Long, IntType>> input,
-                                        Collector<Tuple4<Long, Long, Long, IntType>> out) {
-
-                                    // validate that the function has been opened properly
-                                    assertTrue(open);
-
-                                    for (Tuple2<Long, IntType> in : input) {
-                                        final Tuple4<Long, Long, Long, IntType> output =
-                                                new Tuple4<>(
-                                                        in.f0,
-                                                        window.getStart(),
-                                                        window.getEnd(),
-                                                        in.f1);
-                                        out.collect(output);
-                                    }
-                                }
-                            })
-                    .addSink(
-                            new ValidatingSink<>(
-                                    new SinkValidatorUpdateFun(numElementsPerKey),
-                                    new SinkValidatorCheckFun(
-                                            numKeys, numElementsPerKey, windowSize)))
-                    .setParallelism(1);
-
-            env.execute("Tumbling Window Test");
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
-    }
-
-    @Test
-    public void testPreAggregatedSlidingTimeWindow() {
+    public void testPreAggregatedSlidingTimeWindow() throws Exception {
         final int numElementsPerKey = numElementsPerKey();
         final int windowSize = windowSize();
         final int windowSlide = windowSlide();
         final int numKeys = numKeys();
 
-        try {
-            StreamExecutionEnvironment env =
-                    StreamExecutionEnvironment.getExecutionEnvironment(configuration);
-            env.setParallelism(PARALLELISM);
-            env.enableCheckpointing(100);
-            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
-            env.getConfig().setUseSnapshotCompression(true);
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        env.setParallelism(PARALLELISM);
+        env.enableCheckpointing(100);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
+        env.getConfig().setUseSnapshotCompression(true);
 
-            env.addSource(
-                            new FailingSource(
-                                    new KeyedEventTimeGenerator(numKeys, windowSlide),
-                                    numElementsPerKey))
-                    .rebalance()
-                    .keyBy(x -> x.f0)
-                    .window(
-                            SlidingEventTimeWindows.of(
-                                    Duration.ofMillis(windowSize), Duration.ofMillis(windowSlide)))
-                    .reduce(
-                            new ReduceFunction<Tuple2<Long, IntType>>() {
+        env.addSource(
+                        new FailingSource(
+                                new KeyedEventTimeGenerator(numKeys, windowSlide),
+                                numElementsPerKey))
+                .rebalance()
+                .keyBy(x -> x.f0)
+                .window(
+                        SlidingEventTimeWindows.of(
+                                Duration.ofMillis(windowSize), Duration.ofMillis(windowSlide)))
+                .reduce(
+                        new ReduceFunction<Tuple2<Long, IntType>>() {
 
-                                @Override
-                                public Tuple2<Long, IntType> reduce(
-                                        Tuple2<Long, IntType> a, Tuple2<Long, IntType> b) {
+                            @Override
+                            public Tuple2<Long, IntType> reduce(
+                                    Tuple2<Long, IntType> a, Tuple2<Long, IntType> b) {
 
-                                    // validate that the function has been opened properly
-                                    return new Tuple2<>(a.f0, new IntType(a.f1.value + b.f1.value));
+                                // validate that the function has been opened properly
+                                return new Tuple2<>(a.f0, new IntType(a.f1.value + b.f1.value));
+                            }
+                        },
+                        new RichWindowFunction<
+                                Tuple2<Long, IntType>,
+                                Tuple4<Long, Long, Long, IntType>,
+                                Long,
+                                TimeWindow>() {
+
+                            private boolean open = false;
+
+                            @Override
+                            public void open(OpenContext openContext) {
+                                assertEquals(
+                                        PARALLELISM,
+                                        getRuntimeContext()
+                                                .getTaskInfo()
+                                                .getNumberOfParallelSubtasks());
+                                open = true;
+                            }
+
+                            @Override
+                            public void apply(
+                                    Long l,
+                                    TimeWindow window,
+                                    Iterable<Tuple2<Long, IntType>> input,
+                                    Collector<Tuple4<Long, Long, Long, IntType>> out) {
+
+                                // validate that the function has been opened properly
+                                assertTrue(open);
+
+                                for (Tuple2<Long, IntType> in : input) {
+                                    out.collect(
+                                            new Tuple4<>(
+                                                    in.f0,
+                                                    window.getStart(),
+                                                    window.getEnd(),
+                                                    in.f1));
                                 }
-                            },
-                            new RichWindowFunction<
-                                    Tuple2<Long, IntType>,
-                                    Tuple4<Long, Long, Long, IntType>,
-                                    Long,
-                                    TimeWindow>() {
+                            }
+                        })
+                .addSink(
+                        new ValidatingSink<>(
+                                new SinkValidatorUpdateFun(numElementsPerKey),
+                                new SinkValidatorCheckFun(numKeys, numElementsPerKey, windowSlide)))
+                .setParallelism(1);
 
-                                private boolean open = false;
-
-                                @Override
-                                public void open(OpenContext openContext) {
-                                    assertEquals(
-                                            PARALLELISM,
-                                            getRuntimeContext()
-                                                    .getTaskInfo()
-                                                    .getNumberOfParallelSubtasks());
-                                    open = true;
-                                }
-
-                                @Override
-                                public void apply(
-                                        Long l,
-                                        TimeWindow window,
-                                        Iterable<Tuple2<Long, IntType>> input,
-                                        Collector<Tuple4<Long, Long, Long, IntType>> out) {
-
-                                    // validate that the function has been opened properly
-                                    assertTrue(open);
-
-                                    for (Tuple2<Long, IntType> in : input) {
-                                        out.collect(
-                                                new Tuple4<>(
-                                                        in.f0,
-                                                        window.getStart(),
-                                                        window.getEnd(),
-                                                        in.f1));
-                                    }
-                                }
-                            })
-                    .addSink(
-                            new ValidatingSink<>(
-                                    new SinkValidatorUpdateFun(numElementsPerKey),
-                                    new SinkValidatorCheckFun(
-                                            numKeys, numElementsPerKey, windowSlide)))
-                    .setParallelism(1);
-
-            env.execute("Tumbling Window Test");
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        env.execute("Tumbling Window Test");
     }
 
     // ------------------------------------------------------------------------

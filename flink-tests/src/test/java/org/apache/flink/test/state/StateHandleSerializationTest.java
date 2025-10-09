@@ -36,22 +36,17 @@ import static org.junit.Assert.fail;
 public class StateHandleSerializationTest {
 
     @Test
-    public void ensureStateHandlesHaveSerialVersionUID() {
-        try {
-            Reflections reflections = new Reflections("org.apache.flink");
+    public void ensureStateHandlesHaveSerialVersionUID() throws Exception {
+        Reflections reflections = new Reflections("org.apache.flink");
 
-            // check all state handles
+        // check all state handles
 
-            @SuppressWarnings("unchecked")
-            Set<Class<?>> stateHandleImplementations =
-                    (Set<Class<?>>) (Set<?>) reflections.getSubTypesOf(StateObject.class);
+        @SuppressWarnings("unchecked")
+        Set<Class<?>> stateHandleImplementations =
+                (Set<Class<?>>) (Set<?>) reflections.getSubTypesOf(StateObject.class);
 
-            for (Class<?> clazz : stateHandleImplementations) {
-                validataSerialVersionUID(clazz);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
+        for (Class<?> clazz : stateHandleImplementations) {
+            validataSerialVersionUID(clazz);
         }
     }
 
