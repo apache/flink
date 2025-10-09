@@ -87,16 +87,10 @@ public class TimestampedFileInputSplitTest extends TestLogger {
         Assert.assertTrue(richThirdSplit.compareTo(richForthSplit) < 0);
     }
 
-    @Test
+    @Test(expected = IllegalArgumentException.class)
     public void testIllegalArgument() {
-        try {
-            new TimestampedFileInputSplit(
-                    -10, 2, new Path("test"), 0, 100, null); // invalid modification time
-        } catch (Exception e) {
-            if (!(e instanceof IllegalArgumentException)) {
-                Assert.fail(e.getMessage());
-            }
-        }
+        new TimestampedFileInputSplit(
+                -10, 2, new Path("test"), 0, 100, null); // invalid modification time
     }
 
     @Test
