@@ -27,28 +27,29 @@ import org.apache.flink.types.RowKind;
 import java.io.Serializable;
 
 /**
- * A {@link DynamicTableSource} that search rows of an external storage system by one or more
+ * A {@link DynamicTableSource} that searches rows of an external storage system by one or more
  * vectors during runtime.
  *
  * <p>Compared to {@link ScanTableSource}, the source does not have to read the entire table and can
  * lazily fetch individual values from a (possibly continuously changing) external table when
  * necessary.
  *
- * <p>Note: Compared to {@link ScanTableSource}, a {@link VectorSearchTableSource} does only support
- * emitting insert-only changes currently (see also {@link RowKind}). Further abilities are not
- * supported.
+ * <p>Note: Compared to {@link ScanTableSource}, a {@link VectorSearchTableSource} only supports
+ * emitting insert-only changes (see also {@link RowKind}).
  *
  * <p>In the last step, the planner will call {@link #getSearchRuntimeProvider(VectorSearchContext)}
- * for obtaining a provider of runtime implementation. The search fields that are required to
- * perform a search are derived from a query by the planner and will be provided in the given {@link
- * VectorSearchTableSource.VectorSearchContext#getSearchColumns()}. The values for those key fields
- * are passed during runtime.
+ * to obtain a provider of runtime implementation. The search fields that are required to perform a
+ * search are derived from a query by the planner and will be provided in the given {@link
+ * VectorSearchTableSource.VectorSearchContext#getSearchColumns()}. The values for those search
+ * fields are passed at runtime.
  */
 @PublicEvolving
 public interface VectorSearchTableSource extends DynamicTableSource {
 
     /**
-     * Returns a provider of runtime implementation for reading the data.
+     * Returns a {@code VectorSearchRuntimeProvider}. VectorSearchRuntimeProvider is a base
+     * interface that should be extended (is this true) by child interfaces for specialized vector
+     * searches.
      *
      * <p>There exist different interfaces for runtime implementation which is why {@link
      * VectorSearchRuntimeProvider} serves as the base interface.
@@ -57,7 +58,7 @@ public interface VectorSearchTableSource extends DynamicTableSource {
      * arbitrary objects or internal data structures (see {@link org.apache.flink.table.data} for
      * more information).
      *
-     * <p>The given {@link VectorSearchContext} offers utilities by the planner for creating runtime
+     * <p>The given {@link VectorSearchContext} offers utilities for the planner to create runtime
      * implementation with minimal dependencies to internal data structures.
      *
      * @see VectorSearchFunctionProvider
@@ -72,7 +73,7 @@ public interface VectorSearchTableSource extends DynamicTableSource {
     /**
      * Context for creating runtime implementation via a {@link VectorSearchRuntimeProvider}.
      *
-     * <p>It offers utilities by the planner for creating runtime implementation with minimal
+     * <p>It offers utilities for the planner to create runtime implementation with minimal
      * dependencies to internal data structures.
      *
      * <p>Methods should be called in {@link #getSearchRuntimeProvider(VectorSearchContext)}.
@@ -95,10 +96,10 @@ public interface VectorSearchTableSource extends DynamicTableSource {
         int[][] getSearchColumns();
 
         /**
-         * Runtime config provided to provider. The config can be used by planner or vector search
-         * provider at runtime. For example, async options can be used by planner to choose async
-         * inference. Other config such as http timeout or retry can be used to configure search
-         * functions.
+         * Runtime config provided to the provider. The config can be used by the planner or vector
+         * search provider at runtime. For example, async options can be used by planner to choose
+         * async inference. Other config such as http timeout or retry can be used to configure
+         * search functions.
          */
         ReadableConfig runtimeConfig();
     }
@@ -106,7 +107,7 @@ public interface VectorSearchTableSource extends DynamicTableSource {
     /**
      * Provides actual runtime implementation for reading the data.
      *
-     * <p>There exist different interfaces for runtime implementation which is why {@link
+     * <p>There exists different interfaces for runtime implementation which is why {@link
      * VectorSearchRuntimeProvider} serves as the base interface.
      *
      * @see VectorSearchFunctionProvider
