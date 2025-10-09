@@ -36,7 +36,6 @@ import org.apache.flink.table.types.logical.RowType;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors;
-import com.google.protobuf.Descriptors.FileDescriptor.Syntax;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,7 +68,7 @@ public class ProtoToRowConverter {
                             Thread.currentThread().getContextClassLoader());
             String fullMessageClassName = PbFormatUtils.getFullJavaName(descriptor);
             boolean readDefaultValuesForPrimitiveTypes = formatConfig.isReadDefaultValues();
-            if (descriptor.getFile().getSyntax() == Syntax.PROTO3) {
+            if ("proto3".equals(descriptor.getFile().toProto().getSyntax())) {
                 // pb3 always read default values for primitive types
                 readDefaultValuesForPrimitiveTypes = true;
             }
