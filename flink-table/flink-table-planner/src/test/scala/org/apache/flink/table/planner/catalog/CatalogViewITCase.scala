@@ -355,7 +355,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
            |  `c`
            |)
            |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
-           |FROM `default_catalog`.`default_database`.`T1`
+           |FROM `default_catalog`.`default_database`.`T1` AS `T1`
            |""".stripMargin
       )
     )
@@ -375,7 +375,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
            |  `f`
            |)
            |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
-           |FROM `default_catalog`.`default_database`.`T1`
+           |FROM `default_catalog`.`default_database`.`T1` AS `T1`
            |""".stripMargin
       )
     )
@@ -402,7 +402,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
              |  `c`
              |)
              |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
-             |FROM `default_catalog`.`default_database`.`T1`
+             |FROM `default_catalog`.`default_database`.`T1` AS `T1`
              |""".stripMargin
         )
       )
@@ -422,7 +422,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
            |  `z`
            |)
            |AS SELECT `T1`.`a`, `T1`.`b`, `T1`.`c`
-           |FROM `default_catalog`.`default_database`.`T1`
+           |FROM `default_catalog`.`default_database`.`T1` AS `T1`
            |""".stripMargin
       )
     )
@@ -449,8 +449,8 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
            |  `max_value`
            |)
            |AS SELECT MAX(`t1`.`a`) AS `max_value`
-           |FROM `default_catalog`.`default_database`.`t1`
-           |LEFT JOIN `default_catalog`.`default_database`.`t2` ON `t1`.`c` = `t2`.`c`
+           |FROM `default_catalog`.`default_database`.`t1` AS `t1`
+           |LEFT JOIN `default_catalog`.`default_database`.`t2` AS `t2` ON `t1`.`c` = `t2`.`c`
            |""".stripMargin
       )
     )
@@ -484,8 +484,8 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
            |  `b2`
            |)
            |AS SELECT `udfEqualsOne`() AS `a`, `t1`.`a` AS `a1`, `t2`.`b` AS `b2`
-           |FROM `default_catalog`.`default_database`.`t1`
-           |CROSS JOIN `default_catalog`.`default_database`.`t2`
+           |FROM `default_catalog`.`default_database`.`t1` AS `t1`
+           |CROSS JOIN `default_catalog`.`default_database`.`t2` AS `t2`
            |""".stripMargin
       )
     )
@@ -514,8 +514,8 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
            |  `b2`
            |)
            |AS SELECT `t1`.`a` AS `a1`, `t2`.`b` AS `b2`
-           |FROM `default_catalog`.`default_database`.`t1`
-           |INNER JOIN `default_catalog`.`default_database`.`t2` ON `t1`.`c` = `t2`.`c`
+           |FROM `default_catalog`.`default_database`.`t1` AS `t1`
+           |INNER JOIN `default_catalog`.`default_database`.`t2` AS `t2` ON `t1`.`c` = `t2`.`c`
            |""".stripMargin
       )
     )
