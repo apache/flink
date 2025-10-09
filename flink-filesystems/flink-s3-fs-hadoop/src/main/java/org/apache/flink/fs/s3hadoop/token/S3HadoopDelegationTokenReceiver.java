@@ -19,11 +19,11 @@
 package org.apache.flink.fs.s3hadoop.token;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.fs.s3.common.token.AbstractS3DelegationTokenReceiver;
+import org.apache.flink.fs.s3.common.token.HadoopS3DelegationTokenReceiver;
 
-/** Delegation token receiver for S3 Hadoop filesystems. */
+/** Delegation token receiver for S3 Hadoop filesystems using AWS SDK v2. */
 @Internal
-public class S3HadoopDelegationTokenReceiver extends AbstractS3DelegationTokenReceiver {
+public class S3HadoopDelegationTokenReceiver extends HadoopS3DelegationTokenReceiver {
     @Override
     public String serviceName() {
         return "s3-hadoop";
