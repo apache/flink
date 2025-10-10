@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.sink;
 
 import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
@@ -210,5 +211,28 @@ public class SinkUpsertMaterializerTest {
                                 .getProducedType());
         testHarness.setStateBackend(backend.create(true));
         return testHarness;
+    }
+
+    @Test
+    public void testEmptyUpsertKey() throws Exception {
+        testRecovery(createOperator(LOGICAL_TYPES), createOperatorWithoutUpsertKey());
+        testRecovery(createOperatorWithoutUpsertKey(), createOperator(LOGICAL_TYPES));
+    }
+
+    private void testRecovery(
+            OneInputStreamOperator<RowData, RowData> from,
+            OneInputStreamOperator<RowData, RowData> to)
+            throws Exception {
+        OperatorSubtaskState snapshot;
+        try (KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> testHarness =
+                createHarness(from)) {
+            testHarness.open();
+            snapshot = testHarness.snapshot(1L, 1L);
+        }
+        try (KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> testHarness =
+                createHarness(to)) {
+            testHarness.initializeState(snapshot);
+            testHarness.open();
+        }
     }
 }
