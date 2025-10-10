@@ -1,0 +1,47 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testVarianceStddevWithFilter">
+    <Resource name="sql">
+      <![CDATA[SELECT a, 
+STDDEV_POP(b) FILTER (WHERE b > 10), 
+STDDEV_SAMP(b) FILTER (WHERE b > 20), 
+VAR_POP(b) FILTER (WHERE b > 30), 
+VAR_SAMP(b) FILTER (WHERE b > 40), 
+AVG(b) FILTER (WHERE b > 50)
+FROM src GROUP BY a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[STDDEV_POP($1) FILTER $2], EXPR$2=[STDDEV_SAMP($1) FILTER $3], EXPR$3=[VAR_POP($1) FILTER $4], EXPR$4=[VAR_SAMP($1) FILTER $5], EXPR$5=[AVG($1) FILTER $6])
++- LogicalProject(a=[$0], b=[$1], $f2=[IS TRUE(>($1, 10))], $f3=[IS TRUE(>($1, 20))], $f4=[IS TRUE(>($1, 30))], $f5=[IS TRUE(>($1, 40))], $f6=[IS TRUE(>($1, 50))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[CAST(POWER(/(-($1, /(*($2, $2), $3)), $3), 0.5:DECIMAL(2, 1))):BIGINT], EXPR$2=[CAST(POWER(/(-($4, /(*($5, $5), $6)), CASE(=($6, 1), null:BIGINT, -($6, 1))), 0.5:DECIMAL(2, 1))):BIGINT], EXPR$3=[/(-($7, /(*($8, $8), $9)), $9)], EXPR$4=[/(-($10, /(*($11, $11), $12)), CASE(=($12, 1), null:BIGINT, -($12, 1)))], EXPR$5=[/($13, $14)])
++- LogicalProject(a=[$0], $f1=[CASE(=($2, 0), null:BIGINT, $1)], $f2=[CASE(=($4, 0), null:BIGINT, $3)], $f3=[$4], $f4=[CASE(=($6, 0), null:BIGINT, $5)], $f5=[CASE(=($8, 0), null:BIGINT, $7)], $f6=[$8], $f7=[CASE(=($10, 0), null:BIGINT, $9)], $f8=[CASE(=($12, 0), null:BIGINT, $11)], $f9=[$12], $f10=[CASE(=($14, 0), null:BIGINT, $13)], $f11=[CASE(=($16, 0), null:BIGINT, $15)], $f12=[$16], $f13=[CASE(=($18, 0), null:BIGINT, $17)], $f14=[$18])
+   +- LogicalAggregate(group=[{0}], agg#0=[$SUM0($7) FILTER $2], agg#1=[COUNT($7) FILTER $2], agg#2=[$SUM0($1) FILTER $2], agg#3=[COUNT($1) FILTER $2], agg#4=[$SUM0($7) FILTER $3], agg#5=[COUNT($7) FILTER $3], agg#6=[$SUM0($1) FILTER $3], agg#7=[COUNT($1) FILTER $3], agg#8=[$SUM0($7) FILTER $4], agg#9=[COUNT($7) FILTER $4], agg#10=[$SUM0($1) FILTER $4], agg#11=[COUNT($1) FILTER $4], agg#12=[$SUM0($7) FILTER $5], agg#13=[COUNT($7) FILTER $5], agg#14=[$SUM0($1) FILTER $5], agg#15=[COUNT($1) FILTER $5], agg#16=[$SUM0($1) FILTER $6], agg#17=[COUNT($1) FILTER $6])
+      +- LogicalProject(a=[$0], b=[$1], $f2=[$2], $f3=[$3], $f4=[$4], $f5=[$5], $f6=[$6], $f7=[*($1, $1)])
+         +- LogicalProject(a=[$0], b=[$1], $f2=[IS TRUE(>($1, 10))], $f3=[IS TRUE(>($1, 20))], $f4=[IS TRUE(>($1, 30))], $f5=[IS TRUE(>($1, 40))], $f6=[IS TRUE(>($1, 50))])
+            +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>
