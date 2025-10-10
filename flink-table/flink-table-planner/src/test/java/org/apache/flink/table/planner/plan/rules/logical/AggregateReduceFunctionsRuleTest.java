@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.apache.calcite.plan.hep.HepMatchOrder;
+import org.apache.calcite.rel.rules.AggregateReduceFunctionsRule;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.tools.RuleSets;
 import org.junit.jupiter.api.BeforeEach;
