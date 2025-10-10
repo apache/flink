@@ -85,11 +85,7 @@ class SqlNodeConvertUtils {
                 context.getSqlValidator().getNamespace(validateQuery);
         validateDuplicatedColumnNames(query, viewFields, validatedNamespace);
 
-        // The LATERAL operator was eliminated during sql validation, thus the unparsed SQL
-        // does not contain LATERAL which is problematic,
-        // the issue was resolved in CALCITE-4077
-        // (always treat the table function as implicitly LATERAL).
-        String expandedQuery = context.expandSqlIdentifiers(originalQuery);
+        String expandedQuery = context.toQuotedSqlString(query);
 
         PlannerQueryOperation operation = toQueryOperation(validateQuery, context);
         ResolvedSchema schema = operation.getResolvedSchema();

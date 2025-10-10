@@ -167,16 +167,20 @@ import static org.apache.calcite.util.Util.first;
  * Default implementation of {@link SqlValidator}, the class was copied over because of
  * CALCITE-4554.
  *
- * <p>Lines 197 ~ 200, Flink improves error message for functions without appropriate arguments in
+ * <p>Lines 202 ~ 205, Flink improves error message for functions without appropriate arguments in
  * handleUnresolvedFunction.
  *
- * <p>Lines 2012 ~ 2032, Flink improves error message for functions without appropriate arguments in
+ * <p>Lines 1270 ~ 1272, CALCITE-7217, should be removed after upgrading Calcite to 1.41.0.
+ *
+ * <p>Lines 2031 ~ 2045, Flink improves error message for functions without appropriate arguments in
  * handleUnresolvedFunction at {@link SqlValidatorImpl#handleUnresolvedFunction}.
  *
- * <p>Lines 3840 ~ 3844, 6511 ~ 6517 Flink improves Optimize the retrieval of sub-operands in
+ * <p>Lines 2571 ~ 2588, CALCITE-7217, should be removed after upgrading Calcite to 1.41.0.
+ *
+ * <p>Lines 3895 ~ 3899, 6574 ~ 6580 Flink improves Optimize the retrieval of sub-operands in
  * SqlCall when using NamedParameters at {@link SqlValidatorImpl#checkRollUp}.
  *
- * <p>Lines 5246 ~ 5252, FLINK-24352 Add null check for temporal table check on SqlSnapshot.
+ * <p>Lines 5315 ~ 5321, FLINK-24352 Add null check for temporal table check on SqlSnapshot.
  */
 public class SqlValidatorImpl implements SqlValidatorWithHints {
     // ~ Static fields/initializers ---------------------------------------------
@@ -1263,6 +1267,9 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                 }
             // fall through
             case TABLE_REF:
+            // ----- FLINK MODIFICATION BEGIN -----
+            case LATERAL:
+            // ----- FLINK MODIFICATION END -----
             case SNAPSHOT:
             case OVER:
             case COLLECTION_TABLE:
@@ -2561,7 +2568,9 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                 return newNode;
 
             case LATERAL:
-                return registerFrom(
+                // ----- FLINK MODIFICATION BEGIN -----
+                SqlBasicCall sbc = (SqlBasicCall) node;
+                registerFrom(
                         parentScope,
                         usingScope,
                         register,
@@ -2571,6 +2580,12 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                         extendList,
                         forceNullable,
                         true);
+                // Put the usingScope which is a JoinScope,
+                // in order to make visible the left items
+                // of the JOIN tree.
+                scopes.put(node, usingScope);
+                return sbc;
+            // ----- FLINK MODIFICATION END -----
 
             case COLLECTION_TABLE:
                 call = (SqlCall) node;

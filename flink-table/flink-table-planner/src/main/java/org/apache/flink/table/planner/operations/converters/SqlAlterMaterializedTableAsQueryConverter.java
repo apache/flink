@@ -52,14 +52,10 @@ public class SqlAlterMaterializedTableAsQueryConverter
                 context.toQuotedSqlString(sqlAlterMaterializedTableAsQuery.getAsQuery());
         SqlNode validatedQuery =
                 context.getSqlValidator().validate(sqlAlterMaterializedTableAsQuery.getAsQuery());
-        // The LATERAL operator was eliminated during sql validation, thus the unparsed SQL
-        // does not contain LATERAL which is problematic,
-        // the issue was resolved in CALCITE-4077
-        // (always treat the table function as implicitly LATERAL).
-        String definitionQuery = context.expandSqlIdentifiers(originalQuery);
+        String definitionQuery = context.toQuotedSqlString(validatedQuery);
         PlannerQueryOperation queryOperation =
                 new PlannerQueryOperation(
-                        context.toRelRoot(validatedQuery).project(), () -> originalQuery);
+                        context.toRelRoot(validatedQuery).project(), () -> definitionQuery);
 
         ResolvedCatalogMaterializedTable oldTable =
                 getResolvedMaterializedTable(
