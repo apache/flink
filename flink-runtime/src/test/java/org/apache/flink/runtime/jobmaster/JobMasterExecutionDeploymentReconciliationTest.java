@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
-import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -55,7 +54,6 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -295,54 +293,5 @@ class JobMasterExecutionDeploymentReconciliationTest {
         jobMasterGateway
                 .offerSlots(taskManagerLocation.getResourceID(), slotOffers, testingTimeout)
                 .get();
-    }
-
-    private static class TestingExecutionDeploymentTrackerWrapper
-            implements ExecutionDeploymentTracker {
-        private final ExecutionDeploymentTracker originalTracker;
-        private final CompletableFuture<ExecutionAttemptID> taskDeploymentFuture;
-        private final CompletableFuture<ExecutionAttemptID> stopFuture;
-
-        private TestingExecutionDeploymentTrackerWrapper() {
-            this(new DefaultExecutionDeploymentTracker());
-        }
-
-        private TestingExecutionDeploymentTrackerWrapper(
-                ExecutionDeploymentTracker originalTracker) {
-            this.originalTracker = originalTracker;
-            this.taskDeploymentFuture = new CompletableFuture<>();
-            this.stopFuture = new CompletableFuture<>();
-        }
-
-        @Override
-        public void startTrackingPendingDeploymentOf(
-                ExecutionAttemptID executionAttemptId, ResourceID host) {
-            originalTracker.startTrackingPendingDeploymentOf(executionAttemptId, host);
-        }
-
-        @Override
-        public void completeDeploymentOf(ExecutionAttemptID executionAttemptId) {
-            originalTracker.completeDeploymentOf(executionAttemptId);
-            taskDeploymentFuture.complete(executionAttemptId);
-        }
-
-        @Override
-        public void stopTrackingDeploymentOf(ExecutionAttemptID executionAttemptId) {
-            originalTracker.stopTrackingDeploymentOf(executionAttemptId);
-            stopFuture.complete(executionAttemptId);
-        }
-
-        @Override
-        public Map<ExecutionAttemptID, ExecutionDeploymentState> getExecutionsOn(ResourceID host) {
-            return originalTracker.getExecutionsOn(host);
-        }
-
-        public CompletableFuture<ExecutionAttemptID> getTaskDeploymentFuture() {
-            return taskDeploymentFuture;
-        }
-
-        public CompletableFuture<ExecutionAttemptID> getStopFuture() {
-            return stopFuture;
-        }
     }
 }
