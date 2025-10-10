@@ -74,11 +74,13 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
 
     /** Selector to get join key from left input. */
     private final RowDataKeySelector leftJoinKeySelector;
+
     /** Selector to get upsert key from left input. */
     private final RowDataKeySelector leftUpsertKeySelector;
 
     /** Selector to get join key from right input. */
     private final RowDataKeySelector rightJoinKeySelector;
+
     /** Selector to get upsert key from right input. */
     private final RowDataKeySelector rightUpsertKeySelector;
 
