@@ -237,7 +237,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
         RowDataKeySelector leftJoinKeySelector =
                 KeySelectorUtil.getRowDataSelector(
                         classLoader, leftJoinKeys, InternalTypeInfo.of(leftStreamType));
-        // currently, delta join only supports to consume INSERT-ONLY stream
+        // currently, delta join only supports consuming INSERT-ONLY stream
         RowDataKeySelector leftUpsertKeySelector =
                 getUpsertKeySelector(new int[0], leftStreamType, classLoader);
 
@@ -245,7 +245,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
         RowDataKeySelector rightJoinKeySelector =
                 KeySelectorUtil.getRowDataSelector(
                         classLoader, rightJoinKeys, InternalTypeInfo.of(rightStreamType));
-        // currently, delta join only supports to consume INSERT-ONLY stream
+        // currently, delta join only supports consuming INSERT-ONLY stream
         RowDataKeySelector rightUpsertKeySelector =
                 getUpsertKeySelector(new int[0], rightStreamType, classLoader);
 

@@ -133,19 +133,19 @@ ORDERED ensures that the operator emits the result in the same order as the data
             <td><h5>table.exec.delta-join.cache-enabled</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
-            <td>Whether enable the cache of delta join. If enabled, the delta join would cache the records from remote dim table.</td>
+            <td>Whether to enable the cache of delta join. If enabled, the delta join caches the records from remote dim table. Default is true.</td>
         </tr>
         <tr>
             <td><h5>table.exec.delta-join.left.cache-size</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">10000</td>
             <td>Long</td>
-            <td>The cache size used to cache the lookup results of the left table in delta join. This value must be positive when enabling cache.</td>
+            <td>The cache size used to cache the lookup results of the left table in delta join. This value must be positive when enabling cache. Default is 10000.</td>
         </tr>
         <tr>
             <td><h5>table.exec.delta-join.right.cache-size</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">10000</td>
             <td>Long</td>
-            <td>The cache size used to cache the lookup results of the right table in delta join. This value must be positive when enabling cache.</td>
+            <td>The cache size used to cache the lookup results of the right table in delta join. This value must be positive when enabling cache. Default is 10000.</td>
         </tr>
         <tr>
             <td><h5>table.exec.disabled-operators</h5><br> <span class="label label-primary">Batch</span></td>
