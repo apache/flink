@@ -528,6 +528,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         sharedRocksKeyBuilder.setKeyAndKeyGroup(getCurrentKey(), getCurrentKeyGroupIndex());
     }
 
+    @VisibleForTesting
+    LinkedHashMap<String, RocksDbKvStateInfo> getKvStateInformation() {
+        return kvStateInformation;
+    }
+
     /** Should only be called by one thread, and only after all accesses to the DB happened. */
     @Override
     public void dispose() {
