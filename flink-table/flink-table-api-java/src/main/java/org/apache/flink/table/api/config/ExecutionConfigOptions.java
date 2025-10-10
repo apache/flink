@@ -731,7 +731,8 @@ public class ExecutionConfigOptions {
                     .booleanType()
                     .defaultValue(true)
                     .withDescription(
-                            "Whether enable the cache of delta join. If enabled, the delta join would cache the records from remote dim table.");
+                            "Whether to enable the cache of delta join. If enabled, the delta join caches the "
+                                    + "records from remote dim table. Default is true.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Long> TABLE_EXEC_DELTA_JOIN_LEFT_CACHE_SIZE =
@@ -740,7 +741,7 @@ public class ExecutionConfigOptions {
                     .defaultValue(10000L)
                     .withDescription(
                             "The cache size used to cache the lookup results of the left table in delta join. "
-                                    + "This value must be positive when enabling cache.");
+                                    + "This value must be positive when enabling cache. Default is 10000.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Long> TABLE_EXEC_DELTA_JOIN_RIGHT_CACHE_SIZE =
@@ -749,7 +750,7 @@ public class ExecutionConfigOptions {
                     .defaultValue(10000L)
                     .withDescription(
                             "The cache size used to cache the lookup results of the right table in delta join. "
-                                    + "This value must be positive when enabling cache.");
+                                    + "This value must be positive when enabling cache. Default is 10000.");
 
     // ------------------------------------------------------------------------------------------
     // Enum option types
