@@ -126,6 +126,7 @@ class CompactionScheduler {
         }
 
         for (CompactionTask target : targets) {
+            tracker.addManualCompaction();
             ioExecutor.execute(
                     () ->
                             tracker.runWithTracking(
