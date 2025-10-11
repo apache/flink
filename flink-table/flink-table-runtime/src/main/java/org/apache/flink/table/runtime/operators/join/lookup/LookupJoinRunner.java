@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.operators.join.lookup;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.util.FunctionUtils;
-import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
@@ -29,20 +28,19 @@ import org.apache.flink.table.runtime.collector.ListenableCollector;
 import org.apache.flink.table.runtime.generated.FilterCondition;
 import org.apache.flink.table.runtime.generated.GeneratedCollector;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
+import org.apache.flink.table.runtime.operators.AbstractFunctionRunner;
 import org.apache.flink.util.Collector;
 
 /** The join runner to lookup the dimension table. */
-public class LookupJoinRunner extends ProcessFunction<RowData, RowData> {
+public class LookupJoinRunner extends AbstractFunctionRunner {
     private static final long serialVersionUID = -4521543015709964733L;
 
-    private final GeneratedFunction<FlatMapFunction<RowData, RowData>> generatedFetcher;
     private final GeneratedCollector<ListenableCollector<RowData>> generatedCollector;
     private final GeneratedFunction<FilterCondition> generatedPreFilterCondition;
 
     protected final boolean isLeftOuterJoin;
     protected final int tableFieldsCount;
 
-    private transient FlatMapFunction<RowData, RowData> fetcher;
     protected transient ListenableCollector<RowData> collector;
     protected transient JoinedRowData outRow;
     protected transient FilterCondition preFilterCondition;
@@ -54,7 +52,7 @@ public class LookupJoinRunner extends ProcessFunction<RowData, RowData> {
             GeneratedFunction<FilterCondition> generatedPreFilterCondition,
             boolean isLeftOuterJoin,
             int tableFieldsCount) {
-        this.generatedFetcher = generatedFetcher;
+        super(generatedFetcher);
         this.generatedCollector = generatedCollector;
         this.generatedPreFilterCondition = generatedPreFilterCondition;
         this.isLeftOuterJoin = isLeftOuterJoin;
@@ -64,17 +62,14 @@ public class LookupJoinRunner extends ProcessFunction<RowData, RowData> {
     @Override
     public void open(OpenContext openContext) throws Exception {
         super.open(openContext);
-        this.fetcher = generatedFetcher.newInstance(getRuntimeContext().getUserCodeClassLoader());
         this.collector =
                 generatedCollector.newInstance(getRuntimeContext().getUserCodeClassLoader());
         this.preFilterCondition =
                 generatedPreFilterCondition.newInstance(
                         getRuntimeContext().getUserCodeClassLoader());
 
-        FunctionUtils.setFunctionRuntimeContext(fetcher, getRuntimeContext());
         FunctionUtils.setFunctionRuntimeContext(collector, getRuntimeContext());
         FunctionUtils.setFunctionRuntimeContext(preFilterCondition, getRuntimeContext());
-        FunctionUtils.openFunction(fetcher, openContext);
         FunctionUtils.openFunction(collector, openContext);
         FunctionUtils.openFunction(preFilterCondition, openContext);
 
@@ -124,9 +119,6 @@ public class LookupJoinRunner extends ProcessFunction<RowData, RowData> {
 
     @Override
     public void close() throws Exception {
-        if (fetcher != null) {
-            FunctionUtils.closeFunction(fetcher);
-        }
         if (collector != null) {
             FunctionUtils.closeFunction(collector);
         }
