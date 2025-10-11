@@ -43,7 +43,7 @@ import org.apache.flink.shaded.curator5.org.apache.curator.framework.api.CreateB
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.ChildData;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.CuratorCache;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.CuratorCacheListener;
-import org.apache.flink.shaded.curator5.org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.flink.shaded.curator5.org.apache.curator.retry.BoundedExponentialBackoffRetry;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.CreateMode;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.ACL;
 
@@ -558,7 +558,7 @@ class ZooKeeperLeaderElectionTest {
         final CuratorFrameworkFactory.Builder curatorFrameworkBuilder =
                 CuratorFrameworkFactory.builder()
                         .connectString(zooKeeperResource.getCustomExtension().getConnectString())
-                        .retryPolicy(new ExponentialBackoffRetry(1, 0))
+                        .retryPolicy(new BoundedExponentialBackoffRetry(1, 10, 0))
                         .aclProvider(
                                 new ACLProvider() {
                                     // trigger background exception

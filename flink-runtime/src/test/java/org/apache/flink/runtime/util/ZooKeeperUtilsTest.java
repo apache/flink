@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.flink.shaded.curator5.org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.flink.shaded.curator5.org.apache.curator.retry.BoundedExponentialBackoffRetry;
 
 import org.junit.jupiter.api.Test;
 
@@ -94,7 +94,7 @@ class ZooKeeperUtilsTest {
         final CuratorFrameworkFactory.Builder curatorFrameworkBuilder =
                 CuratorFrameworkFactory.builder()
                         .connectString("localhost:2181")
-                        .retryPolicy(new ExponentialBackoffRetry(1, 1))
+                        .retryPolicy(new BoundedExponentialBackoffRetry(1, 10, 1))
                         .zookeeperFactory(
                                 (s, i, watcher, b) -> {
                                     throw new RuntimeException(errorMsg);
