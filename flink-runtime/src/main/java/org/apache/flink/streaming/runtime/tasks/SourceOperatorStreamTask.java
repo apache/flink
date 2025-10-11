@@ -219,6 +219,11 @@ public class SourceOperatorStreamTask<T> extends StreamTask<T, SourceOperator<T,
     }
 
     @Override
+    protected void emitFinishedStatus() {
+        emitFinishedStatusToOutputs();
+    }
+
+    @Override
     protected void declineCheckpoint(long checkpointId) {
         cleanupCheckpoint(checkpointId);
         super.declineCheckpoint(checkpointId);
