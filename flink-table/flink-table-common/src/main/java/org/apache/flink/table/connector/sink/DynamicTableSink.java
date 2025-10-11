@@ -190,7 +190,10 @@ public interface DynamicTableSink {
          * </ul>
          *
          * <p>Note: will always return empty for the delete statement because it has no column list.
+         *
+         * @deprecated use {@link SupportsTargetColumnWriting} instead.
          */
+        @Deprecated(since = "2.2")
         Optional<int[][]> getTargetColumns();
     }
 

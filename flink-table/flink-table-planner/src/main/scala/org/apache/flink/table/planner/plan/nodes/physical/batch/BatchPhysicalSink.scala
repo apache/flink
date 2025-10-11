@@ -42,8 +42,16 @@ class BatchPhysicalSink(
     contextResolvedTable: ContextResolvedTable,
     tableSink: DynamicTableSink,
     targetColumns: Array[Array[Int]],
-    val abilitySpecs: Array[SinkAbilitySpec])
-  extends Sink(cluster, traitSet, inputRel, hints, targetColumns, contextResolvedTable, tableSink)
+    abilitySpecs: Array[SinkAbilitySpec])
+  extends Sink(
+    cluster,
+    traitSet,
+    inputRel,
+    hints,
+    targetColumns,
+    contextResolvedTable,
+    tableSink,
+    abilitySpecs)
   with BatchPhysicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {

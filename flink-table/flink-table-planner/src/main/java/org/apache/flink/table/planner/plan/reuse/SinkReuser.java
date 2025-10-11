@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.reuse;
 
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
 import org.apache.flink.table.planner.plan.nodes.calcite.Sink;
-import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSink;
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalUnion;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalSink;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalUnion;
@@ -217,18 +216,12 @@ public class SinkReuser {
             this.originalSinks.add(sink);
             this.inputTraitSet = sink.getInput().getTraitSet();
             this.digest = getDigest(sink);
-            this.sinkAbilitySpecs =
-                    isStreamingMode
-                            ? ((StreamPhysicalSink) sink).abilitySpecs()
-                            : ((BatchPhysicalSink) sink).abilitySpecs();
+            this.sinkAbilitySpecs = sink.abilitySpecs();
         }
 
         public boolean canBeReused(Sink sinkNode) {
             String currentSinkDigest = getDigest(sinkNode);
-            SinkAbilitySpec[] currentSinkSpecs =
-                    isStreamingMode
-                            ? ((StreamPhysicalSink) sinkNode).abilitySpecs()
-                            : ((BatchPhysicalSink) sinkNode).abilitySpecs();
+            SinkAbilitySpec[] currentSinkSpecs = sinkNode.abilitySpecs();
             RelTraitSet currentInputTraitSet = sinkNode.getInput().getTraitSet();
 
             // Only table sink with the same digest, specs and input trait set can be reused
