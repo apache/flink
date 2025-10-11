@@ -27,7 +27,6 @@ import org.apache.flink.fs.s3.common.model.FlinkUploadPartResult;
 import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.s3a.S3AFileSystem;
 import org.apache.hadoop.fs.s3a.S3AUtils;
 import org.apache.hadoop.fs.s3a.WriteOperationHelper;
 import org.apache.hadoop.fs.s3a.impl.PutObjectOptions;
@@ -64,12 +63,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>This implementation uses the AWS SDK v2 S3Client from Hadoop's S3AFileSystem to perform
  * low-level S3 operations required for Flink's recoverable writers. The S3Client is accessed via
- * {@link org.apache.hadoop.fs.s3a.S3AInternals#getAmazonS3Client(String)}, which is the recommended
- * approach for operations not available through the standard FileSystem API.
+ * {@link FlinkS3AFileSystem#getS3Client()}, which exposes the protected method from S3AFileSystem.
  */
 public class HadoopS3AccessHelper implements S3AccessHelper {
 
-    private final S3AFileSystem s3a;
+    private final FlinkS3AFileSystem s3a;
 
     private final S3Client s3Client;
 
@@ -79,14 +77,12 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
 
     private final PutObjectOptions putOptions;
 
-    public HadoopS3AccessHelper(S3AFileSystem s3a, Configuration conf) {
+    public HadoopS3AccessHelper(FlinkS3AFileSystem s3a, Configuration conf) {
         this.s3a = checkNotNull(s3a);
-        // Use the S3AInternals API to get the S3Client for low-level operations
-        // This bypasses some S3A operations (like auditing) but is necessary for
-        // multipart upload operations that aren't exposed through the FileSystem API
-        this.s3Client =
-                s3a.getS3AInternals()
-                        .getAmazonS3Client("Flink recoverable writer multipart upload operations");
+        // Get the S3Client from FlinkS3AFileSystem which exposes the protected method
+        // This is used for low-level S3 operations like multipart uploads that aren't
+        // exposed through the standard FileSystem API
+        this.s3Client = s3a.getS3Client();
         this.bucket = s3a.getBucket();
         this.writeHelper = s3a.getWriteOperationHelper();
         this.putOptions = PutObjectOptions.defaultOptions();
@@ -167,14 +163,7 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
 
     @Override
     public boolean deleteObject(String key) throws IOException {
-        try {
-            DeleteObjectRequest request =
-                    DeleteObjectRequest.builder().bucket(bucket).key(key).build();
-            s3Client.deleteObject(request);
-            return true;
-        } catch (SdkException e) {
-            throw new IOException("Failed to delete object for key: " + key, e);
-        }
+        return s3a.delete(new org.apache.hadoop.fs.Path('/' + key), false);
     }
 
     @Override
