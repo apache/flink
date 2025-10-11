@@ -19,24 +19,42 @@
 package org.apache.flink.table.runtime.operators.join.interval;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.runtime.asyncprocessing.operators.co.AsyncKeyedCoProcessOperator;
+import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
+import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.runtime.operators.join.interval.asyncprocess.AsyncProcAsyncTimeIntervalJoin;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link ProcTimeIntervalJoin}. */
+@ExtendWith(ParameterizedTestExtension.class)
 class ProcTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
+
+    @Parameters(name = "enableAsyncState = {0}")
+    public static Collection<Object[]> data() {
+        return Arrays.asList(new Object[] {false}, new Object[] {true});
+    }
+
+    @Parameter public boolean enableAsyncState;
 
     private int keyIdx = 0;
     private RowDataKeySelector keySelector =
@@ -45,11 +63,14 @@ class ProcTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     private TypeInformation<RowData> keyType = InternalTypeInfo.ofFields();
 
     /** a.proctime >= b.proctime - 10 and a.proctime <= b.proctime + 20. * */
-    @Test
+    @TestTemplate
     void testProcTimeInnerJoinWithCommonBounds() throws Exception {
-        ProcTimeIntervalJoin joinProcessFunc =
-                new ProcTimeIntervalJoin(
-                        FlinkJoinType.INNER, -10, 20, 15, rowType, rowType, joinFunction);
+        KeyedCoProcessFunction<RowData, RowData, RowData, RowData> joinProcessFunc =
+                enableAsyncState
+                        ? new AsyncProcAsyncTimeIntervalJoin(
+                                FlinkJoinType.INNER, -10, 20, 15, rowType, rowType, joinFunction)
+                        : new ProcTimeIntervalJoin(
+                                FlinkJoinType.INNER, -10, 20, 15, rowType, rowType, joinFunction);
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
         testHarness.open();
@@ -104,11 +125,14 @@ class ProcTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     }
 
     /** a.proctime >= b.proctime - 10 and a.proctime <= b.proctime - 5. * */
-    @Test
+    @TestTemplate
     void testProcTimeInnerJoinWithNegativeBounds() throws Exception {
-        ProcTimeIntervalJoin joinProcessFunc =
-                new ProcTimeIntervalJoin(
-                        FlinkJoinType.INNER, -10, -5, 2, rowType, rowType, joinFunction);
+        KeyedCoProcessFunction<RowData, RowData, RowData, RowData> joinProcessFunc =
+                enableAsyncState
+                        ? new AsyncProcAsyncTimeIntervalJoin(
+                                FlinkJoinType.INNER, -10, -5, 2, rowType, rowType, joinFunction)
+                        : new ProcTimeIntervalJoin(
+                                FlinkJoinType.INNER, -10, -5, 2, rowType, rowType, joinFunction);
 
         KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
                 createTestHarness(joinProcessFunc);
@@ -169,12 +193,24 @@ class ProcTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
     }
 
     private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
-            createTestHarness(ProcTimeIntervalJoin intervalJoinFunc) throws Exception {
-        KeyedCoProcessOperator<RowData, RowData, RowData, RowData> operator =
-                new KeyedCoProcessOperator<>(intervalJoinFunc);
-        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
-                new KeyedTwoInputStreamOperatorTestHarness<>(
-                        operator, keySelector, keySelector, keyType);
-        return testHarness;
+            createTestHarness(
+                    KeyedCoProcessFunction<RowData, RowData, RowData, RowData> intervalJoinFunc)
+                    throws Exception {
+        if (!enableAsyncState) {
+            KeyedCoProcessOperator<RowData, RowData, RowData, RowData> operator =
+                    new KeyedCoProcessOperator<>(intervalJoinFunc);
+            KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                    new KeyedTwoInputStreamOperatorTestHarness<>(
+                            operator, keySelector, keySelector, keyType);
+            return testHarness;
+        } else {
+            AsyncKeyedCoProcessOperator<RowData, RowData, RowData, RowData> operator =
+                    new AsyncKeyedCoProcessOperator<>(intervalJoinFunc);
+            AsyncKeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
+                    testHarness =
+                            AsyncKeyedTwoInputStreamOperatorTestHarness.create(
+                                    operator, keySelector, keySelector, keyType);
+            return testHarness;
+        }
     }
 }

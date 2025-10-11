@@ -16,21 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.operators.join.interval;
+package org.apache.flink.table.runtime.operators.join.interval.asyncprocess;
 
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
+import org.apache.flink.table.runtime.operators.join.interval.IntervalJoinFunction;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 
 /** The function to execute row(event) time interval stream inner-join. */
-public final class RowTimeIntervalJoin extends TimeIntervalJoin {
+public final class AsyncRowAsyncTimeIntervalJoin extends AsyncTimeIntervalJoin {
 
     private static final long serialVersionUID = 1L;
 
     private final int leftTimeIdx;
     private final int rightTimeIdx;
 
-    public RowTimeIntervalJoin(
+    public AsyncRowAsyncTimeIntervalJoin(
             FlinkJoinType joinType,
             long leftLowerBound,
             long leftUpperBound,
@@ -65,27 +66,27 @@ public final class RowTimeIntervalJoin extends TimeIntervalJoin {
     }
 
     @Override
-    void updateOperatorTime(Context ctx) {
-        leftOperatorTime =
+    public void updateOperatorTime(Context ctx) {
+        leftOperatorTime.set(
                 ctx.timerService().currentWatermark() > 0
                         ? ctx.timerService().currentWatermark()
-                        : 0L;
+                        : 0L);
         // We may set different operator times in the future.
-        rightOperatorTime = leftOperatorTime;
+        rightOperatorTime.set(leftOperatorTime.get());
     }
 
     @Override
-    long getTimeForLeftStream(Context ctx, RowData row) {
+    public long getTimeForLeftStream(Context ctx, RowData row) {
         return row.getLong(leftTimeIdx);
     }
 
     @Override
-    long getTimeForRightStream(Context ctx, RowData row) {
+    public long getTimeForRightStream(Context ctx, RowData row) {
         return row.getLong(rightTimeIdx);
     }
 
     @Override
-    void registerTimer(Context ctx, long cleanupTime) {
+    public void registerTimer(Context ctx, long cleanupTime) {
         // Maybe we can register timers for different streams in the future.
         ctx.timerService().registerEventTimeTimer(cleanupTime);
     }
