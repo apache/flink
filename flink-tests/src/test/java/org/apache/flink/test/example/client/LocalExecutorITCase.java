@@ -36,7 +36,6 @@ import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.testfunctions.Tokenizer;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -67,31 +66,25 @@ public class LocalExecutorITCase extends TestLogger {
     }
 
     @Test(timeout = 60_000)
-    public void testLocalExecutorWithWordCount() throws InterruptedException {
-        try {
-            // set up the files
-            File inFile = File.createTempFile("wctext", ".in");
-            File outFile = File.createTempFile("wctext", ".out");
-            inFile.deleteOnExit();
-            outFile.deleteOnExit();
+    public void testLocalExecutorWithWordCount() throws Exception {
+        // set up the files
+        File inFile = File.createTempFile("wctext", ".in");
+        File outFile = File.createTempFile("wctext", ".out");
+        inFile.deleteOnExit();
+        outFile.deleteOnExit();
 
-            try (FileWriter fw = new FileWriter(inFile)) {
-                fw.write(WordCountData.TEXT);
-            }
-
-            final Configuration config = new Configuration();
-            config.set(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
-            config.set(DeploymentOptions.ATTACHED, true);
-
-            StreamGraph wcStreamGraph = getWordCountStreamGraph(inFile, outFile, parallelism);
-            JobClient jobClient =
-                    executor.execute(wcStreamGraph, config, ClassLoader.getSystemClassLoader())
-                            .get();
-            jobClient.getJobExecutionResult().get();
-        } catch (Exception e) {
-            e.printStackTrace();
-            Assert.fail(e.getMessage());
+        try (FileWriter fw = new FileWriter(inFile)) {
+            fw.write(WordCountData.TEXT);
         }
+
+        final Configuration config = new Configuration();
+        config.set(CoreOptions.FILESYTEM_DEFAULT_OVERRIDE, true);
+        config.set(DeploymentOptions.ATTACHED, true);
+
+        StreamGraph wcStreamGraph = getWordCountStreamGraph(inFile, outFile, parallelism);
+        JobClient jobClient =
+                executor.execute(wcStreamGraph, config, ClassLoader.getSystemClassLoader()).get();
+        jobClient.getJobExecutionResult().get();
 
         assertThat(miniCluster.isRunning(), is(false));
     }
