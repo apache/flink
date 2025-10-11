@@ -150,12 +150,12 @@ abstract class SourceCoordinatorTestBase {
     }
 
     void waitForSentEvents(int expectedEventNumber) throws Exception {
-        waitUtilNumberReached(() -> receivingTasks.getNumberOfSentEvents(), expectedEventNumber);
+        waitUntilNumberReached(() -> receivingTasks.getNumberOfSentEvents(), expectedEventNumber);
     }
 
-    static void waitUtilNumberReached(Supplier<Integer> numberSupplier, int expectedNumber)
+    static void waitUntilNumberReached(Supplier<Integer> numberSupplier, int expectedNumber)
             throws Exception {
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 () -> numberSupplier.get() == expectedNumber,
                 Duration.ofDays(1),
                 "Not reach expected number within timeout.");
