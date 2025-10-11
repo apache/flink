@@ -72,7 +72,7 @@ public final class SnapshotUtils {
                 operator.snapshotState(checkpointId, timestamp, options, storage);
 
         OperatorSubtaskState state =
-                new OperatorSnapshotFinalizer(snapshotInProgress).getJobManagerOwnedState();
+                OperatorSnapshotFinalizer.create(snapshotInProgress).getJobManagerOwnedState();
 
         operator.notifyCheckpointComplete(checkpointId);
         return new TaggedOperatorSubtaskState(index, state);
