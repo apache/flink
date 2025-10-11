@@ -97,10 +97,14 @@ public class OpenTelemetryTraceReporter extends OpenTelemetryReporterBase implem
 
     @Override
     public void close() {
-        spanProcessor.forceFlush();
-        spanProcessor.close();
-        spanExporter.flush();
-        spanExporter.close();
+        if (spanProcessor != null) {
+            spanProcessor.forceFlush();
+            spanProcessor.close();
+        }
+        if (spanExporter != null) {
+            spanExporter.flush();
+            spanExporter.close();
+        }
     }
 
     private void notifyOfAddedSpanInternal(Span span, io.opentelemetry.api.trace.Span parent) {
@@ -124,10 +128,9 @@ public class OpenTelemetryTraceReporter extends OpenTelemetryReporterBase implem
                         .startSpan();
 
         // Recursively add child spans to this parent
-        // TODO: not yet supported
-        // for (Span childSpan : span.getChildren()) {
-        //    notifyOfAddedSpanInternal(childSpan, currentOtelSpan);
-        // }
+        for (Span childSpan : span.getChildren()) {
+            notifyOfAddedSpanInternal(childSpan, currentOtelSpan);
+        }
 
         currentOtelSpan.end(span.getEndTsMillis(), TimeUnit.MILLISECONDS);
     }

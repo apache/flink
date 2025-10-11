@@ -236,6 +236,11 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                                                                 (N) namespace.getKey())));
     }
 
+    @Override
+    public String getBackendTypeIdentifier() {
+        return "mock";
+    }
+
     @Nonnull
     @Override
     public RunnableFuture<SnapshotResult<KeyedStateHandle>> snapshot(

@@ -48,6 +48,7 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.LinkedHashMap;
+import java.util.function.Supplier;
 
 /** RocksDB compaction filter utils for state with TTL. */
 public class ForStDBTtlCompactFiltersManager {
@@ -205,15 +206,27 @@ public class ForStDBTtlCompactFiltersManager {
 
     private static class ListElementFilterFactory<T>
             implements FlinkCompactionFilter.ListElementFilterFactory {
-        private final TypeSerializer<T> serializer;
+        // {@See #createListElementFilter}.
+        private final ThreadLocalSerializerProvider<T> threadLocalSerializer;
 
         private ListElementFilterFactory(TypeSerializer<T> serializer) {
-            this.serializer = serializer;
+            ClassLoader contextClassLoader = null;
+            try {
+                contextClassLoader = Thread.currentThread().getContextClassLoader();
+            } catch (Throwable e) {
+                LOG.info("Cannot get context classloader for list state's compaction filter.", e);
+            }
+            threadLocalSerializer =
+                    new ThreadLocalSerializerProvider<>(serializer, contextClassLoader);
         }
 
         @Override
         public FlinkCompactionFilter.ListElementFilter createListElementFilter() {
-            return new ListElementFilter<>(serializer);
+            // This method will be invoked by native code multiple times when creating compaction
+            // filter. And the created filter will be shared by multiple background threads.
+            // Make sure the serializer is thread-local and has classloader set for each thread
+            // correctly and individually.
+            return new ListElementFilter<>(threadLocalSerializer);
         }
     }
 
@@ -231,11 +244,11 @@ public class ForStDBTtlCompactFiltersManager {
     }
 
     private static class ListElementFilter<T> implements FlinkCompactionFilter.ListElementFilter {
-        private final TypeSerializer<T> serializer;
-        private DataInputDeserializer input;
+        private final ThreadLocalSerializerProvider<T> threadLocalSerializer;
+        private final DataInputDeserializer input;
 
-        private ListElementFilter(TypeSerializer<T> serializer) {
-            this.serializer = serializer;
+        private ListElementFilter(ThreadLocalSerializerProvider<T> serializer) {
+            this.threadLocalSerializer = serializer;
             this.input = new DataInputDeserializer();
         }
 
@@ -243,9 +256,10 @@ public class ForStDBTtlCompactFiltersManager {
         public int nextUnexpiredOffset(byte[] bytes, long ttl, long currentTimestamp) {
             input.setBuffer(bytes);
             int lastElementOffset = 0;
+            TypeSerializer<T> serializer = threadLocalSerializer.get();
             while (input.available() > 0) {
                 try {
-                    long timestamp = nextElementLastAccessTimestamp();
+                    long timestamp = nextElementLastAccessTimestamp(serializer);
                     if (!TtlUtils.expired(timestamp, ttl, currentTimestamp)) {
                         break;
                     }
@@ -258,12 +272,44 @@ public class ForStDBTtlCompactFiltersManager {
             return lastElementOffset;
         }
 
-        private long nextElementLastAccessTimestamp() throws IOException {
+        private long nextElementLastAccessTimestamp(TypeSerializer<T> serializer)
+                throws IOException {
             TtlValue<?> ttlValue = (TtlValue<?>) serializer.deserialize(input);
             if (input.available() > 0) {
                 input.skipBytesToRead(1);
             }
             return ttlValue.getLastAccessTimestamp();
+        }
+    }
+
+    private static class ThreadLocalSerializerProvider<T> implements Supplier<TypeSerializer<T>> {
+        // Multiple background threads may share the same filter instance, so we need to make sure
+        // the serializer is thread-local, and every thread has its own instance with classloader.
+        private final ThreadLocal<TypeSerializer<T>> threadLocalSerializer;
+
+        public ThreadLocalSerializerProvider(
+                TypeSerializer<T> serializer, ClassLoader classLoader) {
+            this.threadLocalSerializer =
+                    ThreadLocal.withInitial(
+                            () -> {
+                                setClassloaderIfNeeded(classLoader);
+                                return serializer.duplicate();
+                            });
+        }
+
+        private void setClassloaderIfNeeded(ClassLoader classLoader) {
+            // The classloader that should be set to the current thread when deserializing.
+            // The reason why we should set classloader is that the serializer may be Kryo
+            // serializer which needs user classloader to load user classes.
+            // See FLINK-16686 for more details.
+            if (classLoader != null) {
+                Thread.currentThread().setContextClassLoader(classLoader);
+            }
+        }
+
+        @Override
+        public TypeSerializer<T> get() {
+            return threadLocalSerializer.get();
         }
     }
 

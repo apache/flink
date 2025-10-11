@@ -18,18 +18,25 @@
 
 package org.apache.flink.table.planner.plan.stream.sql;
 
+import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.planner.utils.PlanKind;
+import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
-import org.apache.flink.table.planner.utils.TableTestUtil;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import scala.Enumeration;
+
+import static scala.runtime.BoxedUnit.UNIT;
+
 /** Tests for multi-join plans. */
 public class MultiJoinTest extends TableTestBase {
 
-    private TableTestUtil util;
+    private StreamTableTestUtil util;
 
     @BeforeEach
     void setup() {
@@ -124,6 +131,40 @@ public class MultiJoinTest extends TableTestBase {
                                 + "  rowtime TIMESTAMP(3),"
                                 + "  WATERMARK FOR rowtime AS rowtime"
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I')");
+        // Tables for testing upsert key preservation
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE UsersPK ("
+                                + "  user_id STRING PRIMARY KEY NOT ENFORCED,"
+                                + "  name STRING,"
+                                + "  region_id INT,"
+                                + "  description STRING"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE OrdersPK ("
+                                + "  order_id STRING NOT NULL,"
+                                + "  user_id STRING NOT NULL,"
+                                + "  product STRING,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (order_id, user_id) NOT ENFORCED"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE PaymentsPK ("
+                                + "  payment_id STRING NOT NULL,"
+                                + "  user_id STRING NOT NULL,"
+                                + "  price INT,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (payment_id, user_id) NOT ENFORCED"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE AddressPK ("
+                                + "  user_id STRING PRIMARY KEY NOT ENFORCED,"
+                                + "  location STRING"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
     }
 
     @Test
@@ -358,5 +399,250 @@ public class MultiJoinTest extends TableTestBase {
                         + "FROM UsersWithProctime u "
                         + "JOIN OrdersWithRowtime o ON u.user_id_0 = o.user_id_1 "
                         + "JOIN Payments p ON u.user_id_0 = p.user_id_2");
+    }
+
+    @Test
+    void testPreservesUpsertKeyTwoWayLeftJoinOrders() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE sink_two_way ("
+                                + "  `user_id` STRING NOT NULL,"
+                                + "  `order_id` STRING NOT NULL,"
+                                + "  product STRING,"
+                                + "  user_region_id INT,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `order_id`) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'sink-insert-only' = 'false'"
+                                + ")");
+
+        util.verifyRelPlanInsert(
+                "INSERT INTO sink_two_way "
+                        + "SELECT"
+                        + "    o.user_id,"
+                        + "    o.order_id,"
+                        + "    o.product,"
+                        + "    u.region_id "
+                        + "FROM OrdersPK o "
+                        + "LEFT JOIN UsersPK u"
+                        + "  ON  u.user_id = o.user_id");
+    }
+
+    @Test
+    void testPreservesUpsertKeyTwoWayInnerJoinOrders() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE sink_two_way ("
+                                + "  `user_id` STRING NOT NULL,"
+                                + "  `order_id` STRING NOT NULL,"
+                                + "  product STRING,"
+                                + "  user_region_id INT,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `order_id`) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'sink-insert-only' = 'false'"
+                                + ")");
+
+        util.verifyRelPlanInsert(
+                "INSERT INTO sink_two_way "
+                        + "SELECT"
+                        + "    o.user_id,"
+                        + "    o.order_id,"
+                        + "    o.product,"
+                        + "    u.region_id "
+                        + "FROM UsersPK u "
+                        + "INNER JOIN OrdersPK o "
+                        + "  ON  u.user_id = o.user_id");
+    }
+
+    @Test
+    void testPreservesUpsertKeyTwoWayInnerJoinOrdersDoesNot() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE OrdersSimplePK ("
+                                + "  order_id STRING NOT NULL,"
+                                + "  user_id STRING NOT NULL,"
+                                + "  product STRING,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (order_id) NOT ENFORCED"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE sink_two_way ("
+                                + "  `user_id` STRING NOT NULL,"
+                                + "  `order_id` STRING NOT NULL,"
+                                + "  product STRING,"
+                                + "  user_region_id INT,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (`order_id`) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'sink-insert-only' = 'false'"
+                                + ")");
+
+        util.verifyRelPlanInsert(
+                "INSERT INTO sink_two_way "
+                        + "SELECT"
+                        + "    o.user_id,"
+                        + "    o.order_id,"
+                        + "    o.product,"
+                        + "    u.region_id "
+                        + "FROM UsersPK u "
+                        + "INNER JOIN OrdersSimplePK o "
+                        + "  ON  u.user_id = o.user_id");
+    }
+
+    @Test
+    void testPreservesUpsertKeyThreeWayJoin() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE sink_three_way ("
+                                + "  `user_id` STRING NOT NULL,"
+                                + "  `order_id` STRING NOT NULL,"
+                                + "  `user_id2` STRING NOT NULL,"
+                                + "  `payment_id` STRING NOT NULL,"
+                                + "  `user_id3` STRING NOT NULL,"
+                                + "  `description` STRING,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id`, `order_id`, `user_id2`, `payment_id`, `user_id3`) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'sink-insert-only' = 'false'"
+                                + ")");
+
+        util.verifyRelPlanInsert(
+                "INSERT INTO sink_three_way "
+                        + "SELECT"
+                        + "    o.user_id,"
+                        + "    o.order_id,"
+                        + "    p.user_id,"
+                        + "    p.payment_id,"
+                        + "    u.user_id,"
+                        + "    u.description "
+                        + "FROM UsersPK u "
+                        + "JOIN OrdersPK o"
+                        + "  ON  o.user_id = u.user_id "
+                        + "JOIN PaymentsPK p"
+                        + "  ON  o.user_id = p.user_id");
+    }
+
+    @Test
+    void testPreservesUpsertKeyFourWayComplex() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE sink_four_way ("
+                                + "  user_id_0 STRING NOT NULL,"
+                                + "  order_id STRING NOT NULL,"
+                                + "  user_id_1 STRING NOT NULL,"
+                                + "  payment_id STRING NOT NULL,"
+                                + "  user_id_2 STRING NOT NULL,"
+                                + "  name STRING,"
+                                + "  location STRING,"
+                                + "  CONSTRAINT `PRIMARY` PRIMARY KEY (`user_id_0`, `order_id`, `user_id_1`, `payment_id`, `user_id_2`) NOT ENFORCED"
+                                + ") WITH ("
+                                + "  'connector' = 'values',"
+                                + "  'sink-insert-only' = 'false'"
+                                + ")");
+
+        util.verifyRelPlanInsert(
+                "INSERT INTO sink_four_way "
+                        + "SELECT"
+                        + "    u.user_id,"
+                        + "    o.order_id,"
+                        + "    o.user_id,"
+                        + "    p.payment_id,"
+                        + "    p.user_id,"
+                        + "    u.name,"
+                        + "    a.location "
+                        + "FROM UsersPK u "
+                        + "JOIN OrdersPK o"
+                        + "  ON  u.user_id = o.user_id AND o.product IS NOT NULL "
+                        + "JOIN PaymentsPK p"
+                        + "  ON  u.user_id = p.user_id AND p.price >= 0 "
+                        + "JOIN AddressPK a"
+                        + "  ON  u.user_id = a.user_id AND a.location IS NOT NULL");
+    }
+
+    @Test
+    void testMultiSinkOnMultiJoinedView() {
+        util.tableEnv()
+                .executeSql(
+                        "create temporary table src1 (\n"
+                                + "  a int,\n"
+                                + "  b bigint,\n"
+                                + "  c string,\n"
+                                + "  d int,\n"
+                                + "  primary key(a, c) not enforced\n"
+                                + ") with (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'changelog-mode' = 'I,UA,UB,D'\n"
+                                + ")");
+        util.tableEnv()
+                .executeSql(
+                        "create temporary table src2 (\n"
+                                + "  a int,\n"
+                                + "  b bigint,\n"
+                                + "  c string,\n"
+                                + "  d int,\n"
+                                + "  primary key(a, c) not enforced\n"
+                                + ") with (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'changelog-mode' = 'I,UA,UB,D'\n"
+                                + ")");
+        util.tableEnv()
+                .executeSql(
+                        "create temporary table sink1 (\n"
+                                + "  a int,\n"
+                                + "  b string,\n"
+                                + "  c bigint,\n"
+                                + "  d bigint\n"
+                                + ") with (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'sink-insert-only' = 'false'\n"
+                                + ")");
+        util.tableEnv()
+                .executeSql(
+                        "create temporary table sink2 (\n"
+                                + "  a int,\n"
+                                + "  b string,\n"
+                                + "  c bigint,\n"
+                                + "  d string\n"
+                                + ") with (\n"
+                                + " 'connector' = 'values',\n"
+                                + " 'sink-insert-only' = 'false'\n"
+                                + ")");
+        util.tableEnv()
+                .executeSql(
+                        "create temporary view v1 as\n"
+                                + "select\n"
+                                + "  t1.a as a, t1.`day` as `day`, t2.b as b, t2.c as c\n"
+                                + "from (\n"
+                                + "  select a, b, DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd') as `day`\n"
+                                + "  from src1\n"
+                                + " ) t1\n"
+                                + "join (\n"
+                                + "  select b, CONCAT(c, DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd')) as `day`, c, d\n"
+                                + "  from src2\n"
+                                + ") t2\n"
+                                + " on t1.a = t2.d");
+
+        StatementSet stmtSet = util.tableEnv().createStatementSet();
+        stmtSet.addInsertSql(
+                "insert into sink1\n"
+                        + "  select a, `day`, sum(b), count(distinct c)\n"
+                        + "  from v1\n"
+                        + "  group by a, `day`");
+        stmtSet.addInsertSql(
+                "insert into sink2\n"
+                        + "  select a, `day`, b, c\n"
+                        + "  from v1\n"
+                        + "  where b > 100");
+
+        util.doVerifyPlan(
+                stmtSet,
+                new ExplainDetail[] {ExplainDetail.PLAN_ADVICE},
+                false,
+                new Enumeration.Value[] {PlanKind.OPT_REL_WITH_ADVICE()},
+                () -> UNIT,
+                false,
+                false);
     }
 }

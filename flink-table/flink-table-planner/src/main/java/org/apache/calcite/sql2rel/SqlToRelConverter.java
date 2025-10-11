@@ -245,18 +245,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 685 ~ 702
- *   <li>Added in Flink-24024: Lines 1452 ~ 1458
- *   <li>Added in Flink-24024: Lines 1472 ~ 1511
- *   <li>Added in Flink-37269: Lines 2249 ~ 2271
- *   <li>Added in FLINK-28682: Lines 2382 ~ 2399
- *   <li>Added in FLINK-28682: Lines 2436 ~ 2464
- *   <li>Added in FLINK-32474: Lines 2521 ~ 2523
- *   <li>Added in FLINK-32474: Lines 2527 ~ 2529
- *   <li>Added in FLINK-32474: Lines 2545 ~ 2547
- *   <li>Added in FLINK-32474: Lines 2960 ~ 2972
- *   <li>Added in FLINK-32474: Lines 3073 ~ 3107
- *   <li>Added in FLINK-34312: Lines 5937 ~ 5948
+ *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 686 ~ 703
+ *   <li>Added in Flink-24024: Lines 1453 ~ 1459
+ *   <li>Added in Flink-24024: Lines 1473 ~ 1512
+ *   <li>Added in Flink-37269: Lines 2250 ~ 2272
+ *   <li>Added in FLINK-28682: Lines 2383 ~ 2400
+ *   <li>Added in FLINK-28682: Lines 2437 ~ 2465
+ *   <li>Added in FLINK-32474: Lines 2522 ~ 2524
+ *   <li>Added in FLINK-32474: Lines 2528 ~ 2530
+ *   <li>Added in FLINK-32474: Lines 2546 ~ 2548
+ *   <li>Added in CALCITE-7217: Lines 2587 ~ 2595, should be dropped with upgrade to Calcite 1.41.0
+ *   <li>Added in FLINK-32474: Lines 2970 ~ 2982
+ *   <li>Added in FLINK-32474: Lines 3083 ~ 3117
+ *   <li>Added in FLINK-34312: Lines 5947 ~ 5958
  * </ol>
  *
  * <p>In official extension point (i.e. {@link #convertExtendedExpression(SqlNode, Blackboard)}):
@@ -2583,6 +2584,15 @@ public class SqlToRelConverter {
                 convertCollectionTable(bb, call2);
                 return;
 
+            // ----- FLINK MODIFICATION BEGIN -----
+            case LATERAL:
+                call = (SqlCall) from;
+                // Extract and analyze lateral part of join call.
+                assert call.getOperandList().size() == 1;
+                final SqlCall callLateral = call.operand(0);
+                convertFrom(bb, callLateral, fieldNames);
+                return;
+            // ----- FLINK MODIFICATION END -----
             default:
                 throw new AssertionError("not a join operator " + from);
         }

@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
@@ -615,6 +616,11 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
             IOUtils.closeQuietly(snapshotStrategy);
             this.disposed = true;
         }
+    }
+
+    @Override
+    public String getBackendTypeIdentifier() {
+        return StateBackendLoader.FORST_STATE_BACKEND_NAME;
     }
 
     @Override

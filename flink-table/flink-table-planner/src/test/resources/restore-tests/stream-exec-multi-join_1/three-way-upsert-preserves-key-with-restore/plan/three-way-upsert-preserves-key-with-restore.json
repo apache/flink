@@ -1,7 +1,7 @@
 {
   "flinkVersion" : "2.2",
   "nodes" : [ {
-    "id" : 8,
+    "id" : 89,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -39,7 +39,7 @@
     "outputType" : "ROW<`user_id` INT NOT NULL, `description` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id, description], metadata=[]]], fields=[user_id, description])"
   }, {
-    "id" : 9,
+    "id" : 90,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -52,7 +52,7 @@
     "outputType" : "ROW<`user_id` INT NOT NULL, `description` VARCHAR(2147483647)>",
     "description" : "Exchange(distribution=[hash[user_id]])"
   }, {
-    "id" : 10,
+    "id" : 91,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -90,7 +90,7 @@
     "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, Orders, project=[user_id, order_id], metadata=[]]], fields=[user_id, order_id])"
   }, {
-    "id" : 11,
+    "id" : 92,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -103,7 +103,7 @@
     "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL>",
     "description" : "Exchange(distribution=[hash[user_id]])"
   }, {
-    "id" : 12,
+    "id" : 93,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -141,7 +141,7 @@
     "outputType" : "ROW<`user_id` INT NOT NULL, `payment_id` BIGINT NOT NULL>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, Payments, project=[user_id, payment_id], metadata=[]]], fields=[user_id, payment_id])"
   }, {
-    "id" : 13,
+    "id" : 94,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -154,7 +154,7 @@
     "outputType" : "ROW<`user_id` INT NOT NULL, `payment_id` BIGINT NOT NULL>",
     "description" : "Exchange(distribution=[hash[user_id]])"
   }, {
-    "id" : 14,
+    "id" : 95,
     "type" : "stream-exec-multi-join_1",
     "joinTypes" : [ "INNER", "INNER", "INNER" ],
     "joinConditions" : [ {
@@ -282,9 +282,9 @@
       "priority" : 2
     } ],
     "outputType" : "ROW<`user_id` INT NOT NULL, `description` VARCHAR(2147483647), `user_id0` INT NOT NULL, `order_id` BIGINT NOT NULL, `user_id1` INT NOT NULL, `payment_id` BIGINT NOT NULL>",
-    "description" : "MultiJoin(joinFilter=[AND(=($2, $4), =($2, $0))], joinTypes=[[INNER, INNER, INNER]], joinConditions=[[true, =($2, $0), =($2, $4)]], joinAttributeMap=[{0=[LeftInputId:-1;LeftFieldIndex:-1;RightInputId:0;RightFieldIndex:0;], 1=[LeftInputId:0;LeftFieldIndex:0;RightInputId:1;RightFieldIndex:0;], 2=[LeftInputId:1;LeftFieldIndex:0;RightInputId:2;RightFieldIndex:0;]}], select=[user_id,description,user_id0,order_id,user_id1,payment_id], rowType=[RecordType(INTEGER user_id, VARCHAR(2147483647) description, INTEGER user_id0, BIGINT order_id, INTEGER user_id1, BIGINT payment_id)])"
+    "description" : "MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id), (user_id, order_id), (user_id, payment_id)], joinConditions=[(user_id0 = user_id), (user_id0 = user_id1)], select=[user_id,description,user_id0,order_id,user_id1,payment_id], rowType=[RecordType(INTEGER user_id, VARCHAR(2147483647) description, INTEGER user_id0, BIGINT order_id, INTEGER user_id1, BIGINT payment_id)])"
   }, {
-    "id" : 15,
+    "id" : 96,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -322,7 +322,7 @@
     "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL, `user_id0` INT NOT NULL, `payment_id` BIGINT NOT NULL, `user_id1` INT NOT NULL, `description` VARCHAR(2147483647)>",
     "description" : "Calc(select=[user_id0 AS user_id, order_id, user_id1 AS user_id0, payment_id, user_id AS user_id1, description])"
   }, {
-    "id" : 16,
+    "id" : 97,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -364,7 +364,7 @@
         }
       }
     },
-    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER", "DELETE" ],
+    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER", "~DELETE" ],
     "inputUpsertKey" : [ 0, 1, 2, 3 ],
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -377,57 +377,57 @@
     "description" : "Sink(table=[default_catalog.default_database.sink], fields=[user_id, order_id, user_id0, payment_id, user_id1, description])"
   } ],
   "edges" : [ {
-    "source" : 8,
-    "target" : 9,
+    "source" : 89,
+    "target" : 90,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 10,
-    "target" : 11,
+    "source" : 91,
+    "target" : 92,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 12,
-    "target" : 13,
+    "source" : 93,
+    "target" : 94,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 9,
-    "target" : 14,
+    "source" : 90,
+    "target" : 95,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 11,
-    "target" : 14,
+    "source" : 92,
+    "target" : 95,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 13,
-    "target" : 14,
+    "source" : 94,
+    "target" : 95,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 14,
-    "target" : 15,
+    "source" : 95,
+    "target" : 96,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 15,
-    "target" : 16,
+    "source" : 96,
+    "target" : 97,
     "shuffle" : {
       "type" : "FORWARD"
     },

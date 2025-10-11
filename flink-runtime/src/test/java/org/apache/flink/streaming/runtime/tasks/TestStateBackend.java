@@ -176,6 +176,11 @@ public class TestStateBackend extends AbstractStateBackend {
             throw new UnsupportedOperationException();
         }
 
+        @Override
+        public String getBackendTypeIdentifier() {
+            return "test";
+        }
+
         @Nonnull
         @Override
         public <N, SV, SEV, S extends State, IS extends S> IS createOrUpdateInternalState(

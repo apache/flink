@@ -28,7 +28,7 @@ import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.logger.NetworkActionsLogger;
-import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfOutputChannelStateEvent;
 import org.apache.flink.util.function.SupplierWithException;
 
 import javax.annotation.Nullable;
@@ -262,7 +262,7 @@ public class PipelinedResultPartition extends BufferWritingResultPartition
             return;
         }
         try (BufferConsumer eventBufferConsumer =
-                EventSerializer.toBufferConsumer(EndOfChannelStateEvent.INSTANCE, false)) {
+                EventSerializer.toBufferConsumer(EndOfOutputChannelStateEvent.INSTANCE, false)) {
             for (int i = 0; i < subpartitions.length; i++) {
                 if (((PipelinedSubpartition) subpartitions[i]).isSupportChannelStateRecover()) {
                     addToSubpartition(i, eventBufferConsumer.copy(), 0);

@@ -23,6 +23,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.ModelSemantics;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
@@ -39,6 +40,7 @@ import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlModelCall;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlUtil;
@@ -49,6 +51,7 @@ import javax.annotation.Nullable;
 import java.util.AbstractList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -60,6 +63,7 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
 
     private final List<SqlNode> adaptedArguments;
     private final List<DataType> argumentDataTypes;
+    private final Function<Integer, DataType> getModelInputType;
     private final @Nullable DataType outputType;
     private final @Nullable List<StaticArgument> staticArguments;
 
@@ -88,6 +92,20 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
                     public int size() {
                         return binding.getOperandCount();
                     }
+                };
+        this.getModelInputType =
+                pos -> {
+                    final SqlNode sqlNode = adaptedArguments.get(pos);
+                    if (!(sqlNode instanceof SqlModelCall)) {
+                        throw new ValidationException(
+                                String.format(
+                                        "Argument %d is not a model call, cannot get model input type.",
+                                        pos));
+                    }
+                    RelDataType type =
+                            ((SqlModelCall) sqlNode).getInputType(binding.getValidator());
+                    final LogicalType logicalType = FlinkTypeFactory.toLogicalType(type);
+                    return TypeConversions.fromLogicalToDataType(logicalType);
                 };
         this.outputType = convertOutputType(binding, outputType);
         this.staticArguments = staticArguments;
@@ -149,6 +167,23 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
         }
         return Optional.of(
                 CallBindingTableSemantics.create(argumentDataTypes.get(pos), staticArg, sqlNode));
+    }
+
+    @Override
+    public Optional<ModelSemantics> getModelSemantics(int pos) {
+        final StaticArgument staticArg =
+                Optional.ofNullable(staticArguments).map(args -> args.get(pos)).orElse(null);
+        if (staticArg == null || !staticArg.is(StaticArgumentTrait.MODEL)) {
+            return Optional.empty();
+        }
+        final SqlNode sqlNode = adaptedArguments.get(pos);
+        // SqlModelCall is parsed by parser for syntax `MODEL identifier` and model is looked up
+        if (!(sqlNode instanceof SqlModelCall)) {
+            return Optional.empty();
+        }
+        return Optional.of(
+                CallBindingModelSemantics.create(
+                        getModelInputType.apply(pos), argumentDataTypes.get(pos)));
     }
 
     @Override
@@ -259,6 +294,36 @@ public final class CallBindingCallContext extends AbstractSqlCallContext {
         @Override
         public Optional<ChangelogMode> changelogMode() {
             return Optional.empty();
+        }
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // ModelSemantics
+    // --------------------------------------------------------------------------------------------
+
+    private static class CallBindingModelSemantics implements ModelSemantics {
+
+        private final DataType inputDataType;
+        private final DataType outputDataType;
+
+        public static CallBindingModelSemantics create(
+                DataType inputDataType, DataType outputDataType) {
+            return new CallBindingModelSemantics(inputDataType, outputDataType);
+        }
+
+        private CallBindingModelSemantics(DataType inputDataType, DataType outputDataType) {
+            this.inputDataType = inputDataType;
+            this.outputDataType = outputDataType;
+        }
+
+        @Override
+        public DataType inputDataType() {
+            return inputDataType;
+        }
+
+        @Override
+        public DataType outputDataType() {
+            return outputDataType;
         }
     }
 

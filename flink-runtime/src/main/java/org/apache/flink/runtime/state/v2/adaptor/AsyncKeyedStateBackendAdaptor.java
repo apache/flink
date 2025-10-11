@@ -133,6 +133,11 @@ public class AsyncKeyedStateBackendAdaptor<K> implements AsyncKeyedStateBackend<
     public void dispose() {}
 
     @Override
+    public String getBackendTypeIdentifier() {
+        return keyedStateBackend.getBackendTypeIdentifier();
+    }
+
+    @Override
     public void close() throws IOException {}
 
     @Override

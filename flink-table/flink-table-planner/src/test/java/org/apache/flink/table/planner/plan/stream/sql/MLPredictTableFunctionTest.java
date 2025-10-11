@@ -22,12 +22,10 @@ import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.planner.functions.sql.ml.SqlMLPredictTableFunction;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
-import org.apache.calcite.sql.type.SqlOperandTypeChecker;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -37,7 +35,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.Collections;
 import java.util.stream.Stream;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for model table value function. */
@@ -80,6 +77,16 @@ public class MLPredictTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    public void testSimpleArguments() {
+        String sql =
+                "SELECT *\n"
+                        + "FROM TABLE(ML_PREDICT(TABLE MyTable, "
+                        + "MODEL MyModel, "
+                        + "DESCRIPTOR(a, b)))";
+        util.verifyRelPlan(sql);
+    }
+
+    @Test
     public void testNamedArguments() {
         String sql =
                 "SELECT *\n"
@@ -114,7 +121,9 @@ public class MLPredictTableFunctionTest extends TableTestBase {
         String sql = "SELECT *\n" + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .hasMessageContaining(
-                        "Invalid number of arguments to function 'ML_PREDICT'. Was expecting 3 arguments");
+                        "No match found for function signature ML_PREDICT(<RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime)>, <RecordType(VARCHAR(2147483647) e, INTEGER ARRAY f)>).\n"
+                                + "Supported signatures are:\n"
+                                + "ML_PREDICT(INPUT => {TABLE, ROW SEMANTIC TABLE}, MODEL => {MODEL}, ARGS => DESCRIPTOR, CONFIG => MAP<STRING, STRING>)");
     }
 
     @Test
@@ -124,7 +133,9 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                         + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['key', 'value'], 'arg0'))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .hasMessageContaining(
-                        "Invalid number of arguments to function 'ML_PREDICT'. Was expecting 3 arguments");
+                        "No match found for function signature ML_PREDICT(<RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, DECIMAL(10, 3) d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime)>, <RecordType(VARCHAR(2147483647) e, INTEGER ARRAY f)>, <COLUMN_LIST>, <(CHAR(3), CHAR(5)) MAP>, <CHARACTER>).\n"
+                                + "Supported signatures are:\n"
+                                + "ML_PREDICT(INPUT => {TABLE, ROW SEMANTIC TABLE}, MODEL => {MODEL}, ARGS => DESCRIPTOR, CONFIG => MAP<STRING, STRING>)");
     }
 
     @Test
@@ -163,8 +174,8 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                         + "FROM TABLE(ML_PREDICT(TABLE MyTable, DESCRIPTOR(a, b), DESCRIPTOR(a, b)))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "SQL validation failed. Second operand must be a model identifier.");
+                .hasRootCauseMessage(
+                        "Invalid argument value. Argument 'MODEL' expects a model to be passed.");
     }
 
     @Test
@@ -174,8 +185,8 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                         + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b, c)))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "SQL validation failed. Number of input descriptor columns (3) does not match model input size (2).");
+                .hasRootCauseMessage(
+                        "Number of descriptor columns (3) does not match model input size (2).");
     }
 
     @Test
@@ -185,7 +196,8 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                         + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(no_col)))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Unknown identifier 'no_col'");
+                .hasRootCauseMessage(
+                        "Descriptor column 'no_col' not found in table columns. Available columns: a, b, c, d, rowtime, proctime.");
     }
 
     @Test
@@ -195,7 +207,8 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                         + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(MyTable.a)))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Table or column alias must be a simple identifier");
+                .hasRootCauseMessage(
+                        "Third argument must be a descriptor with simple column names for ML_PREDICT function.");
     }
 
     @ParameterizedTest
@@ -263,7 +276,7 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                         + "FROM TABLE(ML_PREDICT(TABLE TypeTable, MODEL TypeModel, DESCRIPTOR(col)))";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("cannot be assigned to model input type");
+                .hasStackTraceContaining("cannot be assigned to model input type");
     }
 
     @Test
@@ -274,34 +287,34 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                                         "SELECT *\n"
                                                 + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', true]))"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "SQL validation failed. Config param can only be a MAP of string literals but node's type is (CHAR(5), BOOLEAN) MAP at position line 2, column 71.");
+                .hasRootCauseMessage(
+                        "Invalid argument type at position 3. Data type MAP<STRING, STRING> expected but MAP<CHAR(5) NOT NULL, BOOLEAN NOT NULL> NOT NULL passed.");
 
         assertThatThrownBy(
                         () ->
                                 util.verifyRelPlan(
                                         "SELECT *\n"
                                                 + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'yes']))"))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("SQL validation failed. Failed to parse the config.");
+                .hasCauseInstanceOf(ValidationException.class)
+                .hasStackTraceContaining("Failed to parse the config.");
 
         assertThatThrownBy(
                         () ->
                                 util.verifyRelPlan(
                                         "SELECT *\n"
                                                 + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true', 'max-concurrent-operations', '-1']))"))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "SQL validation failed. Invalid runtime config option 'max-concurrent-operations'. Its value should be positive integer but was -1.");
+                .hasCauseInstanceOf(ValidationException.class)
+                .hasStackTraceContaining(
+                        "Invalid runtime config option 'max-concurrent-operations'. Its value should be positive integer but was -1.");
 
         assertThatThrownBy(
                         () ->
                                 util.verifyRelPlan(
                                         "SELECT *\n"
                                                 + "FROM TABLE(ML_PREDICT(TABLE MyTable, MODEL MyModel, DESCRIPTOR(a, b), MAP['async', 'true', 'capacity', CAST(-1 AS STRING)]))"))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "SQL validation failed. Unsupported expression -1 is in runtime config at position line 2, column 109. Currently, runtime config should be be a MAP of string literals.");
+                .hasCauseInstanceOf(ValidationException.class)
+                .hasStackTraceContaining(
+                        "Config parameter of ML_PREDICT function should be a MAP data type consisting String literals.");
 
         assertThatThrownBy(
                         () ->
@@ -408,27 +421,6 @@ public class MLPredictTableFunctionTest extends TableTestBase {
                 .isInstanceOf(TableException.class)
                 .hasMessageContaining(
                         "StreamPhysicalMLPredictTableFunction doesn't support consuming update and delete changes which is produced by node TableSourceScan(table=[[default_catalog, default_database, CdcTable]], fields=[a, b])");
-    }
-
-    @Test
-    public void testIsOptional() {
-        SqlMLPredictTableFunction function = new SqlMLPredictTableFunction();
-        SqlOperandTypeChecker operandMetadata = function.getOperandTypeChecker();
-
-        assertThat(operandMetadata).isNotNull();
-        // First three parameters (INPUT, MODEL, DESCRIPTOR) are mandatory
-        for (int i = 0; i < 3; i++) {
-            assertThat(operandMetadata.isOptional(i)).isFalse();
-        }
-
-        // Fourth parameter (CONFIG) is optional
-        assertThat(operandMetadata.isOptional(3)).isTrue();
-
-        // Parameters beyond the maximum count should not be optional
-        assertThat(operandMetadata.isOptional(4)).isFalse();
-
-        assertThat(operandMetadata.getOperandCountRange().getMin()).isEqualTo(3);
-        assertThat(operandMetadata.getOperandCountRange().getMax()).isEqualTo(4);
     }
 
     private static Stream<Arguments> compatibleTypeProvider() {

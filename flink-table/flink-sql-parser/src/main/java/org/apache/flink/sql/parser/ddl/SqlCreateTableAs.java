@@ -98,7 +98,8 @@ public class SqlCreateTableAs extends SqlCreateTable {
                 watermark,
                 comment,
                 isTemporary,
-                ifNotExists);
+                ifNotExists,
+                false);
         this.asQuery =
                 requireNonNull(asQuery, "As clause is required for CREATE TABLE AS SELECT DDL");
     }

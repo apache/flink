@@ -152,6 +152,8 @@ public class BufferDataOverWindowOperator extends TableStreamOperator<RowData>
     @Override
     public void close() throws Exception {
         super.close();
-        this.currentData.close();
+        if (this.currentData != null) {
+            this.currentData.close();
+        }
     }
 }

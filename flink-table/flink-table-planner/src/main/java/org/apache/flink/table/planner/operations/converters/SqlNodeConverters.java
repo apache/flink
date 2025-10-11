@@ -22,6 +22,25 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableAddPartitionConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropColumnConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropConstraintConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropDistributionConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropPartitionConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropPrimaryKeyConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropWatermarkConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableOptionsConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableRenameColumnConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableRenameConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableResetConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableSchemaAddConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableSchemaModifyConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlCreateTableAsConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlCreateTableConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlCreateTableLikeConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlReplaceTableAsConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlShowTablesConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlTruncateTableConverter;
 
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -79,6 +98,20 @@ public class SqlNodeConverters {
         register(new SqlShowCatalogsConverter());
         register(new SqlDescribeFunctionConverter());
         register(new SqlDescribeModelConverter());
+        register(new SqlCreateTableAsConverter());
+        register(new SqlCreateTableConverter());
+        register(new SqlCreateTableLikeConverter());
+        register(new SqlAlterTableDropPrimaryKeyConverter());
+        register(new SqlAlterTableDropColumnConverter());
+        register(new SqlAlterTableDropConstraintConverter());
+        register(new SqlAlterTableDropWatermarkConverter());
+        register(new SqlAlterTableDropDistributionConverter());
+        register(new SqlAlterTableRenameColumnConverter());
+        register(new SqlAlterTableResetConverter());
+        register(new SqlAlterTableOptionsConverter());
+        register(new SqlAlterTableSchemaModifyConverter());
+        register(new SqlAlterTableSchemaAddConverter());
+        register(new SqlAlterTableRenameConverter());
     }
 
     /**

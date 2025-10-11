@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.operations.converters;
+package org.apache.flink.table.planner.operations.converters.table;
 
 import org.apache.flink.sql.parser.ddl.SqlDropPartitions;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.DropPartitionsOperation;
+import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
 
 import java.util.ArrayList;
 import java.util.List;

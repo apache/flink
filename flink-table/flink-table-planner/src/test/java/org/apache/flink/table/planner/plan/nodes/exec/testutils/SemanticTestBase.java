@@ -96,6 +96,7 @@ public abstract class SemanticTestBase implements TableTestProgramRunner {
         for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
             List<String> actualResults = getActualResults(sinkTestStep, sinkTestStep.name);
             assertThat(actualResults)
+                    .as("%s", program.id)
                     .containsExactlyInAnyOrder(
                             sinkTestStep.getExpectedAsStrings().toArray(new String[0]));
         }

@@ -1088,7 +1088,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         String.format(
                                 "SELECT `tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`, COUNT(`tmp`.`order_id`) AS `order_cnt`, SUM(`tmp`.`order_amount`) AS `order_amount_sum`\n"
                                         + "FROM (SELECT `my_source`.`user_id`, `my_source`.`shop_id`, `my_source`.`order_created_at` AS `ds`, `my_source`.`order_id`, 1 AS `order_amount`\n"
-                                        + "FROM `%s`.`test_db`.`my_source`) AS `tmp`\n"
+                                        + "FROM `%s`.`test_db`.`my_source` AS `my_source`) AS `tmp`\n"
                                         + "GROUP BY ROW(`tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`)",
                                 fileSystemCatalogName));
         // the refresh handler in full mode should be the same as the old one
@@ -1228,7 +1228,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         String.format(
                                 "SELECT `tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`, COUNT(`tmp`.`order_id`) AS `order_cnt`, SUM(`tmp`.`order_amount`) AS `order_amount_sum`\n"
                                         + "FROM (SELECT `my_source`.`user_id`, `my_source`.`shop_id`, `my_source`.`order_created_at` AS `ds`, `my_source`.`order_id`, 1 AS `order_amount`\n"
-                                        + "FROM `%s`.`test_db`.`my_source`) AS `tmp`\n"
+                                        + "FROM `%s`.`test_db`.`my_source` AS `my_source`) AS `tmp`\n"
                                         + "GROUP BY ROW(`tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`)",
                                 fileSystemCatalogName));
 
@@ -1313,11 +1313,11 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         assertThat(newTable.getDefinitionQuery())
                 .isEqualTo(
                         String.format(
-                                "SELECT COALESCE(`tmp`.`user_id`, 0) AS `user_id`, `tmp`.`shop_id`, COALESCE(`tmp`.`ds`, '') AS `ds`, SUM(`tmp`.`payment_amount_cents`) AS `payed_buy_fee_sum`, SUM(1) AS `pv`\n"
-                                        + "FROM (SELECT `datagenSource`.`user_id`, `datagenSource`.`shop_id`, `DATE_FORMAT`(`datagenSource`.`order_created_at`, 'yyyy-MM-dd') AS `ds`, `datagenSource`.`payment_amount_cents`\n"
-                                        + "FROM `%s`.`test_db`.`datagenSource`) AS `tmp`\n"
+                                "SELECT COALESCE(`tmp`.`user_id`, CAST(0 AS BIGINT)) AS `user_id`, `tmp`.`shop_id`, COALESCE(`tmp`.`ds`, '') AS `ds`, SUM(`tmp`.`payment_amount_cents`) AS `payed_buy_fee_sum`, SUM(1) AS `pv`\n"
+                                        + "FROM (SELECT `datagenSource`.`user_id`, `datagenSource`.`shop_id`, DATE_FORMAT(`datagenSource`.`order_created_at`, 'yyyy-MM-dd') AS `ds`, `datagenSource`.`payment_amount_cents`\n"
+                                        + "FROM `%s`.`%s`.`datagenSource` AS `datagenSource`) AS `tmp`\n"
                                         + "GROUP BY ROW(`tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`)",
-                                fileSystemCatalogName));
+                                fileSystemCatalogName, TEST_DEFAULT_DATABASE));
         assertThat(oldTable.getSerializedRefreshHandler())
                 .isNotEqualTo(newTable.getSerializedRefreshHandler());
 
@@ -1413,8 +1413,8 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isEqualTo(
                         String.format(
                                 "SELECT `tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`, SUM(`tmp`.`payment_amount_cents`) AS `payed_buy_fee_sum`, SUM(1) AS `pv`\n"
-                                        + "FROM (SELECT `datagenSource`.`user_id`, `datagenSource`.`shop_id`, `DATE_FORMAT`(`datagenSource`.`order_created_at`, 'yyyy-MM-dd') AS `ds`, `datagenSource`.`payment_amount_cents`\n"
-                                        + "FROM `%s`.`test_db`.`datagenSource`) AS `tmp`\n"
+                                        + "FROM (SELECT `datagenSource`.`user_id`, `datagenSource`.`shop_id`, DATE_FORMAT(`datagenSource`.`order_created_at`, 'yyyy-MM-dd') AS `ds`, `datagenSource`.`payment_amount_cents`\n"
+                                        + "FROM `%s`.`test_db`.`datagenSource` AS `datagenSource`) AS `tmp`\n"
                                         + "GROUP BY ROW(`tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`)",
                                 fileSystemCatalogName));
         assertThat(oldTable.getSerializedRefreshHandler())

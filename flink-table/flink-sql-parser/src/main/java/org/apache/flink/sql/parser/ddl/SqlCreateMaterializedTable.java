@@ -51,11 +51,11 @@ public class SqlCreateMaterializedTable extends SqlCreate {
 
     private final SqlIdentifier tableName;
 
-    private final SqlCharStringLiteral comment;
+    private final @Nullable SqlTableConstraint tableConstraint;
 
-    private final SqlTableConstraint tableConstraint;
+    private final @Nullable SqlCharStringLiteral comment;
 
-    private final SqlDistribution distribution;
+    private final @Nullable SqlDistribution distribution;
 
     private final SqlNodeList partitionKeyList;
 
@@ -63,7 +63,7 @@ public class SqlCreateMaterializedTable extends SqlCreate {
 
     private final SqlIntervalLiteral freshness;
 
-    @Nullable private final SqlLiteral refreshMode;
+    private final @Nullable SqlLiteral refreshMode;
 
     private final SqlNode asQuery;
 
@@ -80,8 +80,8 @@ public class SqlCreateMaterializedTable extends SqlCreate {
             SqlNode asQuery) {
         super(OPERATOR, pos, false, false);
         this.tableName = requireNonNull(tableName, "tableName should not be null");
-        this.comment = comment;
         this.tableConstraint = tableConstraint;
+        this.comment = comment;
         this.distribution = distribution;
         this.partitionKeyList =
                 requireNonNull(partitionKeyList, "partitionKeyList should not be null");
@@ -124,7 +124,7 @@ public class SqlCreateMaterializedTable extends SqlCreate {
         return Optional.ofNullable(tableConstraint);
     }
 
-    public SqlDistribution getDistribution() {
+    public @Nullable SqlDistribution getDistribution() {
         return distribution;
     }
 

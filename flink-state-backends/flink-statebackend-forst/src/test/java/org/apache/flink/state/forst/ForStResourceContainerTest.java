@@ -336,7 +336,9 @@ public class ForStResourceContainerTest {
 
             assertTrue(new File(remoteBasePath.getPath()).exists());
             optionsContainer.forceClearRemoteDirectories();
-            assertFalse(new File(remoteBasePath.getPath()).exists());
+
+            // Do not delete remote directory because it is not created by ForStResourceContainer
+            assertTrue(new File(remoteBasePath.getPath()).exists());
         }
     }
 

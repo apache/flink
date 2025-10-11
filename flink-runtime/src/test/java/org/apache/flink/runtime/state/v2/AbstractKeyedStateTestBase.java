@@ -213,6 +213,11 @@ public class AbstractKeyedStateTestBase {
                 public void dispose() {
                     // do nothing
                 }
+
+                @Override
+                public String getBackendTypeIdentifier() {
+                    return "test";
+                }
             };
         }
     }

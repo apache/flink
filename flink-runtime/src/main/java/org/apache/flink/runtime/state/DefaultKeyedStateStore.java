@@ -219,6 +219,15 @@ public class DefaultKeyedStateStore implements KeyedStateStore {
         }
     }
 
+    @Override
+    public String getBackendTypeIdentifier() {
+        if (keyedStateBackend != null) {
+            return keyedStateBackend.getBackendTypeIdentifier();
+        } else {
+            return asyncKeyedStateBackend.getBackendTypeIdentifier();
+        }
+    }
+
     protected <S extends org.apache.flink.api.common.state.v2.State, SV> S getPartitionedState(
             org.apache.flink.api.common.state.v2.StateDescriptor<SV> stateDescriptor)
             throws Exception {

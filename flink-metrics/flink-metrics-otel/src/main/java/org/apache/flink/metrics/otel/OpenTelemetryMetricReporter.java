@@ -124,9 +124,11 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
 
     @Override
     public void close() {
-        exporter.flush();
-        waitForLastReportToComplete();
-        exporter.close();
+        if (exporter != null) {
+            exporter.flush();
+            waitForLastReportToComplete();
+            exporter.close();
+        }
     }
 
     @Override

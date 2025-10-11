@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.operations.converters;
+package org.apache.flink.table.planner.operations.converters.table;
 
 import org.apache.flink.sql.parser.dql.SqlShowTables;
 import org.apache.flink.table.api.ValidationException;
@@ -25,6 +25,7 @@ import org.apache.flink.table.operations.ShowMaterializedTablesOperation;
 import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.utils.ShowLikeOperator;
+import org.apache.flink.table.planner.operations.converters.AbstractSqlShowConverter;
 
 import javax.annotation.Nullable;
 

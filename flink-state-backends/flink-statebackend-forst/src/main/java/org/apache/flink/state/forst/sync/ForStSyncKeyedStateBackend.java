@@ -50,6 +50,7 @@ import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
@@ -74,6 +75,7 @@ import org.forstdb.ColumnFamilyHandle;
 import org.forstdb.ColumnFamilyOptions;
 import org.forstdb.ReadOptions;
 import org.forstdb.RocksDB;
+import org.forstdb.RocksDBException;
 import org.forstdb.Snapshot;
 import org.forstdb.WriteOptions;
 import org.slf4j.Logger;
@@ -942,6 +944,18 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
     @Override
     public boolean isSafeToReuseKVState() {
         return true;
+    }
+
+    @VisibleForTesting
+    public void compactState(StateDescriptor<?, ?> stateDesc) throws RocksDBException {
+        ForStOperationUtils.ForStKvStateInfo kvStateInfo =
+                kvStateInformation.get(stateDesc.getName());
+        db.compactRange(kvStateInfo.columnFamilyHandle);
+    }
+
+    @Override
+    public String getBackendTypeIdentifier() {
+        return StateBackendLoader.FORST_STATE_BACKEND_NAME;
     }
 
     @Nonnegative

@@ -30,6 +30,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidUpdatingSemanticsFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.MultiInputFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NoSystemArgsScalarFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.NoSystemArgsTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RequiredTimeFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTablePassThroughFunction;
@@ -190,6 +192,24 @@ public class ProcessTableFunctionTest extends TableTestBase {
                                         + "The function's name does not qualify for a UID. "
                                         + "Please provide a custom identifier using the implicit `uid` argument. "
                                         + "For example: myFunction(..., uid => 'my-id')"));
+    }
+
+    @Test
+    void testNoSystemArgsAllowedForScalarPtf() {
+        util.addTemporarySystemFunction("f", NoSystemArgsScalarFunction.class);
+        assertThatThrownBy(() -> util.verifyRelPlan("SELECT * FROM f(i => 1);"))
+                .satisfies(
+                        anyCauseMatches(
+                                "Disabling system arguments is not supported for user-defined PTF."));
+    }
+
+    @Test
+    void testNoSystemArgsAllowedForTablePtf() {
+        util.addTemporarySystemFunction("f", NoSystemArgsTableFunction.class);
+        assertThatThrownBy(() -> util.verifyRelPlan("SELECT * FROM f(r => TABLE t, i => 1);"))
+                .satisfies(
+                        anyCauseMatches(
+                                "Disabling system arguments is not supported for user-defined PTF."));
     }
 
     @Test

@@ -126,8 +126,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
 
         CreateMaterializedTableOperation op = (CreateMaterializedTableOperation) operation;
-        CatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
-        assertThat(materializedTable).isInstanceOf(ResolvedCatalogMaterializedTable.class);
+        ResolvedCatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
 
         Map<String, String> options = new HashMap<>();
         options.put("connector", "filesystem");
@@ -149,11 +148,12 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                         .logicalRefreshMode(CatalogMaterializedTable.LogicalRefreshMode.FULL)
                         .refreshMode(CatalogMaterializedTable.RefreshMode.FULL)
                         .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
-                        .definitionQuery("SELECT *\n" + "FROM `builtin`.`default`.`t1`")
+                        .definitionQuery(
+                                "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
+                                        + "FROM `builtin`.`default`.`t1` AS `t1`")
                         .build();
 
-        assertThat(((ResolvedCatalogMaterializedTable) materializedTable).getOrigin())
-                .isEqualTo(expected);
+        assertThat(materializedTable.getOrigin()).isEqualTo(expected);
     }
 
     @Test
@@ -187,7 +187,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(createOperation.getCatalogMaterializedTable().getDefinitionQuery())
                 .isEqualTo(
                         "SELECT `t1`.`a`, `T`.`f1`, `T`.`f2`\n"
-                                + "FROM `builtin`.`default`.`t1`,\n"
+                                + "FROM `builtin`.`default`.`t1` AS `t1`,\n"
                                 + "LATERAL TABLE(`builtin`.`default`.`myFunc`(`b`)) AS `T` (`f1`, `f2`)");
     }
 
@@ -202,8 +202,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
 
         CreateMaterializedTableOperation op = (CreateMaterializedTableOperation) operation;
-        CatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
-        assertThat(materializedTable).isInstanceOf(ResolvedCatalogMaterializedTable.class);
+        ResolvedCatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
 
         assertThat(materializedTable.getLogicalRefreshMode())
                 .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC);
@@ -220,8 +219,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(operation2).isInstanceOf(CreateMaterializedTableOperation.class);
 
         CreateMaterializedTableOperation op2 = (CreateMaterializedTableOperation) operation2;
-        CatalogMaterializedTable materializedTable2 = op2.getCatalogMaterializedTable();
-        assertThat(materializedTable2).isInstanceOf(ResolvedCatalogMaterializedTable.class);
+        ResolvedCatalogMaterializedTable materializedTable2 = op2.getCatalogMaterializedTable();
 
         assertThat(materializedTable2.getLogicalRefreshMode())
                 .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.CONTINUOUS);
@@ -240,8 +238,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
 
         CreateMaterializedTableOperation op = (CreateMaterializedTableOperation) operation;
-        CatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
-        assertThat(materializedTable).isInstanceOf(ResolvedCatalogMaterializedTable.class);
+        ResolvedCatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
 
         assertThat(materializedTable.getLogicalRefreshMode())
                 .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC);
@@ -258,8 +255,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(operation2).isInstanceOf(CreateMaterializedTableOperation.class);
 
         CreateMaterializedTableOperation op2 = (CreateMaterializedTableOperation) operation2;
-        CatalogMaterializedTable materializedTable2 = op2.getCatalogMaterializedTable();
-        assertThat(materializedTable2).isInstanceOf(ResolvedCatalogMaterializedTable.class);
+        ResolvedCatalogMaterializedTable materializedTable2 = op2.getCatalogMaterializedTable();
 
         assertThat(materializedTable2.getLogicalRefreshMode())
                 .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.FULL);
@@ -476,11 +472,11 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                                         Column.physical("f", DataTypes.VARCHAR(Integer.MAX_VALUE))),
                                 TableChange.modifyDefinitionQuery(
                                         "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
-                                                + "FROM `builtin`.`default`.`t3`")));
+                                                + "FROM `builtin`.`default`.`t3` AS `t3`")));
         assertThat(operation.asSummaryString())
                 .isEqualTo(
                         "ALTER MATERIALIZED TABLE builtin.default.base_mtbl AS SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
-                                + "FROM `builtin`.`default`.`t3`");
+                                + "FROM `builtin`.`default`.`t3` AS `t3`");
 
         // new table only difference schema & definition query with old table.
         CatalogMaterializedTable oldTable =
@@ -531,7 +527,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                                 TableChange.add(Column.physical("a0", DataTypes.INT())),
                                 TableChange.modifyDefinitionQuery(
                                         "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`c` AS `a`\n"
-                                                + "FROM `builtin`.`default`.`t3`")));
+                                                + "FROM `builtin`.`default`.`t3` AS `t3`")));
     }
 
     @Test

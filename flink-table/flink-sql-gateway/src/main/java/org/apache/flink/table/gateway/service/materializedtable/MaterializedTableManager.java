@@ -197,7 +197,7 @@ public class MaterializedTableManager {
             OperationExecutor operationExecutor,
             OperationHandle handle,
             CreateMaterializedTableOperation createMaterializedTableOperation) {
-        CatalogMaterializedTable materializedTable =
+        ResolvedCatalogMaterializedTable materializedTable =
                 createMaterializedTableOperation.getCatalogMaterializedTable();
         if (CatalogMaterializedTable.RefreshMode.CONTINUOUS == materializedTable.getRefreshMode()) {
             createMaterializedTableInContinuousMode(
@@ -220,7 +220,7 @@ public class MaterializedTableManager {
 
         ObjectIdentifier materializedTableIdentifier =
                 createMaterializedTableOperation.getTableIdentifier();
-        CatalogMaterializedTable catalogMaterializedTable =
+        ResolvedCatalogMaterializedTable catalogMaterializedTable =
                 createMaterializedTableOperation.getCatalogMaterializedTable();
 
         try {
@@ -257,7 +257,7 @@ public class MaterializedTableManager {
 
         ObjectIdentifier materializedTableIdentifier =
                 createMaterializedTableOperation.getTableIdentifier();
-        CatalogMaterializedTable catalogMaterializedTable =
+        ResolvedCatalogMaterializedTable catalogMaterializedTable =
                 createMaterializedTableOperation.getCatalogMaterializedTable();
 
         // convert duration to cron expression
