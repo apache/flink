@@ -20,9 +20,9 @@ package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
+import org.apache.flink.fs.s3.common.model.FlinkObjectMetadata;
+import org.apache.flink.fs.s3.common.model.FlinkPartETag;
 
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PartETag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +44,7 @@ public final class S3Committer implements RecoverableFsDataOutputStream.Committe
 
     private final String objectName;
 
-    private final List<PartETag> parts;
+    private final List<FlinkPartETag> parts;
 
     private final long totalLength;
 
@@ -52,7 +52,7 @@ public final class S3Committer implements RecoverableFsDataOutputStream.Committe
             S3AccessHelper s3AccessHelper,
             String objectName,
             String uploadId,
-            List<PartETag> parts,
+            List<FlinkPartETag> parts,
             long totalLength) {
         this.s3AccessHelper = checkNotNull(s3AccessHelper);
         this.objectName = checkNotNull(objectName);
@@ -101,7 +101,7 @@ public final class S3Committer implements RecoverableFsDataOutputStream.Committe
                 LOG.trace("Exception when committing:", e);
 
                 try {
-                    ObjectMetadata metadata = s3AccessHelper.getObjectMetadata(objectName);
+                    FlinkObjectMetadata metadata = s3AccessHelper.getObjectMetadata(objectName);
                     if (totalLength != metadata.getContentLength()) {
                         String message =
                                 String.format(

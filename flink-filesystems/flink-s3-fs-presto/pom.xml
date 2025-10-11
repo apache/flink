@@ -63,6 +63,15 @@ under the License.
 			<artifactId>flink-s3-fs-base</artifactId>
 			<version>${project.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
+			<exclusions>
+				<!-- Presto uses its own S3 client and doesn't need hadoop-aws.
+				     Excluding this prevents AWS SDK v2 from being bundled (hadoop-aws 3.4.x uses SDK v2,
+				     but Presto uses SDK v1 via com.amazonaws dependencies) -->
+				<exclusion>
+					<groupId>org.apache.hadoop</groupId>
+					<artifactId>hadoop-aws</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- for the HAJobRunOnPrestoS3FileSystemITCase -->

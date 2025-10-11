@@ -20,8 +20,7 @@ package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-
-import com.amazonaws.services.s3.model.PartETag;
+import org.apache.flink.fs.s3.common.model.FlinkPartETag;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -51,8 +50,8 @@ final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recov
 
     @Override
     public byte[] serialize(S3Recoverable obj) throws IOException {
-        final List<PartETag> partList = obj.parts();
-        final PartETag[] parts = partList.toArray(new PartETag[partList.size()]);
+        final List<FlinkPartETag> partList = obj.parts();
+        final FlinkPartETag[] parts = partList.toArray(new FlinkPartETag[partList.size()]);
 
         final byte[] keyBytes = obj.getObjectName().getBytes(CHARSET);
         final byte[] uploadIdBytes = obj.uploadId().getBytes(CHARSET);
@@ -93,7 +92,7 @@ final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recov
 
         bb.putInt(etags.length);
         for (int i = 0; i < parts.length; i++) {
-            PartETag pe = parts[i];
+            FlinkPartETag pe = parts[i];
             bb.putInt(pe.getPartNumber());
             bb.putInt(etags[i].length);
             bb.put(etags[i]);
@@ -137,12 +136,12 @@ final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recov
         bb.get(uploadIdBytes);
 
         final int numParts = bb.getInt();
-        final ArrayList<PartETag> parts = new ArrayList<>(numParts);
+        final ArrayList<FlinkPartETag> parts = new ArrayList<>(numParts);
         for (int i = 0; i < numParts; i++) {
             final int partNum = bb.getInt();
             final byte[] buffer = new byte[bb.getInt()];
             bb.get(buffer);
-            parts.add(new PartETag(partNum, new String(buffer, CHARSET)));
+            parts.add(new FlinkPartETag(partNum, new String(buffer, CHARSET)));
         }
 
         final long numBytes = bb.getLong();

@@ -19,8 +19,7 @@
 package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.core.fs.RecoverableWriter;
-
-import com.amazonaws.services.s3.model.PartETag;
+import org.apache.flink.fs.s3.common.model.FlinkPartETag;
 
 import javax.annotation.Nullable;
 
@@ -36,7 +35,7 @@ public final class S3Recoverable implements RecoverableWriter.ResumeRecoverable 
 
     private final String objectName;
 
-    private final List<PartETag> parts;
+    private final List<FlinkPartETag> parts;
 
     @Nullable private final String lastPartObject;
 
@@ -44,14 +43,15 @@ public final class S3Recoverable implements RecoverableWriter.ResumeRecoverable 
 
     private long lastPartObjectLength;
 
-    S3Recoverable(String objectName, String uploadId, List<PartETag> parts, long numBytesInParts) {
+    S3Recoverable(
+            String objectName, String uploadId, List<FlinkPartETag> parts, long numBytesInParts) {
         this(objectName, uploadId, parts, numBytesInParts, null, -1L);
     }
 
     S3Recoverable(
             String objectName,
             String uploadId,
-            List<PartETag> parts,
+            List<FlinkPartETag> parts,
             long numBytesInParts,
             @Nullable String lastPartObject,
             long lastPartObjectLength) {
@@ -77,7 +77,7 @@ public final class S3Recoverable implements RecoverableWriter.ResumeRecoverable 
         return objectName;
     }
 
-    public List<PartETag> parts() {
+    public List<FlinkPartETag> parts() {
         return parts;
     }
 
@@ -105,7 +105,7 @@ public final class S3Recoverable implements RecoverableWriter.ResumeRecoverable 
         buf.append(", bytesInParts=").append(numBytesInParts);
         buf.append(", parts=[");
         int num = 0;
-        for (PartETag part : parts) {
+        for (FlinkPartETag part : parts) {
             if (0 != num++) {
                 buf.append(", ");
             }

@@ -18,111 +18,181 @@
 
 package org.apache.flink.fs.s3hadoop;
 
+import org.apache.flink.fs.s3.common.adapter.v2.AwsSdkV2Adapters;
+import org.apache.flink.fs.s3.common.model.FlinkCompleteMultipartUploadResult;
+import org.apache.flink.fs.s3.common.model.FlinkObjectMetadata;
+import org.apache.flink.fs.s3.common.model.FlinkPartETag;
+import org.apache.flink.fs.s3.common.model.FlinkPutObjectResult;
+import org.apache.flink.fs.s3.common.model.FlinkUploadPartResult;
 import org.apache.flink.fs.s3.common.writer.S3AccessHelper;
-import org.apache.flink.util.MathUtils;
 
-import com.amazonaws.SdkBaseException;
-import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.PartETag;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.PutObjectResult;
-import com.amazonaws.services.s3.model.UploadPartRequest;
-import com.amazonaws.services.s3.model.UploadPartResult;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.s3a.S3AFileSystem;
 import org.apache.hadoop.fs.s3a.S3AUtils;
 import org.apache.hadoop.fs.s3a.WriteOperationHelper;
-import org.apache.hadoop.fs.s3a.statistics.S3AStatisticsContext;
-import org.apache.hadoop.fs.store.audit.AuditSpan;
-import org.apache.hadoop.fs.store.audit.AuditSpanSource;
+import org.apache.hadoop.fs.s3a.impl.PutObjectOptions;
+import software.amazon.awssdk.core.exception.SdkException;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
+import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.s3.model.UploadPartRequest;
+import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** An implementation of the {@link S3AccessHelper} for the Hadoop S3A filesystem. */
+/**
+ * An implementation of the {@link S3AccessHelper} for the Hadoop S3A filesystem.
+ *
+ * <p>This implementation uses the AWS SDK v2 S3Client from Hadoop's S3AFileSystem to perform
+ * low-level S3 operations required for Flink's recoverable writers. The S3Client is accessed via
+ * {@link org.apache.hadoop.fs.s3a.S3AInternals#getAmazonS3Client(String)}, which is the recommended
+ * approach for operations not available through the standard FileSystem API.
+ */
 public class HadoopS3AccessHelper implements S3AccessHelper {
 
     private final S3AFileSystem s3a;
 
-    private final InternalWriteOperationHelper s3accessHelper;
+    private final S3Client s3Client;
+
+    private final String bucket;
+
+    private final WriteOperationHelper writeHelper;
+
+    private final PutObjectOptions putOptions;
 
     public HadoopS3AccessHelper(S3AFileSystem s3a, Configuration conf) {
-        checkNotNull(s3a);
-        this.s3accessHelper =
-                new InternalWriteOperationHelper(
-                        s3a,
-                        checkNotNull(conf),
-                        s3a.createStoreContext().getInstrumentation(),
-                        s3a.getAuditSpanSource(),
-                        s3a.getActiveAuditSpan());
-        this.s3a = s3a;
+        this.s3a = checkNotNull(s3a);
+        // Use the S3AInternals API to get the S3Client for low-level operations
+        // This bypasses some S3A operations (like auditing) but is necessary for
+        // multipart upload operations that aren't exposed through the FileSystem API
+        this.s3Client =
+                s3a.getS3AInternals()
+                        .getAmazonS3Client("Flink recoverable writer multipart upload operations");
+        this.bucket = s3a.getBucket();
+        this.writeHelper = s3a.getWriteOperationHelper();
+        this.putOptions = PutObjectOptions.defaultOptions();
     }
 
     @Override
     public String startMultiPartUpload(String key) throws IOException {
-        return s3accessHelper.initiateMultiPartUpload(key);
+        try {
+            CreateMultipartUploadRequest request =
+                    CreateMultipartUploadRequest.builder().bucket(bucket).key(key).build();
+
+            CreateMultipartUploadResponse response = s3Client.createMultipartUpload(request);
+            return response.uploadId();
+        } catch (SdkException e) {
+            throw new IOException("Failed to start multipart upload for key: " + key, e);
+        }
     }
 
     @Override
-    public UploadPartResult uploadPart(
+    public FlinkUploadPartResult uploadPart(
             String key, String uploadId, int partNumber, File inputFile, long length)
             throws IOException {
-        final UploadPartRequest uploadRequest =
-                s3accessHelper.newUploadPartRequest(
-                        key,
-                        uploadId,
-                        partNumber,
-                        MathUtils.checkedDownCast(length),
-                        null,
-                        inputFile,
-                        0L);
-        return s3accessHelper.uploadPart(uploadRequest);
+        try {
+            UploadPartRequest request =
+                    UploadPartRequest.builder()
+                            .bucket(bucket)
+                            .key(key)
+                            .uploadId(uploadId)
+                            .partNumber(partNumber)
+                            .contentLength(length)
+                            .build();
+
+            RequestBody requestBody = RequestBody.fromFile(Paths.get(inputFile.getAbsolutePath()));
+            UploadPartResponse response = s3Client.uploadPart(request, requestBody);
+
+            return AwsSdkV2Adapters.toFlinkUploadPartResult(response, partNumber);
+        } catch (SdkException e) {
+            throw new IOException("Failed to upload part " + partNumber + " for key: " + key, e);
+        }
     }
 
     @Override
-    public PutObjectResult putObject(String key, File inputFile) throws IOException {
-        final PutObjectRequest putRequest = s3accessHelper.createPutObjectRequest(key, inputFile);
-        return s3accessHelper.putObject(putRequest);
+    public FlinkPutObjectResult putObject(String key, File inputFile) throws IOException {
+        try {
+            PutObjectRequest request = PutObjectRequest.builder().bucket(bucket).key(key).build();
+
+            RequestBody requestBody = RequestBody.fromFile(Paths.get(inputFile.getAbsolutePath()));
+            PutObjectResponse response = s3Client.putObject(request, requestBody);
+
+            return AwsSdkV2Adapters.toFlinkPutObjectResult(response);
+        } catch (SdkException e) {
+            throw new IOException("Failed to put object for key: " + key, e);
+        }
     }
 
     @Override
-    public CompleteMultipartUploadResult commitMultiPartUpload(
+    public FlinkCompleteMultipartUploadResult commitMultiPartUpload(
             String destKey,
             String uploadId,
-            List<PartETag> partETags,
+            List<FlinkPartETag> partETags,
             long length,
             AtomicInteger errorCount)
             throws IOException {
-        return s3accessHelper.completeMPUwithRetries(
-                destKey, uploadId, partETags, length, errorCount);
+        // Convert Flink part ETags to AWS SDK v2 CompletedPart
+        final List<CompletedPart> completedParts =
+                partETags.stream()
+                        .map(AwsSdkV2Adapters::toAwsCompletedPart)
+                        .collect(Collectors.toList());
+
+        // Use Hadoop's WriteOperationHelper which provides retry logic, error handling,
+        // and integration with S3A statistics and auditing
+        CompleteMultipartUploadResponse response =
+                writeHelper.completeMPUwithRetries(
+                        destKey, uploadId, completedParts, length, errorCount, putOptions);
+
+        return AwsSdkV2Adapters.toFlinkCompleteMultipartUploadResult(response);
     }
 
     @Override
     public boolean deleteObject(String key) throws IOException {
-        return s3a.delete(new org.apache.hadoop.fs.Path('/' + key), false);
+        try {
+            DeleteObjectRequest request =
+                    DeleteObjectRequest.builder().bucket(bucket).key(key).build();
+            s3Client.deleteObject(request);
+            return true;
+        } catch (SdkException e) {
+            throw new IOException("Failed to delete object for key: " + key, e);
+        }
     }
 
     @Override
     public long getObject(String key, File targetLocation) throws IOException {
         long numBytes = 0L;
-        try (final OutputStream outStream = new FileOutputStream(targetLocation);
-                final org.apache.hadoop.fs.FSDataInputStream inStream =
-                        s3a.open(new org.apache.hadoop.fs.Path('/' + key))) {
-            final byte[] buffer = new byte[32 * 1024];
+        try (final OutputStream outStream = new FileOutputStream(targetLocation)) {
+            GetObjectRequest request = GetObjectRequest.builder().bucket(bucket).key(key).build();
 
-            int numRead;
-            while ((numRead = inStream.read(buffer)) != -1) {
-                outStream.write(buffer, 0, numRead);
-                numBytes += numRead;
+            try (InputStream inStream = s3Client.getObject(request)) {
+                final byte[] buffer = new byte[32 * 1024];
+                int numRead;
+                while ((numRead = inStream.read(buffer)) != -1) {
+                    outStream.write(buffer, 0, numRead);
+                    numBytes += numRead;
+                }
             }
+        } catch (SdkException e) {
+            throw new IOException("Failed to get object for key: " + key, e);
         }
 
         // some sanity checks
@@ -139,27 +209,13 @@ public class HadoopS3AccessHelper implements S3AccessHelper {
     }
 
     @Override
-    public ObjectMetadata getObjectMetadata(String key) throws IOException {
+    public FlinkObjectMetadata getObjectMetadata(String key) throws IOException {
         try {
-            return s3a.getObjectMetadata(new Path('/' + key));
-        } catch (SdkBaseException e) {
+            HeadObjectRequest request = HeadObjectRequest.builder().bucket(bucket).key(key).build();
+            HeadObjectResponse response = s3Client.headObject(request);
+            return AwsSdkV2Adapters.toFlinkObjectMetadata(response);
+        } catch (SdkException e) {
             throw S3AUtils.translateException("getObjectMetadata", key, e);
-        }
-    }
-
-    /**
-     * Internal {@link WriteOperationHelper} that is wrapped so that it only exposes the
-     * functionality we need for the {@link S3AccessHelper}.
-     */
-    private static final class InternalWriteOperationHelper extends WriteOperationHelper {
-
-        InternalWriteOperationHelper(
-                S3AFileSystem owner,
-                Configuration conf,
-                S3AStatisticsContext statisticsContext,
-                AuditSpanSource auditSpanSource,
-                AuditSpan auditSpan) {
-            super(owner, conf, statisticsContext, auditSpanSource, auditSpan);
         }
     }
 }
