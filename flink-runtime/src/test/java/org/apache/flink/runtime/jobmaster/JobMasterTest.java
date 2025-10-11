@@ -1706,7 +1706,8 @@ class JobMasterTest {
                                                         .equals(event.getName()))
                                 .map(Event::getAttributes)
                                 .map(x -> x.get("newJobStatus")))
-                .containsSubsequence(
+                .containsExactly(
+                        JobStatus.CREATED.toString(),
                         JobStatus.RUNNING.toString(),
                         JobStatus.FAILING.toString(),
                         JobStatus.FAILED.toString());
@@ -1747,7 +1748,8 @@ class JobMasterTest {
                                                         .equals(event.getName()))
                                 .map(Event::getAttributes)
                                 .map(x -> x.get("newJobStatus")))
-                .containsSubsequence(
+                .containsExactly(
+                        JobStatus.CREATED.toString(),
                         JobStatus.RUNNING.toString(),
                         JobStatus.FAILING.toString(),
                         JobStatus.FAILED.toString());

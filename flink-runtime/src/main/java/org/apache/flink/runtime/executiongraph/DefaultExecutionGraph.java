@@ -1648,6 +1648,15 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     public void registerJobStatusListener(JobStatusListener listener) {
         if (listener != null) {
             jobStatusListeners.add(listener);
+            // Emit current state to the newly registered listener
+            // This ensures listeners don't miss the initial state
+            try {
+                listener.jobStatusChanges(getJobID(), state, stateTimestamps[state.ordinal()]);
+            } catch (Throwable t) {
+                LOG.warn(
+                        "Error while notifying newly registered JobStatusListener of current state",
+                        t);
+            }
         }
     }
 
