@@ -37,6 +37,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStreamFactory;
+import org.apache.flink.state.forst.ForStPathContainer;
 import org.apache.flink.state.forst.StateHandleTransferSpec;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 import org.apache.flink.state.forst.fs.filemapping.FileOwnershipDecider;
@@ -471,11 +472,14 @@ public class DataTransferStrategyTest {
 
     void testRestoreStrategyAsExpected(
             @Nullable ForStFlinkFileSystem forStFlinkFileSystem,
+            String sourceDirectoryStr,
+            String desDirStr,
             RecoveryClaimMode recoveryClaimMode,
             Class<?> expected) {
         List<HandleAndLocalPath> sharedStateHandleList = new ArrayList<>();
         sharedStateHandleList.add(
-                HandleAndLocalPath.of(new FileStateHandle(new Path("1.sst"), 0), "1.sst"));
+                HandleAndLocalPath.of(
+                        new FileStateHandle(new Path(sourceDirectoryStr + "/1.sst"), 0), "1.sst"));
         IncrementalRemoteKeyedStateHandle stateHandle =
                 new IncrementalRemoteKeyedStateHandle(
                         UUID.randomUUID(),
@@ -484,12 +488,15 @@ public class DataTransferStrategyTest {
                         sharedStateHandleList,
                         Collections.emptyList(),
                         new FileStateHandle(new Path("meta"), 0));
+        Path destJobDir = new Path(desDirStr);
+        Path destBaseDir = new Path(destJobDir, "base");
         assertThat(
                         DataTransferStrategyBuilder.buildForRestore(
                                         forStFlinkFileSystem,
+                                        ForStPathContainer.of(null, null, destJobDir, destBaseDir),
                                         Collections.singletonList(
                                                 new StateHandleTransferSpec(
-                                                        stateHandle, new Path("dst"))),
+                                                        stateHandle, destBaseDir)),
                                         recoveryClaimMode)
                                 .getClass())
                 .isEqualTo(expected);
@@ -524,19 +531,76 @@ public class DataTransferStrategyTest {
                 CopyDataTransferStrategy.class);
 
         testRestoreStrategyAsExpected(
-                forStFlinkFileSystem, RecoveryClaimMode.CLAIM, ReusableDataTransferStrategy.class);
+                forStFlinkFileSystem,
+                "/src-dir",
+                "/dst-dir",
+                RecoveryClaimMode.CLAIM,
+                ReusableDataTransferStrategy.class);
 
         testRestoreStrategyAsExpected(
-                forStFlinkFileSystem, RecoveryClaimMode.NO_CLAIM, CopyDataTransferStrategy.class);
+                forStFlinkFileSystem,
+                "/src-dir",
+                "/dst-dir",
+                RecoveryClaimMode.NO_CLAIM,
+                CopyDataTransferStrategy.class);
 
         testRestoreStrategyAsExpected(
-                forStFlinkFileSystem, RecoveryClaimMode.LEGACY, ReusableDataTransferStrategy.class);
+                forStFlinkFileSystem,
+                "/src-dir",
+                "/dst-dir",
+                RecoveryClaimMode.LEGACY,
+                ReusableDataTransferStrategy.class);
 
         testRestoreStrategyAsExpected(
-                null, RecoveryClaimMode.CLAIM, CopyDataTransferStrategy.class);
+                null,
+                "/src-dir",
+                "/dst-dir",
+                RecoveryClaimMode.CLAIM,
+                CopyDataTransferStrategy.class);
 
         testRestoreStrategyAsExpected(
-                null, RecoveryClaimMode.NO_CLAIM, CopyDataTransferStrategy.class);
+                null,
+                "/src-dir",
+                "/dst-dir",
+                RecoveryClaimMode.NO_CLAIM,
+                CopyDataTransferStrategy.class);
+
+        // Restoring from the same directory indicates a failover scenario, allowing us to reuse the
+        // files if we are in a disaggregated setup.
+        testRestoreStrategyAsExpected(
+                forStFlinkFileSystem,
+                "/same-dir",
+                "/same-dir",
+                RecoveryClaimMode.CLAIM,
+                ReusableDataTransferStrategy.class);
+
+        testRestoreStrategyAsExpected(
+                forStFlinkFileSystem,
+                "/same-dir",
+                "/same-dir",
+                RecoveryClaimMode.NO_CLAIM,
+                ReusableDataTransferStrategy.class);
+
+        testRestoreStrategyAsExpected(
+                forStFlinkFileSystem,
+                "/same-dir",
+                "/same-dir",
+                RecoveryClaimMode.LEGACY,
+                ReusableDataTransferStrategy.class);
+
+        testRestoreStrategyAsExpected(
+                null,
+                "/same-dir",
+                "/same-dir",
+                RecoveryClaimMode.CLAIM,
+                CopyDataTransferStrategy.class);
+
+        testRestoreStrategyAsExpected(
+                null,
+                "/same-dir",
+                "/same-dir",
+                RecoveryClaimMode.NO_CLAIM,
+                CopyDataTransferStrategy.class);
     }
 
     @TestTemplate
