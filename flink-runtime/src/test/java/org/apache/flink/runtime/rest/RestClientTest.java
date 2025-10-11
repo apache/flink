@@ -77,7 +77,8 @@ class RestClientTest {
     private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
             TestingUtils.defaultExecutorExtension();
 
-    private static final String unroutableIp = "240.0.0.0";
+    // Part of TEST-NET-1 block described in RFC 5737 that should never be routed.
+    private static final String unroutableIp = "192.0.2.1";
 
     private static final long TIMEOUT = 10L;
 
