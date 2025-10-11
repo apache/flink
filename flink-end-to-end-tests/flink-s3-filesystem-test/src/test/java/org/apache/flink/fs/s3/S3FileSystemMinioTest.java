@@ -30,6 +30,9 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 
@@ -38,6 +41,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * End-to-end test for S3 FileSystem using MinIO.
@@ -51,7 +56,7 @@ import java.util.stream.Collectors;
  *   <li>Reading and verifying data from S3
  * </ul>
  */
-public class S3FileSystemMinioTest {
+class S3FileSystemMinioTest {
 
     private static final int DEFAULT_PORT = 9000;
     private static final String HEALTH_ENDPOINT = "/minio/health/ready";
@@ -60,70 +65,53 @@ public class S3FileSystemMinioTest {
     private static final String BUCKET_NAME = "test-bucket";
     private static final String MINIO_IMAGE = "minio/minio:RELEASE.2022-02-07T08-17-33Z";
 
-    public static void main(String[] args) throws Exception {
-        GenericContainer<?> minioContainer = null;
-        try {
-            // Start MinIO container
-            System.out.println("Starting MinIO container...");
-            minioContainer = startMinioContainer();
+    private static GenericContainer<?> minioContainer;
+    private static AmazonS3 s3Client;
+    private static String minioEndpoint;
 
-            String minioEndpoint = getMinioEndpoint(minioContainer);
-            System.out.println("MinIO started at: " + minioEndpoint);
+    @BeforeAll
+    static void setUp() {
+        // Start MinIO container
+        minioContainer = startMinioContainer();
+        minioEndpoint = getMinioEndpoint(minioContainer);
 
-            // Create S3 client and bucket
-            AmazonS3 s3Client = createS3Client(minioEndpoint);
-            s3Client.createBucket(BUCKET_NAME);
-            System.out.println("Created S3 bucket: " + BUCKET_NAME);
+        // Create S3 client and bucket
+        s3Client = createS3Client(minioEndpoint);
+        s3Client.createBucket(BUCKET_NAME);
+    }
 
-            // Run Flink job to write data to S3
-            System.out.println("Running Flink job to write data to S3...");
-            String s3Prefix = "flink-test-data/";
-            runFlinkJobToS3(minioEndpoint, s3Prefix);
-
-            // List objects in S3 to verify they were written
-            System.out.println("Listing objects in S3...");
-            List<S3ObjectSummary> objects =
-                    s3Client.listObjects(BUCKET_NAME, s3Prefix).getObjectSummaries();
-
-            if (objects.isEmpty()) {
-                throw new RuntimeException("No objects found in S3 after Flink job!");
-            }
-
-            System.out.println("✓ Found " + objects.size() + " objects in S3");
-            for (S3ObjectSummary obj : objects) {
-                System.out.println("  - " + obj.getKey() + " (" + obj.getSize() + " bytes)");
-            }
-
-            // Verify content of objects
-            System.out.println("Verifying S3 object content...");
-            verifyS3Objects(s3Client, s3Prefix);
-
-            // Delete objects to confirm deletion works
-            System.out.println("Deleting objects from S3...");
-            for (S3ObjectSummary obj : objects) {
-                s3Client.deleteObject(BUCKET_NAME, obj.getKey());
-            }
-
-            // Verify deletion
-            objects = s3Client.listObjects(BUCKET_NAME, s3Prefix).getObjectSummaries();
-            if (!objects.isEmpty()) {
-                throw new RuntimeException("Objects still exist after deletion!");
-            }
-
-            System.out.println("✓ Successfully deleted all objects from S3");
-
-            System.out.println("✓ S3 FileSystem test completed successfully!");
-            System.exit(0);
-
-        } catch (Exception e) {
-            System.err.println("✗ S3 FileSystem test failed: " + e.getMessage());
-            e.printStackTrace();
-            System.exit(1);
-        } finally {
-            if (minioContainer != null) {
-                minioContainer.stop();
-            }
+    @AfterAll
+    static void tearDown() {
+        if (minioContainer != null) {
+            minioContainer.stop();
         }
+    }
+
+    @Test
+    void testS3FileSystemWithMinio() throws Exception {
+        String s3Prefix = "flink-test-data/";
+
+        // Run Flink job to write data to S3
+        runFlinkJobToS3(minioEndpoint, s3Prefix);
+
+        // List objects in S3 to verify they were written
+        List<S3ObjectSummary> objects =
+                s3Client.listObjects(BUCKET_NAME, s3Prefix).getObjectSummaries();
+
+        assertThat(objects).as("Objects should be written to S3").isNotEmpty();
+        assertThat(objects).as("Expected 5 objects in S3").hasSize(5);
+
+        // Verify content of objects
+        verifyS3Objects(s3Client, s3Prefix, objects);
+
+        // Delete objects to confirm deletion works
+        for (S3ObjectSummary obj : objects) {
+            s3Client.deleteObject(BUCKET_NAME, obj.getKey());
+        }
+
+        // Verify deletion
+        objects = s3Client.listObjects(BUCKET_NAME, s3Prefix).getObjectSummaries();
+        assertThat(objects).as("Objects should be deleted from S3").isEmpty();
     }
 
     private static GenericContainer<?> startMinioContainer() {
@@ -172,14 +160,8 @@ public class S3FileSystemMinioTest {
         env.execute("S3 FileSystem MinIO Test");
     }
 
-    private static void verifyS3Objects(AmazonS3 s3Client, String s3Prefix) throws Exception {
-        List<S3ObjectSummary> objects =
-                s3Client.listObjects(BUCKET_NAME, s3Prefix).getObjectSummaries();
-
-        if (objects.size() != 5) {
-            throw new RuntimeException("Expected 5 objects but found " + objects.size());
-        }
-
+    private static void verifyS3Objects(
+            AmazonS3 s3Client, String s3Prefix, List<S3ObjectSummary> objects) throws Exception {
         // Read and verify content
         int totalRecords = 0;
         for (S3ObjectSummary objSummary : objects) {
@@ -191,16 +173,11 @@ public class S3FileSystemMinioTest {
                 String content = reader.lines().collect(Collectors.joining("\n"));
                 if (!content.isEmpty()) {
                     totalRecords++;
-                    System.out.println("  Content of " + objSummary.getKey() + ": " + content);
                 }
             }
         }
 
-        if (totalRecords != 5) {
-            throw new RuntimeException("Expected 5 records but found " + totalRecords);
-        }
-
-        System.out.println("✓ Verified content of all S3 objects");
+        assertThat(totalRecords).as("Expected 5 records in S3").isEqualTo(5);
     }
 
     /** Simple test data source that emits a fixed set of records. */
