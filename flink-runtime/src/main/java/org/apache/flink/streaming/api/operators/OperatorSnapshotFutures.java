@@ -30,6 +30,9 @@ import org.apache.flink.runtime.state.StateObject;
 
 import org.apache.flink.shaded.guava33.com.google.common.io.Closer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
@@ -41,6 +44,8 @@ import static org.apache.flink.runtime.state.StateUtil.discardStateFuture;
 
 /** Result of {@link StreamOperator#snapshotState}. */
 public class OperatorSnapshotFutures {
+
+    private static final Logger LOG = LoggerFactory.getLogger(OperatorSnapshotFutures.class);
 
     @Nonnull private RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture;
 
@@ -57,6 +62,8 @@ public class OperatorSnapshotFutures {
     private Future<SnapshotResult<StateObjectCollection<OutputStateHandle>>>
             resultSubpartitionStateFuture;
 
+    private RunnableFuture<Void> asyncOperateFuture;
+
     public OperatorSnapshotFutures() {
         this(
                 DoneFuture.of(SnapshotResult.empty()),
@@ -64,7 +71,8 @@ public class OperatorSnapshotFutures {
                 DoneFuture.of(SnapshotResult.empty()),
                 DoneFuture.of(SnapshotResult.empty()),
                 DoneFuture.of(SnapshotResult.empty()),
-                DoneFuture.of(SnapshotResult.empty()));
+                DoneFuture.of(SnapshotResult.empty()),
+                DoneFuture.of(null));
     }
 
     public OperatorSnapshotFutures(
@@ -78,12 +86,35 @@ public class OperatorSnapshotFutures {
             @Nonnull
                     Future<SnapshotResult<StateObjectCollection<OutputStateHandle>>>
                             resultSubpartitionStateFuture) {
+        this(
+                keyedStateManagedFuture,
+                keyedStateRawFuture,
+                operatorStateManagedFuture,
+                operatorStateRawFuture,
+                inputChannelStateFuture,
+                resultSubpartitionStateFuture,
+                DoneFuture.of(null));
+    }
+
+    public OperatorSnapshotFutures(
+            @Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateManagedFuture,
+            @Nonnull RunnableFuture<SnapshotResult<KeyedStateHandle>> keyedStateRawFuture,
+            @Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateManagedFuture,
+            @Nonnull RunnableFuture<SnapshotResult<OperatorStateHandle>> operatorStateRawFuture,
+            @Nonnull
+                    Future<SnapshotResult<StateObjectCollection<InputStateHandle>>>
+                            inputChannelStateFuture,
+            @Nonnull
+                    Future<SnapshotResult<StateObjectCollection<OutputStateHandle>>>
+                            resultSubpartitionStateFuture,
+            RunnableFuture<Void> asyncOperateFuture) {
         this.keyedStateManagedFuture = keyedStateManagedFuture;
         this.keyedStateRawFuture = keyedStateRawFuture;
         this.operatorStateManagedFuture = operatorStateManagedFuture;
         this.operatorStateRawFuture = operatorStateRawFuture;
         this.inputChannelStateFuture = inputChannelStateFuture;
         this.resultSubpartitionStateFuture = resultSubpartitionStateFuture;
+        this.asyncOperateFuture = asyncOperateFuture;
     }
 
     @Nonnull
@@ -154,10 +185,25 @@ public class OperatorSnapshotFutures {
         this.resultSubpartitionStateFuture = resultSubpartitionStateFuture;
     }
 
+    public RunnableFuture<Void> getAsyncOperateFuture() {
+        return asyncOperateFuture;
+    }
+
+    public void setAsyncOperateFuture(RunnableFuture<Void> asyncOperateFuture) {
+        this.asyncOperateFuture = asyncOperateFuture;
+    }
+
     /**
      * @return discarded state size (if available).
      */
     public Tuple2<Long, Long> cancel() throws Exception {
+
+        // cancel async snapshot state task
+        if (asyncOperateFuture != null && !asyncOperateFuture.isDone()) {
+            asyncOperateFuture.cancel(true);
+            LOG.info("Async snapshot state task canceled.");
+        }
+
         List<Tuple2<Future<? extends StateObject>, String>> pairs = new ArrayList<>();
         pairs.add(new Tuple2<>(getKeyedStateManagedFuture(), "managed keyed"));
         pairs.add(new Tuple2<>(getKeyedStateRawFuture(), "managed operator"));
@@ -194,7 +240,8 @@ public class OperatorSnapshotFutures {
             operatorStateManagedFuture,
             operatorStateRawFuture,
             inputChannelStateFuture,
-            resultSubpartitionStateFuture
+            resultSubpartitionStateFuture,
+            asyncOperateFuture
         };
     }
 }

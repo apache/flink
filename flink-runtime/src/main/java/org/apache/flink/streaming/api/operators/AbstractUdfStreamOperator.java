@@ -36,6 +36,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.util.functions.StreamingFunctionUtils;
 
+import java.util.concurrent.FutureTask;
+
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -93,6 +95,11 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
         super.snapshotState(context);
         StreamingFunctionUtils.snapshotFunctionState(
                 context, getOperatorStateBackend(), userFunction);
+    }
+
+    @Override
+    public FutureTask<Void> asyncOperate(StateSnapshotContext context) throws Exception {
+        return StreamingFunctionUtils.getAsyncOperateFunctionStateFuture(context, userFunction);
     }
 
     @Override
