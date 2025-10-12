@@ -27,14 +27,25 @@ import java.util.concurrent.CompletionStage;
 /** The interface to rate limit execution of methods. */
 @NotThreadSafe
 @Experimental
-public interface RateLimiter {
+public interface RateLimiter<S> {
 
     /**
      * Returns a future that is completed once another event would not exceed the rate limit. For
      * correct functioning, the next invocation of this method should only happen after the
      * previously returned future has been completed.
      */
-    CompletionStage<Void> acquire();
+    default CompletionStage<Void> acquire() {
+        return acquire(1);
+    }
+
+    /**
+     * Returns a future that is completed once another event would not exceed the rate limit. For
+     * correct functioning, the next invocation of this method should only happen after the
+     * previously returned future has been completed.
+     *
+     * @param requestSize The size of requests.
+     */
+    CompletionStage<Void> acquire(int requestSize);
 
     /**
      * Notifies this {@code RateLimiter} that the checkpoint with the given {@code checkpointId}
@@ -44,4 +55,12 @@ public interface RateLimiter {
      * @param checkpointId The ID of the checkpoint that has been completed.
      */
     default void notifyCheckpointComplete(long checkpointId) {}
+
+    /**
+     * Notifies this {@code RateLimiter} that the status has changed. This can be used to adjust the
+     * rate limiting behavior based on the new status.
+     *
+     * @param status The new status.
+     */
+    default void notifyStatusChange(S status) {}
 }

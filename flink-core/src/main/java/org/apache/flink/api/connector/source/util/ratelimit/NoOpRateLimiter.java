@@ -25,10 +25,10 @@ import java.util.concurrent.CompletionStage;
 
 /** A convenience implementation of {@link RateLimiter} that does not throttle requests. */
 @Internal
-public class NoOpRateLimiter implements RateLimiter {
+public class NoOpRateLimiter<S> implements RateLimiter<S> {
 
     @Override
-    public CompletionStage<Void> acquire() {
+    public CompletionStage<Void> acquire(int requestSize) {
         return FutureUtils.completedVoidFuture();
     }
 }

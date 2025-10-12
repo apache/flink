@@ -20,11 +20,14 @@ package org.apache.flink.connector.base.source.reader.mocks;
 
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
+import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordEvaluator;
 import org.apache.flink.connector.base.source.reader.SingleThreadMultiplexSourceReaderBase;
 import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
+
+import javax.annotation.Nullable;
 
 import java.util.Map;
 import java.util.function.Supplier;
@@ -63,6 +66,21 @@ public class MockSourceReader
                 recordEvaluator,
                 config,
                 context);
+    }
+
+    public MockSourceReader(
+            SingleThreadFetcherManager<int[], MockSourceSplit> splitSplitFetcherManager,
+            Configuration config,
+            SourceReaderContext context,
+            RecordEvaluator<Integer> recordEvaluator,
+            @Nullable RateLimiterStrategy<MockSourceSplit> rateLimiterStrategy) {
+        super(
+                splitSplitFetcherManager,
+                new MockRecordEmitter(context.metricGroup()),
+                recordEvaluator,
+                config,
+                context,
+                rateLimiterStrategy);
     }
 
     @Override

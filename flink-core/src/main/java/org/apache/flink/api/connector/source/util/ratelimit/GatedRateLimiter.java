@@ -31,7 +31,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * external notifications.
  */
 @Internal
-public class GatedRateLimiter implements RateLimiter {
+public class GatedRateLimiter<S> implements RateLimiter<S> {
 
     private final int capacityPerCycle;
     private int capacityLeft;
@@ -50,14 +50,14 @@ public class GatedRateLimiter implements RateLimiter {
     transient CompletableFuture<Void> gatingFuture = null;
 
     @Override
-    public CompletionStage<Void> acquire() {
+    public CompletionStage<Void> acquire(int requestSize) {
         if (gatingFuture == null) {
             gatingFuture = CompletableFuture.completedFuture(null);
         }
         if (capacityLeft <= 0) {
             gatingFuture = new CompletableFuture<>();
         }
-        return gatingFuture.thenRun(() -> capacityLeft -= 1);
+        return gatingFuture.thenRun(() -> capacityLeft -= requestSize);
     }
 
     @Override

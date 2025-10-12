@@ -26,6 +26,7 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
+import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
 import org.apache.flink.connector.base.source.reader.mocks.MockSourceReader;
@@ -130,10 +131,11 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
     }
 
     @Test
-    void testRecordsWithSplitsNotRecycledWhenRecordsLeft() throws Exception {
+    void testLimitingRateInSplitReader() throws Exception {
         final TestingRecordsWithSplitIds<String> records =
                 new TestingRecordsWithSplitIds<>("test-split", "value1", "value2");
-        final SourceReader<?, ?> reader = createReaderAndAwaitAvailable("test-split", records);
+        final SourceReader<?, ?> reader =
+                createReaderAndAwaitAvailable("test-split", records, RateLimiterStrategy.noOp());
 
         reader.pollNext(new TestingReaderOutput<>());
 
@@ -141,10 +143,130 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
     }
 
     @Test
+    void testRecordsWithSplitsNotRecycledWhenRecordsLeft() throws Exception {
+
+        final TestingRecordsWithSplitIds<String> records =
+                new TestingRecordsWithSplitIds<>(
+                        "test-split",
+                        "value1",
+                        "value2",
+                        "value3",
+                        "value4",
+                        "value5",
+                        "value6",
+                        "value7",
+                        "value8",
+                        "value9",
+                        "value10",
+                        "value11",
+                        "value12",
+                        "value13",
+                        "value14",
+                        "value15",
+                        "value16",
+                        "value17",
+                        "value18",
+                        "value19",
+                        "value20",
+                        "value21",
+                        "value22",
+                        "value23",
+                        "value24",
+                        "value25",
+                        "value26",
+                        "value27",
+                        "value28",
+                        "value29",
+                        "value30",
+                        "value31",
+                        "value32",
+                        "value33",
+                        "value34",
+                        "value35",
+                        "value36",
+                        "value37",
+                        "value38",
+                        "value39",
+                        "value40",
+                        "value41",
+                        "value42",
+                        "value43",
+                        "value44",
+                        "value45",
+                        "value46",
+                        "value47",
+                        "value48",
+                        "value49",
+                        "value50",
+                        "value51",
+                        "value52",
+                        "value53",
+                        "value54",
+                        "value55",
+                        "value56",
+                        "value57",
+                        "value58",
+                        "value59",
+                        "value60",
+                        "value61",
+                        "value62",
+                        "value63",
+                        "value64",
+                        "value65",
+                        "value66",
+                        "value67",
+                        "value68",
+                        "value69",
+                        "value70",
+                        "value71",
+                        "value72",
+                        "value73",
+                        "value74",
+                        "value75",
+                        "value76",
+                        "value77",
+                        "value78",
+                        "value79",
+                        "value80",
+                        "value81",
+                        "value82",
+                        "value83",
+                        "value84",
+                        "value85",
+                        "value86",
+                        "value87",
+                        "value88",
+                        "value89",
+                        "value90",
+                        "value91",
+                        "value92",
+                        "value93",
+                        "value94",
+                        "value95",
+                        "value96",
+                        "value97",
+                        "value98",
+                        "value99",
+                        "value100");
+        final SourceReader<?, ?> reader =
+                createReaderAndAwaitAvailable(
+                        "test-split", records, RateLimiterStrategy.perSecond(1));
+        TestingReaderOutput testingReaderOutput = new TestingReaderOutput<>();
+        long startTime = System.currentTimeMillis();
+        while (testingReaderOutput.getEmittedRecords().size() < 100) {
+            reader.pollNext(testingReaderOutput);
+        }
+        // The first few seconds require preheating, there may be a deviation of a few seconds.
+        assertThat(System.currentTimeMillis() - startTime)
+                .isGreaterThanOrEqualTo(Duration.ofSeconds(90).toMillis());
+    }
+
+    @Test
     void testRecordsWithSplitsRecycledWhenEmpty() throws Exception {
         final TestingRecordsWithSplitIds<String> records =
                 new TestingRecordsWithSplitIds<>("test-split", "value1", "value2");
-        final SourceReader<?, ?> reader = createReaderAndAwaitAvailable("test-split", records);
+        final SourceReader<?, ?> reader =
+                createReaderAndAwaitAvailable("test-split", records, RateLimiterStrategy.noOp());
 
         // poll thrice: twice to get all records, one more to trigger recycle and moving to the next
         // split
@@ -414,7 +536,10 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
     // ------------------------------------------------------------------------
 
     private static <E> SourceReader<E, ?> createReaderAndAwaitAvailable(
-            final String splitId, final RecordsWithSplitIds<E> records) throws Exception {
+            final String splitId,
+            final RecordsWithSplitIds<E> records,
+            RateLimiterStrategy<TestingSourceSplit> rateLimiterStrategy)
+            throws Exception {
 
         final SourceReader<E, TestingSourceSplit> reader =
                 new SingleThreadMultiplexSourceReaderBase<
@@ -422,7 +547,8 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
                         () -> new TestingSplitReader<>(records),
                         new PassThroughRecordEmitter<>(),
                         new Configuration(),
-                        new TestingReaderContext()) {
+                        new TestingReaderContext(),
+                        rateLimiterStrategy) {
 
                     @Override
                     public void notifyCheckpointComplete(long checkpointId) {}
