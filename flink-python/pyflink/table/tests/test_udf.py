@@ -699,15 +699,14 @@ class UserDefinedFunctionTests(object):
 
     def test_using_udf_in_sql(self):
         sql = f"""
-                  CREATE TEMPORARY FUNCTION echo AS 
+                  CREATE TEMPORARY FUNCTION echo AS
                   '{UserDefinedFunctionTests.__module__}.echo'
                   LANGUAGE PYTHON
                  """
         self.t_env.execute_sql(sql)
         self.assert_equals(
-            list(self.t_env.execute_sql(f"SELECT echo(1)").collect()),
-            [ Row(1) ])
-
+            list(self.t_env.execute_sql("SELECT echo(1)").collect()),
+            [Row(1)])
 
     def test_all_data_types_string(self):
         @udf(result_type='BOOLEAN')
@@ -821,9 +820,10 @@ class UserDefinedFunctionTests(object):
         sink_table = generate_random_table_name()
         sink_table_ddl = f"""
                CREATE TABLE {sink_table}(
-               a BIGINT, b BIGINT, c TINYINT, d BOOLEAN, e SMALLINT, f INT, g FLOAT, h DOUBLE, i BYTES,
-               j STRING, k DATE, l TIME, m TIMESTAMP(3), n ARRAY<BIGINT>, o MAP<BIGINT, STRING>,
-               p DECIMAL(38, 18), q DECIMAL(38, 18)) WITH ('connector'='test-sink')
+               a BIGINT, b BIGINT, c TINYINT, d BOOLEAN, e SMALLINT, f INT, g FLOAT, h DOUBLE,
+               i BYTES, j STRING, k DATE, l TIME, m TIMESTAMP(3), n ARRAY<BIGINT>,
+               o MAP<BIGINT, STRING>, p DECIMAL(38, 18), q DECIMAL(38, 18))
+               WITH ('connector'='test-sink')
            """
         self.t_env.execute_sql(sink_table_ddl)
 
@@ -1151,6 +1151,7 @@ class CallablePlus(object):
 
     def __call__(self, col):
         return col + 1
+
 
 @udf(input_types=['BIGINT'], result_type='BIGINT')
 def echo(i: str):

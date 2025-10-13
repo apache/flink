@@ -74,13 +74,14 @@ class UserDefinedTableFunctionTests(object):
 
     def test_table_function_in_sql(self):
         sql = f"""
-                   CREATE TEMPORARY FUNCTION pyfunc AS 
+                   CREATE TEMPORARY FUNCTION pyfunc AS
                    '{UserDefinedTableFunctionTests.__module__}.identity'
                    LANGUAGE PYTHON
                   """
         self.t_env.execute_sql(sql)
         self.assert_equals(
-            list(self.t_env.execute_sql(f"SELECT * FROM (VALUES (1)) AS T(id), LATERAL TABLE(pyfunc(id))").collect()),
+            list(self.t_env.execute_sql(
+                "SELECT * FROM (VALUES (1)) AS T(id), LATERAL TABLE(pyfunc(id))").collect()),
             [Row(1, 1)])
 
 

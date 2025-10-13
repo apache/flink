@@ -42,13 +42,13 @@ class BatchPandasUDAFITTests(PyFlinkBatchTableTestCase):
 
     def test_pandas_udaf_in_sql(self):
         sql = f"""
-             CREATE TEMPORARY FUNCTION pymean AS 
+             CREATE TEMPORARY FUNCTION pymean AS
              '{BatchPandasUDAFITTests.__module__}.mean_str_udaf'
              LANGUAGE PYTHON
             """
         self.t_env.execute_sql(sql)
         self.assert_equals(
-            list(self.t_env.execute_sql(f"SELECT pymean(1)").collect()),
+            list(self.t_env.execute_sql("SELECT pymean(1)").collect()),
             [Row(1)])
 
     def test_check_result_type(self):
@@ -872,9 +872,11 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
 def mean_udaf(v):
     return v.mean()
 
+
 @udaf(input_types=['FLOAT'], result_type='FLOAT', func_type="pandas")
 def mean_str_udaf(v):
     return v.mean()
+
 
 class MaxAdd(AggregateFunction):
 
