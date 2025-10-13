@@ -64,9 +64,7 @@ public class TaskExecutorRegistration implements Serializable {
      */
     private final String nodeId;
 
-    /**
-     * Number of slots in static slot allocation.
-     */
+    /** Number of slots in static slot allocation. */
     private final int numberSlots;
 
     public TaskExecutorRegistration(
