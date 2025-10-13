@@ -121,6 +121,7 @@ class DebeziumAvroFormatFactoryTest {
 
     private static final String SUBJECT = "test-debezium-avro";
     private static final String REGISTRY_URL = "http://localhost:8081";
+    private static final String TOKEN_ENDPOINT_URL = "http://localhost:8080/token";
 
     @Test
     void testSeDeSchema() {
@@ -212,6 +213,23 @@ class DebeziumAvroFormatFactoryTest {
         return registryConfigs;
     }
 
+    @Nonnull
+    private Map<String, String> getExtendedRegistryConfigs() {
+        final Map<String, String> registryConfigs = new HashMap<>();
+        registryConfigs.put("basic.auth.user.info", "something1");
+        registryConfigs.put("basic.auth.credentials.source", "something2");
+        registryConfigs.put("bearer.auth.credentials.source", "CUSTOM");
+        registryConfigs.put("bearer.auth.token", "CUSTOM_TOKEN");
+        registryConfigs.put("sasl.oauthbearer.token.endpoint.url", TOKEN_ENDPOINT_URL);
+        registryConfigs.put("sasl.jaas.config", "custom.jaas.config");
+        registryConfigs.put("bearer.auth.logical.cluster", "test-cluster");
+        registryConfigs.put("schema.registry.ssl.keystore.location", "dummy-keystore-path");
+        registryConfigs.put("schema.registry.ssl.keystore.password", "dummy-password");
+        registryConfigs.put("schema.registry.ssl.truststore.location", "dummy-truststore-path");
+        registryConfigs.put("schema.registry.ssl.truststore.password", "dummy-password");
+        return registryConfigs;
+    }
+
     private Map<String, String> getAllOptions() {
         final Map<String, String> options = new HashMap<>();
         options.put("connector", TestDynamicTableFactory.IDENTIFIER);
@@ -226,21 +244,45 @@ class DebeziumAvroFormatFactoryTest {
         return options;
     }
 
-    private static DeserializationSchema<RowData> createDeserializationSchema(
-            Map<String, String> options) {
-        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
-        assertThat(actualSource).isInstanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class);
-        TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
-                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+    private Map<String, String> getExtendedOptions() {
+        final Map<String, String> options = new HashMap<>();
+        options.put("connector", TestDynamicTableFactory.IDENTIFIER);
+        options.put("target", "MyTarget");
+        options.put("buffer-size", "1000");
 
-        return scanSourceMock.valueFormat.createRuntimeDecoder(
-                ScanRuntimeProviderContext.INSTANCE, SCHEMA.toPhysicalRowDataType());
+        options.put("format", DebeziumAvroFormatFactory.IDENTIFIER);
+        options.put("debezium-avro-confluent.url", REGISTRY_URL);
+        options.put("debezium-avro-confluent.subject", SUBJECT);
+        options.put("debezium-avro-confluent.basic-auth.user-info", "something1");
+        options.put("debezium-avro-confluent.basic-auth.credentials-source", "something2");
+        options.put("debezium-avro-confluent.bearer-auth.credentials-source", "CUSTOM");
+        options.put("debezium-avro-confluent.bearer-auth.token", "CUSTOM_TOKEN");
+        options.put("debezium-avro-confluent.bearer-auth.token.endpoint.url", TOKEN_ENDPOINT_URL);
+        options.put("debezium-avro-confluent.bearer-auth.jaas.config", "custom.jaas.config");
+        options.put("debezium-avro-confluent.bearer-auth.logical.cluster", "test-cluster");
+        // Use dummy SSL paths to avoid Windows path issues
+        options.put("debezium-avro-confluent.ssl.keystore.location", "dummy-keystore-path");
+        options.put("debezium-avro-confluent.ssl.keystore.password", "dummy-password");
+        options.put("debezium-avro-confluent.ssl.truststore.location", "dummy-truststore-path");
+        options.put("debezium-avro-confluent.ssl.truststore.password", "dummy-password");
+        return options;
     }
 
-    private static SerializationSchema<RowData> createSerializationSchema(
-            Map<String, String> options) {
-        final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
-        assertThat(actualSink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
+    @Test
+    void testSeDeSchemaWithExtendedProperties() {
+        final Map<String, String> options = getExtendedOptions();
+        final Map<String, String> registryConfigs = getExtendedRegistryConfigs();
+
+        DebeziumAvroDeserializationSchema expectedDeser =
+                new DebeziumAvroDeserializationSchema(
+                        ROW_TYPE,
+                        InternalTypeInfo.of(ROW_TYPE),
+                        REGISTRY_URL,
+                        null,
+                        registryConfigs);
+        DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
+        assertEquals(expectedDeser, actualDeser);
+
         TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                 (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 
