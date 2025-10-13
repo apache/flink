@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.checkpoint;
+package org.apache.flink.runtime.util.stats;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.HistogramStatistics;
