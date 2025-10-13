@@ -113,6 +113,24 @@ public class AvroConfluentFormatOptions {
                     .noDefaultValue()
                     .withDescription("Bearer auth token for Schema Registry");
 
+    public static final ConfigOption<String> TOKEN_ENDPOINT_URL =
+            ConfigOptions.key("bearer-auth.token.endpoint.url")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("OAuth Bearer token endpoint URL for Schema Registry");
+
+    public static final ConfigOption<String> SASL_JAAS_CONFIG =
+            ConfigOptions.key("bearer-auth.jaas.config")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("SASL JAAS configuration for Schema Registry");
+
+    public static final ConfigOption<String> LOGICAL_CLUSTER =
+            ConfigOptions.key("bearer-auth.logical.cluster")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("Logical cluster identifier for Schema Registry");
+
     // --------------------------------------------------------------------------------------------
     // Fallback properties
     // --------------------------------------------------------------------------------------------

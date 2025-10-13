@@ -64,13 +64,16 @@ import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentForm
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_USER_INFO;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_CREDENTIALS_SOURCE;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BEARER_AUTH_TOKEN;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.LOGICAL_CLUSTER;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.PROPERTIES;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SASL_JAAS_CONFIG;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SCHEMA;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_KEYSTORE_LOCATION;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_KEYSTORE_PASSWORD;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_TRUSTSTORE_LOCATION;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SSL_TRUSTSTORE_PASSWORD;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.SUBJECT;
+import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.TOKEN_ENDPOINT_URL;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.URL;
 
 /**
@@ -186,6 +189,9 @@ public class RegistryAvroFormatFactory
         options.add(BASIC_AUTH_USER_INFO);
         options.add(BEARER_AUTH_CREDENTIALS_SOURCE);
         options.add(BEARER_AUTH_TOKEN);
+        options.add(TOKEN_ENDPOINT_URL);
+        options.add(SASL_JAAS_CONFIG);
+        options.add(LOGICAL_CLUSTER);
         return options;
     }
 
@@ -203,7 +209,11 @@ public class RegistryAvroFormatFactory
                         BASIC_AUTH_CREDENTIALS_SOURCE,
                         BASIC_AUTH_USER_INFO,
                         BEARER_AUTH_CREDENTIALS_SOURCE,
-                        BEARER_AUTH_TOKEN)
+                        BEARER_AUTH_TOKEN,
+                        TOKEN_ENDPOINT_URL,
+                        SASL_JAAS_CONFIG,
+                        LOGICAL_CLUSTER
+                )
                 .collect(Collectors.toSet());
     }
 
@@ -237,6 +247,15 @@ public class RegistryAvroFormatFactory
         formatOptions
                 .getOptional(BEARER_AUTH_TOKEN)
                 .ifPresent(v -> properties.put("bearer.auth.token", v));
+        formatOptions
+                .getOptional(TOKEN_ENDPOINT_URL)
+                .ifPresent(v -> properties.put("sasl.oauthbearer.token.endpoint.url", v));
+        formatOptions
+                .getOptional(SASL_JAAS_CONFIG)
+                .ifPresent(v -> properties.put("sasl.jaas.config", v));
+        formatOptions
+                .getOptional(LOGICAL_CLUSTER)
+                .ifPresent(v -> properties.put("bearer.auth.logical.cluster", v));
 
         if (properties.isEmpty()) {
             return null;
