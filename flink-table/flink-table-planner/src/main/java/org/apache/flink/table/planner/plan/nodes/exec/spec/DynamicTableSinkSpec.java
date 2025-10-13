@@ -25,6 +25,7 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.module.Module;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
+import org.apache.flink.table.planner.plan.abilities.sink.TargetColumnWritingSpec;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonGetter;
@@ -52,6 +53,7 @@ public class DynamicTableSinkSpec extends DynamicTableSpecBase {
     private final ContextResolvedTable contextResolvedTable;
     private final @Nullable List<SinkAbilitySpec> sinkAbilities;
 
+    @Deprecated(since = "2.2")
     private final @Nullable int[][] targetColumns;
 
     private DynamicTableSink tableSink;
@@ -99,9 +101,13 @@ public class DynamicTableSinkSpec extends DynamicTableSpecBase {
         return tableSink;
     }
 
+    /**
+     * @deprecated use {@link TargetColumnWritingSpec} instead.
+     */
     @JsonGetter(FIELD_NAME_TARGET_COLUMNS)
     @JsonInclude(JsonInclude.Include.NON_EMPTY)
     @Nullable
+    @Deprecated(since = "2.2")
     public int[][] getTargetColumns() {
         return targetColumns;
     }
