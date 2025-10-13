@@ -573,10 +573,6 @@ class UserDefinedAggregateFunctionWrapper(UserDefinedFunctionWrapper):
             else:
                 self._accumulator_type = 'ARRAY<{0}>'.format(self._result_type)
 
-        if j_input_types is not None:
-            gateway = get_gateway()
-            j_input_types = java_utils.to_jarray(
-                gateway.jvm.DataType, [_to_java_data_type(i) for i in self._input_types])
         if isinstance(self._result_type, DataType):
             j_result_type = _to_java_data_type(self._result_type)
         else:
