@@ -171,10 +171,9 @@ public class PythonTableAggregateFunction extends TableAggregateFunction impleme
         TypeInference.Builder builder = TypeInference.newBuilder();
         if (inputTypesString != null) {
             inputTypes =
-                    (DataType[])
-                            Arrays.stream(inputTypesString)
-                                    .map(typeFactory::createDataType)
-                                    .toArray();
+                    Arrays.stream(inputTypesString)
+                            .map(typeFactory::createDataType)
+                            .toArray(DataType[]::new);
         }
 
         if (inputTypes != null) {
