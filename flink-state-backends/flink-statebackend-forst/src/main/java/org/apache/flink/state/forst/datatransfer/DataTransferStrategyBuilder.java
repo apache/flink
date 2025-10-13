@@ -73,12 +73,12 @@ public class DataTransferStrategyBuilder {
                     forStFlinkFileSystem == null
                             ? new CopyDataTransferStrategy()
                             : new CopyDataTransferStrategy(forStFlinkFileSystem);
-            LOG.info("Build DataTransferStrategy for Snapshot: {}", strategy);
+            LOG.debug("Build DataTransferStrategy for Snapshot: {}", strategy);
             return strategy;
         }
 
         strategy = new ReusableDataTransferStrategy(forStFlinkFileSystem);
-        LOG.info("Build DataTransferStrategy for Snapshot: {}", strategy);
+        LOG.debug("Build DataTransferStrategy for Snapshot: {}", strategy);
         return strategy;
     }
 
@@ -139,7 +139,7 @@ public class DataTransferStrategyBuilder {
                     forStFlinkFileSystem == null
                             ? new CopyDataTransferStrategy()
                             : new CopyDataTransferStrategy(forStFlinkFileSystem);
-            LOG.info(
+            LOG.debug(
                     "Build DataTransferStrategy for Restore: {}, forStFlinkFileSystem: {}, cpSharedFs:{}, isDbUnderSameJobPathFromRestore:{}, recoveryClaimMode:{}",
                     strategy,
                     forStFlinkFileSystem,
@@ -150,7 +150,7 @@ public class DataTransferStrategyBuilder {
         }
 
         strategy = new ReusableDataTransferStrategy(forStFlinkFileSystem);
-        LOG.info("Build DataTransferStrategy for Restore: {}", strategy);
+        LOG.debug("Build DataTransferStrategy for Restore: {}", strategy);
         return strategy;
     }
 

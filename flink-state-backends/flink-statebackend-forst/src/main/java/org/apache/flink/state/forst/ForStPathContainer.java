@@ -25,17 +25,35 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.Objects;
+
 /** Container for ForSt paths. */
 public class ForStPathContainer {
 
     private static final Logger LOG = LoggerFactory.getLogger(ForStResourceContainer.class);
     public static final String DB_DIR_STRING = "db";
 
-    @Nullable final Path localJobPath;
+    /**
+     * Local job path. This indicates the parent directory of ForSt, which ends with the Flink
+     * JobID.
+     */
+    @Nullable private final Path localJobPath;
+
+    /**
+     * Local base path. This includes the information of the subtask that holds ForSt, such as the
+     * Operator Identifier and subtask index.
+     */
     @Nullable private final Path localBasePath;
+
+    /** Local ForSt path. This is the directory of ForSt DB, which ends with 'db'. */
     @Nullable private final Path localForStPath;
 
+    /**
+     * Remote paths of ForSt. Similar to the respective Path mentioned above, but located under the
+     * remote parent path.
+     */
     @Nullable private final Path remoteJobPath;
+
     @Nullable private final Path remoteBasePath;
     @Nullable private final Path remoteForStPath;
 
@@ -143,5 +161,33 @@ public class ForStPathContainer {
                 + "] remoteForStPath = ["
                 + remoteForStPath
                 + "])";
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ForStPathContainer that = (ForStPathContainer) o;
+        return Objects.equals(localJobPath, that.localJobPath)
+                && Objects.equals(localBasePath, that.localBasePath)
+                && Objects.equals(localForStPath, that.localForStPath)
+                && Objects.equals(remoteJobPath, that.remoteJobPath)
+                && Objects.equals(remoteBasePath, that.remoteBasePath)
+                && Objects.equals(remoteForStPath, that.remoteForStPath);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(
+                localJobPath,
+                localBasePath,
+                localForStPath,
+                remoteJobPath,
+                remoteBasePath,
+                remoteForStPath);
     }
 }
