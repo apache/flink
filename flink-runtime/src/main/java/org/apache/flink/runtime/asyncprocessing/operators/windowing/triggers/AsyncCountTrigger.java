@@ -97,7 +97,7 @@ public class AsyncCountTrigger<W extends Window> extends AsyncTrigger<Object, W>
 
     @Override
     public String toString() {
-        return "CountTrigger(" + maxCount + ")";
+        return "AsyncCountTrigger(" + maxCount + ")";
     }
 
     /**
