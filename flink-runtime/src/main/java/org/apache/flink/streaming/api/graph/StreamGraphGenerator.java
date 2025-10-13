@@ -98,6 +98,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -453,12 +454,11 @@ public class StreamGraphGenerator {
     }
 
     private boolean isUnboundedSource(
-            final Transformation<?> transformation, HashSet<Integer> checkedTransformations) {
+            final Transformation<?> transformation, Set<Integer> checkedTransformations) {
         checkNotNull(transformation);
-        if (checkedTransformations.contains(transformation.getId())) {
+        if (!checkedTransformations.add(transformation.getId())) {
             return false;
         }
-        checkedTransformations.add(transformation.getId());
         return transformation instanceof WithBoundedness
                 && ((WithBoundedness) transformation).getBoundedness() != Boundedness.BOUNDED;
     }
