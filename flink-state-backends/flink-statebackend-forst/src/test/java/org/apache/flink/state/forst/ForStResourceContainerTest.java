@@ -310,8 +310,10 @@ public class ForStResourceContainerTest {
     public void testDirectoryResources() throws Exception {
         Path localJobPath = new Path(TMP_FOLDER.newFolder().getPath());
         Path localBasePath = new Path(localJobPath, "base");
+        localBasePath.getFileSystem().mkdirs(localBasePath);
         Path remoteJobPath = new Path(TMP_FOLDER.newFolder().getPath());
         Path remoteBasePath = new Path(remoteJobPath, "base");
+        remoteBasePath.getFileSystem().mkdirs(remoteBasePath);
         try (final ForStResourceContainer optionsContainer =
                 new ForStResourceContainer(
                         new Configuration(),
