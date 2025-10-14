@@ -29,6 +29,7 @@ import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
+import org.apache.flink.state.forst.ForStPathContainer;
 import org.apache.flink.state.forst.StateHandleTransferSpec;
 import org.apache.flink.state.forst.fs.ForStFlinkFileSystem;
 
@@ -72,12 +73,12 @@ public class DataTransferStrategyBuilder {
                     forStFlinkFileSystem == null
                             ? new CopyDataTransferStrategy()
                             : new CopyDataTransferStrategy(forStFlinkFileSystem);
-            LOG.info("Build DataTransferStrategy for Snapshot: {}", strategy);
+            LOG.debug("Build DataTransferStrategy for Snapshot: {}", strategy);
             return strategy;
         }
 
         strategy = new ReusableDataTransferStrategy(forStFlinkFileSystem);
-        LOG.info("Build DataTransferStrategy for Snapshot: {}", strategy);
+        LOG.debug("Build DataTransferStrategy for Snapshot: {}", strategy);
         return strategy;
     }
 
@@ -122,29 +123,34 @@ public class DataTransferStrategyBuilder {
 
     public static DataTransferStrategy buildForRestore(
             @Nullable ForStFlinkFileSystem forStFlinkFileSystem,
+            ForStPathContainer forStPathContainer,
             Collection<StateHandleTransferSpec> specs,
             RecoveryClaimMode recoveryClaimMode) {
         DataTransferStrategy strategy;
         FileSystem cpSharedFs = getSharedStateFileSystem(specs);
+        boolean isDbUnderSameJobPathFromRestore =
+                isDbUnderSameJobPathFromRestore(forStPathContainer, specs);
         if (forStFlinkFileSystem == null
                 || cpSharedFs == null
                 || !forStFlinkFileSystem.getUri().equals(cpSharedFs.getUri())
-                || recoveryClaimMode == RecoveryClaimMode.NO_CLAIM) {
+                || (!isDbUnderSameJobPathFromRestore
+                        && recoveryClaimMode == RecoveryClaimMode.NO_CLAIM)) {
             strategy =
                     forStFlinkFileSystem == null
                             ? new CopyDataTransferStrategy()
                             : new CopyDataTransferStrategy(forStFlinkFileSystem);
-            LOG.info(
-                    "Build DataTransferStrategy for Restore: {}, forStFlinkFileSystem: {}, cpSharedFs:{}, recoveryClaimMode:{}",
+            LOG.debug(
+                    "Build DataTransferStrategy for Restore: {}, forStFlinkFileSystem: {}, cpSharedFs:{}, isDbUnderSameJobPathFromRestore:{}, recoveryClaimMode:{}",
                     strategy,
                     forStFlinkFileSystem,
                     cpSharedFs,
+                    isDbUnderSameJobPathFromRestore,
                     recoveryClaimMode);
             return strategy;
         }
 
         strategy = new ReusableDataTransferStrategy(forStFlinkFileSystem);
-        LOG.info("Build DataTransferStrategy for Restore: {}", strategy);
+        LOG.debug("Build DataTransferStrategy for Restore: {}", strategy);
         return strategy;
     }
 
@@ -167,5 +173,26 @@ public class DataTransferStrategyBuilder {
             }
         }
         return null;
+    }
+
+    // Verify if the job path matches the restored path. A match indicates that the job is being
+    // restored from a failover.
+    private static boolean isDbUnderSameJobPathFromRestore(
+            ForStPathContainer forStPathContainer, Collection<StateHandleTransferSpec> specs) {
+        String jobPathStr = forStPathContainer.getJobPath().getPath();
+        for (StateHandleTransferSpec spec : specs) {
+            IncrementalRemoteKeyedStateHandle stateHandle = spec.getStateHandle();
+            for (IncrementalKeyedStateHandle.HandleAndLocalPath handleAndLocalPath :
+                    stateHandle.getSharedState()) {
+                StreamStateHandle handle = handleAndLocalPath.getHandle();
+                if (handle instanceof FileStateHandle) {
+                    Path dbRemotePath = ((FileStateHandle) handle).getFilePath();
+                    if (!dbRemotePath.getPath().startsWith(jobPathStr)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
     }
 }

@@ -547,18 +547,14 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                 IOUtils.closeQuietly(db);
 
                 LOG.info(
-                        "Closed ForSt State Backend. Cleaning up ForSt local working directory {}, remote working directory {}.",
-                        optionsContainer.getLocalBasePath(),
-                        optionsContainer.getRemoteBasePath());
+                        "Closed ForSt State Backend. Cleaning up ForSt: {}.",
+                        optionsContainer.getPathContainer());
 
                 try {
                     optionsContainer.clearDirectories();
                 } catch (Exception ex) {
                     LOG.warn(
-                            "Could not delete ForSt local working directory {}, remote working directory {}.",
-                            optionsContainer.getLocalBasePath(),
-                            optionsContainer.getRemoteBasePath(),
-                            ex);
+                            "Could not delete ForSt: {}.", optionsContainer.getPathContainer(), ex);
                 }
 
                 IOUtils.closeQuietly(optionsContainer);
@@ -575,12 +571,12 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
 
     @VisibleForTesting
     Path getLocalBasePath() {
-        return optionsContainer.getLocalBasePath();
+        return optionsContainer.getPathContainer().getLocalBasePath();
     }
 
     @VisibleForTesting
     Path getRemoteBasePath() {
-        return optionsContainer.getRemoteBasePath();
+        return optionsContainer.getPathContainer().getRemoteBasePath();
     }
 
     @Override
