@@ -277,7 +277,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testFilterOnNonUpsertKeysAfterJoinWithCdcSource">
+  <TestCase name="testFilterOnNonUpsertKeysAfterJoinWithCdcSourceWithoutDelete">
     <Resource name="sql">
       <![CDATA[insert into snk_for_cdc_src select * from no_delete_src1 join no_delete_src2 on a1 = b1 and a2 = b2 where a3 > b0]]>
     </Resource>
@@ -304,7 +304,7 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testFilterOnUpsertKeysAfterJoinWithCdcSource">
+  <TestCase name="testFilterOnUpsertKeysAfterJoinWithCdcSourceWithoutDelete">
     <Resource name="sql">
       <![CDATA[insert into snk_for_cdc_src select * from no_delete_src1 join no_delete_src2 on a1 = b1 and a2 = b2 where a0 > b1]]>
     </Resource>

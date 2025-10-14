@@ -201,7 +201,7 @@ class DeltaJoinITCase(enableCache: Boolean) extends StreamingTestBase {
   }
 
   @TestTemplate
-  def testSourceWithoutDelete(): Unit = {
+  def testCdcSourceWithoutDelete(): Unit = {
     val data1 = List(
       // pk1
       changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),

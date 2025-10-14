@@ -232,7 +232,7 @@ class DeltaJoinTest extends TableTestBase {
   }
 
   @Test
-  def testFilterOnNonUpsertKeysAfterJoinWithCdcSource(): Unit = {
+  def testFilterOnNonUpsertKeysAfterJoinWithCdcSourceWithoutDelete(): Unit = {
     util.verifyRelPlanInsert(
       "insert into snk_for_cdc_src select * from no_delete_src1 " +
         "join no_delete_src2 " +
@@ -244,7 +244,7 @@ class DeltaJoinTest extends TableTestBase {
   }
 
   @Test
-  def testFilterOnUpsertKeysAfterJoinWithCdcSource(): Unit = {
+  def testFilterOnUpsertKeysAfterJoinWithCdcSourceWithoutDelete(): Unit = {
     util.verifyRelPlanInsert(
       "insert into snk_for_cdc_src select * from no_delete_src1 " +
         "join no_delete_src2 " +
