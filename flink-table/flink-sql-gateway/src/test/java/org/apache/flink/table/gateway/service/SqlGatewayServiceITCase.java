@@ -110,6 +110,7 @@ import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_RO
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
+import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_READ_ONLY_MODE;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.createInitializedSession;
@@ -1046,6 +1047,37 @@ public class SqlGatewayServiceITCase {
                 task ->
                         assertThatThrownBy(task::get)
                                 .satisfies(anyCauseMatches(SqlGatewayException.class, msg)));
+    }
+
+    @Test
+    void testReadOnlyModeWhenOperationInsertError() {
+        Configuration config = new Configuration(MINI_CLUSTER.getClientConfiguration());
+        config.set(SQL_GATEWAY_READ_ONLY_MODE, true);
+
+        String pipelineName = "test-job";
+        config.set(PipelineOptions.NAME, pipelineName);
+
+        SessionHandle sessionHandle = service.openSession(defaultSessionEnvironment);
+        String sourceDdl = "CREATE TABLE source (a STRING) WITH ('connector'='datagen');";
+        String sinkDdl = "CREATE TABLE sink (a STRING) WITH ('connector'='blackhole');";
+        String selectSql = "SELECT * FROM source;";
+
+        service.executeStatement(sessionHandle, sourceDdl, -1, config);
+        service.executeStatement(sessionHandle, sinkDdl, -1, config);
+        service.executeStatement(sessionHandle, selectSql, -1, config);
+
+        OperationHandle operationHandle =
+                service.executeStatement(
+                        sessionHandle,
+                        String.format("INSERT INTO sink '%s';", selectSql),
+                        -1,
+                        config);
+
+        assertThatThrownBy(() -> fetchAllResults(service, sessionHandle, operationHandle))
+                .satisfies(
+                        anyCauseMatches(
+                                SqlExecutionException.class,
+                                "SQL Gateway is in read-only mode. Modify operations are not allowed."));
     }
 
     // --------------------------------------------------------------------------------------------

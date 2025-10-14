@@ -60,6 +60,7 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
+import org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.FunctionInfo;
 import org.apache.flink.table.gateway.api.results.TableInfo;
@@ -681,6 +682,17 @@ public class OperationExecutor {
             TableEnvironmentInternal tableEnv,
             OperationHandle handle,
             List<ModifyOperation> modifyOperations) {
+        // Check if SQL Gateway is in read-only mode
+        Configuration configuration = sessionContext.getSessionConf().clone();
+        configuration.addAll(executionConfig);
+        boolean isReadOnlyMode =
+                configuration.get(SqlGatewayServiceConfigOptions.SQL_GATEWAY_READ_ONLY_MODE);
+
+        if (isReadOnlyMode) {
+            throw new SqlExecutionException(
+                    "SQL Gateway is in read-only mode. Modify operations are not allowed.");
+        }
+
         TableResultInternal result = tableEnv.executeInternal(modifyOperations);
         // DeleteFromFilterOperation doesn't have a JobClient
         if (modifyOperations.size() == 1
