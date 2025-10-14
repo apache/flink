@@ -322,7 +322,7 @@ try:
                         'pytz>=2018.3', 'fastavro>=1.1.0,!=1.8.0', 'requests>=2.26.0',
                         'protobuf>=3.19.0',
                         'numpy>=1.22.4',
-                        'pandas>=1.3.0',
+                        'pandas>=1.3.0,<2.3',  # FLINK-38513: 2.3+ drops cp39 wheels
                         'pyarrow>=5.0.0,<21.0.0',
                         'pemja>=0.5.5,<0.5.6;platform_system != "Windows"',
                         'httplib2>=0.19.0',
