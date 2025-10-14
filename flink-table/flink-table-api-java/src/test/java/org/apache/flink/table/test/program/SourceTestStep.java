@@ -34,17 +34,22 @@ public final class SourceTestStep extends TableTestStep {
     public final List<Row> dataBeforeRestore;
     public final List<Row> dataAfterRestore;
 
+    public final boolean treatDataBeforeRestoreAsFullStageData;
+
     SourceTestStep(
             String name,
             List<String> schemaComponents,
             @Nullable TableDistribution distribution,
             List<String> partitionKeys,
             Map<String, String> options,
+            List<List<String>> indexes,
             List<Row> dataBeforeRestore,
-            List<Row> dataAfterRestore) {
-        super(name, schemaComponents, distribution, partitionKeys, options);
+            List<Row> dataAfterRestore,
+            boolean treatDataBeforeRestoreAsFullStageData) {
+        super(name, schemaComponents, distribution, partitionKeys, options, indexes);
         this.dataBeforeRestore = dataBeforeRestore;
         this.dataAfterRestore = dataAfterRestore;
+        this.treatDataBeforeRestoreAsFullStageData = treatDataBeforeRestoreAsFullStageData;
     }
 
     /** Builder for creating a {@link SourceTestStep}. */
@@ -66,6 +71,8 @@ public final class SourceTestStep extends TableTestStep {
 
         private final List<Row> dataBeforeRestore = new ArrayList<>();
         private final List<Row> dataAfterRestore = new ArrayList<>();
+        private final List<List<String>> indexes = new ArrayList<>();
+        private boolean treatDataBeforeRestoreAsFullStageData = false;
 
         private Builder(String name) {
             super(name);
@@ -85,6 +92,16 @@ public final class SourceTestStep extends TableTestStep {
             return this;
         }
 
+        public Builder addIndex(String... index) {
+            this.indexes.add(Arrays.asList(index));
+            return this;
+        }
+
+        public Builder treatDataBeforeRestoreAsFullStageData() {
+            this.treatDataBeforeRestoreAsFullStageData = true;
+            return this;
+        }
+
         public SourceTestStep build() {
             return new SourceTestStep(
                     name,
@@ -92,8 +109,10 @@ public final class SourceTestStep extends TableTestStep {
                     distribution,
                     partitionKeys,
                     options,
+                    indexes,
                     dataBeforeRestore,
-                    dataAfterRestore);
+                    dataAfterRestore,
+                    treatDataBeforeRestoreAsFullStageData);
         }
     }
 }
