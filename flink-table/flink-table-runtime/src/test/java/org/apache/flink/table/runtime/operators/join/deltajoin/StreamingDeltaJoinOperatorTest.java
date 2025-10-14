@@ -94,7 +94,7 @@ public class StreamingDeltaJoinOperatorTest {
 
     // the data snapshot of the left/right table when joining
     // <upsert key, data>
-    private static final HashMap<RowData, RowData> leftTableCurrentData = new HashMap<>();;
+    private static final HashMap<RowData, RowData> leftTableCurrentData = new HashMap<>();
     private static final HashMap<RowData, RowData> rightTableCurrentData = new HashMap<>();
 
     @Parameters(name = "EnableCache = {0}")
