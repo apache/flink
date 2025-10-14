@@ -60,6 +60,7 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
+import org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
 import org.apache.flink.table.gateway.api.results.FunctionInfo;
 import org.apache.flink.table.gateway.api.results.TableInfo;
@@ -520,13 +521,13 @@ public class OperationExecutor {
                     "No Statement Set to submit. 'END' statement should be used after 'BEGIN STATEMENT SET'.");
         } else if (op instanceof ModifyOperation) {
             return callModifyOperations(
-                    tableEnv, handle, Collections.singletonList((ModifyOperation) op));
+                    tableEnv, handle, Collections.singletonList((ModifyOperation) op), statement);
         } else if (op instanceof CompileAndExecutePlanOperation
                 || op instanceof ExecutePlanOperation) {
             return callExecuteOperation(tableEnv, handle, op);
         } else if (op instanceof StatementSetOperation) {
             return callModifyOperations(
-                    tableEnv, handle, ((StatementSetOperation) op).getOperations());
+                    tableEnv, handle, ((StatementSetOperation) op).getOperations(), statement);
         } else if (op instanceof QueryOperation) {
             TableResultInternal result =
                     cachedPlan != null
@@ -673,14 +674,30 @@ public class OperationExecutor {
             // there's no statement in the statement set, skip submitting
             return ResultFetcher.fromTableResult(handle, TABLE_RESULT_OK, false);
         } else {
-            return callModifyOperations(tableEnv, handle, statementSetOperations);
+            return callModifyOperations(tableEnv, handle, statementSetOperations, null);
         }
     }
 
     private ResultFetcher callModifyOperations(
             TableEnvironmentInternal tableEnv,
             OperationHandle handle,
-            List<ModifyOperation> modifyOperations) {
+            List<ModifyOperation> modifyOperations,
+            String originalSql) {
+        // Check if SQL Gateway is in read-only mode
+        Configuration configuration = sessionContext.getSessionConf().clone();
+        configuration.addAll(executionConfig);
+        boolean isReadOnlyMode =
+                configuration.get(SqlGatewayServiceConfigOptions.SQL_GATEWAY_READ_ONLY_MODE);
+
+        if (isReadOnlyMode) {
+            String errorMessage =
+                    (originalSql != null && !originalSql.trim().isEmpty())
+                            ? String.format(
+                                    "The following statement is not allowed: %s", originalSql)
+                            : "Modification operations are not allowed.";
+            throw new SqlExecutionException("SQL Gateway is in read-only mode. " + errorMessage);
+        }
+
         TableResultInternal result = tableEnv.executeInternal(modifyOperations);
         // DeleteFromFilterOperation doesn't have a JobClient
         if (modifyOperations.size() == 1
