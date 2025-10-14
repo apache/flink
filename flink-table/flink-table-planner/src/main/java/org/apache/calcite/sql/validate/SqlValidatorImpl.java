@@ -16,6 +16,7 @@
  */
 package org.apache.calcite.sql.validate;
 
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.planner.calcite.FlinkSqlCallBinding;
 import org.apache.flink.table.planner.functions.sql.ml.SqlVectorSearchTableFunction;
 
@@ -178,10 +179,12 @@ import static org.apache.calcite.util.Util.first;
  *
  * <p>Lines 2571 ~ 2588, CALCITE-7217, should be removed after upgrading Calcite to 1.41.0.
  *
- * <p>Lines 3840 ~ 3844, 6511 ~ 6517 Flink improves Optimize the retrieval of sub-operands in
+ * <p>Line 2618 ~2631, set the correct scope for VECTOR_SEARCH.
+ *
+ * <p>Lines 3920 ~ 3925, 6599 ~ 6606 Flink improves Optimize the retrieval of sub-operands in
  * SqlCall when using NamedParameters at {@link SqlValidatorImpl#checkRollUp}.
  *
- * <p>Lines 5315 ~ 5321, FLINK-24352 Add null check for temporal table check on SqlSnapshot.
+ * <p>Lines 5340 ~ 5347, FLINK-24352 Add null check for temporal table check on SqlSnapshot.
  */
 public class SqlValidatorImpl implements SqlValidatorWithHints {
     // ~ Static fields/initializers ---------------------------------------------
@@ -2571,6 +2574,10 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
             case LATERAL:
                 // ----- FLINK MODIFICATION BEGIN -----
                 SqlBasicCall sbc = (SqlBasicCall) node;
+                // Put the usingScope which is a JoinScope,
+                // in order to make visible the left items
+                // of the JOIN tree.
+                scopes.put(node, usingScope);
                 registerFrom(
                         parentScope,
                         usingScope,
@@ -2581,10 +2588,6 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                         extendList,
                         forceNullable,
                         true);
-                // Put the usingScope which is a JoinScope,
-                // in order to make visible the left items
-                // of the JOIN tree.
-                scopes.put(node, usingScope);
                 return sbc;
             // ----- FLINK MODIFICATION END -----
 
@@ -2625,8 +2628,14 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                                     .isA(
                                             new HashSet<>(
                                                     Collections.singletonList(SqlKind.SELECT)))) {
+                        boolean queryColumnIsNotLiteral =
+                                binding.operand(2).getKind() != SqlKind.LITERAL;
+                        if (!queryColumnIsNotLiteral && !lateral) {
+                            throw new ValidationException(
+                                    "The query column is not literal, please use LATERAL TABLE to run VECTOR_SEARCH.");
+                        }
                         SqlValidatorScope scope = getSelectScope((SqlSelect) binding.operand(0));
-                        scopes.put(node, scope);
+                        scopes.put(enclosingNode, scope);
                         return newNode;
                     }
                     // ----- FLINK MODIFICATION END -----
