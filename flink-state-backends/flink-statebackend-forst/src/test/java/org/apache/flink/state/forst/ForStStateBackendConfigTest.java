@@ -523,7 +523,14 @@ public class ForStStateBackendConfigTest {
 
             try (ForStResourceContainer optionsContainer =
                     new ForStResourceContainer(
-                            configuration, null, null, null, null, null, null, null, false)) {
+                            configuration,
+                            null,
+                            null,
+                            ForStPathContainer.empty(),
+                            null,
+                            null,
+                            null,
+                            false)) {
 
                 DBOptions dbOptions = optionsContainer.getDbOptions();
                 assertEquals(-1, dbOptions.maxOpenFiles());
@@ -607,7 +614,14 @@ public class ForStStateBackendConfigTest {
         configuration.set(ForStConfigurableOptions.COMPACTION_STYLE, CompactionStyle.UNIVERSAL);
         try (final ForStResourceContainer optionsContainer =
                 new ForStResourceContainer(
-                        configuration, null, null, null, null, null, null, null, false)) {
+                        configuration,
+                        null,
+                        null,
+                        ForStPathContainer.empty(),
+                        null,
+                        null,
+                        null,
+                        false)) {
 
             final ColumnFamilyOptions columnFamilyOptions = optionsContainer.getColumnOptions();
             assertNotNull(columnFamilyOptions);
@@ -616,7 +630,14 @@ public class ForStStateBackendConfigTest {
 
         try (final ForStResourceContainer optionsContainer =
                 new ForStResourceContainer(
-                        new Configuration(), null, null, null, null, null, null, null, false)) {
+                        new Configuration(),
+                        null,
+                        null,
+                        ForStPathContainer.empty(),
+                        null,
+                        null,
+                        null,
+                        false)) {
 
             final ColumnFamilyOptions columnFamilyOptions = optionsContainer.getColumnOptions();
             assertNotNull(columnFamilyOptions);
