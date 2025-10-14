@@ -302,11 +302,7 @@ public class ForStKeyedStateBackendBuilder<K>
                 //       deletion in file mapping manager.
                 optionsContainer.forceClearRemoteDirectories();
             } catch (Exception ex) {
-                logger.warn(
-                        "Failed to delete ForSt local base path {}, remote base path {}.",
-                        optionsContainer.getLocalBasePath(),
-                        optionsContainer.getRemoteBasePath(),
-                        ex);
+                logger.warn("Failed to delete ForSt: {}.", optionsContainer.getPathContainer(), ex);
             }
             IOUtils.closeQuietly(optionsContainer);
             IOUtils.closeQuietly(snapshotStrategy);
@@ -322,9 +318,8 @@ public class ForStKeyedStateBackendBuilder<K>
         InternalKeyContext<K> keyContext =
                 new InternalKeyContextImpl<>(keyGroupRange, numberOfKeyGroups);
         logger.info(
-                "Finished building ForSt keyed state-backend at local base path: {}, remote base path: {}.",
-                optionsContainer.getLocalBasePath(),
-                optionsContainer.getRemoteBasePath());
+                "Finished building ForSt keyed state-backend at {}",
+                optionsContainer.getPathContainer());
         return new ForStKeyedStateBackend<>(
                 backendUID,
                 executionConfig,
@@ -360,8 +355,8 @@ public class ForStKeyedStateBackendBuilder<K>
         // working dir. We will implement this in ForStDB later, but before that, we achieved this
         // by setting the dbPath to "/" when the dfs directory existed.
         Path instanceForStPath =
-                optionsContainer.getRemoteForStPath() == null
-                        ? optionsContainer.getLocalForStPath()
+                optionsContainer.getPathContainer().getRemoteForStPath() == null
+                        ? optionsContainer.getPathContainer().getLocalForStPath()
                         : new Path("/db");
 
         if (CollectionUtil.isEmptyOrAllElementsNull(restoreStateHandles)) {
