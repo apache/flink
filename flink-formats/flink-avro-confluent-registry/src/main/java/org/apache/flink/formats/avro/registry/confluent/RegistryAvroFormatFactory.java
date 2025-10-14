@@ -212,8 +212,7 @@ public class RegistryAvroFormatFactory
                         BEARER_AUTH_TOKEN,
                         TOKEN_ENDPOINT_URL,
                         SASL_JAAS_CONFIG,
-                        LOGICAL_CLUSTER
-                )
+                        LOGICAL_CLUSTER)
                 .collect(Collectors.toSet());
     }
 
