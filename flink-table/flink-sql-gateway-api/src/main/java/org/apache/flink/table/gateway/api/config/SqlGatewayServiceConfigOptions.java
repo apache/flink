@@ -97,4 +97,11 @@ public class SqlGatewayServiceConfigOptions {
                     .withDescription(
                             "Keepalive time for an idle worker thread. When the number of workers exceeds min workers, "
                                     + "excessive threads are killed after this time interval.");
+
+    public static final ConfigOption<Boolean> SQL_GATEWAY_READ_ONLY_MODE =
+            key("sql-gateway.read-only")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "When enabled, the SQL Gateway operates in read-only mode and will reject all modify operations.");
 }
