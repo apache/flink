@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.util.Preconditions;
 
@@ -47,7 +47,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * specific {@link Catalog}/{@link CatalogManager} instances. For example, the same {@link
  * ResolvedCatalogModel} can be temporary for one catalog, but permanent for another one.
  */
-@Internal
+@PublicEvolving
 public final class ContextResolvedModel {
 
     private static final AtomicInteger uniqueId = new AtomicInteger(0);
