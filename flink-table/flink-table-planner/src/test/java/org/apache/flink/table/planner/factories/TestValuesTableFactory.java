@@ -189,6 +189,10 @@ public final class TestValuesTableFactory
     private static final AtomicInteger idCounter = new AtomicInteger(0);
     private static final Map<String, Collection<Row>> registeredData = new HashMap<>();
     private static final Map<String, Collection<RowData>> registeredRowData = new HashMap<>();
+    // The difference between registeredDataForFullStage and `registeredData` is that
+    // `registeredData` is used for data delivered from the source to downstream, while the rows in
+    // `registeredDataForFullStage` will not be sent to downstream and are only used for lookup.
+    private static final Map<String, Collection<Row>> registeredDataForFullStage = new HashMap<>();
 
     /**
      * Register the given data into the data factory context and return the data id. The data id can
@@ -224,6 +228,18 @@ public final class TestValuesTableFactory
      */
     public static String registerRowData(Seq<RowData> data) {
         return registerRowData(JavaScalaConversionUtil.toJava(data));
+    }
+
+    /**
+     * Register the given data for full stage into the data factory context with the specified id
+     * and return the data id. The data id can be used as a reference to the registered data in data
+     * connector DDL.
+     */
+    public static void registerFullStageData(Collection<Row> data, String id) {
+        if (registeredDataForFullStage.containsKey(id)) {
+            throw new IllegalArgumentException("Full stage data already exists");
+        }
+        registeredDataForFullStage.put(id, data);
     }
 
     /**
@@ -293,6 +309,7 @@ public final class TestValuesTableFactory
     public static void clearAllData() {
         registeredData.clear();
         registeredRowData.clear();
+        registeredDataForFullStage.clear();
         TestValuesRuntimeFunctions.clearResults();
     }
 
@@ -671,6 +688,8 @@ public final class TestValuesTableFactory
                             enableAggregatePushDown);
                 }
             } else {
+                Collection<Row> fullStageData =
+                        registeredDataForFullStage.getOrDefault(dataId, Collections.emptyList());
                 if (enableCustomShuffle) {
                     return new TestValuesScanLookupTableSourceWithCustomShuffle(
                             context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType(),
@@ -681,6 +700,7 @@ public final class TestValuesTableFactory
                             runtimeSource,
                             failingSource,
                             partition2Rows,
+                            fullStageData,
                             isAsync,
                             lookupFunctionClass,
                             nestedProjectionSupported,
@@ -710,6 +730,7 @@ public final class TestValuesTableFactory
                             runtimeSource,
                             failingSource,
                             partition2Rows,
+                            fullStageData,
                             isAsync,
                             lookupFunctionClass,
                             nestedProjectionSupported,
@@ -1769,6 +1790,7 @@ public final class TestValuesTableFactory
         protected final DataType originType;
 
         protected final int[] primaryKeyIndices;
+        protected final Collection<Row> fullStageData;
 
         private TestValuesScanLookupTableSource(
                 DataType originType,
@@ -1779,6 +1801,7 @@ public final class TestValuesTableFactory
                 String runtimeSource,
                 boolean failingSource,
                 Map<Map<String, String>, Collection<Row>> data,
+                Collection<Row> fullStageData,
                 boolean isAsync,
                 @Nullable String lookupFunctionClass,
                 boolean nestedProjectionSupported,
@@ -1822,6 +1845,7 @@ public final class TestValuesTableFactory
             this.reloadTrigger = reloadTrigger;
             this.lookupThreshold = lookupThreshold;
             this.primaryKeyIndices = primaryKeyIndices;
+            this.fullStageData = fullStageData;
         }
 
         @SuppressWarnings({"unchecked", "rawtypes"})
@@ -1857,7 +1881,8 @@ public final class TestValuesTableFactory
                         key -> rows.addAll(data.getOrDefault(key, new ArrayList<>())));
             }
 
-            List<Row> data = new ArrayList<>(rows);
+            List<Row> data = new ArrayList<>(fullStageData);
+            data.addAll(rows);
             if (numElementToSkip > 0) {
                 if (numElementToSkip >= data.size()) {
                     data = Collections.EMPTY_LIST;
@@ -2030,6 +2055,7 @@ public final class TestValuesTableFactory
                     runtimeSource,
                     failingSource,
                     data,
+                    fullStageData,
                     isAsync,
                     lookupFunctionClass,
                     nestedProjectionSupported,
@@ -2070,6 +2096,7 @@ public final class TestValuesTableFactory
                 String runtimeSource,
                 boolean failingSource,
                 Map<Map<String, String>, Collection<Row>> data,
+                Collection<Row> fullStageData,
                 boolean isAsync,
                 @Nullable String lookupFunctionClass,
                 boolean nestedProjectionSupported,
@@ -2098,6 +2125,7 @@ public final class TestValuesTableFactory
                     runtimeSource,
                     failingSource,
                     data,
+                    fullStageData,
                     isAsync,
                     lookupFunctionClass,
                     nestedProjectionSupported,
@@ -2130,6 +2158,7 @@ public final class TestValuesTableFactory
                     runtimeSource,
                     failingSource,
                     data,
+                    fullStageData,
                     isAsync,
                     lookupFunctionClass,
                     nestedProjectionSupported,
