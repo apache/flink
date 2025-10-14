@@ -506,8 +506,8 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
         // working dir. We will implement this in ForStDB later, but before that, we achieved this
         // by setting the dbPath to "/" when the dfs directory existed.
         Path instanceForStPath =
-                optionsContainer.getRemoteForStPath() == null
-                        ? optionsContainer.getLocalForStPath()
+                optionsContainer.getPathContainer().getRemoteForStPath() == null
+                        ? optionsContainer.getPathContainer().getLocalForStPath()
                         : new Path("/db");
 
         if (CollectionUtil.isEmptyOrAllElementsNull(restoreStateHandles)) {
