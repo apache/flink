@@ -47,7 +47,10 @@ public abstract class AsyncVectorSearchFunction extends AsyncTableFunction<RowDa
     /** Invokes {@link #asyncVectorSearch} and chains futures. */
     public void eval(CompletableFuture<Collection<RowData>> future, Object... args) {
         int topK = (int) args[0];
-        GenericRowData argsData = GenericRowData.of(args[1]);
+        GenericRowData argsData = new GenericRowData(args.length - 1);
+        for (int i = 1; i < args.length; ++i) {
+            argsData.setField(i, args[i]);
+        }
         asyncVectorSearch(topK, argsData)
                 .whenComplete(
                         (result, exception) -> {
