@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.api.common.functions.{FlatMapFunction, Function, OpenContext}
+import org.apache.flink.api.common.functions.{FlatMapFunction, OpenContext}
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.streaming.api.functions.async.AsyncFunction
 import org.apache.flink.table.api.ValidationException
@@ -25,19 +25,15 @@ import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.connector.source.{LookupTableSource, ScanTableSource}
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.data.utils.JoinedRowData
-import org.apache.flink.table.functions.{AsyncLookupFunction, AsyncPredictFunction, AsyncTableFunction, LookupFunction, PredictFunction, TableFunction, UserDefinedFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.functions.{AsyncLookupFunction, AsyncTableFunction, LookupFunction, TableFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.FunctionCallCodeGenerator.GeneratedTableFunctionWithDataType
-import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
-import org.apache.flink.table.planner.codegen.LookupJoinCodeGenerator.generateCallWithDataType
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.verifyFunctionAwareImplementation
-import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.inference.FunctionCallContext
-import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.{Constant, FieldRef, FunctionParam}
-import org.apache.flink.table.planner.plan.utils.RexLiteralUtil
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.FunctionParam
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.{ListenableCollector, TableFunctionResultFuture}
 import org.apache.flink.table.runtime.collector.ListenableCollector.CollectListener
@@ -236,138 +232,6 @@ object LookupJoinCodeGenerator {
         .outputTypeStrategy(TypeStrategies.explicit(outputDataType))
         .build()
     }
-  }
-
-  /**
-   * Generates collector for temporal join ([[Collector]])
-   *
-   * Differs from CommonCorrelate.generateCollector which has no real condition because of
-   * FLINK-7865, here we should deal with outer join type when real conditions filtered result.
-   */
-  def generateCollector(
-      ctx: CodeGeneratorContext,
-      inputRowType: RowType,
-      rightRowType: RowType,
-      resultRowType: RowType,
-      condition: Option[RexNode],
-      pojoFieldMapping: Option[Array[Int]],
-      retainHeader: Boolean = true): GeneratedCollector[ListenableCollector[RowData]] = {
-
-    val inputTerm = DEFAULT_INPUT1_TERM
-    val rightInputTerm = DEFAULT_INPUT2_TERM
-
-    val exprGenerator = new ExprCodeGenerator(ctx, nullableInput = false)
-      .bindInput(rightRowType, inputTerm = rightInputTerm, inputFieldMapping = pojoFieldMapping)
-
-    val rightResultExpr =
-      exprGenerator.generateConverterResultExpression(rightRowType, classOf[GenericRowData])
-
-    val joinedRowTerm = CodeGenUtils.newName(ctx, "joinedRow")
-    ctx.addReusableOutputRecord(resultRowType, classOf[JoinedRowData], joinedRowTerm)
-
-    val header = if (retainHeader) {
-      s"$joinedRowTerm.setRowKind($inputTerm.getRowKind());"
-    } else {
-      ""
-    }
-
-    val body =
-      s"""
-         |${rightResultExpr.code}
-         |$joinedRowTerm.replace($inputTerm, ${rightResultExpr.resultTerm});
-         |$header
-         |outputResult($joinedRowTerm);
-      """.stripMargin
-
-    val collectorCode = if (condition.isEmpty) {
-      body
-    } else {
-
-      val filterGenerator = new ExprCodeGenerator(ctx, nullableInput = false)
-        .bindInput(inputRowType, inputTerm)
-        .bindSecondInput(rightRowType, rightInputTerm, pojoFieldMapping)
-      val filterCondition = filterGenerator.generateExpression(condition.get)
-
-      s"""
-         |${filterCondition.code}
-         |if (${filterCondition.resultTerm}) {
-         |  $body
-         |}
-         |""".stripMargin
-    }
-
-    generateTableFunctionCollectorForJoinTable(
-      ctx,
-      "JoinTableFuncCollector",
-      collectorCode,
-      inputRowType,
-      rightRowType,
-      inputTerm = inputTerm,
-      collectedTerm = rightInputTerm)
-  }
-
-  /**
-   * The only differences against CollectorCodeGenerator.generateTableFunctionCollector is
-   * "super.collect" call is binding with collect join row in "body" code
-   */
-  private def generateTableFunctionCollectorForJoinTable(
-      ctx: CodeGeneratorContext,
-      name: String,
-      bodyCode: String,
-      inputType: RowType,
-      collectedType: RowType,
-      inputTerm: String = DEFAULT_INPUT1_TERM,
-      collectedTerm: String = DEFAULT_INPUT2_TERM)
-      : GeneratedCollector[ListenableCollector[RowData]] = {
-
-    val funcName = newName(ctx, name)
-    val input1TypeClass = boxedTypeTermForType(inputType)
-    val input2TypeClass = boxedTypeTermForType(collectedType)
-
-    val funcCode =
-      s"""
-      public class $funcName extends ${classOf[ListenableCollector[_]].getCanonicalName} {
-
-        ${ctx.reuseMemberCode()}
-
-        public $funcName(Object[] references) throws Exception {
-          ${ctx.reuseInitCode()}
-        }
-
-        @Override
-        public void open(${className[OpenContext]} openContext) throws Exception {
-          ${ctx.reuseOpenCode()}
-        }
-
-        @Override
-        public void collect(Object record) throws Exception {
-          $input1TypeClass $inputTerm = ($input1TypeClass) getInput();
-          $input2TypeClass $collectedTerm = ($input2TypeClass) record;
-
-          // callback only when collectListener exists, equivalent to:
-          // getCollectListener().ifPresent(
-          //   listener -> ((CollectListener) listener).onCollect(record));
-          // TODO we should update code splitter's grammar file to accept lambda expressions.
-
-          if (getCollectListener().isPresent()) {
-             ((${classOf[CollectListener[_]].getCanonicalName}) getCollectListener().get())
-             .onCollect(record);
-          }
-
-          ${ctx.reuseLocalVariableCode()}
-          ${ctx.reuseInputUnboxingCode()}
-          ${ctx.reusePerRecordCode()}
-          $bodyCode
-        }
-
-        @Override
-        public void close() throws Exception {
-          ${ctx.reuseCloseCode()}
-        }
-      }
-    """.stripMargin
-
-    new GeneratedCollector(funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
   }
 
   /**

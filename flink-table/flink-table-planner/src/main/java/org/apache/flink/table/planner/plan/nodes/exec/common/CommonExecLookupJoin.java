@@ -624,7 +624,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData> {
         RowType rightRowType =
                 getRightOutputRowType(projectionOutputRelDataType, tableSourceRowType);
         GeneratedCollector<ListenableCollector<RowData>> generatedCollector =
-                LookupJoinCodeGenerator.generateCollector(
+                FunctionCallCodeGenerator.generateCollector(
                         new CodeGeneratorContext(config, classLoader),
                         inputRowType,
                         rightRowType,

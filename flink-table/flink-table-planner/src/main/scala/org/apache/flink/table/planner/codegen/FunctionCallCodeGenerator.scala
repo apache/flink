@@ -206,7 +206,7 @@ object FunctionCallCodeGenerator {
             nullableInput = false,
             fieldCopy)
         case _ =>
-          throw new CodeGenException("Invalid lookup key.")
+          throw new CodeGenException("Invalid parameters.")
       }
   }
 
