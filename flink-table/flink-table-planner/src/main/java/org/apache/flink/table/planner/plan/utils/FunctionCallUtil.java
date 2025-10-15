@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -34,6 +35,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 
 import org.apache.calcite.rex.RexLiteral;
 
+import java.util.List;
 import java.util.Objects;
 
 /** Common utils for function call, e.g. ML_PREDICT and Lookup Join. */
@@ -202,5 +204,16 @@ public abstract class FunctionCallUtil {
             return AsyncDataStream.OutputMode.UNORDERED;
         }
         return AsyncDataStream.OutputMode.ORDERED;
+    }
+
+    public static String explainFunctionParam(FunctionParam param, List<String> fieldNames) {
+        if (param instanceof Constant) {
+            return RelExplainUtil.literalToString(((Constant) param).literal);
+        } else if (param instanceof FieldRef) {
+            return fieldNames.get(((FieldRef) param).index);
+        } else {
+            // should never reach here
+            throw new TableException("Unknown parameter type: " + param.getClass().getName());
+        }
     }
 }
