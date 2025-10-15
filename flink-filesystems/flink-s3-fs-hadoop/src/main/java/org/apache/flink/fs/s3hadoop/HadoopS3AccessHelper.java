@@ -64,14 +64,15 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         checkNotNull(s3a, "S3AFileSystem cannot be null");
         checkNotNull(conf, "Configuration cannot be null");
 
-        // Debug: Log requester-pays configuration extensively
+        // Debug: Log requester-pays configuration extensively (using ERROR level to ensure visibility)
+        LOG.error("=== HadoopS3AccessHelper CONSTRUCTOR CALLED ===");
         String requesterPaysEnabled = conf.get("fs.s3a.requester.pays.enabled");
         if (requesterPaysEnabled != null) {
-            LOG.info(
+            LOG.error(
                     "Requester-pays configuration found: fs.s3a.requester.pays.enabled = {}",
                     requesterPaysEnabled);
         } else {
-            LOG.warn(
+            LOG.error(
                     "No requester-pays configuration found (fs.s3a.requester.pays.enabled is null)");
         }
         
@@ -84,9 +85,9 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                 String perBucketKey = "fs.s3a.bucket." + bucketName + ".requester.pays.enabled";
                 String perBucketValue = conf.get(perBucketKey);
                 if (perBucketValue != null) {
-                    LOG.info("Per-bucket requester-pays configuration found: {} = {}", perBucketKey, perBucketValue);
+                    LOG.error("Per-bucket requester-pays configuration found: {} = {}", perBucketKey, perBucketValue);
                 } else {
-                    LOG.info("No per-bucket requester-pays configuration found for bucket: {} (key: {})", bucketName, perBucketKey);
+                    LOG.error("No per-bucket requester-pays configuration found for bucket: {} (key: {})", bucketName, perBucketKey);
                 }
             }
         } catch (Exception e) {
@@ -94,10 +95,10 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         }
         
         // Log all fs.s3a.* configurations for debugging
-        LOG.info("All fs.s3a.* configurations:");
+        LOG.error("All fs.s3a.* configurations:");
         for (java.util.Map.Entry<String, String> entry : conf) {
             if (entry.getKey().startsWith("fs.s3a.")) {
-                LOG.info("  {} = {}", entry.getKey(), entry.getValue());
+                LOG.error("  {} = {}", entry.getKey(), entry.getValue());
             }
         }
 
@@ -689,9 +690,11 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
 
     @Override
     public ObjectMetadata getObjectMetadata(String key) throws IOException {
+        LOG.error("=== getObjectMetadata called for key: {} ===", key);
         validateKey(key);
         try {
             // Hadoop 3.4.2 returns HeadObjectResponse, need to convert to ObjectMetadata
+            LOG.error("Calling s3a.getObjectMetadata() for path: /{}", key);
             software.amazon.awssdk.services.s3.model.HeadObjectResponse headResponse =
                     s3a.getObjectMetadata(new Path("/" + key));
 
