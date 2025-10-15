@@ -19,18 +19,17 @@
 package org.apache.flink.fs.s3hadoop;
 
 import org.apache.hadoop.conf.Configuration;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for credential provider compatibility between Hadoop S3A and our custom S3 client.
- * 
+ *
  * <p>This test verifies that {@link S3ClientConfigurationFactory} properly handles Hadoop's
  * credential provider configuration to ensure consistent authentication between Hadoop's S3A
  * filesystem and our custom S3 client used in multipart upload callbacks.
@@ -48,7 +47,8 @@ class S3ClientCredentialProviderTest {
     void tearDown() {
         // Clean up any S3 clients created during tests
         try {
-            Method releaseMethod = S3ClientConfigurationFactory.class.getDeclaredMethod("releaseS3Client");
+            Method releaseMethod =
+                    S3ClientConfigurationFactory.class.getDeclaredMethod("releaseS3Client");
             releaseMethod.setAccessible(true);
             releaseMethod.invoke(null);
         } catch (Exception e) {
@@ -62,7 +62,8 @@ class S3ClientCredentialProviderTest {
         hadoopConfig.set("fs.s3a.access.key", "test-access-key");
         hadoopConfig.set("fs.s3a.secret.key", "test-secret-key");
 
-        S3Configuration s3Config = S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
+        S3Configuration s3Config =
+                S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
 
         // Verify explicit credentials are stored
         assertThat(s3Config.getAccessKey()).isEqualTo("test-access-key");
@@ -78,7 +79,8 @@ class S3ClientCredentialProviderTest {
         hadoopConfig.set("fs.s3a.secret.key", "temp-secret-key");
         hadoopConfig.set("fs.s3a.session.token", "temp-session-token");
 
-        S3Configuration s3Config = S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
+        S3Configuration s3Config =
+                S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
 
         // Verify temporary credentials are stored
         assertThat(s3Config.getAccessKey()).isEqualTo("temp-access-key");
@@ -90,10 +92,12 @@ class S3ClientCredentialProviderTest {
     @Test
     void testCredentialProviderWithHadoopProviderChain() throws Exception {
         // Test case: No explicit credentials - should use Hadoop's credential provider chain
-        hadoopConfig.set("fs.s3a.aws.credentials.provider", 
-            "org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider");
+        hadoopConfig.set(
+                "fs.s3a.aws.credentials.provider",
+                "org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider");
 
-        S3Configuration s3Config = S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
+        S3Configuration s3Config =
+                S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
 
         // Verify no explicit credentials but Hadoop config is preserved
         assertThat(s3Config.getAccessKey()).isNull();
@@ -101,52 +105,60 @@ class S3ClientCredentialProviderTest {
         assertThat(s3Config.getSessionToken()).isNull();
         assertThat(s3Config.getHadoopConfiguration()).isNotNull();
         assertThat(s3Config.getHadoopConfiguration().get("fs.s3a.aws.credentials.provider"))
-            .isEqualTo("org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider");
+                .isEqualTo("org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider");
     }
 
     @Test
     void testCredentialProviderWithMultipleProviders() throws Exception {
         // Test case: Multiple credential providers in chain (typical production setup)
-        String providerChain = "org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider," +
-                              "com.amazonaws.auth.EnvironmentVariableCredentialsProvider," +
-                              "com.amazonaws.auth.SystemPropertiesCredentialsProvider";
-        
+        String providerChain =
+                "org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider,"
+                        + "com.amazonaws.auth.EnvironmentVariableCredentialsProvider,"
+                        + "com.amazonaws.auth.SystemPropertiesCredentialsProvider";
+
         hadoopConfig.set("fs.s3a.aws.credentials.provider", providerChain);
 
-        S3Configuration s3Config = S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
+        S3Configuration s3Config =
+                S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
 
         // Verify the provider chain is preserved
         assertThat(s3Config.getHadoopConfiguration().get("fs.s3a.aws.credentials.provider"))
-            .isEqualTo(providerChain);
+                .isEqualTo(providerChain);
     }
 
     @Test
     void testCredentialProviderCompatibilityMethod() throws Exception {
         // Test the createHadoopCompatibleCredentialProvider method via reflection
-        hadoopConfig.set("fs.s3a.aws.credentials.provider", 
-            "org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider");
+        hadoopConfig.set(
+                "fs.s3a.aws.credentials.provider",
+                "org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider");
 
-        S3Configuration s3Config = S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
+        S3Configuration s3Config =
+                S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
 
         // Access the private method via reflection
-        Method createProviderMethod = S3ClientConfigurationFactory.class
-            .getDeclaredMethod("createHadoopCompatibleCredentialProvider", S3Configuration.class);
+        Method createProviderMethod =
+                S3ClientConfigurationFactory.class.getDeclaredMethod(
+                        "createHadoopCompatibleCredentialProvider", S3Configuration.class);
         createProviderMethod.setAccessible(true);
 
         // Invoke the method
-        software.amazon.awssdk.auth.credentials.AwsCredentialsProvider provider = 
-            (software.amazon.awssdk.auth.credentials.AwsCredentialsProvider) 
-            createProviderMethod.invoke(null, s3Config);
+        software.amazon.awssdk.auth.credentials.AwsCredentialsProvider provider =
+                (software.amazon.awssdk.auth.credentials.AwsCredentialsProvider)
+                        createProviderMethod.invoke(null, s3Config);
 
         // Verify that a credential provider is returned
         assertThat(provider).isNotNull();
-        assertThat(provider).isInstanceOf(software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider.class);
+        assertThat(provider)
+                .isInstanceOf(
+                        software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider.class);
     }
 
     @Test
     void testCredentialProviderWithEmptyConfiguration() throws Exception {
         // Test case: Empty configuration - should still work with defaults
-        S3Configuration s3Config = S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
+        S3Configuration s3Config =
+                S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
 
         // Verify defaults are handled correctly
         assertThat(s3Config.getAccessKey()).isNull();
@@ -158,22 +170,25 @@ class S3ClientCredentialProviderTest {
     @Test
     void testS3ClientCreationWithHadoopCredentials() throws Exception {
         // Test that S3 client can be created with Hadoop credential configuration
-        hadoopConfig.set("fs.s3a.aws.credentials.provider", 
-            "software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider");
+        hadoopConfig.set(
+                "fs.s3a.aws.credentials.provider",
+                "software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider");
         hadoopConfig.set("fs.s3a.endpoint.region", "us-west-2");
 
         try {
-            S3Configuration s3Config = S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
-            
-            // This should not throw an exception even without real AWS credentials in test environment
-            software.amazon.awssdk.services.s3.S3Client client = 
-                S3ClientConfigurationFactory.acquireS3Client(hadoopConfig);
-            
+            S3Configuration s3Config =
+                    S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
+
+            // This should not throw an exception even without real AWS credentials in test
+            // environment
+            software.amazon.awssdk.services.s3.S3Client client =
+                    S3ClientConfigurationFactory.acquireS3Client(hadoopConfig);
+
             assertThat(client).isNotNull();
-            
+
             // Clean up
             S3ClientConfigurationFactory.releaseS3Client();
-            
+
         } catch (Exception e) {
             // In test environment, we might get credential-related exceptions, which is expected
             // The important thing is that the configuration parsing doesn't fail
@@ -185,10 +200,12 @@ class S3ClientCredentialProviderTest {
     void testConfigurationHashIncludesCredentialInfo() throws Exception {
         // Test that configuration hash accounts for credential settings
         hadoopConfig.set("fs.s3a.access.key", "test-key");
-        S3Configuration config1 = S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
+        S3Configuration config1 =
+                S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
 
         hadoopConfig.set("fs.s3a.access.key", "different-key");
-        S3Configuration config2 = S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
+        S3Configuration config2 =
+                S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
 
         // Different credentials should produce different hashes
         assertThat(config1.getConfigurationHash()).isNotEqualTo(config2.getConfigurationHash());
@@ -197,20 +214,23 @@ class S3ClientCredentialProviderTest {
     @Test
     void testCredentialProviderLogging() throws Exception {
         // Test that credential provider configuration is logged appropriately
-        hadoopConfig.set("fs.s3a.aws.credentials.provider", 
-            "org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider");
+        hadoopConfig.set(
+                "fs.s3a.aws.credentials.provider",
+                "org.apache.hadoop.fs.s3a.auth.IAMInstanceCredentialsProvider");
 
-        S3Configuration s3Config = S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
+        S3Configuration s3Config =
+                S3ConfigurationBuilder.fromHadoopConfiguration(hadoopConfig).build();
 
         // Access the private method to verify it logs the credential provider
-        Method createProviderMethod = S3ClientConfigurationFactory.class
-            .getDeclaredMethod("createHadoopCompatibleCredentialProvider", S3Configuration.class);
+        Method createProviderMethod =
+                S3ClientConfigurationFactory.class.getDeclaredMethod(
+                        "createHadoopCompatibleCredentialProvider", S3Configuration.class);
         createProviderMethod.setAccessible(true);
 
         // This should not throw and should handle the logging internally
-        software.amazon.awssdk.auth.credentials.AwsCredentialsProvider provider = 
-            (software.amazon.awssdk.auth.credentials.AwsCredentialsProvider) 
-            createProviderMethod.invoke(null, s3Config);
+        software.amazon.awssdk.auth.credentials.AwsCredentialsProvider provider =
+                (software.amazon.awssdk.auth.credentials.AwsCredentialsProvider)
+                        createProviderMethod.invoke(null, s3Config);
 
         assertThat(provider).isNotNull();
     }

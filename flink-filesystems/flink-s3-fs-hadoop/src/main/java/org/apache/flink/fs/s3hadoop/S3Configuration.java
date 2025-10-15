@@ -67,7 +67,7 @@ public final class S3Configuration {
 
     // Buffer settings
     private final int bufferSize;
-    
+
     // Hadoop configuration for credential provider access
     private final org.apache.hadoop.conf.Configuration hadoopConfiguration;
 
@@ -176,7 +176,7 @@ public final class S3Configuration {
     public int getBufferSize() {
         return bufferSize;
     }
-    
+
     @Nullable
     public org.apache.hadoop.conf.Configuration getHadoopConfiguration() {
         return hadoopConfiguration;

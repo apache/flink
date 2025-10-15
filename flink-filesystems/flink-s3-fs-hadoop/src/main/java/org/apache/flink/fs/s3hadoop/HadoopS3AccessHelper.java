@@ -33,6 +33,8 @@ import org.apache.hadoop.fs.s3a.WriteOperationHelper;
 import org.apache.hadoop.fs.s3a.statistics.S3AStatisticsContext;
 import org.apache.hadoop.fs.store.audit.AuditSpan;
 import org.apache.hadoop.fs.store.audit.AuditSpanSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -45,6 +47,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** An implementation of the {@link S3AccessHelper} for the Hadoop S3A filesystem. */
 public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
+
+    private static final Logger LOG = LoggerFactory.getLogger(HadoopS3AccessHelper.class);
 
     private final S3AFileSystem s3a;
 
@@ -63,9 +67,12 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         // Debug: Log requester-pays configuration
         String requesterPaysEnabled = conf.get("fs.s3a.requester.pays.enabled");
         if (requesterPaysEnabled != null) {
-            LOG.info("Requester-pays configuration found: fs.s3a.requester.pays.enabled = {}", requesterPaysEnabled);
+            LOG.info(
+                    "Requester-pays configuration found: fs.s3a.requester.pays.enabled = {}",
+                    requesterPaysEnabled);
         } else {
-            LOG.debug("No requester-pays configuration found (fs.s3a.requester.pays.enabled is null)");
+            LOG.debug(
+                    "No requester-pays configuration found (fs.s3a.requester.pays.enabled is null)");
         }
 
         // Build configuration with validation (mainly for backward compatibility checks)
@@ -111,20 +118,23 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                 }
 
                 try {
-                    // Use Hadoop's S3A client directly via reflection to ensure all S3A configuration is respected
-                    software.amazon.awssdk.services.s3.S3Client hadoopS3Client = 
+                    // Use Hadoop's S3A client directly via reflection to ensure all S3A
+                    // configuration is respected
+                    software.amazon.awssdk.services.s3.S3Client hadoopS3Client =
                             getHadoopInternalS3Client();
-                    
+
                     if (hadoopS3Client != null) {
                         // Use Hadoop's actual S3 client - this respects ALL fs.s3a.* configuration
                         software.amazon.awssdk.services.s3.model.UploadPartResponse response =
                                 hadoopS3Client.uploadPart(uploadPartRequest, requestBody);
                         return response;
                     } else {
-                        // If reflection fails, throw an exception rather than using our custom client
+                        // If reflection fails, throw an exception rather than using our custom
+                        // client
                         // This ensures we always use Hadoop's configuration
-                        throw new RuntimeException("Could not access Hadoop's internal S3 client. " +
-                                "All S3 operations should use Hadoop's S3A client to respect fs.s3a.* configuration.");
+                        throw new RuntimeException(
+                                "Could not access Hadoop's internal S3 client. "
+                                        + "All S3 operations should use Hadoop's S3A client to respect fs.s3a.* configuration.");
                     }
                 } catch (Exception e) {
                     // Callback methods can't throw checked exceptions, so wrap IOException in
@@ -145,21 +155,25 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                 }
 
                 try {
-                    // Use Hadoop's S3A client directly via reflection to ensure all S3A configuration is respected
-                    software.amazon.awssdk.services.s3.S3Client hadoopS3Client = 
+                    // Use Hadoop's S3A client directly via reflection to ensure all S3A
+                    // configuration is respected
+                    software.amazon.awssdk.services.s3.S3Client hadoopS3Client =
                             getHadoopInternalS3Client();
-                    
+
                     if (hadoopS3Client != null) {
                         // Use Hadoop's actual S3 client - this respects ALL fs.s3a.* configuration
                         software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse
-                                response = hadoopS3Client.completeMultipartUpload(
-                                        completeMultipartUploadRequest);
+                                response =
+                                        hadoopS3Client.completeMultipartUpload(
+                                                completeMultipartUploadRequest);
                         return response;
                     } else {
-                        // If reflection fails, throw an exception rather than using our custom client
+                        // If reflection fails, throw an exception rather than using our custom
+                        // client
                         // This ensures we always use Hadoop's configuration
-                        throw new RuntimeException("Could not access Hadoop's internal S3 client. " +
-                                "All S3 operations should use Hadoop's S3A client to respect fs.s3a.* configuration.");
+                        throw new RuntimeException(
+                                "Could not access Hadoop's internal S3 client. "
+                                        + "All S3 operations should use Hadoop's S3A client to respect fs.s3a.* configuration.");
                     }
                 } catch (Exception e) {
                     // Callback methods can't throw checked exceptions, so wrap IOException in
@@ -295,27 +309,26 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         throw lastException;
     }
 
-    
     /**
      * Attempts to access Hadoop's internal S3 client via reflection to ensure perfect credential
      * compatibility. This is a best-effort approach to use the exact same S3 client that Hadoop
      * uses internally, which should have identical credential configuration.
-     * 
+     *
      * @return Hadoop's internal S3 client if accessible, null otherwise
      */
     private software.amazon.awssdk.services.s3.S3Client getHadoopInternalS3Client() {
         try {
             // Try to access S3AFileSystem's internal S3 client via reflection
             // This ensures we use the exact same credentials as Hadoop
-            
+
             // First, try to get the S3 client from the WriteOperationHelper
             if (s3accessHelper != null) {
                 try {
-                    java.lang.reflect.Field s3ClientField = 
-                        s3accessHelper.getClass().getDeclaredField("s3Client");
+                    java.lang.reflect.Field s3ClientField =
+                            s3accessHelper.getClass().getDeclaredField("s3Client");
                     s3ClientField.setAccessible(true);
                     Object s3ClientObj = s3ClientField.get(s3accessHelper);
-                    
+
                     if (s3ClientObj instanceof software.amazon.awssdk.services.s3.S3Client) {
                         return (software.amazon.awssdk.services.s3.S3Client) s3ClientObj;
                     }
@@ -323,19 +336,20 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                     // Try alternative field names or approaches
                 }
             }
-            
+
             // Alternative: Try to get S3 client directly from S3AFileSystem
             if (s3a != null) {
                 try {
                     // Look for common S3 client field names in S3AFileSystem
                     String[] possibleFieldNames = {"s3", "s3Client", "client", "amazonS3Client"};
-                    
+
                     for (String fieldName : possibleFieldNames) {
                         try {
-                            java.lang.reflect.Field field = s3a.getClass().getDeclaredField(fieldName);
+                            java.lang.reflect.Field field =
+                                    s3a.getClass().getDeclaredField(fieldName);
                             field.setAccessible(true);
                             Object clientObj = field.get(s3a);
-                            
+
                             if (clientObj instanceof software.amazon.awssdk.services.s3.S3Client) {
                                 return (software.amazon.awssdk.services.s3.S3Client) clientObj;
                             }
@@ -347,9 +361,9 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                     // Reflection failed, will fall back to our custom client
                 }
             }
-            
+
             return null; // Could not access Hadoop's internal S3 client
-            
+
         } catch (Exception e) {
             // Any reflection errors - fall back to our custom client
             return null;

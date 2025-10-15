@@ -207,26 +207,27 @@ public class S3ClientConfigurationFactory {
 
         return clientBuilder.build();
     }
-    
+
     /**
-     * Creates a credential provider that is compatible with Hadoop's S3A configuration.
-     * This ensures our custom S3 client uses the same credential chain as Hadoop S3A.
+     * Creates a credential provider that is compatible with Hadoop's S3A configuration. This
+     * ensures our custom S3 client uses the same credential chain as Hadoop S3A.
      */
-    private static software.amazon.awssdk.auth.credentials.AwsCredentialsProvider 
+    private static software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
             createHadoopCompatibleCredentialProvider(S3Configuration config) {
-        
+
         org.apache.hadoop.conf.Configuration hadoopConfig = config.getHadoopConfiguration();
-        
+
         // Check if Hadoop has a specific credential provider configured
         if (hadoopConfig != null) {
             String credentialProviders = hadoopConfig.get("fs.s3a.aws.credentials.provider");
             if (credentialProviders != null && !credentialProviders.trim().isEmpty()) {
                 LOG.debug("Using Hadoop-configured credential providers: {}", credentialProviders);
-                // For most cases, especially IAM roles, the default provider chain handles this well
+                // For most cases, especially IAM roles, the default provider chain handles this
+                // well
                 // and is compatible with Hadoop's credential providers
             }
         }
-        
+
         // Use AWS SDK's default credential provider chain which includes:
         // 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN)
         // 2. System properties (aws.accessKeyId, aws.secretAccessKey, aws.sessionToken)
@@ -236,17 +237,17 @@ public class S3ClientConfigurationFactory {
         // This is compatible with Hadoop's default credential provider chain
         return software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider.create();
     }
-    
+
     /**
-     * Releases the shared S3 client reference. Used for cleanup in tests and shutdown.
-     * This decrements the reference count and closes the client if no more references exist.
+     * Releases the shared S3 client reference. Used for cleanup in tests and shutdown. This
+     * decrements the reference count and closes the client if no more references exist.
      */
     public static void releaseS3Client() {
         synchronized (clientLock) {
             if (clientRefCount > 0) {
                 clientRefCount--;
                 LOG.debug("Released S3 client reference, remaining references: {}", clientRefCount);
-                
+
                 if (clientRefCount == 0 && sharedClient != null) {
                     try {
                         sharedClient.close();
