@@ -45,7 +45,6 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
         {"fs.s3a.secret-key", "fs.s3a.secret.key"},
         {"fs.s3a.path-style-access", "fs.s3a.path.style.access"},
         {"fs.s3a.requester-pays-enabled", "fs.s3a.requester.pays.enabled"},
-        {"s3a.requester-pays-enabled", "fs.s3a.requester.pays.enabled"}
     };
 
     public S3FileSystemFactory() {
