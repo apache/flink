@@ -465,8 +465,10 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
      * @param subtaskId the subtask id of the source reader.
      * @param attemptNumber the attempt number of the source reader.
      * @param location the location of the source reader.
+     * @param splits the split restored from source reader's state.
      */
-    void registerSourceReader(int subtaskId, int attemptNumber, String location) {
+    void registerSourceReader(
+            int subtaskId, int attemptNumber, String location, List<SplitT> splits) {
         final Map<Integer, ReaderInfo> attemptReaders =
                 registeredReaders.computeIfAbsent(subtaskId, k -> new ConcurrentHashMap<>());
         checkState(
@@ -474,7 +476,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                 "ReaderInfo of subtask %s (#%s) already exists.",
                 subtaskId,
                 attemptNumber);
-        attemptReaders.put(attemptNumber, new ReaderInfo(subtaskId, location));
+        attemptReaders.put(attemptNumber, ReaderInfo.createReaderInfo(subtaskId, location, splits));
 
         sendCachedSplitsToNewlyRegisteredReader(subtaskId, attemptNumber);
     }

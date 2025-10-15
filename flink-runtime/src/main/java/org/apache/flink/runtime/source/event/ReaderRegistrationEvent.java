@@ -18,11 +18,19 @@ limitations under the License.
 
 package org.apache.flink.runtime.source.event;
 
+import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 /**
- * An {@link OperatorEvent} that registers a {@link
- * org.apache.flink.api.connector.source.SourceReader SourceReader} to the SourceCoordinator.
+ * The SourceOperator should always send the ReaderRegistrationEvent with the
+ * `reportedSplitsOnRegistration` list. But it will not add the splits to readers if {@link
+ * org.apache.flink.api.connector.source.SupportSplitReassignmentOnRecovery} is implemented.
  */
 public class ReaderRegistrationEvent implements OperatorEvent {
 
@@ -30,10 +38,44 @@ public class ReaderRegistrationEvent implements OperatorEvent {
 
     private final int subtaskId;
     private final String location;
+    private final ArrayList<byte[]> splits;
 
     public ReaderRegistrationEvent(int subtaskId, String location) {
         this.subtaskId = subtaskId;
         this.location = location;
+        this.splits = new ArrayList<>();
+    }
+
+    ReaderRegistrationEvent(int subtaskId, String location, ArrayList<byte[]> splits) {
+        this.subtaskId = subtaskId;
+        this.location = location;
+        this.splits = splits;
+    }
+
+    public static <SplitT extends SourceSplit>
+            ReaderRegistrationEvent createReaderRegistrationEvent(
+                    int subtaskId,
+                    String location,
+                    List<SplitT> splits,
+                    SimpleVersionedSerializer<SplitT> splitSerializer)
+                    throws IOException {
+        ArrayList<byte[]> result = new ArrayList<>();
+        for (SplitT split : splits) {
+            result.add(splitSerializer.serialize(split));
+        }
+        return new ReaderRegistrationEvent(subtaskId, location, result);
+    }
+
+    public <SplitT extends SourceSplit> List<SplitT> splits(
+            SimpleVersionedSerializer<SplitT> splitSerializer) throws IOException {
+        if (splits.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<SplitT> result = new ArrayList<>(splits.size());
+        for (byte[] serializedSplit : splits) {
+            result.add(splitSerializer.deserialize(splitSerializer.getVersion(), serializedSplit));
+        }
+        return result;
     }
 
     public int subtaskId() {
