@@ -43,7 +43,8 @@ public class S3FileSystemFactory extends AbstractS3FileSystemFactory {
     private static final String[][] MIRRORED_CONFIG_KEYS = {
         {"fs.s3a.access-key", "fs.s3a.access.key"},
         {"fs.s3a.secret-key", "fs.s3a.secret.key"},
-        {"fs.s3a.path-style-access", "fs.s3a.path.style.access"}
+        {"fs.s3a.path-style-access", "fs.s3a.path.style.access"},
+        {"fs.s3a.requester-pays-enabled", "fs.s3a.requester.pays.enabled"}
     };
 
     public S3FileSystemFactory() {
