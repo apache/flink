@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
+import org.apache.flink.table.connector.source.VectorSearchTableSource;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.module.Module;
@@ -139,6 +140,19 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
             throw new TableException(
                     String.format(
                             "%s is not a LookupTableSource.\nPlease check it.",
+                            tableSource.getClass().getName()));
+        }
+    }
+
+    public VectorSearchTableSource getVectorSearchTableSource(
+            FlinkContext context, FlinkTypeFactory typeFactory) {
+        DynamicTableSource tableSource = getTableSource(context, typeFactory);
+        if (tableSource instanceof VectorSearchTableSource) {
+            return (VectorSearchTableSource) tableSource;
+        } else {
+            throw new TableException(
+                    String.format(
+                            "%s is not a VectorSearchTableSource.\nPlease check it.",
                             tableSource.getClass().getName()));
         }
     }
