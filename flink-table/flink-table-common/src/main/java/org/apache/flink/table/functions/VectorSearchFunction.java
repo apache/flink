@@ -49,7 +49,7 @@ public abstract class VectorSearchFunction extends TableFunction<RowData> {
         int topK = (int) args[0];
         GenericRowData argsData = new GenericRowData(args.length - 1);
         for (int i = 1; i < args.length; ++i) {
-            argsData.setField(i, args[i]);
+            argsData.setField(i - 1, args[i]);
         }
         try {
             Collection<RowData> results = vectorSearch(topK, argsData);

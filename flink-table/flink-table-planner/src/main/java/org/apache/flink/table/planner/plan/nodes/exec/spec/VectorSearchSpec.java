@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.FunctionParam;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
@@ -34,6 +35,7 @@ public class VectorSearchSpec {
     public static final String FIELD_NAME_JOIN_TYPE = "joinType";
     public static final String FIELD_NAME_SEARCH_COLUMNS = "searchColumns";
     public static final String FIELD_NAME_TOP_K = "topK";
+    public static final String FIELD_NAME_OUTPUT_TYPE = "outputType";
 
     @JsonProperty(FIELD_NAME_JOIN_TYPE)
     private final JoinRelType joinRelType;
@@ -45,14 +47,19 @@ public class VectorSearchSpec {
     @JsonProperty(FIELD_NAME_TOP_K)
     private final FunctionParam topK;
 
+    @JsonProperty(FIELD_NAME_OUTPUT_TYPE)
+    private final RowType outputType;
+
     @JsonCreator
     public VectorSearchSpec(
             @JsonProperty(FIELD_NAME_JOIN_TYPE) JoinRelType joinRelType,
             @JsonProperty(FIELD_NAME_SEARCH_COLUMNS) Map<Integer, FunctionParam> searchColumns,
-            @JsonProperty(FIELD_NAME_TOP_K) FunctionParam topK) {
+            @JsonProperty(FIELD_NAME_TOP_K) FunctionParam topK,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType) {
         this.joinRelType = joinRelType;
         this.searchColumns = searchColumns;
         this.topK = topK;
+        this.outputType = outputType;
     }
 
     @JsonIgnore
@@ -68,5 +75,10 @@ public class VectorSearchSpec {
     @JsonIgnore
     public FunctionParam getTopK() {
         return topK;
+    }
+
+    @JsonIgnore
+    public RowType getOutputType() {
+        return outputType;
     }
 }

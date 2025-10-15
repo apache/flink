@@ -18,16 +18,27 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream;
 
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.VectorSearchSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.VectorSearchTableSourceSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecVectorSearchTableFunction;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
+import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
 import org.apache.flink.table.planner.plan.utils.JoinTypeUtil;
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil;
+import org.apache.flink.table.planner.plan.utils.VectorSearchUtil;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.RelOptCluster;
-import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.SingleRel;
@@ -43,7 +54,7 @@ import java.util.stream.Collectors;
 public class StreamPhysicalVectorSearchTableFunction extends SingleRel
         implements StreamPhysicalRel {
 
-    private final RelOptTable searchTable;
+    private final TableSourceTable searchTable;
     private final @Nullable RexProgram calcProgram;
     private final VectorSearchSpec vectorSearchSpec;
     private final RelDataType outputRowType;
@@ -52,7 +63,7 @@ public class StreamPhysicalVectorSearchTableFunction extends SingleRel
             RelOptCluster cluster,
             RelTraitSet traits,
             RelNode input,
-            RelOptTable searchTable,
+            TableSourceTable searchTable,
             @Nullable RexProgram calcProgram,
             VectorSearchSpec vectorSearchSpec,
             RelDataType outputRowType) {
@@ -91,14 +102,17 @@ public class StreamPhysicalVectorSearchTableFunction extends SingleRel
                         .collect(Collectors.toList());
         List<String> columnToQuery =
                 vectorSearchSpec.getSearchColumns().values().stream()
-                        .map(this::explainQueryColumnParam)
+                        .map(
+                                param ->
+                                        FunctionCallUtil.explainFunctionParam(
+                                                param, getInput().getRowType().getFieldNames()))
                         .collect(Collectors.toList());
 
         Integer topK =
                 ((FunctionCallUtil.Constant) vectorSearchSpec.getTopK())
                         .literal.getValueAs(Integer.class);
 
-        String leftSelect = String.join(", ", getInput(0).getRowType().getFieldNames());
+        String leftSelect = String.join(", ", getInput().getRowType().getFieldNames());
         String rightSelect =
                 calcProgram == null
                         ? String.join(", ", searchTable.getRowType().getFieldNames())
@@ -109,12 +123,7 @@ public class StreamPhysicalVectorSearchTableFunction extends SingleRel
                                 convertToExpressionDetail(pw.getDetailLevel()));
 
         return super.explainTerms(pw)
-                .item(
-                        "table",
-                        ((TableSourceTable) searchTable)
-                                .contextResolvedTable()
-                                .getIdentifier()
-                                .asSummaryString())
+                .item("table", searchTable.contextResolvedTable().getIdentifier().asSummaryString())
                 .item("joinType", JoinTypeUtil.getFlinkJoinType(vectorSearchSpec.getJoinType()))
                 .item("columnToSearch", String.join(", ", columnToSearch))
                 .item("columnToQuery", String.join(", ", columnToQuery))
@@ -129,16 +138,42 @@ public class StreamPhysicalVectorSearchTableFunction extends SingleRel
 
     @Override
     public ExecNode<?> translateToExecNode() {
-        throw new UnsupportedOperationException("Vector search not supported yet.");
+        TableConfig tableConfig = ShortcutUtils.unwrapTableConfig(this);
+        VectorSearchTableSourceSpec sourceSpec = new VectorSearchTableSourceSpec(searchTable);
+        Preconditions.checkNotNull(sourceSpec.getTableSourceSpec())
+                .setTableSource(searchTable.tableSource());
+        if (calcProgram != null) {
+            throw new UnsupportedOperationException(
+                    "Don't support calc on VECTOR_SEARCH node now.");
+        }
+        return new StreamExecVectorSearchTableFunction(
+                tableConfig,
+                sourceSpec,
+                vectorSearchSpec,
+                VectorSearchUtil.isAsyncVectorSearch(
+                                searchTable, vectorSearchSpec.getSearchColumns().keySet())
+                        ? VectorSearchUtil.getAsyncOptions(tableConfig, getInputChangelogMode())
+                        : null,
+                InputProperty.DEFAULT,
+                FlinkTypeFactory.toLogicalRowType(outputRowType),
+                getRelDetailedDescription());
     }
 
-    private String explainQueryColumnParam(FunctionCallUtil.FunctionParam param) {
-        if (param instanceof FunctionCallUtil.FieldRef) {
-            int index = ((FunctionCallUtil.FieldRef) param).index;
-            return getInput(0).getRowType().getFieldNames().get(index);
-        } else if (param instanceof FunctionCallUtil.Constant) {
-            return ((FunctionCallUtil.Constant) param).literal.toString();
+    // ~ Utilities --------------------------------------------------------------------------
+
+    private ChangelogMode getInputChangelogMode() {
+        return getInputChangelogMode(getInput());
+    }
+
+    private ChangelogMode getInputChangelogMode(RelNode rel) {
+        if (rel instanceof StreamPhysicalRel) {
+            return JavaScalaConversionUtil.toJava(
+                            ChangelogPlanUtils.getChangelogMode((StreamPhysicalRel) rel))
+                    .orElse(ChangelogMode.insertOnly());
+        } else if (rel instanceof HepRelVertex) {
+            return getInputChangelogMode(((HepRelVertex) rel).getCurrentRel());
+        } else {
+            return ChangelogMode.insertOnly();
         }
-        return null;
     }
 }
