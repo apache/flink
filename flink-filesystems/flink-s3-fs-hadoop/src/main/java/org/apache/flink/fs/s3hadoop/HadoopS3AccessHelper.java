@@ -60,6 +60,14 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         checkNotNull(s3a, "S3AFileSystem cannot be null");
         checkNotNull(conf, "Configuration cannot be null");
 
+        // Debug: Log requester-pays configuration
+        String requesterPaysEnabled = conf.get("fs.s3a.requester.pays.enabled");
+        if (requesterPaysEnabled != null) {
+            LOG.info("Requester-pays configuration found: fs.s3a.requester.pays.enabled = {}", requesterPaysEnabled);
+        } else {
+            LOG.debug("No requester-pays configuration found (fs.s3a.requester.pays.enabled is null)");
+        }
+
         // Build configuration with validation (mainly for backward compatibility checks)
         this.s3Configuration = S3ConfigurationBuilder.fromHadoopConfiguration(conf).build();
 
