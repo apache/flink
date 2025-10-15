@@ -257,6 +257,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     private VertexParallelismStore parallelismStore;
 
+    @Nullable private String scheduler;
+
     // ------ Fields that are relevant to the execution and need to be cleared before archiving
     // -------
 
@@ -1791,6 +1793,17 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     @Override
     public Optional<AccessExecution> findExecution(ExecutionAttemptID attemptId) {
         return Optional.ofNullable(currentExecutions.get(attemptId));
+    }
+
+    @Override
+    public void setScheduler(@Nullable String scheduler) {
+        this.scheduler = scheduler;
+    }
+
+    @Nullable
+    @Override
+    public String getScheduler() {
+        return scheduler;
     }
 
     @Override

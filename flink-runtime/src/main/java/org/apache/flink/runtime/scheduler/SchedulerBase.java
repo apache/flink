@@ -443,6 +443,7 @@ public abstract class SchedulerBase implements SchedulerNG, CheckpointScheduling
                         executionPlanSchedulingContext,
                         log);
 
+        newExecutionGraph.setScheduler(getClass().getSimpleName());
         newExecutionGraph.setInternalTaskFailuresListener(
                 new UpdateSchedulerNgOnInternalFailuresListener(this));
         newExecutionGraph.registerJobStatusListener(jobStatusListener);

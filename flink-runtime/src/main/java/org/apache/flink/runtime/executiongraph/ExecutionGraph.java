@@ -270,4 +270,6 @@ public interface ExecutionGraph extends AccessExecutionGraph {
     Optional<String> findVertexWithAttempt(final ExecutionAttemptID attemptId);
 
     Optional<AccessExecution> findExecution(final ExecutionAttemptID attemptId);
+
+    default void setScheduler(@Nullable String scheduler) {}
 }
