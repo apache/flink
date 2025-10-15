@@ -64,15 +64,41 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         checkNotNull(s3a, "S3AFileSystem cannot be null");
         checkNotNull(conf, "Configuration cannot be null");
 
-        // Debug: Log requester-pays configuration
+        // Debug: Log requester-pays configuration extensively
         String requesterPaysEnabled = conf.get("fs.s3a.requester.pays.enabled");
         if (requesterPaysEnabled != null) {
             LOG.info(
                     "Requester-pays configuration found: fs.s3a.requester.pays.enabled = {}",
                     requesterPaysEnabled);
         } else {
-            LOG.debug(
+            LOG.warn(
                     "No requester-pays configuration found (fs.s3a.requester.pays.enabled is null)");
+        }
+        
+        // Also check for per-bucket configuration
+        try {
+            // Extract bucket name from S3A filesystem URI if available
+            String bucketName = null;
+            if (s3a.getUri() != null && s3a.getUri().getHost() != null) {
+                bucketName = s3a.getUri().getHost();
+                String perBucketKey = "fs.s3a.bucket." + bucketName + ".requester.pays.enabled";
+                String perBucketValue = conf.get(perBucketKey);
+                if (perBucketValue != null) {
+                    LOG.info("Per-bucket requester-pays configuration found: {} = {}", perBucketKey, perBucketValue);
+                } else {
+                    LOG.info("No per-bucket requester-pays configuration found for bucket: {} (key: {})", bucketName, perBucketKey);
+                }
+            }
+        } catch (Exception e) {
+            LOG.debug("Could not check per-bucket requester-pays configuration: {}", e.getMessage());
+        }
+        
+        // Log all fs.s3a.* configurations for debugging
+        LOG.info("All fs.s3a.* configurations:");
+        for (java.util.Map.Entry<String, String> entry : conf) {
+            if (entry.getKey().startsWith("fs.s3a.")) {
+                LOG.info("  {} = {}", entry.getKey(), entry.getValue());
+            }
         }
 
         // Build configuration with validation (mainly for backward compatibility checks)
