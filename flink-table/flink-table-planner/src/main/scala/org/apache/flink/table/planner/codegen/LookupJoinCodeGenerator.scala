@@ -234,6 +234,24 @@ object LookupJoinCodeGenerator {
     }
   }
 
+  def generateCollector(
+      ctx: CodeGeneratorContext,
+      inputRowType: RowType,
+      rightRowType: RowType,
+      resultRowType: RowType,
+      condition: Option[RexNode],
+      pojoFieldMapping: Option[Array[Int]],
+      retainHeader: Boolean = true): GeneratedCollector[ListenableCollector[RowData]] = {
+    FunctionCallCodeGenerator.generateCollector(
+      ctx,
+      inputRowType,
+      rightRowType,
+      resultRowType,
+      condition,
+      pojoFieldMapping,
+      retainHeader)
+  }
+
   /**
    * Generates a [[TableFunctionResultFuture]] that can be passed to Java compiler.
    *
