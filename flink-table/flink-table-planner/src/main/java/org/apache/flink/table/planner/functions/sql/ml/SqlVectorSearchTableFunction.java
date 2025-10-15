@@ -195,7 +195,7 @@ public class SqlVectorSearchTableFunction extends SqlFunction implements SqlTabl
                         throwOnFailure);
             }
 
-            // check topK is literal
+            // check top_k is a positive integer literal
             LogicalType topKType = toLogicalType(callBinding.getOperandType(3));
             if (!operands.get(3).getKind().equals(SqlKind.LITERAL)
                     || !topKType.is(LogicalTypeRoot.INTEGER)) {
@@ -203,11 +203,20 @@ public class SqlVectorSearchTableFunction extends SqlFunction implements SqlTabl
                         Optional.of(
                                 new ValidationException(
                                         String.format(
-                                                "Expect parameter topK is integer literal in VECTOR_SEARCH, but it is %s with type %s.",
+                                                "Expect parameter top_k is an INTEGER NOT NULL literal in VECTOR_SEARCH, but it is %s with type %s.",
                                                 operands.get(3), topKType))),
                         throwOnFailure);
             }
-
+            Integer topK = callBinding.getOperandLiteralValue(3, Integer.class);
+            if (topK == null || topK <= 0) {
+                return SqlValidatorUtils.throwExceptionOrReturnFalse(
+                        Optional.of(
+                                new ValidationException(
+                                        String.format(
+                                                "Parameter top_k must be greater than 0, but was %s.",
+                                                topK))),
+                        throwOnFailure);
+            }
             return true;
         }
 
@@ -218,7 +227,8 @@ public class SqlVectorSearchTableFunction extends SqlFunction implements SqlTabl
 
         @Override
         public String getAllowedSignatures(SqlOperator op, String opName) {
-            return opName + "(TABLE table_name, DESCRIPTOR(query_column), search_column, top_k)";
+            return opName
+                    + "(TABLE search_table, DESCRIPTOR(column_to_search), column_to_query, top_k)";
         }
 
         @Override
