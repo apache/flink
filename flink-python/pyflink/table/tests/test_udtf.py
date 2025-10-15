@@ -81,8 +81,9 @@ class UserDefinedTableFunctionTests(object):
         self.t_env.execute_sql(sql)
         self.assert_equals(
             list(self.t_env.execute_sql(
-                "SELECT * FROM (VALUES (1)) AS T(id), LATERAL TABLE(pyfunc(id))").collect()),
-            [Row(1, 1)])
+                "SELECT v FROM (VALUES (1)) AS T(id), LATERAL TABLE(pyfunc(id)) AS P(v)"
+            ).collect()),
+            [Row(1)])
 
 
 class PyFlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,

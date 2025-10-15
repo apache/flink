@@ -27,7 +27,6 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalA
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCorrelate;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalProcessTableFunction;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalValues;
-import org.apache.flink.table.planner.plan.utils.PythonUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import com.google.common.collect.ImmutableList;
@@ -84,8 +83,7 @@ public class StreamPhysicalConstantTableFunctionScanRule
 
     public boolean matches(RelOptRuleCall call) {
         final FlinkLogicalTableFunctionScan scan = call.rel(0);
-        return !RexUtil.containsInputRef(scan.getCall())
-                && PythonUtil.isNonPythonCall(scan.getCall());
+        return !RexUtil.containsInputRef(scan.getCall());
     }
 
     public void onMatch(RelOptRuleCall call) {
