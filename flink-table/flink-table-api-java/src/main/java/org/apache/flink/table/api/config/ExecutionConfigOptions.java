@@ -533,6 +533,51 @@ public class ExecutionConfigOptions {
                                     + "ORDERED ensures that the operator emits the result in the same order as the data enters it. This is the default.");
 
     // ------------------------------------------------------------------------
+    //  Async VECTOR_SEARCH Options
+    // ------------------------------------------------------------------------
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_ASYNC_VECTOR_SEARCH_ASYNC =
+            key("table.exec.async-vector-search.async")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether to run an async search function or not. Default to false.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Integer>
+            TABLE_EXEC_ASYNC_VECTOR_SEARCH_MAX_CONCURRENT_OPERATIONS =
+                    key("table.exec.async-vector-search.max-concurrent-operations")
+                            .intType()
+                            .defaultValue(10)
+                            .withDescription(
+                                    "The max number of async i/o operation that the async vector search can trigger.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_VECTOR_SEARCH_TIMEOUT =
+            key("table.exec.async-vector-search.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(3))
+                    .withDescription(
+                            "The total time which can pass before the invocation (including "
+                                    + "retries) is considered timed out and task execution is failed.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<AsyncOutputMode> TABLE_EXEC_ASYNC_VECTOR_SEARCH_OUTPUT_MODE =
+            key("table.exec.async-vector-search.output-mode")
+                    .enumType(AsyncOutputMode.class)
+                    .defaultValue(AsyncOutputMode.ORDERED)
+                    .withDescription(
+                            "Output mode for async vector search, which describes whether or not "
+                                    + "the output should attempt to be ordered or not.\n"
+                                    + "The supported options are:\n"
+                                    + "ALLOW_UNORDERED means the operator emits the result when "
+                                    + "execution finishes. The planner will attempt to use "
+                                    + "ALLOW_UNORDERED when it doesn't affect the correctness of "
+                                    + "the results.\n"
+                                    + "ORDERED means that the operator emits the result in the "
+                                    + "same order as the data enters it. This is the default.");
+
+    // ------------------------------------------------------------------------
     //  MiniBatch Options
     // ------------------------------------------------------------------------
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)

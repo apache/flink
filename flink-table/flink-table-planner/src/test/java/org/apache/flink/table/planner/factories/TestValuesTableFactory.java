@@ -62,6 +62,7 @@ import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.connector.source.SourceProvider;
+import org.apache.flink.table.connector.source.VectorSearchTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDown;
 import org.apache.flink.table.connector.source.abilities.SupportsDynamicFiltering;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
@@ -82,6 +83,8 @@ import org.apache.flink.table.connector.source.lookup.cache.DefaultLookupCache;
 import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
 import org.apache.flink.table.connector.source.lookup.cache.trigger.CacheReloadTrigger;
 import org.apache.flink.table.connector.source.lookup.cache.trigger.PeriodicCacheReloadTrigger;
+import org.apache.flink.table.connector.source.search.AsyncVectorSearchFunctionProvider;
+import org.apache.flink.table.connector.source.search.VectorSearchFunctionProvider;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.util.DataFormatConverters;
@@ -93,9 +96,11 @@ import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.functions.AsyncLookupFunction;
 import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.AsyncVectorSearchFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.LookupFunction;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.VectorSearchFunction;
 import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.legacy.api.WatermarkSpec;
 import org.apache.flink.table.legacy.connector.source.AsyncTableFunctionProvider;
@@ -388,6 +393,9 @@ public final class TestValuesTableFactory
     private static final ConfigOption<Boolean> DISABLE_LOOKUP =
             ConfigOptions.key("disable-lookup").booleanType().defaultValue(false);
 
+    private static final ConfigOption<Boolean> ENABLE_VECTOR_SEARCH =
+            ConfigOptions.key("enable-vector-search").booleanType().defaultValue(false);
+
     private static final ConfigOption<Boolean> SINK_INSERT_ONLY =
             ConfigOptions.key("sink-insert-only").booleanType().defaultValue(true);
 
@@ -533,6 +541,7 @@ public final class TestValuesTableFactory
         boolean isAsync = helper.getOptions().get(ASYNC_ENABLED);
         String lookupFunctionClass = helper.getOptions().get(LOOKUP_FUNCTION_CLASS);
         boolean disableLookup = helper.getOptions().get(DISABLE_LOOKUP);
+        boolean enableVectorSearch = helper.getOptions().get(ENABLE_VECTOR_SEARCH);
         boolean enableProjectionPushDown = helper.getOptions().get(ENABLE_PROJECTION_PUSH_DOWN);
         boolean enableAggregatePushDown = helper.getOptions().get(ENABLE_AGGREGATE_PUSH_DOWN);
         boolean nestedProjectionSupported = helper.getOptions().get(NESTED_PROJECTION_SUPPORTED);
@@ -626,6 +635,30 @@ public final class TestValuesTableFactory
                         null,
                         parallelism,
                         enableAggregatePushDown);
+            }
+
+            if (enableVectorSearch) {
+                return new TestValuesVectorSearchTableSourceWithoutProjectionPushDown(
+                        producedDataType,
+                        changelogMode,
+                        boundedness,
+                        terminating,
+                        runtimeSource,
+                        failingSource,
+                        partition2Rows,
+                        nestedProjectionSupported,
+                        null,
+                        Collections.emptyList(),
+                        filterableFieldsSet,
+                        dynamicFilteringFieldsSet,
+                        numElementToSkip,
+                        Long.MAX_VALUE,
+                        partitions,
+                        readableMetadata,
+                        null,
+                        parallelism,
+                        enableAggregatePushDown,
+                        isAsync);
             }
 
             if (disableLookup) {
@@ -821,6 +854,7 @@ public final class TestValuesTableFactory
                         LOOKUP_THRESHOLD,
                         ASYNC_ENABLED,
                         DISABLE_LOOKUP,
+                        ENABLE_VECTOR_SEARCH,
                         TABLE_SOURCE_CLASS,
                         TABLE_SINK_CLASS,
                         SINK_INSERT_ONLY,
@@ -1024,7 +1058,7 @@ public final class TestValuesTableFactory
         private @Nullable int[] groupingSet;
         private List<AggregateExpression> aggregateExpressions;
         private List<String> acceptedPartitionFilterFields;
-        private final Integer parallelism;
+        protected final Integer parallelism;
 
         private TestValuesScanTableSourceWithoutProjectionPushDown(
                 DataType producedDataType,
@@ -2210,6 +2244,125 @@ public final class TestValuesTableFactory
         @Override
         public String asSummaryString() {
             return "TestValuesWithInternalData";
+        }
+    }
+
+    private static class TestValuesVectorSearchTableSourceWithoutProjectionPushDown
+            extends TestValuesScanTableSourceWithoutProjectionPushDown
+            implements VectorSearchTableSource {
+
+        private final boolean isAsync;
+
+        private TestValuesVectorSearchTableSourceWithoutProjectionPushDown(
+                DataType producedDataType,
+                ChangelogMode changelogMode,
+                Boundedness boundedness,
+                TerminatingLogic terminating,
+                String runtimeSource,
+                boolean failingSource,
+                Map<Map<String, String>, Collection<Row>> data,
+                boolean nestedProjectionSupported,
+                @Nullable int[][] projectedPhysicalFields,
+                List<ResolvedExpression> filterPredicates,
+                Set<String> filterableFields,
+                Set<String> dynamicFilteringFields,
+                int numElementToSkip,
+                long limit,
+                List<Map<String, String>> allPartitions,
+                Map<String, DataType> readableMetadata,
+                @Nullable int[] projectedMetadataFields,
+                @Nullable Integer parallelism,
+                boolean enableAggregatePushDown,
+                boolean isAsync) {
+            super(
+                    producedDataType,
+                    changelogMode,
+                    boundedness,
+                    terminating,
+                    runtimeSource,
+                    failingSource,
+                    data,
+                    nestedProjectionSupported,
+                    projectedPhysicalFields,
+                    filterPredicates,
+                    filterableFields,
+                    dynamicFilteringFields,
+                    numElementToSkip,
+                    limit,
+                    allPartitions,
+                    readableMetadata,
+                    projectedMetadataFields,
+                    parallelism,
+                    enableAggregatePushDown);
+            this.isAsync = isAsync;
+        }
+
+        @Override
+        public VectorSearchRuntimeProvider getSearchRuntimeProvider(VectorSearchContext context) {
+            int[] searchColumns =
+                    Arrays.stream(context.getSearchColumns()).mapToInt(k -> k[0]).toArray();
+            Collection<Row> rows =
+                    data.getOrDefault(Collections.emptyMap(), Collections.emptyList());
+            TestValuesRuntimeFunctions.TestValueVectorSearchFunction searchFunction =
+                    new TestValuesRuntimeFunctions.TestValueVectorSearchFunction(
+                            new ArrayList<>(rows), searchColumns, producedDataType);
+
+            if (isAsync) {
+                return new VectorFunctionProvider(
+                        new TestValuesRuntimeFunctions.TestValueAsyncVectorSearchFunction(
+                                new ArrayList<>(rows), searchColumns, producedDataType),
+                        searchFunction);
+            } else {
+                return VectorSearchFunctionProvider.of(searchFunction);
+            }
+        }
+
+        @Override
+        public DynamicTableSource copy() {
+            return new TestValuesVectorSearchTableSourceWithoutProjectionPushDown(
+                    producedDataType,
+                    changelogMode,
+                    boundedness,
+                    terminating,
+                    runtimeSource,
+                    failingSource,
+                    data,
+                    nestedProjectionSupported,
+                    projectedPhysicalFields,
+                    filterPredicates,
+                    filterableFields,
+                    dynamicFilteringFields,
+                    numElementToSkip,
+                    limit,
+                    allPartitions,
+                    readableMetadata,
+                    projectedMetadataFields,
+                    parallelism,
+                    enableAggregatePushDown,
+                    isAsync);
+        }
+
+        private static class VectorFunctionProvider
+                implements AsyncVectorSearchFunctionProvider, VectorSearchFunctionProvider {
+
+            private final AsyncVectorSearchFunction asyncFunction;
+            private final VectorSearchFunction syncFunction;
+
+            public VectorFunctionProvider(
+                    AsyncVectorSearchFunction asyncFunction, VectorSearchFunction syncFunction) {
+                this.asyncFunction = asyncFunction;
+                this.syncFunction = syncFunction;
+            }
+
+            @Override
+            public AsyncVectorSearchFunction createAsyncVectorSearchFunction() {
+                return asyncFunction;
+            }
+
+            @Override
+            public VectorSearchFunction createVectorSearchFunction() {
+                return syncFunction;
+            }
         }
     }
 
