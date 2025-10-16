@@ -19,9 +19,11 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.functions.FlatMapFunction
 import org.apache.flink.configuration.ReadableConfig
+import org.apache.flink.streaming.api.functions.async.AsyncFunction
 import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.functions._
+import org.apache.flink.table.planner.codegen.FunctionCallCodeGenerator.GeneratedTableFunctionWithDataType
 import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil
 import org.apache.flink.table.planner.functions.inference.FunctionCallContext
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.FunctionParam
@@ -66,6 +68,32 @@ object VectorSearchCodeGenerator {
         fieldCopy
       )
       .tableFunc
+  }
+
+  /** Generates a async vector search function ([[AsyncTableFunction]]) */
+  def generateAsyncVectorSearchFunction(
+      tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
+      dataTypeFactory: DataTypeFactory,
+      inputType: LogicalType,
+      searchOutputType: LogicalType,
+      outputType: LogicalType,
+      searchColumns: util.List[FunctionParam],
+      asyncVectorSearchFunction: AsyncTableFunction[_],
+      functionName: String): GeneratedTableFunctionWithDataType[AsyncFunction[RowData, AnyRef]] = {
+    FunctionCallCodeGenerator.generateAsyncFunctionCall(
+      tableConfig,
+      classLoader,
+      dataTypeFactory,
+      inputType,
+      searchOutputType,
+      outputType,
+      searchColumns,
+      asyncVectorSearchFunction,
+      generateCallWithDataType(functionName, searchOutputType),
+      functionName,
+      "AsyncVectorSearchFunction"
+    )
   }
 
   private def generateCallWithDataType(
