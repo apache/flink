@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.functions.sql.ml.SqlVectorSearchTableFunct
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
+import org.apache.calcite.plan.RelOptPlanner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -61,6 +62,17 @@ public class VectorSearchTableFunctionTest extends TableTestBase {
                                 + "  e INT,\n"
                                 + "  f BIGINT,\n"
                                 + "  g ARRAY<FLOAT>\n"
+                                + ") with (\n"
+                                + "  'connector' = 'values'\n"
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE VectorTableWithProctime (\n"
+                                + "  e INT,\n"
+                                + "  f BIGINT,\n"
+                                + "  g ARRAY<FLOAT>,\n"
+                                + "  proctime as PROCTIME()\n"
                                 + ") with (\n"
                                 + "  'connector' = 'values'\n"
                                 + ")");
@@ -204,7 +216,7 @@ public class VectorSearchTableFunctionTest extends TableTestBase {
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 ValidationException.class,
-                                "Expect parameter topK is integer literal in VECTOR_SEARCH, but it is 10.0 with type DECIMAL(3, 1) NOT NULL."));
+                                "Expect parameter top_k is an INTEGER NOT NULL literal in VECTOR_SEARCH, but it is 10.0 with type DECIMAL(3, 1) NOT NULL."));
     }
 
     @Test
@@ -219,6 +231,74 @@ public class VectorSearchTableFunctionTest extends TableTestBase {
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 ValidationException.class,
-                                "Expect parameter topK is integer literal in VECTOR_SEARCH, but it is QueryTable.a with type INT."));
+                                "Expect parameter top_k is an INTEGER NOT NULL literal in VECTOR_SEARCH, but it is QueryTable.a with type INT."));
+    }
+
+    @Test
+    void testIllegalTopKValue3() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTable, DESCRIPTOR(`g`), QueryTable.d, 0"
+                        + ")\n"
+                        + ")";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                ValidationException.class,
+                                "Parameter top_k must be greater than 0, but was 0."));
+    }
+
+    @Test
+    void testSearchTableWithCalc() {
+        // calc -> source
+        util.verifyRelPlan(
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTableWithProctime, DESCRIPTOR(`g`), QueryTable.d, 10))");
+    }
+
+    @Test
+    void testSearchTableWithFilter() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    (SELECT * FROM VectorTable WHERE e > 0),\n"
+                        + "    DESCRIPTOR(`g`),\n"
+                        + "    QueryTable.d,\n"
+                        + "    10"
+                        + ")\n"
+                        + ")";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                RelOptPlanner.CannotPlanException.class,
+                                "VECTOR_SEARCH does not support filter on parameter search_table."));
+    }
+
+    @Test
+    void testSearchTableWithWatermark() {
+        // watermark assigner -> calc -> scan
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE IllegalTable (\n"
+                                + "  e INT,\n"
+                                + "  f BIGINT,\n"
+                                + "  g ARRAY<FLOAT>,\n"
+                                + "  rowtime TIMESTAMP(3),\n"
+                                + "  proctime as PROCTIME(),\n"
+                                + "  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND\n"
+                                + ") with (\n"
+                                + "  'connector' = 'values'\n"
+                                + ")");
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE IllegalTable, DESCRIPTOR(`g`), QueryTable.d, 10))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                RelOptPlanner.CannotPlanException.class,
+                                "VECTOR_SEARCH does not support FlinkLogicalWatermarkAssigner node in parameter search_table."));
     }
 }

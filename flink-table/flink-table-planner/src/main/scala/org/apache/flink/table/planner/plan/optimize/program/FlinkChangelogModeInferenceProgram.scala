@@ -341,15 +341,10 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         val children = visitChildren(rel, ModifyKindSetTrait.INSERT_ONLY)
         createNewNode(rel, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
 
-      case ml_predict: StreamPhysicalMLPredictTableFunction =>
-        // MLPredict supports only support consuming insert-only
-        val children = visitChildren(ml_predict, ModifyKindSetTrait.INSERT_ONLY)
-        createNewNode(
-          ml_predict,
-          children,
-          ModifyKindSetTrait.INSERT_ONLY,
-          requiredTrait,
-          requester)
+      case _: StreamPhysicalMLPredictTableFunction | _: StreamPhysicalVectorSearchTableFunction =>
+        // MLPredict, VectorSearch supports only support consuming insert-only
+        val children = visitChildren(rel, ModifyKindSetTrait.INSERT_ONLY)
+        createNewNode(rel, children, ModifyKindSetTrait.INSERT_ONLY, requiredTrait, requester)
 
       case join: StreamPhysicalJoin =>
         // join support all changes in input
@@ -741,7 +736,8 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         case _: StreamPhysicalCorrelateBase | _: StreamPhysicalLookupJoin |
             _: StreamPhysicalExchange | _: StreamPhysicalExpand |
             _: StreamPhysicalMiniBatchAssigner | _: StreamPhysicalWatermarkAssigner |
-            _: StreamPhysicalWindowTableFunction | _: StreamPhysicalMLPredictTableFunction =>
+            _: StreamPhysicalWindowTableFunction | _: StreamPhysicalMLPredictTableFunction |
+            _: StreamPhysicalVectorSearchTableFunction =>
           // transparent forward requiredTrait to children
           visitChildren(rel, requiredUpdateTrait) match {
             case None => None
@@ -1130,7 +1126,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             _: StreamPhysicalTemporalSort | _: StreamPhysicalMatch |
             _: StreamPhysicalOverAggregate | _: StreamPhysicalIntervalJoin |
             _: StreamPhysicalPythonOverAggregate | _: StreamPhysicalWindowJoin |
-            _: StreamPhysicalMLPredictTableFunction =>
+            _: StreamPhysicalMLPredictTableFunction | _: StreamPhysicalVectorSearchTableFunction =>
           // if not explicitly supported, all operators require full deletes if there are updates
           val children = rel.getInputs.map {
             case child: StreamPhysicalRel =>

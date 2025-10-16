@@ -19,17 +19,14 @@
 package org.apache.flink.table.planner.plan.nodes.exec.spec;
 
 import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.connector.source.LookupTableSource;
+import org.apache.flink.table.connector.source.VectorSearchTableSource;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.type.RelDataType;
@@ -39,53 +36,33 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 
 /**
- * TemporalTableSpec describes how the right table of lookupJoin ser/des.
+ * Spec describes how the right table of search functions ser/des.
  *
- * <p>This class corresponds to {@link org.apache.calcite.plan.RelOptTable} rel node.
+ * <p>This class corresponds to {@link RelOptTable} rel node.
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
-public class TemporalTableSourceSpec {
-    public static final String FIELD_NAME_LOOK_UP_TABLE_SOURCE = "lookupTableSource";
-    public static final String FIELD_NAME_OUTPUT_TYPE = "outputType";
+public class VectorSearchTableSourceSpec {
 
-    @JsonProperty(FIELD_NAME_LOOK_UP_TABLE_SOURCE)
-    private DynamicTableSourceSpec tableSourceSpec;
+    private final DynamicTableSourceSpec tableSourceSpec;
+    private final RelDataType outputType;
+    private final TableSourceTable searchTable;
 
-    @JsonProperty(FIELD_NAME_OUTPUT_TYPE)
-    @Nullable
-    private RelDataType outputType;
-
-    @JsonIgnore private RelOptTable temporalTable;
-
-    public TemporalTableSourceSpec(RelOptTable temporalTable) {
-        this.temporalTable = temporalTable;
-        if (temporalTable instanceof TableSourceTable) {
-            TableSourceTable tableSourceTable = (TableSourceTable) temporalTable;
-            outputType = tableSourceTable.getRowType();
-            this.tableSourceSpec =
-                    new DynamicTableSourceSpec(
-                            tableSourceTable.contextResolvedTable(),
-                            Arrays.asList(tableSourceTable.abilitySpecs()));
-        }
-    }
-
-    @JsonCreator
-    public TemporalTableSourceSpec(
-            @JsonProperty(FIELD_NAME_LOOK_UP_TABLE_SOURCE) @Nullable
-                    DynamicTableSourceSpec dynamicTableSourceSpec,
-            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) @Nullable RelDataType outputType) {
-        this.tableSourceSpec = dynamicTableSourceSpec;
-        this.outputType = outputType;
+    public VectorSearchTableSourceSpec(TableSourceTable searchTable) {
+        this.searchTable = searchTable;
+        this.outputType = searchTable.getRowType();
+        this.tableSourceSpec =
+                new DynamicTableSourceSpec(
+                        searchTable.contextResolvedTable(),
+                        Arrays.asList(searchTable.abilitySpecs()));
     }
 
     @JsonIgnore
-    public RelOptTable getTemporalTable(FlinkContext context, FlinkTypeFactory typeFactory) {
-        if (null != temporalTable) {
-            return temporalTable;
+    public TableSourceTable getSearchTable(FlinkContext context, FlinkTypeFactory typeFactory) {
+        if (null != searchTable) {
+            return searchTable;
         }
         if (null != tableSourceSpec && null != outputType) {
-            LookupTableSource lookupTableSource =
-                    tableSourceSpec.getLookupTableSource(context, typeFactory);
+            VectorSearchTableSource vectorSearchTableSource =
+                    tableSourceSpec.getVectorSearchTableSource(context, typeFactory);
             SourceAbilitySpec[] sourceAbilitySpecs = null;
             if (null != tableSourceSpec.getSourceAbilities()) {
                 sourceAbilitySpecs =
@@ -95,17 +72,18 @@ public class TemporalTableSourceSpec {
                     null,
                     outputType,
                     FlinkStatistic.UNKNOWN(),
-                    lookupTableSource,
+                    vectorSearchTableSource,
                     true,
                     tableSourceSpec.getContextResolvedTable(),
                     context,
                     typeFactory,
                     sourceAbilitySpecs);
         }
-        throw new TableException("Can not obtain temporalTable correctly!");
+        throw new TableException("Can not obtain searchTable correctly!");
     }
 
     @JsonIgnore
+    @Nullable
     public DynamicTableSourceSpec getTableSourceSpec() {
         return tableSourceSpec;
     }
