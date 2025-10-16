@@ -19,10 +19,10 @@
 package org.apache.flink.table.runtime.functions.aggregate;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.dataview.MapView;
-import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.data.binary.BinaryStringData;
+import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -42,8 +42,11 @@ public final class LastValueWithRetractAggFunction<T>
 
     private final transient DataType valueDataType;
 
+    private TypeSerializer typeSerializer;
+
     public LastValueWithRetractAggFunction(LogicalType valueType) {
         this.valueDataType = toInternalDataType(valueType);
+        this.typeSerializer = InternalSerializers.create(valueType);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -118,7 +121,7 @@ public final class LastValueWithRetractAggFunction<T>
     @SuppressWarnings("unchecked")
     public void accumulate(LastValueWithRetractAccumulator<T> acc, Object value) throws Exception {
         if (value != null) {
-            T v = (T) value;
+            T v = (T) typeSerializer.copy(value);
             Long order = System.currentTimeMillis();
             List<Long> orderList = acc.valueToOrderMap.get(v);
             if (orderList == null) {
@@ -134,7 +137,7 @@ public final class LastValueWithRetractAggFunction<T>
     public void accumulate(LastValueWithRetractAccumulator<T> acc, Object value, Long order)
             throws Exception {
         if (value != null) {
-            T v = (T) value;
+            T v = (T) typeSerializer.copy(value);
             Long prevOrder = acc.lastOrder;
             if (prevOrder == null || prevOrder <= order) {
                 acc.lastValue = v;
@@ -147,20 +150,6 @@ public final class LastValueWithRetractAggFunction<T>
             }
             valueList.add(v);
             acc.orderToValueMap.put(order, valueList);
-        }
-    }
-
-    public void accumulate(LastValueWithRetractAccumulator<T> acc, StringData value)
-            throws Exception {
-        if (value != null) {
-            accumulate(acc, (Object) ((BinaryStringData) value).copy());
-        }
-    }
-
-    public void accumulate(LastValueWithRetractAccumulator<T> acc, StringData value, Long order)
-            throws Exception {
-        if (value != null) {
-            accumulate(acc, (Object) ((BinaryStringData) value).copy(), order);
         }
     }
 
