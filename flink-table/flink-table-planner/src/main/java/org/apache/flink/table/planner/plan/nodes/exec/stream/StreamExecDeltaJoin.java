@@ -20,10 +20,12 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.conversion.DataStructureConverter;
@@ -78,11 +80,14 @@ import org.apache.calcite.tools.RelBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDeltaJoin.DELTA_JOIN_TRANSFORMATION;
 import static org.apache.flink.table.planner.plan.utils.DeltaJoinUtil.getUnwrappedAsyncLookupFunction;
@@ -114,6 +119,9 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
             "lookupRightTableJoinSpec";
     private static final String FIELD_NAME_LOOKUP_LEFT_TABLE_JOIN_SPEC = "lookupLeftTableJoinSpec";
 
+    private static final String FIELD_NAME_LEFT_UPSERT_KEY = "leftUpsertKey";
+    private static final String FIELD_NAME_RIGHT_UPSERT_KEY = "rightUpsertKey";
+
     private static final String FIELD_NAME_JOIN_TYPE = "joinType";
 
     public static final String FIELD_NAME_ASYNC_OPTIONS = "asyncOptions";
@@ -132,6 +140,10 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
     @JsonProperty(FIELD_NAME_LEFT_JOIN_KEYS)
     private final int[] leftJoinKeys;
 
+    @JsonProperty(FIELD_NAME_LEFT_UPSERT_KEY)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final int[] leftUpsertKeys;
+
     // left (streaming) side join right (lookup) side
     @JsonProperty(FIELD_NAME_LOOKUP_RIGHT_TABLE_JOIN_SPEC)
     private final DeltaJoinSpec lookupRightTableJoinSpec;
@@ -140,6 +152,10 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
 
     @JsonProperty(FIELD_NAME_RIGHT_JOIN_KEYS)
     private final int[] rightJoinKeys;
+
+    @JsonProperty(FIELD_NAME_RIGHT_UPSERT_KEY)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final int[] rightUpsertKeys;
 
     // right (streaming) side join left (lookup) side
     @JsonProperty(FIELD_NAME_LOOKUP_LEFT_TABLE_JOIN_SPEC)
@@ -150,9 +166,11 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
             FlinkJoinType flinkJoinType,
             // delta join args related with the left side
             int[] leftJoinKeys,
+            @Nullable int[] leftUpsertKeys,
             DeltaJoinSpec lookupRightTableJoinSpec,
             // delta join args related with the right side
             int[] rightJoinKeys,
+            @Nullable int[] rightUpsertKeys,
             DeltaJoinSpec lookupLeftTableJoinSpec,
             InputProperty leftInputProperty,
             InputProperty rightInputProperty,
@@ -165,8 +183,10 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                 ExecNodeContext.newPersistedConfig(StreamExecDeltaJoin.class, tableConfig),
                 flinkJoinType,
                 leftJoinKeys,
+                leftUpsertKeys,
                 lookupRightTableJoinSpec,
                 rightJoinKeys,
+                rightUpsertKeys,
                 lookupLeftTableJoinSpec,
                 Lists.newArrayList(leftInputProperty, rightInputProperty),
                 outputType,
@@ -181,9 +201,11 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_JOIN_TYPE) FlinkJoinType flinkJoinType,
             @JsonProperty(FIELD_NAME_LEFT_JOIN_KEYS) int[] leftJoinKeys,
+            @JsonProperty(FIELD_NAME_LEFT_UPSERT_KEY) @Nullable int[] leftUpsertKeys,
             @JsonProperty(FIELD_NAME_LOOKUP_RIGHT_TABLE_JOIN_SPEC)
                     DeltaJoinSpec lookupRightTableJoinSpec,
             @JsonProperty(FIELD_NAME_RIGHT_JOIN_KEYS) int[] rightJoinKeys,
+            @JsonProperty(FIELD_NAME_RIGHT_UPSERT_KEY) @Nullable int[] rightUpsertKeys,
             @JsonProperty(FIELD_NAME_LOOKUP_LEFT_TABLE_JOIN_SPEC)
                     DeltaJoinSpec lookupLeftTableJoinSpec,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
@@ -194,8 +216,10 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
 
         this.flinkJoinType = flinkJoinType;
         this.leftJoinKeys = leftJoinKeys;
+        this.leftUpsertKeys = leftUpsertKeys;
         this.lookupRightTableJoinSpec = lookupRightTableJoinSpec;
         this.rightJoinKeys = rightJoinKeys;
+        this.rightUpsertKeys = rightUpsertKeys;
         this.lookupLeftTableJoinSpec = lookupLeftTableJoinSpec;
         this.asyncLookupOptions = asyncLookupOptions;
     }
@@ -234,11 +258,15 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
         RowDataKeySelector leftJoinKeySelector =
                 KeySelectorUtil.getRowDataSelector(
                         classLoader, leftJoinKeys, InternalTypeInfo.of(leftStreamType));
+        RowDataKeySelector leftUpsertKeySelector =
+                getUpsertKeySelector(leftUpsertKeys, leftStreamType, classLoader);
 
         // right side selector
         RowDataKeySelector rightJoinKeySelector =
                 KeySelectorUtil.getRowDataSelector(
                         classLoader, rightJoinKeys, InternalTypeInfo.of(rightStreamType));
+        RowDataKeySelector rightUpsertKeySelector =
+                getUpsertKeySelector(rightUpsertKeys, rightStreamType, classLoader);
 
         StreamOperatorFactory<RowData> operatorFactory =
                 createAsyncLookupDeltaJoin(
@@ -252,7 +280,9 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                         leftStreamType,
                         rightStreamType,
                         leftJoinKeySelector,
+                        leftUpsertKeySelector,
                         rightJoinKeySelector,
+                        rightUpsertKeySelector,
                         classLoader);
 
         final TwoInputTransformation<RowData, RowData, RowData> transform =
@@ -282,7 +312,9 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
             RowType leftStreamType,
             RowType rightStreamType,
             RowDataKeySelector leftJoinKeySelector,
+            RowDataKeySelector leftUpsertKeySelector,
             RowDataKeySelector rightJoinKeySelector,
+            RowDataKeySelector rightUpsertKeySelector,
             ClassLoader classLoader) {
 
         DataTypeFactory dataTypeFactory =
@@ -299,6 +331,10 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                         leftStreamType,
                         rightStreamType,
                         leftLookupKeys,
+                        leftJoinKeySelector,
+                        leftUpsertKeySelector,
+                        rightJoinKeySelector,
+                        rightUpsertKeySelector,
                         false);
 
         AsyncDeltaJoinRunner rightLookupTableAsyncFunction =
@@ -312,7 +348,13 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                         leftStreamType,
                         rightStreamType,
                         rightLookupKeys,
+                        leftJoinKeySelector,
+                        leftUpsertKeySelector,
+                        rightJoinKeySelector,
+                        rightUpsertKeySelector,
                         true);
+
+        Tuple2<Long, Long> leftRightCacheSize = getCacheSize(config);
 
         return new StreamingDeltaJoinOperatorFactory(
                 rightLookupTableAsyncFunction,
@@ -321,6 +363,8 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                 rightJoinKeySelector,
                 asyncLookupOptions.asyncTimeout,
                 asyncLookupOptions.asyncBufferCapacity,
+                leftRightCacheSize.f0,
+                leftRightCacheSize.f1,
                 leftStreamType,
                 rightStreamType);
     }
@@ -336,6 +380,10 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
             RowType leftStreamSideType,
             RowType rightStreamSideType,
             Map<Integer, FunctionParam> lookupKeys,
+            RowDataKeySelector leftJoinKeySelector,
+            RowDataKeySelector leftUpsertKeySelector,
+            RowDataKeySelector rightJoinKeySelector,
+            RowDataKeySelector rightUpsertKeySelector,
             boolean treatRightAsLookupTable) {
         RelOptTable lookupTable = treatRightAsLookupTable ? rightTempTable : leftTempTable;
         RowType streamSideType = treatRightAsLookupTable ? leftStreamSideType : rightStreamSideType;
@@ -409,8 +457,13 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                 (DataStructureConverter<RowData, Object>) lookupSideFetcherConverter,
                 lookupSideGeneratedResultFuture,
                 InternalSerializers.create(lookupTableSourceRowType),
+                leftJoinKeySelector,
+                leftUpsertKeySelector,
+                rightJoinKeySelector,
+                rightUpsertKeySelector,
                 asyncLookupOptions.asyncBufferCapacity,
-                treatRightAsLookupTable);
+                treatRightAsLookupTable,
+                enableCache(config));
     }
 
     /**
@@ -448,5 +501,34 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                 };
 
         return condition.accept(converter);
+    }
+
+    private RowDataKeySelector getUpsertKeySelector(
+            @Nullable int[] upsertKey, RowType rowType, ClassLoader classLoader) {
+        final int[] rightUpsertKeys;
+        if (upsertKey != null && upsertKey.length > 0) {
+            rightUpsertKeys = upsertKey;
+        } else {
+            rightUpsertKeys = IntStream.range(0, rowType.getFields().size()).toArray();
+        }
+        return KeySelectorUtil.getRowDataSelector(
+                classLoader, rightUpsertKeys, InternalTypeInfo.of(rowType));
+    }
+
+    private boolean enableCache(ReadableConfig config) {
+        return config.get(ExecutionConfigOptions.TABLE_EXEC_DELTA_JOIN_CACHE_ENABLED);
+    }
+
+    /** Get the left cache size and right size. */
+    private Tuple2<Long, Long> getCacheSize(ReadableConfig config) {
+        long leftCacheSize =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_DELTA_JOIN_LEFT_CACHE_SIZE);
+        long rightCacheSize =
+                config.get(ExecutionConfigOptions.TABLE_EXEC_DELTA_JOIN_RIGHT_CACHE_SIZE);
+        if ((leftCacheSize <= 0 || rightCacheSize <= 0) && enableCache(config)) {
+            throw new IllegalArgumentException(
+                    "Cache size in delta join must be positive when enabling cache.");
+        }
+        return Tuple2.of(leftCacheSize, rightCacheSize);
     }
 }

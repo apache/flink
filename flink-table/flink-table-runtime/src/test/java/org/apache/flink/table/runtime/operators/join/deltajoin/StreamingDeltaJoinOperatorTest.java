@@ -35,7 +35,7 @@ import org.apache.flink.table.data.conversion.DataStructureConverter;
 import org.apache.flink.table.data.conversion.DataStructureConverters;
 import org.apache.flink.table.runtime.collector.TableFunctionCollector;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
-import org.apache.flink.table.runtime.generated.GeneratedFunctionWrapper;
+import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFutureWrapper;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.lookup.keyordered.AecRecord;
@@ -49,17 +49,25 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.util.Preconditions;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.LinkedList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -68,92 +76,35 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.binaryrow;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test class for {@link StreamingDeltaJoinOperator}. */
+@ExtendWith(ParameterizedTestExtension.class)
 public class StreamingDeltaJoinOperatorTest {
 
-    private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness;
-
     private static final int AEC_CAPACITY = 100;
+    private static final int CACHE_SIZE = 10;
 
     // the data snapshot of the left/right table when joining
-    private static final LinkedList<RowData> leftTableCurrentData = new LinkedList<>();
-    private static final LinkedList<RowData> rightTableCurrentData = new LinkedList<>();
+    // <upsert key, data>
+    private static final HashMap<RowData, RowData> leftTableCurrentData = new HashMap<>();
+    private static final HashMap<RowData, RowData> rightTableCurrentData = new HashMap<>();
 
-    /**
-     * Mock sql like the following.
-     *
-     * <pre>
-     *      CREATE TABLE leftSrc(
-     *          left_value INT,
-     *          left_jk1 BOOLEAN,
-     *          left_jk2_lk VARCHAR,
-     *          INDEX(left_jk2_lk)
-     *      )
-     * </pre>
-     *
-     * <pre>
-     *      CREATE TABLE rightSrc(
-     *          right_jk2 STRING,
-     *          right_value INT,
-     *          right_jk1_lk VARCHAR,
-     *          INDEX(right_jk1_lk)
-     *      )
-     * </pre>
-     *
-     * <pre>
-     *     select * from leftSrc join rightSrc
-     *      on leftSrc.left_jk1 = rightSrc.right_jk1_lk
-     *      and leftSrc.left_jk2_lk = rightSrc.right_jk2
-     * </pre>
-     *
-     * <p>For right lookup table(left stream side delta join right table), the join key is
-     * [right_jk1_lk, right_jk2], and it will be split into lookup key [right_jk1_lk] and {@code
-     * DeltaJoinSpec#remainingCondition} [right_jk2].
-     *
-     * <p>For left lookup table(right stream side delta join left table), the join key is [left_jk1,
-     * left_jk2_lk], and it will be split into lookup key [left_jk2_lk] and {@code
-     * DeltaJoinSpec#remainingCondition} [left_jk1].
-     */
+    @Parameters(name = "EnableCache = {0}")
+    public static List<Boolean> parameters() {
+        return Arrays.asList(false, true);
+    }
 
-    // left join key: <left_jk1, left_jk2_lk>
-    // left lookup key: <left_jk2_lk>
-    private static final InternalTypeInfo<RowData> leftTypeInfo =
-            InternalTypeInfo.of(
-                    RowType.of(
-                            new LogicalType[] {
-                                new IntType(), new BooleanType(), VarCharType.STRING_TYPE
-                            },
-                            new String[] {"left_value", "left_jk1", "left_jk2_lk"}));
+    @Parameter public boolean enableCache;
 
-    private static final int[] leftJoinKeyIndices = new int[] {1, 2};
-
-    // right join key: <right_jk1_lk, right_jk2>
-    // right lookup key: <right_jk1_lk>
-    private static final InternalTypeInfo<RowData> rightTypeInfo =
-            InternalTypeInfo.of(
-                    RowType.of(
-                            new LogicalType[] {
-                                VarCharType.STRING_TYPE, new IntType(), new BooleanType()
-                            },
-                            new String[] {"right_jk2", "right_value", "right_jk1_lk"}));
-    private static final int[] rightJoinKeyIndices = new int[] {2, 0};
-
-    private static final RowDataKeySelector leftJoinKeySelector =
-            HandwrittenSelectorUtil.getRowDataSelector(
-                    leftJoinKeyIndices,
-                    leftTypeInfo.toRowType().getChildren().toArray(new LogicalType[0]));
-    private static final RowDataKeySelector rightJoinKeySelector =
-            HandwrittenSelectorUtil.getRowDataSelector(
-                    rightJoinKeyIndices,
-                    rightTypeInfo.toRowType().getChildren().toArray(new LogicalType[0]));
-
-    private static final int[] outputUpsertKeyIndices = leftJoinKeyIndices;
+    private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness;
 
     private RowDataHarnessAssertor assertor;
 
@@ -161,46 +112,6 @@ public class StreamingDeltaJoinOperatorTest {
 
     @BeforeEach
     public void beforeEach() throws Exception {
-        testHarness = createDeltaJoinOperatorTestHarness();
-        testHarness.setup();
-        testHarness.open();
-        StreamingDeltaJoinOperator operator = unwrapOperator(testHarness);
-        // set external failure cause consumer to prevent hang
-        testHarness
-                .getEnvironment()
-                .setExternalFailureCauseConsumer(
-                        error -> {
-                            latestException = Optional.of(error);
-                            // DO NOT throw exception up again to avoid hang
-                        });
-        operator.setAsyncExecutionController(
-                new MyAsyncExecutionControllerDelegate(operator.getAsyncExecutionController()));
-        prepareOperatorRuntimeInfo(operator);
-
-        assertor =
-                new RowDataHarnessAssertor(
-                        getOutputType().getChildren().toArray(new LogicalType[0]),
-                        // sort the result by the output upsert key
-                        (o1, o2) -> {
-                            for (int keyIndex : outputUpsertKeyIndices) {
-                                LogicalType type = getOutputType().getChildren().get(keyIndex);
-                                RowData.FieldGetter getter =
-                                        RowData.createFieldGetter(type, keyIndex);
-
-                                int compareResult =
-                                        Objects.requireNonNull(getter.getFieldOrNull(o1))
-                                                .toString()
-                                                .compareTo(
-                                                        Objects.requireNonNull(
-                                                                        getter.getFieldOrNull(o2))
-                                                                .toString());
-
-                                if (compareResult != 0) {
-                                    return compareResult;
-                                }
-                            }
-                            return o1.toString().compareTo(o2.toString());
-                        });
         MyAsyncFunction.leftInvokeCount.set(0);
         MyAsyncFunction.rightInvokeCount.set(0);
         MyAsyncExecutionControllerDelegate.insertTableDataAfterEmit = true;
@@ -208,15 +119,21 @@ public class StreamingDeltaJoinOperatorTest {
 
     @AfterEach
     public void afterEach() throws Exception {
-        testHarness.close();
+        if (assertor != null) {
+            testHarness.close();
+        }
         leftTableCurrentData.clear();
         rightTableCurrentData.clear();
         latestException = Optional.empty();
         MyAsyncFunction.clearExpectedThrownException();
     }
 
-    @Test
-    void testJoinBothAppendOnlyTables() throws Exception {
+    @TestTemplate
+    void testJoinBothLogTables() throws Exception {
+        LogLogTableJoinTestSpec testSpec = LogLogTableJoinTestSpec.INSTANCE;
+        initTestHarness(testSpec);
+        initAssertor(testSpec);
+
         StreamRecord<RowData> leftRecord1 = insertRecord(100, true, "jklk1");
         StreamRecord<RowData> leftRecord2 = insertRecord(100, false, "jklk2");
         testHarness.processElement1(leftRecord1);
@@ -270,10 +187,153 @@ public class StreamingDeltaJoinOperatorTest {
         assertThat(aec.getBlockingSize()).isEqualTo(0);
         assertThat(aec.getInFlightSize()).isEqualTo(0);
         assertThat(aec.getFinishSize()).isEqualTo(0);
+
+        DeltaJoinCache cache = unwrapCache(testHarness);
+        if (enableCache) {
+            RowType leftRowType = testSpec.getLeftInputRowType();
+            RowType rightRowType = testSpec.getRightInputRowType();
+            Map<RowData, Map<RowData, Object>> expectedLeftCacheData =
+                    newHashMap(
+                            binaryrow(true, "jklk1"),
+                            newHashMap(
+                                    toBinary(leftRecord1.getValue(), leftRowType),
+                                    leftRecord1.getValue(),
+                                    toBinary(leftRecord3.getValue(), leftRowType),
+                                    leftRecord3.getValue(),
+                                    toBinary(leftRecord5.getValue(), leftRowType),
+                                    leftRecord5.getValue()),
+                            binaryrow(false, "jklk2"),
+                            newHashMap(
+                                    toBinary(leftRecord2.getValue(), leftRowType),
+                                    leftRecord2.getValue(),
+                                    toBinary(leftRecord4.getValue(), leftRowType),
+                                    leftRecord4.getValue(),
+                                    toBinary(leftRecord6.getValue(), leftRowType),
+                                    leftRecord6.getValue()),
+                            binaryrow(false, "unknown"),
+                            Collections.emptyMap());
+
+            Map<RowData, Map<RowData, Object>> expectedRightCacheData =
+                    newHashMap(
+                            binaryrow(true, "jklk1"),
+                            newHashMap(
+                                    toBinary(rightRecord1.getValue(), rightRowType),
+                                    rightRecord1.getValue(),
+                                    toBinary(rightRecord4.getValue(), rightRowType),
+                                    rightRecord4.getValue()),
+                            binaryrow(false, "jklk2"),
+                            newHashMap(
+                                    toBinary(rightRecord2.getValue(), rightRowType),
+                                    rightRecord2.getValue(),
+                                    toBinary(rightRecord5.getValue(), rightRowType),
+                                    rightRecord5.getValue()));
+
+            verifyCacheData(cache, expectedLeftCacheData, expectedRightCacheData, 5, 2, 6, 4);
+            assertThat(MyAsyncFunction.leftInvokeCount.get()).isEqualTo(2);
+            assertThat(MyAsyncFunction.rightInvokeCount.get()).isEqualTo(3);
+        } else {
+            verifyCacheData(cache, Collections.emptyMap(), Collections.emptyMap(), 0, 0, 0, 0);
+            assertThat(MyAsyncFunction.leftInvokeCount.get()).isEqualTo(6);
+            assertThat(MyAsyncFunction.rightInvokeCount.get()).isEqualTo(5);
+        }
     }
 
-    @Test
+    @TestTemplate
+    void testJoinBothPkTables() throws Exception {
+        PkPkTableJoinTestSpec testSpec = PkPkTableJoinTestSpec.INSTANCE;
+        initTestHarness(testSpec);
+        initAssertor(testSpec);
+
+        StreamRecord<RowData> leftRecordK1V1 = insertRecord(100, true, "Tom");
+        StreamRecord<RowData> leftRecordK2V1 = insertRecord(101, false, "Tom");
+        // mismatch
+        StreamRecord<RowData> leftRecordK3V1 = insertRecord(1999, false, "Jim");
+        testHarness.processElement1(leftRecordK1V1);
+        testHarness.processElement1(leftRecordK2V1);
+        testHarness.processElement1(leftRecordK3V1);
+
+        waitAllDataProcessed();
+        final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+        assertor.assertOutputEqualsSorted(
+                "result mismatch", expectedOutput, testHarness.getOutput());
+
+        StreamRecord<RowData> rightRecordK1V1 = insertRecord("Tom", 200, true);
+        StreamRecord<RowData> rightRecordK2V1 = insertRecord("Tom", 201, false);
+        // mismatch
+        StreamRecord<RowData> rightRecordK3V1 = insertRecord("Sam", 2999, false);
+        testHarness.processElement2(rightRecordK1V1);
+        testHarness.processElement2(rightRecordK2V1);
+        testHarness.processElement2(rightRecordK3V1);
+
+        waitAllDataProcessed();
+        expectedOutput.add(insertRecord(100, true, "Tom", "Tom", 200, true));
+        expectedOutput.add(insertRecord(101, false, "Tom", "Tom", 200, true));
+        expectedOutput.add(insertRecord(100, true, "Tom", "Tom", 201, false));
+        expectedOutput.add(insertRecord(101, false, "Tom", "Tom", 201, false));
+        assertor.assertOutputEqualsSorted(
+                "result mismatch", expectedOutput, testHarness.getOutput());
+
+        StreamRecord<RowData> leftRecordK1V2 = updateAfterRecord(1000, true, "Tom");
+        testHarness.processElement1(leftRecordK1V2);
+
+        waitAllDataProcessed();
+        expectedOutput.add(updateAfterRecord(1000, true, "Tom", "Tom", 200, true));
+        expectedOutput.add(updateAfterRecord(1000, true, "Tom", "Tom", 201, false));
+        assertor.assertOutputEqualsSorted(
+                "result mismatch", expectedOutput, testHarness.getOutput());
+
+        StreamRecord<RowData> rightRecordK1V2 = updateAfterRecord("Tom", 2000, true);
+        StreamRecord<RowData> rightRecordK2V2 = updateAfterRecord("Tom", 2001, false);
+        testHarness.processElement2(rightRecordK1V2);
+        testHarness.processElement2(rightRecordK2V2);
+
+        waitAllDataProcessed();
+        expectedOutput.add(updateAfterRecord(1000, true, "Tom", "Tom", 2000, true));
+        expectedOutput.add(updateAfterRecord(101, false, "Tom", "Tom", 2000, true));
+        expectedOutput.add(updateAfterRecord(1000, true, "Tom", "Tom", 2001, false));
+        expectedOutput.add(updateAfterRecord(101, false, "Tom", "Tom", 2001, false));
+        assertor.assertOutputEqualsSorted(
+                "result mismatch", expectedOutput, testHarness.getOutput());
+
+        DeltaJoinCache cache = unwrapCache(testHarness);
+        if (enableCache) {
+            Map<RowData, Map<RowData, Object>> expectedLeftCacheData =
+                    newHashMap(
+                            binaryrow("Tom"),
+                            newHashMap(
+                                    binaryrow(true, "Tom"),
+                                    leftRecordK1V2.getValue(),
+                                    binaryrow(false, "Tom"),
+                                    leftRecordK2V1.getValue()),
+                            binaryrow("Sam"),
+                            Collections.emptyMap());
+
+            Map<RowData, Map<RowData, Object>> expectedRightCacheData =
+                    newHashMap(
+                            binaryrow("Tom"),
+                            newHashMap(
+                                    binaryrow("Tom", true),
+                                    rightRecordK1V2.getValue(),
+                                    binaryrow("Tom", false),
+                                    rightRecordK2V2.getValue()),
+                            binaryrow("Jim"),
+                            Collections.emptyMap());
+            verifyCacheData(cache, expectedLeftCacheData, expectedRightCacheData, 5, 3, 4, 2);
+            assertThat(MyAsyncFunction.leftInvokeCount.get()).isEqualTo(2);
+            assertThat(MyAsyncFunction.rightInvokeCount.get()).isEqualTo(2);
+        } else {
+            verifyCacheData(cache, Collections.emptyMap(), Collections.emptyMap(), 0, 0, 0, 0);
+            assertThat(MyAsyncFunction.leftInvokeCount.get()).isEqualTo(4);
+            assertThat(MyAsyncFunction.rightInvokeCount.get()).isEqualTo(5);
+        }
+    }
+
+    @TestTemplate
     void testBlockingWithSameJoinKey() throws Exception {
+        LogLogTableJoinTestSpec testSpec = LogLogTableJoinTestSpec.INSTANCE;
+        initTestHarness(testSpec);
+        initAssertor(testSpec);
+
         // block the async function
         MyAsyncFunction.block();
 
@@ -310,6 +370,9 @@ public class StreamingDeltaJoinOperatorTest {
         assertThat(recordsBuffer.getActiveBuffer().size()).isEqualTo(3);
         assertThat(recordsBuffer.getBlockingBuffer().size()).isEqualTo(2);
 
+        RowDataKeySelector leftJoinKeySelector = testSpec.getLeftJoinKeySelector();
+        RowDataKeySelector rightJoinKeySelector = testSpec.getRightJoinKeySelector();
+
         RowData joinKey1 = leftJoinKeySelector.getKey(insertRecord(100, true, "jklk1").getValue());
         RowData joinKey2 = leftJoinKeySelector.getKey(insertRecord(100, false, "jklk2").getValue());
         RowData joinKey3 =
@@ -341,6 +404,49 @@ public class StreamingDeltaJoinOperatorTest {
         assertThat(recordsBuffer.getActiveBuffer()).isEmpty();
         assertThat(recordsBuffer.getBlockingBuffer()).isEmpty();
         assertThat(recordsBuffer.getFinishedBuffer()).isEmpty();
+
+        DeltaJoinCache cache = unwrapCache(testHarness);
+        if (enableCache) {
+            RowType leftRowType = testSpec.getLeftInputRowType();
+            RowType rightRowType = testSpec.getRightInputRowType();
+            Map<RowData, Map<RowData, Object>> expectedLeftCacheData =
+                    newHashMap(
+                            binaryrow(true, "jklk1"),
+                            newHashMap(
+                                    toBinary(leftRecord1.getValue(), leftRowType),
+                                    leftRecord1.getValue(),
+                                    toBinary(leftRecord3.getValue(), leftRowType),
+                                    leftRecord3.getValue()),
+                            binaryrow(false, "jklk2"),
+                            newHashMap(
+                                    toBinary(leftRecord2.getValue(), leftRowType),
+                                    leftRecord2.getValue(),
+                                    toBinary(leftRecord4.getValue(), leftRowType),
+                                    leftRecord4.getValue(),
+                                    toBinary(leftRecord5.getValue(), leftRowType),
+                                    leftRecord5.getValue()),
+                            binaryrow(false, "unknown"),
+                            Collections.emptyMap());
+
+            Map<RowData, Map<RowData, Object>> expectedRightCacheData =
+                    newHashMap(
+                            binaryrow(true, "jklk1"),
+                            newHashMap(
+                                    toBinary(rightRecord1.getValue(), rightRowType),
+                                    rightRecord1.getValue()),
+                            binaryrow(false, "jklk2"),
+                            newHashMap(
+                                    toBinary(rightRecord2.getValue(), rightRowType),
+                                    rightRecord2.getValue()));
+
+            verifyCacheData(cache, expectedLeftCacheData, expectedRightCacheData, 3, 0, 5, 3);
+            assertThat(MyAsyncFunction.leftInvokeCount.get()).isEqualTo(2);
+            assertThat(MyAsyncFunction.rightInvokeCount.get()).isEqualTo(3);
+        } else {
+            verifyCacheData(cache, Collections.emptyMap(), Collections.emptyMap(), 0, 0, 0, 0);
+            assertThat(MyAsyncFunction.leftInvokeCount.get()).isEqualTo(5);
+            assertThat(MyAsyncFunction.rightInvokeCount.get()).isEqualTo(3);
+        }
     }
 
     /**
@@ -348,30 +454,34 @@ public class StreamingDeltaJoinOperatorTest {
      * the left table that has not been sent to the delta-join operator (maybe is in flight between
      * source and delta-join).
      */
-    @Test
-    void testTableDataVisibleBeforeJoin() throws Exception {
+    @TestTemplate
+    void testLogTableDataVisibleBeforeJoin() throws Exception {
+        LogLogTableJoinTestSpec testSpec = LogLogTableJoinTestSpec.INSTANCE;
+        initTestHarness(testSpec);
+        initAssertor(testSpec);
+
         MyAsyncExecutionControllerDelegate.insertTableDataAfterEmit = false;
 
         // prepare the data first to mock all following requests were in flight between source and
         // delta-join
         final StreamRecord<RowData> leftRecord1 = insertRecord(100, true, "jklk1");
-        insertLeftTable(leftRecord1);
+        insertLeftTable(testSpec, leftRecord1);
 
         final StreamRecord<RowData> leftRecord2 = insertRecord(200, true, "jklk1");
-        insertLeftTable(leftRecord2);
+        insertLeftTable(testSpec, leftRecord2);
 
         final StreamRecord<RowData> rightRecord1 = insertRecord("jklk1", 300, true);
-        insertRightTable(rightRecord1);
+        insertRightTable(testSpec, rightRecord1);
 
         // mismatch
         final StreamRecord<RowData> rightRecord2 = insertRecord("jklk2", 500, false);
-        insertRightTable(rightRecord2);
+        insertRightTable(testSpec, rightRecord2);
 
         final StreamRecord<RowData> leftRecord3 = insertRecord(800, true, "jklk1");
-        insertLeftTable(leftRecord3);
+        insertLeftTable(testSpec, leftRecord3);
 
         final StreamRecord<RowData> rightRecord3 = insertRecord("jklk1", 1000, true);
-        insertRightTable(rightRecord3);
+        insertRightTable(testSpec, rightRecord3);
 
         testHarness.processElement1(leftRecord1);
         testHarness.processElement1(leftRecord2);
@@ -414,10 +524,171 @@ public class StreamingDeltaJoinOperatorTest {
         assertThat(aec.getBlockingSize()).isEqualTo(0);
         assertThat(aec.getInFlightSize()).isEqualTo(0);
         assertThat(aec.getFinishSize()).isEqualTo(0);
+
+        DeltaJoinCache cache = unwrapCache(testHarness);
+        if (enableCache) {
+            RowType leftRowType = testSpec.getLeftInputRowType();
+            RowType rightRowType = testSpec.getRightInputRowType();
+            Map<RowData, Map<RowData, Object>> expectedLeftCacheData =
+                    newHashMap(
+                            binaryrow(true, "jklk1"),
+                            newHashMap(
+                                    toBinary(leftRecord1.getValue(), leftRowType),
+                                    leftRecord1.getValue(),
+                                    toBinary(leftRecord2.getValue(), leftRowType),
+                                    leftRecord2.getValue(),
+                                    toBinary(leftRecord3.getValue(), leftRowType),
+                                    leftRecord3.getValue()),
+                            binaryrow(false, "jklk2"),
+                            Collections.emptyMap());
+
+            Map<RowData, Map<RowData, Object>> expectedRightCacheData =
+                    newHashMap(
+                            binaryrow(true, "jklk1"),
+                            newHashMap(
+                                    toBinary(rightRecord1.getValue(), rightRowType),
+                                    rightRecord1.getValue(),
+                                    toBinary(rightRecord3.getValue(), rightRowType),
+                                    rightRecord3.getValue()));
+
+            verifyCacheData(cache, expectedLeftCacheData, expectedRightCacheData, 3, 1, 3, 2);
+            assertThat(MyAsyncFunction.leftInvokeCount.get()).isEqualTo(1);
+            assertThat(MyAsyncFunction.rightInvokeCount.get()).isEqualTo(2);
+        } else {
+            verifyCacheData(cache, Collections.emptyMap(), Collections.emptyMap(), 0, 0, 0, 0);
+            assertThat(MyAsyncFunction.leftInvokeCount.get()).isEqualTo(3);
+            assertThat(MyAsyncFunction.rightInvokeCount.get()).isEqualTo(3);
+        }
     }
 
-    @Test
+    /**
+     * This test is used to test the scenario where the right stream side joined out a record from
+     * the left table that has not been sent to the delta-join operator (maybe is in flight between
+     * source and delta-join).
+     */
+    @TestTemplate
+    void testPkTableDataVisibleBeforeJoin() throws Exception {
+        PkPkTableJoinTestSpec testSpec = PkPkTableJoinTestSpec.INSTANCE;
+        initTestHarness(testSpec);
+        initAssertor(testSpec);
+
+        MyAsyncExecutionControllerDelegate.insertTableDataAfterEmit = false;
+
+        // prepare the data first to mock all following requests were in flight between source and
+        // delta-join
+        final StreamRecord<RowData> leftRecordK1V1 = insertRecord(100, true, "Tom");
+        insertLeftTable(testSpec, leftRecordK1V1);
+        final StreamRecord<RowData> leftRecordK1V2 = updateAfterRecord(1000, true, "Tom");
+        insertLeftTable(testSpec, leftRecordK1V2);
+
+        final StreamRecord<RowData> leftRecordK2V1 = insertRecord(101, false, "Tom");
+        insertLeftTable(testSpec, leftRecordK2V1);
+
+        // mismatch
+        final StreamRecord<RowData> leftRecordK3V1 = insertRecord(101, false, "Jim");
+        insertLeftTable(testSpec, leftRecordK3V1);
+        final StreamRecord<RowData> leftRecordK3V2 = updateAfterRecord(1001, false, "Jim");
+        insertLeftTable(testSpec, leftRecordK3V2);
+
+        final StreamRecord<RowData> rightRecordK1V1 = insertRecord("Tom", 200, true);
+        insertRightTable(testSpec, rightRecordK1V1);
+        final StreamRecord<RowData> rightRecordK1V2 = updateAfterRecord("Tom", 2000, true);
+        insertRightTable(testSpec, rightRecordK1V2);
+        final StreamRecord<RowData> rightRecordK1V3 = updateAfterRecord("Tom", 20000, true);
+        insertRightTable(testSpec, rightRecordK1V3);
+
+        final StreamRecord<RowData> rightRecordK2V1 = insertRecord("Tom", 201, false);
+        insertRightTable(testSpec, rightRecordK2V1);
+
+        // mismatch
+        final StreamRecord<RowData> rightRecordK3V1 = insertRecord("Sam", 999, false);
+        insertRightTable(testSpec, rightRecordK3V1);
+
+        final ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+        testHarness.processElement1(leftRecordK1V1);
+        expectedOutput.add(insertRecord(100, true, "Tom", "Tom", 20000, true));
+        expectedOutput.add(insertRecord(100, true, "Tom", "Tom", 201, false));
+
+        testHarness.processElement1(leftRecordK1V2);
+        expectedOutput.add(updateAfterRecord(1000, true, "Tom", "Tom", 20000, true));
+        expectedOutput.add(updateAfterRecord(1000, true, "Tom", "Tom", 201, false));
+
+        testHarness.processElement1(leftRecordK2V1);
+        expectedOutput.add(insertRecord(101, false, "Tom", "Tom", 20000, true));
+        expectedOutput.add(insertRecord(101, false, "Tom", "Tom", 201, false));
+
+        testHarness.processElement1(leftRecordK3V1);
+        testHarness.processElement1(leftRecordK3V2);
+
+        testHarness.processElement2(rightRecordK1V1);
+        expectedOutput.add(insertRecord(1000, true, "Tom", "Tom", 200, true));
+        expectedOutput.add(insertRecord(101, false, "Tom", "Tom", 200, true));
+
+        testHarness.processElement2(rightRecordK1V2);
+        expectedOutput.add(updateAfterRecord(1000, true, "Tom", "Tom", 2000, true));
+        expectedOutput.add(updateAfterRecord(101, false, "Tom", "Tom", 2000, true));
+
+        testHarness.processElement2(rightRecordK1V3);
+        expectedOutput.add(updateAfterRecord(1000, true, "Tom", "Tom", 20000, true));
+        expectedOutput.add(updateAfterRecord(101, false, "Tom", "Tom", 20000, true));
+
+        testHarness.processElement2(rightRecordK2V1);
+        expectedOutput.add(insertRecord(1000, true, "Tom", "Tom", 201, false));
+        expectedOutput.add(insertRecord(101, false, "Tom", "Tom", 201, false));
+
+        testHarness.processElement2(rightRecordK3V1);
+
+        waitAllDataProcessed();
+
+        assertor.assertOutputEqualsSorted(
+                "result mismatch", expectedOutput, testHarness.getOutput());
+
+        TableAsyncExecutionController<RowData, RowData, RowData> aec = unwrapAEC(testHarness);
+        assertThat(aec.getBlockingSize()).isEqualTo(0);
+        assertThat(aec.getInFlightSize()).isEqualTo(0);
+        assertThat(aec.getFinishSize()).isEqualTo(0);
+
+        DeltaJoinCache cache = unwrapCache(testHarness);
+        if (enableCache) {
+            Map<RowData, Map<RowData, Object>> expectedLeftCacheData =
+                    newHashMap(
+                            binaryrow("Tom"),
+                            newHashMap(
+                                    binaryrow(true, "Tom"),
+                                    leftRecordK1V2.getValue(),
+                                    binaryrow(false, "Tom"),
+                                    leftRecordK2V1.getValue()),
+                            binaryrow("Sam"),
+                            Collections.emptyMap());
+
+            Map<RowData, Map<RowData, Object>> expectedRightCacheData =
+                    newHashMap(
+                            binaryrow("Tom"),
+                            newHashMap(
+                                    binaryrow("Tom", true),
+                                    rightRecordK1V3.getValue(),
+                                    binaryrow("Tom", false),
+                                    rightRecordK2V1.getValue()),
+                            binaryrow("Jim"),
+                            Collections.emptyMap());
+
+            verifyCacheData(cache, expectedLeftCacheData, expectedRightCacheData, 5, 3, 5, 3);
+            assertThat(MyAsyncFunction.leftInvokeCount.get()).isEqualTo(2);
+            assertThat(MyAsyncFunction.rightInvokeCount.get()).isEqualTo(2);
+        } else {
+            verifyCacheData(cache, Collections.emptyMap(), Collections.emptyMap(), 0, 0, 0, 0);
+            assertThat(MyAsyncFunction.leftInvokeCount.get()).isEqualTo(5);
+            assertThat(MyAsyncFunction.rightInvokeCount.get()).isEqualTo(5);
+        }
+    }
+
+    @TestTemplate
     void testCheckpointAndRestore() throws Exception {
+        LogLogTableJoinTestSpec testSpec = LogLogTableJoinTestSpec.INSTANCE;
+        initTestHarness(testSpec);
+        initAssertor(testSpec);
+
         // block the async function
         MyAsyncFunction.block();
 
@@ -453,21 +724,24 @@ public class StreamingDeltaJoinOperatorTest {
         MyAsyncFunction.release();
         testHarness.close();
 
+        MyAsyncFunction.leftInvokeCount.set(0);
+        MyAsyncFunction.rightInvokeCount.set(0);
+
         MyAsyncFunction.block();
         // restoring
-        testHarness = createDeltaJoinOperatorTestHarness();
+        testHarness = createDeltaJoinOperatorTestHarness(testSpec);
 
         testHarness.setup();
 
         StreamingDeltaJoinOperator operator = unwrapOperator(testHarness);
         operator.setAsyncExecutionController(
-                new MyAsyncExecutionControllerDelegate(operator.getAsyncExecutionController()));
+                new MyAsyncExecutionControllerDelegate(
+                        testSpec, operator.getAsyncExecutionController()));
 
         latestException = Optional.empty();
         testHarness.initializeState(snapshot);
 
         testHarness.open();
-        prepareOperatorRuntimeInfo(operator);
 
         aec = unwrapAEC(testHarness);
         assertThat(aec.getBlockingSize()).isEqualTo(2);
@@ -494,10 +768,45 @@ public class StreamingDeltaJoinOperatorTest {
         assertThat(recordsBuffer.getActiveBuffer()).isEmpty();
         assertThat(recordsBuffer.getBlockingBuffer()).isEmpty();
         assertThat(recordsBuffer.getFinishedBuffer()).isEmpty();
+
+        DeltaJoinCache cache = unwrapCache(testHarness);
+        if (enableCache) {
+            RowType leftRowType = testSpec.getLeftInputRowType();
+            RowType rightRowType = testSpec.getRightInputRowType();
+            Map<RowData, Map<RowData, Object>> expectedLeftCacheData =
+                    newHashMap(
+                            binaryrow(true, "jklk1"),
+                            newHashMap(
+                                    toBinary(leftRecord1.getValue(), leftRowType),
+                                    toBinary(leftRecord1.getValue(), leftRowType),
+                                    toBinary(leftRecord2.getValue(), leftRowType),
+                                    toBinary(leftRecord2.getValue(), leftRowType)),
+                            binaryrow(false, "unknown"),
+                            Collections.emptyMap());
+
+            Map<RowData, Map<RowData, Object>> expectedRightCacheData =
+                    newHashMap(
+                            binaryrow(true, "jklk1"),
+                            newHashMap(
+                                    toBinary(rightRecord1.getValue(), rightRowType),
+                                    toBinary(rightRecord1.getValue(), rightRowType)));
+
+            verifyCacheData(cache, expectedLeftCacheData, expectedRightCacheData, 2, 0, 2, 1);
+            assertThat(MyAsyncFunction.leftInvokeCount.get()).isEqualTo(1);
+            assertThat(MyAsyncFunction.rightInvokeCount.get()).isEqualTo(2);
+        } else {
+            verifyCacheData(cache, Collections.emptyMap(), Collections.emptyMap(), 0, 0, 0, 0);
+            assertThat(MyAsyncFunction.leftInvokeCount.get()).isEqualTo(2);
+            assertThat(MyAsyncFunction.rightInvokeCount.get()).isEqualTo(2);
+        }
     }
 
-    @Test
+    @TestTemplate
     void testClearLegacyStateWhenCheckpointing() throws Exception {
+        LogLogTableJoinTestSpec testSpec = LogLogTableJoinTestSpec.INSTANCE;
+        initTestHarness(testSpec);
+        initAssertor(testSpec);
+
         // block the async function
         MyAsyncFunction.block();
 
@@ -547,8 +856,12 @@ public class StreamingDeltaJoinOperatorTest {
                 "result mismatch", expectedOutput, testHarness.getOutput());
     }
 
-    @Test
+    @TestTemplate
     void testMeetExceptionWhenLookup() throws Exception {
+        LogLogTableJoinTestSpec testSpec = LogLogTableJoinTestSpec.INSTANCE;
+        initTestHarness(testSpec);
+        initAssertor(testSpec);
+
         Throwable expectedException = new IllegalStateException("Mock to fail");
         MyAsyncFunction.setExpectedThrownException(expectedException);
 
@@ -566,6 +879,95 @@ public class StreamingDeltaJoinOperatorTest {
                 .isEqualTo(expectedException);
     }
 
+    private void initTestHarness(AbstractTestSpec testSpec) throws Exception {
+        testHarness = createDeltaJoinOperatorTestHarness(testSpec);
+        testHarness.setup();
+        testHarness.open();
+        StreamingDeltaJoinOperator operator = unwrapOperator(testHarness);
+        // set external failure cause consumer to prevent hang
+        testHarness
+                .getEnvironment()
+                .setExternalFailureCauseConsumer(
+                        error -> {
+                            latestException = Optional.of(error);
+                            // DO NOT throw exception up again to avoid hang
+                        });
+        operator.setAsyncExecutionController(
+                new MyAsyncExecutionControllerDelegate(
+                        testSpec, operator.getAsyncExecutionController()));
+    }
+
+    private void initAssertor(AbstractTestSpec testSpec) {
+        RowType outputRowType = testSpec.getOutputRowType();
+        assertor =
+                new RowDataHarnessAssertor(
+                        outputRowType.getChildren().toArray(new LogicalType[0]),
+                        // sort the result by the output upsert key
+                        (o1, o2) -> {
+                            for (int keyIndex : testSpec.getOutputFieldIndices()) {
+                                LogicalType type = outputRowType.getChildren().get(keyIndex);
+                                RowData.FieldGetter getter =
+                                        RowData.createFieldGetter(type, keyIndex);
+
+                                int compareResult =
+                                        Objects.requireNonNull(getter.getFieldOrNull(o1))
+                                                .toString()
+                                                .compareTo(
+                                                        Objects.requireNonNull(
+                                                                        getter.getFieldOrNull(o2))
+                                                                .toString());
+
+                                if (compareResult != 0) {
+                                    return compareResult;
+                                }
+                            }
+                            return o1.toString().compareTo(o2.toString());
+                        });
+    }
+
+    private void verifyCacheData(
+            DeltaJoinCache actualCache,
+            Map<RowData, Map<RowData, Object>> expectedLeftCacheData,
+            Map<RowData, Map<RowData, Object>> expectedRightCacheData,
+            long expectedLeftCacheRequestCount,
+            long expectedLeftCacheHitCount,
+            long expectedRightCacheRequestCount,
+            long expectedRightCacheHitCount) {
+        // assert left cache
+        assertThat(actualCache.getLeftCache().asMap())
+                .as("left cache data mismatch")
+                .isEqualTo(expectedLeftCacheData);
+        assertThat(actualCache.getLeftCache().size())
+                .as("left cache size mismatch")
+                .isEqualTo(expectedLeftCacheData.size());
+        assertThat(actualCache.getLeftCacheTotalSize().get())
+                .as("left cache total size mismatch")
+                .isEqualTo(expectedLeftCacheData.values().stream().mapToInt(Map::size).sum());
+        assertThat(actualCache.getLeftRequestCount().get())
+                .as("left cache request count mismatch")
+                .isEqualTo(expectedLeftCacheRequestCount);
+        assertThat(actualCache.getLeftCacheHitCount().get())
+                .as("left cache hit count mismatch")
+                .isEqualTo(expectedLeftCacheHitCount);
+
+        // assert right cache
+        assertThat(actualCache.getRightCache().asMap())
+                .as("right cache data mismatch")
+                .isEqualTo(expectedRightCacheData);
+        assertThat(actualCache.getRightCache().size())
+                .as("left cache size mismatch")
+                .isEqualTo(expectedRightCacheData.size());
+        assertThat(actualCache.getRightCacheTotalSize().get())
+                .as("left cache total size mismatch")
+                .isEqualTo(expectedRightCacheData.values().stream().mapToInt(Map::size).sum());
+        assertThat(actualCache.getRightRequestCount().get())
+                .as("left cache request count mismatch")
+                .isEqualTo(expectedRightCacheRequestCount);
+        assertThat(actualCache.getRightCacheHitCount().get())
+                .as("left cache hit count mismatch")
+                .isEqualTo(expectedRightCacheHitCount);
+    }
+
     private void waitAllDataProcessed() throws Exception {
         testHarness.endAllInputs();
         if (latestException.isPresent()) {
@@ -575,77 +977,88 @@ public class StreamingDeltaJoinOperatorTest {
     }
 
     private KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
-            createDeltaJoinOperatorTestHarness() throws Exception {
+            createDeltaJoinOperatorTestHarness(AbstractTestSpec testSpec) throws Exception {
         TaskMailbox mailbox = new TaskMailboxImpl();
         MailboxProcessor mailboxProcessor =
                 new MailboxProcessor(controller -> {}, mailbox, StreamTaskActionExecutor.IMMEDIATE);
 
         DataStructureConverter<RowData, Object> leftFetcherConverter =
                 (DataStructureConverter)
-                        DataStructureConverters.getConverter(leftTypeInfo.getDataType());
+                        DataStructureConverters.getConverter(
+                                testSpec.getLeftTypeInfo().getDataType());
 
         AsyncDeltaJoinRunner leftAsyncFunction =
                 new AsyncDeltaJoinRunner(
-                        new GeneratedFunctionWrapper<>(new MyAsyncFunction()),
+                        new GeneratedFunction<>("", "", new Object[0]) {
+                            @Override
+                            public MyAsyncFunction newInstance(ClassLoader classLoader) {
+                                return new MyAsyncFunction(testSpec, false);
+                            }
+                        },
                         leftFetcherConverter,
                         new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
-                        leftTypeInfo.toRowSerializer(),
+                        testSpec.getLeftTypeInfo().toRowSerializer(),
+                        testSpec.getLeftJoinKeySelector(),
+                        testSpec.getLeftUpsertKeySelector(),
+                        testSpec.getRightJoinKeySelector(),
+                        testSpec.getRightUpsertKeySelector(),
                         AEC_CAPACITY,
-                        false);
+                        false,
+                        enableCache);
 
         DataStructureConverter<RowData, Object> rightFetcherConverter =
                 (DataStructureConverter)
-                        DataStructureConverters.getConverter(rightTypeInfo.getDataType());
+                        DataStructureConverters.getConverter(
+                                testSpec.getRightTypeInfo().getDataType());
 
         AsyncDeltaJoinRunner rightAsyncFunction =
                 new AsyncDeltaJoinRunner(
-                        new GeneratedFunctionWrapper<>(new MyAsyncFunction()),
+                        new GeneratedFunction<>("", "", new Object[0]) {
+                            @Override
+                            public MyAsyncFunction newInstance(ClassLoader classLoader) {
+                                return new MyAsyncFunction(testSpec, true);
+                            }
+                        },
                         rightFetcherConverter,
                         new GeneratedResultFutureWrapper<>(new TestingFetcherResultFuture()),
-                        rightTypeInfo.toRowSerializer(),
+                        testSpec.getRightTypeInfo().toRowSerializer(),
+                        testSpec.getLeftJoinKeySelector(),
+                        testSpec.getLeftUpsertKeySelector(),
+                        testSpec.getRightJoinKeySelector(),
+                        testSpec.getRightUpsertKeySelector(),
                         AEC_CAPACITY,
-                        true);
+                        true,
+                        enableCache);
 
-        InternalTypeInfo<RowData> joinKeyTypeInfo = leftJoinKeySelector.getProducedType();
+        InternalTypeInfo<RowData> joinKeyTypeInfo =
+                testSpec.getLeftJoinKeySelector().getProducedType();
 
         StreamingDeltaJoinOperator operator =
                 new StreamingDeltaJoinOperator(
                         rightAsyncFunction,
                         leftAsyncFunction,
-                        leftJoinKeySelector,
-                        rightJoinKeySelector,
+                        testSpec.getLeftJoinKeySelector(),
+                        testSpec.getRightJoinKeySelector(),
                         -1L,
                         AEC_CAPACITY,
                         new TestProcessingTimeService(),
                         new MailboxExecutorImpl(
                                 mailbox, 0, StreamTaskActionExecutor.IMMEDIATE, mailboxProcessor),
-                        (RowType) leftTypeInfo.toLogicalType(),
-                        (RowType) rightTypeInfo.toLogicalType());
+                        CACHE_SIZE,
+                        CACHE_SIZE,
+                        testSpec.getLeftInputRowType(),
+                        testSpec.getRightInputRowType());
 
         return new KeyedTwoInputStreamOperatorTestHarness<>(
                 operator,
-                leftJoinKeySelector,
-                rightJoinKeySelector,
+                testSpec.getLeftJoinKeySelector(),
+                testSpec.getRightJoinKeySelector(),
                 joinKeyTypeInfo,
                 1,
                 1,
                 0,
-                leftTypeInfo.toSerializer(),
-                rightTypeInfo.toSerializer());
-    }
-
-    private void prepareOperatorRuntimeInfo(StreamingDeltaJoinOperator operator) {
-        unwrapAsyncFunction(operator, true).tagInvokingSideDuringRuntime(true);
-        unwrapAsyncFunction(operator, false).tagInvokingSideDuringRuntime(false);
-    }
-
-    private MyAsyncFunction unwrapAsyncFunction(
-            StreamingDeltaJoinOperator operator, boolean unwrapLeft) {
-        if (unwrapLeft) {
-            return (MyAsyncFunction) operator.getLeftTriggeredUserFunction().getFetcher();
-        } else {
-            return (MyAsyncFunction) operator.getRightTriggeredUserFunction().getFetcher();
-        }
+                testSpec.getLeftTypeInfo().toSerializer(),
+                testSpec.getRightTypeInfo().toSerializer());
     }
 
     private TableAsyncExecutionController<RowData, RowData, RowData> unwrapAEC(
@@ -660,41 +1073,77 @@ public class StreamingDeltaJoinOperatorTest {
         return (StreamingDeltaJoinOperator) testHarness.getOperator();
     }
 
-    private RowType getOutputType() {
-        return RowType.of(
-                Stream.concat(
-                                leftTypeInfo.toRowType().getChildren().stream(),
-                                rightTypeInfo.toRowType().getChildren().stream())
-                        .toArray(LogicalType[]::new),
-                Stream.concat(
-                                leftTypeInfo.toRowType().getFieldNames().stream(),
-                                rightTypeInfo.toRowType().getFieldNames().stream())
-                        .toArray(String[]::new));
+    private DeltaJoinCache unwrapCache(
+            KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData>
+                    testHarness) {
+        DeltaJoinCache cacheInLeftRunner =
+                unwrapOperator(testHarness).getLeftTriggeredUserFunction().getCache();
+        DeltaJoinCache cacheInRightRunner =
+                unwrapOperator(testHarness).getRightTriggeredUserFunction().getCache();
+
+        // the object ref must be the same
+        assertThat(cacheInLeftRunner == cacheInRightRunner).isTrue();
+        return cacheInLeftRunner;
     }
 
-    private void insertLeftTable(StreamRecord<RowData> record) {
-        insertTableData(record, true);
+    private void insertLeftTable(AbstractTestSpec testSpec, StreamRecord<RowData> record) {
+        insertTableData(testSpec, record, true);
     }
 
-    private void insertRightTable(StreamRecord<RowData> record) {
-        insertTableData(record, false);
+    private void insertRightTable(AbstractTestSpec testSpec, StreamRecord<RowData> record) {
+        insertTableData(testSpec, record, false);
     }
 
-    private static void insertTableData(StreamRecord<RowData> record, boolean insertLeftTable) {
+    private static void insertTableData(
+            AbstractTestSpec testSpec, StreamRecord<RowData> record, boolean insertLeftTable) {
         RowData rowData = record.getValue();
         try {
             if (insertLeftTable) {
                 synchronized (leftTableCurrentData) {
-                    leftTableCurrentData.add(rowData);
+                    RowData upsertKey = testSpec.getLeftUpsertKeySelector().getKey(rowData);
+                    leftTableCurrentData.put(upsertKey, rowData);
                 }
             } else {
                 synchronized (rightTableCurrentData) {
-                    rightTableCurrentData.add(rowData);
+                    RowData upsertKey = testSpec.getRightUpsertKeySelector().getKey(rowData);
+                    rightTableCurrentData.put(upsertKey, rowData);
                 }
             }
         } catch (Exception e) {
             throw new IllegalStateException("Failed to insert table data", e);
         }
+    }
+
+    private <T> Map<RowData, T> newHashMap(RowData key, T value) {
+        return newHashMap(Collections.singletonList(key), Collections.singletonList(value));
+    }
+
+    private <T> Map<RowData, T> newHashMap(RowData key1, T value1, RowData key2, T value2) {
+        return newHashMap(Arrays.asList(key1, key2), Arrays.asList(value1, value2));
+    }
+
+    private <T> Map<RowData, T> newHashMap(
+            RowData key1, T value1, RowData key2, T value2, RowData key3, T value3) {
+        return newHashMap(Arrays.asList(key1, key2, key3), Arrays.asList(value1, value2, value3));
+    }
+
+    private <T> Map<RowData, T> newHashMap(List<RowData> keys, List<T> values) {
+        Preconditions.checkArgument(keys.size() == values.size());
+        Map<RowData, T> map = new HashMap<>();
+        for (int i = 0; i < keys.size(); i++) {
+            Preconditions.checkArgument(!map.containsKey(keys.get(i)), "Duplicate key");
+            map.put(keys.get(i), values.get(i));
+        }
+        return map;
+    }
+
+    private RowData toBinary(RowData row, RowType rowType) {
+        int size = row.getArity();
+        Object[] fields = new Object[size];
+        for (int i = 0; i < size; i++) {
+            fields[i] = RowData.createFieldGetter(rowType.getTypeAt(i), i).getFieldOrNull(row);
+        }
+        return binaryrow(fields);
     }
 
     /** An async function used for test. */
@@ -715,11 +1164,12 @@ public class StreamingDeltaJoinOperatorTest {
 
         private static Optional<Throwable> expectedThrownException = Optional.empty();
 
-        // ===== runtime info =====
-        private Boolean treatRightAsLookupTable;
+        private final AbstractTestSpec testSpec;
+        private final boolean treatRightAsLookupTable;
 
-        public void tagInvokingSideDuringRuntime(boolean isLeftInvoking) {
-            this.treatRightAsLookupTable = isLeftInvoking;
+        private MyAsyncFunction(AbstractTestSpec testSpec, boolean treatRightAsLookupTable) {
+            this.testSpec = testSpec;
+            this.treatRightAsLookupTable = treatRightAsLookupTable;
         }
 
         public static void block() throws Exception {
@@ -751,29 +1201,29 @@ public class StreamingDeltaJoinOperatorTest {
                                 lock.await();
                             }
 
-                            LinkedList<RowData> lookupTableData;
+                            HashMap<RowData, RowData> lookupTableData;
                             RowDataKeySelector streamSideJoinKeySelector;
                             RowDataKeySelector lookupSideJoinKeySelector;
-                            if (Objects.requireNonNull(treatRightAsLookupTable)) {
+                            if (treatRightAsLookupTable) {
                                 synchronized (rightTableCurrentData) {
-                                    lookupTableData = new LinkedList<>(rightTableCurrentData);
+                                    lookupTableData = new HashMap<>(rightTableCurrentData);
                                 }
 
-                                streamSideJoinKeySelector = leftJoinKeySelector.copy();
-                                lookupSideJoinKeySelector = rightJoinKeySelector.copy();
+                                streamSideJoinKeySelector = testSpec.getLeftJoinKeySelector();
+                                lookupSideJoinKeySelector = testSpec.getRightJoinKeySelector();
                                 leftInvokeCount.incrementAndGet();
                             } else {
                                 synchronized (leftTableCurrentData) {
-                                    lookupTableData = new LinkedList<>(leftTableCurrentData);
+                                    lookupTableData = new HashMap<>(leftTableCurrentData);
                                 }
 
-                                streamSideJoinKeySelector = rightJoinKeySelector.copy();
-                                lookupSideJoinKeySelector = leftJoinKeySelector.copy();
+                                streamSideJoinKeySelector = testSpec.getRightJoinKeySelector();
+                                lookupSideJoinKeySelector = testSpec.getLeftJoinKeySelector();
                                 rightInvokeCount.incrementAndGet();
                             }
 
                             List<Object> results = new ArrayList<>();
-                            for (RowData row : lookupTableData) {
+                            for (RowData row : lookupTableData.values()) {
                                 if (streamSideJoinKeySelector
                                         .getKey(input)
                                         .equals(lookupSideJoinKeySelector.getKey(row))) {
@@ -836,6 +1286,7 @@ public class StreamingDeltaJoinOperatorTest {
         private static boolean insertTableDataAfterEmit = true;
 
         public MyAsyncExecutionControllerDelegate(
+                AbstractTestSpec testSpec,
                 TableAsyncExecutionController<RowData, RowData, RowData> innerAec) {
             super(
                     innerAec.getAsyncInvoke(),
@@ -850,6 +1301,7 @@ public class StreamingDeltaJoinOperatorTest {
                             int inputIndex = inputIndexAwareEntry.getInputIndex();
                             //noinspection unchecked
                             insertTableData(
+                                    testSpec,
                                     (StreamRecord<RowData>) inputIndexAwareEntry.getInputElement(),
                                     inputIndex == 0);
                         }
@@ -873,6 +1325,207 @@ public class StreamingDeltaJoinOperatorTest {
         public void complete(Collection<RowData> result) {
             //noinspection unchecked
             getResultFuture().complete((Collection) result);
+        }
+    }
+
+    private abstract static class AbstractTestSpec {
+
+        abstract RowType getLeftInputRowType();
+
+        final InternalTypeInfo<RowData> getLeftTypeInfo() {
+            return InternalTypeInfo.of(getLeftInputRowType());
+        }
+
+        abstract Optional<int[]> getLeftUpsertKey();
+
+        final RowDataKeySelector getLeftUpsertKeySelector() {
+            return getUpsertKeySelector(getLeftInputRowType(), getLeftUpsertKey().orElse(null));
+        }
+
+        abstract RowType getRightInputRowType();
+
+        final InternalTypeInfo<RowData> getRightTypeInfo() {
+            return InternalTypeInfo.of(getRightInputRowType());
+        }
+
+        abstract Optional<int[]> getRightUpsertKey();
+
+        final RowDataKeySelector getRightUpsertKeySelector() {
+            return getUpsertKeySelector(getRightInputRowType(), getRightUpsertKey().orElse(null));
+        }
+
+        abstract int[] getLeftJoinKeyIndices();
+
+        final RowDataKeySelector getLeftJoinKeySelector() {
+            return HandwrittenSelectorUtil.getRowDataSelector(
+                    getLeftJoinKeyIndices(),
+                    getLeftInputRowType().getChildren().toArray(new LogicalType[0]));
+        }
+
+        abstract int[] getRightJoinKeyIndices();
+
+        final RowDataKeySelector getRightJoinKeySelector() {
+            return HandwrittenSelectorUtil.getRowDataSelector(
+                    getRightJoinKeyIndices(),
+                    getRightInputRowType().getChildren().toArray(new LogicalType[0]));
+        }
+
+        final RowType getOutputRowType() {
+            return RowType.of(
+                    Stream.concat(
+                                    getLeftInputRowType().getChildren().stream(),
+                                    getRightInputRowType().getChildren().stream())
+                            .toArray(LogicalType[]::new),
+                    Stream.concat(
+                                    getLeftInputRowType().getFieldNames().stream(),
+                                    getRightInputRowType().getFieldNames().stream())
+                            .toArray(String[]::new));
+        }
+
+        final int[] getOutputFieldIndices() {
+            return IntStream.range(0, getOutputRowType().getFieldCount()).toArray();
+        }
+
+        private RowDataKeySelector getUpsertKeySelector(
+                RowType rowType, @Nullable int[] upsertKey) {
+            if (upsertKey == null) {
+                upsertKey = IntStream.range(0, rowType.getFieldCount()).toArray();
+            }
+            return HandwrittenSelectorUtil.getRowDataSelector(
+                    upsertKey, rowType.getChildren().toArray(new LogicalType[0]));
+        }
+    }
+
+    /**
+     * Mock sql like the following.
+     *
+     * <pre>
+     *      CREATE TABLE leftSrc(
+     *          left_value INT,
+     *          left_jk1 BOOLEAN,
+     *          left_jk2_index STRING,
+     *          INDEX(left_jk2_index)
+     *      )
+     * </pre>
+     *
+     * <pre>
+     *      CREATE TABLE rightSrc(
+     *          right_jk2 STRING,
+     *          right_value INT,
+     *          right_jk1_index BOOLEAN,
+     *          INDEX(right_jk1_index)
+     *      )
+     * </pre>
+     *
+     * <pre>
+     *     select * from leftSrc join rightSrc
+     *      on leftSrc.left_jk1 = rightSrc.right_jk1_index
+     *      and leftSrc.left_jk2_index = rightSrc.right_jk2
+     * </pre>
+     */
+    private static class LogLogTableJoinTestSpec extends AbstractTestSpec {
+
+        private static final LogLogTableJoinTestSpec INSTANCE = new LogLogTableJoinTestSpec();
+
+        @Override
+        RowType getLeftInputRowType() {
+            return RowType.of(
+                    new LogicalType[] {new IntType(), new BooleanType(), VarCharType.STRING_TYPE},
+                    new String[] {"left_value", "left_jk1", "left_jk2_index"});
+        }
+
+        @Override
+        RowType getRightInputRowType() {
+            return RowType.of(
+                    new LogicalType[] {VarCharType.STRING_TYPE, new IntType(), new BooleanType()},
+                    new String[] {"right_jk2", "right_value", "right_jk1_index"});
+        }
+
+        @Override
+        Optional<int[]> getLeftUpsertKey() {
+            return Optional.empty();
+        }
+
+        @Override
+        Optional<int[]> getRightUpsertKey() {
+            return Optional.empty();
+        }
+
+        @Override
+        int[] getLeftJoinKeyIndices() {
+            return new int[] {1, 2};
+        }
+
+        @Override
+        int[] getRightJoinKeyIndices() {
+            return new int[] {2, 0};
+        }
+    }
+
+    /**
+     * Mock sql like the following.
+     *
+     * <pre>
+     *      CREATE TABLE leftSrc(
+     *          left_value INT,
+     *          left_pk1 BOOLEAN,
+     *          left_pk2_jk_index STRING,
+     *          PRIMARY KEY (left_pk1, left_pk2_jk_index) NOT ENFORCED
+     *          INDEX(left_pk2_jk_index)
+     *      )
+     * </pre>
+     *
+     * <pre>
+     *      CREATE TABLE rightSrc(
+     *          right_pk2_jk_index STRING,
+     *          right_value INT,
+     *          right_pk1 BOOLEAN,
+     *          PRIMARY KEY (right_pk2_jk_index, right_pk1) NOT ENFORCED
+     *          INDEX(right_pk2_jk_index)
+     *      )
+     * </pre>
+     *
+     * <pre>
+     *     select * from leftSrc join rightSrc
+     *      on leftSrc.left_pk2_jk_index = rightSrc.right_pk2_jk_index
+     * </pre>
+     */
+    private static class PkPkTableJoinTestSpec extends AbstractTestSpec {
+
+        private static final PkPkTableJoinTestSpec INSTANCE = new PkPkTableJoinTestSpec();
+
+        @Override
+        RowType getLeftInputRowType() {
+            return RowType.of(
+                    new LogicalType[] {new IntType(), new BooleanType(), VarCharType.STRING_TYPE},
+                    new String[] {"left_value", "left_pk1", "left_pk2_jk_index"});
+        }
+
+        @Override
+        RowType getRightInputRowType() {
+            return RowType.of(
+                    new LogicalType[] {VarCharType.STRING_TYPE, new IntType(), new BooleanType()},
+                    new String[] {"right_pk2_jk_index", "right_value", "right_pk1"});
+        }
+
+        @Override
+        Optional<int[]> getLeftUpsertKey() {
+            return Optional.of(new int[] {1, 2});
+        }
+
+        @Override
+        Optional<int[]> getRightUpsertKey() {
+            return Optional.of(new int[] {0, 2});
+        }
+
+        @Override
+        int[] getLeftJoinKeyIndices() {
+            return new int[] {2};
+        }
+
+        @Override
+        int[] getRightJoinKeyIndices() {
+            return new int[] {0};
         }
     }
 }

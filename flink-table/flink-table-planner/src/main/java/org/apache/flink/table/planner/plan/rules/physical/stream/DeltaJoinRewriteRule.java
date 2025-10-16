@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.DeltaJoinSpec;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeltaJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalJoin;
 import org.apache.flink.table.planner.plan.utils.DeltaJoinUtil;
-import org.apache.flink.table.planner.plan.utils.JoinTypeUtil;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
@@ -44,7 +43,9 @@ import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConf
  *   <li>The join is INNER join.
  *   <li>There is at least one join key pair in the join.
  *   <li>The downstream nodes of this join can accept duplicate changes.
- *   <li>All join inputs are insert only streams.
+ *   <li>All join inputs are with changelog "I" or "I, UA".
+ *   <li>If this join outputs update records, the non-equiv conditions must be applied on upsert
+ *       keys of this join.
  *   <li>All upstream nodes of this join are in {@code
  *       DeltaJoinUtil#ALL_SUPPORTED_DELTA_JOIN_UPSTREAM_NODES}
  *   <li>The join keys include at least one complete index in each source table of the join input.
@@ -92,7 +93,7 @@ public class DeltaJoinRewriteRule extends RelRule<DeltaJoinRewriteRule.Config> {
                 join.getHints(),
                 join.getLeft(),
                 join.getRight(),
-                JoinTypeUtil.getFlinkJoinType(join.getJoinType()),
+                join.getJoinType(),
                 join.getCondition(),
                 lookupRightTableJoinSpec,
                 lookupLeftTableJoinSpec,
