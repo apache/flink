@@ -179,6 +179,7 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecPythonOverAggregate.class);
                     add(StreamExecMLPredictTableFunction.class);
                     add(StreamExecDeltaJoin.class);
+                    add(StreamExecVectorSearchTableFunction.class);
                     // Batch execution mode
                     add(BatchExecSink.class);
                     add(BatchExecTableSourceScan.class);
@@ -222,7 +223,6 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecGroupTableAggregate.class);
                     add(StreamExecPythonGroupTableAggregate.class);
                     add(StreamExecMultipleInput.class);
-                    add(StreamExecVectorSearchTableFunction.class);
                 }
             };
 

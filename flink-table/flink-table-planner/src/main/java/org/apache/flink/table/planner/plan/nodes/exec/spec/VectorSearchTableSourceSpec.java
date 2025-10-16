@@ -26,7 +26,9 @@ import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.type.RelDataType;
@@ -42,9 +44,16 @@ import java.util.Arrays;
  */
 public class VectorSearchTableSourceSpec {
 
+    public static final String FIELD_NAME_VECTOR_SEARCH_TABLE_SOURCE = "vectorSearchTableSource";
+    public static final String FIELD_NAME_OUTPUT_TYPE = "outputType";
+
+    @JsonProperty(FIELD_NAME_VECTOR_SEARCH_TABLE_SOURCE)
     private final DynamicTableSourceSpec tableSourceSpec;
+
+    @JsonProperty(FIELD_NAME_OUTPUT_TYPE)
     private final RelDataType outputType;
-    private final TableSourceTable searchTable;
+
+    @JsonIgnore private @Nullable TableSourceTable searchTable;
 
     public VectorSearchTableSourceSpec(TableSourceTable searchTable) {
         this.searchTable = searchTable;
@@ -53,6 +62,15 @@ public class VectorSearchTableSourceSpec {
                 new DynamicTableSourceSpec(
                         searchTable.contextResolvedTable(),
                         Arrays.asList(searchTable.abilitySpecs()));
+    }
+
+    @JsonCreator
+    public VectorSearchTableSourceSpec(
+            @JsonProperty(FIELD_NAME_VECTOR_SEARCH_TABLE_SOURCE)
+                    DynamicTableSourceSpec tableSourceSpec,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RelDataType outputType) {
+        this.tableSourceSpec = tableSourceSpec;
+        this.outputType = outputType;
     }
 
     @JsonIgnore
