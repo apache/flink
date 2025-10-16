@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.Durable;
 
 import org.slf4j.Logger;
 
@@ -34,11 +35,19 @@ class Finished implements State {
 
     private final Logger logger;
 
+    private final Durable durable;
+
     Finished(Context context, ArchivedExecutionGraph archivedExecutionGraph, Logger logger) {
         this.archivedExecutionGraph = archivedExecutionGraph;
         this.logger = logger;
+        this.durable = new Durable();
 
         context.onFinished(archivedExecutionGraph);
+    }
+
+    @Override
+    public Durable getDurable() {
+        return durable;
     }
 
     @Override
