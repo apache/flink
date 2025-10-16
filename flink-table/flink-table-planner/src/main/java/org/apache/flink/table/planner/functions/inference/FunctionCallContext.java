@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.ml.PredictRuntimeProvider;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.Constant;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.FunctionParam;
 import org.apache.flink.table.types.DataType;
@@ -38,24 +39,27 @@ import static org.apache.flink.table.planner.plan.utils.FunctionCallUtil.FieldRe
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFieldTypes;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
-/** The {@link CallContext} of a {@link LookupTableSource} runtime function. */
+/**
+ * The {@link CallContext} of {@link LookupTableSource}, {@link PredictRuntimeProvider} runtime
+ * function.
+ */
 @Internal
-public class LookupCallContext extends AbstractSqlCallContext {
+public class FunctionCallContext extends AbstractSqlCallContext {
 
-    private final List<FunctionParam> lookupKeys;
+    private final List<FunctionParam> params;
 
     private final List<DataType> argumentDataTypes;
 
     private final DataType outputDataType;
 
-    public LookupCallContext(
+    public FunctionCallContext(
             DataTypeFactory dataTypeFactory,
             UserDefinedFunction function,
             LogicalType inputType,
-            List<FunctionParam> lookupKeys,
-            LogicalType lookupType) {
+            List<FunctionParam> params,
+            LogicalType outputDataType) {
         super(dataTypeFactory, function, generateInlineFunctionName(function), false);
-        this.lookupKeys = lookupKeys;
+        this.params = params;
         this.argumentDataTypes =
                 new AbstractList<>() {
                     @Override
@@ -74,10 +78,10 @@ public class LookupCallContext extends AbstractSqlCallContext {
 
                     @Override
                     public int size() {
-                        return lookupKeys.size();
+                        return params.size();
                     }
                 };
-        this.outputDataType = fromLogicalToDataType(lookupType);
+        this.outputDataType = fromLogicalToDataType(outputDataType);
     }
 
     @Override
@@ -118,6 +122,6 @@ public class LookupCallContext extends AbstractSqlCallContext {
     // --------------------------------------------------------------------------------------------
 
     private FunctionParam getKey(int pos) {
-        return lookupKeys.get(pos);
+        return params.get(pos);
     }
 }
