@@ -54,6 +54,7 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.conversion.RowRowConverter;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.AsyncLookupFunction;
+import org.apache.flink.table.functions.AsyncVectorSearchFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.LookupFunction;
 import org.apache.flink.table.functions.VectorSearchFunction;
@@ -1169,6 +1170,48 @@ public final class TestValuesRuntimeFunctions {
                 sum += left[i] * right[i];
             }
             return sum;
+        }
+    }
+
+    public static class TestValueAsyncVectorSearchFunction extends AsyncVectorSearchFunction {
+
+        private final TestValueVectorSearchFunction impl;
+        private transient ExecutorService executors;
+        private transient Random random;
+
+        public TestValueAsyncVectorSearchFunction(
+                List<Row> data, int[] searchIndices, DataType physicalRowType) {
+            this.impl = new TestValueVectorSearchFunction(data, searchIndices, physicalRowType);
+        }
+
+        @Override
+        public void open(FunctionContext context) throws Exception {
+            super.open(context);
+            impl.open(context);
+            executors = Executors.newCachedThreadPool();
+            random = new Random();
+        }
+
+        @Override
+        public CompletableFuture<Collection<RowData>> asyncVectorSearch(
+                int topK, RowData queryData) {
+            return CompletableFuture.supplyAsync(
+                    () -> {
+                        try {
+                            Thread.sleep(random.nextInt(800) + 200);
+                            return impl.vectorSearch(topK, queryData);
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    },
+                    executors);
+        }
+
+        @Override
+        public void close() throws Exception {
+            super.close();
+            impl.close();
+            executors.shutdown();
         }
     }
 }

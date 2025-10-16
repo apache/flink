@@ -23,19 +23,23 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.operators.ProcessOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.connector.source.VectorSearchTableSource;
 import org.apache.flink.table.connector.source.search.AsyncVectorSearchFunctionProvider;
 import org.apache.flink.table.connector.source.search.VectorSearchFunctionProvider;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.functions.AsyncVectorSearchFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.functions.VectorSearchFunction;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.FunctionCallCodeGenerator;
 import org.apache.flink.table.planner.codegen.VectorSearchCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -55,9 +59,11 @@ import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.collector.ListenableCollector;
 import org.apache.flink.table.runtime.generated.GeneratedCollector;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
+import org.apache.flink.table.runtime.operators.search.AsyncVectorSearchRunner;
 import org.apache.flink.table.runtime.operators.search.VectorSearchRunner;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.core.JoinRelType;
@@ -116,17 +122,27 @@ public class StreamExecVectorSearchTableFunction extends ExecNodeBase<RowData>
         // 3. build the operator
         RowType inputType = (RowType) inputEdge.getOutputType();
         RowType outputType = (RowType) getOutputType();
+        DataTypeFactory dataTypeFactory =
+                ShortcutUtils.unwrapContext(planner.getFlinkContext())
+                        .getCatalogManager()
+                        .getDataTypeFactory();
         StreamOperatorFactory<RowData> operatorFactory =
                 isAsyncEnabled
-                        ? createAsyncVectorSearchOperator()
+                        ? createAsyncVectorSearchOperator(
+                                searchTable,
+                                config,
+                                planner.getFlinkContext().getClassLoader(),
+                                (AsyncVectorSearchFunction) vectorSearchFunction,
+                                dataTypeFactory,
+                                inputType,
+                                vectorSearchSpec.getOutputType(),
+                                outputType)
                         : createSyncVectorSearchOperator(
                                 searchTable,
                                 config,
                                 planner.getFlinkContext().getClassLoader(),
                                 (VectorSearchFunction) vectorSearchFunction,
-                                ShortcutUtils.unwrapContext(planner.getFlinkContext())
-                                        .getCatalogManager()
-                                        .getDataTypeFactory(),
+                                dataTypeFactory,
                                 inputType,
                                 vectorSearchSpec.getOutputType(),
                                 outputType);
@@ -225,7 +241,49 @@ public class StreamExecVectorSearchTableFunction extends ExecNodeBase<RowData>
                 searchOutputType.getFieldCount());
     }
 
-    private SimpleOperatorFactory<RowData> createAsyncVectorSearchOperator() {
-        throw new UnsupportedOperationException("Async vector search is not supported yet.");
+    @SuppressWarnings("unchecked")
+    private StreamOperatorFactory<RowData> createAsyncVectorSearchOperator(
+            RelOptTable searchTable,
+            ExecNodeConfig config,
+            ClassLoader jobClassLoader,
+            AsyncVectorSearchFunction vectorSearchFunction,
+            DataTypeFactory dataTypeFactory,
+            RowType inputType,
+            RowType searchOutputType,
+            RowType outputType) {
+        ArrayList<FunctionCallUtil.FunctionParam> parameters =
+                new ArrayList<>(1 + vectorSearchSpec.getSearchColumns().size());
+        parameters.add(vectorSearchSpec.getTopK());
+        parameters.addAll(vectorSearchSpec.getSearchColumns().values());
+
+        FunctionCallCodeGenerator.GeneratedTableFunctionWithDataType<AsyncFunction<RowData, Object>>
+                generatedFetcher =
+                        VectorSearchCodeGenerator.generateAsyncVectorSearchFunction(
+                                config,
+                                jobClassLoader,
+                                dataTypeFactory,
+                                inputType,
+                                searchOutputType,
+                                outputType,
+                                parameters,
+                                vectorSearchFunction,
+                                ((TableSourceTable) searchTable)
+                                        .contextResolvedTable()
+                                        .getIdentifier()
+                                        .asSummaryString());
+
+        boolean isLeftOuterJoin = vectorSearchSpec.getJoinType() == JoinRelType.LEFT;
+
+        Preconditions.checkNotNull(asyncOptions, "Async Options can not be null.");
+
+        return new AsyncWaitOperatorFactory<>(
+                new AsyncVectorSearchRunner(
+                        (GeneratedFunction) generatedFetcher.tableFunc(),
+                        isLeftOuterJoin,
+                        asyncOptions.asyncBufferCapacity,
+                        searchOutputType.getFieldCount()),
+                asyncOptions.asyncTimeout,
+                asyncOptions.asyncBufferCapacity,
+                asyncOptions.asyncOutputMode);
     }
 }
