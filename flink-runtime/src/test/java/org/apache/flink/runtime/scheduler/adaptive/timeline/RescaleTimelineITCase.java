@@ -32,6 +32,8 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.MiniCluster;
+import org.apache.flink.runtime.rest.messages.job.rescales.JobRescaleDetails.VertexParallelismRescaleInfo;
+import org.apache.flink.runtime.rest.messages.job.rescales.SchedulerStateSpan;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.testtasks.OnceBlockingNoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -454,10 +456,10 @@ class RescaleTimelineITCase {
                                                 assertSlotSharingGroupRescaleNotNullBesidesPreRelatedFields(
                                                         slotSharingGroupRescale);
                                             });
-                    Map<JobVertexID, VertexParallelismRescale> vertices = rescale.getVertices();
+                    Map<JobVertexID, VertexParallelismRescaleInfo> vertices = rescale.getVertices();
                     assertThat(vertices.values())
                             .allSatisfy(
-                                    (Consumer<VertexParallelismRescale>)
+                                    (Consumer<VertexParallelismRescaleInfo>)
                                             vpr -> {
                                                 assertThat(vpr.getPreRescaleParallelism()).isNull();
                                                 assertVertexParallelismRescaleNotNullBesidesPreRelatedFields(
@@ -506,10 +508,10 @@ class RescaleTimelineITCase {
                                                 assertSlotSharingGroupRescaleNotNullBesidesPreRelatedFields(
                                                         slotSharingGroupRescale);
                                             });
-                    Map<JobVertexID, VertexParallelismRescale> vertices = rescale.getVertices();
+                    Map<JobVertexID, VertexParallelismRescaleInfo> vertices = rescale.getVertices();
                     assertThat(vertices.values())
                             .allSatisfy(
-                                    (Consumer<VertexParallelismRescale>)
+                                    (Consumer<VertexParallelismRescaleInfo>)
                                             vpr -> {
                                                 assertThat(vpr.getPreRescaleParallelism())
                                                         .isNotNull();
@@ -634,7 +636,7 @@ class RescaleTimelineITCase {
     }
 
     private void assertVertexParallelismRescaleNotNullBesidesPreRelatedFields(
-            VertexParallelismRescale vpr) {
+            VertexParallelismRescaleInfo vpr) {
         assertThat(vpr.getDesiredParallelism()).isNotNull();
         assertThat(vpr.getPostRescaleParallelism()).isNotNull();
         assertThat(vpr.getSlotSharingGroupName()).isNotNull();
