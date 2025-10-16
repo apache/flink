@@ -40,7 +40,6 @@ import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.util.NlsString;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -181,16 +180,7 @@ public class SqlMLEvaluateTableFunction extends SqlMLTableFunction {
             }
 
             String task = ((SqlCharStringLiteral) node).getValueAs(NlsString.class).getValue();
-            if (!TaskType.isValidTaskType(task)) {
-                return Optional.of(
-                        new ValidationException(
-                                "Unsupported task: "
-                                        + task
-                                        + ". Supported tasks are: "
-                                        + Arrays.toString(TaskType.values())
-                                        + "."));
-            }
-            return Optional.empty();
+            return TaskType.throwOrReturnInvalidTaskType(task, false);
         }
 
         private static Optional<RuntimeException> checkModelOutputType(
