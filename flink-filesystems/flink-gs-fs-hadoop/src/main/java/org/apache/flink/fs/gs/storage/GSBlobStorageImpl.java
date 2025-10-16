@@ -61,7 +61,8 @@ public class GSBlobStorageImpl implements GSBlobStorage {
         Preconditions.checkNotNull(blobIdentifier);
 
         BlobInfo blobInfo = BlobInfo.newBuilder(blobIdentifier.getBlobId()).build();
-        com.google.cloud.WriteChannel writeChannel = storage.writer(blobInfo);
+        com.google.cloud.WriteChannel writeChannel =
+                storage.writer(blobInfo, getBlobWriteOption(blobIdentifier));
         return new WriteChannel(blobIdentifier, writeChannel);
     }
 
@@ -76,7 +77,8 @@ public class GSBlobStorageImpl implements GSBlobStorage {
         Preconditions.checkArgument(chunkSize.getBytes() > 0);
 
         BlobInfo blobInfo = BlobInfo.newBuilder(blobIdentifier.getBlobId()).build();
-        com.google.cloud.WriteChannel writeChannel = storage.writer(blobInfo);
+        com.google.cloud.WriteChannel writeChannel =
+                storage.writer(blobInfo, getBlobWriteOption(blobIdentifier));
         writeChannel.setChunkSize((int) chunkSize.getBytes());
         return new WriteChannel(blobIdentifier, writeChannel);
     }
@@ -153,9 +155,46 @@ public class GSBlobStorageImpl implements GSBlobStorage {
         for (GSBlobIdentifier blobIdentifier : sourceBlobIdentifiers) {
             builder.addSource(blobIdentifier.objectName);
         }
+        Storage.BlobTargetOption precondition = getBlobTargetOption(targetBlobIdentifier);
+        Storage.ComposeRequest request = builder.setTargetOptions(precondition).build();
 
-        Storage.ComposeRequest request = builder.build();
         storage.compose(request);
+    }
+
+    /**
+     * This ensures that the operations become idempotent or atomic, allowing the GCS client to
+     * safely retry the 503 errors.
+     */
+    private Storage.BlobTargetOption getBlobTargetOption(GSBlobIdentifier blobIdentifier) {
+        Blob blob = storage.get(blobIdentifier.bucketName, blobIdentifier.objectName);
+        if (blob == null) {
+            // For a target object that does not yet exist, set the DoesNotExist precondition.
+            // This will cause the request to fail if the object is created before the request runs.
+            return Storage.BlobTargetOption.doesNotExist();
+        } else {
+            // If the destination already exists in your bucket, instead set a generation-match
+            // precondition. This will cause the request to fail if the existing object's generation
+            // changes before the request runs.
+            return Storage.BlobTargetOption.generationMatch(blob.getGeneration());
+        }
+    }
+
+    /**
+     * This ensures that the operations become idempotent or atomic, allowing the GCS client to
+     * safely retry the 503 errors.
+     */
+    private Storage.BlobWriteOption getBlobWriteOption(GSBlobIdentifier blobIdentifier) {
+        Blob blob = storage.get(blobIdentifier.bucketName, blobIdentifier.objectName);
+        if (blob == null) {
+            // For a target object that does not yet exist, set the DoesNotExist precondition.
+            // This will cause the request to fail if the object is created before the request runs.
+            return Storage.BlobWriteOption.doesNotExist();
+        } else {
+            // If the destination already exists in your bucket, instead set a generation-match
+            // precondition. This will cause the request to fail if the existing object's generation
+            // changes before the request runs.
+            return Storage.BlobWriteOption.generationMatch(blob.getGeneration());
+        }
     }
 
     @Override
