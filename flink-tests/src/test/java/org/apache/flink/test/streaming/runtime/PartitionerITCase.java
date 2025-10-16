@@ -80,7 +80,7 @@ public class PartitionerITCase extends AbstractTestBaseJUnit4 {
     }
 
     @Test
-    public void partitionerTest() {
+    public void partitionerTest() throws Exception {
 
         TestListResultSink<Tuple2<Integer, String>> hashPartitionResultSink =
                 new TestListResultSink<Tuple2<Integer, String>>();
@@ -145,12 +145,7 @@ public class PartitionerITCase extends AbstractTestBaseJUnit4 {
         // partition global
         src.global().map(new SubtaskIndexAssigner()).addSink(globalPartitionResultSink);
 
-        try {
-            env.execute();
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        env.execute();
 
         List<Tuple2<Integer, String>> hashPartitionResult = hashPartitionResultSink.getResult();
         List<Tuple2<Integer, String>> customPartitionResult = customPartitionResultSink.getResult();

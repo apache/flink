@@ -141,16 +141,11 @@ public class RegionFailoverITCase extends TestLogger {
      * completed checkpoint's.
      */
     @Test(timeout = 60000)
-    public void testMultiRegionFailover() {
-        try {
-            JobGraph jobGraph = createJobGraph();
-            ClusterClient<?> client = cluster.getClusterClient();
-            submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
-            verifyAfterJobExecuted();
-        } catch (Exception e) {
-            e.printStackTrace();
-            Assert.fail(e.getMessage());
-        }
+    public void testMultiRegionFailover() throws Exception {
+        JobGraph jobGraph = createJobGraph();
+        ClusterClient<?> client = cluster.getClusterClient();
+        submitJobAndWaitForResult(client, jobGraph, getClass().getClassLoader());
+        verifyAfterJobExecuted();
     }
 
     private void verifyAfterJobExecuted() {
