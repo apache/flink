@@ -17,6 +17,7 @@
 ################################################################################
 import unittest
 
+from pyflink.common import Row
 from pyflink.table import DataTypes
 from pyflink.table.udf import TableFunction, udtf, ScalarFunction, udf
 from pyflink.table.expressions import col
@@ -70,6 +71,19 @@ class UserDefinedTableFunctionTests(object):
         t.execute_insert("Results_test_table_function_with_sql_query").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1, 1, 0]", "+I[2, 2, 0]", "+I[3, 3, 0]", "+I[3, 3, 1]"])
+
+    def test_table_function_in_sql(self):
+        sql = f"""
+                   CREATE TEMPORARY FUNCTION pyfunc AS
+                   '{UserDefinedTableFunctionTests.__module__}.identity'
+                   LANGUAGE PYTHON
+                  """
+        self.t_env.execute_sql(sql)
+        self.assert_equals(
+            list(self.t_env.execute_sql(
+                "SELECT v FROM (VALUES (1)) AS T(id), LATERAL TABLE(pyfunc(id)) AS P(v)"
+            ).collect()),
+            [Row(1)])
 
 
 class PyFlinkStreamUserDefinedFunctionTests(UserDefinedTableFunctionTests,

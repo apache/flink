@@ -160,10 +160,9 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
 
         if (inputTypesString != null) {
             inputTypes =
-                    (DataType[])
-                            Arrays.stream(inputTypesString)
-                                    .map(typeFactory::createDataType)
-                                    .toArray();
+                    Arrays.stream(inputTypesString)
+                            .map(typeFactory::createDataType)
+                            .toArray(DataType[]::new);
         }
 
         if (inputTypes != null) {
