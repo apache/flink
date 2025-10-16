@@ -21,6 +21,7 @@ package org.apache.flink.streaming.util;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,6 +30,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -46,6 +48,23 @@ public class TestHarnessUtil {
             }
         }
         return resultElements;
+    }
+
+    /**
+     * Filters out {@link WatermarkStatus} elements from the output queue.
+     *
+     * <p>This is useful for tests that focus on data processing or event handling behavior and
+     * should not be affected by task lifecycle signals. {@link WatermarkStatus#FINISHED} is an
+     * implementation detail emitted by tasks when they finish, and is not part of the core feature
+     * being tested in most cases.
+     *
+     * @param output the output queue to filter
+     * @return a new queue with all {@link WatermarkStatus} elements removed
+     */
+    public static ConcurrentLinkedQueue<Object> filterOutWatermarkStatus(Queue<Object> output) {
+        return output.stream()
+                .filter(o -> !(o instanceof WatermarkStatus))
+                .collect(Collectors.toCollection(ConcurrentLinkedQueue::new));
     }
 
     /**
