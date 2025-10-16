@@ -283,7 +283,7 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
         sourceOperator.handleOperatorEvent(addSplitsEvent);
 
         // First 3 records from split A should not generate any watermarks
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 () -> {
                     try {
                         sourceOperator.emitNext(output);
@@ -298,7 +298,7 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
                         "%d out of 3 records are received within timeout", output.numRecords));
         assertThat(output.watermarks).isEmpty();
 
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 () -> {
                     try {
                         sourceOperator.emitNext(output);
