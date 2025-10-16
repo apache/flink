@@ -45,6 +45,7 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -568,7 +569,8 @@ public class PackagedProgram implements AutoCloseable {
     private static File createTempFile(Random rnd, JarEntry entry, String name)
             throws ProgramInvocationException {
         try {
-            final File tempFile = File.createTempFile(rnd.nextInt(Integer.MAX_VALUE) + "_", name);
+            final File tempFile =
+                    Files.createTempFile(rnd.nextInt(Integer.MAX_VALUE) + "_", name).toFile();
             tempFile.deleteOnExit();
             return tempFile;
         } catch (IOException e) {
