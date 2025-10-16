@@ -16,6 +16,35 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testSearchTableWithCalc">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM QueryTable, LATERAL TABLE(
+VECTOR_SEARCH(
+    TABLE VectorTableWithProctime, DESCRIPTOR(`g`), QueryTable.d, 10))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$6], f=[$7], g=[$8], proctime0=[$9], score=[$10])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
+   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, QueryTable]])
+   +- LogicalTableFunctionScan(invocation=[VECTOR_SEARCH(TABLE(#0), DESCRIPTOR(_UTF-16LE'g'), $cor0.d, 10)], rowType=[RecordType(INTEGER e, BIGINT f, FLOAT ARRAY g, TIMESTAMP_LTZ(3) *PROCTIME* proctime, DOUBLE score)])
+      +- LogicalProject(e=[$0], f=[$1], g=[$2], proctime=[$3])
+         +- LogicalProject(e=[$0], f=[$1], g=[$2], proctime=[PROCTIME()])
+            +- LogicalTableScan(table=[[default_catalog, default_database, VectorTableWithProctime]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e, f, g, PROCTIME_MATERIALIZE(proctime0) AS proctime0, score])
++- VectorSearchTableFunction(table=[default_catalog.default_database.VectorTableWithProctime], joinType=[InnerJoin], columnToSearch=[g], columnToQuery=[d], topK=[10], select=[a, b, c, d, rowtime, proctime, e, f, g, PROCTIME() AS proctime, score])
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+      +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
+         +- TableSourceScan(table=[[default_catalog, default_database, QueryTable]], fields=[a, b, c, d, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testNameConflicts">
     <Resource name="sql">
       <![CDATA[SELECT * FROM QueryTable, LATERAL TABLE(
@@ -37,7 +66,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], a0=[
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, a0, score, score0, score1, score2])
-+- Correlate(invocation=[VECTOR_SEARCH(TABLE(#0), DESCRIPTOR(_UTF-16LE'score'), $cor0.d, 10)], correlate=[table(VECTOR_SEARCH(TABLE(),DESCRIPTOR('score'),$cor0.d,10))], select=[a,b,c,d,rowtime,proctime,a0,score,score0,score1,score2], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, FLOAT ARRAY d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, INTEGER a0, FLOAT ARRAY score, FLOAT ARRAY score0, FLOAT ARRAY score1, DOUBLE score2)], joinType=[INNER])
++- VectorSearchTableFunction(table=[default_catalog.default_database.NameConflictTable], joinType=[InnerJoin], columnToSearch=[score], columnToQuery=[d], topK=[10], select=[a, b, c, d, rowtime, proctime, a, score, score0, score1, score])
    +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
       +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
          +- TableSourceScan(table=[[default_catalog, default_database, QueryTable]], fields=[a, b, c, d, rowtime])
@@ -69,7 +98,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e, f, g, score])
-+- Correlate(invocation=[VECTOR_SEARCH(TABLE(#0), DESCRIPTOR(_UTF-16LE'g'), $cor0.d, 10)], correlate=[table(VECTOR_SEARCH(TABLE(),DESCRIPTOR('g'),$cor0.d,10))], select=[a,b,c,d,rowtime,proctime,e,f,g,score], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, FLOAT ARRAY d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, INTEGER e, BIGINT f, FLOAT ARRAY g, DOUBLE score)], joinType=[INNER])
++- VectorSearchTableFunction(table=[default_catalog.default_database.VectorTable], joinType=[InnerJoin], columnToSearch=[g], columnToQuery=[d], topK=[10], select=[a, b, c, d, rowtime, proctime, e, f, g, score])
    +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
       +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
          +- TableSourceScan(table=[[default_catalog, default_database, QueryTable]], fields=[a, b, c, d, rowtime])
@@ -98,7 +127,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e, f, g, score])
-+- Correlate(invocation=[VECTOR_SEARCH(TABLE(#0), DESCRIPTOR(_UTF-16LE'g'), $cor0.d, 10)], correlate=[table(VECTOR_SEARCH(TABLE(),DESCRIPTOR('g'),$cor0.d,10))], select=[a,b,c,d,rowtime,proctime,e,f,g,score], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, FLOAT ARRAY d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, INTEGER e, BIGINT f, FLOAT ARRAY g, DOUBLE score)], joinType=[INNER])
++- VectorSearchTableFunction(table=[default_catalog.default_database.VectorTable], joinType=[InnerJoin], columnToSearch=[g], columnToQuery=[d], topK=[10], select=[a, b, c, d, rowtime, proctime, e, f, g, score])
    +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
       +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
          +- TableSourceScan(table=[[default_catalog, default_database, QueryTable]], fields=[a, b, c, d, rowtime])
@@ -131,7 +160,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e, f, g, score])
-+- Correlate(invocation=[VECTOR_SEARCH(TABLE(#0), DESCRIPTOR(_UTF-16LE'g'), $cor0.d, 10)], correlate=[table(VECTOR_SEARCH(TABLE(),DESCRIPTOR('g'),$cor0.d,10))], select=[a,b,c,d,rowtime,proctime,e,f,g,score], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, FLOAT ARRAY d, TIMESTAMP(3) *ROWTIME* rowtime, TIMESTAMP_LTZ(3) *PROCTIME* proctime, INTEGER e, BIGINT f, FLOAT ARRAY g, DOUBLE score)], joinType=[INNER])
++- VectorSearchTableFunction(table=[default_catalog.default_database.VectorTable], joinType=[InnerJoin], columnToSearch=[g], columnToQuery=[d], topK=[10], select=[a, b, c, d, rowtime, proctime, e, f, g, score])
    +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
       +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
          +- TableSourceScan(table=[[default_catalog, default_database, QueryTable]], fields=[a, b, c, d, rowtime])
