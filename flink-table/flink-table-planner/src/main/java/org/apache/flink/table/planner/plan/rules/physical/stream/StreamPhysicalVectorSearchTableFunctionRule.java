@@ -42,6 +42,7 @@ import org.apache.calcite.rel.core.Calc;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexCorrelVariable;
 import org.apache.calcite.rex.RexFieldAccess;
@@ -110,6 +111,12 @@ public class StreamPhysicalVectorSearchTableFunctionRule
                                         input.getCluster(),
                                         extractor.searchTable.getRowType(),
                                         vectorSearchCall.getRowType(),
+                                        correlate
+                                                .getRowType()
+                                                .getFieldList()
+                                                .subList(
+                                                        input.getRowType().getFieldCount(),
+                                                        correlate.getRowType().getFieldCount()),
                                         extractor.calcProgram),
                         buildVectorSearchSpec(
                                 correlate, vectorSearchCall, extractor.searchTable, functionName),
@@ -205,6 +212,7 @@ public class StreamPhysicalVectorSearchTableFunctionRule
             RelOptCluster cluster,
             RelDataType scanOutputType,
             RelDataType originFunctionCallType,
+            List<RelDataTypeField> correlateRightOutputTypes,
             RexProgram originProgram) {
         RelDataType searchOutputType =
                 cluster.getTypeFactory()
@@ -217,8 +225,7 @@ public class StreamPhysicalVectorSearchTableFunctionRule
                 cluster.getTypeFactory()
                         .builder()
                         .kind(originProgram.getOutputRowType().getStructKind())
-                        .addAll(originProgram.getOutputRowType().getFieldList())
-                        .add(Util.last(originFunctionCallType.getFieldList()))
+                        .addAll(correlateRightOutputTypes)
                         .build();
         List<RexNode> exprs = new ArrayList<>(originProgram.getExprList());
         exprs.add(

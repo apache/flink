@@ -28,6 +28,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.factories.TestTimeTravelCatalog;
 import org.apache.flink.table.planner.functions.sql.ml.SqlVectorSearchTableFunction;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.planner.utils.DateTimeTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
@@ -281,10 +282,15 @@ public class VectorSearchTableFunctionTest extends TableTestBase {
 
     @Test
     void testSearchTableWithProjection() {
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "CREATE FUNCTION add_one AS '%s'",
+                                JavaUserDefinedScalarFunctions.JavaFunc0.class.getName()));
         util.verifyRelPlan(
                 "SELECT * FROM QueryTable, LATERAL TABLE(\n"
                         + "VECTOR_SEARCH(\n"
-                        + "    (SELECT e, g, proctime FROM VectorTableWithProctime), DESCRIPTOR(`g`), QueryTable.d, 10))");
+                        + "    (SELECT add_one(e) as e1, g, proctime FROM VectorTableWithProctime), DESCRIPTOR(`g`), QueryTable.d, 10))");
     }
 
     @Test
