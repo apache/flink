@@ -57,7 +57,10 @@ public class QueryOperationSqlSemanticTest extends SemanticTestBase {
                 QueryOperationTestPrograms.OVER_WINDOW_LAG,
                 QueryOperationTestPrograms.ACCESSING_NESTED_COLUMN,
                 QueryOperationTestPrograms.ROW_SEMANTIC_TABLE_PTF,
-                QueryOperationTestPrograms.SET_SEMANTIC_TABLE_PTF);
+                QueryOperationTestPrograms.SET_SEMANTIC_TABLE_PTF,
+                QueryOperationTestPrograms.ML_PREDICT_MODEL_API,
+                QueryOperationTestPrograms.ASYNC_ML_PREDICT_TABLE_API_MAP_EXPRESSION_CONFIG,
+                QueryOperationTestPrograms.ASYNC_ML_PREDICT_MODEL_API);
     }
 
     @Override

@@ -167,13 +167,8 @@ public class StreamPhysicalMLPredictTableFunctionRule extends ConverterRule {
             final RexNode keyNode = mapOperands.get(i);
             final RexNode valueNode = mapOperands.get(i + 1);
 
-            // Both key and value should be string literals
-            if (!(keyNode instanceof RexLiteral) || !(valueNode instanceof RexLiteral)) {
-                throw new ValidationException(CONFIG_ERROR_MESSAGE);
-            }
-
-            final String key = RexLiteral.stringValue(keyNode);
-            final String value = RexLiteral.stringValue(valueNode);
+            final String key = getStringLiteral(keyNode);
+            final String value = getStringLiteral(valueNode);
 
             if (key == null || value == null) {
                 throw new ValidationException("Config map keys and values cannot be null.");
@@ -186,6 +181,34 @@ public class StreamPhysicalMLPredictTableFunctionRule extends ConverterRule {
         validateRuntimeConfig(runtimeConfig);
 
         return runtimeConfig;
+    }
+
+    private static String getStringLiteral(RexNode node) {
+        // Cast from string to string is used when Expressions.lit(Map(...)) is used as config map
+        // from table api
+        if (node instanceof RexCall && node.getKind() == SqlKind.CAST) {
+            final RexCall castCall = (RexCall) node;
+            // Unwrap CAST if present
+            final RexNode castOperand = castCall.getOperands().get(0);
+            if (!(castOperand instanceof RexLiteral)) {
+                throw new ValidationException(CONFIG_ERROR_MESSAGE);
+            }
+            final RelDataType operandType = castOperand.getType();
+            if (!toLogicalType(operandType).is(CHARACTER_STRING)) {
+                throw new ValidationException(CONFIG_ERROR_MESSAGE);
+            }
+            final RelDataType castType = castCall.getType();
+            if (!toLogicalType(castType).is(CHARACTER_STRING)) {
+                throw new ValidationException(CONFIG_ERROR_MESSAGE);
+            }
+            return RexLiteral.stringValue(castOperand);
+        }
+        // Both key and value should be string literals
+        if (!(node instanceof RexLiteral)) {
+            throw new ValidationException(CONFIG_ERROR_MESSAGE);
+        }
+
+        return RexLiteral.stringValue(node);
     }
 
     /**
