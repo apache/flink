@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalE
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalWatermarkAssigner;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistributionTraitDef;
-import org.apache.flink.table.planner.typeutils.RowTypeUtils;
+import org.apache.flink.table.typeutils.RowTypeUtils;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;

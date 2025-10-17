@@ -16,28 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.sequencedmultisetstate;
+package org.apache.flink.table.runtime.operators.sink;
 
-import org.apache.flink.annotation.Internal;
-import org.apache.flink.streaming.api.TimeDomain;
-import org.apache.flink.util.clock.SystemClock;
+import org.apache.flink.api.common.state.StateTtlConfig;
 
-import java.io.Serializable;
-
-@Internal
-@FunctionalInterface
-public interface TimeSelector extends Serializable {
-
-    long getTimestamp(long elementTimestamp);
-
-    static TimeSelector getTimeDomain(TimeDomain timeDomain) {
-        switch (timeDomain) {
-            case EVENT_TIME:
-                return elementTimestamp -> elementTimestamp;
-            case PROCESSING_TIME:
-                return elementTimestamp -> SystemClock.getInstance().absoluteTimeMillis();
-            default:
-                throw new IllegalStateException("unknown time domain: " + timeDomain);
+/** Version of SinkUpsertMaterializer to test. */
+public enum SinkUpsertMaterializerVersion {
+    V1 {
+        @Override
+        public boolean isTtlSupported() {
+            return true;
         }
+    },
+    V2 {
+        @Override
+        public boolean isTtlSupported() {
+            // todo: add support for TTL and remove checking related code
+            return false;
+        }
+    };
+
+    public abstract boolean isTtlSupported();
+
+    StateTtlConfig reconfigureTtl(StateTtlConfig ttlConfig) {
+        return isTtlSupported() ? ttlConfig : StateTtlConfig.DISABLED;
     }
 }
