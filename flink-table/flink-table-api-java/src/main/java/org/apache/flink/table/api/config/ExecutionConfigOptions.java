@@ -168,7 +168,13 @@ public class ExecutionConfigOptions {
                             .withDescription(
                                     Description.builder()
                                             .text(
-                                                    "When using strategy=ADAPTIVE, defines the number of entries per key when the implementation is changed from MAP to VALUE. "
+                                                    "When using strategy="
+                                                            + SinkUpsertMaterializeStrategy.ADAPTIVE
+                                                            + ", defines the number of entries per key when the implementation is changed from "
+                                                            + SinkUpsertMaterializeStrategy.MAP
+                                                            + " to "
+                                                            + SinkUpsertMaterializeStrategy.VALUE
+                                                            + ". "
                                                             + "If not specified, Flink uses state-backend specific defaults (300 for hashmap state backend and 40 for RocksDB and the rest).")
                                             .linebreak()
                                             .build());
@@ -182,7 +188,13 @@ public class ExecutionConfigOptions {
                             .withDescription(
                                     Description.builder()
                                             .text(
-                                                    "When using strategy=ADAPTIVE, defines the number of entries per key when the implementation is changed from VALUE to MAP. "
+                                                    "When using strategy="
+                                                            + SinkUpsertMaterializeStrategy.ADAPTIVE
+                                                            + ", defines the number of entries per key when the implementation is changed from "
+                                                            + SinkUpsertMaterializeStrategy.VALUE
+                                                            + " to "
+                                                            + SinkUpsertMaterializeStrategy.MAP
+                                                            + ". "
                                                             + "If not specified, Flink uses state-backend specific defaults (400 for hashmap state backend and 50 for RocksDB and the rest).")
                                             .linebreak()
                                             .build());
@@ -199,16 +211,20 @@ public class ExecutionConfigOptions {
                                                     "Which strategy of SinkUpsertMaterializer to use. Supported strategies:")
                                             .linebreak()
                                             .text(
-                                                    "LEGACY: Simple implementation based on ValueState<List> (the original implementation).")
+                                                    SinkUpsertMaterializeStrategy.LEGACY
+                                                            + ": Simple implementation based on ValueState<List> (the original implementation).")
                                             .linebreak()
                                             .text(
-                                                    "MAP: OrderedMultiSetState-based implementation based on a combination of several MapState maintaining ordering and fast lookup properties.")
+                                                    SinkUpsertMaterializeStrategy.MAP
+                                                            + ": SequencedMultiSetState implementation based on a combination of several MapState maintaining ordering and fast lookup properties.")
                                             .linebreak()
                                             .text(
-                                                    "VALUE: Similar to LEGACY, but compatible with MAP and therefore allows to switch to ADAPTIVE.")
+                                                    SinkUpsertMaterializeStrategy.VALUE
+                                                            + ": Similar to LEGACY, but compatible with MAP and therefore allows to switch to ADAPTIVE.")
                                             .linebreak()
                                             .text(
-                                                    "ADAPTIVE: Alternate between MAP and VALUE depending on the number of entries for the given key starting with VALUE and switching to MAP upon reaching threshold.high value (and back to VALUE, when reaching low).")
+                                                    SinkUpsertMaterializeStrategy.ADAPTIVE
+                                                            + ": Alternate between MAP and VALUE depending on the number of entries for the given key starting with VALUE and switching to MAP upon reaching threshold.high value (and back to VALUE, when reaching low).")
                                             .build());
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
