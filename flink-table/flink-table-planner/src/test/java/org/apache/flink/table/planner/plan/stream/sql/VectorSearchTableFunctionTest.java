@@ -73,7 +73,8 @@ public class VectorSearchTableFunctionTest extends TableTestBase {
                                 + "  f BIGINT,\n"
                                 + "  g ARRAY<FLOAT>\n"
                                 + ") with (\n"
-                                + "  'connector' = 'values'\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'enable-vector-search' = 'true'"
                                 + ")");
 
         util.tableEnv()
@@ -84,7 +85,8 @@ public class VectorSearchTableFunctionTest extends TableTestBase {
                                 + "  g ARRAY<FLOAT>,\n"
                                 + "  proctime as PROCTIME()\n"
                                 + ") with (\n"
-                                + "  'connector' = 'values'\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'enable-vector-search' = 'true'"
                                 + ")");
 
         util.tableEnv()
@@ -147,6 +149,21 @@ public class VectorSearchTableFunctionTest extends TableTestBase {
                         + "    COLUMN_TO_QUERY => QueryTable.d,\n"
                         + "    COLUMN_TO_SEARCH => DESCRIPTOR(`g`),\n"
                         + "    TOP_K => 10,\n"
+                        + "    SEARCH_TABLE => TABLE VectorTable\n"
+                        + "  )\n"
+                        + ")";
+        util.verifyRelPlan(sql);
+    }
+
+    @Test
+    void testNamedArgumentWithRuntimeConfig() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    COLUMN_TO_QUERY => QueryTable.d,\n"
+                        + "    COLUMN_TO_SEARCH => DESCRIPTOR(`g`),\n"
+                        + "    TOP_K => 10,\n"
+                        + "    CONFIG => MAP['async', 'true', 'timeout', '100s'],\n"
                         + "    SEARCH_TABLE => TABLE VectorTable\n"
                         + "  )\n"
                         + ")";
@@ -425,6 +442,79 @@ public class VectorSearchTableFunctionTest extends TableTestBase {
                         + ")";
         assertThatThrownBy(() -> util.verifyRelPlan(sql))
                 .satisfies(FlinkAssertions.anyCauseMatches("Unknown identifier 'z'"));
+    }
+
+    @Test
+    public void testIllegalRuntimeConfigType() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTable, DESCRIPTOR(`g`), QueryTable.d, 10, 10"
+                        + ")\n"
+                        + ")";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                ValidationException.class, "Config param should be a MAP."));
+    }
+
+    @Test
+    public void testIllegalConfigValue1() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTable, DESCRIPTOR(`g`), QueryTable.d, 10, MAP['async', 'yes']"
+                        + ")\n"
+                        + ")";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                IllegalArgumentException.class,
+                                "Unrecognized option for boolean: yes. Expected either true or false(case insensitive)"));
+    }
+
+    @Test
+    public void testIllegalConfigValue2() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTable, DESCRIPTOR(`g`), QueryTable.d, 10, MAP['async', 'true', 'max-concurrent-operations', '-1']"
+                        + ")\n"
+                        + ")";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                ValidationException.class,
+                                "Invalid runtime config option 'max-concurrent-operations'. Its value should be positive integer but was -1."));
+    }
+
+    @Test
+    public void testPreferAsync() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTable, DESCRIPTOR(`g`), QueryTable.d, 10, MAP['async', 'true']"
+                        + ")\n"
+                        + ")";
+        assertThatThrownBy(() -> util.verifyExecPlan(sql))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                TableException.class, "Require async mode"));
+    }
+
+    @Test
+    public void testUsingRuntimeConfigToAdjustConnectorParameter() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTable, DESCRIPTOR(`g`), QueryTable.d, 10, MAP['enable-vector-search', 'false']"
+                        + ")\n"
+                        + ")";
+        assertThatThrownBy(() -> util.verifyExecPlan(sql))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                IllegalArgumentException.class,
+                                "Require option enable-vector-search true."));
     }
 
     public static class TestArrayUDF extends ScalarFunction {

@@ -24,6 +24,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.types.RowKind;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -33,10 +34,15 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSub
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
+import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+
+import static org.apache.calcite.sql.SqlKind.MAP_VALUE_CONSTRUCTOR;
 
 /** Common utils for function call, e.g. ML_PREDICT and Lookup Join. */
 public abstract class FunctionCallUtil {
@@ -204,6 +210,22 @@ public abstract class FunctionCallUtil {
             return AsyncDataStream.OutputMode.UNORDERED;
         }
         return AsyncDataStream.OutputMode.ORDERED;
+    }
+
+    public static Map<String, String> convert(RexCall mapConstructor) {
+        Preconditions.checkArgument(
+                mapConstructor.getOperator().getKind() == MAP_VALUE_CONSTRUCTOR,
+                "Input must be map constructor.");
+        Map<String, String> reducedConfig = new HashMap<>();
+        Preconditions.checkArgument(
+                mapConstructor.getOperands().size() % 2 == 0,
+                "Map constructor input must be even.");
+        for (int i = 0; i < mapConstructor.getOperands().size(); i += 2) {
+            String key = RexLiteral.stringValue(mapConstructor.getOperands().get(i));
+            String value = RexLiteral.stringValue(mapConstructor.getOperands().get(i + 1));
+            reducedConfig.put(key, value);
+        }
+        return reducedConfig;
     }
 
     public static String explainFunctionParam(FunctionParam param, List<String> fieldNames) {

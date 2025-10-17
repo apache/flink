@@ -18,9 +18,8 @@
 package org.apache.flink.table.planner.functions.sql.ml;
 
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions;
+import org.apache.flink.table.planner.functions.utils.SqlValidatorUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 import org.apache.flink.types.Either;
@@ -28,8 +27,6 @@ import org.apache.flink.types.Either;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlCallBinding;
-import org.apache.calcite.sql.SqlCharStringLiteral;
-import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -45,7 +42,6 @@ import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.validate.SqlNameMatcher;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
-import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Util;
 
 import java.util.HashMap;
@@ -53,9 +49,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions.ASYNC;
-import static org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions.ASYNC_MAX_CONCURRENT_OPERATIONS;
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
+import static org.apache.flink.table.planner.functions.utils.SqlValidatorUtils.reduceLiteralToString;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.CHARACTER_STRING;
 
 /**
@@ -219,9 +214,9 @@ public abstract class SqlMLTableFunction extends SqlFunction implements SqlTable
         Map<String, String> runtimeConfig = new HashMap<>();
         for (int i = 0; i < operands.size(); i += 2) {
             Either<String, RuntimeException> key =
-                    reduceLiteral(operands.get(i), callBinding.getValidator());
+                    reduceLiteralToString(operands.get(i), callBinding.getValidator());
             Either<String, RuntimeException> value =
-                    reduceLiteral(operands.get(i + 1), callBinding.getValidator());
+                    reduceLiteralToString(operands.get(i + 1), callBinding.getValidator());
 
             if (key.isRight()) {
                 return Optional.of(key.right());
@@ -232,56 +227,6 @@ public abstract class SqlMLTableFunction extends SqlFunction implements SqlTable
             }
         }
 
-        return checkConfigValue(runtimeConfig);
-    }
-
-    private static Optional<RuntimeException> checkConfigValue(Map<String, String> runtimeConfig) {
-        Configuration config = Configuration.fromMap(runtimeConfig);
-        try {
-            MLPredictRuntimeConfigOptions.getSupportedOptions().forEach(config::get);
-        } catch (Throwable t) {
-            return Optional.of(new ValidationException("Failed to parse the config.", t));
-        }
-
-        // option value check
-        // async options are all optional
-        Boolean async = config.get(ASYNC);
-        if (Boolean.TRUE.equals(async)) {
-            Integer maxConcurrentOperations = config.get(ASYNC_MAX_CONCURRENT_OPERATIONS);
-            if (maxConcurrentOperations != null && maxConcurrentOperations <= 0) {
-                return Optional.of(
-                        new ValidationException(
-                                String.format(
-                                        "Invalid runtime config option '%s'. Its value should be positive integer but was %s.",
-                                        ASYNC_MAX_CONCURRENT_OPERATIONS.key(),
-                                        maxConcurrentOperations)));
-            }
-        }
-
-        return Optional.empty();
-    }
-
-    private static Either<String, RuntimeException> reduceLiteral(
-            SqlNode operand, SqlValidator validator) {
-        if (operand instanceof SqlCharStringLiteral) {
-            return Either.Left(
-                    ((SqlCharStringLiteral) operand).getValueAs(NlsString.class).getValue());
-        } else if (operand.getKind() == SqlKind.CAST) {
-            // CAST(CAST('v' AS STRING) AS STRING)
-            SqlCall call = (SqlCall) operand;
-            SqlDataTypeSpec dataType = call.operand(1);
-            if (!toLogicalType(dataType.deriveType(validator)).is(CHARACTER_STRING)) {
-                return Either.Right(
-                        new ValidationException("Don't support to cast value to non-string type."));
-            }
-            return reduceLiteral((call.operand(0)), validator);
-        } else {
-            return Either.Right(
-                    new ValidationException(
-                            String.format(
-                                    "Unsupported expression %s is in runtime config at position %s. Currently, "
-                                            + "runtime config should be be a MAP of string literals.",
-                                    operand, operand.getParserPosition())));
-        }
+        return SqlValidatorUtils.checkConfigValue(runtimeConfig);
     }
 }
