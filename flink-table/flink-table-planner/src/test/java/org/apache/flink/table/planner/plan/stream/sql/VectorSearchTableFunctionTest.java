@@ -425,6 +425,18 @@ public class VectorSearchTableFunctionTest extends TableTestBase {
                                 "VECTOR_SEARCH does not support FlinkLogicalWatermarkAssigner node in parameter search_table."));
     }
 
+    @Test
+    void testSearchTableNonExistColumn() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTable, DESCRIPTOR(`z`), QueryTable.d, 10"
+                        + ")\n"
+                        + ")";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(FlinkAssertions.anyCauseMatches("Unknown identifier 'z'"));
+    }
+
     public static class TestArrayUDF extends ScalarFunction {
         public Float[] eval(int i) {
             return new Float[] {(float) i};
