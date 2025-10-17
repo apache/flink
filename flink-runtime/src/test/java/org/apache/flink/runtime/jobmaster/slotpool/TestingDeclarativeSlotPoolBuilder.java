@@ -23,6 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -33,6 +34,8 @@ import org.apache.flink.util.function.TriFunction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -80,6 +83,8 @@ public class TestingDeclarativeSlotPoolBuilder {
                     Collection<SlotOffer>>
             registerSlotsFunction =
                     (slotOffers, ignoredB, ignoredC, ignoredD) -> new ArrayList<>(slotOffers);
+    private Supplier<Map<ResourceID, LoadingWeight>> taskExecutorsLoadingWeightSupplier =
+            HashMap::new;
 
     public TestingDeclarativeSlotPoolBuilder setIncreaseResourceRequirementsByConsumer(
             Consumer<ResourceCounter> increaseResourceRequirementsByConsumer) {
@@ -207,6 +212,7 @@ public class TestingDeclarativeSlotPoolBuilder {
                 containsSlotsFunction,
                 containsFreeSlotFunction,
                 returnIdleSlotsConsumer,
-                setResourceRequirementsConsumer);
+                setResourceRequirementsConsumer,
+                taskExecutorsLoadingWeightSupplier);
     }
 }
