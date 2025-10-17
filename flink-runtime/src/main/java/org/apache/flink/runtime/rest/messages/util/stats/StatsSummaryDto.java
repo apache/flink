@@ -149,11 +149,11 @@ public final class StatsSummaryDto {
         return minimum == that.minimum
                 && maximum == that.maximum
                 && average == that.average
-                && p50 == that.p50
-                && p90 == that.p90
-                && p95 == that.p95
-                && p99 == that.p99
-                && p999 == that.p999;
+                && Double.compare(p50, that.p50) == 0
+                && Double.compare(p90, that.p90) == 0
+                && Double.compare(p95, that.p95) == 0
+                && Double.compare(p99, that.p99) == 0
+                && Double.compare(p999, that.p999) == 0;
     }
 
     @Override
