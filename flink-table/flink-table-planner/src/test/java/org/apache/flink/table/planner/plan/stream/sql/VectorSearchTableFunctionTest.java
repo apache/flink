@@ -19,15 +19,26 @@
 package org.apache.flink.table.planner.plan.stream.sql;
 
 import org.apache.flink.core.testutils.FlinkAssertions;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.planner.factories.TestTimeTravelCatalog;
 import org.apache.flink.table.planner.functions.sql.ml.SqlVectorSearchTableFunction;
+import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
+import org.apache.flink.table.planner.utils.DateTimeTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
+import org.apache.calcite.plan.RelOptPlanner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.time.ZoneId;
+import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -63,6 +74,29 @@ public class VectorSearchTableFunctionTest extends TableTestBase {
                                 + "  g ARRAY<FLOAT>\n"
                                 + ") with (\n"
                                 + "  'connector' = 'values'\n"
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE VectorTableWithProctime (\n"
+                                + "  e INT,\n"
+                                + "  f BIGINT,\n"
+                                + "  g ARRAY<FLOAT>,\n"
+                                + "  proctime as PROCTIME()\n"
+                                + ") with (\n"
+                                + "  'connector' = 'values'\n"
+                                + ")");
+
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE VectorTableWithMetadata(\n"
+                                + "  e INT,\n"
+                                + "  f ARRAY<FLOAT> METADATA,\n"
+                                + "  g ARRAY<FLOAT>,\n"
+                                + "  h AS e + 1\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'readable-metadata' = 'f:ARRAY<FLOAT>'\n"
                                 + ")");
     }
 
@@ -204,7 +238,7 @@ public class VectorSearchTableFunctionTest extends TableTestBase {
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 ValidationException.class,
-                                "Expect parameter topK is integer literal in VECTOR_SEARCH, but it is 10.0 with type DECIMAL(3, 1) NOT NULL."));
+                                "Expect parameter top_k is an INTEGER NOT NULL literal in VECTOR_SEARCH, but it is 10.0 with type DECIMAL(3, 1) NOT NULL."));
     }
 
     @Test
@@ -219,6 +253,193 @@ public class VectorSearchTableFunctionTest extends TableTestBase {
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 ValidationException.class,
-                                "Expect parameter topK is integer literal in VECTOR_SEARCH, but it is QueryTable.a with type INT."));
+                                "Expect parameter top_k is an INTEGER NOT NULL literal in VECTOR_SEARCH, but it is QueryTable.a with type INT."));
+    }
+
+    @Test
+    void testIllegalTopKValue3() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTable, DESCRIPTOR(`g`), QueryTable.d, 0"
+                        + ")\n"
+                        + ")";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                ValidationException.class,
+                                "Parameter top_k must be greater than 0, but was 0."));
+    }
+
+    @Test
+    void testSearchTableWithCalc() {
+        // calc -> source
+        util.verifyRelPlan(
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTableWithProctime, DESCRIPTOR(`g`), QueryTable.d, 10))");
+    }
+
+    @Test
+    void testSearchTableWithProjection() {
+        util.tableEnv()
+                .executeSql(
+                        String.format(
+                                "CREATE FUNCTION add_one AS '%s'",
+                                JavaUserDefinedScalarFunctions.JavaFunc0.class.getName()));
+        util.verifyRelPlan(
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    (SELECT add_one(e) as e1, g, proctime FROM VectorTableWithProctime), DESCRIPTOR(`g`), QueryTable.d, 10))");
+    }
+
+    @Test
+    void testSearchTableWithMetadataTable() {
+        util.verifyRelPlan(
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "  VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTableWithMetadata,\n"
+                        + "    DESCRIPTOR(`g`),\n"
+                        + "    QueryTable.d,\n"
+                        + "    10"
+                        + "  )\n"
+                        + ")");
+    }
+
+    @Test
+    void testSearchTableWithDescriptorUsingMetadata() {
+        util.verifyRelPlan(
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "  VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTableWithMetadata,\n"
+                        + "    DESCRIPTOR(`f`),\n"
+                        + "    QueryTable.d,\n"
+                        + "    10"
+                        + "  )\n"
+                        + ")");
+    }
+
+    @Test
+    void testSearchTableUsingUDFComputedColumn() {
+        util.tableEnv()
+                .executeSql(
+                        String.format("CREATE FUNCTION udf AS '%s'", TestArrayUDF.class.getName()));
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE VectorTableWithComputedColumn (\n"
+                                + "  e INT NOT NULL,\n"
+                                + "  f BIGINT,\n"
+                                + "  g ARRAY<FLOAT>,\n"
+                                + "  h as udf(e)\n"
+                                + ") with (\n"
+                                + "  'connector' = 'values'\n"
+                                + ")");
+        assertThatThrownBy(
+                        () ->
+                                util.verifyRelPlan(
+                                        "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                                                + "  VECTOR_SEARCH(\n"
+                                                + "    TABLE VectorTableWithComputedColumn,\n"
+                                                + "    DESCRIPTOR(`h`),\n"
+                                                + "    QueryTable.d,\n"
+                                                + "    10"
+                                                + "  )\n"
+                                                + ")"))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                TableException.class,
+                                "VECTOR_SEARCH can not find column `h` in the search_table default_catalog.default_database.VectorTableWithComputedColumn physical output type. "
+                                        + "Currently, Flink doesn't support to use computed column as the search column."));
+    }
+
+    @Test
+    void testSearchTableWithSnapshot() throws Exception {
+        String catalogName = "ttc";
+        TestTimeTravelCatalog catalog = new TestTimeTravelCatalog(catalogName);
+        catalog.registerTableForTimeTravel(
+                "t1",
+                Schema.newBuilder()
+                        .column("f1", DataTypes.INT())
+                        .column("f2", DataTypes.ARRAY(DataTypes.DOUBLE()))
+                        .build(),
+                Collections.singletonMap("connector", "values"),
+                DateTimeTestUtil.toEpochMills(
+                        "2023-07-31 00:00:00", "yyyy-MM-dd HH:mm:ss", ZoneId.of("UTC")));
+
+        TableEnvironment tEnv = util.tableEnv();
+        tEnv.registerCatalog(catalogName, catalog);
+        tEnv.useCatalog(catalogName);
+        assertThatThrownBy(
+                        () ->
+                                util.verifyRelPlan(
+                                        "SELECT * FROM (select *, proctime() pts from t1) qt, LATERAL TABLE(\n"
+                                                + "VECTOR_SEARCH(\n"
+                                                + "    (SELECT * FROM t1 FOR SYSTEM_TIME AS OF qt.pts), DESCRIPTOR(`f2`), qt.f2, 10))"))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                RelOptPlanner.CannotPlanException.class,
+                                "VECTOR_SEARCH does not support FlinkLogicalSnapshot node in parameter search_table."));
+    }
+
+    @Test
+    void testSearchTableWithFilter() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    (SELECT * FROM VectorTable WHERE e > 0),\n"
+                        + "    DESCRIPTOR(`g`),\n"
+                        + "    QueryTable.d,\n"
+                        + "    10"
+                        + ")\n"
+                        + ")";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                RelOptPlanner.CannotPlanException.class,
+                                "VECTOR_SEARCH does not support filter on parameter search_table."));
+    }
+
+    @Test
+    void testSearchTableWithWatermark() {
+        // watermark assigner -> calc -> scan
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE IllegalTable (\n"
+                                + "  e INT,\n"
+                                + "  f BIGINT,\n"
+                                + "  g ARRAY<FLOAT>,\n"
+                                + "  rowtime TIMESTAMP(3),\n"
+                                + "  proctime as PROCTIME(),\n"
+                                + "  WATERMARK FOR rowtime AS rowtime - INTERVAL '1' SECOND\n"
+                                + ") with (\n"
+                                + "  'connector' = 'values'\n"
+                                + ")");
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE IllegalTable, DESCRIPTOR(`g`), QueryTable.d, 10))";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                RelOptPlanner.CannotPlanException.class,
+                                "VECTOR_SEARCH does not support FlinkLogicalWatermarkAssigner node in parameter search_table."));
+    }
+
+    @Test
+    void testSearchTableNonExistColumn() {
+        String sql =
+                "SELECT * FROM QueryTable, LATERAL TABLE(\n"
+                        + "VECTOR_SEARCH(\n"
+                        + "    TABLE VectorTable, DESCRIPTOR(`z`), QueryTable.d, 10"
+                        + ")\n"
+                        + ")";
+        assertThatThrownBy(() -> util.verifyRelPlan(sql))
+                .satisfies(FlinkAssertions.anyCauseMatches("Unknown identifier 'z'"));
+    }
+
+    public static class TestArrayUDF extends ScalarFunction {
+        public Float[] eval(int i) {
+            return new Float[] {(float) i};
+        }
     }
 }
