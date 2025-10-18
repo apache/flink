@@ -20,11 +20,11 @@ package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
-import org.apache.flink.fs.s3.common.model.FlinkObjectMetadata;
-import org.apache.flink.fs.s3.common.model.FlinkPartETag;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -44,7 +44,7 @@ public final class S3Committer implements RecoverableFsDataOutputStream.Committe
 
     private final String objectName;
 
-    private final List<FlinkPartETag> parts;
+    private final List<CompletedPart> parts;
 
     private final long totalLength;
 
@@ -52,7 +52,7 @@ public final class S3Committer implements RecoverableFsDataOutputStream.Committe
             S3AccessHelper s3AccessHelper,
             String objectName,
             String uploadId,
-            List<FlinkPartETag> parts,
+            List<CompletedPart> parts,
             long totalLength) {
         this.s3AccessHelper = checkNotNull(s3AccessHelper);
         this.objectName = checkNotNull(objectName);
@@ -101,8 +101,8 @@ public final class S3Committer implements RecoverableFsDataOutputStream.Committe
                 LOG.trace("Exception when committing:", e);
 
                 try {
-                    FlinkObjectMetadata metadata = s3AccessHelper.getObjectMetadata(objectName);
-                    if (totalLength != metadata.getContentLength()) {
+                    HeadObjectResponse metadata = s3AccessHelper.getObjectMetadata(objectName);
+                    if (totalLength != metadata.contentLength()) {
                         String message =
                                 String.format(
                                         "Inconsistent result for object %s: conflicting lengths. "
@@ -110,7 +110,7 @@ public final class S3Committer implements RecoverableFsDataOutputStream.Committe
                                         objectName,
                                         uploadId,
                                         totalLength,
-                                        metadata.getContentLength());
+                                        metadata.contentLength());
                         LOG.warn(message);
                         throw new IOException(message, e);
                     }

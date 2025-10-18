@@ -21,8 +21,8 @@ package org.apache.flink.fs.s3.common.writer;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.fs.RefCountedFSOutputStream;
-import org.apache.flink.fs.s3.common.model.FlinkPartETag;
-import org.apache.flink.fs.s3.common.model.FlinkUploadPartResult;
+
+import software.amazon.awssdk.services.s3.model.CompletedPart;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -60,7 +60,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 
     private final Executor uploadThreadPool;
 
-    private final Deque<CompletableFuture<FlinkPartETag>> uploadsInProgress;
+    private final Deque<CompletableFuture<CompletedPart>> uploadsInProgress;
 
     private final String namePrefixForTempObjects;
 
@@ -73,7 +73,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
             Executor uploadThreadPool,
             String uploadId,
             String objectName,
-            List<FlinkPartETag> partsSoFar,
+            List<CompletedPart> partsSoFar,
             long numBytes,
             Optional<File> incompletePart) {
         checkArgument(numBytes >= 0L);
@@ -101,7 +101,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
         // writing to the file we are uploading.
         checkState(file.isClosed());
 
-        final CompletableFuture<FlinkPartETag> future = new CompletableFuture<>();
+        final CompletableFuture<CompletedPart> future = new CompletableFuture<>();
         uploadsInProgress.add(future);
 
         final long partLength = file.getPos();
@@ -152,7 +152,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 
         final String objectName = currentUploadInfo.getObjectName();
         final String uploadId = currentUploadInfo.getUploadId();
-        final List<FlinkPartETag> completedParts =
+        final List<CompletedPart> completedParts =
                 currentUploadInfo.getCopyOfEtagsOfCompleteParts();
         final long sizeInBytes = currentUploadInfo.getExpectedSizeInBytes();
 
@@ -219,16 +219,16 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
         checkState(currentUploadInfo.getRemainingParts() == uploadsInProgress.size());
 
         while (currentUploadInfo.getRemainingParts() > 0) {
-            CompletableFuture<FlinkPartETag> next = uploadsInProgress.peekFirst();
-            FlinkPartETag nextPart = awaitPendingPartUploadToComplete(next);
+            CompletableFuture<CompletedPart> next = uploadsInProgress.peekFirst();
+            CompletedPart nextPart = awaitPendingPartUploadToComplete(next);
             currentUploadInfo.registerCompletePart(nextPart);
             uploadsInProgress.removeFirst();
         }
     }
 
-    private FlinkPartETag awaitPendingPartUploadToComplete(CompletableFuture<FlinkPartETag> upload)
+    private CompletedPart awaitPendingPartUploadToComplete(CompletableFuture<CompletedPart> upload)
             throws IOException {
-        final FlinkPartETag completedUploadEtag;
+        final CompletedPart completedUploadEtag;
         try {
             completedUploadEtag = upload.get();
         } catch (InterruptedException e) {
@@ -267,7 +267,7 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
             final Executor uploadThreadPool,
             final String multipartUploadId,
             final String objectName,
-            final List<FlinkPartETag> partsSoFar,
+            final List<CompletedPart> partsSoFar,
             final long numBytesSoFar,
             final Optional<File> incompletePart) {
 
@@ -297,13 +297,13 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
 
         private final RefCountedFSOutputStream file;
 
-        private final CompletableFuture<FlinkPartETag> future;
+        private final CompletableFuture<CompletedPart> future;
 
         UploadTask(
                 final S3AccessHelper s3AccessHelper,
                 final MultiPartUploadInfo currentUpload,
                 final RefCountedFSOutputStream file,
-                final CompletableFuture<FlinkPartETag> future) {
+                final CompletableFuture<CompletedPart> future) {
 
             checkNotNull(currentUpload);
 
@@ -322,14 +322,17 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
         @Override
         public void run() {
             try {
-                final FlinkUploadPartResult result =
+                final software.amazon.awssdk.services.s3.model.UploadPartResponse result =
                         s3AccessHelper.uploadPart(
                                 objectName,
                                 uploadId,
                                 partNumber,
                                 file.getInputFile(),
                                 file.getPos());
-                future.complete(result.toPartETag());
+                // Convert UploadPartResponse to CompletedPart
+                final CompletedPart completedPart =
+                        CompletedPart.builder().partNumber(partNumber).eTag(result.eTag()).build();
+                future.complete(completedPart);
                 file.release();
             } catch (Throwable t) {
                 future.completeExceptionally(t);

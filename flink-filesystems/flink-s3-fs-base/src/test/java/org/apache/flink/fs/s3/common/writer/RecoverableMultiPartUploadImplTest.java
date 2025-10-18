@@ -20,17 +20,17 @@ package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.core.fs.RefCountedBufferingFileStream;
 import org.apache.flink.core.fs.RefCountedFileWithStream;
-import org.apache.flink.fs.s3.common.model.FlinkCompleteMultipartUploadResult;
-import org.apache.flink.fs.s3.common.model.FlinkObjectMetadata;
-import org.apache.flink.fs.s3.common.model.FlinkPartETag;
-import org.apache.flink.fs.s3.common.model.FlinkPutObjectResult;
-import org.apache.flink.fs.s3.common.model.FlinkUploadPartResult;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.MathUtils;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -168,9 +168,8 @@ class RecoverableMultiPartUploadImplTest {
         assertThat(actualRecoverable.incompleteObjectLength())
                 .isEqualTo(expectedRecoverable.incompleteObjectLength());
 
-        assertThat(actualRecoverable.parts().stream().map(FlinkPartETag::getETag).toArray())
-                .isEqualTo(
-                        expectedRecoverable.parts().stream().map(FlinkPartETag::getETag).toArray());
+        assertThat(actualRecoverable.parts().stream().map(CompletedPart::eTag).toArray())
+                .isEqualTo(expectedRecoverable.parts().stream().map(CompletedPart::eTag).toArray());
     }
 
     // ---------------------------------- Test Methods -------------------------------------------
@@ -181,12 +180,16 @@ class RecoverableMultiPartUploadImplTest {
 
     private static S3Recoverable createS3Recoverable(
             byte[] incompletePart, byte[]... completeParts) {
-        final List<FlinkPartETag> eTags = new ArrayList<>();
+        final List<CompletedPart> parts = new ArrayList<>();
 
         int index = 1;
         long bytesInPart = 0L;
         for (byte[] part : completeParts) {
-            eTags.add(new FlinkPartETag(index, createETag(TEST_OBJECT_NAME, index)));
+            parts.add(
+                    CompletedPart.builder()
+                            .partNumber(index)
+                            .eTag(createETag(TEST_OBJECT_NAME, index))
+                            .build());
             bytesInPart += part.length;
             index++;
         }
@@ -194,7 +197,7 @@ class RecoverableMultiPartUploadImplTest {
         return new S3Recoverable(
                 TEST_OBJECT_NAME,
                 createMPUploadId(TEST_OBJECT_NAME),
-                eTags,
+                parts,
                 bytesInPart,
                 "IGNORED-DUE-TO-RANDOMNESS",
                 (long) incompletePart.length);
@@ -291,7 +294,7 @@ class RecoverableMultiPartUploadImplTest {
         }
 
         @Override
-        public FlinkUploadPartResult uploadPart(
+        public UploadPartResponse uploadPart(
                 String key, String uploadId, int partNumber, File inputFile, long length)
                 throws IOException {
             final byte[] content =
@@ -300,7 +303,7 @@ class RecoverableMultiPartUploadImplTest {
         }
 
         @Override
-        public FlinkPutObjectResult putObject(String key, File inputFile) throws IOException {
+        public PutObjectResponse putObject(String key, File inputFile) throws IOException {
             final byte[] content =
                     getFileContentBytes(inputFile, MathUtils.checkedDownCast(inputFile.length()));
             return storeAndGetPutObjectResult(key, content);
@@ -317,10 +320,10 @@ class RecoverableMultiPartUploadImplTest {
         }
 
         @Override
-        public FlinkCompleteMultipartUploadResult commitMultiPartUpload(
+        public CompleteMultipartUploadResponse commitMultiPartUpload(
                 String key,
                 String uploadId,
-                List<FlinkPartETag> partETags,
+                List<CompletedPart> partETags,
                 long length,
                 AtomicInteger errorCount)
                 throws IOException {
@@ -328,7 +331,7 @@ class RecoverableMultiPartUploadImplTest {
         }
 
         @Override
-        public FlinkObjectMetadata getObjectMetadata(String key) throws IOException {
+        public HeadObjectResponse getObjectMetadata(String key) throws IOException {
             throw new UnsupportedOperationException();
         }
 
@@ -338,45 +341,45 @@ class RecoverableMultiPartUploadImplTest {
             return content;
         }
 
-        private FlinkUploadPartResult storeAndGetUploadPartResult(
+        private UploadPartResponse storeAndGetUploadPartResult(
                 String key, int number, byte[] payload) {
             final RecoverableMultiPartUploadImplTest.TestUploadPartResult result =
                     createUploadPartResult(key, number, payload);
             completePartsUploaded.add(result);
-            return result.toFlinkUploadPartResult();
+            return result.toUploadPartResponse();
         }
 
-        private FlinkPutObjectResult storeAndGetPutObjectResult(String key, byte[] payload) {
+        private PutObjectResponse storeAndGetPutObjectResult(String key, byte[] payload) {
             final RecoverableMultiPartUploadImplTest.TestPutObjectResult result =
                     createPutObjectResult(key, payload);
             incompletePartsUploaded.add(result);
-            return result.toFlinkPutObjectResult();
+            return result.toPutObjectResponse();
         }
     }
 
     /**
-     * A wrapper for {@link FlinkPutObjectResult} that also contains the actual content of the
-     * uploaded part.
+     * A wrapper for {@link PutObjectResponse} that also contains the actual content of the uploaded
+     * part.
      */
     private static class TestPutObjectResult {
-        private final FlinkPutObjectResult result;
+        private final String eTag;
         private final byte[] content;
 
         TestPutObjectResult(String eTag, byte[] content) {
-            this.result = new FlinkPutObjectResult(eTag, null);
+            this.eTag = eTag;
             this.content = content;
         }
 
         public String getETag() {
-            return result.getETag();
+            return eTag;
         }
 
         public byte[] getContent() {
             return content;
         }
 
-        public FlinkPutObjectResult toFlinkPutObjectResult() {
-            return result;
+        public PutObjectResponse toPutObjectResponse() {
+            return PutObjectResponse.builder().eTag(eTag).build();
         }
 
         @Override
@@ -405,32 +408,34 @@ class RecoverableMultiPartUploadImplTest {
     }
 
     /**
-     * A wrapper for {@link FlinkUploadPartResult} that also contains the actual content of the
+     * A wrapper for {@link UploadPartResponse} that also contains the actual content of the
      * uploaded part.
      */
     private static class TestUploadPartResult {
-        private final FlinkUploadPartResult result;
+        private final int partNumber;
+        private final String eTag;
         private final byte[] content;
 
         TestUploadPartResult(int partNumber, String eTag, byte[] content) {
-            this.result = new FlinkUploadPartResult(partNumber, eTag);
+            this.partNumber = partNumber;
+            this.eTag = eTag;
             this.content = content;
         }
 
         public String getETag() {
-            return result.getETag();
+            return eTag;
         }
 
         public int getPartNumber() {
-            return result.getPartNumber();
+            return partNumber;
         }
 
         public byte[] getContent() {
             return content;
         }
 
-        public FlinkUploadPartResult toFlinkUploadPartResult() {
-            return result;
+        public UploadPartResponse toUploadPartResponse() {
+            return UploadPartResponse.builder().eTag(eTag).build();
         }
 
         @Override

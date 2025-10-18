@@ -19,11 +19,12 @@
 package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.fs.s3.common.model.FlinkCompleteMultipartUploadResult;
-import org.apache.flink.fs.s3.common.model.FlinkObjectMetadata;
-import org.apache.flink.fs.s3.common.model.FlinkPartETag;
-import org.apache.flink.fs.s3.common.model.FlinkPutObjectResult;
-import org.apache.flink.fs.s3.common.model.FlinkUploadPartResult;
+
+import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.CompletedPart;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+import software.amazon.awssdk.services.s3.model.UploadPartResponse;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,15 +33,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * An interface that abstracts away the Multi-Part Upload (MPU) functionality offered by S3, from
- * both the specific implementation of the file system and the AWS SDK version. This is needed so
- * that we can accommodate both Hadoop S3 (using AWS SDK v2) and Presto (using AWS SDK v1).
+ * the specific implementation of the file system. This is needed so that we can accommodate both
+ * Hadoop S3 and Presto.
  *
  * <p>Multipart uploads are convenient for large objects. These will be uploaded in multiple parts
  * and the multipart upload is the equivalent of a transaction, where the upload with all its parts
  * will be either committed or discarded.
  *
- * <p>This interface uses SDK-agnostic types from {@link org.apache.flink.fs.s3.common.model}
- * package, allowing implementations to work with either AWS SDK v1 or v2.
+ * <p>This interface uses AWS SDK v2 types directly.
  */
 @Internal
 public interface S3AccessHelper {
@@ -63,10 +63,10 @@ public interface S3AccessHelper {
      * @param partNumber the number of the part being uploaded (has to be in [1 ... 10000]).
      * @param inputFile the (local) file holding the part to be uploaded.
      * @param length the length of the part.
-     * @return The {@link FlinkUploadPartResult result} of the attempt to upload the part.
+     * @return The {@link UploadPartResponse result} of the attempt to upload the part.
      * @throws IOException
      */
-    FlinkUploadPartResult uploadPart(
+    UploadPartResponse uploadPart(
             String key, String uploadId, int partNumber, File inputFile, long length)
             throws IOException;
 
@@ -77,27 +77,27 @@ public interface S3AccessHelper {
      *
      * @param key the key used to identify this part.
      * @param inputFile the (local) file holding the data to be uploaded.
-     * @return The {@link FlinkPutObjectResult result} of the attempt to stage the incomplete part.
+     * @return The {@link PutObjectResponse result} of the attempt to stage the incomplete part.
      * @throws IOException
      */
-    FlinkPutObjectResult putObject(String key, File inputFile) throws IOException;
+    PutObjectResponse putObject(String key, File inputFile) throws IOException;
 
     /**
      * Finalizes a Multi-Part Upload.
      *
      * @param key the key identifying the object we finished uploading.
      * @param uploadId the id of the MPU.
-     * @param partETags the list of {@link FlinkPartETag ETags} associated with this MPU.
+     * @param partETags the list of {@link CompletedPart ETags} associated with this MPU.
      * @param length the size of the uploaded object.
      * @param errorCount a counter that will be used to count any failed attempts to commit the MPU.
-     * @return The {@link FlinkCompleteMultipartUploadResult result} of the attempt to finalize the
+     * @return The {@link CompleteMultipartUploadResponse result} of the attempt to finalize the
      *     MPU.
      * @throws IOException
      */
-    FlinkCompleteMultipartUploadResult commitMultiPartUpload(
+    CompleteMultipartUploadResponse commitMultiPartUpload(
             String key,
             String uploadId,
-            List<FlinkPartETag> partETags,
+            List<CompletedPart> partETags,
             long length,
             AtomicInteger errorCount)
             throws IOException;
@@ -127,8 +127,8 @@ public interface S3AccessHelper {
      * Fetches the metadata associated with a given key on S3.
      *
      * @param key the key.
-     * @return The associated {@link FlinkObjectMetadata}.
+     * @return The associated {@link HeadObjectResponse}.
      * @throws IOException
      */
-    FlinkObjectMetadata getObjectMetadata(String key) throws IOException;
+    HeadObjectResponse getObjectMetadata(String key) throws IOException;
 }

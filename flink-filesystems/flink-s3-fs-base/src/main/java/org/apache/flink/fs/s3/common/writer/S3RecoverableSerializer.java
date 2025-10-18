@@ -20,7 +20,8 @@ package org.apache.flink.fs.s3.common.writer;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.fs.s3.common.model.FlinkPartETag;
+
+import software.amazon.awssdk.services.s3.model.CompletedPart;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -50,8 +51,8 @@ final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recov
 
     @Override
     public byte[] serialize(S3Recoverable obj) throws IOException {
-        final List<FlinkPartETag> partList = obj.parts();
-        final FlinkPartETag[] parts = partList.toArray(new FlinkPartETag[partList.size()]);
+        final List<CompletedPart> partList = obj.parts();
+        final CompletedPart[] parts = partList.toArray(new CompletedPart[partList.size()]);
 
         final byte[] keyBytes = obj.getObjectName().getBytes(CHARSET);
         final byte[] uploadIdBytes = obj.uploadId().getBytes(CHARSET);
@@ -59,7 +60,7 @@ final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recov
         final byte[][] etags = new byte[parts.length][];
         int partEtagBytes = 0;
         for (int i = 0; i < parts.length; i++) {
-            etags[i] = parts[i].getETag().getBytes(CHARSET);
+            etags[i] = parts[i].eTag().getBytes(CHARSET);
             partEtagBytes += etags[i].length + 2 * Integer.BYTES;
         }
 
@@ -92,8 +93,8 @@ final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recov
 
         bb.putInt(etags.length);
         for (int i = 0; i < parts.length; i++) {
-            FlinkPartETag pe = parts[i];
-            bb.putInt(pe.getPartNumber());
+            CompletedPart pe = parts[i];
+            bb.putInt(pe.partNumber());
             bb.putInt(etags[i].length);
             bb.put(etags[i]);
         }
@@ -136,12 +137,16 @@ final class S3RecoverableSerializer implements SimpleVersionedSerializer<S3Recov
         bb.get(uploadIdBytes);
 
         final int numParts = bb.getInt();
-        final ArrayList<FlinkPartETag> parts = new ArrayList<>(numParts);
+        final ArrayList<CompletedPart> parts = new ArrayList<>(numParts);
         for (int i = 0; i < numParts; i++) {
             final int partNum = bb.getInt();
             final byte[] buffer = new byte[bb.getInt()];
             bb.get(buffer);
-            parts.add(new FlinkPartETag(partNum, new String(buffer, CHARSET)));
+            parts.add(
+                    CompletedPart.builder()
+                            .partNumber(partNum)
+                            .eTag(new String(buffer, CHARSET))
+                            .build());
         }
 
         final long numBytes = bb.getLong();
