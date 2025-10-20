@@ -223,8 +223,7 @@ CREATE MATERIALIZED TABLE my_materialized_table_continuous
         'partition.fields.ds.date-formatter' = 'yyyy-MM-dd'
     )
     FRESHNESS = INTERVAL '10' SECOND
-    AS
-    SELECT
+    AS SELECT
         k.ds,
         k.user_id,
         COUNT(*) AS event_count,
@@ -252,8 +251,7 @@ CREATE MATERIALIZED TABLE my_materialized_table_full
         'partition.fields.ds.date-formatter' = 'yyyy-MM-dd'
     )
     FRESHNESS = INTERVAL '1' HOUR
-    AS
-    SELECT
+    AS SELECT
         p.ds,
         p.product_id,
         p.product_name,

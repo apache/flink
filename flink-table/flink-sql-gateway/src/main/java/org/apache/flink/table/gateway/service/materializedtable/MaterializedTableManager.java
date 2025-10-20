@@ -259,7 +259,6 @@ public class MaterializedTableManager {
         ResolvedCatalogMaterializedTable catalogMaterializedTable =
                 createMaterializedTableOperation.getCatalogMaterializedTable();
 
-        // convert duration to cron expression
         final IntervalFreshness freshness = catalogMaterializedTable.getDefinitionFreshness();
         String cronExpression = convertFreshnessToCron(freshness);
         // create full refresh job
