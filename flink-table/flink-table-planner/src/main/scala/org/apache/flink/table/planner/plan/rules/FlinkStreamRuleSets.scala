@@ -488,6 +488,7 @@ object FlinkStreamRuleSets {
     StreamPhysicalProcessTableFunctionRule.INSTANCE,
     // model TVFs
     StreamPhysicalMLPredictTableFunctionRule.INSTANCE,
+    StreamPhysicalVectorSearchTableFunctionRule.INSTANCE,
     // join
     StreamPhysicalJoinRule.INSTANCE,
     StreamPhysicalMultiJoinRule.INSTANCE,

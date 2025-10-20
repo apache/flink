@@ -194,7 +194,7 @@ public abstract class FunctionCallUtil {
         return t1 != null ? t1 : t2;
     }
 
-    protected static AsyncDataStream.OutputMode convert(
+    public static AsyncDataStream.OutputMode convert(
             ChangelogMode inputChangelogMode,
             ExecutionConfigOptions.AsyncOutputMode asyncOutputMode) {
         if (inputChangelogMode.containsOnly(RowKind.INSERT)
