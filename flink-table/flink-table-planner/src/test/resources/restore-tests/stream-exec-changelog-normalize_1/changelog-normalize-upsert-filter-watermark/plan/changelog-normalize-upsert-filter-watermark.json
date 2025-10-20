@@ -1,5 +1,5 @@
 {
-  "flinkVersion" : "2.1",
+  "flinkVersion" : "2.2",
   "nodes" : [ {
     "id" : 19,
     "type" : "stream-exec-table-source-scan_1",
@@ -41,14 +41,12 @@
               "type" : "PRIMARY_KEY",
               "columns" : [ "a" ]
             }
-          },
-          "partitionKeys" : [ ]
+          }
         }
       }
     },
     "outputType" : "ROW<`a` VARCHAR(2147483647) NOT NULL, `b` INT NOT NULL, `c` VARCHAR(2147483647), `d` TIMESTAMP(3) WITH LOCAL TIME ZONE>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t]], fields=[a, b, c, d])",
-    "inputProperties" : [ ]
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t]], fields=[a, b, c, d])"
   }, {
     "id" : 20,
     "type" : "stream-exec-watermark-assigner_1",
@@ -159,7 +157,7 @@
         }
       } ]
     },
-    "description" : "ChangelogNormalize(key=[a], condition=[(((b < 10) OR (CURRENT_WATERMARK(CAST(d AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))) >= 1970-01-01 00:00:00)) AND (CURRENT_WATERMARK(CAST(d AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))) IS NULL OR (CURRENT_WATERMARK(CAST(d AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))) >= 1970-01-01 00:00:00)))])",
+    "description" : "ChangelogNormalize(key=[a], condition=[((b < 10) AND (CURRENT_WATERMARK(CAST(d AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))) IS NULL OR (CURRENT_WATERMARK(CAST(d AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))) >= 1970-01-01 00:00:00)))])",
     "filterCondition" : {
       "kind" : "CALL",
       "syntax" : "BINARY",
@@ -167,52 +165,17 @@
       "operands" : [ {
         "kind" : "CALL",
         "syntax" : "BINARY",
-        "internalName" : "$OR$1",
+        "internalName" : "$<$1",
         "operands" : [ {
-          "kind" : "CALL",
-          "syntax" : "BINARY",
-          "internalName" : "$<$1",
-          "operands" : [ {
-            "kind" : "INPUT_REF",
-            "inputIndex" : 1,
-            "type" : "INT NOT NULL"
-          }, {
-            "kind" : "LITERAL",
-            "value" : 10,
-            "type" : "INT NOT NULL"
-          } ],
-          "type" : "BOOLEAN NOT NULL"
+          "kind" : "INPUT_REF",
+          "inputIndex" : 1,
+          "type" : "INT NOT NULL"
         }, {
-          "kind" : "CALL",
-          "syntax" : "BINARY",
-          "internalName" : "$>=$1",
-          "operands" : [ {
-            "kind" : "CALL",
-            "internalName" : "$CURRENT_WATERMARK$1",
-            "operands" : [ {
-              "kind" : "CALL",
-              "syntax" : "SPECIAL",
-              "internalName" : "$CAST$1",
-              "operands" : [ {
-                "kind" : "INPUT_REF",
-                "inputIndex" : 3,
-                "type" : {
-                  "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-                  "precision" : 3,
-                  "kind" : "ROWTIME"
-                }
-              } ],
-              "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
-            } ],
-            "type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE"
-          }, {
-            "kind" : "LITERAL",
-            "value" : "1970-01-01 00:00:00",
-            "type" : "TIMESTAMP(0) NOT NULL"
-          } ],
-          "type" : "BOOLEAN"
+          "kind" : "LITERAL",
+          "value" : 10,
+          "type" : "INT NOT NULL"
         } ],
-        "type" : "BOOLEAN"
+        "type" : "BOOLEAN NOT NULL"
       }, {
         "kind" : "CALL",
         "syntax" : "BINARY",
@@ -326,10 +289,8 @@
             }, {
               "name" : "c",
               "dataType" : "VARCHAR(2147483647)"
-            } ],
-            "watermarkSpecs" : [ ]
-          },
-          "partitionKeys" : [ ]
+            } ]
+          }
         }
       }
     },

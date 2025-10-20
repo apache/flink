@@ -281,7 +281,7 @@ public class ChangelogNormalizeTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink_t SELECT a, b, c FROM source_t WHERE b < 10 AND "
-                                    + "CURRENT_WATERMARK(d) IS NULL OR "
-                                    + "CURRENT_WATERMARK(d) >= TIMESTAMP '1970-01-01 00:00:00'")
+                                    + "(CURRENT_WATERMARK(d) IS NULL OR "
+                                    + "CURRENT_WATERMARK(d) >= TIMESTAMP '1970-01-01 00:00:00')")
                     .build();
 }
