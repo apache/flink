@@ -34,7 +34,9 @@ under the License.
 
 ## 数据新鲜度
 
-数据新鲜度定义了物化表数据相对于基础表更新的最大滞后时间。它并非绝对保证，而是 Flink 尝试达到的目标。框架会尽力确保物化表中的数据在指定的新鲜度内刷新。
+数据新鲜度定义了物化表数据相对于基础表更新的最大滞后时间。它并非绝对保证，而是 Flink 尝试达到的目标。框架会尽力确保物化表中的数据在指定的新鲜度目标内刷新。
+
+Data freshness is optional when creating a materialized table. If not specified, the system uses the default freshness based on the refresh mode: [materialized-table.default-freshness.continuous]({{< ref "docs/dev/table/config" >}}#materialized-table-default-freshness-continuous) (default: 3 minutes) for CONTINUOUS mode, or [materialized-table.default-freshness.full]({{< ref "docs/dev/table/config" >}}#materialized-table-default-freshness-full) (default: 1 hour) for FULL mode.
 
 数据新鲜度是物化表的一个关键属性，具有两个主要作用：
 - **确定刷新模式**：目前有持续模式和全量模式。关于如何确定刷新模式的详细信息，请参阅 [materialized-table.refresh-mode.freshness-threshold]({{< ref "docs/dev/table/config" >}}#materialized-table-refresh-mode-freshness-threshold) 配置项。
@@ -59,4 +61,3 @@ under the License.
 ## Schema
 
 物化表的 `Schema` 定义与普通表相同，可以声明主键和分区字段。其列名和类型会从相应的查询中推导，用户无法手动指定。
-
