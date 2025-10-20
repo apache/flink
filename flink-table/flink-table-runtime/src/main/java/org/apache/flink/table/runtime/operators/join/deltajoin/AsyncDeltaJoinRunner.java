@@ -157,11 +157,11 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
                             resultFutureBuffer,
                             createFetcherResultFuture(openContext),
                             fetcherConverter,
-                            enableCache,
-                            cache,
                             treatRightAsLookupTable,
                             leftUpsertKeySelector,
-                            rightUpsertKeySelector);
+                            rightUpsertKeySelector,
+                            enableCache,
+                            cache);
             // add will throw exception immediately if the queue is full which should never happen
             resultFutureBuffer.add(rf);
             allResultFutures.add(rf);
@@ -291,11 +291,11 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
                 BlockingQueue<JoinedRowResultFuture> resultFutureBuffer,
                 TableFunctionResultFuture<RowData> joinConditionResultFuture,
                 DataStructureConverter<RowData, Object> resultConverter,
-                boolean enableCache,
-                DeltaJoinCache cache,
                 boolean treatRightAsLookupTable,
                 RowDataKeySelector leftUpsertKeySelector,
-                RowDataKeySelector rightUpsertKeySelector) {
+                RowDataKeySelector rightUpsertKeySelector,
+                boolean enableCache,
+                DeltaJoinCache cache) {
             this.resultFutureBuffer = resultFutureBuffer;
             this.joinConditionResultFuture = joinConditionResultFuture;
             this.resultConverter = resultConverter;

@@ -137,7 +137,7 @@ class DeltaJoinITCase(enableCache: Boolean) extends StreamingTestBase {
   }
 
   @TestTemplate
-  def testDataWithSameJoinKeyColValues(): Unit = {
+  def testWithSameJoinKeyColValues(): Unit = {
     val data1 = List(
       changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
       changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2022, 2, 2, 2, 2, 2)),

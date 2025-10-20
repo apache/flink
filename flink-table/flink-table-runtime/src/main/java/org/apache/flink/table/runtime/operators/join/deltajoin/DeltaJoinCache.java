@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * Cache for both sides in delta join.
  *
- * <p>Note: this cache is not thread-safe although its inner {@link Cache} is thread-safe.
+ * <p>Note: This cache is not thread-safe although its inner {@link Cache} is thread-safe.
  */
 @NotThreadSafe
 public class DeltaJoinCache {
@@ -57,11 +57,11 @@ public class DeltaJoinCache {
     private final Cache<RowData, LinkedHashMap<RowData, Object>> rightCache;
 
     // metrics
-    private final AtomicLong leftCacheTotalSize = new AtomicLong(0L);
-    private final AtomicLong rightCacheTotalSize = new AtomicLong(0L);
-    private final AtomicLong leftCacheHitCount = new AtomicLong(0L);
+    private final AtomicLong leftTotalSize = new AtomicLong(0L);
+    private final AtomicLong rightTotalSize = new AtomicLong(0L);
+    private final AtomicLong leftHitCount = new AtomicLong(0L);
     private final AtomicLong leftRequestCount = new AtomicLong(0L);
-    private final AtomicLong rightCacheHitCount = new AtomicLong(0L);
+    private final AtomicLong rightHitCount = new AtomicLong(0L);
     private final AtomicLong rightRequestCount = new AtomicLong(0L);
 
     public DeltaJoinCache(long leftCacheMaxSize, long rightCacheMaxSize) {
@@ -84,18 +84,17 @@ public class DeltaJoinCache {
                 () ->
                         leftRequestCount.get() == 0
                                 ? 0.0
-                                : Long.valueOf(leftCacheHitCount.get()).doubleValue()
+                                : Long.valueOf(leftHitCount.get()).doubleValue()
                                         / leftRequestCount.get());
         metricGroup.<Long, Gauge<Long>>gauge(
                 LEFT_CACHE_METRIC_PREFIX + METRIC_REQUEST_COUNT, rightRequestCount::get);
         metricGroup.<Long, Gauge<Long>>gauge(
-                LEFT_CACHE_METRIC_PREFIX + METRIC_HIT_COUNT, leftCacheHitCount::get);
+                LEFT_CACHE_METRIC_PREFIX + METRIC_HIT_COUNT, leftHitCount::get);
         metricGroup.<Long, Gauge<Long>>gauge(
                 LEFT_CACHE_METRIC_PREFIX + METRIC_KEY_SIZE, leftCache::size);
 
         metricGroup.<Long, Gauge<Long>>gauge(
-                LEFT_CACHE_METRIC_PREFIX + METRIC_TOTAL_NON_EMPTY_VALUE_SIZE,
-                leftCacheTotalSize::get);
+                LEFT_CACHE_METRIC_PREFIX + METRIC_TOTAL_NON_EMPTY_VALUE_SIZE, leftTotalSize::get);
 
         // right cache metric
         metricGroup.<Double, Gauge<Double>>gauge(
@@ -103,17 +102,16 @@ public class DeltaJoinCache {
                 () ->
                         rightRequestCount.get() == 0
                                 ? 0.0
-                                : Long.valueOf(rightCacheHitCount.get()).doubleValue()
+                                : Long.valueOf(rightHitCount.get()).doubleValue()
                                         / rightRequestCount.get());
         metricGroup.<Long, Gauge<Long>>gauge(
                 RIGHT_CACHE_METRIC_PREFIX + METRIC_REQUEST_COUNT, rightRequestCount::get);
         metricGroup.<Long, Gauge<Long>>gauge(
-                RIGHT_CACHE_METRIC_PREFIX + METRIC_HIT_COUNT, rightCacheHitCount::get);
+                RIGHT_CACHE_METRIC_PREFIX + METRIC_HIT_COUNT, rightHitCount::get);
         metricGroup.<Long, Gauge<Long>>gauge(
                 RIGHT_CACHE_METRIC_PREFIX + METRIC_KEY_SIZE, rightCache::size);
         metricGroup.<Long, Gauge<Long>>gauge(
-                RIGHT_CACHE_METRIC_PREFIX + METRIC_TOTAL_NON_EMPTY_VALUE_SIZE,
-                rightCacheTotalSize::get);
+                RIGHT_CACHE_METRIC_PREFIX + METRIC_TOTAL_NON_EMPTY_VALUE_SIZE, rightTotalSize::get);
     }
 
     @Nullable
@@ -126,18 +124,18 @@ public class DeltaJoinCache {
         Preconditions.checkState(getData(key, buildRightCache) == null);
         if (buildRightCache) {
             rightCache.put(key, ukDataMap);
-            rightCacheTotalSize.addAndGet(ukDataMap.size());
+            rightTotalSize.addAndGet(ukDataMap.size());
         } else {
             leftCache.put(key, ukDataMap);
-            leftCacheTotalSize.addAndGet(ukDataMap.size());
+            leftTotalSize.addAndGet(ukDataMap.size());
         }
     }
 
     public void upsertCache(RowData key, RowData uk, Object data, boolean upsertRightCache) {
         if (upsertRightCache) {
-            upsert(rightCache, key, uk, data, rightCacheTotalSize);
+            upsert(rightCache, key, uk, data, rightTotalSize);
         } else {
-            upsert(leftCache, key, uk, data, leftCacheTotalSize);
+            upsert(leftCache, key, uk, data, leftTotalSize);
         }
     }
 
@@ -168,11 +166,11 @@ public class DeltaJoinCache {
     }
 
     public void hitLeftCache() {
-        leftCacheHitCount.incrementAndGet();
+        leftHitCount.incrementAndGet();
     }
 
     public void hitRightCache() {
-        rightCacheHitCount.incrementAndGet();
+        rightHitCount.incrementAndGet();
     }
 
     private class DeltaJoinCacheRemovalListener
@@ -192,9 +190,9 @@ public class DeltaJoinCache {
             }
 
             if (isLeftCache) {
-                leftCacheTotalSize.addAndGet(-removalNotification.getValue().size());
+                leftTotalSize.addAndGet(-removalNotification.getValue().size());
             } else {
-                rightCacheTotalSize.addAndGet(-removalNotification.getValue().size());
+                rightTotalSize.addAndGet(-removalNotification.getValue().size());
             }
         }
     }
@@ -212,18 +210,18 @@ public class DeltaJoinCache {
     }
 
     @VisibleForTesting
-    public AtomicLong getLeftCacheTotalSize() {
-        return leftCacheTotalSize;
+    public AtomicLong getLeftTotalSize() {
+        return leftTotalSize;
     }
 
     @VisibleForTesting
-    public AtomicLong getRightCacheTotalSize() {
-        return rightCacheTotalSize;
+    public AtomicLong getRightTotalSize() {
+        return rightTotalSize;
     }
 
     @VisibleForTesting
-    public AtomicLong getLeftCacheHitCount() {
-        return leftCacheHitCount;
+    public AtomicLong getLeftHitCount() {
+        return leftHitCount;
     }
 
     @VisibleForTesting
@@ -232,8 +230,8 @@ public class DeltaJoinCache {
     }
 
     @VisibleForTesting
-    public AtomicLong getRightCacheHitCount() {
-        return rightCacheHitCount;
+    public AtomicLong getRightHitCount() {
+        return rightHitCount;
     }
 
     @VisibleForTesting

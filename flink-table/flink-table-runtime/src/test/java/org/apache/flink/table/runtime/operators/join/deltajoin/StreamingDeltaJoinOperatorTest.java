@@ -66,6 +66,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -747,38 +748,67 @@ public class StreamingDeltaJoinOperatorTest {
             long expectedRightCacheRequestCount,
             long expectedRightCacheHitCount) {
         // assert left cache
-        assertThat(actualCache.getLeftCache().asMap())
-                .as("left cache data mismatch")
-                .isEqualTo(expectedLeftCacheData);
-        assertThat(actualCache.getLeftCache().size())
-                .as("left cache size mismatch")
-                .isEqualTo(expectedLeftCacheData.size());
-        assertThat(actualCache.getLeftCacheTotalSize().get())
-                .as("left cache total size mismatch")
-                .isEqualTo(expectedLeftCacheData.values().stream().mapToInt(Map::size).sum());
-        assertThat(actualCache.getLeftRequestCount().get())
-                .as("left cache request count mismatch")
-                .isEqualTo(expectedLeftCacheRequestCount);
-        assertThat(actualCache.getLeftCacheHitCount().get())
-                .as("left cache hit count mismatch")
-                .isEqualTo(expectedLeftCacheHitCount);
+        verifyCacheData(
+                actualCache,
+                expectedLeftCacheData,
+                expectedLeftCacheRequestCount,
+                expectedLeftCacheHitCount,
+                true);
 
         // assert right cache
-        assertThat(actualCache.getRightCache().asMap())
-                .as("right cache data mismatch")
-                .isEqualTo(expectedRightCacheData);
-        assertThat(actualCache.getRightCache().size())
-                .as("left cache size mismatch")
-                .isEqualTo(expectedRightCacheData.size());
-        assertThat(actualCache.getRightCacheTotalSize().get())
-                .as("left cache total size mismatch")
-                .isEqualTo(expectedRightCacheData.values().stream().mapToInt(Map::size).sum());
-        assertThat(actualCache.getRightRequestCount().get())
-                .as("left cache request count mismatch")
-                .isEqualTo(expectedRightCacheRequestCount);
-        assertThat(actualCache.getRightCacheHitCount().get())
-                .as("left cache hit count mismatch")
-                .isEqualTo(expectedRightCacheHitCount);
+        verifyCacheData(
+                actualCache,
+                expectedRightCacheData,
+                expectedRightCacheRequestCount,
+                expectedRightCacheHitCount,
+                false);
+    }
+
+    private void verifyCacheData(
+            DeltaJoinCache actualCache,
+            Map<RowData, Map<RowData, Object>> expectedCacheData,
+            long expectedCacheRequestCount,
+            long expectedCacheHitCount,
+            boolean testLeftCache) {
+        String errorPrefix = testLeftCache ? "left cache " : "right cache ";
+
+        Map<RowData, LinkedHashMap<RowData, Object>> actualCacheData =
+                testLeftCache
+                        ? actualCache.getLeftCache().asMap()
+                        : actualCache.getRightCache().asMap();
+        assertThat(actualCacheData).as(errorPrefix + "data mismatch").isEqualTo(expectedCacheData);
+
+        long actualCacheSize =
+                testLeftCache
+                        ? actualCache.getLeftCache().size()
+                        : actualCache.getRightCache().size();
+        assertThat(actualCacheSize)
+                .as(errorPrefix + "size mismatch")
+                .isEqualTo(expectedCacheData.size());
+
+        long actualTotalSize =
+                testLeftCache
+                        ? actualCache.getLeftTotalSize().get()
+                        : actualCache.getRightTotalSize().get();
+        assertThat(actualTotalSize)
+                .as(errorPrefix + "total size mismatch")
+                .isEqualTo(expectedCacheData.values().stream().mapToInt(Map::size).sum());
+
+        long actualRequestCount =
+                testLeftCache
+                        ? actualCache.getLeftRequestCount().get()
+                        : actualCache.getRightRequestCount().get();
+        assertThat(actualRequestCount)
+                .as(errorPrefix + "request count mismatch")
+                .isEqualTo(expectedCacheRequestCount);
+
+        long actualHitCount =
+                testLeftCache
+                        ? actualCache.getLeftHitCount().get()
+                        : actualCache.getRightHitCount().get();
+        assertThat(actualHitCount)
+                .as(errorPrefix + "hit count mismatch")
+                .isEqualTo(expectedCacheHitCount);
     }
 
     private void waitAllDataProcessed() throws Exception {
@@ -948,25 +978,15 @@ public class StreamingDeltaJoinOperatorTest {
         }
     }
 
-    private <T> Map<RowData, T> newHashMap(RowData key, T value) {
-        return newHashMap(Collections.singletonList(key), Collections.singletonList(value));
-    }
-
-    private <T> Map<RowData, T> newHashMap(RowData key1, T value1, RowData key2, T value2) {
-        return newHashMap(Arrays.asList(key1, key2), Arrays.asList(value1, value2));
-    }
-
-    private <T> Map<RowData, T> newHashMap(
-            RowData key1, T value1, RowData key2, T value2, RowData key3, T value3) {
-        return newHashMap(Arrays.asList(key1, key2, key3), Arrays.asList(value1, value2, value3));
-    }
-
-    private <T> Map<RowData, T> newHashMap(List<RowData> keys, List<T> values) {
-        Preconditions.checkArgument(keys.size() == values.size());
+    private <T> Map<RowData, T> newHashMap(Object... data) {
+        Preconditions.checkArgument(data.length % 2 == 0);
         Map<RowData, T> map = new HashMap<>();
-        for (int i = 0; i < keys.size(); i++) {
-            Preconditions.checkArgument(!map.containsKey(keys.get(i)), "Duplicate key");
-            map.put(keys.get(i), values.get(i));
+        for (int i = 0; i < data.length; i = i + 2) {
+            Preconditions.checkArgument(
+                    data[i] instanceof RowData, "The key of the map must be RowData");
+            RowData key = (RowData) data[i];
+            Preconditions.checkArgument(!map.containsKey(key), "Duplicate key");
+            map.put(key, (T) data[i + 1]);
         }
         return map;
     }
