@@ -130,9 +130,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         CreateMaterializedTableOperation op = (CreateMaterializedTableOperation) operation;
         ResolvedCatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
 
-        Map<String, String> options = new HashMap<>();
-        options.put("connector", "filesystem");
-        options.put("format", "json");
+        Map<String, String> options = Map.of("connector", "filesystem", "format", "json");
         CatalogMaterializedTable expected =
                 CatalogMaterializedTable.newBuilder()
                         .schema(
@@ -185,9 +183,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         ResolvedCatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
         assertThat(materializedTable).isInstanceOf(ResolvedCatalogMaterializedTable.class);
 
-        Map<String, String> options = new HashMap<>();
-        options.put("connector", "filesystem");
-        options.put("format", "json");
+        Map<String, String> options = Map.of("connector", "filesystem", "format", "json");
 
         CatalogMaterializedTable expected =
                 CatalogMaterializedTable.newBuilder()
@@ -241,9 +237,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         ResolvedCatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
         assertThat(materializedTable).isInstanceOf(ResolvedCatalogMaterializedTable.class);
 
-        Map<String, String> options = new HashMap<>();
-        options.put("connector", "filesystem");
-        options.put("format", "json");
+        Map<String, String> options = Map.of("connector", "filesystem", "format", "json");
 
         CatalogMaterializedTable expected =
                 CatalogMaterializedTable.newBuilder()

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.ValidationException;
 
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 
 /**
@@ -116,24 +117,17 @@ public class IntervalFreshness {
      * Prefers larger units when possible (e.g., 60 seconds → 1 minute).
      */
     public static IntervalFreshness fromDuration(Duration duration) {
-        long totalSeconds = duration.getSeconds();
-
-        long days = duration.toDays();
-        if (days * 24 * 60 * 60 == totalSeconds) {
-            return IntervalFreshness.ofDay(String.valueOf(days));
+        if (duration.equals(duration.truncatedTo(ChronoUnit.DAYS))) {
+            return IntervalFreshness.ofDay(String.valueOf(duration.toDays()));
+        }
+        if (duration.equals(duration.truncatedTo(ChronoUnit.HOURS))) {
+            return IntervalFreshness.ofHour(String.valueOf(duration.toHours()));
+        }
+        if (duration.equals(duration.truncatedTo(ChronoUnit.MINUTES))) {
+            return IntervalFreshness.ofMinute(String.valueOf(duration.toMinutes()));
         }
 
-        long hours = duration.toHours();
-        if (hours * 60 * 60 == totalSeconds) {
-            return IntervalFreshness.ofHour(String.valueOf(hours));
-        }
-
-        long minutes = duration.toMinutes();
-        if (minutes * 60 == totalSeconds) {
-            return IntervalFreshness.ofMinute(String.valueOf(minutes));
-        }
-
-        return IntervalFreshness.ofSecond(String.valueOf(totalSeconds));
+        return IntervalFreshness.ofSecond(String.valueOf(duration.getSeconds()));
     }
 
     @Override
