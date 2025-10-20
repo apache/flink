@@ -37,6 +37,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThatList;
 
@@ -151,6 +152,19 @@ public class AsyncVectorSearchITCase extends StreamingWithStateTestBase {
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 TimeoutException.class, "Async function call has timed out."));
+    }
+
+    @TestTemplate
+    void testConstantValue() {
+        List<Row> actual =
+                CollectionUtil.iteratorToList(
+                        tEnv().executeSql(
+                                        "SELECT * FROM TABLE(VECTOR_SEARCH(TABLE vector, DESCRIPTOR(`vector`), ARRAY[5, 12, 13], 2))")
+                                .collect());
+        assertThat(actual)
+                .containsExactlyInAnyOrder(
+                        Row.of(1L, new Float[] {5.0f, 12.0f, 13.0f}, 1.0),
+                        Row.of(3L, new Float[] {8f, 15f, 17f}, 0.9977375565610862));
     }
 
     @TestTemplate

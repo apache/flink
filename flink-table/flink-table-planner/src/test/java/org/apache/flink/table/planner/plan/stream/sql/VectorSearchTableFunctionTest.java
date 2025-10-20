@@ -115,24 +115,14 @@ public class VectorSearchTableFunctionTest extends TableTestBase {
     void testLiteralValue() {
         String sql =
                 "SELECT * FROM LATERAL TABLE(VECTOR_SEARCH(TABLE VectorTable, DESCRIPTOR(`g`), ARRAY[1.5, 2.0], 10))";
-        assertThatThrownBy(() -> util.verifyRelPlan(sql))
-                .satisfies(
-                        FlinkAssertions.anyCauseMatches(
-                                TableException.class,
-                                "FlinkLogicalTableFunctionScan(invocation=[VECTOR_SEARCH(TABLE(#0), DESCRIPTOR(_UTF-16LE'g'), ARRAY(1.5:DECIMAL(2, 1), 2.0:DECIMAL(2, 1)), 10)], rowType=[RecordType(INTEGER e, BIGINT f, FLOAT ARRAY g, DOUBLE score)])\n"
-                                        + "+- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, VectorTable]], fields=[e, f, g])"));
+        util.verifyRelPlan(sql);
     }
 
     @Test
     void testLiteralValueWithoutLateralKeyword() {
         String sql =
                 "SELECT * FROM TABLE(VECTOR_SEARCH(TABLE VectorTable, DESCRIPTOR(`g`), ARRAY[1.5, 2.0], 10))";
-        assertThatThrownBy(() -> util.verifyRelPlan(sql))
-                .satisfies(
-                        FlinkAssertions.anyCauseMatches(
-                                TableException.class,
-                                "FlinkLogicalTableFunctionScan(invocation=[VECTOR_SEARCH(TABLE(#0), DESCRIPTOR(_UTF-16LE'g'), ARRAY(1.5:DECIMAL(2, 1), 2.0:DECIMAL(2, 1)), 10)], rowType=[RecordType(INTEGER e, BIGINT f, FLOAT ARRAY g, DOUBLE score)])\n"
-                                        + "+- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, VectorTable]], fields=[e, f, g])"));
+        util.verifyRelPlan(sql);
     }
 
     @Test

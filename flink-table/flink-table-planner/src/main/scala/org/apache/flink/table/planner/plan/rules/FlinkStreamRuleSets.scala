@@ -128,6 +128,8 @@ object FlinkStreamRuleSets {
           // unnest rule
           LogicalUnnestRule.INSTANCE,
           UncollectToTableFunctionScanRule.INSTANCE,
+          // vector search rule.
+          ConstantVectorSearchCallToCorrelateRule.INSTANCE,
           // rewrite constant table function scan to correlate
           JoinTableFunctionScanToCorrelateRule.INSTANCE,
           // Wrap arguments for JSON aggregate functions
