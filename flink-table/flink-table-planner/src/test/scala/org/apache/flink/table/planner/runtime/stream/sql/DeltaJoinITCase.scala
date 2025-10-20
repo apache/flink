@@ -137,7 +137,7 @@ class DeltaJoinITCase(enableCache: Boolean) extends StreamingTestBase {
   }
 
   @TestTemplate
-  def testWithSameJoinKeyColValues(): Unit = {
+  def testSameJoinKeyColValuesWhileJoinKeyEqualsIndex(): Unit = {
     val data1 = List(
       changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
       changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2022, 2, 2, 2, 2, 2)),
@@ -163,6 +163,40 @@ class DeltaJoinITCase(enableCache: Boolean) extends StreamingTestBase {
       data1,
       data2,
       "a1 = b1",
+      expected,
+      if (enableCache) 4 else 6)
+  }
+
+  @TestTemplate
+  def testSameJoinKeyColValuesWhileJoinKeyContainsIndex(): Unit = {
+    val data1 = List(
+      changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
+      changelogRow("+I", Double.box(1.0), Int.box(2), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
+      // mismatch
+      changelogRow("+I", Double.box(3.0), Int.box(3), LocalDateTime.of(2023, 3, 3, 3, 3, 3))
+    )
+
+    val data2 = List(
+      changelogRow("+I", Int.box(1), Double.box(1.0), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
+      changelogRow("+I", Int.box(2), Double.box(1.0), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
+      // mismatch
+      changelogRow("+I", Int.box(99), Double.box(99.0), LocalDateTime.of(2099, 2, 2, 2, 2, 2))
+    )
+
+    // TestValuesRuntimeFunctions#KeyedUpsertingSinkFunction will change the RowKind from
+    // "+U" to "+I"
+    val expected = List(
+      "+I[1.0, 1, 2021-01-01T01:01:01, 1, 1.0, 2021-01-01T01:01:01]",
+      "+I[1.0, 1, 2021-01-01T01:01:01, 2, 1.0, 2021-01-01T01:01:01]",
+      "+I[1.0, 2, 2021-01-01T01:01:01, 1, 1.0, 2021-01-01T01:01:01]",
+      "+I[1.0, 2, 2021-01-01T01:01:01, 2, 1.0, 2021-01-01T01:01:01]"
+    )
+    testUpsertResult(
+      List("a1"),
+      List("b1"),
+      data1,
+      data2,
+      "a1 = b1 and a2 = b2",
       expected,
       if (enableCache) 4 else 6)
   }
