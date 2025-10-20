@@ -392,7 +392,7 @@ class MaterializedTableStatementParserTest {
                         + "  'group.id' = 'latest', \n"
                         + "  'kafka.topic' = 'log.test'\n"
                         + ")\n"
-                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
+                        + "FRESHNESS = INTERVAL '3' MINUTES\n"
                         + "AS SELECT a, b, h, t m FROM source",
                 "CREATE MATERIALIZED TABLE `TBL1`\n"
                         + "(\n"
@@ -437,7 +437,7 @@ class MaterializedTableStatementParserTest {
         return new AbstractMap.SimpleEntry<>(
                 "CREATE MATERIALIZED TABLE tbl1\n"
                         + "COMMENT 'table comment'\n"
-                        + "FRESHNESS = INTERVAL '3' DAY\n"
+                        + "FRESHNESS = INTERVAL '3' DAYS\n"
                         + "REFRESH_MODE = FULL\n"
                         + "AS SELECT a, b, h, t m FROM source",
                 "CREATE MATERIALIZED TABLE `TBL1`\n"
