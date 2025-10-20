@@ -19,7 +19,6 @@
 package org.apache.flink.client.program;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.JobClient;
@@ -28,55 +27,56 @@ import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.minicluster.MiniClusterJobClient;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
-import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
+import static org.apache.flink.client.program.PerJobMiniClusterFactory.shutDownCluster;
+
 /**
- * Starts a {@link MiniCluster} for every submitted job. This class guarantees to tear down the
- * MiniCluster in case of normal or exceptional job completion.
+ * Starts a {@link MiniCluster} for all submitted job. This class only tear down the MiniCluster
+ * when jvm shut down.
  */
-public final class PerJobMiniClusterFactory implements LocalMiniClusterFactory {
+public final class SessionMiniClusterFactory implements LocalMiniClusterFactory {
 
-    private static final Logger LOG = LoggerFactory.getLogger(PerJobMiniClusterFactory.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SessionMiniClusterFactory.class);
 
-    private final Configuration configuration;
-    private final Function<? super MiniClusterConfiguration, ? extends MiniCluster>
-            miniClusterFactory;
+    public static final MiniCluster MINI_CLUSTER;
 
-    public static PerJobMiniClusterFactory create() {
-        return new PerJobMiniClusterFactory(new Configuration(), MiniCluster::new);
-    }
-
-    public static PerJobMiniClusterFactory createWithFactory(
-            Configuration configuration,
-            Function<? super MiniClusterConfiguration, ? extends MiniCluster> miniClusterFactory) {
-        return new PerJobMiniClusterFactory(configuration, miniClusterFactory);
-    }
-
-    private PerJobMiniClusterFactory(
-            Configuration configuration,
-            Function<? super MiniClusterConfiguration, ? extends MiniCluster> miniClusterFactory) {
-        this.configuration = configuration;
-        this.miniClusterFactory = miniClusterFactory;
+    static {
+        MiniClusterConfiguration miniClusterConfig = getMiniClusterConfig();
+        MINI_CLUSTER = new MiniCluster(miniClusterConfig);
+        LOG.info("In SessionMiniClusterFactory, MINI_CLUSTER is : " + MINI_CLUSTER);
+        try {
+            MINI_CLUSTER.start();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        Runtime.getRuntime()
+                .addShutdownHook(
+                        new Thread(
+                                () -> {
+                                    System.out.println(
+                                            "JVM is shutting down. Running cleanup hook...");
+                                    try {
+                                        shutDownCluster(MINI_CLUSTER);
+                                    } catch (Exception e) {
+                                        System.err.println(
+                                                "Error closing resource during shutdown: "
+                                                        + e.getMessage());
+                                    }
+                                }));
     }
 
     /** Starts a {@link MiniCluster} and submits a job. */
     @Override
     public CompletableFuture<JobClient> submitJob(
             ExecutionPlan executionPlan, ClassLoader userCodeClassloader) throws Exception {
-        MiniClusterConfiguration miniClusterConfig =
-                getMiniClusterConfig(executionPlan.getMaximumParallelism());
-        MiniCluster miniCluster = miniClusterFactory.apply(miniClusterConfig);
-        miniCluster.start();
-
-        return miniCluster
+        return MINI_CLUSTER
                 .submitJob(executionPlan)
                 .thenApplyAsync(
                         FunctionUtils.uncheckedFunction(
@@ -84,13 +84,13 @@ public final class PerJobMiniClusterFactory implements LocalMiniClusterFactory {
                                     org.apache.flink.client.ClientUtils
                                             .waitUntilJobInitializationFinished(
                                                     () ->
-                                                            miniCluster
+                                                            MINI_CLUSTER
                                                                     .getJobStatus(
                                                                             submissionResult
                                                                                     .getJobID())
                                                                     .get(),
                                                     () ->
-                                                            miniCluster
+                                                            MINI_CLUSTER
                                                                     .requestJobResult(
                                                                             submissionResult
                                                                                     .getJobID())
@@ -102,23 +102,23 @@ public final class PerJobMiniClusterFactory implements LocalMiniClusterFactory {
                         result ->
                                 new MiniClusterJobClient(
                                         result.getJobID(),
-                                        miniCluster,
+                                        MINI_CLUSTER,
                                         userCodeClassloader,
                                         MiniClusterJobClient.JobFinalizationBehavior
-                                                .SHUTDOWN_CLUSTER))
+                                                .NOTHING))
                 .whenComplete(
                         (ignored, throwable) -> {
                             if (throwable != null) {
-                                // We failed to create the JobClient and must shutdown to ensure
-                                // cleanup.
-                                shutDownCluster(miniCluster);
+                                LOG.error(
+                                        "Failed to create the JobClient."
+                                                + " But we retain the mini cluster for subsequent jobs.");
                             }
                         })
                 .thenApply(Function.identity());
     }
 
-    private MiniClusterConfiguration getMiniClusterConfig(int maximumParallelism) {
-        Configuration configuration = new Configuration(this.configuration);
+    private static MiniClusterConfiguration getMiniClusterConfig() {
+        Configuration configuration = new Configuration(new Configuration());
 
         if (!configuration.contains(RestOptions.BIND_PORT)) {
             configuration.set(RestOptions.BIND_PORT, "0");
@@ -126,25 +126,8 @@ public final class PerJobMiniClusterFactory implements LocalMiniClusterFactory {
 
         int numTaskManagers = configuration.get(TaskManagerOptions.MINI_CLUSTER_NUM_TASK_MANAGERS);
 
-        Map<String, String> overwriteParallelisms =
-                configuration.get(PipelineOptions.PARALLELISM_OVERRIDES);
-        if (overwriteParallelisms != null) {
-            for (String overrideParallelism : overwriteParallelisms.values()) {
-                maximumParallelism =
-                        Math.max(maximumParallelism, Integer.parseInt(overrideParallelism));
-            }
-        }
-
-        int finalMaximumParallelism = maximumParallelism;
         int numSlotsPerTaskManager =
-                configuration
-                        .getOptional(TaskManagerOptions.NUM_TASK_SLOTS)
-                        .orElseGet(
-                                () ->
-                                        finalMaximumParallelism > 0
-                                                ? MathUtils.divideRoundUp(
-                                                        finalMaximumParallelism, numTaskManagers)
-                                                : TaskManagerOptions.NUM_TASK_SLOTS.defaultValue());
+                configuration.get(TaskManagerOptions.MINI_CLUSTER_NUMBER_SLOTS_PER_TASK_MANAGER);
 
         return new MiniClusterConfiguration.Builder()
                 .setConfiguration(configuration)
@@ -152,16 +135,5 @@ public final class PerJobMiniClusterFactory implements LocalMiniClusterFactory {
                 .setRpcServiceSharing(RpcServiceSharing.SHARED)
                 .setNumSlotsPerTaskManager(numSlotsPerTaskManager)
                 .build();
-    }
-
-    public static void shutDownCluster(MiniCluster miniCluster) {
-        miniCluster
-                .closeAsync()
-                .whenComplete(
-                        (ignored, throwable) -> {
-                            if (throwable != null) {
-                                LOG.warn("Shutdown of MiniCluster failed.", throwable);
-                            }
-                        });
     }
 }
