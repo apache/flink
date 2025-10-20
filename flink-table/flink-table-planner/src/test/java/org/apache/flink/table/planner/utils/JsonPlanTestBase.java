@@ -26,6 +26,7 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.config.ExecutionConfigOptions.SinkUpsertMaterializeStrategy;
 import org.apache.flink.table.api.internal.CompiledPlanUtils;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.test.junit5.MiniClusterExtension;
@@ -53,6 +54,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -74,7 +76,14 @@ public abstract class JsonPlanTestBase {
 
     @BeforeEach
     protected void setup() throws Exception {
-        tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
+        // overwrite any non-default strategy (potentially set by test randomization)
+        // to avoid test failures caused by incompatible compiled plans
+        settings.getConfiguration()
+                .set(
+                        TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY,
+                        SinkUpsertMaterializeStrategy.LEGACY);
+        tableEnv = TableEnvironment.create(settings);
     }
 
     @AfterEach

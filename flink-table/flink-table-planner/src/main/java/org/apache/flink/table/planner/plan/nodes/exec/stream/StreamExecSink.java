@@ -65,6 +65,9 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
@@ -102,6 +105,7 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecSink extends CommonExecSink implements StreamExecNode<Object> {
+    private static final Logger LOG = LoggerFactory.getLogger(StreamExecSink.class);
 
     public static final String FIELD_NAME_INPUT_CHANGELOG_MODE = "inputChangelogMode";
     public static final String FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE = "requireUpsertMaterialize";
@@ -367,6 +371,11 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             TimeDomain ttlTimeDomain,
             StateTtlConfig ttlConfig,
             ReadableConfig config) {
+        if (ttlConfig.isEnabled()) {
+            // https://issues.apache.org/jira/browse/FLINK-38463
+            LOG.warn("TTL is not supported and will be disabled: {}", ttlConfig);
+            ttlConfig = StateTtlConfig.DISABLED;
+        }
         switch (strategy) {
             case VALUE:
                 return SequencedMultiSetStateConfig.forValue(ttlTimeDomain, ttlConfig);

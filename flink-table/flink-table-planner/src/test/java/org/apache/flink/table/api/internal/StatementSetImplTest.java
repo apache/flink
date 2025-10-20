@@ -21,11 +21,13 @@ package org.apache.flink.table.api.internal;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.config.ExecutionConfigOptions.SinkUpsertMaterializeStrategy;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link StatementSetImpl}. */
@@ -35,9 +37,13 @@ class StatementSetImplTest {
 
     @BeforeEach
     void setup() {
-        tableEnv =
-                (TableEnvironmentInternal)
-                        TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
+        // prevent test randomization from changing the actual plan
+        settings.getConfiguration()
+                .set(
+                        TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY,
+                        SinkUpsertMaterializeStrategy.LEGACY);
+        tableEnv = (TableEnvironmentInternal) TableEnvironment.create(settings);
     }
 
     @Test
