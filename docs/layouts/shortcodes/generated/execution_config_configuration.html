@@ -118,6 +118,33 @@ ORDERED ensures that the operator emits the result in the same order as the data
             <td>The async timeout for the asynchronous operation to complete, including any retries which may occur.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.async-vector-search.async</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to run an async search function or not. Default to false.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-vector-search.max-concurrent-operations</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">10</td>
+            <td>Integer</td>
+            <td>The max number of async i/o operation that the async vector search can trigger.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-vector-search.output-mode</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">ORDERED</td>
+            <td><p>Enum</p></td>
+            <td>Output mode for async vector search, which describes whether or not the output should attempt to be ordered or not.
+The supported options are:
+ALLOW_UNORDERED means the operator emits the result when execution finishes. The planner will attempt to use ALLOW_UNORDERED when it doesn't affect the correctness of the results.
+ORDERED means that the operator emits the result in the same order as the data enters it. This is the default.<br /><br />Possible values:<ul><li>"ORDERED"</li><li>"ALLOW_UNORDERED"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-vector-search.timeout</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">3 min</td>
+            <td>Duration</td>
+            <td>The total time which can pass before the invocation (including retries) is considered timed out and task execution is failed.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.deduplicate.insert-update-after-sensitive-enabled</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
