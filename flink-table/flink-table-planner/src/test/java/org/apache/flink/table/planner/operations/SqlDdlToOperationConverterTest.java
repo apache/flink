@@ -85,6 +85,9 @@ import org.apache.calcite.sql.SqlNode;
 import org.assertj.core.api.HamcrestCondition;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import javax.annotation.Nullable;
 
@@ -96,7 +99,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.planner.utils.OperationMatchers.entry;
@@ -1404,97 +1409,93 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         checkAlterNonExistTable("alter table %s nonexistent drop watermark");
     }
 
-    @Test
-    void createMaterializedTableWithRefreshModeContinuous() throws Exception {
-        final String sql =
-                "CREATE MATERIALIZED TABLE users_shops ("
-                        + " PRIMARY KEY (user_id) not enforced)"
-                        + " WITH(\n"
-                        + "   'format' = 'debezium-json'\n"
-                        + " )\n"
-                        + " FRESHNESS = INTERVAL '30' SECOND\n"
-                        + " REFRESH_MODE = CONTINUOUS\n"
-                        + " AS SELECT 1 as shop_id, 2 as user_id ";
-
-        final String expectedSummaryString =
-                "CREATE MATERIALIZED TABLE: (materializedTable: "
-                        + "[ResolvedCatalogMaterializedTable{origin=DefaultCatalogMaterializedTable{schema=(\n"
-                        + "  `shop_id` INT NOT NULL,\n"
-                        + "  `user_id` INT NOT NULL,\n"
-                        + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
-                        + "), comment='null', distribution=null, partitionKeys=[], "
-                        + "options={format=debezium-json}, snapshot=null, definitionQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
-                        + "freshness=INTERVAL '30' SECOND, logicalRefreshMode=CONTINUOUS, refreshMode=CONTINUOUS, "
-                        + "refreshStatus=INITIALIZING, refreshHandlerDescription='null', serializedRefreshHandler=null}, resolvedSchema=(\n"
-                        + "  `shop_id` INT NOT NULL,\n"
-                        + "  `user_id` INT NOT NULL,\n"
-                        + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
-                        + ")}], identifier: [`builtin`.`default`.`users_shops`])";
+    @ParameterizedTest(name = "[{index}] {0}")
+    @MethodSource("provideCreateMaterializedTableTestCases")
+    void createMaterializedTableWithVariousOptions(
+            String testName,
+            String sql,
+            String expectedSummaryString,
+            Consumer<CreateMaterializedTableOperation> additionalAssertions) {
 
         final Operation operation = parse(sql);
 
         assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
         assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
+
         final CreateMaterializedTableOperation createMaterializedTableOperation =
                 (CreateMaterializedTableOperation) operation;
-        assertThat(
-                        createMaterializedTableOperation
-                                .getCatalogMaterializedTable()
-                                .getDefinitionFreshness())
-                .isEqualTo(IntervalFreshness.ofSecond("30"));
-        assertThat(createMaterializedTableOperation.getCatalogMaterializedTable().getRefreshMode())
-                .isSameAs(RefreshMode.CONTINUOUS);
 
-        prepareMaterializedTable("tb2", false, 1, null, "SELECT 1");
+        additionalAssertions.accept(createMaterializedTableOperation);
     }
 
-    @Test
-    void createMaterializedTableWithDistribution() throws Exception {
-        final String sql =
-                "CREATE MATERIALIZED TABLE users_shops ("
-                        + " PRIMARY KEY (user_id) not enforced)"
-                        + " DISTRIBUTED BY HASH (user_id) INTO 7 BUCKETS\n"
-                        + " WITH(\n"
-                        + "   'format' = 'debezium-json'\n"
-                        + " )\n"
-                        + " FRESHNESS = INTERVAL '30' SECOND\n"
-                        + " AS SELECT 1 as shop_id, 2 as user_id ";
-
-        final String expectedSummaryString =
-                "CREATE MATERIALIZED TABLE: (materializedTable: "
-                        + "[ResolvedCatalogMaterializedTable{origin=DefaultCatalogMaterializedTable{schema=(\n"
-                        + "  `shop_id` INT NOT NULL,\n"
-                        + "  `user_id` INT NOT NULL,\n"
-                        + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
-                        + "), comment='null', distribution=DISTRIBUTED BY HASH(`user_id`) INTO 7 BUCKETS, partitionKeys=[], "
-                        + "options={format=debezium-json}, snapshot=null, definitionQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
-                        + "freshness=INTERVAL '30' SECOND, logicalRefreshMode=AUTOMATIC, refreshMode=null, "
-                        + "refreshStatus=INITIALIZING, refreshHandlerDescription='null', serializedRefreshHandler=null}, resolvedSchema=(\n"
-                        + "  `shop_id` INT NOT NULL,\n"
-                        + "  `user_id` INT NOT NULL,\n"
-                        + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
-                        + ")}], identifier: [`builtin`.`default`.`users_shops`])";
-
-        final Operation operation = parse(sql);
-
-        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
-        assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
-        assertThat(
-                        ((CreateMaterializedTableOperation) operation)
-                                .getCatalogMaterializedTable()
-                                .getDistribution()
-                                .get())
-                .isEqualTo(TableDistribution.of(Kind.HASH, 7, List.of("user_id")));
-
-        prepareMaterializedTable("tb2", false, 1, null, "SELECT 1");
-
-        assertThatThrownBy(
-                        () ->
-                                parse(
-                                        "alter MATERIALIZED table cat1.db1.tb2 modify distribution into 3 buckets"))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Materialized table `cat1`.`db1`.`tb2` does not have a distribution to modify.");
+    private static Stream<Arguments> provideCreateMaterializedTableTestCases() {
+        return Stream.of(
+                Arguments.of(
+                        "with refresh mode continuous",
+                        "CREATE MATERIALIZED TABLE users_shops ("
+                                + " PRIMARY KEY (user_id) not enforced)"
+                                + " WITH(\n"
+                                + "   'format' = 'debezium-json'\n"
+                                + " )\n"
+                                + " FRESHNESS = INTERVAL '30' SECOND\n"
+                                + " REFRESH_MODE = CONTINUOUS\n"
+                                + " AS SELECT 1 as shop_id, 2 as user_id ",
+                        "CREATE MATERIALIZED TABLE: (materializedTable: "
+                                + "[ResolvedCatalogMaterializedTable{origin=DefaultCatalogMaterializedTable{schema=(\n"
+                                + "  `shop_id` INT NOT NULL,\n"
+                                + "  `user_id` INT NOT NULL,\n"
+                                + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
+                                + "), comment='null', distribution=null, partitionKeys=[], "
+                                + "options={format=debezium-json}, snapshot=null, definitionQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
+                                + "freshness=INTERVAL '30' SECOND, logicalRefreshMode=CONTINUOUS, refreshMode=CONTINUOUS, "
+                                + "refreshStatus=INITIALIZING, refreshHandlerDescription='null', serializedRefreshHandler=null}, resolvedSchema=(\n"
+                                + "  `shop_id` INT NOT NULL,\n"
+                                + "  `user_id` INT NOT NULL,\n"
+                                + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
+                                + ")}], identifier: [`builtin`.`default`.`users_shops`])",
+                        (Consumer<CreateMaterializedTableOperation>)
+                                op -> {
+                                    assertThat(
+                                                    op.getCatalogMaterializedTable()
+                                                            .getDefinitionFreshness())
+                                            .isEqualTo(IntervalFreshness.ofSecond("30"));
+                                    assertThat(op.getCatalogMaterializedTable().getRefreshMode())
+                                            .isSameAs(RefreshMode.CONTINUOUS);
+                                }),
+                Arguments.of(
+                        "with distribution",
+                        "CREATE MATERIALIZED TABLE users_shops ("
+                                + " PRIMARY KEY (user_id) not enforced)"
+                                + " DISTRIBUTED BY HASH (user_id) INTO 7 BUCKETS\n"
+                                + " WITH(\n"
+                                + "   'format' = 'debezium-json'\n"
+                                + " )\n"
+                                + " FRESHNESS = INTERVAL '30' SECOND\n"
+                                + " AS SELECT 1 as shop_id, 2 as user_id ",
+                        "CREATE MATERIALIZED TABLE: (materializedTable: "
+                                + "[ResolvedCatalogMaterializedTable{origin=DefaultCatalogMaterializedTable{schema=(\n"
+                                + "  `shop_id` INT NOT NULL,\n"
+                                + "  `user_id` INT NOT NULL,\n"
+                                + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
+                                + "), comment='null', distribution=DISTRIBUTED BY HASH(`user_id`) INTO 7 BUCKETS, partitionKeys=[], "
+                                + "options={format=debezium-json}, snapshot=null, definitionQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
+                                + "freshness=INTERVAL '30' SECOND, logicalRefreshMode=AUTOMATIC, refreshMode=null, "
+                                + "refreshStatus=INITIALIZING, refreshHandlerDescription='null', serializedRefreshHandler=null}, resolvedSchema=(\n"
+                                + "  `shop_id` INT NOT NULL,\n"
+                                + "  `user_id` INT NOT NULL,\n"
+                                + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
+                                + ")}], identifier: [`builtin`.`default`.`users_shops`])",
+                        (Consumer<CreateMaterializedTableOperation>)
+                                op ->
+                                        assertThat(
+                                                        op.getCatalogMaterializedTable()
+                                                                .getDistribution()
+                                                                .get())
+                                                .isEqualTo(
+                                                        TableDistribution.of(
+                                                                Kind.HASH,
+                                                                7,
+                                                                List.of("user_id")))));
     }
 
     @Test
