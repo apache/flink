@@ -29,12 +29,13 @@ import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
  * non-null values for both properties.
  */
 @Experimental
-public class EnrichmentResult {
+public class MaterializedTableEnrichmentResult {
 
     private final IntervalFreshness freshness;
     private final RefreshMode refreshMode;
 
-    public EnrichmentResult(final IntervalFreshness freshness, final RefreshMode refreshMode) {
+    public MaterializedTableEnrichmentResult(
+            final IntervalFreshness freshness, final RefreshMode refreshMode) {
         this.freshness = freshness;
         this.refreshMode = refreshMode;
     }

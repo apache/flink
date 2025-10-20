@@ -109,12 +109,12 @@ import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.P
 import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.SCHEDULE_TIME_DATE_FORMATTER_DEFAULT;
 import static org.apache.flink.table.api.internal.TableResultInternal.TABLE_RESULT_OK;
 import static org.apache.flink.table.catalog.CatalogBaseTable.TableKind.MATERIALIZED_TABLE;
+import static org.apache.flink.table.catalog.IntervalFreshness.convertFreshnessToCron;
 import static org.apache.flink.table.factories.WorkflowSchedulerFactoryUtil.WORKFLOW_SCHEDULER_PREFIX;
 import static org.apache.flink.table.gateway.api.endpoint.SqlGatewayEndpointFactoryUtils.getEndpointConfig;
 import static org.apache.flink.table.gateway.service.utils.Constants.CLUSTER_INFO;
 import static org.apache.flink.table.gateway.service.utils.Constants.JOB_ID;
 import static org.apache.flink.table.utils.DateTimeUtils.formatTimestampStringWithOffset;
-import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToCron;
 
 /** Manager is responsible for execute the {@link MaterializedTableOperation}. */
 @Internal

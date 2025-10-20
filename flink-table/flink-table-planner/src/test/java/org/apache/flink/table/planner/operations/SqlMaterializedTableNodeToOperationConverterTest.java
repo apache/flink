@@ -157,7 +157,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(resolvedFreshness).isEqualTo(IntervalFreshness.ofSecond("30"));
 
         final RefreshMode resolvedRefreshMode = materializedTable.getRefreshMode();
-        assertThat(resolvedRefreshMode).isEqualTo(RefreshMode.FULL);
+        assertThat(resolvedRefreshMode).isSameAs(RefreshMode.FULL);
 
         assertThat(materializedTable.getOrigin()).isEqualTo(expected);
     }
@@ -199,7 +199,6 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                         .options(options)
                         .partitionKeys(Arrays.asList("a", "d"))
                         .logicalRefreshMode(LogicalRefreshMode.FULL)
-                        .freshness(null)
                         .refreshMode(RefreshMode.FULL)
                         .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
                         .definitionQuery(
@@ -212,7 +211,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(resolvedFreshness).isEqualTo(IntervalFreshness.ofHour("1"));
 
         final RefreshMode resolvedRefreshMode = materializedTable.getRefreshMode();
-        assertThat(resolvedRefreshMode).isEqualTo(RefreshMode.FULL);
+        assertThat(resolvedRefreshMode).isSameAs(RefreshMode.FULL);
 
         assertThat(materializedTable.getOrigin()).isEqualTo(expected);
     }
@@ -253,8 +252,6 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                         .options(options)
                         .partitionKeys(Arrays.asList("a", "d"))
                         .logicalRefreshMode(LogicalRefreshMode.AUTOMATIC)
-                        .freshness(null)
-                        .refreshMode(null)
                         .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
                         .definitionQuery(
                                 "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"

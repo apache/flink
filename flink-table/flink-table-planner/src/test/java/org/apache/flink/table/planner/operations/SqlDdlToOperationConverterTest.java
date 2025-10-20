@@ -1405,6 +1405,50 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
     }
 
     @Test
+    void createMaterializedTableWithRefreshModeContinuous() throws Exception {
+        final String sql =
+                "CREATE MATERIALIZED TABLE users_shops ("
+                        + " PRIMARY KEY (user_id) not enforced)"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " REFRESH_MODE = CONTINUOUS\n"
+                        + " AS SELECT 1 as shop_id, 2 as user_id ";
+
+        final String expectedSummaryString =
+                "CREATE MATERIALIZED TABLE: (materializedTable: "
+                        + "[ResolvedCatalogMaterializedTable{origin=DefaultCatalogMaterializedTable{schema=(\n"
+                        + "  `shop_id` INT NOT NULL,\n"
+                        + "  `user_id` INT NOT NULL,\n"
+                        + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
+                        + "), comment='null', distribution=null, partitionKeys=[], "
+                        + "options={format=debezium-json}, snapshot=null, definitionQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
+                        + "freshness=INTERVAL '30' SECOND, logicalRefreshMode=CONTINUOUS, refreshMode=CONTINUOUS, "
+                        + "refreshStatus=INITIALIZING, refreshHandlerDescription='null', serializedRefreshHandler=null}, resolvedSchema=(\n"
+                        + "  `shop_id` INT NOT NULL,\n"
+                        + "  `user_id` INT NOT NULL,\n"
+                        + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
+                        + ")}], identifier: [`builtin`.`default`.`users_shops`])";
+
+        final Operation operation = parse(sql);
+
+        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
+        final CreateMaterializedTableOperation createMaterializedTableOperation =
+                (CreateMaterializedTableOperation) operation;
+        assertThat(
+                        createMaterializedTableOperation
+                                .getCatalogMaterializedTable()
+                                .getDefinitionFreshness())
+                .isEqualTo(IntervalFreshness.ofSecond("30"));
+        assertThat(createMaterializedTableOperation.getCatalogMaterializedTable().getRefreshMode())
+                .isSameAs(RefreshMode.CONTINUOUS);
+
+        prepareMaterializedTable("tb2", false, 1, null, "SELECT 1");
+    }
+
+    @Test
     void createMaterializedTableWithDistribution() throws Exception {
         final String sql =
                 "CREATE MATERIALIZED TABLE users_shops ("

@@ -21,7 +21,6 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
-import org.apache.flink.table.utils.IntervalFreshnessUtils;
 
 import java.time.Duration;
 
@@ -60,7 +59,7 @@ public class DefaultMaterializedTableEnricher implements MaterializedTableEnrich
     }
 
     @Override
-    public EnrichmentResult enrich(final CatalogMaterializedTable table) {
+    public MaterializedTableEnrichmentResult enrich(final CatalogMaterializedTable table) {
         // Determine the final freshness value
         final IntervalFreshness finalFreshness = deriveFreshness(table);
 
@@ -69,7 +68,7 @@ public class DefaultMaterializedTableEnricher implements MaterializedTableEnrich
                 deriveRefreshMode(
                         table.getLogicalRefreshMode(), finalFreshness, freshnessThreshold);
 
-        return new EnrichmentResult(finalFreshness, finalRefreshMode);
+        return new MaterializedTableEnrichmentResult(finalFreshness, finalRefreshMode);
     }
 
     /**
@@ -110,7 +109,7 @@ public class DefaultMaterializedTableEnricher implements MaterializedTableEnrich
         }
 
         // Validate that freshness can be converted to cron for FULL mode
-        IntervalFreshnessUtils.validateFreshnessForCron(freshness);
+        IntervalFreshness.validateFreshnessForCron(freshness);
         return RefreshMode.FULL;
     }
 }
