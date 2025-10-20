@@ -53,7 +53,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.DATE_FORMATTER;
 import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.PARTITION_FIELDS;
-import static org.apache.flink.table.utils.IntervalFreshnessUtils.validateFreshnessForCron;
+import static org.apache.flink.table.catalog.IntervalFreshness.validateFreshnessForCron;
 
 /** A converter for {@link SqlCreateMaterializedTable}. */
 public class SqlCreateMaterializedTableConverter

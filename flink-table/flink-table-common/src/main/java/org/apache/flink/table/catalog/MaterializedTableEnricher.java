@@ -43,5 +43,5 @@ public interface MaterializedTableEnricher {
      *     freshness
      * @return the enrichment result with resolved, non-null freshness and refresh mode
      */
-    EnrichmentResult enrich(CatalogMaterializedTable catalogMaterializedTable);
+    MaterializedTableEnrichmentResult enrich(CatalogMaterializedTable catalogMaterializedTable);
 }

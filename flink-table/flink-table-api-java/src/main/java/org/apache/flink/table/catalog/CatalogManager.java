@@ -1908,7 +1908,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
 
         final ResolvedSchema resolvedSchema = table.getUnresolvedSchema().resolve(schemaResolver);
 
-        final EnrichmentResult enrichmentResult = this.materializedTableEnricher.enrich(table);
+        final MaterializedTableEnrichmentResult enrichmentResult =
+                this.materializedTableEnricher.enrich(table);
         IntervalFreshness freshness = enrichmentResult.getFreshness();
         RefreshMode resolvedRefreshMode = enrichmentResult.getRefreshMode();
 

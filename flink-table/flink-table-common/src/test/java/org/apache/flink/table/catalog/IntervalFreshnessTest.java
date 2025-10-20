@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.utils;
+package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.IntervalFreshness;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -27,12 +26,12 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
 
-import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToCron;
+import static org.apache.flink.table.catalog.IntervalFreshness.convertFreshnessToCron;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for {@link IntervalFreshnessUtils}. */
-public class IntervalFreshnessUtilsTest {
+/** Tests for {@link IntervalFreshness}. */
+public class IntervalFreshnessTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"2efedd", "2.5", "-2", "0", "12345678901234567890"})
