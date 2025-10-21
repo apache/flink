@@ -177,7 +177,13 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
 
     /** Creates default PutObjectOptions for Hadoop 3.4.2. */
     private static org.apache.hadoop.fs.s3a.impl.PutObjectOptions createDefaultPutObjectOptions() {
-        return org.apache.hadoop.fs.s3a.impl.PutObjectOptions.keepingDirs();
+        org.apache.hadoop.fs.s3a.impl.PutObjectOptions options = org.apache.hadoop.fs.s3a.impl.PutObjectOptions.keepingDirs();
+        
+        // Log conditional write configuration
+        LOG.info("=== CONDITIONAL WRITES: Creating PutObjectOptions with keepingDirs() - Hadoop 3.4.2 ===");
+        LOG.info("=== PutObjectOptions details: {} ===", options.toString());
+        
+        return options;
     }
 
     /**
@@ -413,11 +419,18 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
     public String startMultiPartUpload(String key) throws IOException {
         validateKey(key);
         try {
+            LOG.info("=== CONDITIONAL WRITES: Initiating multipart upload for key: {} ===", key);
+            
             // Hadoop 3.4.2 uses AWS SDK v2 and requires PutObjectOptions
-            String uploadId =
-                    s3accessHelper.initiateMultiPartUpload(key, createDefaultPutObjectOptions());
+            org.apache.hadoop.fs.s3a.impl.PutObjectOptions putObjectOptions = createDefaultPutObjectOptions();
+            LOG.info("=== CONDITIONAL WRITES: Using PutObjectOptions: {} ===", putObjectOptions);
+            
+            String uploadId = s3accessHelper.initiateMultiPartUpload(key, putObjectOptions);
+            
+            LOG.info("=== CONDITIONAL WRITES: Multipart upload initiated successfully. UploadId: {} ===", uploadId);
             return uploadId;
         } catch (Exception e) {
+            LOG.error("=== CONDITIONAL WRITES: Failed to initiate multipart upload for key: {} - Error: {} ===", key, e.getMessage());
             throw e;
         }
     }
@@ -481,6 +494,10 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
     public PutObjectResult putObject(String key, File inputFile) throws IOException {
         validateKey(key);
         validateInputFile(inputFile);
+        
+        LOG.info("=== CONDITIONAL WRITES: Putting object for key: {}, file size: {} bytes ===", 
+                key, inputFile.length());
+        
         // Hadoop 3.4.2 uses AWS SDK v2 with different put object API
         // Create AWS SDK v2 PutObjectRequest with correct bucket name
         software.amazon.awssdk.services.s3.model.PutObjectRequest putRequest =
@@ -493,6 +510,8 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
         // Create PutObjectOptions
         org.apache.hadoop.fs.s3a.impl.PutObjectOptions putObjectOptions =
                 createDefaultPutObjectOptions();
+        
+        LOG.info("=== CONDITIONAL WRITES: Using PutObjectOptions for putObject: {} ===", putObjectOptions);
 
         // Note: For Hadoop 3.4.2, the putObject API with BlockUploadData is designed for
         // block-based uploads from memory. For file-based uploads, it's more appropriate
@@ -532,6 +551,9 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                 result.setSSECustomerAlgorithm(response.sseCustomerAlgorithm());
             }
 
+            LOG.info("=== CONDITIONAL WRITES: PutObject completed successfully for key: {}, ETag: {} ===", 
+                    key, result.getETag());
+            
             return result;
 
         } catch (software.amazon.awssdk.core.exception.SdkException e) {
@@ -572,6 +594,12 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                                                 .build())
                         .collect(java.util.stream.Collectors.toList());
 
+        LOG.info("=== CONDITIONAL WRITES: Completing multipart upload for key: {}, uploadId: {}, parts: {} ===", 
+                destKey, uploadId, partETags.size());
+        
+        org.apache.hadoop.fs.s3a.impl.PutObjectOptions putObjectOptions = createDefaultPutObjectOptions();
+        LOG.info("=== CONDITIONAL WRITES: Using PutObjectOptions for completion: {} ===", putObjectOptions);
+        
         // Use the new completeMPUwithRetries API
         software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse response =
                 s3accessHelper.completeMPUwithRetries(
@@ -580,7 +608,10 @@ public class HadoopS3AccessHelper implements S3AccessHelper, AutoCloseable {
                         completedParts,
                         length,
                         errorCount,
-                        createDefaultPutObjectOptions());
+                        putObjectOptions);
+        
+        LOG.info("=== CONDITIONAL WRITES: Multipart upload completed successfully for key: {}, ETag: {} ===", 
+                destKey, response.eTag());
 
         // Convert AWS SDK v2 response to AWS SDK v1 response
         CompleteMultipartUploadResult result = new CompleteMultipartUploadResult();
