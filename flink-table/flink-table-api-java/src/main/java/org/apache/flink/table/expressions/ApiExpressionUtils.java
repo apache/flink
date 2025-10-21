@@ -305,7 +305,7 @@ public final class ApiExpressionUtils {
 
     public static ModelReferenceExpression modelRef(String name, Model model) {
         return new ModelReferenceExpression(
-                name, model.getModel(), ((ModelImpl) model).getTableEnvironment());
+                name, ((ModelImpl) model).getModel(), ((ModelImpl) model).getTableEnvironment());
     }
 
     public static LookupCallExpression lookupCall(String name, Expression... args) {
