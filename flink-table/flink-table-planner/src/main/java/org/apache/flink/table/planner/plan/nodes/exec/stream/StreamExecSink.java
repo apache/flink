@@ -285,7 +285,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                         : HashCodeGenerator.generateRowHash(
                                 new CodeGeneratorContext(config, classLoader),
                                 RowTypeUtils.projectRowType(physicalRowType, inputUpsertKey),
-                                "generated-hashcode-for-" + inputUpsertKey.length + "-keys",
+                                "generated_hashcode_for_" + inputUpsertKey.length + "_keys",
                                 IntStream.range(0, inputUpsertKey.length).toArray());
 
         StateTtlConfig ttlConfig =
