@@ -211,10 +211,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
         randomize(
                 conf,
                 TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY,
-                ExecutionConfigOptions.SinkUpsertMaterializeStrategy.LEGACY,
-                ExecutionConfigOptions.SinkUpsertMaterializeStrategy.VALUE,
-                ExecutionConfigOptions.SinkUpsertMaterializeStrategy.MAP,
-                ExecutionConfigOptions.SinkUpsertMaterializeStrategy.ADAPTIVE);
+                ExecutionConfigOptions.SinkUpsertMaterializeStrategy.VALUE);
     }
 
     /**

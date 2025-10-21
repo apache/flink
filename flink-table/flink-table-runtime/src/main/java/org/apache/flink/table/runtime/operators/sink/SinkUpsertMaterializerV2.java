@@ -73,6 +73,7 @@ public class SinkUpsertMaterializerV2 extends TableStreamOperator<RowData>
             boolean hasUpsertKey, SequencedMultiSetStateContext stateParameters) {
         this.hasUpsertKey = hasUpsertKey;
         this.stateParameters = stateParameters;
+        System.out.println("sum-counter");
     }
 
     @Override
