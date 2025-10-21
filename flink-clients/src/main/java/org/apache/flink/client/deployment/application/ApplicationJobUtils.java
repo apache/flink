@@ -21,10 +21,12 @@ package org.apache.flink.client.deployment.application;
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ApplicationOptionsInternal;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.AbstractID;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Optional;
@@ -51,7 +53,24 @@ public class ApplicationJobUtils {
      * @param configuration The configuration the may be updated with fixed IDs
      */
     public static void maybeFixIds(Configuration configuration) {
+        if (configuration.getOptional(ClusterOptions.CLUSTER_ID).isEmpty()
+                && configuration.getOptional(HighAvailabilityOptions.HA_CLUSTER_ID).isPresent()) {
+            // The CLUSTER_ID will fall back to the HA_CLUSTER_ID. If the user has already
+            // configured HA_CLUSTER_ID, it can avoid conflicts caused by the missing CLUSTER_ID.
+            configuration.set(
+                    ClusterOptions.CLUSTER_ID,
+                    new AbstractID(
+                                    configuration
+                                            .get(HighAvailabilityOptions.HA_CLUSTER_ID)
+                                            .hashCode(),
+                                    0)
+                            .toHexString());
+        }
+        checkClusterId(configuration.get(ClusterOptions.CLUSTER_ID));
+
         if (HighAvailabilityMode.isHighAvailabilityModeActivated(configuration)) {
+            final Optional<String> configuredClusterId =
+                    configuration.getOptional(ClusterOptions.CLUSTER_ID);
             final Optional<String> configuredApplicationId =
                     configuration.getOptional(ApplicationOptionsInternal.FIXED_APPLICATION_ID);
             if (configuredApplicationId.isEmpty()) {
@@ -59,24 +78,18 @@ public class ApplicationJobUtils {
                 // failovers. The application id is derived from the cluster id.
                 configuration.set(
                         ApplicationOptionsInternal.FIXED_APPLICATION_ID,
-                        new ApplicationID(
-                                        Preconditions.checkNotNull(
-                                                        configuration.get(
-                                                                HighAvailabilityOptions
-                                                                        .HA_CLUSTER_ID))
-                                                .hashCode(),
-                                        0)
-                                .toHexString());
+                        configuration.get(ClusterOptions.CLUSTER_ID));
             }
             final Optional<String> configuredJobId =
                     configuration.getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID);
             if (configuredJobId.isEmpty()) {
                 // In HA mode, a fixed job id is required to ensure consistency across failovers.
                 // The job id is derived as follows:
-                // 1. If application id is configured, use the application id as the job id.
+                // 1. If either cluster id or application id is configured, use the application id
+                // as the job id.
                 // 2. Otherwise, generate the job id based on the HA cluster id.
                 // Note that the second case is kept for backward compatibility and may be removed.
-                if (configuredApplicationId.isPresent()) {
+                if (configuredClusterId.isPresent() || configuredApplicationId.isPresent()) {
                     ApplicationID applicationId =
                             ApplicationID.fromHexString(
                                     configuration.get(
@@ -98,6 +111,18 @@ public class ApplicationJobUtils {
                 }
             }
         }
+    }
+
+    private static String checkClusterId(String str) {
+        try {
+            ApplicationID.fromHexString(str);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                    "Invalid cluster id \""
+                            + str
+                            + "\". The expected format is [0-9a-fA-F]{32}, e.g. fd72014d4c864993a2e5a9287b4a9c5d.");
+        }
+        return str;
     }
 
     public static boolean allowExecuteMultipleJobs(Configuration config) {

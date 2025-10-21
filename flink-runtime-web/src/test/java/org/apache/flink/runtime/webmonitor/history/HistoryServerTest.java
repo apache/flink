@@ -25,7 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.JobManagerOptions;
-import org.apache.flink.runtime.history.FsJobArchivist;
+import org.apache.flink.runtime.history.FsJsonArchivist;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.messages.DashboardConfiguration;
@@ -499,9 +499,9 @@ class HistoryServerTest {
         }
         String json = sw.toString();
         ArchivedJson archivedJson = new ArchivedJson("/joboverview", json);
-        FsJobArchivist.archiveJob(
-                new org.apache.flink.core.fs.Path(directory.toUri()),
-                jobId,
+        FsJsonArchivist.writeArchivedJsons(
+                new org.apache.flink.core.fs.Path(
+                        directory.toAbsolutePath().toString(), jobId.toString()),
                 Collections.singleton(archivedJson));
 
         return jobId.toString();

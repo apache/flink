@@ -24,6 +24,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.RpcOptions;
+import org.apache.flink.runtime.application.ArchivedApplication;
 import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.leaderelection.LeaderContender;
@@ -169,6 +170,7 @@ import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerThreadDumpH
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.webmonitor.history.ApplicationJsonArchivist;
 import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
@@ -210,7 +212,7 @@ import java.util.concurrent.TimeUnit;
  * @param <T> type of the leader gateway
  */
 public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndpoint
-        implements LeaderContender, JsonArchivist {
+        implements LeaderContender, JsonArchivist, ApplicationJsonArchivist {
 
     protected final GatewayRetriever<? extends T> leaderRetriever;
     protected final Configuration clusterConfiguration;
@@ -232,7 +234,10 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
 
     private boolean hasWebUI = false;
 
-    private final Collection<JsonArchivist> archivingHandlers = new ArrayList<>(16);
+    private final Collection<JsonArchivist> jobArchivingHandlers = new ArrayList<>(16);
+
+    private final Collection<ApplicationJsonArchivist> applicationArchivingHandlers =
+            new ArrayList<>(16);
 
     @Nullable private ScheduledFuture<?> executionGraphCleanupTask;
 
@@ -1170,7 +1175,15 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         handlers.stream()
                 .map(tuple -> tuple.f1)
                 .filter(handler -> handler instanceof JsonArchivist)
-                .forEachOrdered(handler -> archivingHandlers.add((JsonArchivist) handler));
+                .forEachOrdered(handler -> jobArchivingHandlers.add((JsonArchivist) handler));
+
+        handlers.stream()
+                .map(tuple -> tuple.f1)
+                .filter(handler -> handler instanceof ApplicationJsonArchivist)
+                .forEachOrdered(
+                        handler ->
+                                applicationArchivingHandlers.add(
+                                        (ApplicationJsonArchivist) handler));
 
         return handlers;
     }
@@ -1267,9 +1280,22 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
     @Override
     public Collection<ArchivedJson> archiveJsonWithPath(ExecutionGraphInfo executionGraphInfo)
             throws IOException {
-        Collection<ArchivedJson> archivedJson = new ArrayList<>(archivingHandlers.size());
-        for (JsonArchivist archivist : archivingHandlers) {
+        Collection<ArchivedJson> archivedJson = new ArrayList<>(jobArchivingHandlers.size());
+        for (JsonArchivist archivist : jobArchivingHandlers) {
             Collection<ArchivedJson> subArchive = archivist.archiveJsonWithPath(executionGraphInfo);
+            archivedJson.addAll(subArchive);
+        }
+        return archivedJson;
+    }
+
+    @Override
+    public Collection<ArchivedJson> archiveApplicationWithPath(
+            ArchivedApplication archivedApplication) throws IOException {
+        Collection<ArchivedJson> archivedJson =
+                new ArrayList<>(applicationArchivingHandlers.size());
+        for (ApplicationJsonArchivist archivist : applicationArchivingHandlers) {
+            Collection<ArchivedJson> subArchive =
+                    archivist.archiveApplicationWithPath(archivedApplication);
             archivedJson.addAll(subArchive);
         }
         return archivedJson;

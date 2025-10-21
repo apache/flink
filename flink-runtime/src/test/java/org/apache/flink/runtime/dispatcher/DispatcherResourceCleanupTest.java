@@ -666,7 +666,12 @@ public class DispatcherResourceCleanupTest extends TestLogger {
 
         final TestingDispatcher.Builder testingDispatcherBuilder =
                 createTestingDispatcherBuilder()
-                        .setHistoryServerArchivist(executionGraphInfo -> archiveFuture);
+                        .setHistoryServerArchivist(
+                                TestingHistoryServerArchivist.builder()
+                                        .setArchiveExecutionGraphFunction(
+                                                (executionGraphInfo, applicationId) ->
+                                                        archiveFuture)
+                                        .build());
 
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
                 startDispatcherAndSubmitJob(testingDispatcherBuilder, 0);
@@ -695,10 +700,14 @@ public class DispatcherResourceCleanupTest extends TestLogger {
         final TestingDispatcher.Builder testingDispatcherBuilder =
                 createTestingDispatcherBuilder()
                         .setHistoryServerArchivist(
-                                executionGraphInfo -> {
-                                    isArchived.set(true);
-                                    return CompletableFuture.completedFuture(Acknowledge.get());
-                                });
+                                TestingHistoryServerArchivist.builder()
+                                        .setArchiveExecutionGraphFunction(
+                                                (executionGraphInfo, applicationId) -> {
+                                                    isArchived.set(true);
+                                                    return CompletableFuture.completedFuture(
+                                                            Acknowledge.get());
+                                                })
+                                        .build());
 
         final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
                 startDispatcherAndSubmitJob(testingDispatcherBuilder, 0);

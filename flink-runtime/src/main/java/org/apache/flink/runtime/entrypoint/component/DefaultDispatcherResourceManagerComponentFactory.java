@@ -197,7 +197,7 @@ public class DefaultDispatcherResourceManagerComponentFactory
 
             final HistoryServerArchivist historyServerArchivist =
                     HistoryServerArchivist.createHistoryServerArchivist(
-                            configuration, webMonitorEndpoint, ioExecutor);
+                            configuration, webMonitorEndpoint, webMonitorEndpoint, ioExecutor);
 
             final DispatcherOperationCaches dispatcherOperationCaches =
                     new DispatcherOperationCaches(

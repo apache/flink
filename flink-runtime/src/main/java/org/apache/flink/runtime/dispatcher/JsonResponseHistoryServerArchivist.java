@@ -18,17 +18,25 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.application.ArchivedApplication;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
-import org.apache.flink.runtime.history.FsJobArchivist;
+import org.apache.flink.runtime.history.ArchivePathUtils;
+import org.apache.flink.runtime.history.FsJsonArchivist;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.runtime.webmonitor.history.ApplicationJsonArchivist;
 import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
-import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingRunnable;
+
+import javax.annotation.Nullable;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * Implementation which archives an {@link AccessExecutionGraph} such that it stores the JSON
@@ -36,30 +44,57 @@ import java.util.concurrent.Executor;
  */
 class JsonResponseHistoryServerArchivist implements HistoryServerArchivist {
 
+    private final Configuration configuration;
+
     private final JsonArchivist jsonArchivist;
 
-    private final Path archivePath;
+    private final ApplicationJsonArchivist applicationJsonArchivist;
 
     private final Executor ioExecutor;
 
     JsonResponseHistoryServerArchivist(
-            JsonArchivist jsonArchivist, Path archivePath, Executor ioExecutor) {
-        this.jsonArchivist = Preconditions.checkNotNull(jsonArchivist);
-        this.archivePath = Preconditions.checkNotNull(archivePath);
-        this.ioExecutor = Preconditions.checkNotNull(ioExecutor);
+            Configuration configuration,
+            JsonArchivist jsonArchivist,
+            ApplicationJsonArchivist applicationJsonArchivist,
+            Executor ioExecutor) {
+        this.configuration = checkNotNull(configuration);
+        this.jsonArchivist = checkNotNull(jsonArchivist);
+        this.applicationJsonArchivist = checkNotNull(applicationJsonArchivist);
+        this.ioExecutor = checkNotNull(ioExecutor);
     }
 
     @Override
     public CompletableFuture<Acknowledge> archiveExecutionGraph(
-            ExecutionGraphInfo executionGraphInfo) {
+            ExecutionGraphInfo executionGraphInfo, @Nullable ApplicationID applicationId) {
+        Path jobArchivePath =
+                ArchivePathUtils.getJobArchivePath(
+                        configuration, executionGraphInfo.getJobId(), applicationId);
+
         return CompletableFuture.runAsync(
                         ThrowingRunnable.unchecked(
                                 () ->
-                                        FsJobArchivist.archiveJob(
-                                                archivePath,
-                                                executionGraphInfo.getJobId(),
+                                        FsJsonArchivist.writeArchivedJsons(
+                                                jobArchivePath,
                                                 jsonArchivist.archiveJsonWithPath(
                                                         executionGraphInfo))),
+                        ioExecutor)
+                .thenApply(ignored -> Acknowledge.get());
+    }
+
+    @Override
+    public CompletableFuture<Acknowledge> archiveApplication(
+            ArchivedApplication archivedApplication) {
+        Path applicationArchivePath =
+                ArchivePathUtils.getApplicationArchivePath(
+                        configuration, archivedApplication.getApplicationId());
+
+        return CompletableFuture.runAsync(
+                        ThrowingRunnable.unchecked(
+                                () ->
+                                        FsJsonArchivist.writeArchivedJsons(
+                                                applicationArchivePath,
+                                                applicationJsonArchivist.archiveApplicationWithPath(
+                                                        archivedApplication))),
                         ioExecutor)
                 .thenApply(ignored -> Acknowledge.get());
     }

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.handler.application;
 
 import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.runtime.application.ArchivedApplication;
 import org.apache.flink.runtime.messages.webmonitor.ApplicationDetailsInfo;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -27,11 +28,16 @@ import org.apache.flink.runtime.rest.messages.ApplicationMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.history.ApplicationJsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
 import java.time.Duration;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -41,7 +47,8 @@ public class ApplicationDetailsHandler
                 RestfulGateway,
                 EmptyRequestBody,
                 ApplicationDetailsInfo,
-                ApplicationMessageParameters> {
+                ApplicationMessageParameters>
+        implements ApplicationJsonArchivist {
 
     public ApplicationDetailsHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
@@ -58,5 +65,19 @@ public class ApplicationDetailsHandler
         ApplicationID applicationId = request.getPathParameter(ApplicationIDPathParameter.class);
         return gateway.requestApplication(applicationId, timeout)
                 .thenApply(ApplicationDetailsInfo::fromArchivedApplication);
+    }
+
+    @Override
+    public Collection<ArchivedJson> archiveApplicationWithPath(
+            ArchivedApplication archivedApplication) throws IOException {
+        String path =
+                getMessageHeaders()
+                        .getTargetRestEndpointURL()
+                        .replace(
+                                ':' + ApplicationIDPathParameter.KEY,
+                                archivedApplication.getApplicationId().toHexString());
+        return Collections.singleton(
+                new ArchivedJson(
+                        path, ApplicationDetailsInfo.fromArchivedApplication(archivedApplication)));
     }
 }

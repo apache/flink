@@ -235,6 +235,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     private final Map<JobID, CompletableFuture<ExecutionGraphInfo>> partialExecutionGraphInfoStore =
             new HashMap<>();
 
+    private final Map<ApplicationID, CompletableFuture<?>> applicationArchivingFutures =
+            new HashMap<>();
+
     /** Enum to distinguish between initial job submission and re-submission for recovery. */
     protected enum ExecutionType {
         SUBMISSION,
@@ -681,7 +684,12 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                     applications.containsKey(applicationId),
                     "Application %s does not exist.",
                     applicationId);
+            checkState(
+                    !applicationArchivingFutures.containsKey(applicationId),
+                    "The application (" + applicationId + ") has already been archived.");
 
+            log.info(
+                    "Archiving application ({}) with terminal state {}.", applicationId, newStatus);
             AbstractApplication application = applications.get(applicationId);
             long[] stateTimestamps = new long[ApplicationState.values().length];
             for (ApplicationState applicationState : ApplicationState.values()) {
@@ -722,6 +730,19 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
                                 applications.remove(applicationId);
                                 writeToArchivedApplicationStore(archivedApplication);
+                                CompletableFuture<?> applicationArchivingFuture =
+                                        historyServerArchivist
+                                                .archiveApplication(archivedApplication)
+                                                .exceptionally(
+                                                        throwable -> {
+                                                            log.info(
+                                                                    "Could not archive completed application ({}) to the history server.",
+                                                                    applicationId,
+                                                                    throwable);
+                                                            return null;
+                                                        });
+                                applicationArchivingFutures.put(
+                                        applicationId, applicationArchivingFuture);
                             },
                             getMainThreadExecutor());
         }
@@ -742,6 +763,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     @VisibleForTesting
     Map<ApplicationID, AbstractApplication> getApplications() {
         return applications;
+    }
+
+    @VisibleForTesting
+    CompletableFuture<?> getApplicationArchivingFuture(ApplicationID applicationId) {
+        return applicationArchivingFutures.get(applicationId);
     }
 
     /**
@@ -1492,7 +1518,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                         : CompletableFuture.completedFuture(null);
 
         FutureUtils.runAfterwards(
-                allJobsTerminationFuture, () -> shutDownFuture.complete(applicationStatus));
+                allJobsTerminationFuture,
+                () ->
+                        FutureUtils.runAfterwards(
+                                FutureUtils.completeAll(applicationArchivingFutures.values()),
+                                () -> shutDownFuture.complete(applicationStatus)));
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
@@ -1887,7 +1917,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
             ExecutionGraphInfo executionGraphInfo) {
 
         return historyServerArchivist
-                .archiveExecutionGraph(executionGraphInfo)
+                .archiveExecutionGraph(
+                        executionGraphInfo, executionGraphInfo.getApplicationId().orElse(null))
                 .handleAsync(
                         (Acknowledge ignored, Throwable throwable) -> {
                             if (throwable != null) {

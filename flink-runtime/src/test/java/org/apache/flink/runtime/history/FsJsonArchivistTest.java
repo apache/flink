@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.webmonitor.history;
+package org.apache.flink.runtime.history;
 
-import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.history.FsJobArchivist;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -31,20 +30,19 @@ import java.util.Collection;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Tests for the {@link FsJobArchivist}. */
-class FsJobArchivistTest {
+/** Tests for the {@link FsJsonArchivist}. */
+class FsJsonArchivistTest {
 
     @Test
-    void testArchiveJob(@TempDir File tmpFolder) throws Exception {
-        final Path tmpPath = new Path(tmpFolder.getAbsolutePath());
-        final JobID jobId = new JobID();
+    void testArchiveJsons(@TempDir File tmpFolder) throws Exception {
+        final Path tmpPath = new Path(tmpFolder.getAbsolutePath(), "test-file");
 
         final Collection<ArchivedJson> toArchive = new ArrayList<>(2);
         toArchive.add(new ArchivedJson("dir1", "hello"));
         toArchive.add(new ArchivedJson("dir1/dir11", "world"));
 
-        final Path archive = FsJobArchivist.archiveJob(tmpPath, jobId, toArchive);
-        final Collection<ArchivedJson> restored = FsJobArchivist.getArchivedJsons(archive);
+        FsJsonArchivist.writeArchivedJsons(tmpPath, toArchive);
+        final Collection<ArchivedJson> restored = FsJsonArchivist.readArchivedJsons(tmpPath);
 
         assertThat(restored).containsExactlyElementsOf(toArchive);
     }
