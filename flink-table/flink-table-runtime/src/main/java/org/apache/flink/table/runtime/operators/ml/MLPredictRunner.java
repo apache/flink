@@ -65,6 +65,14 @@ public class MLPredictRunner extends AbstractFunctionRunner {
         fetcher.flatMap(in, collector);
     }
 
+    @Override
+    public void close() throws Exception {
+        super.close();
+        if (collector != null) {
+            FunctionUtils.closeFunction(collector);
+        }
+    }
+
     public void prepareCollector(RowData in, Collector<RowData> out) {
         collector.setCollector(out);
         collector.setInput(in);

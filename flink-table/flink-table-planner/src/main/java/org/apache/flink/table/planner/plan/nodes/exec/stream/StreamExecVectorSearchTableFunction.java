@@ -153,11 +153,12 @@ public class StreamExecVectorSearchTableFunction extends ExecNodeBase<RowData>
                 return ((VectorSearchFunctionProvider) provider).createVectorSearchFunction();
             }
         }
+
         throw new TableException(
-                String.format(
-                        "The provider is not expected. It should be %s or %s.",
-                        AsyncVectorSearchFunctionProvider.class.getName(),
-                        VectorSearchFunctionProvider.class.getName()));
+                "Required "
+                        + (async ? "async" : "sync")
+                        + " vector search function by planner, but VectorSearchRuntimeProvider "
+                        + "does not offer a valid vector search function.");
     }
 
     private StreamOperatorFactory<RowData> createSyncVectorSearchOperator(
