@@ -19,7 +19,6 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.catalog.ContextResolvedModel;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.types.ColumnList;
 
@@ -59,16 +58,6 @@ import java.util.Map;
  */
 @PublicEvolving
 public interface Model {
-
-    /**
-     * Returns the underlying resolved model.
-     *
-     * <p>This method provides access to the internal representation of the model, including its
-     * configuration, input/output schemas, and other relevant details.
-     *
-     * @return the context resolved model metadata.
-     */
-    ContextResolvedModel getModel();
 
     /**
      * Returns the resolved input schema of this model.
