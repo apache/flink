@@ -173,7 +173,11 @@ public class StreamPhysicalVectorSearchTableFunctionRule
         FunctionCallUtil.Constant topKParam =
                 new FunctionCallUtil.Constant(FlinkTypeFactory.toLogicalType(topK.getType()), topK);
 
-        return new VectorSearchSpec(joinType, searchColumns, topKParam);
+        return new VectorSearchSpec(
+                joinType,
+                searchColumns,
+                topKParam,
+                FlinkTypeFactory.toLogicalRowType(scan.getRowType()));
     }
 
     private FunctionCallUtil.FunctionParam getQueryColumnParam(

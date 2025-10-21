@@ -49,7 +49,7 @@ public abstract class AsyncVectorSearchFunction extends AsyncTableFunction<RowDa
         int topK = (int) args[0];
         GenericRowData argsData = new GenericRowData(args.length - 1);
         for (int i = 1; i < args.length; ++i) {
-            argsData.setField(i, args[i]);
+            argsData.setField(i - 1, args[i]);
         }
         asyncVectorSearch(topK, argsData)
                 .whenComplete(

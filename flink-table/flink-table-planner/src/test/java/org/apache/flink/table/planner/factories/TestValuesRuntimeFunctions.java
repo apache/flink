@@ -47,22 +47,30 @@ import org.apache.flink.streaming.api.lineage.SourceLineageVertex;
 import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.sink.DynamicTableSink.DataStructureConverter;
 import org.apache.flink.table.connector.source.LookupTableSource;
+import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.conversion.RowRowConverter;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.AsyncLookupFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.LookupFunction;
+import org.apache.flink.table.functions.VectorSearchFunction;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.types.RowUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.clock.RelativeClock;
 import org.apache.flink.util.clock.SystemClock;
 
@@ -74,11 +82,14 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.Random;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -1065,6 +1076,99 @@ public final class TestValuesRuntimeFunctions {
                 return CompletableFuture.supplyAsync(() -> emptyResult);
             }
             return super.asyncLookup(keyRow);
+        }
+    }
+
+    public static class TestValueVectorSearchFunction extends VectorSearchFunction {
+
+        private final List<Row> data;
+        private final int vectorFieldIndice;
+        private final DataType physicalRowType;
+        private transient RowRowConverter converter;
+        private transient Map<double[], RowData> normalizedData;
+
+        public TestValueVectorSearchFunction(
+                List<Row> data, int[] searchIndices, DataType physicalRowType) {
+            this.data = data;
+            this.vectorFieldIndice = searchIndices[0];
+            this.physicalRowType = physicalRowType;
+            LogicalType vectorColumnType =
+                    physicalRowType.getChildren().get(vectorFieldIndice).getLogicalType();
+            Preconditions.checkArgument(
+                    vectorColumnType.is(LogicalTypeRoot.ARRAY)
+                            && ((ArrayType) vectorColumnType)
+                                    .getElementType()
+                                    .is(LogicalTypeRoot.FLOAT),
+                    "Only support ARRAY<FLOAT> as the search column.");
+        }
+
+        @Override
+        public void open(FunctionContext context) throws Exception {
+            super.open(context);
+            converter = RowRowConverter.create(physicalRowType);
+            converter.open(context.getUserCodeClassLoader());
+            normalizedData = new HashMap<>();
+            for (Row row : data) {
+                Object field = row.getField(vectorFieldIndice);
+                normalizedData.put(
+                        normalizeFloatVector((Float[]) field), converter.toInternal(row));
+            }
+        }
+
+        @Override
+        public Collection<RowData> vectorSearch(int topK, RowData queryData) {
+            ArrayData inputData = queryData.getArray(0);
+            float[] query = inputData.toFloatArray();
+            List<RowData> output = new ArrayList<>();
+            TreeMap<Double, RowData> topKResults = new TreeMap<>();
+            for (Map.Entry<double[], RowData> entry : normalizedData.entrySet()) {
+                topKResults.put(
+                        cosineDistance(normalizeFloatVector(query), entry.getKey()),
+                        entry.getValue());
+            }
+            NavigableMap<Double, RowData> sorted = topKResults.descendingMap();
+            Iterator<Double> iterator = sorted.keySet().iterator();
+            while (output.size() < topK) {
+                if (!iterator.hasNext()) {
+                    break;
+                }
+                Double score = iterator.next();
+                output.add(new JoinedRowData(sorted.get(score), GenericRowData.of(score)));
+            }
+            return output;
+        }
+
+        private double[] normalizeFloatVector(float[] vector) {
+            double norm = 0.0;
+            double[] normalizedVector = new double[vector.length];
+            for (double v : vector) {
+                norm += v * v;
+            }
+            for (int i = 0; i < vector.length; i++) {
+                normalizedVector[i] = vector[i] / Math.sqrt(norm);
+            }
+            return normalizedVector;
+        }
+
+        private double[] normalizeFloatVector(Float[] vector) {
+            double norm = 0.0;
+            double[] normalizedVector = new double[vector.length];
+            for (double v : vector) {
+                norm += v * v;
+            }
+            for (int i = 0; i < vector.length; i++) {
+                normalizedVector[i] = vector[i] / Math.sqrt(norm);
+            }
+            return normalizedVector;
+        }
+
+        private double cosineDistance(double[] left, double[] right) {
+            int length = left.length;
+            double sum = 0;
+            for (int i = 0; i < length; i++) {
+                sum += left[i] * right[i];
+            }
+            return sum;
         }
     }
 }

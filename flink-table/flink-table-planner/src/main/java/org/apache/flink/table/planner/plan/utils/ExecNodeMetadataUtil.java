@@ -96,6 +96,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTemporalJ
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTemporalSort;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecUnion;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecValues;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecVectorSearchTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowAggregate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowDeduplicate;
@@ -221,6 +222,7 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecGroupTableAggregate.class);
                     add(StreamExecPythonGroupTableAggregate.class);
                     add(StreamExecMultipleInput.class);
+                    add(StreamExecVectorSearchTableFunction.class);
                 }
             };
 
