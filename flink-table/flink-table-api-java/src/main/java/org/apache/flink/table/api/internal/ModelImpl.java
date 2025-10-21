@@ -52,7 +52,6 @@ public class ModelImpl implements Model {
         return new ModelImpl(tableEnvironment, model);
     }
 
-    @Override
     public ContextResolvedModel getModel() {
         return model;
     }
