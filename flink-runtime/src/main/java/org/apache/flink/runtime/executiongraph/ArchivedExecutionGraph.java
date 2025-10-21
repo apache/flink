@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.executiongraph;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
@@ -118,6 +119,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
 
     private final int pendingOperatorCount;
 
+    @Nullable private ApplicationID applicationId;
+
     public ArchivedExecutionGraph(
             JobID jobID,
             String jobName,
@@ -139,7 +142,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
             @Nullable TernaryBoolean stateChangelogEnabled,
             @Nullable String changelogStorageName,
             @Nullable String streamGraphJson,
-            int pendingOperatorCount) {
+            int pendingOperatorCount,
+            @Nullable ApplicationID applicationId) {
 
         this.jobID = Preconditions.checkNotNull(jobID);
         this.jobName = Preconditions.checkNotNull(jobName);
@@ -162,6 +166,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         this.changelogStorageName = changelogStorageName;
         this.streamGraphJson = streamGraphJson;
         this.pendingOperatorCount = pendingOperatorCount;
+        this.applicationId = applicationId;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -317,6 +322,11 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
         return pendingOperatorCount;
     }
 
+    @Override
+    public Optional<ApplicationID> getApplicationId() {
+        return Optional.ofNullable(applicationId);
+    }
+
     /**
      * Create a {@link ArchivedExecutionGraph} from the given {@link ExecutionGraph}.
      *
@@ -387,7 +397,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 executionGraph.isChangelogStateBackendEnabled(),
                 executionGraph.getChangelogStorageName().orElse(null),
                 executionGraph.getStreamGraphJson(),
-                executionGraph.getPendingOperatorCount());
+                executionGraph.getPendingOperatorCount(),
+                executionGraph.getApplicationId().orElse(null));
     }
 
     /**
@@ -510,6 +521,7 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                         : checkpointingSettings.isChangelogStateBackendEnabled(),
                 checkpointingSettings == null ? null : "Unknown",
                 null,
-                0);
+                0,
+                null);
     }
 }

@@ -25,7 +25,7 @@ import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.runtime.history.FsJobArchivist;
+import org.apache.flink.runtime.history.FsJsonArchivist;
 import org.apache.flink.runtime.io.network.netty.SSLHandlerFactory;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.runtime.rest.handler.job.GeneratedLogUrlHandler;
@@ -81,7 +81,7 @@ import java.util.function.Consumer;
  * jobs for which the JobManager may have already shut down.
  *
  * <p>The HistoryServer regularly checks a set of directories for job archives created by the {@link
- * FsJobArchivist} and caches these in a local directory. See {@link HistoryServerArchiveFetcher}.
+ * FsJsonArchivist} and caches these in a local directory. See {@link HistoryServerArchiveFetcher}.
  *
  * <p>All configuration options are defined in{@link HistoryServerOptions}.
  *

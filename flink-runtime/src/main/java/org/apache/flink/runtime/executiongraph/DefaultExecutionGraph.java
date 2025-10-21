@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
@@ -842,6 +843,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 this.internalTaskFailuresListener == null,
                 "internalTaskFailuresListener can be only set once");
         this.internalTaskFailuresListener = internalTaskFailuresListener;
+    }
+
+    @Override
+    public Optional<ApplicationID> getApplicationId() {
+        return jobInformation.getApplicationId();
     }
 
     // --------------------------------------------------------------------------------------------

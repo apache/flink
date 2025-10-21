@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -25,6 +26,7 @@ import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryE
 
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.Optional;
 
 /**
  * {@code ExecutionGraphInfo} serves as a composite class that provides different {@link
@@ -64,5 +66,9 @@ public class ExecutionGraphInfo implements Serializable {
 
     public Iterable<RootExceptionHistoryEntry> getExceptionHistory() {
         return exceptionHistory;
+    }
+
+    public Optional<ApplicationID> getApplicationId() {
+        return executionGraph.getApplicationId();
     }
 }

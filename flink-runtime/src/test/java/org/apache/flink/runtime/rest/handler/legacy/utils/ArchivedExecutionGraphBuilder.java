@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.handler.legacy.utils;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ArchivedExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
@@ -60,6 +61,7 @@ public class ArchivedExecutionGraphBuilder {
     private CheckpointStatsSnapshot checkpointStatsSnapshot;
     private String streamGraphJson;
     private int pendingOperatorCounts = 0;
+    private ApplicationID applicationId;
 
     public ArchivedExecutionGraphBuilder setJobID(JobID jobID) {
         this.jobID = jobID;
@@ -143,6 +145,11 @@ public class ArchivedExecutionGraphBuilder {
         return this;
     }
 
+    public ArchivedExecutionGraphBuilder setApplicationId(ApplicationID applicationId) {
+        this.applicationId = applicationId;
+        return this;
+    }
+
     public ArchivedExecutionGraph build() {
         JobID jobID = this.jobID != null ? this.jobID : new JobID();
         String jobName = this.jobName != null ? this.jobName : "job_" + RANDOM.nextInt();
@@ -182,6 +189,7 @@ public class ArchivedExecutionGraphBuilder {
                 TernaryBoolean.UNDEFINED,
                 "changelogStorageName",
                 streamGraphJson,
-                pendingOperatorCounts);
+                pendingOperatorCounts,
+                applicationId);
     }
 }

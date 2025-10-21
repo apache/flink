@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.rest.handler.application;
 
+import org.apache.flink.runtime.application.ArchivedApplication;
+import org.apache.flink.runtime.messages.webmonitor.ApplicationDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleApplicationsDetails;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
@@ -25,12 +27,18 @@ import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
+import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
+import org.apache.flink.runtime.webmonitor.history.ApplicationJsonArchivist;
+import org.apache.flink.runtime.webmonitor.history.ArchivedJson;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 
 import javax.annotation.Nonnull;
 
+import java.io.IOException;
 import java.time.Duration;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -40,7 +48,8 @@ public class ApplicationsOverviewHandler
                 RestfulGateway,
                 EmptyRequestBody,
                 MultipleApplicationsDetails,
-                EmptyMessageParameters> {
+                EmptyMessageParameters>
+        implements ApplicationJsonArchivist {
 
     public ApplicationsOverviewHandler(
             GatewayRetriever<? extends RestfulGateway> leaderRetriever,
@@ -56,5 +65,16 @@ public class ApplicationsOverviewHandler
             @Nonnull HandlerRequest<EmptyRequestBody> request, @Nonnull RestfulGateway gateway)
             throws RestHandlerException {
         return gateway.requestMultipleApplicationDetails(timeout);
+    }
+
+    @Override
+    public Collection<ArchivedJson> archiveApplicationWithPath(
+            ArchivedApplication archivedApplication) throws IOException {
+        ResponseBody json =
+                new MultipleApplicationsDetails(
+                        Collections.singleton(
+                                ApplicationDetails.fromArchivedApplication(archivedApplication)));
+        String path = getMessageHeaders().getTargetRestEndpointURL();
+        return Collections.singletonList(new ArchivedJson(path, json));
     }
 }

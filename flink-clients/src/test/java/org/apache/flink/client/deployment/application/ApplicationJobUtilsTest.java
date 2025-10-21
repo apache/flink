@@ -20,6 +20,7 @@ package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ApplicationOptionsInternal;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
@@ -39,12 +40,14 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link ApplicationJobUtils}. */
 public class ApplicationJobUtilsTest {
 
     private static final String TEST_HA_CLUSTER_ID = "cluster";
+    private static final String TEST_CLUSTER_ID = "3dc42a26ed5afedb8c6e1132809dcf73";
     private static final String TEST_APPLICATION_ID = "ca0eb040022fbccd4cf05d1e274ae25e";
     private static final String TEST_JOB_ID = "e79b6d171acd4baa6f421e3631168810";
 
@@ -60,8 +63,10 @@ public class ApplicationJobUtilsTest {
     void testMaybeFixIds(
             boolean isHAEnabled,
             boolean isHaClusterIdSet,
+            boolean isClusterIdSet,
             boolean isApplicationIdSet,
             boolean isJobIdSet,
+            @Nullable String expectedClusterId,
             @Nullable String expectedApplicationId,
             @Nullable String expectedJobId) {
         if (isHAEnabled) {
@@ -70,6 +75,9 @@ public class ApplicationJobUtilsTest {
         }
         if (isHaClusterIdSet) {
             configuration.set(HighAvailabilityOptions.HA_CLUSTER_ID, TEST_HA_CLUSTER_ID);
+        }
+        if (isClusterIdSet) {
+            configuration.set(ClusterOptions.CLUSTER_ID, TEST_CLUSTER_ID);
         }
         if (isApplicationIdSet) {
             configuration.set(ApplicationOptionsInternal.FIXED_APPLICATION_ID, TEST_APPLICATION_ID);
@@ -80,65 +88,282 @@ public class ApplicationJobUtilsTest {
 
         ApplicationJobUtils.maybeFixIds(configuration);
 
+        assertEquals(expectedClusterId, configuration.get(ClusterOptions.CLUSTER_ID));
         assertEquals(
                 expectedApplicationId,
                 configuration.get(ApplicationOptionsInternal.FIXED_APPLICATION_ID));
-
         assertEquals(
                 expectedJobId, configuration.get(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID));
     }
 
     private static Stream<Arguments> provideParametersForMaybeFixIds() {
-        // all combinations for the four input: (isHAEnabled, isHaClusterIdSet, isApplicationIdSet,
-        // isJobIdSet)
+        // all combinations for the five input: (isHAEnabled, isHaClusterIdSet, isClusterIdSet,
+        // isApplicationIdSet, isJobIdSet)
         return Stream.of(
-                Arguments.of(false, false, false, false, null, null),
-                Arguments.of(false, false, false, true, null, TEST_JOB_ID),
-                Arguments.of(false, false, true, false, TEST_APPLICATION_ID, null),
-                Arguments.of(false, false, true, true, TEST_APPLICATION_ID, TEST_JOB_ID),
-                Arguments.of(false, true, false, false, null, null),
-                Arguments.of(false, true, false, true, null, TEST_JOB_ID),
-                Arguments.of(false, true, true, false, TEST_APPLICATION_ID, null),
-                Arguments.of(false, true, true, true, TEST_APPLICATION_ID, TEST_JOB_ID),
+                Arguments.of(
+                        false,
+                        false,
+                        false,
+                        false,
+                        false,
+                        ClusterOptions.CLUSTER_ID.defaultValue(),
+                        null,
+                        null),
+                Arguments.of(
+                        false,
+                        false,
+                        false,
+                        false,
+                        true,
+                        ClusterOptions.CLUSTER_ID.defaultValue(),
+                        null,
+                        TEST_JOB_ID),
+                Arguments.of(
+                        false,
+                        false,
+                        false,
+                        true,
+                        false,
+                        ClusterOptions.CLUSTER_ID.defaultValue(),
+                        TEST_APPLICATION_ID,
+                        null),
+                Arguments.of(
+                        false,
+                        false,
+                        false,
+                        true,
+                        true,
+                        ClusterOptions.CLUSTER_ID.defaultValue(),
+                        TEST_APPLICATION_ID,
+                        TEST_JOB_ID),
+                Arguments.of(false, false, true, false, false, TEST_CLUSTER_ID, null, null),
+                Arguments.of(false, false, true, false, true, TEST_CLUSTER_ID, null, TEST_JOB_ID),
+                Arguments.of(
+                        false,
+                        false,
+                        true,
+                        true,
+                        false,
+                        TEST_CLUSTER_ID,
+                        TEST_APPLICATION_ID,
+                        null),
+                Arguments.of(
+                        false,
+                        false,
+                        true,
+                        true,
+                        true,
+                        TEST_CLUSTER_ID,
+                        TEST_APPLICATION_ID,
+                        TEST_JOB_ID),
+                Arguments.of(
+                        false,
+                        true,
+                        false,
+                        false,
+                        false,
+                        getAbstractIdFromString(TEST_HA_CLUSTER_ID),
+                        null,
+                        null),
+                Arguments.of(
+                        false,
+                        true,
+                        false,
+                        false,
+                        true,
+                        getAbstractIdFromString(TEST_HA_CLUSTER_ID),
+                        null,
+                        TEST_JOB_ID),
+                Arguments.of(
+                        false,
+                        true,
+                        false,
+                        true,
+                        false,
+                        getAbstractIdFromString(TEST_HA_CLUSTER_ID),
+                        TEST_APPLICATION_ID,
+                        null),
+                Arguments.of(
+                        false,
+                        true,
+                        false,
+                        true,
+                        true,
+                        getAbstractIdFromString(TEST_HA_CLUSTER_ID),
+                        TEST_APPLICATION_ID,
+                        TEST_JOB_ID),
+                Arguments.of(false, true, true, false, false, TEST_CLUSTER_ID, null, null),
+                Arguments.of(false, true, true, false, true, TEST_CLUSTER_ID, null, TEST_JOB_ID),
+                Arguments.of(
+                        false, true, true, true, false, TEST_CLUSTER_ID, TEST_APPLICATION_ID, null),
+                Arguments.of(
+                        false,
+                        true,
+                        true,
+                        true,
+                        true,
+                        TEST_CLUSTER_ID,
+                        TEST_APPLICATION_ID,
+                        TEST_JOB_ID),
                 Arguments.of(
                         true,
                         false,
                         false,
                         false,
-                        getAbstractIdFromString(
-                                HighAvailabilityOptions.HA_CLUSTER_ID.defaultValue()),
+                        false,
+                        ClusterOptions.CLUSTER_ID.defaultValue(),
+                        ClusterOptions.CLUSTER_ID.defaultValue(),
                         getAbstractIdFromString(
                                 HighAvailabilityOptions.HA_CLUSTER_ID.defaultValue())),
                 Arguments.of(
                         true,
                         false,
                         false,
+                        false,
                         true,
-                        getAbstractIdFromString(
-                                HighAvailabilityOptions.HA_CLUSTER_ID.defaultValue()),
+                        ClusterOptions.CLUSTER_ID.defaultValue(),
+                        ClusterOptions.CLUSTER_ID.defaultValue(),
                         TEST_JOB_ID),
-                Arguments.of(true, false, true, false, TEST_APPLICATION_ID, TEST_APPLICATION_ID),
-                Arguments.of(true, false, true, true, TEST_APPLICATION_ID, TEST_JOB_ID),
+                Arguments.of(
+                        true,
+                        false,
+                        false,
+                        true,
+                        false,
+                        ClusterOptions.CLUSTER_ID.defaultValue(),
+                        TEST_APPLICATION_ID,
+                        TEST_APPLICATION_ID),
+                Arguments.of(
+                        true,
+                        false,
+                        false,
+                        true,
+                        true,
+                        ClusterOptions.CLUSTER_ID.defaultValue(),
+                        TEST_APPLICATION_ID,
+                        TEST_JOB_ID),
+                Arguments.of(
+                        true,
+                        false,
+                        true,
+                        false,
+                        false,
+                        TEST_CLUSTER_ID,
+                        TEST_CLUSTER_ID,
+                        TEST_CLUSTER_ID),
+                Arguments.of(
+                        true,
+                        false,
+                        true,
+                        false,
+                        true,
+                        TEST_CLUSTER_ID,
+                        TEST_CLUSTER_ID,
+                        TEST_JOB_ID),
+                Arguments.of(
+                        true,
+                        false,
+                        true,
+                        true,
+                        false,
+                        TEST_CLUSTER_ID,
+                        TEST_APPLICATION_ID,
+                        TEST_APPLICATION_ID),
+                Arguments.of(
+                        true,
+                        false,
+                        true,
+                        true,
+                        true,
+                        TEST_CLUSTER_ID,
+                        TEST_APPLICATION_ID,
+                        TEST_JOB_ID),
                 Arguments.of(
                         true,
                         true,
                         false,
                         false,
+                        false,
+                        getAbstractIdFromString(TEST_HA_CLUSTER_ID),
                         getAbstractIdFromString(TEST_HA_CLUSTER_ID),
                         getAbstractIdFromString(TEST_HA_CLUSTER_ID)),
                 Arguments.of(
                         true,
                         true,
                         false,
+                        false,
                         true,
                         getAbstractIdFromString(TEST_HA_CLUSTER_ID),
+                        getAbstractIdFromString(TEST_HA_CLUSTER_ID),
                         TEST_JOB_ID),
-                Arguments.of(true, true, true, false, TEST_APPLICATION_ID, TEST_APPLICATION_ID),
-                Arguments.of(true, true, true, true, TEST_APPLICATION_ID, TEST_JOB_ID));
+                Arguments.of(
+                        true,
+                        true,
+                        false,
+                        true,
+                        false,
+                        getAbstractIdFromString(TEST_HA_CLUSTER_ID),
+                        TEST_APPLICATION_ID,
+                        TEST_APPLICATION_ID),
+                Arguments.of(
+                        true,
+                        true,
+                        false,
+                        true,
+                        true,
+                        getAbstractIdFromString(TEST_HA_CLUSTER_ID),
+                        TEST_APPLICATION_ID,
+                        TEST_JOB_ID),
+                Arguments.of(
+                        true,
+                        true,
+                        true,
+                        false,
+                        false,
+                        TEST_CLUSTER_ID,
+                        TEST_CLUSTER_ID,
+                        TEST_CLUSTER_ID),
+                Arguments.of(
+                        true,
+                        true,
+                        true,
+                        false,
+                        true,
+                        TEST_CLUSTER_ID,
+                        TEST_CLUSTER_ID,
+                        TEST_JOB_ID),
+                Arguments.of(
+                        true,
+                        true,
+                        true,
+                        true,
+                        false,
+                        TEST_CLUSTER_ID,
+                        TEST_APPLICATION_ID,
+                        TEST_APPLICATION_ID),
+                Arguments.of(
+                        true,
+                        true,
+                        true,
+                        true,
+                        true,
+                        TEST_CLUSTER_ID,
+                        TEST_APPLICATION_ID,
+                        TEST_JOB_ID));
     }
 
     private static String getAbstractIdFromString(String str) {
         return (new AbstractID(str.hashCode(), 0)).toHexString();
+    }
+
+    @Test
+    void testMaybeFixIds_ClusterIdMalformed() {
+        final String clusterId = "cluster";
+        configuration.set(ClusterOptions.CLUSTER_ID, clusterId);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> ApplicationJobUtils.maybeFixIds(configuration));
     }
 
     @Test

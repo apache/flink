@@ -36,6 +36,25 @@ import static org.apache.flink.configuration.description.TextElement.text;
 @PublicEvolving
 public class ClusterOptions {
 
+    @Documentation.Section(Documentation.Sections.EXPERT_CLUSTER)
+    public static final ConfigOption<String> CLUSTER_ID =
+            key("cluster.id")
+                    .stringType()
+                    .defaultValue("00000000000000000000000000000000")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The ID of the Flink cluster, used to separate multiple Flink clusters from each other. "
+                                                    + "Currently, this option is primarily used to determine the archive path, "
+                                                    + "and may also be used as the fixed application/job id (if not specified by the user) in high availability mode."
+                                                    + "The expected format is [0-9a-fA-F]{32}, e.g. fd72014d4c864993a2e5a9287b4a9c5d.")
+                                    .linebreak()
+                                    .text(
+                                            "If this option is not configured but %s is configured, the value will be derived from the value of %s.",
+                                            code(HighAvailabilityOptions.HA_CLUSTER_ID.key()),
+                                            code(HighAvailabilityOptions.HA_CLUSTER_ID.key()))
+                                    .build());
+
     @Documentation.Section(Documentation.Sections.EXPERT_FAULT_TOLERANCE)
     public static final ConfigOption<Duration> INITIAL_REGISTRATION_TIMEOUT =
             ConfigOptions.key("cluster.registration.initial-timeout")

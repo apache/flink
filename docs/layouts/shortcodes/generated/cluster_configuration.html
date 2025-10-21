@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>cluster.id</h5></td>
+            <td style="word-wrap: break-word;">"00000000000000000000000000000000"</td>
+            <td>String</td>
+            <td>The ID of the Flink cluster, used to separate multiple Flink clusters from each other. Currently, this option is primarily used to determine the archive path, and may also be used as the fixed application/job id (if not specified by the user) in high availability mode.The expected format is [0-9a-fA-F]{32}, e.g. fd72014d4c864993a2e5a9287b4a9c5d.<br />If this option is not configured but <code class="highlighter-rouge">high-availability.cluster-id</code> is configured, the value will be derived from the value of <code class="highlighter-rouge">high-availability.cluster-id</code>.</td>
+        </tr>
+        <tr>
             <td><h5>cluster.intercept-user-system-exit</h5></td>
             <td style="word-wrap: break-word;">DISABLED</td>
             <td><p>Enum</p></td>
