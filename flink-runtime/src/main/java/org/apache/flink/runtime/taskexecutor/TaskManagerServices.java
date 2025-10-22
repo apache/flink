@@ -333,13 +333,13 @@ public class TaskManagerServices {
             throws Exception {
 
         // pre-start checks
-        checkTempDirs(taskManagerServicesConfiguration.getTmpDirPaths());
+        checkTempDirs(taskManagerServicesConfiguration.getTmpDirs());
 
         final TaskEventDispatcher taskEventDispatcher = new TaskEventDispatcher();
 
         // start the I/O manager, it will create some temp directories.
         final IOManager ioManager =
-                new IOManagerAsync(taskManagerServicesConfiguration.getTmpDirPaths(), ioExecutor);
+                new IOManagerAsync(taskManagerServicesConfiguration.getTmpDirs(), ioExecutor);
 
         final ShuffleEnvironment<?, ?> shuffleEnvironment =
                 createShuffleEnvironment(
@@ -501,7 +501,7 @@ public class TaskManagerServices {
                         taskManagerServicesConfiguration.isLocalCommunicationOnly(),
                         taskManagerServicesConfiguration.getBindAddress(),
                         taskManagerServicesConfiguration.getNumberOfSlots(),
-                        taskManagerServicesConfiguration.getTmpDirPaths(),
+                        taskManagerServicesConfiguration.getTmpDirs(),
                         taskEventDispatcher,
                         taskManagerMetricGroup,
                         ioExecutor,
