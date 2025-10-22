@@ -17,6 +17,7 @@
 
 package org.apache.flink.state.rocksdb;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.memory.OpaqueMemoryResource;
@@ -95,6 +96,16 @@ enum RocksDBSharedResourcesFactory {
     RocksDBSharedResourcesFactory(boolean managed, MemoryShareScope shareScope) {
         this.managed = managed;
         this.shareScope = shareScope;
+    }
+
+    @VisibleForTesting
+    public boolean isManaged() {
+        return managed;
+    }
+
+    @VisibleForTesting
+    public MemoryShareScope getShareScope() {
+        return shareScope;
     }
 
     @Nullable
