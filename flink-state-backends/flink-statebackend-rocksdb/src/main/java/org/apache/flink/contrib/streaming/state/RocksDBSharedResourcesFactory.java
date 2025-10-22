@@ -36,7 +36,7 @@ import static org.apache.flink.contrib.streaming.state.RocksDBOptions.FIX_PER_TM
  */
 enum RocksDBSharedResourcesFactory {
     /** Memory allocated per Slot (shared across slot tasks), managed by Flink. */
-    SLOT_SHARED_MANAGED(false, MemoryShareScope.SLOT) {
+    SLOT_SHARED_MANAGED(true, MemoryShareScope.SLOT) {
         @Override
         protected OpaqueMemoryResource<RocksDBSharedResources> createInternal(
                 RocksDBMemoryConfiguration jobMemoryConfig,
