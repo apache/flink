@@ -1962,13 +1962,22 @@ public final class TestValuesTableFactory
                 Row pk = extractPk(row);
                 RowKind originalRowKind = row.getKind();
                 if (originalRowKind == RowKind.INSERT || originalRowKind == RowKind.UPDATE_AFTER) {
-                    row.setKind(RowKind.INSERT);
-                    pkMap.put(pk, row);
+                    Row copiedRow = copyRow(row);
+                    copiedRow.setKind(RowKind.INSERT);
+                    pkMap.put(pk, copiedRow);
                 } else {
                     pkMap.remove(pk);
                 }
             }
             return new ArrayList<>(pkMap.values());
+        }
+
+        private Row copyRow(Row oldRow) {
+            Row newRow = new Row(oldRow.getKind(), oldRow.getArity());
+            for (int i = 0; i < newRow.getArity(); i++) {
+                newRow.setField(i, oldRow.getField(i));
+            }
+            return newRow;
         }
 
         private Row extractPk(Row row) {
