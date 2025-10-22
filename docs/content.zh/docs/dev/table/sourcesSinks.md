@@ -149,8 +149,9 @@ Flink 会对工厂类逐个进行检查，确保其“标识符”是全局唯�
 在读取动态表时，表中数据可以是以下情况之一：
 - changelog 流（支持有界或无界），在 changelog 流结束前，所有的改变都会被源源不断地消费，由 `ScanTableSource` 接口表示。
 - 处于一直变换或数据量很大的外部表，其中的数据一般不会被全量读取，除非是在查询某个值时，由 `LookupTableSource` 接口表示。
+- 外部表支持向量搜索，由 `VectorSearchTableSource` 接口表示。
 
-一个类可以同时实现这两个接口，Planner 会根据查询的 Query 选择相应接口中的方法。
+一个类可以同时实现这三个接口，Planner 会根据查询的 Query 选择相应接口中的方法。
 
 <a name= "scan-table-source"></a>
 
@@ -187,6 +188,20 @@ Flink 会对工厂类逐个进行检查，确保其“标识符”是全局唯�
 暂时不支持扩展功能接口，可查看 `org.apache.flink.table.connector.source.LookupTableSource` 中的文档了解更多。
 
 `LookupTableSource` 的实现方法可以是 `TableFunction` 或者 `AsyncTableFunction`，Flink运行时会根据要查询的 key 值，调用这个实现方法进行查询。
+
+#### Vector Search Table Source
+
+A `VectorSearchTableSource` searches an external storage system using an input vector and returns the most similar top-K rows during runtime. Users
+can determine which algorithm to use to calculate the similarity between the input data and data stored in the external system. In general, most
+vector databases support using Euclidean distance or Cosine distance to calculate similarity.
+
+Compared to `ScanTableSource`, a `VectorSearchTableSource` currently only supports emitting insert-only changes.
+
+Compared to `LookupTableSource`, a `VectorSearchTableSource` does not use equality to determine whether a row matches.
+
+Further abilities are not supported. See the documentation of `org.apache.flink.table.connector.source.VectorSearchTableSource` for more information.
+
+The runtime implementation of a `VectorSearchTableSource` is a `TableFunction` or `AsyncTableFunction`. The function will be called with the given vector values during runtime.
 
 <a name="source-abilities"></a>
 

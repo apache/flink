@@ -174,8 +174,9 @@ When reading a dynamic table, the content can either be considered as:
 - A continuously changing or very large external table whose content is usually never read entirely
   but queried for individual values when necessary. This is represented by the `LookupTableSource`
   interface.
+- A table that supports to search via vector. This is represented by the `VectorSearchTableSource` interface.
 
-A class can implement both of these interfaces at the same time. The planner decides about their usage depending
+A class can implement all of these interfaces at the same time. The planner decides about their usage depending
 on the specified query.
 
 #### Scan Table Source
@@ -222,6 +223,20 @@ for more information.
 
 The runtime implementation of a `LookupTableSource` is a `TableFunction` or `AsyncTableFunction`. The function
 will be called with values for the given lookup keys during runtime.
+
+#### Vector Search Table Source
+
+A `VectorSearchTableSource` searches an external storage system using an input vector and returns the most similar top-K rows during runtime. Users 
+can determine which algorithm to use to calculate the similarity between the input data and data stored in the external system. In general, most 
+vector databases support using Euclidean distance or Cosine distance to calculate similarity.
+
+Compared to `ScanTableSource`, a `VectorSearchTableSource` currently only supports emitting insert-only changes.
+
+Compared to `LookupTableSource`, a `VectorSearchTableSource` does not use equality to determine whether a row matches.
+
+Further abilities are not supported. See the documentation of `org.apache.flink.table.connector.source.VectorSearchTableSource` for more information.
+
+The runtime implementation of a `VectorSearchTableSource` is a `TableFunction` or `AsyncTableFunction`. The function will be called with the given vector values during runtime.
 
 #### Source Abilities
 
@@ -282,7 +297,7 @@ will be called with values for the given lookup keys during runtime.
 </table>
 
 <span class="label label-danger">Attention</span> The interfaces above are currently only available for
-`ScanTableSource`, not for `LookupTableSource`.
+`ScanTableSource`, not for `LookupTableSource` or `VectorSearchTableSource`.
 
 ### Dynamic Table Sink
 
