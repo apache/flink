@@ -224,7 +224,8 @@ public class AsyncVectorSearchITCase extends StreamingWithStateTestBase {
                                         + "  'connector' = 'values',\n"
                                         + "  'enable-vector-search' = 'true',\n"
                                         + "  'data-id' = '%s',\n"
-                                        + "  'async' = 'true'"
+                                        + "  'async' = 'true',\n"
+                                        + "  'latency' = '1000'"
                                         + ")",
                                 tableName, dataId));
     }

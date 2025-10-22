@@ -504,6 +504,14 @@ public final class TestValuesTableFactory
                             "Option to specify the amount of time to sleep after processing every N elements. "
                                     + "The default value is 0, which means that no sleep is performed");
 
+    public static final ConfigOption<Integer> LATENCY =
+            ConfigOptions.key("latency")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Latency in milliseconds for async vector search call for each row. "
+                                    + "If not set, the default is random between 0ms and 1000ms.");
+
     /**
      * Parse partition list from Options with the format as
      * "key1:val1,key2:val2;key1:val3,key2:val4".
@@ -658,7 +666,8 @@ public final class TestValuesTableFactory
                         null,
                         parallelism,
                         enableAggregatePushDown,
-                        isAsync);
+                        isAsync,
+                        helper.getOptions().get(LATENCY));
             }
 
             if (disableLookup) {
@@ -892,7 +901,8 @@ public final class TestValuesTableFactory
                         FULL_CACHE_PERIODIC_RELOAD_INTERVAL,
                         FULL_CACHE_PERIODIC_RELOAD_SCHEDULE_MODE,
                         FULL_CACHE_TIMED_RELOAD_ISO_TIME,
-                        FULL_CACHE_TIMED_RELOAD_INTERVAL_IN_DAYS));
+                        FULL_CACHE_TIMED_RELOAD_INTERVAL_IN_DAYS,
+                        LATENCY));
     }
 
     private static int validateAndExtractRowtimeIndex(
@@ -2252,6 +2262,7 @@ public final class TestValuesTableFactory
             implements VectorSearchTableSource {
 
         private final boolean isAsync;
+        @Nullable private final Integer latency;
 
         private TestValuesVectorSearchTableSourceWithoutProjectionPushDown(
                 DataType producedDataType,
@@ -2273,7 +2284,8 @@ public final class TestValuesTableFactory
                 @Nullable int[] projectedMetadataFields,
                 @Nullable Integer parallelism,
                 boolean enableAggregatePushDown,
-                boolean isAsync) {
+                boolean isAsync,
+                @Nullable Integer latency) {
             super(
                     producedDataType,
                     changelogMode,
@@ -2295,6 +2307,7 @@ public final class TestValuesTableFactory
                     parallelism,
                     enableAggregatePushDown);
             this.isAsync = isAsync;
+            this.latency = latency;
         }
 
         @Override
@@ -2310,7 +2323,7 @@ public final class TestValuesTableFactory
             if (isAsync) {
                 return new VectorFunctionProvider(
                         new TestValuesRuntimeFunctions.TestValueAsyncVectorSearchFunction(
-                                new ArrayList<>(rows), searchColumns, producedDataType),
+                                new ArrayList<>(rows), searchColumns, producedDataType, latency),
                         searchFunction);
             } else {
                 return VectorSearchFunctionProvider.of(searchFunction);
@@ -2339,7 +2352,8 @@ public final class TestValuesTableFactory
                     projectedMetadataFields,
                     parallelism,
                     enableAggregatePushDown,
-                    isAsync);
+                    isAsync,
+                    latency);
         }
 
         private static class VectorFunctionProvider

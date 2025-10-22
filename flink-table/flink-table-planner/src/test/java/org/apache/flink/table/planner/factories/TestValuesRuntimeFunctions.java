@@ -75,6 +75,8 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.clock.RelativeClock;
 import org.apache.flink.util.clock.SystemClock;
 
+import javax.annotation.Nullable;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -1176,12 +1178,17 @@ public final class TestValuesRuntimeFunctions {
     public static class TestValueAsyncVectorSearchFunction extends AsyncVectorSearchFunction {
 
         private final TestValueVectorSearchFunction impl;
+        private final @Nullable Integer latency;
         private transient ExecutorService executors;
         private transient Random random;
 
         public TestValueAsyncVectorSearchFunction(
-                List<Row> data, int[] searchIndices, DataType physicalRowType) {
+                List<Row> data,
+                int[] searchIndices,
+                DataType physicalRowType,
+                @Nullable Integer latency) {
             this.impl = new TestValueVectorSearchFunction(data, searchIndices, physicalRowType);
+            this.latency = latency;
         }
 
         @Override
@@ -1198,7 +1205,7 @@ public final class TestValuesRuntimeFunctions {
             return CompletableFuture.supplyAsync(
                     () -> {
                         try {
-                            Thread.sleep(random.nextInt(800) + 200);
+                            Thread.sleep(latency == null ? random.nextInt(1000) : latency);
                             return impl.vectorSearch(topK, queryData);
                         } catch (Exception e) {
                             throw new RuntimeException(e);
