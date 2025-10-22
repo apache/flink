@@ -20,17 +20,19 @@ package org.apache.flink.table.planner.runtime.stream.sql
 import org.apache.flink.core.execution.CheckpointingMode
 import org.apache.flink.table.api.Schema
 import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentImpl
-import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.api.config.OptimizerConfigOptions.DeltaJoinStrategy
 import org.apache.flink.table.catalog.{CatalogTable, ObjectPath, ResolvedCatalogTable}
 import org.apache.flink.table.planner.factories.TestValuesRuntimeFunctions.AsyncTestValueLookupFunction
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelogRow
 import org.apache.flink.table.planner.runtime.utils.{FailingCollectionSource, StreamingTestBase}
+import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
-import org.junit.jupiter.api.{BeforeEach, Test}
+import org.junit.jupiter.api.{BeforeEach, TestTemplate}
+import org.junit.jupiter.api.extension.ExtendWith
 
 import javax.annotation.Nullable
 
@@ -39,7 +41,8 @@ import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConversions._
 
-class DeltaJoinITCase extends StreamingTestBase {
+@ExtendWith(Array(classOf[ParameterizedTestExtension]))
+class DeltaJoinITCase(enableCache: Boolean) extends StreamingTestBase {
 
   @BeforeEach
   override def before(): Unit = {
@@ -49,10 +52,14 @@ class DeltaJoinITCase extends StreamingTestBase {
       OptimizerConfigOptions.TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY,
       DeltaJoinStrategy.FORCE)
 
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_DELTA_JOIN_CACHE_ENABLED,
+      Boolean.box(enableCache))
+
     AsyncTestValueLookupFunction.invokeCount.set(0)
   }
 
-  @Test
+  @TestTemplate
   def testJoinKeyEqualsIndex(): Unit = {
     val data1 = List(
       changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
@@ -77,7 +84,7 @@ class DeltaJoinITCase extends StreamingTestBase {
     testUpsertResult(List("a1"), List("b1"), data1, data2, "a1 = b1", expected, 6)
   }
 
-  @Test
+  @TestTemplate
   def testJoinKeyContainsIndex(): Unit = {
     val data1 = List(
       changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
@@ -102,7 +109,7 @@ class DeltaJoinITCase extends StreamingTestBase {
     testUpsertResult(List("a1"), List("b1"), data1, data2, "a1 = b1 and a2 = b2", expected, 6)
   }
 
-  @Test
+  @TestTemplate
   def testJoinKeyNotContainsIndex(): Unit = {
     val data1 = List(
       changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
@@ -129,7 +136,72 @@ class DeltaJoinITCase extends StreamingTestBase {
       .hasMessageContaining("The current sql doesn't support to do delta join optimization.")
   }
 
-  @Test
+  @TestTemplate
+  def testSameJoinKeyColValuesWhileJoinKeyEqualsIndex(): Unit = {
+    val data1 = List(
+      changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
+      changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2022, 2, 2, 2, 2, 2)),
+      // mismatch
+      changelogRow("+I", Double.box(3.0), Int.box(3), LocalDateTime.of(2023, 3, 3, 3, 3, 3))
+    )
+
+    val data2 = List(
+      changelogRow("+I", Int.box(1), Double.box(1.0), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
+      changelogRow("+I", Int.box(1), Double.box(1.0), LocalDateTime.of(2022, 2, 2, 2, 2, 22)),
+      // mismatch
+      changelogRow("+I", Int.box(99), Double.box(99.0), LocalDateTime.of(2099, 2, 2, 2, 2, 2))
+    )
+
+    // TestValuesRuntimeFunctions#KeyedUpsertingSinkFunction will change the RowKind from
+    // "+U" to "+I"
+    val expected = List(
+      "+I[1.0, 1, 2022-02-02T02:02:02, 1, 1.0, 2022-02-02T02:02:22]"
+    )
+    testUpsertResult(
+      List("a1"),
+      List("b1"),
+      data1,
+      data2,
+      "a1 = b1",
+      expected,
+      if (enableCache) 4 else 6)
+  }
+
+  @TestTemplate
+  def testSameJoinKeyColValuesWhileJoinKeyContainsIndex(): Unit = {
+    val data1 = List(
+      changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
+      changelogRow("+I", Double.box(1.0), Int.box(2), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
+      // mismatch
+      changelogRow("+I", Double.box(3.0), Int.box(3), LocalDateTime.of(2023, 3, 3, 3, 3, 3))
+    )
+
+    val data2 = List(
+      changelogRow("+I", Int.box(1), Double.box(1.0), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
+      changelogRow("+I", Int.box(2), Double.box(1.0), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
+      // mismatch
+      changelogRow("+I", Int.box(99), Double.box(99.0), LocalDateTime.of(2099, 2, 2, 2, 2, 2))
+    )
+
+    // TestValuesRuntimeFunctions#KeyedUpsertingSinkFunction will change the RowKind from
+    // "+U" to "+I"
+    val expected = List(
+      "+I[1.0, 1, 2021-01-01T01:01:01, 1, 1.0, 2021-01-01T01:01:01]",
+      "+I[1.0, 1, 2021-01-01T01:01:01, 2, 1.0, 2021-01-01T01:01:01]",
+      "+I[1.0, 2, 2021-01-01T01:01:01, 1, 1.0, 2021-01-01T01:01:01]",
+      "+I[1.0, 2, 2021-01-01T01:01:01, 2, 1.0, 2021-01-01T01:01:01]"
+    )
+    testUpsertResult(
+      List("a1"),
+      List("b1"),
+      data1,
+      data2,
+      "a1 = b1 and a2 = b2",
+      expected,
+      if (enableCache) 4 else 6)
+  }
+
+  @TestTemplate
   def testWithNonEquiCondition1(): Unit = {
     val data1 = List(
       changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
@@ -159,7 +231,7 @@ class DeltaJoinITCase extends StreamingTestBase {
       6)
   }
 
-  @Test
+  @TestTemplate
   def testWithNonEquiCondition2(): Unit = {
     val data1 = List(
       changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
@@ -206,7 +278,7 @@ class DeltaJoinITCase extends StreamingTestBase {
       .hasMessageContaining("The current sql doesn't support to do delta join optimization.")
   }
 
-  @Test
+  @TestTemplate
   def testFilterFieldsBeforeJoin(): Unit = {
     val data1 = List(
       changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
@@ -245,7 +317,7 @@ class DeltaJoinITCase extends StreamingTestBase {
       .hasMessageContaining("The current sql doesn't support to do delta join optimization.")
   }
 
-  @Test
+  @TestTemplate
   def testProjectFieldsAfterJoin(): Unit = {
     val data1 = List(
       changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
@@ -271,8 +343,19 @@ class DeltaJoinITCase extends StreamingTestBase {
     )
 
     tEnv
-      .executeSql(
-        s"insert into testSnk select a1, a0 + 1, a2, b0 + 2, b1, b2 from testLeft join testRight on a0 = b0")
+      .executeSql("""
+                    |insert into testSnk
+                    | select
+                    |   a1,
+                    |   a0 + 1,
+                    |   a2,
+                    |   b0 + 2,
+                    |   b1,
+                    |   b2
+                    |   from testLeft
+                    | join testRight
+                    |   on a0 = b0
+                    |""".stripMargin)
       .await()
     val result = TestValuesTableFactory.getResultsAsStrings("testSnk")
 
@@ -280,7 +363,7 @@ class DeltaJoinITCase extends StreamingTestBase {
     assertThat(AsyncTestValueLookupFunction.invokeCount.get()).isEqualTo(6)
   }
 
-  @Test
+  @TestTemplate
   def testProjectFieldsBeforeJoin(): Unit = {
     val data1 = List(
       changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
@@ -311,18 +394,23 @@ class DeltaJoinITCase extends StreamingTestBase {
                        |)
                        |""".stripMargin)
 
-    // could not optimize into delta join because there is ProjectPushDownSpec between join and source
-    assertThatThrownBy(
-      () =>
-        tEnv
-          .executeSql(
-            s"insert into projectedSink select testLeft.a0, testRight.b0, testLeft.a1, testLeft.a2 " +
-              s"from testLeft join testRight on a0 = b0")
-          .await())
+    // could not optimize into delta join
+    // because there is ProjectPushDownSpec between join and source
+    assertThatThrownBy(() => tEnv.executeSql("""
+                                               |insert into projectedSink
+                                               |  select
+                                               |    testLeft.a0,
+                                               |    testRight.b0,
+                                               |    testLeft.a1,
+                                               |    testLeft.a2
+                                               |    from testLeft
+                                               |  join testRight
+                                               |    on a0 = b0
+                                               |""".stripMargin))
       .hasMessageContaining("The current sql doesn't support to do delta join optimization.")
   }
 
-  @Test
+  @TestTemplate
   def testProjectFieldsBeforeJoin2(): Unit = {
     val data1 = List(
       changelogRow("+I", Double.box(1.0), Int.box(1), LocalDateTime.of(2021, 1, 1, 1, 1, 1)),
@@ -354,7 +442,7 @@ class DeltaJoinITCase extends StreamingTestBase {
       .hasMessageContaining("The current sql doesn't support to do delta join optimization.")
   }
 
-  @Test
+  @TestTemplate
   def testFailOverAndRestore(): Unit = {
     // enable checkpoint, we are using failing source to force have a complete checkpoint
     // and cover restore path
@@ -503,4 +591,11 @@ class DeltaJoinITCase extends StreamingTestBase {
                        |""".stripMargin)
   }
 
+}
+
+object DeltaJoinITCase {
+  @Parameters(name = "EnableCache={0}")
+  def parameters(): java.util.Collection[Boolean] = {
+    Seq[Boolean](true, false)
+  }
 }

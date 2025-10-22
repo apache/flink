@@ -99,7 +99,7 @@ public class StreamingDeltaJoinOperator
 
     private static final String METRIC_DELTA_JOIN_OP_TOTAL_IN_FLIGHT_NUM =
             "deltaJoinOpTotalInFlightNum";
-    private static final String METRIC_DELTA_JOIN_ASYNC_IO_TIME = "deltaJoinAsyncIoTime";
+    private static final String METRIC_DELTA_JOIN_ASYNC_IO_TIME = "deltaJoinAsyncIOTime";
 
     private final StreamRecord<RowData> leftEmptyStreamRecord;
     private final StreamRecord<RowData> rightEmptyStreamRecord;
@@ -115,6 +115,10 @@ public class StreamingDeltaJoinOperator
 
     /** Max number of inflight invocation. */
     private final int capacity;
+
+    private final long leftSideCacheSize;
+
+    private final long rightSideCacheSize;
 
     private transient boolean needDeepCopy;
 
@@ -137,6 +141,8 @@ public class StreamingDeltaJoinOperator
     /** Structure to control the process order of input records. */
     private transient TableAsyncExecutionController<RowData, RowData, RowData>
             asyncExecutionController;
+
+    private transient DeltaJoinCache cache;
 
     /** Mailbox executor used to yield while waiting for buffers to empty. */
     private final transient MailboxExecutor mailboxExecutor;
@@ -172,6 +178,8 @@ public class StreamingDeltaJoinOperator
             int capacity,
             ProcessingTimeService processingTimeService,
             MailboxExecutor mailboxExecutor,
+            long leftSideCacheSize,
+            long rightSideCacheSize,
             RowType leftStreamType,
             RowType rightStreamType) {
         // rightLookupTableAsyncFunction is an udx used for left records
@@ -184,6 +192,8 @@ public class StreamingDeltaJoinOperator
         this.processingTimeService = checkNotNull(processingTimeService);
         this.mailboxExecutor = mailboxExecutor;
         this.isInputEnded = new boolean[2];
+        this.leftSideCacheSize = leftSideCacheSize;
+        this.rightSideCacheSize = rightSideCacheSize;
         this.leftEmptyStreamRecord =
                 new StreamRecord<>(new GenericRowData(leftStreamType.getFieldCount()));
         this.rightEmptyStreamRecord =
@@ -224,6 +234,11 @@ public class StreamingDeltaJoinOperator
                                     isLeft(inputIndex) ? leftJoinKeySelector : rightJoinKeySelector;
                             return keySelector.getKey(record.getValue());
                         });
+
+        this.cache = new DeltaJoinCache(leftSideCacheSize, rightSideCacheSize);
+
+        leftTriggeredUserFunction.setCache(cache);
+        rightTriggeredUserFunction.setCache(cache);
     }
 
     @Override
@@ -275,6 +290,9 @@ public class StreamingDeltaJoinOperator
         getRuntimeContext()
                 .getMetricGroup()
                 .gauge(METRIC_DELTA_JOIN_ASYNC_IO_TIME, asyncIOTime::get);
+        // 3. cache metric
+        cache.registerMetrics(getRuntimeContext().getMetricGroup());
+
         // asyncBufferCapacity + 1 as the queue size in order to avoid
         // blocking on the queue when taking a collector.
         this.resultHandlerBuffer = new ArrayBlockingQueue<>(capacity + 1);
