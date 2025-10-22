@@ -54,6 +54,7 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.data.conversion.RowRowConverter;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.AsyncLookupFunction;
+import org.apache.flink.table.functions.AsyncVectorSearchFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.LookupFunction;
 import org.apache.flink.table.functions.VectorSearchFunction;
@@ -73,6 +74,8 @@ import org.apache.flink.types.RowUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.clock.RelativeClock;
 import org.apache.flink.util.clock.SystemClock;
+
+import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -1169,6 +1172,53 @@ public final class TestValuesRuntimeFunctions {
                 sum += left[i] * right[i];
             }
             return sum;
+        }
+    }
+
+    public static class TestValueAsyncVectorSearchFunction extends AsyncVectorSearchFunction {
+
+        private final TestValueVectorSearchFunction impl;
+        private final @Nullable Integer latency;
+        private transient ExecutorService executors;
+        private transient Random random;
+
+        public TestValueAsyncVectorSearchFunction(
+                List<Row> data,
+                int[] searchIndices,
+                DataType physicalRowType,
+                @Nullable Integer latency) {
+            this.impl = new TestValueVectorSearchFunction(data, searchIndices, physicalRowType);
+            this.latency = latency;
+        }
+
+        @Override
+        public void open(FunctionContext context) throws Exception {
+            super.open(context);
+            impl.open(context);
+            executors = Executors.newCachedThreadPool();
+            random = new Random();
+        }
+
+        @Override
+        public CompletableFuture<Collection<RowData>> asyncVectorSearch(
+                int topK, RowData queryData) {
+            return CompletableFuture.supplyAsync(
+                    () -> {
+                        try {
+                            Thread.sleep(latency == null ? random.nextInt(1000) : latency);
+                            return impl.vectorSearch(topK, queryData);
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    },
+                    executors);
+        }
+
+        @Override
+        public void close() throws Exception {
+            super.close();
+            impl.close();
+            executors.shutdown();
         }
     }
 }

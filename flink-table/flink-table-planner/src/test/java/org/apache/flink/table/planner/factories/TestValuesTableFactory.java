@@ -83,6 +83,7 @@ import org.apache.flink.table.connector.source.lookup.cache.DefaultLookupCache;
 import org.apache.flink.table.connector.source.lookup.cache.LookupCache;
 import org.apache.flink.table.connector.source.lookup.cache.trigger.CacheReloadTrigger;
 import org.apache.flink.table.connector.source.lookup.cache.trigger.PeriodicCacheReloadTrigger;
+import org.apache.flink.table.connector.source.search.AsyncVectorSearchFunctionProvider;
 import org.apache.flink.table.connector.source.search.VectorSearchFunctionProvider;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -95,9 +96,11 @@ import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.functions.AsyncLookupFunction;
 import org.apache.flink.table.functions.AsyncTableFunction;
+import org.apache.flink.table.functions.AsyncVectorSearchFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.LookupFunction;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.VectorSearchFunction;
 import org.apache.flink.table.legacy.api.TableSchema;
 import org.apache.flink.table.legacy.api.WatermarkSpec;
 import org.apache.flink.table.legacy.connector.source.AsyncTableFunctionProvider;
@@ -501,6 +504,14 @@ public final class TestValuesTableFactory
                             "Option to specify the amount of time to sleep after processing every N elements. "
                                     + "The default value is 0, which means that no sleep is performed");
 
+    public static final ConfigOption<Integer> LATENCY =
+            ConfigOptions.key("latency")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Latency in milliseconds for async vector search call for each row. "
+                                    + "If not set, the default is random between 0ms and 1000ms.");
+
     /**
      * Parse partition list from Options with the format as
      * "key1:val1,key2:val2;key1:val3,key2:val4".
@@ -654,7 +665,9 @@ public final class TestValuesTableFactory
                         readableMetadata,
                         null,
                         parallelism,
-                        enableAggregatePushDown);
+                        enableAggregatePushDown,
+                        isAsync,
+                        helper.getOptions().get(LATENCY));
             }
 
             if (disableLookup) {
@@ -888,7 +901,8 @@ public final class TestValuesTableFactory
                         FULL_CACHE_PERIODIC_RELOAD_INTERVAL,
                         FULL_CACHE_PERIODIC_RELOAD_SCHEDULE_MODE,
                         FULL_CACHE_TIMED_RELOAD_ISO_TIME,
-                        FULL_CACHE_TIMED_RELOAD_INTERVAL_IN_DAYS));
+                        FULL_CACHE_TIMED_RELOAD_INTERVAL_IN_DAYS,
+                        LATENCY));
     }
 
     private static int validateAndExtractRowtimeIndex(
@@ -1054,7 +1068,7 @@ public final class TestValuesTableFactory
         private @Nullable int[] groupingSet;
         private List<AggregateExpression> aggregateExpressions;
         private List<String> acceptedPartitionFilterFields;
-        private final Integer parallelism;
+        protected final Integer parallelism;
 
         private TestValuesScanTableSourceWithoutProjectionPushDown(
                 DataType producedDataType,
@@ -2247,6 +2261,9 @@ public final class TestValuesTableFactory
             extends TestValuesScanTableSourceWithoutProjectionPushDown
             implements VectorSearchTableSource {
 
+        private final boolean isAsync;
+        @Nullable private final Integer latency;
+
         private TestValuesVectorSearchTableSourceWithoutProjectionPushDown(
                 DataType producedDataType,
                 ChangelogMode changelogMode,
@@ -2266,7 +2283,9 @@ public final class TestValuesTableFactory
                 Map<String, DataType> readableMetadata,
                 @Nullable int[] projectedMetadataFields,
                 @Nullable Integer parallelism,
-                boolean enableAggregatePushDown) {
+                boolean enableAggregatePushDown,
+                boolean isAsync,
+                @Nullable Integer latency) {
             super(
                     producedDataType,
                     changelogMode,
@@ -2287,6 +2306,8 @@ public final class TestValuesTableFactory
                     projectedMetadataFields,
                     parallelism,
                     enableAggregatePushDown);
+            this.isAsync = isAsync;
+            this.latency = latency;
         }
 
         @Override
@@ -2295,9 +2316,67 @@ public final class TestValuesTableFactory
                     Arrays.stream(context.getSearchColumns()).mapToInt(k -> k[0]).toArray();
             Collection<Row> rows =
                     data.getOrDefault(Collections.emptyMap(), Collections.emptyList());
-            return VectorSearchFunctionProvider.of(
+            TestValuesRuntimeFunctions.TestValueVectorSearchFunction searchFunction =
                     new TestValuesRuntimeFunctions.TestValueVectorSearchFunction(
-                            new ArrayList<>(rows), searchColumns, producedDataType));
+                            new ArrayList<>(rows), searchColumns, producedDataType);
+
+            if (isAsync) {
+                return new VectorFunctionProvider(
+                        new TestValuesRuntimeFunctions.TestValueAsyncVectorSearchFunction(
+                                new ArrayList<>(rows), searchColumns, producedDataType, latency),
+                        searchFunction);
+            } else {
+                return VectorSearchFunctionProvider.of(searchFunction);
+            }
+        }
+
+        @Override
+        public DynamicTableSource copy() {
+            return new TestValuesVectorSearchTableSourceWithoutProjectionPushDown(
+                    producedDataType,
+                    changelogMode,
+                    boundedness,
+                    terminating,
+                    runtimeSource,
+                    failingSource,
+                    data,
+                    nestedProjectionSupported,
+                    projectedPhysicalFields,
+                    filterPredicates,
+                    filterableFields,
+                    dynamicFilteringFields,
+                    numElementToSkip,
+                    limit,
+                    allPartitions,
+                    readableMetadata,
+                    projectedMetadataFields,
+                    parallelism,
+                    enableAggregatePushDown,
+                    isAsync,
+                    latency);
+        }
+
+        private static class VectorFunctionProvider
+                implements AsyncVectorSearchFunctionProvider, VectorSearchFunctionProvider {
+
+            private final AsyncVectorSearchFunction asyncFunction;
+            private final VectorSearchFunction syncFunction;
+
+            public VectorFunctionProvider(
+                    AsyncVectorSearchFunction asyncFunction, VectorSearchFunction syncFunction) {
+                this.asyncFunction = asyncFunction;
+                this.syncFunction = syncFunction;
+            }
+
+            @Override
+            public AsyncVectorSearchFunction createAsyncVectorSearchFunction() {
+                return asyncFunction;
+            }
+
+            @Override
+            public VectorSearchFunction createVectorSearchFunction() {
+                return syncFunction;
+            }
         }
     }
 
