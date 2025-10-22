@@ -53,7 +53,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * Integration test for the {@link CheckpointListener} interface. The test ensures that {@link
@@ -83,74 +82,67 @@ public class StreamCheckpointNotifierITCase extends AbstractTestBaseJUnit4 {
      * </pre>
      */
     @Test
-    public void testProgram() {
-        try {
-            final StreamExecutionEnvironment env =
-                    StreamExecutionEnvironment.getExecutionEnvironment();
-            assertEquals("test setup broken", PARALLELISM, env.getParallelism());
+    public void testProgram() throws Exception {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        assertEquals("test setup broken", PARALLELISM, env.getParallelism());
 
-            env.enableCheckpointing(500);
-            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
+        env.enableCheckpointing(500);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
 
-            final int numElements = 10000;
-            final int numTaskTotal = PARALLELISM * 5;
+        final int numElements = 10000;
+        final int numTaskTotal = PARALLELISM * 5;
 
-            DataStream<Long> stream =
-                    env.addSource(new GeneratingSourceFunction(numElements, numTaskTotal));
+        DataStream<Long> stream =
+                env.addSource(new GeneratingSourceFunction(numElements, numTaskTotal));
 
-            stream
-                    // -------------- first vertex, chained to the src ----------------
-                    .filter(new LongRichFilterFunction())
+        stream
+                // -------------- first vertex, chained to the src ----------------
+                .filter(new LongRichFilterFunction())
 
-                    // -------------- second vertex, applying the co-map ----------------
-                    .connect(stream)
-                    .flatMap(new LeftIdentityCoRichFlatMapFunction())
+                // -------------- second vertex, applying the co-map ----------------
+                .connect(stream)
+                .flatMap(new LeftIdentityCoRichFlatMapFunction())
 
-                    // -------------- third vertex - the stateful one that also fails
-                    // ----------------
-                    .map(new IdentityMapFunction())
-                    .startNewChain()
+                // -------------- third vertex - the stateful one that also fails
+                // ----------------
+                .map(new IdentityMapFunction())
+                .startNewChain()
 
-                    // -------------- fourth vertex - reducer and the sink ----------------
-                    .keyBy(x -> x.f0)
-                    .reduce(new OnceFailingReducer(numElements))
-                    .sinkTo(new DiscardingSink<>());
+                // -------------- fourth vertex - reducer and the sink ----------------
+                .keyBy(x -> x.f0)
+                .reduce(new OnceFailingReducer(numElements))
+                .sinkTo(new DiscardingSink<>());
 
-            env.execute();
+        env.execute();
 
-            final long failureCheckpointID = OnceFailingReducer.failureCheckpointID;
-            assertNotEquals(0L, failureCheckpointID);
+        final long failureCheckpointID = OnceFailingReducer.failureCheckpointID;
+        assertNotEquals(0L, failureCheckpointID);
 
-            List<List<Long>[]> allLists =
-                    Arrays.asList(
-                            GeneratingSourceFunction.COMPLETED_CHECKPOINTS,
-                            LongRichFilterFunction.COMPLETED_CHECKPOINTS,
-                            LeftIdentityCoRichFlatMapFunction.COMPLETED_CHECKPOINTS,
-                            IdentityMapFunction.COMPLETED_CHECKPOINTS,
-                            OnceFailingReducer.COMPLETED_CHECKPOINTS);
+        List<List<Long>[]> allLists =
+                Arrays.asList(
+                        GeneratingSourceFunction.COMPLETED_CHECKPOINTS,
+                        LongRichFilterFunction.COMPLETED_CHECKPOINTS,
+                        LeftIdentityCoRichFlatMapFunction.COMPLETED_CHECKPOINTS,
+                        IdentityMapFunction.COMPLETED_CHECKPOINTS,
+                        OnceFailingReducer.COMPLETED_CHECKPOINTS);
 
-            for (List<Long>[] parallelNotifications : allLists) {
-                for (List<Long> notifications : parallelNotifications) {
+        for (List<Long>[] parallelNotifications : allLists) {
+            for (List<Long> notifications : parallelNotifications) {
 
-                    assertTrue(
-                            "No checkpoint notification was received.", notifications.size() > 0);
+                assertTrue("No checkpoint notification was received.", notifications.size() > 0);
 
-                    assertFalse(
-                            "Failure checkpoint was marked as completed.",
-                            notifications.contains(failureCheckpointID));
+                assertFalse(
+                        "Failure checkpoint was marked as completed.",
+                        notifications.contains(failureCheckpointID));
 
-                    assertFalse(
-                            "No checkpoint received after failure.",
-                            notifications.get(notifications.size() - 1) == failureCheckpointID);
+                assertFalse(
+                        "No checkpoint received after failure.",
+                        notifications.get(notifications.size() - 1) == failureCheckpointID);
 
-                    assertTrue(
-                            "Checkpoint notification was received multiple times",
-                            notifications.size() == new HashSet<Long>(notifications).size());
-                }
+                assertTrue(
+                        "Checkpoint notification was received multiple times",
+                        notifications.size() == new HashSet<Long>(notifications).size());
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
