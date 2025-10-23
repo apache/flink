@@ -117,17 +117,17 @@ public class StreamExecVectorSearchTableFunction extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(
+        this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecVectorSearchTableFunction.class),
                 ExecNodeContext.newPersistedConfig(
                         StreamExecVectorSearchTableFunction.class, tableConfig),
+                tableSourceSpec,
+                vectorSearchSpec,
+                asyncOptions,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
-        this.tableSourceSpec = tableSourceSpec;
-        this.vectorSearchSpec = vectorSearchSpec;
-        this.asyncOptions = asyncOptions;
     }
 
     @JsonCreator
