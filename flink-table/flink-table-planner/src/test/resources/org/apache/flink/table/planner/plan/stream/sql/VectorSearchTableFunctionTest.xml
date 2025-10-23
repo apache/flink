@@ -16,6 +16,48 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testLiteralValue">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM LATERAL TABLE(VECTOR_SEARCH(TABLE VectorTable, DESCRIPTOR(`g`), ARRAY[1.5, 2.0], 10))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(e=[$0], f=[$1], g=[$2], score=[$3])
++- LogicalTableFunctionScan(invocation=[VECTOR_SEARCH(TABLE(#0), DESCRIPTOR(_UTF-16LE'g'), ARRAY(1.5:DECIMAL(2, 1), 2.0:DECIMAL(2, 1)), 10)], rowType=[RecordType(INTEGER e, BIGINT f, FLOAT ARRAY g, DOUBLE score)])
+   +- LogicalProject(e=[$0], f=[$1], g=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VectorTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[e, f, g, score])
++- VectorSearchTableFunction(table=[default_catalog.default_database.VectorTable], joinType=[InnerJoin], columnToSearch=[g], columnToQuery=[$f0], topK=[10], select=[$f0, e, f, g, score])
+   +- Calc(select=[ARRAY(1.5, 2.0) AS $f0])
+      +- Values(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLiteralValueWithoutLateralKeyword">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM TABLE(VECTOR_SEARCH(TABLE VectorTable, DESCRIPTOR(`g`), ARRAY[1.5, 2.0], 10))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(e=[$0], f=[$1], g=[$2], score=[$3])
++- LogicalTableFunctionScan(invocation=[VECTOR_SEARCH(TABLE(#0), DESCRIPTOR(_UTF-16LE'g'), ARRAY(1.5:DECIMAL(2, 1), 2.0:DECIMAL(2, 1)), 10)], rowType=[RecordType(INTEGER e, BIGINT f, FLOAT ARRAY g, DOUBLE score)])
+   +- LogicalProject(e=[$0], f=[$1], g=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, VectorTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[e, f, g, score])
++- VectorSearchTableFunction(table=[default_catalog.default_database.VectorTable], joinType=[InnerJoin], columnToSearch=[g], columnToQuery=[$f0], topK=[10], select=[$f0, e, f, g, score])
+   +- Calc(select=[ARRAY(1.5, 2.0) AS $f0])
+      +- Values(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testNameConflicts">
     <Resource name="sql">
       <![CDATA[SELECT * FROM QueryTable, LATERAL TABLE(
