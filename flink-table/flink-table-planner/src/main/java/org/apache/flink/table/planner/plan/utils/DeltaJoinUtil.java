@@ -252,7 +252,8 @@ public class DeltaJoinUtil {
             return false;
         }
 
-        // if this join output cdc records, the non-equiv condition must be applied on upsert key
+        // if this join outputs cdc records and has non-equiv condition, the reference columns in
+        // the non-equiv condition must come from the same set of upsert keys
         ChangelogMode changelogMode = getChangelogMode(join);
         if (changelogMode.containsOnly(RowKind.INSERT)) {
             return true;

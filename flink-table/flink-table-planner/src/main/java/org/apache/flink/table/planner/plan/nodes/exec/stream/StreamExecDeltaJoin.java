@@ -142,6 +142,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
 
     @JsonProperty(FIELD_NAME_LEFT_UPSERT_KEY)
     @JsonInclude(JsonInclude.Include.NON_NULL)
+    @Nullable
     private final int[] leftUpsertKeys;
 
     // left (streaming) side join right (lookup) side
@@ -155,6 +156,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
 
     @JsonProperty(FIELD_NAME_RIGHT_UPSERT_KEY)
     @JsonInclude(JsonInclude.Include.NON_NULL)
+    @Nullable
     private final int[] rightUpsertKeys;
 
     // right (streaming) side join left (lookup) side
