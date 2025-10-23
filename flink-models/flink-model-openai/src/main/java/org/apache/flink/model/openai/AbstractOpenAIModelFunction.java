@@ -25,6 +25,7 @@ import org.apache.flink.configuration.description.Description;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.ModelProviderFactory;
 import org.apache.flink.table.functions.AsyncPredictFunction;
 import org.apache.flink.table.functions.FunctionContext;
@@ -35,7 +36,12 @@ import com.openai.client.OpenAIClientAsync;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.description.TextElement.code;
@@ -73,11 +79,32 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
                                             code("gpt-3.5-turbo"), code("text-embedding-ada-002"))
                                     .build());
 
+    public static final ConfigOption<Integer> MAX_CONTEXT_SIZE =
+            ConfigOptions.key("max-context-size")
+                    .intType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Max number of tokens for context. context-overflow-action would be triggered if this threshold is exceeded.");
+
+    public static final ConfigOption<ContextOverflowAction> CONTEXT_OVERFLOW_ACTION =
+            ConfigOptions.key("context-overflow-action")
+                    .enumType(ContextOverflowAction.class)
+                    .defaultValue(ContextOverflowAction.TRUNCATED_TAIL)
+                    .withDescription(
+                            Description.builder()
+                                    .text("Action to handle context overflows. Supported actions:")
+                                    .linebreak()
+                                    .text(ContextOverflowAction.getAllValuesAndDescriptions())
+                                    .build());
+
     protected transient OpenAIClientAsync client;
 
     private final int numRetry;
     private final String baseUrl;
     private final String apiKey;
+    private final String model;
+    @Nullable private final Integer maxContextSize;
+    private final ContextOverflowAction contextOverflowAction;
 
     public AbstractOpenAIModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
@@ -94,6 +121,9 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
         // resilience while maintaining throughput efficiency.
         this.numRetry =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY) * 10;
+        this.model = config.get(MODEL);
+        this.maxContextSize = config.get(MAX_CONTEXT_SIZE);
+        this.contextOverflowAction = config.get(CONTEXT_OVERFLOW_ACTION);
 
         validateSingleColumnSchema(
                 factoryContext.getCatalogModel().getResolvedInputSchema(),
@@ -106,6 +136,24 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
         super.open(context);
         LOG.debug("Creating an OpenAI client.");
         this.client = OpenAIUtils.createAsyncClient(baseUrl, apiKey, numRetry);
+        this.contextOverflowAction.initializeEncodingForContextLimit(model, maxContextSize);
+    }
+
+    @Override
+    public CompletableFuture<Collection<RowData>> asyncPredict(RowData rowData) {
+        if (rowData.isNullAt(0)) {
+            LOG.warn("Input is null, skipping prediction.");
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        }
+
+        String input =
+                contextOverflowAction.processTokensWithLimit(
+                        model, rowData.getString(0).toString(), maxContextSize);
+        if (input == null) {
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        }
+
+        return asyncPredictInternal(input);
     }
 
     @Override
@@ -119,6 +167,8 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
     }
 
     protected abstract String getEndpointSuffix();
+
+    protected abstract CompletableFuture<Collection<RowData>> asyncPredictInternal(String input);
 
     protected void validateSingleColumnSchema(
             ResolvedSchema schema, LogicalType expectedType, String inputOrOutput) {

@@ -188,6 +188,30 @@ public class OpenAIChatModelTest {
     }
 
     @Test
+    public void testMaxContextSize() {
+        CatalogManager catalogManager = ((TableEnvironmentImpl) tEnv).getCatalogManager();
+        Map<String, String> modelOptions = new HashMap<>(this.modelOptions);
+        modelOptions.put("model", "gpt-4");
+        modelOptions.put("max-context-size", "2");
+        modelOptions.put("context-overflow-action", "skipped");
+        catalogManager.createModel(
+                CatalogModel.of(INPUT_SCHEMA, OUTPUT_SCHEMA, modelOptions, "This is a new model."),
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        MODEL_NAME),
+                false);
+
+        TableResult tableResult =
+                tEnv.executeSql(
+                        String.format(
+                                "SELECT input, content FROM ML_PREDICT(TABLE MyTable, MODEL %s, DESCRIPTOR(`input`))",
+                                MODEL_NAME));
+        List<Row> result = IteratorUtils.toList(tableResult.collect());
+        assertThat(result).isEmpty();
+    }
+
+    @Test
     public void testNullValue() {
         tEnv.executeSql(
                 "CREATE TABLE MyTableWithNull(input STRING, invalid_input DOUBLE) "
