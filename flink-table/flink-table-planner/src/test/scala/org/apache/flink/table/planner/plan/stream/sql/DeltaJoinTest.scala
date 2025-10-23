@@ -545,6 +545,44 @@ class DeltaJoinTest extends TableTestBase {
     util.verifyRelPlanInsert("insert into tmp_snk select a0, a1 from src1")
   }
 
+  @Test
+  def testMultiIndexesInSourceWhileJoinKeyContainsOneOfThem(): Unit = {
+    addTable(
+      "tmp_src11",
+      Schema
+        .newBuilder()
+        .column("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING)
+        .column("a3", DataTypes.INT)
+        .index("a1", "a2")
+        .index("a2")
+        .build()
+    )
+
+    addTable(
+      "tmp_src12",
+      Schema
+        .newBuilder()
+        .column("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING)
+        .column("a3", DataTypes.INT)
+        .index("a2")
+        .index("a1", "a2")
+        .build()
+    )
+
+    val stmt = tEnv.createStatementSet()
+    stmt.addInsertSql(
+      "insert into snk select * from tmp_src11 join src2 " +
+        "on tmp_src11.a2 = src2.b2")
+    stmt.addInsertSql(
+      "insert into snk select * from tmp_src12 join src2 " +
+        "on tmp_src12.a2 = src2.b2")
+    util.verifyRelPlan(stmt)
+  }
+
   private def addTable(
       tableName: String,
       schema: Schema,
