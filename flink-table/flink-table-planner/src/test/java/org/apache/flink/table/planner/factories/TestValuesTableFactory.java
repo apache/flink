@@ -2215,6 +2215,30 @@ public final class TestValuesTableFactory
         }
     }
 
+    /** A mocked {@link VectorSearchTableSource} for validation test. */
+    public static class MockedVectorSearchTableSource implements VectorSearchTableSource {
+        @Override
+        public VectorSearchRuntimeProvider getSearchRuntimeProvider(VectorSearchContext context) {
+            return VectorSearchFunctionProvider.of(
+                    new VectorSearchFunction() {
+                        @Override
+                        public Collection<RowData> vectorSearch(int topK, RowData queryData) {
+                            return Collections.emptyList();
+                        }
+                    });
+        }
+
+        @Override
+        public DynamicTableSource copy() {
+            throw new UnsupportedOperationException("Not implemented.");
+        }
+
+        @Override
+        public String asSummaryString() {
+            return "MockedVectorSearchSource";
+        }
+    }
+
     /**
      * Values {@link ScanTableSource} which collects the registered {@link RowData} directly, sleeps
      * {@link #sleepTimeMillis} every {@link #sleepAfterElements} elements.

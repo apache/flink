@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.PipelineOptions;
@@ -47,6 +48,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.VectorSearchSpec;
@@ -65,6 +67,9 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.core.JoinRelType;
 
@@ -72,33 +77,73 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 /** Stream {@link ExecNode} for {@code VECTOR_SEARCH}. */
+@ExecNodeMetadata(
+        name = "stream-exec-vector-search-table-function",
+        version = 1,
+        consumedOptions = {
+            "table.exec.async-vector-search.max-concurrent-operations",
+            "table.exec.async-vector-search.timeout",
+            "table.exec.async-vector-search.output-mode"
+        },
+        producedTransformations = StreamExecMLPredictTableFunction.ML_PREDICT_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v2_2,
+        minStateVersion = FlinkVersion.v2_2)
 public class StreamExecVectorSearchTableFunction extends ExecNodeBase<RowData>
         implements MultipleTransformationTranslator<RowData>, StreamExecNode<RowData> {
 
     public static final String VECTOR_SEARCH_TRANSFORMATION = "vector-search-table-function";
-    private final VectorSearchTableSourceSpec vectorSearchTableSourceSpec;
+
+    private static final String FIELD_NAME_TABLE_SOURCE_SPEC = "tableSourceSpec";
+    private static final String FIELD_NAME_VECTOR_SEARCH_SPEC = "vectorSearchSpec";
+    private static final String FIELD_NAME_ASYNC_OPTIONS = "asyncOptions";
+
+    @JsonProperty(FIELD_NAME_TABLE_SOURCE_SPEC)
+    private final VectorSearchTableSourceSpec tableSourceSpec;
+
+    @JsonProperty(FIELD_NAME_VECTOR_SEARCH_SPEC)
     private final VectorSearchSpec vectorSearchSpec;
+
+    @JsonProperty(FIELD_NAME_ASYNC_OPTIONS)
     private final @Nullable FunctionCallUtil.AsyncOptions asyncOptions;
 
     public StreamExecVectorSearchTableFunction(
             ReadableConfig tableConfig,
-            VectorSearchTableSourceSpec vectorSearchTableSourceSpec,
+            VectorSearchTableSourceSpec tableSourceSpec,
             VectorSearchSpec vectorSearchSpec,
             @Nullable FunctionCallUtil.AsyncOptions asyncOptions,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(
+        this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecVectorSearchTableFunction.class),
                 ExecNodeContext.newPersistedConfig(
                         StreamExecVectorSearchTableFunction.class, tableConfig),
+                tableSourceSpec,
+                vectorSearchSpec,
+                asyncOptions,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
-        this.vectorSearchTableSourceSpec = vectorSearchTableSourceSpec;
+    }
+
+    @JsonCreator
+    public StreamExecVectorSearchTableFunction(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
+            @JsonProperty(FIELD_NAME_TABLE_SOURCE_SPEC) VectorSearchTableSourceSpec tableSourceSpec,
+            @JsonProperty(FIELD_NAME_VECTOR_SEARCH_SPEC) VectorSearchSpec vectorSearchSpec,
+            @JsonProperty(FIELD_NAME_ASYNC_OPTIONS) @Nullable
+                    FunctionCallUtil.AsyncOptions asyncOptions,
+            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
+            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
+            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+        super(id, context, persistedConfig, inputProperties, outputType, description);
+        this.tableSourceSpec = tableSourceSpec;
         this.vectorSearchSpec = vectorSearchSpec;
         this.asyncOptions = asyncOptions;
     }
@@ -111,7 +156,8 @@ public class StreamExecVectorSearchTableFunction extends ExecNodeBase<RowData>
         Transformation<RowData> inputTransformation =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         // 2. extract search function
-        TableSourceTable searchTable = vectorSearchTableSourceSpec.getSearchTable();
+        TableSourceTable searchTable =
+                tableSourceSpec.getSearchTable(planner.getFlinkContext(), planner.getTypeFactory());
         boolean isAsyncEnabled = asyncOptions != null;
         UserDefinedFunction vectorSearchFunction =
                 findVectorSearchFunction(
