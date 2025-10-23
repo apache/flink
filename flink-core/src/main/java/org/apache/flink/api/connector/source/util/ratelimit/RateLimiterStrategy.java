@@ -30,9 +30,9 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public interface RateLimiterStrategy<S> extends Serializable {
 
     /**
-     * Creates a {@link RateLimiter} that lets records through with rate proportional to the
-     * parallelism. This method will be called once per source subtask. The cumulative rate over all
-     * rate limiters for a source must not exceed the rate limit configured for the strategy.
+     * Creates a {@link RateLimiter} that limits the rate of records going through. When there is
+     * parallelism, the limiting rate is evenly reduced per subtask, such that all the sub-tasks
+     * limiting rates equals the cumulative limiting rate.
      */
     RateLimiter<S> createRateLimiter(int parallelism);
 
