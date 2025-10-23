@@ -270,6 +270,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
             ExecutionDeploymentReconciler.Factory executionDeploymentReconcilerFactory,
             BlocklistHandler.Factory blocklistHandlerFactory,
             Collection<FailureEnricher> failureEnrichers,
+            JobStatusListener singleJobApplication,
             long initializationTimestamp)
             throws Exception {
 
@@ -384,6 +385,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         JobStatusListener schedulerListener =
                 JobStatusListener.combine(
                         jobStatusListener,
+                        singleJobApplication,
                         (jobId, newJobStatus, timestamp) ->
                                 jobManagerJobMetricGroup.addEvent(
                                         Events.JobStatusChangeEvent.builder(JobMaster.class)
