@@ -164,6 +164,7 @@ class PyFlinkStreamTableTestCase(PyFlinkITTestCase):
         super(PyFlinkStreamTableTestCase, cls).setUpClass()
         cls.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
         cls.env.set_parallelism(2)
+        os.environ['_python_worker_execution_mode'] = "loopback"
         cls.t_env = StreamTableEnvironment.create(cls.env)
         cls.t_env.get_config().set("python.fn-execution.bundle.size", "1")
 

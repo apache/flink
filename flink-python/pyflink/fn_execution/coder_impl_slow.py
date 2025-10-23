@@ -570,8 +570,7 @@ class TimestampCoderImpl(FieldCoderImpl):
             nanoseconds = in_stream.read_int32()
         return self.internal_to_timestamp(milliseconds, nanoseconds)
 
-    @staticmethod
-    def timestamp_to_internal(timestamp):
+    def timestamp_to_internal(self, timestamp):
         seconds = int(timestamp.replace(tzinfo=datetime.timezone.utc).timestamp())
         microseconds_of_second = timestamp.microsecond
         milliseconds = seconds * 1000 + microseconds_of_second // 1000
@@ -593,10 +592,18 @@ class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
         super(LocalZonedTimestampCoderImpl, self).__init__(precision)
         self.timezone = timezone
 
+    def timestamp_to_internal(self, timestamp):
+        seconds = int(timestamp.astimezone(datetime.timezone.utc).timestamp())
+        microseconds_of_second = timestamp.microsecond
+        milliseconds = seconds * 1000 + microseconds_of_second // 1000
+        nanoseconds = microseconds_of_second % 1000 * 1000
+        return milliseconds, nanoseconds
+
     def internal_to_timestamp(self, milliseconds, nanoseconds):
-        return self.timezone.localize(
-            super(LocalZonedTimestampCoderImpl, self).internal_to_timestamp(
-                milliseconds, nanoseconds))
+        return (super(LocalZonedTimestampCoderImpl, self).internal_to_timestamp(
+                milliseconds, nanoseconds)
+                .replace(tzinfo=datetime.timezone.utc)
+                .astimezone(self.timezone))
 
 
 class InstantCoderImpl(FieldCoderImpl):

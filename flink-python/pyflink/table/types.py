@@ -33,6 +33,7 @@ from typing import List, Union
 
 from pyflink.common.types import _create_row
 from pyflink.util.api_stability_decorators import PublicEvolving
+from pyflink.util.exceptions import TableException
 from pyflink.util.java_utils import to_jarray, is_instance_of
 from pyflink.java_gateway import get_gateway
 from pyflink.common import Row, RowKind
@@ -498,14 +499,19 @@ class LocalZonedTimestampType(AtomicType):
 
     def to_sql_type(self, dt):
         if dt is not None:
-            seconds = (calendar.timegm(dt.utctimetuple()) if dt.tzinfo
-                       else time.mktime(dt.timetuple()))
-            return int(seconds) * 10 ** 6 + dt.microsecond + self.EPOCH_ORDINAL
+            if dt.tzinfo is None:
+                raise TableException(
+                    f"""The input field {dt} does not specify time zone but its SQL type \
+                TIMESTAMP_LTZ requires TIME ZONE. Please use TIMESTAMP instead or use CAST \
+                function to cast TIMESTAMP as TIMESTAMP_LTZ."""
+                )
+            seconds = calendar.timegm(dt.utctimetuple())
+            return int(seconds) * 10 ** 6 + dt.microsecond
 
     def from_sql_type(self, ts):
         if ts is not None:
-            ts = ts - self.EPOCH_ORDINAL
-            return datetime.datetime.fromtimestamp(ts // 10 ** 6).replace(microsecond=ts % 10 ** 6)
+            return (datetime.datetime.fromtimestamp(ts // 10 ** 6, datetime.timezone.utc)
+                    .replace(microsecond=ts % 10 ** 6))
 
 
 class ZonedTimestampType(AtomicType):
