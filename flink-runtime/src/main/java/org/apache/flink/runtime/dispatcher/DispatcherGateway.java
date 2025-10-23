@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.application.AbstractApplication;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
@@ -45,6 +46,16 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
      */
     CompletableFuture<Acknowledge> submitJob(
             ExecutionPlan executionPlan, @RpcTimeout Duration timeout);
+
+    /**
+     * Submit an application to the dispatcher.
+     *
+     * @param application AbstractApplication to submit
+     * @param timeout RPC timeout
+     * @return A future acknowledge if the submission succeeded
+     */
+    CompletableFuture<Acknowledge> submitApplication(
+            AbstractApplication application, @RpcTimeout Duration timeout);
 
     CompletableFuture<Acknowledge> submitFailedJob(
             JobID jobId, String jobName, Throwable exception);

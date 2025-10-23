@@ -58,7 +58,7 @@ public class WebSubmissionExecutorFactory implements PipelineExecutorFactory {
 
     @Override
     public String getName() {
-        return EmbeddedExecutor.NAME;
+        return WebSubmissionExecutor.NAME;
     }
 
     @Override
@@ -72,7 +72,7 @@ public class WebSubmissionExecutorFactory implements PipelineExecutorFactory {
     public PipelineExecutor getExecutor(final Configuration configuration) {
         checkNotNull(configuration);
 
-        return new EmbeddedExecutor(
+        return new WebSubmissionExecutor(
                 submittedJobIds,
                 dispatcherGateway,
                 configuration,

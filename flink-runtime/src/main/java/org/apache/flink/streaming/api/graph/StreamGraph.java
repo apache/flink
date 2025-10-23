@@ -1282,6 +1282,7 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
         return jobId;
     }
 
+    @Override
     public void setApplicationId(ApplicationID applicationId) {
         this.applicationId = checkNotNull(applicationId);
     }
