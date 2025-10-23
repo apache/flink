@@ -29,17 +29,22 @@ import org.apache.flink.table.types.logical.VarCharType;
 
 import com.openai.models.chat.completions.ChatCompletion;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /** {@link AsyncPredictFunction} for OpenAI chat completion task. */
 public class OpenAIChatModelFunction extends AbstractOpenAIModelFunction {
+    private static final Logger LOG = LoggerFactory.getLogger(OpenAIChatModelFunction.class);
+
     private static final long serialVersionUID = 1L;
 
     public static final String ENDPOINT_SUFFIX = "chat/completions";
@@ -109,6 +114,11 @@ public class OpenAIChatModelFunction extends AbstractOpenAIModelFunction {
 
     @Override
     public CompletableFuture<Collection<RowData>> asyncPredict(RowData rowData) {
+        if (rowData.isNullAt(0)) {
+            LOG.warn("Input is null, skipping prediction.");
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        }
+
         ChatCompletionCreateParams.Builder builder =
                 ChatCompletionCreateParams.builder()
                         .addSystemMessage(systemPrompt)

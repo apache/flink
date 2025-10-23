@@ -182,6 +182,30 @@ public class OpenAIEmbeddingModelTest {
     }
 
     @Test
+    public void testNullValue() {
+        tEnv.executeSql(
+                "CREATE TABLE MyTableWithNull(input STRING, invalid_input DOUBLE) "
+                        + "WITH ( 'connector' = 'datagen', 'number-of-rows' = '10', 'fields.input.null-rate' = '1')");
+
+        CatalogManager catalogManager = ((TableEnvironmentImpl) tEnv).getCatalogManager();
+        catalogManager.createModel(
+                CatalogModel.of(INPUT_SCHEMA, OUTPUT_SCHEMA, modelOptions, "This is a new model."),
+                ObjectIdentifier.of(
+                        catalogManager.getCurrentCatalog(),
+                        catalogManager.getCurrentDatabase(),
+                        MODEL_NAME),
+                false);
+
+        TableResult tableResult =
+                tEnv.executeSql(
+                        String.format(
+                                "SELECT input, embedding FROM TABLE(ML_PREDICT(TABLE MyTableWithNull, MODEL %s, DESCRIPTOR(`input`)))",
+                                MODEL_NAME));
+        List<Row> result = IteratorUtils.toList(tableResult.collect());
+        assertThat(result).isEmpty();
+    }
+
+    @Test
     public void testInvalidInputSchema() {
         CatalogManager catalogManager = ((TableEnvironmentImpl) tEnv).getCatalogManager();
         ObjectIdentifier modelIdentifier =

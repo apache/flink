@@ -31,16 +31,21 @@ import org.apache.flink.table.types.logical.FloatType;
 import com.openai.models.embeddings.CreateEmbeddingResponse;
 import com.openai.models.embeddings.EmbeddingCreateParams;
 import com.openai.models.embeddings.EmbeddingCreateParams.EncodingFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /** {@link AsyncPredictFunction} for OpenAI embedding task. */
 public class OpenAIEmbeddingModelFunction extends AbstractOpenAIModelFunction {
+    private static final Logger LOG = LoggerFactory.getLogger(OpenAIEmbeddingModelFunction.class);
+
     private static final long serialVersionUID = 1L;
 
     public static final String ENDPOINT_SUFFIX = "embeddings";
@@ -73,6 +78,11 @@ public class OpenAIEmbeddingModelFunction extends AbstractOpenAIModelFunction {
 
     @Override
     public CompletableFuture<Collection<RowData>> asyncPredict(RowData rowData) {
+        if (rowData.isNullAt(0)) {
+            LOG.warn("Input is null, skipping prediction.");
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        }
+
         final EmbeddingCreateParams.Builder builder = EmbeddingCreateParams.builder();
         builder.model(model);
         builder.input(rowData.getString(0).toString());
