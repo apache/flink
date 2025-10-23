@@ -130,6 +130,33 @@ FROM ML_PREDICT(
             <td>String</td>
             <td>模型名称，例如：<code>gpt-3.5-turbo</code>, <code>text-embedding-ada-002</code>。</td>
         </tr>
+        <tr>
+            <td>
+                <h5>max-context-size</h5>
+            </td>
+            <td>可选</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>单个请求的最大上下文长度，单位为Token数量。当长度超过该值时，将使用context-overflow-action指定的溢出行为。</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>context-overflow-action</h5>
+            </td>
+            <td>可选</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>处理上下文溢出的操作。支持的操作：
+                <ul>
+                    <li><code>truncated-tail</code>(默认): 从上下文尾部截断超出的token。</li>
+                    <li><code>truncated-tail-log</code>: 从上下文尾部截断超出的token。记录截断日志。</li>
+                    <li><code>truncated-head</code>: 从上下文头部截断超出的token。</li>
+                    <li><code>truncated-head-log</code>: 从上下文头部截断超出的token。记录截断日志。</li>
+                    <li><code>skipped</code>: 跳过输入行。</li>
+                    <li><code>skipped-log</code>: 跳过输入行。记录跳过日志。</li>
+                </ul>
+            </td>
+        </tr>
     </tbody>
 </table>
 

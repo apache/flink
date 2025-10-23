@@ -130,6 +130,33 @@ FROM ML_PREDICT(
             <td>String</td>
             <td>Model name, e.g. <code>gpt-3.5-turbo</code>, <code>text-embedding-ada-002</code>.</td>
         </tr>
+        <tr>
+            <td>
+                <h5>max-context-size</h5>
+            </td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>Max number of tokens for context. context-overflow-action would be triggered if this threshold is exceeded.</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>context-overflow-action</h5>
+            </td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Action to handle context overflows. Supported actions:
+                <ul>
+                    <li><code>truncated-tail</code>(default): Truncates exceeded tokens from the tail of the context.</li>
+                    <li><code>truncated-tail-log</code>: Truncates exceeded tokens from the tail of the context. Records the truncation log.</li>
+                    <li><code>truncated-head</code>: Truncates exceeded tokens from the head of the context.</li>
+                    <li><code>truncated-head-log</code>: Truncates exceeded tokens from the head of the context. Records the truncation log.</li>
+                    <li><code>skipped</code>: Skips the input row.</li>
+                    <li><code>skipped-log</code>: Skips the input row. Records the skipping log.</li>
+                </ul>
+            </td>
+        </tr>
     </tbody>
 </table>
 

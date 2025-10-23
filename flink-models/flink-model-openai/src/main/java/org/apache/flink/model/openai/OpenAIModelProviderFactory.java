@@ -67,6 +67,8 @@ public class OpenAIModelProviderFactory implements ModelProviderFactory {
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> set = new HashSet<>();
+        set.add(AbstractOpenAIModelFunction.MAX_CONTEXT_SIZE);
+        set.add(AbstractOpenAIModelFunction.CONTEXT_OVERFLOW_ACTION);
         set.add(OpenAIChatModelFunction.SYSTEM_PROMPT);
         set.add(OpenAIChatModelFunction.TEMPERATURE);
         set.add(OpenAIChatModelFunction.TOP_P);
