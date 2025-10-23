@@ -48,6 +48,8 @@ public class CastRuleProvider {
 
     static {
         INSTANCE
+                // Highest precedence rule
+                .addRule(IdentityCastRule.INSTANCE)
                 // Numeric rules
                 .addRule(DecimalToDecimalCastRule.INSTANCE)
                 .addRule(NumericPrimitiveToDecimalCastRule.INSTANCE)
@@ -96,8 +98,7 @@ public class CastRuleProvider {
                 .addRule(VariantToStringCastRule.INSTANCE)
                 // Special rules
                 .addRule(CharVarCharTrimPadCastRule.INSTANCE)
-                .addRule(NullToStringCastRule.INSTANCE)
-                .addRule(IdentityCastRule.INSTANCE);
+                .addRule(NullToStringCastRule.INSTANCE);
     }
 
     /* ------- Entrypoint ------- */

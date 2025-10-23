@@ -28,9 +28,11 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.STRUCTURED;
 import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
@@ -46,6 +48,10 @@ class CastRuleProviderTest {
                     .build();
     private static final LogicalType INT = INT().getLogicalType();
     private static final LogicalType TINYINT = TINYINT().getLogicalType();
+    private static final LogicalType ROW =
+            ROW(FIELD("a", INT()), FIELD("b", TINYINT().notNull())).getLogicalType();
+    private static final LogicalType STRUCTURED =
+            STRUCTURED("Obj", FIELD("a", INT()), FIELD("b", TINYINT().notNull())).getLogicalType();
 
     @Test
     void testResolveDistinctTypeToIdentityCastRule() {
@@ -53,6 +59,13 @@ class CastRuleProviderTest {
         assertThat(CastRuleProvider.resolve(INT, DISTINCT_INT)).isSameAs(IdentityCastRule.INSTANCE);
         assertThat(CastRuleProvider.resolve(DISTINCT_INT, DISTINCT_INT))
                 .isSameAs(IdentityCastRule.INSTANCE);
+    }
+
+    @Test
+    void testResolveCompatiblesTypesToIdentityCastRule() {
+        assertThat(CastRuleProvider.resolve(INT, INT)).isSameAs(IdentityCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(ROW, ROW)).isSameAs(IdentityCastRule.INSTANCE);
+        assertThat(CastRuleProvider.resolve(ROW, STRUCTURED)).isSameAs(IdentityCastRule.INSTANCE);
     }
 
     @Test
