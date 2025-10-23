@@ -184,7 +184,10 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
                 reader.pollNext(testingReaderOutput);
             }
             assertThat(testingReaderOutput.getEmittedRecords().size())
+                    .isGreaterThanOrEqualTo(1 + recordsPerCheckpoint * (i - 1));
+            assertThat(testingReaderOutput.getEmittedRecords().size())
                     .isLessThanOrEqualTo(1 + recordsPerCheckpoint * i);
+            reader.notifyCheckpointComplete(i);
         }
     }
 
@@ -478,7 +481,9 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
                         rateLimiterStrategy) {
 
                     @Override
-                    public void notifyCheckpointComplete(long checkpointId) {}
+                    public void notifyCheckpointComplete(long checkpointId) throws Exception {
+                        super.notifyCheckpointComplete(checkpointId);
+                    }
 
                     @Override
                     protected void onSplitFinished(
