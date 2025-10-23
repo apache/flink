@@ -131,7 +131,7 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
     }
 
     @Test
-    void testLimitingRateInSplitReader() throws Exception {
+    void testRecordsWithSplitsNotRecycledWhenRecordsLeft() throws Exception {
         final TestingRecordsWithSplitIds<String> records =
                 new TestingRecordsWithSplitIds<>("test-split", "value1", "value2");
         final SourceReader<?, ?> reader =
@@ -143,122 +143,49 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
     }
 
     @Test
-    void testRecordsWithSplitsNotRecycledWhenRecordsLeft() throws Exception {
-
+    void testLimitingRateInSplitReader() throws Exception {
+        String[] recordArr = new String[100];
+        for (int i = 0; i < recordArr.length; i++) {
+            recordArr[i] = "value" + i;
+        }
         final TestingRecordsWithSplitIds<String> records =
-                new TestingRecordsWithSplitIds<>(
-                        "test-split",
-                        "value1",
-                        "value2",
-                        "value3",
-                        "value4",
-                        "value5",
-                        "value6",
-                        "value7",
-                        "value8",
-                        "value9",
-                        "value10",
-                        "value11",
-                        "value12",
-                        "value13",
-                        "value14",
-                        "value15",
-                        "value16",
-                        "value17",
-                        "value18",
-                        "value19",
-                        "value20",
-                        "value21",
-                        "value22",
-                        "value23",
-                        "value24",
-                        "value25",
-                        "value26",
-                        "value27",
-                        "value28",
-                        "value29",
-                        "value30",
-                        "value31",
-                        "value32",
-                        "value33",
-                        "value34",
-                        "value35",
-                        "value36",
-                        "value37",
-                        "value38",
-                        "value39",
-                        "value40",
-                        "value41",
-                        "value42",
-                        "value43",
-                        "value44",
-                        "value45",
-                        "value46",
-                        "value47",
-                        "value48",
-                        "value49",
-                        "value50",
-                        "value51",
-                        "value52",
-                        "value53",
-                        "value54",
-                        "value55",
-                        "value56",
-                        "value57",
-                        "value58",
-                        "value59",
-                        "value60",
-                        "value61",
-                        "value62",
-                        "value63",
-                        "value64",
-                        "value65",
-                        "value66",
-                        "value67",
-                        "value68",
-                        "value69",
-                        "value70",
-                        "value71",
-                        "value72",
-                        "value73",
-                        "value74",
-                        "value75",
-                        "value76",
-                        "value77",
-                        "value78",
-                        "value79",
-                        "value80",
-                        "value81",
-                        "value82",
-                        "value83",
-                        "value84",
-                        "value85",
-                        "value86",
-                        "value87",
-                        "value88",
-                        "value89",
-                        "value90",
-                        "value91",
-                        "value92",
-                        "value93",
-                        "value94",
-                        "value95",
-                        "value96",
-                        "value97",
-                        "value98",
-                        "value99",
-                        "value100");
+                new TestingRecordsWithSplitIds<>("test-split", recordArr);
         final SourceReader<?, ?> reader =
                 createReaderAndAwaitAvailable(
                         "test-split", records, RateLimiterStrategy.perSecond(1));
         TestingReaderOutput testingReaderOutput = new TestingReaderOutput<>();
         long startTime = System.currentTimeMillis();
-        while (testingReaderOutput.getEmittedRecords().size() < 100) {
+        while (testingReaderOutput.getEmittedRecords().size() < recordArr.length) {
             reader.pollNext(testingReaderOutput);
         }
         // The first few seconds require preheating, there may be a deviation of a few seconds.
         assertThat(System.currentTimeMillis() - startTime)
                 .isGreaterThanOrEqualTo(Duration.ofSeconds(90).toMillis());
+    }
+
+    @Test
+    void testLimitingRatePerCheckpointInSplitReader() throws Exception {
+        String[] recordArr = new String[100];
+        for (int i = 0; i < recordArr.length; i++) {
+            recordArr[i] = "value" + i;
+        }
+        final TestingRecordsWithSplitIds<String> records =
+                new TestingRecordsWithSplitIds<>("test-split", recordArr);
+        int recordsPerCheckpoint = 10;
+        final SourceReader<?, ?> reader =
+                createReaderAndAwaitAvailable(
+                        "test-split",
+                        records,
+                        RateLimiterStrategy.perCheckpoint(recordsPerCheckpoint));
+        TestingReaderOutput testingReaderOutput = new TestingReaderOutput<>();
+        for (int i = 1; i <= recordArr.length / recordsPerCheckpoint; i++) {
+            long startTime = System.currentTimeMillis();
+            while (System.currentTimeMillis() - startTime < Duration.ofSeconds(6).toMillis()) {
+                reader.pollNext(testingReaderOutput);
+            }
+            assertThat(testingReaderOutput.getEmittedRecords().size())
+                    .isLessThanOrEqualTo(1 + recordsPerCheckpoint * i);
+        }
     }
 
     @Test
