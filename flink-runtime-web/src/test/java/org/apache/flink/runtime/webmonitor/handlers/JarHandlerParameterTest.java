@@ -22,6 +22,7 @@ import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
+import org.apache.flink.runtime.application.SingleJobApplication;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.HandlerRequestException;
@@ -32,6 +33,8 @@ import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
+import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -99,10 +102,17 @@ abstract class JarHandlerParameterTest<
                 TestingDispatcherGateway.newBuilder()
                         .setBlobServerPort(
                                 blobServerExtension.getCustomExtension().getBlobServerPort())
-                        .setSubmitFunction(
-                                jobGraph -> {
-                                    LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.set(jobGraph);
-                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                        .setSubmitApplicationFunction(
+                                application -> {
+                                    if (application instanceof SingleJobApplication) {
+                                        LAST_SUBMITTED_EXECUTION_PLAN_REFERENCE.set(
+                                                ((SingleJobApplication) application)
+                                                        .getExecutionPlan());
+                                        return CompletableFuture.completedFuture(Acknowledge.get());
+                                    }
+                                    return FutureUtils.completedExceptionally(
+                                            new FlinkRuntimeException(
+                                                    "Unsupported application type"));
                                 })
                         .build();
 

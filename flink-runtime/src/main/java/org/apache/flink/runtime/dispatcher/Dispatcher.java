@@ -40,6 +40,7 @@ import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.application.AbstractApplication;
 import org.apache.flink.runtime.application.ArchivedApplication;
+import org.apache.flink.runtime.application.SingleJobApplication;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
@@ -57,6 +58,7 @@ import org.apache.flink.runtime.entrypoint.ClusterEntryPointExceptionUtils;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
@@ -131,6 +133,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -373,7 +376,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         }
 
         startCleanupRetries();
-        startRecoveredJobs();
 
         this.dispatcherBootstrap =
                 this.dispatcherBootstrapFactory.create(
@@ -382,7 +384,11 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                         this::onFatalError);
 
         if (dispatcherBootstrap instanceof ApplicationBootstrap) {
-            submitApplication(((ApplicationBootstrap) dispatcherBootstrap).getApplication()).get();
+            startRecoveredJobs(false);
+            internalSubmitApplication(((ApplicationBootstrap) dispatcherBootstrap).getApplication())
+                    .get();
+        } else {
+            startRecoveredJobs(true);
         }
     }
 
@@ -418,27 +424,45 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 "There should be no overlap between the recovered ExecutionPlans and the passed dirty JobResults based on their job ID.");
     }
 
-    private void startRecoveredJobs() {
+    private void startRecoveredJobs(boolean wrapIntoApplication) {
         for (ExecutionPlan recoveredJob : recoveredJobs) {
-            runRecoveredJob(recoveredJob);
+            runRecoveredJob(recoveredJob, wrapIntoApplication);
         }
         recoveredJobs.clear();
     }
 
-    private void runRecoveredJob(final ExecutionPlan recoveredJob) {
+    /**
+     * Runs a recovered job in HA mode.
+     *
+     * <p>This method handles the recovery of a job after a JobManager failover. In session mode,
+     * application information is typically lost during HA recovery, which can result in recovered
+     * jobs that are not associated with any application. To address this issue, this method
+     * provides a workaround through the {@code wrapIntoApplication} parameter. This workaround will
+     * become obsolete once proper HA support for persisting application information in session mode
+     * is implemented.
+     *
+     * @param recoveredJob the job to be recovered
+     * @param wrapIntoApplication whether to wrap the recovered job into a {@link
+     *     SingleJobApplication}
+     */
+    private void runRecoveredJob(
+            final ExecutionPlan recoveredJob, final boolean wrapIntoApplication) {
         checkNotNull(recoveredJob);
-
-        if (recoveredJob.getApplicationId().isPresent()) {
-            recoveredApplicationJobIds
-                    .computeIfAbsent(
-                            recoveredJob.getApplicationId().get(), ignored -> new HashSet<>())
-                    .add(recoveredJob.getJobID());
-        }
 
         initJobClientExpiredTime(recoveredJob);
 
         try (MdcCloseable ignored =
                 MdcUtils.withContext(MdcUtils.asContextData(recoveredJob.getJobID()))) {
+            if (recoveredJob.getApplicationId().isPresent()) {
+                recoveredApplicationJobIds
+                        .computeIfAbsent(
+                                recoveredJob.getApplicationId().get(),
+                                applicationId -> new HashSet<>())
+                        .add(recoveredJob.getJobID());
+                if (wrapIntoApplication) {
+                    internalSubmitApplication(new SingleJobApplication(recoveredJob, true)).get();
+                }
+            }
             runJob(createJobMasterRunner(recoveredJob), ExecutionType.RECOVERY);
         } catch (Throwable throwable) {
             onFatalError(
@@ -608,8 +632,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         return archiveExecutionGraphToHistoryServer(executionGraphInfo);
     }
 
-    /** This method must be called from the main thread. */
-    private CompletableFuture<Acknowledge> submitApplication(AbstractApplication application) {
+    @Override
+    public CompletableFuture<Acknowledge> submitApplication(
+            AbstractApplication application, Duration timeout) {
         final ApplicationID applicationId = application.getApplicationId();
         log.info(
                 "Received application submission '{}' ({}).", application.getName(), applicationId);
@@ -619,6 +644,16 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
             throw new CompletionException(
                     new DuplicateApplicationSubmissionException(applicationId));
         }
+
+        return internalSubmitApplication(application);
+    }
+
+    /** This method must be called from the main thread. */
+    private CompletableFuture<Acknowledge> internalSubmitApplication(
+            AbstractApplication application) {
+        final ApplicationID applicationId = application.getApplicationId();
+        log.info("Submitting application '{}' ({}).", application.getName(), applicationId);
+
         applications.put(applicationId, application);
         Set<JobID> jobs = recoveredApplicationJobIds.remove(applicationId);
         if (jobs != null) {
@@ -655,24 +690,18 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         final JobID jobId = executionPlan.getJobID();
         final String jobName = executionPlan.getName();
 
-        if (executionPlan.getApplicationId().isPresent()) {
-            ApplicationID applicationId = executionPlan.getApplicationId().get();
+        Optional<AbstractApplication> optionalApplication = getApplicationForJob(executionPlan);
+        if (optionalApplication.isPresent()) {
+            AbstractApplication application = optionalApplication.get();
             log.info(
                     "Submitting job '{}' ({}) with associated application ({}).",
                     jobName,
                     jobId,
-                    applicationId);
-            checkState(
-                    applications.containsKey(applicationId),
-                    "Application %s not found.",
-                    applicationId);
-            applications.get(applicationId).addJob(jobId);
+                    application.getApplicationId());
+            application.addJob(jobId);
         } else {
-            // TODO update the message after SingleJobApplication is implemented
-            // This can occur in two cases:
-            // 1. CLI/REST submissions of jobs without an application
-            // 2. Tests for submitJob that submit jobs without an application
-            log.info("Submitting job '{}' ({}) without associated application.", jobName, jobId);
+            // This can only occur in tests for submitJob that submit jobs without an application
+            log.warn("Submitting job '{}' ({}) without associated application.", jobName, jobId);
         }
 
         // track as an outstanding job
@@ -689,6 +718,19 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                 // job is done processing, whether failed or finished
                                 submittedAndWaitingTerminationJobIDs.remove(
                                         executionPlan.getJobID()));
+    }
+
+    private Optional<AbstractApplication> getApplicationForJob(ExecutionPlan executionPlan) {
+        return executionPlan
+                .getApplicationId()
+                .map(
+                        applicationId -> {
+                            checkState(
+                                    applications.containsKey(applicationId),
+                                    "Application %s not found.",
+                                    applicationId);
+                            return applications.get(applicationId);
+                        });
     }
 
     private CompletableFuture<Acknowledge> handleTermination(
@@ -728,6 +770,17 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private JobManagerRunner createJobMasterRunner(ExecutionPlan executionPlan) throws Exception {
         checkState(!jobManagerRunnerRegistry.isRegistered(executionPlan.getJobID()));
+
+        JobStatusListener jobStatusListener = null;
+        Optional<AbstractApplication> optionalApplication =
+                executionPlan.getApplicationId().map(applications::get);
+        if (optionalApplication.isPresent()) {
+            AbstractApplication application = optionalApplication.get();
+            if (application instanceof SingleJobApplication) {
+                jobStatusListener = (JobStatusListener) application;
+            }
+        }
+
         return jobManagerRunnerFactory.createJobManagerRunner(
                 executionPlan,
                 configuration,
@@ -738,6 +791,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 new DefaultJobManagerJobMetricGroupFactory(jobManagerMetricGroup),
                 fatalErrorHandler,
                 failureEnrichers,
+                jobStatusListener,
                 System.currentTimeMillis());
     }
 
@@ -1041,7 +1095,21 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                         requestExecutionGraphInfo(jobId, timeout)
                                                 .thenApply(
                                                         ExecutionGraphInfo
-                                                                ::getArchivedExecutionGraph))
+                                                                ::getArchivedExecutionGraph)
+                                                .exceptionally(
+                                                        t -> {
+                                                            if (t
+                                                                    instanceof
+                                                                    FlinkJobNotFoundException) {
+                                                                log.warn(
+                                                                        "Ignore job {} which may be expired when requesting application {}",
+                                                                        jobId,
+                                                                        application
+                                                                                .getApplicationId());
+                                                                return null;
+                                                            }
+                                                            throw new CompletionException(t);
+                                                        }))
                         .collect(Collectors.toList());
 
         return FutureUtils.combineAll(jobFutures)
@@ -1053,7 +1121,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                                 application.getName(),
                                                 application.getApplicationStatus(),
                                                 stateTimestamps,
-                                                combinedJobs)));
+                                                combinedJobs.stream()
+                                                        .filter(Objects::nonNull)
+                                                        .collect(Collectors.toSet()))));
     }
 
     private CompletableFuture<JobDetails> requestJobDetails(JobID jobId, Duration timeout) {
