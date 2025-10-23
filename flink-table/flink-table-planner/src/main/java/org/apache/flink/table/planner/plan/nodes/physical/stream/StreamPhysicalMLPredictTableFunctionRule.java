@@ -158,7 +158,7 @@ public class StreamPhysicalMLPredictTableFunctionRule extends ConverterRule {
             throw new ValidationException(CONFIG_ERROR_MESSAGE);
         }
 
-        final Map<String, String> runtimeConfig = FunctionCallUtil.convert(rexCall);
+        final Map<String, String> runtimeConfig = FunctionCallUtil.convert(mapConstructorCall);
 
         // Validate the configuration values
         validateRuntimeConfig(runtimeConfig);

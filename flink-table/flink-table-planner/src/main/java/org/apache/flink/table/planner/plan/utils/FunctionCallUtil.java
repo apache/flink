@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -36,6 +37,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
+import org.apache.calcite.rex.RexNode;
 
 import java.util.HashMap;
 import java.util.List;
@@ -221,8 +223,15 @@ public abstract class FunctionCallUtil {
                 mapConstructor.getOperands().size() % 2 == 0,
                 "Map constructor input must be even.");
         for (int i = 0; i < mapConstructor.getOperands().size(); i += 2) {
-            String key = RexLiteral.stringValue(mapConstructor.getOperands().get(i));
-            String value = RexLiteral.stringValue(mapConstructor.getOperands().get(i + 1));
+            RexNode keyNode = mapConstructor.getOperands().get(i);
+            RexNode valueNode = mapConstructor.getOperands().get(i + 1);
+            // Both key and value should be string literals
+            if (!(keyNode instanceof RexLiteral) || !(valueNode instanceof RexLiteral)) {
+                throw new ValidationException(
+                        "Config parameter should be a MAP data type consisting String literals.");
+            }
+            String key = RexLiteral.stringValue(keyNode);
+            String value = RexLiteral.stringValue(valueNode);
             reducedConfig.put(key, value);
         }
         return reducedConfig;
