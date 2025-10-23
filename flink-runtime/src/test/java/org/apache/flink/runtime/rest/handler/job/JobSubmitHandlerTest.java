@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.application.SingleJobApplication;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -39,6 +40,7 @@ import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTe
 import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -151,7 +153,8 @@ public class JobSubmitHandlerTest {
 
         TestingDispatcherGateway.Builder builder = TestingDispatcherGateway.newBuilder();
         builder.setBlobServerPort(blobServer.getPort())
-                .setSubmitFunction(jobGraph -> CompletableFuture.completedFuture(Acknowledge.get()))
+                .setSubmitApplicationFunction(
+                        application -> CompletableFuture.completedFuture(Acknowledge.get()))
                 .setHostname("localhost");
         DispatcherGateway mockGateway = builder.build();
 
@@ -232,10 +235,17 @@ public class JobSubmitHandlerTest {
         DispatcherGateway dispatcherGateway =
                 TestingDispatcherGateway.newBuilder()
                         .setBlobServerPort(blobServer.getPort())
-                        .setSubmitFunction(
-                                submittedExecutionPlan -> {
-                                    submittedExecutionPlanFuture.complete(submittedExecutionPlan);
-                                    return CompletableFuture.completedFuture(Acknowledge.get());
+                        .setSubmitApplicationFunction(
+                                application -> {
+                                    if (application instanceof SingleJobApplication) {
+                                        submittedExecutionPlanFuture.complete(
+                                                ((SingleJobApplication) application)
+                                                        .getExecutionPlan());
+                                        return CompletableFuture.completedFuture(Acknowledge.get());
+                                    }
+                                    return FutureUtils.completedExceptionally(
+                                            new FlinkRuntimeException(
+                                                    "Unsupported application type"));
                                 })
                         .build();
 
@@ -293,8 +303,8 @@ public class JobSubmitHandlerTest {
         final String errorMessage = "test";
         DispatcherGateway mockGateway =
                 TestingDispatcherGateway.newBuilder()
-                        .setSubmitFunction(
-                                jobgraph ->
+                        .setSubmitApplicationFunction(
+                                application ->
                                         FutureUtils.completedExceptionally(
                                                 new Exception(errorMessage)))
                         .build();
