@@ -155,7 +155,7 @@ public class FlinkLogicalMultiJoin extends AbstractRelNode implements FlinkLogic
 
             final Double averageRowSize = mq.getAverageRowSize(input);
             final double dAverageRowSize = averageRowSize == null ? 100.0 : averageRowSize;
-            rowCount *= inputRowCount;
+            rowCount += inputRowCount;
             cpu += inputRowCount;
             io += inputRowCount * dAverageRowSize;
         }
