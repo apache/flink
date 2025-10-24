@@ -183,3 +183,26 @@ Bump flink-shaded version to 20.0 to support Smile format.
 
 Bump parquet version to 1.15.3 to resolve parquet-avro module
 vulnerability found in [CVE-2025-30065](https://nvd.nist.gov/vuln/detail/CVE-2025-30065).
+
+#### Upgrade Protocol Buffers to 4.32.1
+
+##### [FLINK-38547](https://issues.apache.org/jira/browse/FLINK-38547)
+
+Flink now uses protobuf-java 4.32.1 (corresponding to Protocol Buffers version 32), upgrading from
+protobuf-java 3.21.7 (Protocol Buffers version 21). This major upgrade enables:
+
+- **Protobuf Editions Support**: Full support for the new `edition = "2023"` and `edition = "2024"`
+  syntax introduced in Protocol Buffers v27+. Editions provide a unified approach that combines
+  proto2 and proto3 functionality with fine-grained feature control.
+- **Improved Proto3 Field Presence**: Better handling of optional fields in proto3 without the
+  limitations of older protobuf versions, eliminating the need to set `protobuf.read-default-values`
+  to `true` for field presence checking.
+- **Enhanced Performance**: Leverages performance improvements and bug fixes from 11 Protocol
+  Buffers releases (versions 22-32).
+- **Modern Protobuf Features**: Access to newer protobuf capabilities including Edition 2024
+  features and improved runtime behavior.
+
+Users with existing proto2 and proto3 `.proto` files will continue to work without changes. For
+those interested in adopting Protobuf Editions, see the updated
+[Protobuf format documentation](https://nightlies.apache.org/flink/flink-docs-release-2.1/docs/connectors/table/formats/protobuf/)
+for examples and guidance.
