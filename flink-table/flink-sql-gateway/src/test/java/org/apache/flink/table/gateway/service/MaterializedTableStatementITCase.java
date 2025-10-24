@@ -37,6 +37,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
@@ -142,7 +143,6 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                                 Column.physical("pv", DataTypes.INT().notNull())));
 
         assertThat(actualMaterializedTable.getResolvedSchema()).isEqualTo(expectedSchema);
-        assertThat(actualMaterializedTable.getFreshness()).isEqualTo(Duration.ofSeconds(30));
         assertThat(actualMaterializedTable.getLogicalRefreshMode())
                 .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC);
         assertThat(actualMaterializedTable.getRefreshMode())
@@ -172,6 +172,191 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         long checkpointInterval =
                 getCheckpointIntervalConfig(restClusterClient, activeRefreshHandler.getJobId());
         assertThat(checkpointInterval).isEqualTo(30 * 1000);
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+    }
+
+    @Test
+    void testCreateMaterializedTableInFullModeWithoutFreshness() throws Exception {
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " REFRESH_MODE = FULL\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
+
+        // validate materialized table: schema, refresh mode, refresh status, refresh handler,
+        // doesn't check the data because it generates randomly.
+        ResolvedCatalogMaterializedTable actualMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        // Expected schema
+        ResolvedSchema expectedSchema =
+                ResolvedSchema.of(
+                        Arrays.asList(
+                                Column.physical("user_id", DataTypes.BIGINT()),
+                                Column.physical("shop_id", DataTypes.BIGINT()),
+                                Column.physical("ds", DataTypes.STRING()),
+                                Column.physical("payed_buy_fee_sum", DataTypes.BIGINT()),
+                                Column.physical("pv", DataTypes.INT().notNull())));
+
+        assertThat(actualMaterializedTable.getResolvedSchema()).isEqualTo(expectedSchema);
+        assertThat(actualMaterializedTable.getLogicalRefreshMode())
+                .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.FULL);
+        assertThat(actualMaterializedTable.getRefreshMode()).isEqualTo(RefreshMode.FULL);
+        assertThat(actualMaterializedTable.getRefreshStatus())
+                .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
+        assertThat(actualMaterializedTable.getRefreshHandlerDescription()).isNotEmpty();
+        assertThat(actualMaterializedTable.getSerializedRefreshHandler()).isNotEmpty();
+
+        // verify refresh handler
+        byte[] serializedHandler = actualMaterializedTable.getSerializedRefreshHandler();
+        EmbeddedRefreshHandler embeddedRefreshHandler =
+                EmbeddedRefreshHandlerSerializer.INSTANCE.deserialize(
+                        serializedHandler, getClass().getClassLoader());
+        assertThat(embeddedRefreshHandler.getWorkflowName())
+                .isEqualTo(
+                        "quartz_job_"
+                                + ObjectIdentifier.of(
+                                                fileSystemCatalogName,
+                                                TEST_DEFAULT_DATABASE,
+                                                "users_shops")
+                                        .asSerializableString());
+
+        EmbeddedQuartzScheduler embeddedWorkflowScheduler =
+                SQL_GATEWAY_REST_ENDPOINT_EXTENSION
+                        .getSqlGatewayRestEndpoint()
+                        .getQuartzScheduler();
+        JobKey jobKey =
+                new JobKey(
+                        embeddedRefreshHandler.getWorkflowName(),
+                        embeddedRefreshHandler.getWorkflowGroup());
+
+        // verify the job is created
+        assertThat(embeddedWorkflowScheduler.getQuartzScheduler().checkExists(jobKey)).isTrue();
+
+        // verify initialization conf
+        JobDetail jobDetail = embeddedWorkflowScheduler.getQuartzScheduler().getJobDetail(jobKey);
+        String workflowJsonStr = jobDetail.getJobDataMap().getString(WORKFLOW_INFO);
+        WorkflowInfo workflowInfo = fromJson(workflowJsonStr, WorkflowInfo.class);
+        assertThat(workflowInfo.getInitConfig())
+                .containsEntry("k1", "v1")
+                .containsEntry("k2", "v2")
+                .containsKey("sql-gateway.endpoint.rest.address")
+                .containsKey("sql-gateway.endpoint.rest.port")
+                .containsKey("table.catalog-store.kind")
+                .containsKey("table.catalog-store.file.path")
+                .doesNotContainKey(WORKFLOW_SCHEDULER_TYPE.key())
+                .doesNotContainKey(RESOURCES_DOWNLOAD_DIR.key());
+
+        // drop the materialized table
+        dropMaterializedTable(
+                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+    }
+
+    @Test
+    void testCreateMaterializedTableInContinuousModeWithoutFreshnessAndRefreshMode()
+            throws Exception {
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops"
+                        + " PARTITIONED BY (ds)\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " AS SELECT \n"
+                        + "  user_id,\n"
+                        + "  shop_id,\n"
+                        + "  ds,\n"
+                        + "  SUM (payment_amount_cents) AS payed_buy_fee_sum,\n"
+                        + "  SUM (1) AS pv\n"
+                        + " FROM (\n"
+                        + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
+                        + " ) AS tmp\n"
+                        + " GROUP BY (user_id, shop_id, ds)";
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, materializedTableHandle);
+
+        // validate materialized table: schema, refresh mode, refresh status, refresh handler,
+        // doesn't check the data because it generates randomly.
+        ResolvedCatalogMaterializedTable actualMaterializedTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        // Expected schema
+        ResolvedSchema expectedSchema =
+                ResolvedSchema.of(
+                        Arrays.asList(
+                                Column.physical("user_id", DataTypes.BIGINT()),
+                                Column.physical("shop_id", DataTypes.BIGINT()),
+                                Column.physical("ds", DataTypes.STRING()),
+                                Column.physical("payed_buy_fee_sum", DataTypes.BIGINT()),
+                                Column.physical("pv", DataTypes.INT().notNull())));
+
+        assertThat(actualMaterializedTable.getResolvedSchema()).isEqualTo(expectedSchema);
+        assertThat(actualMaterializedTable.getDefinitionFreshness())
+                .isEqualTo(IntervalFreshness.ofMinute("3"));
+        assertThat(actualMaterializedTable.getLogicalRefreshMode())
+                .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC);
+        assertThat(actualMaterializedTable.getRefreshMode())
+                .isEqualTo(CatalogMaterializedTable.RefreshMode.CONTINUOUS);
+        assertThat(actualMaterializedTable.getRefreshStatus())
+                .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
+        assertThat(actualMaterializedTable.getRefreshHandlerDescription()).isNotEmpty();
+        assertThat(actualMaterializedTable.getSerializedRefreshHandler()).isNotEmpty();
+
+        ContinuousRefreshHandler activeRefreshHandler =
+                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                        actualMaterializedTable.getSerializedRefreshHandler(),
+                        getClass().getClassLoader());
+
+        waitUntilAllTasksAreRunning(
+                restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
+
+        // verify the background job is running
+        String describeJobDDL = String.format("DESCRIBE JOB '%s'", activeRefreshHandler.getJobId());
+        OperationHandle describeJobHandle =
+                service.executeStatement(sessionHandle, describeJobDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, describeJobHandle);
+        List<RowData> jobResults = fetchAllResults(service, sessionHandle, describeJobHandle);
+        assertThat(jobResults.get(0).getString(2).toString()).isEqualTo("RUNNING");
+
+        // get checkpoint interval
+        long checkpointInterval =
+                getCheckpointIntervalConfig(restClusterClient, activeRefreshHandler.getJobId());
+
+        // default checkpoint interval is 3 minutes
+        final int expectedCheckpointInterval = 60 * 3 * 1000;
+        assertThat(checkpointInterval).isEqualTo(expectedCheckpointInterval);
 
         // drop the materialized table
         dropMaterializedTable(
@@ -348,7 +533,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
     }
 
     @Test
-    void testCreateMaterializedTableFailedInInContinuousMode() throws Exception {
+    void testCreateMaterializedTableFailedInInContinuousMode() {
         // create a materialized table with invalid SQL
         String materializedTableDDL =
                 "CREATE MATERIALIZED TABLE users_shops"
