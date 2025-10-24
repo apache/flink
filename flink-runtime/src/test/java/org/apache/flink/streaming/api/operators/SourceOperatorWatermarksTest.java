@@ -54,7 +54,8 @@ class SourceOperatorWatermarksTest {
                                                 new SourceOperatorAlignmentTest
                                                         .PunctuatedGenerator())
                                 .withTimestampAssigner((r, t) -> r),
-                        new MockOutput<>(new ArrayList<>()));
+                        new MockOutput<>(new ArrayList<>()),
+                        false);
         operator = context.getOperator();
     }
 

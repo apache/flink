@@ -64,7 +64,8 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
             SourceReader<T, MockSourceSplit> reader,
             WatermarkStrategy<T> watermarkStrategy,
             ProcessingTimeService timeService,
-            boolean emitProgressiveWatermarks) {
+            boolean emitProgressiveWatermarks,
+            boolean supportSupportSplitReassignmentOnRecovery) {
 
         this(
                 parameters,
@@ -74,7 +75,8 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
                 new MockOperatorEventGateway(),
                 1,
                 5,
-                emitProgressiveWatermarks);
+                emitProgressiveWatermarks,
+                supportSupportSplitReassignmentOnRecovery);
     }
 
     public TestingSourceOperator(
@@ -85,7 +87,8 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
             OperatorEventGateway eventGateway,
             int subtaskIndex,
             int parallelism,
-            boolean emitProgressiveWatermarks) {
+            boolean emitProgressiveWatermarks,
+            boolean supportSupportSplitReassignmentOnRecovery) {
 
         super(
                 parameters,
@@ -98,7 +101,8 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
                 "localhost",
                 emitProgressiveWatermarks,
                 () -> false,
-                Collections.emptyMap());
+                Collections.emptyMap(),
+                supportSupportSplitReassignmentOnRecovery);
 
         this.subtaskIndex = subtaskIndex;
         this.parallelism = parallelism;
@@ -129,6 +133,15 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
             SourceReader<T, MockSourceSplit> reader,
             WatermarkStrategy<T> watermarkStrategy,
             boolean emitProgressiveWatermarks)
+            throws Exception {
+        return createTestOperator(reader, watermarkStrategy, emitProgressiveWatermarks, false);
+    }
+
+    public static <T> SourceOperator<T, MockSourceSplit> createTestOperator(
+            SourceReader<T, MockSourceSplit> reader,
+            WatermarkStrategy<T> watermarkStrategy,
+            boolean emitProgressiveWatermarks,
+            boolean supportSupportSplitReassignmentOnRecovery)
             throws Exception {
 
         AbstractStateBackend abstractStateBackend = new HashMapStateBackend();
@@ -168,7 +181,8 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
                         reader,
                         watermarkStrategy,
                         timeService,
-                        emitProgressiveWatermarks);
+                        emitProgressiveWatermarks,
+                        supportSupportSplitReassignmentOnRecovery);
         sourceOperator.initializeState(stateContext);
         sourceOperator.open();
 

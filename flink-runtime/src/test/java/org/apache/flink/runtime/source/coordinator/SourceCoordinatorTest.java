@@ -42,9 +42,11 @@ import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
+import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.source.event.RequestSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
+import org.apache.flink.util.concurrent.FutureConsumerWithException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.junit.jupiter.api.Test;
@@ -596,6 +598,125 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                         WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
                         listeningID);
         assertThat(coordinator.inferSourceParallelismAsync(2, 1).get()).isEqualTo(2);
+    }
+
+    @Test
+    void testDuplicateRedistribution() throws Exception {
+        final List<MockSourceSplit> splits =
+                Arrays.asList(
+                        new MockSourceSplit(0), new MockSourceSplit(1), new MockSourceSplit(2));
+
+        testRedistribution(
+                (coordinator) -> {
+                    registerReader(coordinator, 0, 0, splits);
+                    registerReader(coordinator, 1, 0, Collections.emptyList());
+                    registerReader(coordinator, 2, 0, Collections.emptyList());
+                    waitForCoordinatorToProcessActions();
+                    checkAddSplitEvents(new int[][] {new int[] {1}, new int[] {1}, new int[] {1}});
+
+                    // duplicate registration
+                    registerReader(coordinator, 0, 0, splits);
+                    waitForCoordinatorToProcessActions();
+                    //  split 1,2,3 won't be sent again.
+                    checkAddSplitEvents(new int[][] {new int[] {1}, new int[] {1}, new int[] {1}});
+                });
+    }
+
+    @Test
+    void testRedistributionInPartialRestartBeforeAnyCheckpoint() throws Exception {
+        final List<MockSourceSplit> splits =
+                Arrays.asList(
+                        new MockSourceSplit(0), new MockSourceSplit(1), new MockSourceSplit(2));
+
+        testRedistribution(
+                (coordinator) -> {
+                    registerReader(coordinator, 0, 0, splits);
+                    registerReader(coordinator, 1, 0, Collections.emptyList());
+                    registerReader(coordinator, 2, 0, Collections.emptyList());
+                    waitForCoordinatorToProcessActions();
+                    checkAddSplitEvents(new int[][] {new int[] {1}, new int[] {1}, new int[] {1}});
+
+                    coordinator.subtaskReset(0, 0);
+                    setReaderTaskReady(coordinator, 0, 1);
+                    registerReader(coordinator, 0, 1, splits);
+                    waitForCoordinatorToProcessActions();
+                    checkAddSplitEvents(
+                            new int[][] {new int[] {1, 1}, new int[] {1}, new int[] {1}});
+                });
+    }
+
+    @Test
+    void testRedistributionInPartialRestartAfterCheckpoint() throws Exception {
+        final List<MockSourceSplit> splits =
+                Arrays.asList(
+                        new MockSourceSplit(0), new MockSourceSplit(1), new MockSourceSplit(2));
+
+        testRedistribution(
+                (coordinator) -> {
+                    registerReader(coordinator, 0, 0, splits);
+                    registerReader(coordinator, 1, 0, Collections.emptyList());
+                    registerReader(coordinator, 2, 0, Collections.emptyList());
+                    waitForCoordinatorToProcessActions();
+                    checkAddSplitEvents(new int[][] {new int[] {1}, new int[] {1}, new int[] {1}});
+
+                    CompletableFuture<byte[]> fulture = new CompletableFuture<>();
+                    coordinator.checkpointCoordinator(1, fulture);
+                    fulture.get();
+
+                    coordinator.subtaskReset(0, 0);
+                    setReaderTaskReady(coordinator, 0, 1);
+                    registerReader(
+                            coordinator, 0, 1, Collections.singletonList(new MockSourceSplit(0)));
+                    waitForCoordinatorToProcessActions();
+                    checkAddSplitEvents(
+                            new int[][] {new int[] {1, 1}, new int[] {1}, new int[] {1}});
+                });
+    }
+
+    void testRedistribution(
+            FutureConsumerWithException<
+                            SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>>, Exception>
+                    consumer)
+            throws Exception {
+        try (final SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>> splitEnumerator =
+                        new MockSplitEnumerator(0, context);
+                final SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>> coordinator =
+                        new SourceCoordinator<>(
+                                new JobID(),
+                                OPERATOR_NAME,
+                                new EnumeratorCreatingSource<>(() -> splitEnumerator),
+                                context,
+                                new CoordinatorStoreImpl(),
+                                WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED,
+                                null)) {
+
+            coordinator.start();
+            setAllReaderTasksReady(coordinator);
+
+            consumer.accept(coordinator);
+        }
+    }
+
+    private void checkAddSplitEvents(int[][] expectedAssignedSplitNum) {
+        MockSourceSplitSerializer mockSourceSplitSerializer = new MockSourceSplitSerializer();
+        assertThat(expectedAssignedSplitNum.length).isEqualTo(NUM_SUBTASKS);
+        for (int i = 0; i < NUM_SUBTASKS; i++) {
+            List<OperatorEvent> sentEventsForSubtask = receivingTasks.getSentEventsForSubtask(i);
+            assertThat(sentEventsForSubtask).hasSize(expectedAssignedSplitNum[i].length);
+            for (int j = 0; j < sentEventsForSubtask.size(); j++) {
+                assertThat(sentEventsForSubtask.get(j)).isExactlyInstanceOf(AddSplitEvent.class);
+                List<MockSourceSplit> splits;
+                try {
+                    splits =
+                            ((AddSplitEvent<MockSourceSplit>) sentEventsForSubtask.get(j))
+                                    .splits(mockSourceSplitSerializer);
+                } catch (Exception e) {
+                    throw new RuntimeException();
+                }
+
+                assertThat(splits).hasSize(expectedAssignedSplitNum[i][j]);
+            }
+        }
     }
 
     // ------------------------------------------------------------------------
