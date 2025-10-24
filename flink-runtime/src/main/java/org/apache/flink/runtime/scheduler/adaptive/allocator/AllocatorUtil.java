@@ -18,9 +18,11 @@
 
 package org.apache.flink.runtime.scheduler.adaptive.allocator;
 
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 
 import java.util.Collection;
@@ -80,5 +82,14 @@ class AllocatorUtil {
         return sharedSlotToVertexAssignment.values().stream()
                 .map(SlotSharingSlotAllocator.ExecutionSlotSharingGroup::new)
                 .collect(Collectors.toList());
+    }
+
+    static Map<ResourceID, Set<PhysicalSlot>> getSlotsPerTaskExecutor(
+            Collection<PhysicalSlot> freeSlots) {
+        return freeSlots.stream()
+                .collect(
+                        Collectors.groupingBy(
+                                slot -> slot.getTaskManagerLocation().getResourceID(),
+                                Collectors.toSet()));
     }
 }
