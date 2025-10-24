@@ -87,7 +87,7 @@ Format 参数
       <td>仅用于 <a href="{{< ref "docs/connectors/table/filesystem" >}}">filesystem</a>，avro 压缩编解码器。默认 snappy 压缩。目前支持：null, deflate、snappy、bzip2、xz。</td>
     </tr>
     <tr>
-      <td><h5>timestamp_mapping.legacy</h5></td>
+      <td><h5>avro.timestamp_mapping.legacy</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">true</td>
       <td>Boolean</td>
