@@ -19,6 +19,8 @@
 # cython: infer_types = True
 # cython: profile=True
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
+import pickle
+
 from libc.stdint cimport *
 
 from apache_beam.coders.coder_impl cimport OutputStream as BOutputStream
@@ -27,9 +29,11 @@ from apache_beam.utils cimport windowed_value
 from apache_beam.utils.windowed_value cimport WindowedValue
 
 from pyflink.common.constants import DEFAULT_OUTPUT_TAG
+from pyflink.datastream.functions import AsyncFunctionDescriptor
 from pyflink.fn_execution.coder_impl_fast cimport InputStreamWrapper
+from pyflink.fn_execution.datastream.process.async_function.operation import AsyncOperation
 from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
-from pyflink.fn_execution.table.operations import BundleOperation, BaseOperation as TableOperation
+from pyflink.fn_execution.table.operations import BundleOperation
 from pyflink.fn_execution.profiler import Profiler
 
 
@@ -129,11 +133,6 @@ cdef class FunctionOperation(Operation):
         self.operator_state_backend = operator_state_backend
         self.operation = self.generate_operation()
         self.process_element = self.operation.process_element
-        self.operation.open()
-        if spec.serialized_fn.profile_enabled:
-            self._profiler = Profiler()
-        else:
-            self._profiler = None
 
         if isinstance(spec.serialized_fn, UserDefinedDataStreamFunction):
             self._has_side_output = spec.serialized_fn.has_side_output
@@ -142,6 +141,14 @@ cdef class FunctionOperation(Operation):
             self._has_side_output = False
         if not self._has_side_output:
             self._main_output_processor = self._output_processors[DEFAULT_OUTPUT_TAG][0]
+            if isinstance(self.operation, AsyncOperation):
+                self.operation.set_output_processor(self._main_output_processor)
+
+        self.operation.open()
+        if spec.serialized_fn.profile_enabled:
+            self._profiler = Profiler()
+        else:
+            self._profiler = None
 
     cpdef start(self):
         with self.scoped_start_state:
@@ -189,6 +196,10 @@ cdef class FunctionOperation(Operation):
                         while input_processor.has_next():
                             self.process_element(input_processor.next())
                         self._main_output_processor.process_outputs(o, self.operation.finish_bundle())
+                    elif isinstance(self.operation, AsyncOperation):
+                        while input_processor.has_next():
+                            # it processes the input asynchronously
+                            self.process_element(o, input_processor.next())
                     else:
                         while input_processor.has_next():
                             self._main_output_processor.process_outputs(
@@ -235,6 +246,12 @@ cdef class StatelessFunctionOperation(FunctionOperation):
             name, spec, counter_factory, sampler, consumers, operation_cls, operator_state_backend)
 
     cdef object generate_operation(self):
+        func_type = self.spec.serialized_fn.function_type \
+            if hasattr(self.spec.serialized_fn, "function_type") else None
+        if (func_type == UserDefinedDataStreamFunction.PROCESS and
+                isinstance(pickle.loads(self.spec.serialized_fn.payload), AsyncFunctionDescriptor)):
+            return AsyncOperation(self.spec.serialized_fn, self.operator_state_backend)
+
         if self.operator_state_backend is not None:
             return self.operation_cls(self.spec.serialized_fn, self.operator_state_backend)
         else:
