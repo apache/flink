@@ -231,6 +231,45 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    void testTwoWayJoinWithUnion() {
+        util.tableEnv()
+                .executeSql(
+                        "CREATE TABLE Orders2 ("
+                                + "  order_id STRING PRIMARY KEY NOT ENFORCED,"
+                                + "  user_id_1 STRING,"
+                                + "  product STRING"
+                                + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,D')");
+
+        util.verifyRelPlan(
+                "WITH OrdersUnion as ("
+                        + "SELECT * FROM Orders "
+                        + "UNION ALL "
+                        + "SELECT * FROM Orders2"
+                        + ") "
+                        + "SELECT * FROM OrdersUnion o "
+                        + "LEFT JOIN Users u "
+                        + "ON o.user_id_1 = u.user_id_0");
+    }
+
+    @Test
+    void testTwoWayJoinWithRank() {
+        util.getTableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, true);
+
+        util.verifyRelPlan(
+                "WITH JoinedEvents as ("
+                        + "SELECT e1.id as id, e1.val, e1.rowtime as `rowtime`, e2.price "
+                        + "FROM EventTable1 e1 "
+                        + "JOIN EventTable2 e2 ON e1.id = e2.id) "
+                        + "SELECT id, val, `rowtime` FROM ("
+                        + "SELECT *, "
+                        + "ROW_NUMBER() OVER (PARTITION BY id ORDER BY `rowtime` DESC) as ts "
+                        + "FROM JoinedEvents) "
+                        + "WHERE ts = 1");
+    }
+
+    @Test
     void testFourWayComplexJoinRelPlan() {
         util.verifyRelPlan(
                 "SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location "
