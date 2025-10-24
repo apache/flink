@@ -99,7 +99,7 @@ Format Options
       <td>For <a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a> only, the compression codec for avro. Snappy compression as default. The valid enumerations are: null, deflate, snappy, bzip2, xz.</td>
     </tr>
     <tr>
-      <td><h5>timestamp_mapping.legacy</h5></td>
+      <td><h5>avro.timestamp_mapping.legacy</h5></td>
       <td>optional</td>
       <td>yes</td>
       <td style="word-wrap: break-word;">true</td>
