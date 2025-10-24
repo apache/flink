@@ -26,12 +26,15 @@ import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
+import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
+import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.resourcemanager.TaskExecutorRegistration;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceExtension;
@@ -63,8 +66,19 @@ class TaskExecutorRecoveryTest {
             new EachCallbackWrapper<>(rpcServiceExtension);
 
     @Test
-    void testRecoveredTaskExecutorWillRestoreAllocationState(@TempDir File tempDir)
-            throws Exception {
+    void testRecoveredTaskExecutorWillRestoreAllocationStateWithFixedSlotRequest(
+            @TempDir File tempDir) throws Exception {
+        testRecoveredTaskExecutorWillRestoreAllocationState(tempDir, false);
+    }
+
+    @Test
+    void testRecoveredTaskExecutorWillRestoreAllocationStateWithDynamicSlotRequest(
+            @TempDir File tempDir) throws Exception {
+        testRecoveredTaskExecutorWillRestoreAllocationState(tempDir, true);
+    }
+
+    private void testRecoveredTaskExecutorWillRestoreAllocationState(
+            File tempDir, boolean useDynamicRequest) throws Exception {
         final ResourceID resourceId = ResourceID.generate();
 
         final Configuration configuration = new Configuration();
@@ -80,6 +94,20 @@ class TaskExecutorRecoveryTest {
                             TaskExecutorSlotReport.create(
                                     slotReportInformation.f0, slotReportInformation.f2));
                     return CompletableFuture.completedFuture(Acknowledge.get());
+                });
+
+        final ArrayBlockingQueue<TaskExecutorRegistration> taskExecutorRegistrations =
+                new ArrayBlockingQueue<>(2);
+
+        testingResourceManagerGateway.setRegisterTaskExecutorFunction(
+                taskExecutorRegistration -> {
+                    taskExecutorRegistrations.offer(taskExecutorRegistration);
+                    return CompletableFuture.completedFuture(
+                            new TaskExecutorRegistrationSuccess(
+                                    new InstanceID(),
+                                    taskExecutorRegistration.getResourceId(),
+                                    new ClusterInformation("localhost", 1234),
+                                    null));
                 });
 
         final TestingRpcService rpcService = rpcServiceExtension.getTestingRpcService();
@@ -118,8 +146,14 @@ class TaskExecutorRecoveryTest {
 
         assertThat(slotReport.getNumSlotStatus(), is(2));
 
+        final TaskExecutorRegistration taskExecutorRegistration = taskExecutorRegistrations.take();
+        assertThat(taskExecutorRegistration.getNumberSlots(), is(2));
+
         final SlotStatus slotStatus = slotReport.iterator().next();
-        final SlotID allocatedSlotID = slotStatus.getSlotID();
+        final SlotID allocatedSlotID =
+                useDynamicRequest
+                        ? SlotID.getDynamicSlotID(slotStatus.getSlotID().getResourceID())
+                        : slotStatus.getSlotID();
 
         final AllocationID allocationId = new AllocationID();
         taskExecutorGateway
@@ -160,15 +194,25 @@ class TaskExecutorRecoveryTest {
         recoveredTaskExecutor.start();
 
         final TaskExecutorSlotReport recoveredSlotReport = queue.take();
-
+        final int expectedNumberOfSlots = useDynamicRequest ? 3 : 2;
+        assertThat(
+                recoveredSlotReport.getSlotReport().getNumSlotStatus(), is(expectedNumberOfSlots));
         for (SlotStatus status : recoveredSlotReport.getSlotReport()) {
-            if (status.getSlotID().equals(allocatedSlotID)) {
+            boolean isAllocatedSlot =
+                    useDynamicRequest
+                            ? status.getSlotID().getSlotNumber() == 2
+                            : status.getSlotID().equals(allocatedSlotID);
+            if (isAllocatedSlot) {
                 assertThat(status.getJobID(), is(jobId));
                 assertThat(status.getAllocationID(), is(allocationId));
             } else {
                 assertThat(status.getJobID(), is(nullValue()));
             }
         }
+
+        final TaskExecutorRegistration recoveredTaskExecutorRegistration =
+                taskExecutorRegistrations.take();
+        assertThat(recoveredTaskExecutorRegistration.getNumberSlots(), is(2));
 
         final Collection<SlotOffer> take = offeredSlots.take();
 
