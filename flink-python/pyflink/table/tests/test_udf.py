@@ -982,9 +982,7 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
                 "non-callable-udf", udf(Plus(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
     def test_data_types(self):
-        timezone = self.t_env.get_config().get_local_timezone()
-        local_datetime = pytz.timezone(timezone).localize(
-            datetime.datetime(1970, 1, 1, 0, 0, 0, 123000))
+        local_datetime = datetime.datetime(1970, 1, 1, 0, 0, 0, 123000, datetime.timezone.utc)
 
         @udf(result_type=DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))
         def local_zoned_timestamp_func(local_zoned_timestamp_param):
@@ -1006,7 +1004,7 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
             .execute_insert(sink_table) \
             .wait()
         actual = source_sink_utils.results()
-        self.assert_equals(actual, ["+I[1969-12-31T16:00:01.123Z]"])
+        self.assert_equals(actual, ["+I[1970-01-01T00:00:00.123Z]"])
 
     def test_execute_from_json_plan(self):
         # create source file path
