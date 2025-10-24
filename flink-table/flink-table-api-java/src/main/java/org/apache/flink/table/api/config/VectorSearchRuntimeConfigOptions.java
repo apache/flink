@@ -50,7 +50,7 @@ public class VectorSearchRuntimeConfigOptions {
                     .enumType(ExecutionConfigOptions.AsyncOutputMode.class)
                     .noDefaultValue()
                     .withDescription(
-                            "Output mode for asynchronous operations which will convert to {@see AsyncDataStream.OutputMode}, ORDERED by default. "
+                            "Output mode for asynchronous vector search call operations which will convert to {@see AsyncDataStream.OutputMode}, ORDERED by default. "
                                     + "If set to ALLOW_UNORDERED, will attempt to use {@see AsyncDataStream.OutputMode.UNORDERED} when it does not "
                                     + "affect the correctness of the result, otherwise ORDERED will be still used.");
 
@@ -59,14 +59,14 @@ public class VectorSearchRuntimeConfigOptions {
                     .intType()
                     .noDefaultValue()
                     .withDescription(
-                            "The max number of async i/o operation that the async ml predict can trigger.");
+                            "The max number of async i/o operation that the async vector search call can trigger.");
 
     public static final ConfigOption<Duration> ASYNC_TIMEOUT =
             key("timeout")
                     .durationType()
                     .noDefaultValue()
                     .withDescription(
-                            "Timeout from first invoke to final completion of asynchronous operation, may include multiple"
+                            "Timeout from first invoke to final completion of asynchronous vector search call operation, may include multiple"
                                     + " retries, and will be reset in case of failover.");
 
     private static final Set<ConfigOption<?>> supportedKeys = new HashSet<>();

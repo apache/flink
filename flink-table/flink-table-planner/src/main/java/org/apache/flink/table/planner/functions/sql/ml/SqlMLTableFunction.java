@@ -18,8 +18,9 @@
 package org.apache.flink.table.planner.functions.sql.ml;
 
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.planner.functions.utils.SqlValidatorUtils;
+import org.apache.flink.table.api.config.VectorSearchRuntimeConfigOptions;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 import org.apache.flink.types.Either;
@@ -49,6 +50,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions.ASYNC;
+import static org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions.ASYNC_MAX_CONCURRENT_OPERATIONS;
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
 import static org.apache.flink.table.planner.functions.utils.SqlValidatorUtils.reduceLiteralToString;
 import static org.apache.flink.table.types.logical.LogicalTypeFamily.CHARACTER_STRING;
@@ -227,6 +230,32 @@ public abstract class SqlMLTableFunction extends SqlFunction implements SqlTable
             }
         }
 
-        return SqlValidatorUtils.checkConfigValue(runtimeConfig);
+        return checkConfigValue(runtimeConfig);
+    }
+
+    public static Optional<RuntimeException> checkConfigValue(Map<String, String> runtimeConfig) {
+        Configuration config = Configuration.fromMap(runtimeConfig);
+        try {
+            VectorSearchRuntimeConfigOptions.getSupportedOptions().forEach(config::get);
+        } catch (Throwable t) {
+            return Optional.of(new ValidationException("Failed to parse the config.", t));
+        }
+
+        // option value check
+        // async options are all optional
+        Boolean async = config.get(ASYNC);
+        if (Boolean.TRUE.equals(async)) {
+            Integer maxConcurrentOperations = config.get(ASYNC_MAX_CONCURRENT_OPERATIONS);
+            if (maxConcurrentOperations != null && maxConcurrentOperations <= 0) {
+                return Optional.of(
+                        new ValidationException(
+                                String.format(
+                                        "Invalid runtime config option '%s'. Its value should be positive integer but was %s.",
+                                        ASYNC_MAX_CONCURRENT_OPERATIONS.key(),
+                                        maxConcurrentOperations)));
+            }
+        }
+
+        return Optional.empty();
     }
 }
