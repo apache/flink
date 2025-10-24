@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.utils.{TableTestBase, TestingTableEnvironment}
 
 import org.assertj.core.api.Assertions.assertThatThrownBy
+import org.assertj.core.util.Maps
 import org.junit.jupiter.api.{BeforeEach, Test}
 
 import java.util.{Collections, HashMap => JHashMap}
@@ -77,6 +78,33 @@ class DeltaJoinTest extends TableTestBase {
     )
 
     addTable(
+      "no_delete_src1",
+      Schema
+        .newBuilder()
+        .column("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING.notNull)
+        .column("a3", DataTypes.INT)
+        .primaryKey("a0", "a1", "a2")
+        .index("a1", "a2")
+        .build(),
+      Maps.newHashMap("changelog-mode", "I,UA,UB")
+    )
+
+    addTable(
+      "no_delete_src2",
+      Schema
+        .newBuilder()
+        .column("b0", DataTypes.INT)
+        .column("b2", DataTypes.STRING.notNull)
+        .column("b1", DataTypes.DOUBLE.notNull)
+        .primaryKey("b1", "b2")
+        .index("b2")
+        .build(),
+      Maps.newHashMap("changelog-mode", "I,UA,UB")
+    )
+
+    addTable(
       "snk",
       Schema
         .newBuilder()
@@ -88,6 +116,21 @@ class DeltaJoinTest extends TableTestBase {
         .column("r2", DataTypes.STRING)
         .column("r1", DataTypes.DOUBLE)
         .primaryKey("l0", "r0")
+        .build()
+    )
+
+    addTable(
+      "snk_for_cdc_src",
+      Schema
+        .newBuilder()
+        .column("l0", DataTypes.INT.notNull)
+        .column("l1", DataTypes.DOUBLE.notNull)
+        .column("l2", DataTypes.STRING.notNull)
+        .column("l3", DataTypes.INT)
+        .column("r0", DataTypes.INT)
+        .column("r2", DataTypes.STRING.notNull)
+        .column("r1", DataTypes.DOUBLE.notNull)
+        .primaryKey("l0", "l1", "l2", "r1", "r2")
         .build()
     )
   }
@@ -186,6 +229,30 @@ class DeltaJoinTest extends TableTestBase {
         "on src1.a1 = src2.b1 " +
         "and src1.a2 = src2.b2 " +
         "where a3 > b0")
+  }
+
+  @Test
+  def testFilterOnNonUpsertKeysAfterJoinWithCdcSourceWithoutDelete(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk_for_cdc_src select * from no_delete_src1 " +
+        "join no_delete_src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2 " +
+        "where a3 > b0",
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testFilterOnUpsertKeysAfterJoinWithCdcSourceWithoutDelete(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk_for_cdc_src select * from no_delete_src1 " +
+        "join no_delete_src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2 " +
+        "where a0 > b1",
+      ExplainDetail.CHANGELOG_MODE
+    )
   }
 
   @Test
@@ -372,7 +439,7 @@ class DeltaJoinTest extends TableTestBase {
   }
 
   @Test
-  def testCdcSource(): Unit = {
+  def testSourceWithAllRowKinds(): Unit = {
     util.tableConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
       UpsertMaterialize.NONE)
@@ -385,6 +452,99 @@ class DeltaJoinTest extends TableTestBase {
       "insert into snk select * from src1 join cdc_src " +
         "on src1.a1 = cdc_src.b1 " +
         "and src1.a2 = cdc_src.b2")
+  }
+
+  @Test
+  def testPKContainsJoinKeyAndTwoSourcesNoDelete(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk_for_cdc_src " +
+        "select * from no_delete_src1 join no_delete_src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2",
+      ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testPKNotContainJoinKeyAndTwoSourcesNoDelete(): Unit = {
+    util.tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
+      UpsertMaterialize.NONE)
+
+    util.verifyRelPlanInsert(
+      "insert into snk_for_cdc_src " +
+        "select * from no_delete_src1 join no_delete_src2 " +
+        "on a0 = b0 " +
+        "and a1 = b1 " +
+        "and a2 = b2",
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testPKContainJoinKeyAndOnlyOneSourceNoDelete(): Unit = {
+    util.tableEnv.executeSql("""
+                               |create table all_changelog_src with (
+                               | 'changelog-mode' = 'I,UA,UB,D'
+                               |) like no_delete_src1
+                               |""".stripMargin)
+
+    util.verifyRelPlanInsert(
+      "insert into snk_for_cdc_src " +
+        "select * from all_changelog_src join no_delete_src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2",
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testPKContainsJoinKeyAndSourceNoUBAndD(): Unit = {
+    // FLINK-38489 Currently, ChangelogNormalize will always generate changelog mode with D,
+    // and Join with D cannot be optimized into Delta Join
+    util.tableEnv.executeSql("""
+                               |create table no_delete_and_update_before_src1 with (
+                               | 'changelog-mode' = 'I,UA'
+                               |) like no_delete_src1
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table no_delete_and_update_before_src2 with (
+                               | 'changelog-mode' = 'I,UA'
+                               |) like no_delete_src2
+                               |""".stripMargin)
+
+    util.verifyRelPlanInsert(
+      "insert into snk_for_cdc_src " +
+        "select * from no_delete_and_update_before_src1 " +
+        "join no_delete_and_update_before_src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2",
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinAppendOnlySourceAndSourceWithoutDelete(): Unit = {
+    util.tableConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
+      UpsertMaterialize.NONE)
+
+    util.tableEnv.executeSql("""
+                               |create table tmp_snk (
+                               | primary key (r1, r2) not enforced
+                               |) like snk_for_cdc_src (
+                               |  EXCLUDING CONSTRAINTS
+                               |)
+                               |""".stripMargin)
+
+    // the join could not be converted into the delta join
+    // because the upsert key of the join is `null`
+    util.verifyRelPlanInsert(
+      "insert into tmp_snk " +
+        "select * from src1 join no_delete_src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2",
+      ExplainDetail.CHANGELOG_MODE)
   }
 
   @Test

@@ -25,9 +25,12 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DeltaJoinSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeltaJoin;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDropUpdateBefore;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalIntermediateTableScan;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalJoin;
@@ -53,10 +56,12 @@ import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.mapping.IntPair;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -75,7 +80,10 @@ public class DeltaJoinUtil {
      * <p>More physical nodes can be added to support more patterns for delta join.
      */
     private static final Set<Class<?>> ALL_SUPPORTED_DELTA_JOIN_UPSTREAM_NODES =
-            Sets.newHashSet(StreamPhysicalTableSourceScan.class, StreamPhysicalExchange.class);
+            Sets.newHashSet(
+                    StreamPhysicalTableSourceScan.class,
+                    StreamPhysicalExchange.class,
+                    StreamPhysicalDropUpdateBefore.class);
 
     private DeltaJoinUtil() {}
 
@@ -95,8 +103,8 @@ public class DeltaJoinUtil {
             return false;
         }
 
-        // currently, only join with append-only inputs is supported
-        if (!areAllInputsInsertOnly(join)) {
+        // currently, only join that consumes +I and +U is supported
+        if (!areAllInputsInsertOrUpdateAfter(join)) {
             return false;
         }
 
@@ -240,7 +248,29 @@ public class DeltaJoinUtil {
     private static boolean areJoinConditionsSupported(StreamPhysicalJoin join) {
         JoinInfo joinInfo = join.analyzeCondition();
         // there must be one pair of join key
-        return !joinInfo.pairs().isEmpty();
+        if (joinInfo.pairs().isEmpty()) {
+            return false;
+        }
+
+        // if this join outputs cdc records and has non-equiv condition, the reference columns in
+        // the non-equiv condition must come from the same set of upsert keys
+        ChangelogMode changelogMode = getChangelogMode(join);
+        if (changelogMode.containsOnly(RowKind.INSERT)) {
+            return true;
+        }
+        JoinSpec joinSpec = join.joinSpec();
+        Optional<RexNode> nonEquiCond = joinSpec.getNonEquiCondition();
+        if (nonEquiCond.isEmpty()) {
+            return true;
+        }
+        ImmutableBitSet fieldRefIndices =
+                ImmutableBitSet.of(
+                        RexNodeExtractor.extractRefInputFields(
+                                Collections.singletonList(nonEquiCond.get())));
+        FlinkRelMetadataQuery fmq =
+                FlinkRelMetadataQuery.reuseOrCreate(join.getCluster().getMetadataQuery());
+        Set<ImmutableBitSet> upsertKeys = fmq.getUpsertKeys(join);
+        return upsertKeys.stream().anyMatch(uk -> uk.contains(fieldRefIndices));
     }
 
     private static boolean areAllJoinTableScansSupported(StreamPhysicalJoin join) {
@@ -301,8 +331,9 @@ public class DeltaJoinUtil {
         node = unwrapNode(node, true);
         // support to get table across more nodes if we support more nodes in
         // `ALL_SUPPORTED_DELTA_JOIN_UPSTREAM_NODES`
-        if (node instanceof StreamPhysicalExchange) {
-            return getTableScan(((StreamPhysicalExchange) node).getInput());
+        if (node instanceof StreamPhysicalExchange
+                || node instanceof StreamPhysicalDropUpdateBefore) {
+            return getTableScan(node.getInput(0));
         }
 
         Preconditions.checkState(node instanceof TableScan);
@@ -340,25 +371,29 @@ public class DeltaJoinUtil {
         return DuplicateChanges.ALLOW.equals(duplicateChanges);
     }
 
-    private static boolean areAllInputsInsertOnly(StreamPhysicalJoin join) {
+    private static boolean areAllInputsInsertOrUpdateAfter(StreamPhysicalJoin join) {
         for (RelNode input : join.getInputs()) {
-            if (!isInsertOnly(unwrapNode(input, false))) {
+            if (!onlyProduceInsertOrUpdateAfter(unwrapNode(input, false))) {
                 return false;
             }
         }
         return true;
     }
 
-    private static boolean isInsertOnly(StreamPhysicalRel node) {
-        ChangelogMode changelogMode =
-                JavaScalaConversionUtil.toJava(ChangelogPlanUtils.getChangelogMode(node))
-                        .orElseThrow(
-                                () ->
-                                        new IllegalStateException(
-                                                String.format(
-                                                        "Unable to derive changelog mode from node %s. This is a bug.",
-                                                        node)));
-        return changelogMode.containsOnly(RowKind.INSERT);
+    private static boolean onlyProduceInsertOrUpdateAfter(StreamPhysicalRel node) {
+        ChangelogMode changelogMode = getChangelogMode(node);
+        Set<RowKind> allKinds = changelogMode.getContainedKinds();
+        return !allKinds.contains(RowKind.UPDATE_BEFORE) && !allKinds.contains(RowKind.DELETE);
+    }
+
+    private static ChangelogMode getChangelogMode(StreamPhysicalRel node) {
+        return JavaScalaConversionUtil.toJava(ChangelogPlanUtils.getChangelogMode(node))
+                .orElseThrow(
+                        () ->
+                                new IllegalStateException(
+                                        String.format(
+                                                "Unable to derive changelog mode from node %s. This is a bug.",
+                                                node)));
     }
 
     private static StreamPhysicalRel unwrapNode(RelNode node, boolean transposeToChildBlock) {
