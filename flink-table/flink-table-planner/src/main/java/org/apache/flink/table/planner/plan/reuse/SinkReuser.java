@@ -177,16 +177,6 @@ public class SinkReuser {
         List<String> digest = new ArrayList<>();
         digest.add(sink.contextResolvedTable().getIdentifier().asSummaryString());
 
-        int[][] targetColumns = sink.targetColumns();
-        if (targetColumns != null && targetColumns.length > 0) {
-            digest.add(
-                    "targetColumns=["
-                            + Arrays.stream(targetColumns)
-                                    .map(Arrays::toString)
-                                    .collect(Collectors.joining(","))
-                            + "]");
-        }
-
         String fieldTypes =
                 sink.getRowType().getFieldList().stream()
                         .map(f -> f.getType().toString())
