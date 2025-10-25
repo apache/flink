@@ -101,7 +101,7 @@ public class FlinkConvertletTable implements SqlRexConvertletTable {
         }
         type = typeFactory.createTypeWithNullability(type, true);
 
-        if (SqlUtil.isNullLiteral(leftNode, false)) {
+        if (SqlUtil.isNullLiteral(leftNode, false) || type.equals(valueRex.getType())) {
             final SqlValidatorImpl validator = (SqlValidatorImpl) cx.getValidator();
             validator.setValidatedNodeType(leftNode, type);
             return cx.convertExpression(leftNode);

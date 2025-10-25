@@ -230,4 +230,28 @@ class CalcTest extends TableTestBase {
                            |SELECT my_row = ROW(1, 'str') from src
                            |""".stripMargin)
   }
+
+  @Test
+  def testRepeatedTryCast(): Unit = {
+    val sqlQuery = "SELECT TRY_CAST(TRY_CAST(a AS STRING) AS STRING) FROM MyTable"
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testRepeatedTryCastAfterCast(): Unit = {
+    val sqlQuery = "SELECT TRY_CAST(CAST(a AS STRING) AS STRING) FROM MyTable"
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testRepeatedTryCastSameType(): Unit = {
+    val sqlQuery = "SELECT TRY_CAST(a AS BIGINT) FROM MyTable"
+    util.verifyExecPlan(sqlQuery)
+  }
+
+  @Test
+  def testRepeatedTryCastDifferentType(): Unit = {
+    val sqlQuery = "SELECT TRY_CAST(TRY_CAST(a AS STRING) AS INTEGER) FROM MyTable"
+    util.verifyExecPlan(sqlQuery)
+  }
 }
