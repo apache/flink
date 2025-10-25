@@ -92,7 +92,7 @@ public class RateLimitedSourceReaderITCase extends TestLogger {
         int callCount;
 
         @Override
-        public CompletableFuture<Void> acquire() {
+        public CompletableFuture<Void> acquire(int requestSize) {
             callCount++;
             return CompletableFuture.completedFuture(null);
         }
