@@ -885,13 +885,13 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                         createTestItem(
                                 "ROW<f0 INT NOT NULL, f1 BOOLEAN>",
                                 DataTypes.ROW(
-                                        DataTypes.FIELD("f0", DataTypes.INT()),
+                                        DataTypes.FIELD("f0", DataTypes.INT().notNull()),
                                         DataTypes.FIELD("f1", DataTypes.BOOLEAN()))),
                         // Expect to be ROW<`f0` INT NOT NULL, `f1` BOOLEAN>.
                         createTestItem(
                                 "ROW(f0 INT NOT NULL, f1 BOOLEAN)",
                                 DataTypes.ROW(
-                                        DataTypes.FIELD("f0", DataTypes.INT()),
+                                        DataTypes.FIELD("f0", DataTypes.INT().notNull()),
                                         DataTypes.FIELD("f1", DataTypes.BOOLEAN()))),
                         createTestItem(
                                 "ROW<`f0` INT>",
@@ -906,7 +906,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                 "ROW<f0 INT NOT NULL 'This is a comment.',"
                                         + " f1 BOOLEAN 'This as well.'>",
                                 DataTypes.ROW(
-                                        DataTypes.FIELD("f0", DataTypes.INT()),
+                                        DataTypes.FIELD("f0", DataTypes.INT().notNull()),
                                         DataTypes.FIELD("f1", DataTypes.BOOLEAN()))),
                         createTestItem(
                                 "ARRAY<ROW<f0 INT, f1 BOOLEAN>>",

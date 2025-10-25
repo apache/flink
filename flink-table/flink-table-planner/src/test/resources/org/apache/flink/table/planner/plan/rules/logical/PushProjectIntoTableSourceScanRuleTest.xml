@@ -268,13 +268,13 @@ LogicalProject(EXPR$0=[ITEM($0, 2).value], data_arr=[$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[CAST(CAST(ITEM($5.result, 1).meta):RecordType:peek_no_expand(VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL symbol).symbol):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
+LogicalProject(EXPR$0=[CAST(ITEM(CAST($5.result):RecordType:peek_no_expand(RecordType:peek_no_expand(VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL symbol) NOT NULL meta) NOT NULL ARRAY, 1).meta.symbol):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
 +- LogicalTableScan(table=[[default_catalog, default_database, ItemTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(EXPR$0=[CAST(CAST(ITEM($0.result, 1).meta):RecordType:peek_no_expand(VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL symbol).symbol):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
+LogicalProject(EXPR$0=[CAST(ITEM(CAST($0.result):RecordType:peek_no_expand(RecordType:peek_no_expand(VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL symbol) NOT NULL meta) NOT NULL ARRAY, 1).meta.symbol):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
 +- LogicalTableScan(table=[[default_catalog, default_database, ItemTable, project=[chart], metadata=[]]])
 ]]>
     </Resource>
