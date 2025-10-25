@@ -330,31 +330,15 @@ try:
                         apache_flink_libraries_dependency]
 
     setup(
-        name='apache-flink',
         version=VERSION,
         packages=PACKAGES,
         include_package_data=True,
         package_dir=PACKAGE_DIR,
         package_data=PACKAGE_DATA,
         scripts=scripts,
-        url='https://flink.apache.org',
-        license='https://www.apache.org/licenses/LICENSE-2.0',
-        author='Apache Software Foundation',
-        author_email='dev@flink.apache.org',
-        python_requires='>=3.9',
         install_requires=install_requires,
         cmdclass={'build_ext': build_ext},
-        description='Apache Flink Python API',
-        long_description=long_description,
-        long_description_content_type='text/markdown',
         zip_safe=False,
-        classifiers=[
-            'Development Status :: 5 - Production/Stable',
-            'License :: OSI Approved :: Apache Software License',
-            'Programming Language :: Python :: 3.9',
-            'Programming Language :: Python :: 3.10',
-            'Programming Language :: Python :: 3.11',
-            'Programming Language :: Python :: 3.12'],
         ext_modules=extensions
     )
 finally:
