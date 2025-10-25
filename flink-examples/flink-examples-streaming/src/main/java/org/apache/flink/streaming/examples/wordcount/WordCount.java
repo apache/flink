@@ -193,6 +193,10 @@ public class WordCount {
 
         @Override
         public void flatMap(String value, Collector<Tuple2<String, Integer>> out) {
+            if (value == null || value.trim().isEmpty()) {
+                return;
+            }
+            
             // normalize and split the line
             String[] tokens = value.toLowerCase().split("\\W+");
 
