@@ -47,7 +47,9 @@ import org.apache.calcite.rex.RexProgram;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** Stream physical RelNode for vector search table function. */
@@ -95,10 +97,7 @@ public class StreamPhysicalVectorSearchTableFunction extends SingleRel
     public RelWriter explainTerms(RelWriter pw) {
         List<String> columnToSearch =
                 vectorSearchSpec.getSearchColumns().keySet().stream()
-                        .map(
-                                calcProgram == null
-                                        ? searchTable.getRowType().getFieldNames()::get
-                                        : calcProgram.getOutputRowType().getFieldNames()::get)
+                        .map(searchTable.getRowType().getFieldNames()::get)
                         .collect(Collectors.toList());
         List<String> columnToQuery =
                 vectorSearchSpec.getSearchColumns().values().stream()
@@ -128,6 +127,10 @@ public class StreamPhysicalVectorSearchTableFunction extends SingleRel
                 .item("columnToSearch", String.join(", ", columnToSearch))
                 .item("columnToQuery", String.join(", ", columnToQuery))
                 .item("topK", topK)
+                .itemIf(
+                        "config",
+                        vectorSearchSpec.getRuntimeConfig(),
+                        vectorSearchSpec.getRuntimeConfig() != null)
                 .item("select", String.join(", ", leftSelect, rightSelect, "score"));
     }
 
@@ -151,8 +154,16 @@ public class StreamPhysicalVectorSearchTableFunction extends SingleRel
                 sourceSpec,
                 vectorSearchSpec,
                 VectorSearchUtil.isAsyncVectorSearch(
-                                searchTable, vectorSearchSpec.getSearchColumns().keySet())
-                        ? VectorSearchUtil.getAsyncOptions(tableConfig, getInputChangelogMode())
+                                searchTable,
+                                Optional.ofNullable(vectorSearchSpec.getRuntimeConfig())
+                                        .orElse(Collections.emptyMap()),
+                                vectorSearchSpec.getSearchColumns().keySet())
+                        ? VectorSearchUtil.getMergedVectorSearchAsyncOptions(
+                                vectorSearchSpec.getRuntimeConfig() == null
+                                        ? Collections.emptyMap()
+                                        : vectorSearchSpec.getRuntimeConfig(),
+                                tableConfig,
+                                getInputChangelogMode())
                         : null,
                 InputProperty.DEFAULT,
                 FlinkTypeFactory.toLogicalRowType(outputRowType),

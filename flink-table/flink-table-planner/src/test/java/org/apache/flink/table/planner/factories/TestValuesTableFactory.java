@@ -138,6 +138,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -2336,6 +2337,15 @@ public final class TestValuesTableFactory
 
         @Override
         public VectorSearchRuntimeProvider getSearchRuntimeProvider(VectorSearchContext context) {
+            if (context.runtimeConfig()
+                    .getOptional(TestValuesTableFactory.ENABLE_VECTOR_SEARCH)
+                    .isPresent()) {
+                Preconditions.checkArgument(
+                        context.runtimeConfig().get(TestValuesTableFactory.ENABLE_VECTOR_SEARCH),
+                        String.format(
+                                "Require option %s true.",
+                                TestValuesTableFactory.ENABLE_VECTOR_SEARCH.key()));
+            }
             int[] searchColumns =
                     Arrays.stream(context.getSearchColumns()).mapToInt(k -> k[0]).toArray();
             Collection<Row> rows =

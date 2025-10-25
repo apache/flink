@@ -118,6 +118,40 @@ Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e,
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testNamedArgumentWithRuntimeConfig">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM QueryTable, LATERAL TABLE(
+VECTOR_SEARCH(
+    COLUMN_TO_QUERY => QueryTable.d,
+    COLUMN_TO_SEARCH => DESCRIPTOR(`g`),
+    TOP_K => 10,
+    CONFIG => MAP['async', 'true', 'timeout', '100s'],
+    SEARCH_TABLE => TABLE VectorTable
+  )
+)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$6], f=[$7], g=[$8], score=[$9])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
+   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, QueryTable]])
+   +- LogicalTableFunctionScan(invocation=[VECTOR_SEARCH(TABLE(#0), DESCRIPTOR(_UTF-16LE'g'), $cor0.d, 10, MAP(_UTF-16LE'async':VARCHAR(7) CHARACTER SET "UTF-16LE", _UTF-16LE'true', _UTF-16LE'timeout':VARCHAR(7) CHARACTER SET "UTF-16LE", _UTF-16LE'100s'))], rowType=[RecordType(INTEGER e, BIGINT f, FLOAT ARRAY g, DOUBLE score)])
+      +- LogicalProject(e=[$0], f=[$1], g=[$2])
+         +- LogicalTableScan(table=[[default_catalog, default_database, VectorTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e, f, g, score])
++- VectorSearchTableFunction(table=[default_catalog.default_database.VectorTable], joinType=[InnerJoin], columnToSearch=[g], columnToQuery=[d], topK=[10], config=[{async=true, timeout=100s}], select=[a, b, c, d, rowtime, proctime, e, f, g, score])
+   +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
+      +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
+         +- TableSourceScan(table=[[default_catalog, default_database, QueryTable]], fields=[a, b, c, d, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testOutOfOrderNamedArgument">
     <Resource name="sql">
       <![CDATA[SELECT * FROM QueryTable, LATERAL TABLE(
@@ -206,7 +240,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e, f, g, h, score])
-+- VectorSearchTableFunction(table=[default_catalog.default_database.VectorTableWithMetadata], joinType=[InnerJoin], columnToSearch=[g], columnToQuery=[d], topK=[10], select=[a, b, c, d, rowtime, proctime, e, f, g, +(e, 1) AS h, score])
++- VectorSearchTableFunction(table=[default_catalog.default_database.VectorTableWithMetadata], joinType=[InnerJoin], columnToSearch=[f], columnToQuery=[d], topK=[10], select=[a, b, c, d, rowtime, proctime, e, f, g, +(e, 1) AS h, score])
    +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
       +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
          +- TableSourceScan(table=[[default_catalog, default_database, QueryTable]], fields=[a, b, c, d, rowtime])
@@ -268,7 +302,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$
     <Resource name="optimized rel plan">
       <![CDATA[
 Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e, f, g, h, score])
-+- VectorSearchTableFunction(table=[default_catalog.default_database.VectorTableWithMetadata], joinType=[InnerJoin], columnToSearch=[f], columnToQuery=[d], topK=[10], select=[a, b, c, d, rowtime, proctime, e, f, g, +(e, 1) AS h, score])
++- VectorSearchTableFunction(table=[default_catalog.default_database.VectorTableWithMetadata], joinType=[InnerJoin], columnToSearch=[g], columnToQuery=[d], topK=[10], select=[a, b, c, d, rowtime, proctime, e, f, g, +(e, 1) AS h, score])
    +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 1000:INTERVAL SECOND)])
       +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
          +- TableSourceScan(table=[[default_catalog, default_database, QueryTable]], fields=[a, b, c, d, rowtime])

@@ -180,6 +180,19 @@ public class AsyncVectorSearchITCase extends StreamingWithStateTestBase {
                                 "Don't support calc on VECTOR_SEARCH node now."));
     }
 
+    @TestTemplate
+    void testRuntimeConfig() {
+        assertThatThrownBy(
+                        () ->
+                                CollectionUtil.iteratorToList(
+                                        tEnv().executeSql(
+                                                        "SELECT * FROM nullableSrc LEFT JOIN LATERAL TABLE(VECTOR_SEARCH(TABLE vector, DESCRIPTOR(`vector`), nullableSrc.vector, 2, MAP['timeout', '100ms'])) ON TRUE")
+                                                .collect()))
+                .satisfies(
+                        FlinkAssertions.anyCauseMatches(
+                                TimeoutException.class, "Async function call has timed out."));
+    }
+
     @Parameters(name = "backend = {0}, objectReuse = {1}, asyncOutputMode = {2}")
     public static Collection<Object[]> parameters() {
         return Arrays.asList(

@@ -26,6 +26,7 @@ import java.util.List;
 
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.VectorSearchTestPrograms.ASYNC_VECTOR_SEARCH;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.VectorSearchTestPrograms.SYNC_VECTOR_SEARCH;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.VectorSearchTestPrograms.VECTOR_SEARCH_WITH_RUNTIME_CONFIG;
 
 /** Restore tests for {@link StreamExecVectorSearchTableFunction}. */
 public class VectorSearchRestoreTest extends RestoreTestBase {
@@ -36,6 +37,7 @@ public class VectorSearchRestoreTest extends RestoreTestBase {
 
     @Override
     public List<TableTestProgram> programs() {
-        return Arrays.asList(SYNC_VECTOR_SEARCH, ASYNC_VECTOR_SEARCH);
+        return Arrays.asList(
+                SYNC_VECTOR_SEARCH, ASYNC_VECTOR_SEARCH, VECTOR_SEARCH_WITH_RUNTIME_CONFIG);
     }
 }

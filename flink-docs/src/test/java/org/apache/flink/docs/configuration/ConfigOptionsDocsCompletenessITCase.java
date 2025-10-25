@@ -33,13 +33,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -58,9 +60,16 @@ import static org.assertj.core.api.Fail.fail;
  */
 class ConfigOptionsDocsCompletenessITCase {
 
+    private static final Set<String> DEDUPLICATE_CHECK_EXCLUSIONS =
+            new HashSet<>(
+                    Arrays.asList(
+                            "org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions",
+                            "org.apache.flink.table.api.config.VectorSearchRuntimeConfigOptions"));
+
     @Test
     void testCompleteness() throws Exception {
         final Map<String, List<DocumentedOption>> documentedOptions = parseDocumentedOptions();
+
         final Map<String, List<ExistingOption>> existingOptions =
                 findExistingOptions(ignored -> true);
 
@@ -76,10 +85,20 @@ class ConfigOptionsDocsCompletenessITCase {
                 .map(
                         (entry) -> {
                             final List<ExistingOption> existingOptions = entry.getValue();
-                            final List<ExistingOption> consolidated;
+                            final List<ExistingOption> consolidated = new ArrayList<>();
 
                             Optional<ExistingOption> deduped =
                                     existingOptions.stream()
+                                            .filter(
+                                                    option -> {
+                                                        if (DEDUPLICATE_CHECK_EXCLUSIONS.contains(
+                                                                option.containingClass.getName())) {
+                                                            consolidated.add(option);
+                                                            return false;
+                                                        } else {
+                                                            return true;
+                                                        }
+                                                    })
                                             .reduce(
                                                     (option1, option2) -> {
                                                         if (option1.equals(option2)) {
@@ -125,7 +144,7 @@ class ConfigOptionsDocsCompletenessITCase {
                                                             }
                                                         }
                                                     });
-                            consolidated = Collections.singletonList(deduped.get());
+                            deduped.ifPresent(consolidated::add);
 
                             return new Tuple2<>(entry.getKey(), consolidated);
                         })

@@ -104,4 +104,22 @@ public class VectorSearchTestPrograms {
                             "INSERT INTO sink_t SELECT id, content, label FROM src_t, LATERAL TABLE(\n"
                                     + "VECTOR_SEARCH(TABLE async_vector_table, DESCRIPTOR(vector), src_t.vector, 2))")
                     .build();
+
+    public static final TableTestProgram VECTOR_SEARCH_WITH_RUNTIME_CONFIG =
+            TableTestProgram.of(
+                            "vector-search-with-runtime-config",
+                            "VECTOR_SEARCH with runtime config")
+                    .setupTableSource(SOURCE_TABLE)
+                    .setupTableSource(ASYNC_VECTOR_TABLE)
+                    .setupTableSink(SINK_TABLE)
+                    .runSql(
+                            "INSERT INTO sink_t SELECT id, content, label FROM src_t, LATERAL TABLE(\n"
+                                    + "VECTOR_SEARCH(\n"
+                                    + "  SEARCH_TABLE => TABLE async_vector_table,\n"
+                                    + "  COLUMN_TO_SEARCH => DESCRIPTOR(vector),\n"
+                                    + "  COLUMN_TO_QUERY => src_t.vector,\n"
+                                    + "  TOP_K => 2,\n"
+                                    + "  CONFIG => MAP['async', 'false']\n"
+                                    + "))")
+                    .build();
 }
