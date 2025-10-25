@@ -27,6 +27,7 @@ import org.apache.calcite.avatica.util.Quoting;
 import org.apache.calcite.rel.type.DelegatingTypeSystem;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
+import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
@@ -211,6 +212,7 @@ class FlinkDDLDataTypeTest {
                         "ROW<f0 INT NOT NULL, f1 BOOLEAN>",
                         nullable(
                                 FIXTURE.createStructType(
+                                        StructKind.PEEK_FIELDS_NO_EXPAND,
                                         Arrays.asList(
                                                 FIXTURE.intType, nullable(FIXTURE.booleanType)),
                                         Arrays.asList("f0", "f1"))),
@@ -219,6 +221,7 @@ class FlinkDDLDataTypeTest {
                         "ROW(f0 INT NOT NULL, f1 BOOLEAN)",
                         nullable(
                                 FIXTURE.createStructType(
+                                        StructKind.PEEK_FIELDS_NO_EXPAND,
                                         Arrays.asList(
                                                 FIXTURE.intType, nullable(FIXTURE.booleanType)),
                                         Arrays.asList("f0", "f1"))),
@@ -227,6 +230,7 @@ class FlinkDDLDataTypeTest {
                         "ROW<`f0` INT>",
                         nullable(
                                 FIXTURE.createStructType(
+                                        StructKind.PEEK_FIELDS_NO_EXPAND,
                                         Collections.singletonList(nullable(FIXTURE.intType)),
                                         Collections.singletonList("f0"))),
                         "ROW< `f0` INTEGER >"),
@@ -234,6 +238,7 @@ class FlinkDDLDataTypeTest {
                         "ROW(`f0` INT)",
                         nullable(
                                 FIXTURE.createStructType(
+                                        StructKind.PEEK_FIELDS_NO_EXPAND,
                                         Collections.singletonList(nullable(FIXTURE.intType)),
                                         Collections.singletonList("f0"))),
                         "ROW(`f0` INTEGER)"),
@@ -241,19 +246,24 @@ class FlinkDDLDataTypeTest {
                         "ROW<>",
                         nullable(
                                 FIXTURE.createStructType(
-                                        Collections.emptyList(), Collections.emptyList())),
+                                        StructKind.PEEK_FIELDS_NO_EXPAND,
+                                        Collections.emptyList(),
+                                        Collections.emptyList())),
                         "ROW<>"),
                 createArgumentsTestItem(
                         "ROW()",
                         nullable(
                                 FIXTURE.createStructType(
-                                        Collections.emptyList(), Collections.emptyList())),
+                                        StructKind.PEEK_FIELDS_NO_EXPAND,
+                                        Collections.emptyList(),
+                                        Collections.emptyList())),
                         "ROW()"),
                 createArgumentsTestItem(
                         "ROW<f0 INT NOT NULL 'This is a comment.', "
                                 + "f1 BOOLEAN 'This as well.'>",
                         nullable(
                                 FIXTURE.createStructType(
+                                        StructKind.PEEK_FIELDS_NO_EXPAND,
                                         Arrays.asList(
                                                 FIXTURE.intType, nullable(FIXTURE.booleanType)),
                                         Arrays.asList("f0", "f1"))),

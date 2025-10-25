@@ -254,4 +254,77 @@ class CalcTest extends TableTestBase {
     val sqlQuery = "SELECT TRY_CAST(TRY_CAST(a AS STRING) AS INTEGER) FROM MyTable"
     util.verifyExecPlan(sqlQuery)
   }
+
+  @Test
+  def testCastOfTestToSameType(): Unit = {
+    val rowDataType = "ROW<`data` ROW<`nested` ROW<`trId` STRING NOT NULL>>NOT NULL>"
+    util.tableEnv.executeSql(
+      "CREATE TABLE testCastOfTestToSameType (`field1` "
+        + rowDataType + ", `field2` AS CAST(`field1` AS "
+        + rowDataType + ")) WITH ('connector' = 'datagen')");
+    val sql = "SELECT `field2`, " +
+      "COALESCE(TRY_CAST(`field1`.`data`.`nested`.`trId` AS STRING)) AS transactionId " +
+      "FROM testCastOfTestToSameType";
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testCastOfTestToSameTypeWithArray(): Unit = {
+    val rowDataType = "ROW<`data` ARRAY<ROW<`nested` ROW<`trId` STRING NOT NULL>>NOT NULL>>"
+    util.tableEnv.executeSql(
+      "CREATE TABLE testCastOfTestToSameTypeWithArray (`field1` "
+        + rowDataType + ", `field2` AS CAST(`field1` AS "
+        + rowDataType + ")) WITH ('connector' = 'datagen')");
+    val sql = "SELECT `field2`, " +
+      "COALESCE(TRY_CAST(`field1`.`data`[0].`nested`.`trId` AS STRING)) AS transactionId " +
+      "FROM testCastOfTestToSameTypeWithArray";
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinOnNested(): Unit = {
+    val rowDataType =
+      "ROW<`data` ARRAY<ROW<`nested` ARRAY<ROW<`trId` STRING NOT NULL>NOT NULL>>NOT NULL>>"
+    util.tableEnv.executeSql(
+      "CREATE TABLE testJoinOnNested (`field1` "
+        + rowDataType + ") WITH ('connector' = 'datagen')");
+    val rowDataType2 = "ROW<`data1` ROW<`nested` ROW<`trId` STRING NOT NULL>NOT NULL>>"
+    util.tableEnv.executeSql(
+      "CREATE TABLE testJoinOnNested2 (`field1` "
+        + rowDataType2 + ") WITH ('connector' = 'datagen')");
+    val sql = "SELECT t.field1 as dt " +
+      "FROM testJoinOnNested t, testJoinOnNested2 t2 WHERE t.data[0].nested[0].trId = t2.data1.nested.trId";
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testCastOfTestToSameTypeWithNullableNestedType(): Unit = {
+    val rowDataType = "ROW<`data` ROW<`nested` ROW<`trId` STRING>>NOT NULL>"
+    util.tableEnv.executeSql(
+      "CREATE TABLE testCastOfTestToSameTypeWithNullableNestedType (`field1` "
+        + rowDataType + ", `field2` AS CAST(`field1` AS "
+        + rowDataType + ")) WITH ('connector' = 'datagen')");
+    val sql = "SELECT `field2`, " +
+      "COALESCE(TRY_CAST(`field1`.`data`.`nested`.`trId` AS STRING)) AS transactionId " +
+      "FROM testCastOfTestToSameTypeWithNullableNestedType";
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinAndAggregateOnNested(): Unit = {
+    val rowDataType =
+      "ROW<`data` ARRAY<ROW<`nested` ARRAY<ROW<`trId` STRING NOT NULL>NOT NULL>>NOT NULL>>"
+    util.tableEnv.executeSql(
+      "CREATE TABLE testJoinAndAggregateOnNested (`field1` "
+        + rowDataType + ") WITH ('connector' = 'datagen')");
+    val rowDataType2 = "ROW<`data1` ROW<`nested` ROW<`trId` STRING NOT NULL>NOT NULL>>"
+    util.tableEnv.executeSql(
+      "CREATE TABLE testJoinAndAggregateOnNested2 (`field1` "
+        + rowDataType2 + ") WITH ('connector' = 'datagen')");
+    val sql = "SELECT COUNT(t.data[0].nested[1].trId)\n" +
+      "FROM testJoinAndAggregateOnNested t, testJoinAndAggregateOnNested2 t2\n" +
+      "WHERE t.data[0].nested[0].trId = t2.data1.nested.trId\n" +
+      "GROUP BY t.data[1].nested[0].trId";
+    util.verifyExecPlan(sql)
+  }
 }

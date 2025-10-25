@@ -103,6 +103,60 @@ Calc(select=[a], where=[>(random_udf(b), 10)])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCastOfTestToSameType">
+    <Resource name="sql">
+      <![CDATA[SELECT `field2`, COALESCE(TRY_CAST(`field1`.`data`.`nested`.`trId` AS STRING)) AS transactionId FROM testCastOfTestToSameType]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(field2=[$1], transactionId=[COALESCE($0.data.nested.trId)])
++- LogicalProject(field1=[$0], field2=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, testCastOfTestToSameType]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[field1 AS field2, CAST(field1.data.nested.trId AS VARCHAR(2147483647)) AS transactionId])
++- TableSourceScan(table=[[default_catalog, default_database, testCastOfTestToSameType]], fields=[field1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCastOfTestToSameTypeWithArray">
+    <Resource name="sql">
+      <![CDATA[SELECT `field2`, COALESCE(TRY_CAST(`field1`.`data`[0].`nested`.`trId` AS STRING)) AS transactionId FROM testCastOfTestToSameTypeWithArray]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(field2=[$1], transactionId=[COALESCE(ITEM($0.data, 0).nested.trId)])
++- LogicalProject(field1=[$0], field2=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, testCastOfTestToSameTypeWithArray]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[field1 AS field2, CAST(ITEM(field1.data, 0).nested.trId AS VARCHAR(2147483647)) AS transactionId])
++- TableSourceScan(table=[[default_catalog, default_database, testCastOfTestToSameTypeWithArray]], fields=[field1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCastOfTestToSameTypeWithNullableNestedType">
+    <Resource name="sql">
+      <![CDATA[SELECT `field2`, COALESCE(TRY_CAST(`field1`.`data`.`nested`.`trId` AS STRING)) AS transactionId FROM testCastOfTestToSameTypeWithNullableNestedType]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(field2=[$1], transactionId=[COALESCE($0.data.nested.trId)])
++- LogicalProject(field1=[$0], field2=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, testCastOfTestToSameTypeWithNullableNestedType]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[field1 AS field2, COALESCE(field1.data.nested.trId) AS transactionId])
++- TableSourceScan(table=[[default_catalog, default_database, testCastOfTestToSameTypeWithNullableNestedType]], fields=[field1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testConjunctiveFilter">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE a < 10 AND b > 20]]>
@@ -227,6 +281,66 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
       <![CDATA[
 Calc(select=[a, b, CAST('xx' AS VARCHAR(2147483647)) AS c], where=[(SEARCH(b, Sarg[1, 3, 4, 5, 6]) AND (c = 'xx'))])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinAndAggregateOnNested">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(t.data[0].nested[1].trId)
+FROM testJoinAndAggregateOnNested t, testJoinAndAggregateOnNested2 t2
+WHERE t.data[0].nested[0].trId = t2.data1.nested.trId
+GROUP BY t.data[1].nested[0].trId]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
+   +- LogicalProject($f0=[CAST(ITEM(ITEM($0.data, 1).nested, 0).trId):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], $f1=[CAST(ITEM(ITEM($0.data, 0).nested, 1).trId):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
+      +- LogicalFilter(condition=[=(CAST(ITEM(ITEM($0.data, 0).nested, 0).trId):VARCHAR(2147483647) CHARACTER SET "UTF-16LE", CAST($1.data1.nested.trId):VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalTableScan(table=[[default_catalog, default_database, testJoinAndAggregateOnNested]])
+            +- LogicalTableScan(table=[[default_catalog, default_database, testJoinAndAggregateOnNested2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- GroupAggregate(groupBy=[$f0], select=[$f0, COUNT($f1) AS EXPR$0])
+   +- Exchange(distribution=[hash[$f0]])
+      +- Calc(select=[CAST(ITEM(ITEM(field1.data, 1).nested, 0).trId AS VARCHAR(2147483647)) AS $f0, CAST(ITEM(ITEM(field1.data, 0).nested, 1).trId AS VARCHAR(2147483647)) AS $f1])
+         +- Join(joinType=[InnerJoin], where=[($f1 = $f10)], select=[field1, $f1, $f10], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+            :- Exchange(distribution=[hash[$f1]])
+            :  +- Calc(select=[field1, ITEM(ITEM(field1.data, 0).nested, 0).trId AS $f1])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, testJoinAndAggregateOnNested]], fields=[field1])
+            +- Exchange(distribution=[hash[$f1]])
+               +- Calc(select=[field1.data1.nested.trId AS $f1])
+                  +- TableSourceScan(table=[[default_catalog, default_database, testJoinAndAggregateOnNested2]], fields=[field1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinOnNested">
+    <Resource name="sql">
+      <![CDATA[SELECT t.field1 as dt FROM testJoinOnNested t, testJoinOnNested2 t2 WHERE t.data[0].nested[0].trId = t2.data1.nested.trId]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(dt=[$0])
++- LogicalFilter(condition=[=(CAST(ITEM(ITEM($0.data, 0).nested, 0).trId):VARCHAR(2147483647) CHARACTER SET "UTF-16LE", CAST($1.data1.nested.trId):VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, testJoinOnNested]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, testJoinOnNested2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[field1 AS dt])
++- Join(joinType=[InnerJoin], where=[($f1 = $f10)], select=[field1, $f1, $f10], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[$f1]])
+   :  +- Calc(select=[field1, ITEM(ITEM(field1.data, 0).nested, 0).trId AS $f1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, testJoinOnNested]], fields=[field1])
+   +- Exchange(distribution=[hash[$f1]])
+      +- Calc(select=[field1.data1.nested.trId AS $f1])
+         +- TableSourceScan(table=[[default_catalog, default_database, testJoinOnNested2]], fields=[field1])
 ]]>
     </Resource>
   </TestCase>
