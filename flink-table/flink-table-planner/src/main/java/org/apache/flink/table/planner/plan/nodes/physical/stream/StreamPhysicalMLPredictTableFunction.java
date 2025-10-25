@@ -114,6 +114,10 @@ public class StreamPhysicalMLPredictTableFunction extends SingleRel implements S
                 .item("rowType", getRowType());
     }
 
+    public RexNode getMLPredictCall() {
+        return scan.getCall();
+    }
+
     private MLPredictSpec buildMLPredictSpec(Map<String, String> runtimeConfig) {
         RexTableArgCall tableCall = extractOperand(operand -> operand instanceof RexTableArgCall);
         RexCall descriptorCall =

@@ -43,6 +43,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalL
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLegacyTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLimit;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLookupJoin;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMLPredictTableFunction;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMatch;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMiniBatchAssigner;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin;
@@ -198,6 +199,9 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                     (StreamPhysicalWindowTableFunction) rel, requireDeterminism);
         } else if (rel instanceof StreamPhysicalDeltaJoin) {
             return visitDeltaJoin((StreamPhysicalDeltaJoin) rel, requireDeterminism);
+        } else if (rel instanceof StreamPhysicalMLPredictTableFunction) {
+            return visitMLPredictTableFunction(
+                    (StreamPhysicalMLPredictTableFunction) rel, requireDeterminism);
         } else if (rel instanceof StreamPhysicalChangelogNormalize
                 || rel instanceof StreamPhysicalDropUpdateBefore
                 || rel instanceof StreamPhysicalMiniBatchAssigner
@@ -326,6 +330,16 @@ public class StreamNonDeterministicUpdatePlanVisitor {
 
             return transmitDeterminismRequirement(calc, ImmutableBitSet.of(conv2Inputs));
         }
+    }
+
+    private StreamPhysicalRel visitMLPredictTableFunction(
+            final StreamPhysicalMLPredictTableFunction predictTableFunction,
+            final ImmutableBitSet requireDeterminism) {
+        if (!inputInsertOnly(predictTableFunction) && !requireDeterminism.isEmpty()) {
+            throwNonDeterministicConditionError(
+                    "ML_PREDICT", predictTableFunction.getMLPredictCall(), predictTableFunction);
+        }
+        return transmitDeterminismRequirement(predictTableFunction, NO_REQUIRED_DETERMINISM);
     }
 
     private StreamPhysicalRel visitCorrelate(

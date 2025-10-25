@@ -25,6 +25,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.LookupCallExpression;
+import org.apache.flink.table.expressions.ModelReferenceExpression;
 import org.apache.flink.table.expressions.NestedFieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.SqlCallExpression;
@@ -74,6 +75,11 @@ public abstract class ApiExpressionDefaultVisitor<T> extends ApiExpressionVisito
     @Override
     public T visit(TableReferenceExpression tableReference) {
         return defaultMethod(tableReference);
+    }
+
+    @Override
+    public T visit(ModelReferenceExpression modelReference) {
+        return defaultMethod(modelReference);
     }
 
     @Override
