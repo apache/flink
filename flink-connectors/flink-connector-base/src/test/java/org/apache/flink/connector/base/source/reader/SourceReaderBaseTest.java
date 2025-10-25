@@ -50,6 +50,9 @@ import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+
+import org.apache.flink.shaded.guava33.com.google.common.util.concurrent.RateLimiter;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -64,6 +67,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -135,7 +141,10 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
         final TestingRecordsWithSplitIds<String> records =
                 new TestingRecordsWithSplitIds<>("test-split", "value1", "value2");
         final SourceReader<?, ?> reader =
-                createReaderAndAwaitAvailable("test-split", records, RateLimiterStrategy.noOp());
+                createReaderAndAwaitAvailable(
+                        Collections.singletonList("test-split"),
+                        Collections.singletonList(records),
+                        RateLimiterStrategy.noOp());
 
         reader.pollNext(new TestingReaderOutput<>());
 
@@ -144,7 +153,7 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
 
     @Test
     void testLimitingRateInSplitReader() throws Exception {
-        String[] recordArr = new String[100];
+        String[] recordArr = new String[60];
         for (int i = 0; i < recordArr.length; i++) {
             recordArr[i] = "value" + i;
         }
@@ -152,7 +161,9 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
                 new TestingRecordsWithSplitIds<>("test-split", recordArr);
         final SourceReader<?, ?> reader =
                 createReaderAndAwaitAvailable(
-                        "test-split", records, RateLimiterStrategy.perSecond(1));
+                        Collections.singletonList("test-split"),
+                        Collections.singletonList(records),
+                        RateLimiterStrategy.perSecond(2));
         TestingReaderOutput testingReaderOutput = new TestingReaderOutput<>();
         long startTime = System.currentTimeMillis();
         while (testingReaderOutput.getEmittedRecords().size() < recordArr.length) {
@@ -160,27 +171,29 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
         }
         // The first few seconds require preheating, there may be a deviation of a few seconds.
         assertThat(System.currentTimeMillis() - startTime)
-                .isGreaterThanOrEqualTo(Duration.ofSeconds(90).toMillis());
+                .isGreaterThan(Duration.ofSeconds(25).toMillis());
+        assertThat(System.currentTimeMillis() - startTime)
+                .isLessThan(Duration.ofSeconds(35).toMillis());
     }
 
     @Test
     void testLimitingRatePerCheckpointInSplitReader() throws Exception {
-        String[] recordArr = new String[100];
+        String[] recordArr = new String[30];
         for (int i = 0; i < recordArr.length; i++) {
             recordArr[i] = "value" + i;
         }
         final TestingRecordsWithSplitIds<String> records =
                 new TestingRecordsWithSplitIds<>("test-split", recordArr);
-        int recordsPerCheckpoint = 10;
+        int recordsPerCheckpoint = 2;
         final SourceReader<?, ?> reader =
                 createReaderAndAwaitAvailable(
-                        "test-split",
-                        records,
+                        Collections.singletonList("test-split"),
+                        Collections.singletonList(records),
                         RateLimiterStrategy.perCheckpoint(recordsPerCheckpoint));
         TestingReaderOutput testingReaderOutput = new TestingReaderOutput<>();
         for (int i = 1; i <= recordArr.length / recordsPerCheckpoint; i++) {
             long startTime = System.currentTimeMillis();
-            while (System.currentTimeMillis() - startTime < Duration.ofSeconds(6).toMillis()) {
+            while (System.currentTimeMillis() - startTime < Duration.ofSeconds(2).toMillis()) {
                 reader.pollNext(testingReaderOutput);
             }
             assertThat(testingReaderOutput.getEmittedRecords().size())
@@ -192,11 +205,73 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
     }
 
     @Test
+    void testLimitingRateWithStatusChangeInSplitReader() throws Exception {
+        String[] recordArr = new String[60];
+        for (int i = 0; i < recordArr.length; i++) {
+            recordArr[i] = "value" + i;
+        }
+        final TestingRecordsWithSplitIds<String> firstRecords =
+                new TestingRecordsWithSplitIds<>("test-split1", recordArr);
+        final TestingRecordsWithSplitIds<String> secondRecords =
+                new TestingRecordsWithSplitIds<>("test-split2", recordArr);
+        int maxPerSecond = 2;
+        final SourceReader<?, ?> reader =
+                createReaderAndAwaitAvailable(
+                        Arrays.asList("test-split1", "test-split2"),
+                        Arrays.asList(firstRecords, secondRecords),
+                        parallelism ->
+                                new SplitAwaredRateLimiter((double) maxPerSecond / parallelism));
+        TestingReaderOutput testingReaderOutput = new TestingReaderOutput<>();
+        long startTime = System.currentTimeMillis();
+        while (testingReaderOutput.getEmittedRecords().size() < 2 * recordArr.length) {
+            reader.pollNext(testingReaderOutput);
+        }
+        // The first few seconds require preheating, there may be a deviation of a few seconds.
+        assertThat(System.currentTimeMillis() - startTime)
+                .isGreaterThan(Duration.ofSeconds(85).toMillis());
+        // The first few seconds require preheating, there may be a deviation of a few seconds.
+        assertThat(System.currentTimeMillis() - startTime)
+                .isLessThan(Duration.ofSeconds(95).toMillis());
+    }
+
+    /** A rate limiter that reduce the maxPerSecond for specific splits. */
+    private static class SplitAwaredRateLimiter
+            implements org.apache.flink.api.connector.source.util.ratelimit.RateLimiter<
+                    org.apache.flink.connector.base.source.reader.mocks.TestingSourceSplit> {
+
+        private final Executor limiter =
+                Executors.newSingleThreadExecutor(new ExecutorThreadFactory("flink-rate-limiter"));
+        private RateLimiter rateLimiter;
+        private final double maxPerSecond;
+
+        public SplitAwaredRateLimiter(double maxPerSecond) {
+            this.maxPerSecond = maxPerSecond;
+            this.rateLimiter = RateLimiter.create(maxPerSecond);
+        }
+
+        @Override
+        public CompletionStage<Void> acquire(int requestSize) {
+            return CompletableFuture.runAsync(() -> rateLimiter.acquire(requestSize), limiter);
+        }
+
+        @Override
+        public void notifyStatusChange(
+                org.apache.flink.connector.base.source.reader.mocks.TestingSourceSplit split) {
+            if (!split.splitId().equals("test-split1")) {
+                this.rateLimiter = RateLimiter.create(maxPerSecond / 2);
+            }
+        }
+    }
+
+    @Test
     void testRecordsWithSplitsRecycledWhenEmpty() throws Exception {
         final TestingRecordsWithSplitIds<String> records =
                 new TestingRecordsWithSplitIds<>("test-split", "value1", "value2");
         final SourceReader<?, ?> reader =
-                createReaderAndAwaitAvailable("test-split", records, RateLimiterStrategy.noOp());
+                createReaderAndAwaitAvailable(
+                        Collections.singletonList("test-split"),
+                        Collections.singletonList(records),
+                        RateLimiterStrategy.noOp());
 
         // poll thrice: twice to get all records, one more to trigger recycle and moving to the next
         // split
@@ -466,15 +541,15 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
     // ------------------------------------------------------------------------
 
     private static <E> SourceReader<E, ?> createReaderAndAwaitAvailable(
-            final String splitId,
-            final RecordsWithSplitIds<E> records,
+            final List<String> splitIds,
+            final List<RecordsWithSplitIds<E>> records,
             RateLimiterStrategy<TestingSourceSplit> rateLimiterStrategy)
             throws Exception {
 
         final SourceReader<E, TestingSourceSplit> reader =
                 new SingleThreadMultiplexSourceReaderBase<
                         E, E, TestingSourceSplit, TestingSourceSplit>(
-                        () -> new TestingSplitReader<>(records),
+                        () -> new TestingSplitReader<>(records.toArray(new RecordsWithSplitIds[0])),
                         new PassThroughRecordEmitter<>(),
                         new Configuration(),
                         new TestingReaderContext(),
@@ -504,7 +579,7 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
         reader.start();
 
         final List<TestingSourceSplit> splits =
-                Collections.singletonList(new TestingSourceSplit(splitId));
+                splitIds.stream().map(TestingSourceSplit::new).collect(Collectors.toList());
         reader.addSplits(splits);
 
         reader.isAvailable().get();
