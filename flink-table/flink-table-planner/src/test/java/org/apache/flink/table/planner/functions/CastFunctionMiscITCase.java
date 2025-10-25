@@ -94,7 +94,9 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                                         FIELD(
                                                                 "r",
                                                                 ROW(
-                                                                        FIELD("s", STRING()),
+                                                                        FIELD(
+                                                                                "s",
+                                                                                STRING().notNull()),
                                                                         FIELD("b", BOOLEAN()),
                                                                         FIELD("i", INT()))),
                                                         FIELD("s", STRING()))),
@@ -103,7 +105,8 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 // the inner NOT NULL is ignored in SQL because the outer ROW is
                                 // nullable and the cast does not allow setting the outer
                                 // nullability but derives it from the source operand
-                                DataTypes.of("ROW<r ROW<s STRING, b BOOLEAN, i INT>, s STRING>")),
+                                DataTypes.of(
+                                        "ROW<r ROW<s STRING NOT NULL, b BOOLEAN, i INT>, s STRING>")),
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
                                 "explicit with nested rows and explicit nullability change")
