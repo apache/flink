@@ -35,7 +35,7 @@ from pyflink.table.types import (_infer_schema_from_data, _infer_type,
                                  _create_type_verifier, UserDefinedType, DataTypes, Row, RowField,
                                  RowType, ArrayType, BigIntType, VarCharType, MapType, DataType,
                                  _from_java_data_type, ZonedTimestampType,
-                                 LocalZonedTimestampType, _to_java_data_type)
+                                 _to_java_data_type)
 from pyflink.testing.test_case_utils import PyFlinkTestCase
 
 
@@ -547,20 +547,16 @@ class TypesTests(PyFlinkTestCase):
         last_abbreviation = DataTypes.TIMESTAMP_LTZ()
         self.assertEqual(lztst, last_abbreviation)
 
-        ts = datetime.datetime(1970, 1, 1, 0, 0, 0, 0000)
+        ts = datetime.datetime(1970, 1, 1, 0, 0, 0, 0000,
+                               datetime.timezone.utc)
         self.assertEqual(0, lztst.to_sql_type(ts))
 
         import pytz
         # suppose the timezone of the data is +9:00
         timezone = pytz.timezone("Asia/Tokyo")
-        orig_epoch = LocalZonedTimestampType.EPOCH_ORDINAL
-        try:
-            # suppose the local timezone is +8:00
-            LocalZonedTimestampType.EPOCH_ORDINAL = 28800000000
-            ts_tokyo = timezone.localize(ts)
-            self.assertEqual(-3600000000, lztst.to_sql_type(ts_tokyo))
-        finally:
-            LocalZonedTimestampType.EPOCH_ORDINAL = orig_epoch
+        # suppose the local timezone is +8:00
+        ts_tokyo = ts.astimezone(timezone)
+        self.assertEqual(0, lztst.to_sql_type(ts_tokyo))
 
         if sys.version_info >= (3, 6):
             ts2 = lztst.from_sql_type(0)
