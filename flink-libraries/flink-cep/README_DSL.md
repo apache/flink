@@ -301,22 +301,3 @@ PatternStream<Event> pattern = DslCompiler.compile(
     dataStream
 );
 ```
-
-## Contributing
-
-Contributions are welcome! Please follow Flink's contribution guidelines and ensure:
-
-- Code follows Flink style guidelines
-- All public APIs have `@PublicEvolving` annotations
-- Comprehensive unit tests (>85% coverage)
-- Complete Javadoc documentation
-
-## License
-
-Licensed under the Apache License, Version 2.0. See LICENSE file for details.
-
-## Support
-
-- **Documentation**: https://nightlies.apache.org/flink/flink-docs-stable/docs/libs/cep/
-- **Mailing List**: dev@flink.apache.org
-- **Issues**: https://issues.apache.org/jira/browse/FLINK

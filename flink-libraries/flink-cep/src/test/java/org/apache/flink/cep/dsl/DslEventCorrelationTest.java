@@ -48,7 +48,7 @@ public class DslEventCorrelationTest extends AbstractTestBaseJUnit4 {
                         new StockEvent("AAPL", "TRADE", 110.0, 1500, DslTestDataSets.ts(2), "NASDAQ", 0.0));
 
         String dslExpression =
-                "PATTERN START WHERE price > 100 " + "FOLLOWED BY INCREASE WHERE price > START.price";
+                "START(price > 100) -> INCREASE(price > START.price)";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -79,9 +79,7 @@ public class DslEventCorrelationTest extends AbstractTestBaseJUnit4 {
                         new StockEvent("AAPL", "TRADE", 111.0, 1200, DslTestDataSets.ts(2), "NASDAQ", 0.0));
 
         String dslExpression =
-                "PATTERN A WHERE price > 0 "
-                        + "NEXT B WHERE price > A.price "
-                        + "NEXT C WHERE price > B.price";
+                "A(price > 0) -> B(price > A.price) -> C(price > B.price)";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -110,8 +108,7 @@ public class DslEventCorrelationTest extends AbstractTestBaseJUnit4 {
         DataStream<StockEvent> input = env.fromCollection(DslTestDataSets.eventCorrelationDataset());
 
         String dslExpression =
-                "PATTERN START WHERE price > 0 "
-                        + "FOLLOWED BY INCREASE WHERE price > START.price AND volume > START.volume";
+                "START(price > 0) -> INCREASE(price > START.price and volume > START.volume)";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -137,8 +134,7 @@ public class DslEventCorrelationTest extends AbstractTestBaseJUnit4 {
                         new StockEvent("AAPL", "TRADE", 110.0, 1500, DslTestDataSets.ts(2), "NASDAQ", 10.0));
 
         String dslExpression =
-                "PATTERN A WHERE price > 0 "
-                        + "FOLLOWED BY B WHERE (price > A.price) AND (volume > A.volume)";
+                "A(price > 0) -> B((price > A.price) and (volume > A.volume))";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -162,7 +158,7 @@ public class DslEventCorrelationTest extends AbstractTestBaseJUnit4 {
                         new StockEvent("AAPL", "TRADE", 102.0, 2000, DslTestDataSets.ts(2), "NASDAQ", 2.0));
 
         String dslExpression =
-                "PATTERN LOW WHERE volume > 0 " + "FOLLOWED BY HIGH WHERE volume > LOW.volume";
+                "LOW(volume > 0) -> HIGH(volume > LOW.volume)";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 

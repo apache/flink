@@ -79,8 +79,7 @@ public class DslPatternMatchingTest extends AbstractTestBaseJUnit4 {
                         new StockEvent("AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(2), "NASDAQ", 0.0));
 
         String dslExpression =
-                "PATTERN ORDER WHERE eventType = 'ORDER' "
-                        + "NEXT TRADE WHERE eventType = 'TRADE'";
+                "ORDER(eventType = 'ORDER') -> TRADE(eventType = 'TRADE')";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -100,8 +99,7 @@ public class DslPatternMatchingTest extends AbstractTestBaseJUnit4 {
         DataStream<UserActivityEvent> input = env.fromCollection(DslTestDataSets.userJourneyDataset());
 
         String dslExpression =
-                "PATTERN LOGIN WHERE eventType = 'LOGIN' "
-                        + "FOLLOWED BY LOGOUT WHERE eventType = 'LOGOUT'";
+                "LOGIN(eventType = 'LOGIN') -> LOGOUT(eventType = 'LOGOUT')";
 
         PatternStream<UserActivityEvent> patternStream =
                 DslCompiler.compile(dslExpression, input);
@@ -132,8 +130,7 @@ public class DslPatternMatchingTest extends AbstractTestBaseJUnit4 {
                         new UserActivityEvent("user1", "CLICK", "/checkout", 10, DslTestDataSets.ts(3), "s1", 1));
 
         String dslExpression =
-                "PATTERN LOGIN WHERE eventType = 'LOGIN' "
-                        + "FOLLOWED BY ANY CLICK WHERE eventType = 'CLICK'";
+                "LOGIN(eventType = 'LOGIN') ->> CLICK(eventType = 'CLICK')";
 
         PatternStream<UserActivityEvent> patternStream =
                 DslCompiler.compile(dslExpression, input);
@@ -159,8 +156,7 @@ public class DslPatternMatchingTest extends AbstractTestBaseJUnit4 {
                         new UserActivityEvent("user1", "LOGOUT", "/home", 0, DslTestDataSets.ts(2), "s1", 1));
 
         String dslExpression =
-                "PATTERN LOGIN WHERE eventType = 'LOGIN' "
-                        + "NOT FOLLOWED BY ERROR WHERE eventType = 'ERROR'";
+                "LOGIN(eventType = 'LOGIN') !-> ERROR(eventType = 'ERROR')";
 
         PatternStream<UserActivityEvent> patternStream =
                 DslCompiler.compile(dslExpression, input);
@@ -187,9 +183,7 @@ public class DslPatternMatchingTest extends AbstractTestBaseJUnit4 {
                         new StockEvent("AAPL", "TRADE", 101.0, 1100, DslTestDataSets.ts(3), "NASDAQ", 0.0));
 
         String dslExpression =
-                "PATTERN A WHERE eventType = 'ORDER' "
-                        + "NEXT B WHERE eventType = 'TRADE' "
-                        + "FOLLOWED BY C WHERE eventType = 'TRADE'";
+                "A(eventType = 'ORDER') -> B(eventType = 'TRADE') -> C(eventType = 'TRADE')";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 

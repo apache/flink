@@ -47,9 +47,9 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
 
         // Complex DSL: Detect sustained price increase with volume
         String dslExpression =
-                "PATTERN START WHERE (symbol = 'AAPL') AND (price > 150) AND (volume > 1000) "
-                        + "FOLLOWED BY INCREASE1 WHERE price > START.price "
-                        + "FOLLOWED BY INCREASE2 WHERE price > INCREASE1.price";
+                "START((symbol = 'AAPL') and (price > 150) and (volume > 1000)) "
+                        + "-> INCREASE1(price > START.price) "
+                        + "-> INCREASE2(price > INCREASE1.price)";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -78,9 +78,9 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
         DataStream<SensorEvent> input = env.fromCollection(DslTestDataSets.escalatingValues());
 
         String dslExpression =
-                "PATTERN NORMAL WHERE (status = 'NORMAL') AND (value < 35) "
-                        + "FOLLOWED BY WARNING WHERE (status = 'WARNING') AND (value > NORMAL.value) "
-                        + "FOLLOWED BY CRITICAL WHERE (status = 'CRITICAL') AND (value > WARNING.value)";
+                "NORMAL((status = 'NORMAL') and (value < 35)) "
+                        + "-> WARNING((status = 'WARNING') and (value > NORMAL.value)) "
+                        + "-> CRITICAL((status = 'CRITICAL') and (value > WARNING.value))";
 
         PatternStream<SensorEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -108,9 +108,9 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
         DataStream<UserActivityEvent> input = env.fromCollection(DslTestDataSets.userJourneyDataset());
 
         String dslExpression =
-                "PATTERN LOGIN WHERE eventType = 'LOGIN' "
-                        + "FOLLOWED BY CLICK WHERE (eventType = 'CLICK') AND (duration > 10) "
-                        + "FOLLOWED BY PURCHASE WHERE (eventType = 'PURCHASE') AND (count > 0)";
+                "LOGIN(eventType = 'LOGIN') "
+                        + "-> CLICK((eventType = 'CLICK') and (duration > 10)) "
+                        + "-> PURCHASE((eventType = 'PURCHASE') and (count > 0))";
 
         PatternStream<UserActivityEvent> patternStream =
                 DslCompiler.compile(dslExpression, input);
@@ -142,10 +142,10 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
                         new StockEvent("AAPL", "TRADE", 106.0, 1300, DslTestDataSets.ts(3), "NASDAQ", 6.0));
 
         String dslExpression =
-                "PATTERN A WHERE price > 0 "
-                        + "FOLLOWED BY B WHERE price > A.price "
-                        + "FOLLOWED BY C WHERE price > B.price "
-                        + "FOLLOWED BY D WHERE price > C.price";
+                "A(price > 0) "
+                        + "-> B(price > A.price) "
+                        + "-> C(price > B.price) "
+                        + "-> D(price > C.price)";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -169,8 +169,8 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
                         new StockEvent("AAPL", "TRADE", 110.0, 1500, DslTestDataSets.ts(3), "NASDAQ", 10.0));
 
         String dslExpression =
-                "PATTERN START WHERE (symbol = 'AAPL') AND (price > 100) AND (volume > 1000) "
-                        + "FOLLOWED BY END WHERE (symbol = 'AAPL') AND (price > START.price) AND (volume > START.volume)";
+                "START((symbol = 'AAPL') and (price > 100) and (volume > 1000)) "
+                        + "-> END((symbol = 'AAPL') and (price > START.price) and (volume > START.volume))";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -196,7 +196,7 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
                         new StockEvent("AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(2), "NYSE", 0.0));
 
         String dslExpression =
-                "PATTERN TRADE WHERE (symbol = 'AAPL') AND (exchange = 'NASDAQ')";
+                "TRADE((symbol = 'AAPL') and (exchange = 'NASDAQ'))";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -226,8 +226,8 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
                         new StockEvent("AAPL", "QUOTE", 111.0, 1300, DslTestDataSets.ts(3), "NASDAQ", 11.0));
 
         String dslExpression =
-                "PATTERN TRADES WHERE (eventType = 'TRADE') AND (symbol = 'AAPL') "
-                        + "FOLLOWED BY QUOTE WHERE eventType = 'QUOTE'";
+                "TRADES((eventType = 'TRADE') and (symbol = 'AAPL')) "
+                        + "-> QUOTE(eventType = 'QUOTE')";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 

@@ -47,7 +47,7 @@ public class DslExpressionEvaluationTest extends AbstractTestBaseJUnit4 {
                         new StockEvent("AAPL", "TRADE", 155.0, 1200, DslTestDataSets.ts(1), "NASDAQ", 0.0),
                         new StockEvent("AAPL", "TRADE", 150.0, 800, DslTestDataSets.ts(2), "NASDAQ", 0.0));
 
-        String dslExpression = "PATTERN TRADE WHERE price = 150.0";
+        String dslExpression = "TRADE(price = 150.0)";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -71,7 +71,7 @@ public class DslExpressionEvaluationTest extends AbstractTestBaseJUnit4 {
                         new StockEvent("GOOGL", "TRADE", 100.0, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
                         new StockEvent("MSFT", "TRADE", 100.0, 1000, DslTestDataSets.ts(2), "NASDAQ", 0.0));
 
-        String dslExpression = "PATTERN TRADE WHERE symbol != 'AAPL'";
+        String dslExpression = "TRADE(symbol != 'AAPL')";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -96,7 +96,7 @@ public class DslExpressionEvaluationTest extends AbstractTestBaseJUnit4 {
                         new StockEvent("AAPL", "TRADE", 100.0, 1200, DslTestDataSets.ts(1), "NASDAQ", 0.0),
                         new StockEvent("AAPL", "TRADE", 100.0, 500, DslTestDataSets.ts(2), "NASDAQ", 0.0));
 
-        String dslExpression = "PATTERN TRADE WHERE volume < 1000";
+        String dslExpression = "TRADE(volume < 1000)";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -120,7 +120,7 @@ public class DslExpressionEvaluationTest extends AbstractTestBaseJUnit4 {
                         new StockEvent("AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
                         new StockEvent("AAPL", "TRADE", 100.0, 1200, DslTestDataSets.ts(2), "NASDAQ", 0.0));
 
-        String dslExpression = "PATTERN TRADE WHERE volume <= 1000";
+        String dslExpression = "TRADE(volume <= 1000)";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -144,7 +144,7 @@ public class DslExpressionEvaluationTest extends AbstractTestBaseJUnit4 {
                         new StockEvent("AAPL", "TRADE", 105.0, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
                         new StockEvent("AAPL", "TRADE", 110.0, 1000, DslTestDataSets.ts(2), "NASDAQ", 0.0));
 
-        String dslExpression = "PATTERN TRADE WHERE price > 100.0";
+        String dslExpression = "TRADE(price > 100.0)";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -168,7 +168,7 @@ public class DslExpressionEvaluationTest extends AbstractTestBaseJUnit4 {
                         new StockEvent("AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
                         new StockEvent("AAPL", "TRADE", 105.0, 1000, DslTestDataSets.ts(2), "NASDAQ", 0.0));
 
-        String dslExpression = "PATTERN TRADE WHERE price >= 100.0";
+        String dslExpression = "TRADE(price >= 100.0)";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -188,7 +188,7 @@ public class DslExpressionEvaluationTest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input = env.fromCollection(DslTestDataSets.comparisonOperatorDataset());
 
-        String dslExpression = "PATTERN TRADE WHERE symbol = 'AAPL'";
+        String dslExpression = "TRADE(symbol = 'AAPL')";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -208,7 +208,7 @@ public class DslExpressionEvaluationTest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input = env.fromCollection(DslTestDataSets.logicalOperatorDataset());
 
-        String dslExpression = "PATTERN TRADE WHERE price > 100 AND volume > 1000";
+        String dslExpression = "TRADE(price > 100 and volume > 1000)";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -232,7 +232,7 @@ public class DslExpressionEvaluationTest extends AbstractTestBaseJUnit4 {
                         new StockEvent("GOOGL", "TRADE", 100.0, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
                         new StockEvent("MSFT", "TRADE", 100.0, 1000, DslTestDataSets.ts(2), "NASDAQ", 0.0));
 
-        String dslExpression = "PATTERN TRADE WHERE symbol = 'AAPL' OR symbol = 'GOOGL'";
+        String dslExpression = "TRADE(symbol = 'AAPL' or symbol = 'GOOGL')";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -254,7 +254,7 @@ public class DslExpressionEvaluationTest extends AbstractTestBaseJUnit4 {
         DataStream<StockEvent> input = env.fromCollection(DslTestDataSets.logicalOperatorDataset());
 
         String dslExpression =
-                "PATTERN TRADE WHERE (price > 100 AND volume > 1000) OR change > 5.0";
+                "TRADE((price > 100 and volume > 1000) or change > 5.0)";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 

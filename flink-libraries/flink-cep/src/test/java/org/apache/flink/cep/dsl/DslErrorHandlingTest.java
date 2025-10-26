@@ -42,7 +42,7 @@ public class DslErrorHandlingTest extends AbstractTestBaseJUnit4 {
                 env.fromData(
                         new StockEvent("AAPL", "TRADE", 150.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0));
 
-        String invalidDsl = "PATTERN TRADE WHERE price >>>"; // Invalid syntax
+        String invalidDsl = "TRADE(price >>>)"; // Invalid syntax
 
         try {
             DslCompiler.compile(invalidDsl, input);
@@ -60,7 +60,7 @@ public class DslErrorHandlingTest extends AbstractTestBaseJUnit4 {
                 env.fromData(
                         new StockEvent("AAPL", "TRADE", 150.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0));
 
-        String invalidDsl = "PATTERN TRADE symbol = 'AAPL'"; // Missing WHERE
+        String invalidDsl = "TRADE symbol = 'AAPL'"; // Missing WHERE
 
         try {
             DslCompiler.compile(invalidDsl, input);
@@ -101,7 +101,7 @@ public class DslErrorHandlingTest extends AbstractTestBaseJUnit4 {
                 env.fromData(
                         new StockEvent("AAPL", "TRADE", 150.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0));
 
-        String invalidDsl = "PATTERN TRADE WHERE price <> 150"; // Invalid operator
+        String invalidDsl = "TRADE(price <> 150)"; // Invalid operator
 
         try {
             DslCompiler.compile(invalidDsl, input);
@@ -119,7 +119,7 @@ public class DslErrorHandlingTest extends AbstractTestBaseJUnit4 {
                 env.fromData(
                         new StockEvent("AAPL", "TRADE", 150.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0));
 
-        String invalidDsl = "PATTERN TRADE WHERE (price > 100"; // Missing closing paren
+        String invalidDsl = "TRADE((price > 100)"; // Missing closing paren
 
         try {
             DslCompiler.compile(invalidDsl, input);
@@ -140,7 +140,7 @@ public class DslErrorHandlingTest extends AbstractTestBaseJUnit4 {
                 env.fromData(
                         new StockEvent("AAPL", "TRADE", 150.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0));
 
-        String invalidDsl = "PATTERN TRADE{-1} WHERE price > 0"; // Negative quantifier
+        String invalidDsl = "TRADE{-1}(price > 0)"; // Negative quantifier
 
         try {
             DslCompiler.compile(invalidDsl, input);
@@ -161,7 +161,7 @@ public class DslErrorHandlingTest extends AbstractTestBaseJUnit4 {
                 env.fromData(
                         new StockEvent("AAPL", "TRADE", 150.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0));
 
-        String validDsl = "PATTERN TRADE WHERE price > 100"; // Valid DSL
+        String validDsl = "TRADE(price > 100)"; // Valid DSL
 
         // Should not throw exception
         DslCompiler.compile(validDsl, input);
