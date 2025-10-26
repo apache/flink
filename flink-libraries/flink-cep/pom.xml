@@ -38,6 +38,7 @@ under the License.
 			chill ArraysAsListSerializer
 			-->--add-opens=java.base/java.util=ALL-UNNAMED
 		</surefire.module.config>
+		<antlr4.version>4.13.1</antlr4.version>
 	</properties>
 
     <dependencies>
@@ -61,6 +62,13 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-guava</artifactId>
+		</dependency>
+
+		<!-- ANTLR4 for DSL support -->
+		<dependency>
+			<groupId>org.antlr</groupId>
+			<artifactId>antlr4-runtime</artifactId>
+			<version>${antlr4.version}</version>
 		</dependency>
 
         <!-- test dependencies -->
@@ -120,6 +128,27 @@ under the License.
                     <execution>
                         <goals>
                             <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- ANTLR4 code generation for DSL -->
+            <plugin>
+                <groupId>org.antlr</groupId>
+                <artifactId>antlr4-maven-plugin</artifactId>
+                <version>${antlr4.version}</version>
+                <configuration>
+                    <outputDirectory>
+                        ${project.build.directory}/generated-sources/antlr4
+                    </outputDirectory>
+                    <visitor>true</visitor>
+                    <listener>true</listener>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>antlr4</goal>
                         </goals>
                     </execution>
                 </executions>
