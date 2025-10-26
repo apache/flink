@@ -180,18 +180,26 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
     }
 
     private String extractClassIdentifier(CepDslParser.ClassIdentifierContext ctx) {
-        if (ctx == null) return null;
+        if (ctx == null) {
+            return null;
+        }
         StringBuilder sb = new StringBuilder();
         for (CepDslParser.EscapableStrContext esc : ctx.escapableStr()) {
-            if (sb.length() > 0) sb.append(".");
+            if (sb.length() > 0) {
+                sb.append(".");
+            }
             sb.append(extractEscapableStr(esc));
         }
         return sb.toString();
     }
 
     private String extractEscapableStr(CepDslParser.EscapableStrContext ctx) {
-        if (ctx.i1 != null) return ctx.i1.getText();
-        if (ctx.i3 != null) return extractStringLiteral(ctx.i3.getText());
+        if (ctx.i1 != null) {
+            return ctx.i1.getText();
+        }
+        if (ctx.i3 != null) {
+            return extractStringLiteral(ctx.i3.getText());
+        }
         return "";
     }
 
@@ -444,7 +452,9 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
     }
 
     private String extractStringLiteral(String text) {
-        if (text == null || text.length() < 2) return text;
+        if (text == null || text.length() < 2) {
+            return text;
+        }
         // Remove quotes
         return text.substring(1, text.length() - 1);
     }
