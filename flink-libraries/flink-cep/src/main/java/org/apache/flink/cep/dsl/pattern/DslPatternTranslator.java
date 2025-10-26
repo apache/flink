@@ -29,9 +29,10 @@ import org.apache.flink.cep.dsl.grammar.CepDslParser;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.Quantifier.ConsumingStrategy;
-import org.apache.flink.streaming.api.windowing.time.Time;
 
 import org.antlr.v4.runtime.Token;
+
+import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -427,26 +428,26 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
         int timeValue = Integer.parseInt(ctx.c.getText());
         String unit = ctx.u.getText();
 
-        Time time;
+        Duration duration;
         switch (unit.toLowerCase()) {
             case "h":
-                time = Time.hours(timeValue);
+                duration = Duration.ofHours(timeValue);
                 break;
             case "m":
-                time = Time.minutes(timeValue);
+                duration = Duration.ofMinutes(timeValue);
                 break;
             case "s":
-                time = Time.seconds(timeValue);
+                duration = Duration.ofSeconds(timeValue);
                 break;
             case "ms":
-                time = Time.milliseconds(timeValue);
+                duration = Duration.ofMillis(timeValue);
                 break;
             default:
                 throw new DslCompilationException("Unknown time unit: " + unit);
         }
 
         if (currentPattern != null) {
-            currentPattern = currentPattern.within(time);
+            currentPattern = currentPattern.within(duration);
             LOG.debug("Added time window: {} {}", timeValue, unit);
         }
     }

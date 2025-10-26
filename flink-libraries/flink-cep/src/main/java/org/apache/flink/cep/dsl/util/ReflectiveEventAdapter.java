@@ -48,7 +48,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ReflectiveEventAdapter<T> implements EventAdapter<T> {
 
     private static final long serialVersionUID = 1L;
-    private static final Logger LOG = LoggerFactory.getLogger(ReflectiveEventAdapter.java);
+    private static final Logger LOG = LoggerFactory.getLogger(ReflectiveEventAdapter.class);
 
     // Cache for field accessors (not serializable, will be rebuilt after deserialization)
     private transient ConcurrentHashMap<String, FieldAccessor> cache;
