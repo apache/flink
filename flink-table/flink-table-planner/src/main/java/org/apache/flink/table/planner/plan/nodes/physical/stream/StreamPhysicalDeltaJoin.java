@@ -22,39 +22,35 @@ import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DeltaJoinSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDeltaJoin;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
+import org.apache.flink.table.planner.plan.utils.JoinTypeUtil;
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil;
+import org.apache.flink.table.planner.plan.utils.UpsertKeyUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
-import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.BiRel;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.core.JoinInfo;
-import org.apache.calcite.rel.hint.Hintable;
+import org.apache.calcite.rel.core.Join;
+import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
 
 /** Stream physical RelNode for delta join. */
-public class StreamPhysicalDeltaJoin extends BiRel implements StreamPhysicalRel, Hintable {
-
-    private final FlinkJoinType joinType;
-
-    private final RexNode originalJoinCondition;
-
-    private final com.google.common.collect.ImmutableList<RelHint> hints;
+public class StreamPhysicalDeltaJoin extends Join implements StreamPhysicalRel {
 
     private final RelDataType rowType;
 
@@ -70,15 +66,20 @@ public class StreamPhysicalDeltaJoin extends BiRel implements StreamPhysicalRel,
             List<RelHint> hints,
             RelNode left,
             RelNode right,
-            FlinkJoinType joinType,
+            JoinRelType joinType,
             RexNode originalJoinCondition,
             DeltaJoinSpec lookupRightTableJoinSpec,
             DeltaJoinSpec lookupLeftTableJoinSpec,
             RelDataType rowType) {
-        super(cluster, traitSet, left, right);
-        this.hints = com.google.common.collect.ImmutableList.copyOf(hints);
-        this.joinType = joinType;
-        this.originalJoinCondition = originalJoinCondition;
+        super(
+                cluster,
+                traitSet,
+                hints,
+                left,
+                right,
+                originalJoinCondition,
+                Collections.emptySet(),
+                joinType);
         this.lookupRightTableJoinSpec = lookupRightTableJoinSpec;
         this.lookupLeftTableJoinSpec = lookupLeftTableJoinSpec;
         this.rowType = rowType;
@@ -97,15 +98,20 @@ public class StreamPhysicalDeltaJoin extends BiRel implements StreamPhysicalRel,
                         // scenarios to enhance throughput as much as possible.
                         true,
                         AsyncDataStream.OutputMode.ORDERED);
+        FlinkRelMetadataQuery fmq =
+                FlinkRelMetadataQuery.reuseOrCreate(this.getCluster().getMetadataQuery());
 
-        JoinInfo joinInfo = JoinInfo.of(left, right, originalJoinCondition);
+        int[] leftUpsertKey = UpsertKeyUtil.smallestKey(fmq.getUpsertKeys(left)).orElse(null);
+        int[] rightUpsertKey = UpsertKeyUtil.smallestKey(fmq.getUpsertKeys(right)).orElse(null);
 
         return new StreamExecDeltaJoin(
                 config,
-                joinType,
+                JoinTypeUtil.getFlinkJoinType(joinType),
                 joinInfo.leftKeys.toIntArray(),
+                leftUpsertKey,
                 lookupRightTableJoinSpec,
                 joinInfo.rightKeys.toIntArray(),
+                rightUpsertKey,
                 lookupLeftTableJoinSpec,
                 InputProperty.DEFAULT,
                 InputProperty.DEFAULT,
@@ -120,16 +126,21 @@ public class StreamPhysicalDeltaJoin extends BiRel implements StreamPhysicalRel,
     }
 
     @Override
-    public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-        assert inputs.size() == 2;
+    public Join copy(
+            RelTraitSet traitSet,
+            RexNode conditionExpr,
+            RelNode left,
+            RelNode right,
+            JoinRelType joinType,
+            boolean semiJoinDone) {
         return new StreamPhysicalDeltaJoin(
                 getCluster(),
                 traitSet,
                 hints,
-                inputs.get(0),
-                inputs.get(1),
+                left,
+                right,
                 joinType,
-                originalJoinCondition,
+                conditionExpr,
                 lookupRightTableJoinSpec,
                 lookupLeftTableJoinSpec,
                 rowType);
@@ -147,12 +158,13 @@ public class StreamPhysicalDeltaJoin extends BiRel implements StreamPhysicalRel,
 
     @Override
     public RelWriter explainTerms(RelWriter pw) {
-        return super.explainTerms(pw)
-                .item("joinType", joinType.toString())
+        return pw.input("left", left)
+                .input("right", right)
+                .item("joinType", JoinTypeUtil.getFlinkJoinType(joinType).toString())
                 .item(
                         "where",
                         getExpressionString(
-                                originalJoinCondition,
+                                condition,
                                 JavaScalaConversionUtil.toScala(this.getRowType().getFieldNames())
                                         .toList(),
                                 JavaScalaConversionUtil.toScala(Optional.empty()),

@@ -357,8 +357,9 @@ public class StreamingDeltaJoinOperator
 
     private void processElement(StreamRecord<RowData> element, int inputIndex) throws Exception {
         Preconditions.checkArgument(
-                RowKind.INSERT == element.getValue().getRowKind(),
-                "Currently, delta join only supports to consume append only stream.");
+                RowKind.INSERT == element.getValue().getRowKind()
+                        || RowKind.UPDATE_AFTER == element.getValue().getRowKind(),
+                "Currently, delta join only supports to consume insert record or update after record.");
         tryProcess();
         StreamRecord<RowData> record;
         boolean isLeft = isLeft(inputIndex);
