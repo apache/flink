@@ -173,10 +173,17 @@ public class StreamPhysicalVectorSearchTableFunctionRule
         FunctionCallUtil.Constant topKParam =
                 new FunctionCallUtil.Constant(FlinkTypeFactory.toLogicalType(topK.getType()), topK);
 
+        // Runtime Config
+        Map<String, String> runtimeConfig =
+                functionCall.getOperands().size() < 5
+                        ? null
+                        : FunctionCallUtil.convert((RexCall) functionCall.getOperands().get(4));
+
         return new VectorSearchSpec(
                 joinType,
                 searchColumns,
                 topKParam,
+                runtimeConfig,
                 FlinkTypeFactory.toLogicalRowType(scan.getRowType()));
     }
 

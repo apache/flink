@@ -29,6 +29,7 @@ import org.apache.flink.table.ml.PredictRuntimeProvider;
 import org.apache.flink.table.planner.calcite.RexModelCall;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
+import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -39,14 +40,12 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.MapSqlType;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -159,28 +158,7 @@ public class StreamPhysicalMLPredictTableFunctionRule extends ConverterRule {
             throw new ValidationException(CONFIG_ERROR_MESSAGE);
         }
 
-        final List<RexNode> mapOperands = mapConstructorCall.getOperands();
-        final Map<String, String> runtimeConfig = new HashMap<>();
-
-        // Process key-value pairs
-        for (int i = 0; i < mapOperands.size(); i += 2) {
-            final RexNode keyNode = mapOperands.get(i);
-            final RexNode valueNode = mapOperands.get(i + 1);
-
-            // Both key and value should be string literals
-            if (!(keyNode instanceof RexLiteral) || !(valueNode instanceof RexLiteral)) {
-                throw new ValidationException(CONFIG_ERROR_MESSAGE);
-            }
-
-            final String key = RexLiteral.stringValue(keyNode);
-            final String value = RexLiteral.stringValue(valueNode);
-
-            if (key == null || value == null) {
-                throw new ValidationException("Config map keys and values cannot be null.");
-            }
-
-            runtimeConfig.put(key, value);
-        }
+        final Map<String, String> runtimeConfig = FunctionCallUtil.convert(mapConstructorCall);
 
         // Validate the configuration values
         validateRuntimeConfig(runtimeConfig);

@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
@@ -78,6 +79,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /** Stream {@link ExecNode} for {@code VECTOR_SEARCH}. */
 @ExecNodeMetadata(
@@ -162,7 +164,11 @@ public class StreamExecVectorSearchTableFunction extends ExecNodeBase<RowData>
         UserDefinedFunction vectorSearchFunction =
                 findVectorSearchFunction(
                         VectorSearchUtil.createVectorSearchRuntimeProvider(
-                                searchTable, vectorSearchSpec.getSearchColumns().keySet()),
+                                searchTable,
+                                vectorSearchSpec.getSearchColumns().keySet(),
+                                Configuration.fromMap(
+                                        Optional.ofNullable(vectorSearchSpec.getRuntimeConfig())
+                                                .orElse(Collections.emptyMap()))),
                         isAsyncEnabled);
         UserDefinedFunctionHelper.prepareInstance(config, vectorSearchFunction);
         // 3. build the operator

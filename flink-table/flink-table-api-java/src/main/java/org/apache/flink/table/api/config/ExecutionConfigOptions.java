@@ -603,13 +603,6 @@ public class ExecutionConfigOptions {
     // ------------------------------------------------------------------------
     //  Async VECTOR_SEARCH Options
     // ------------------------------------------------------------------------
-    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    public static final ConfigOption<Boolean> TABLE_EXEC_ASYNC_VECTOR_SEARCH_ASYNC =
-            key("table.exec.async-vector-search.async")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Whether to run an async search function or not. Default to false.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer>

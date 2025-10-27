@@ -18,12 +18,15 @@
 
 package org.apache.flink.table.planner.functions.sql.ml;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.VectorSearchRuntimeConfigOptions;
 import org.apache.flink.table.planner.functions.utils.SqlValidatorUtils;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
+import org.apache.flink.types.Either;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -39,6 +42,7 @@ import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlOperatorBinding;
 import org.apache.calcite.sql.SqlTableFunction;
+import org.apache.calcite.sql.type.MapSqlType;
 import org.apache.calcite.sql.type.ReturnTypes;
 import org.apache.calcite.sql.type.SqlOperandCountRanges;
 import org.apache.calcite.sql.type.SqlOperandMetadata;
@@ -50,10 +54,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
+import static org.apache.flink.table.api.config.VectorSearchRuntimeConfigOptions.ASYNC;
+import static org.apache.flink.table.api.config.VectorSearchRuntimeConfigOptions.ASYNC_MAX_CONCURRENT_OPERATIONS;
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
+import static org.apache.flink.table.planner.functions.utils.SqlValidatorUtils.reduceLiteralToString;
+import static org.apache.flink.table.types.logical.LogicalTypeFamily.CHARACTER_STRING;
 
 /**
  * {@link SqlVectorSearchTableFunction} implements an operator for search.
@@ -65,6 +76,7 @@ import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalT
  *   <li>a descriptor to provide a column name from the input table
  *   <li>a query column from the left table
  *   <li>a literal value for top k
+ *   <li>an optional config map
  * </ol>
  */
 public class SqlVectorSearchTableFunction extends SqlFunction implements SqlTableFunction {
@@ -73,6 +85,7 @@ public class SqlVectorSearchTableFunction extends SqlFunction implements SqlTabl
     private static final String PARAM_COLUMN_TO_SEARCH = "COLUMN_TO_SEARCH";
     private static final String PARAM_COLUMN_TO_QUERY = "COLUMN_TO_QUERY";
     private static final String PARAM_TOP_K = "TOP_K";
+    private static final String PARAM_CONFIG = "CONFIG";
 
     private static final String OUTPUT_SCORE = "score";
 
@@ -92,7 +105,14 @@ public class SqlVectorSearchTableFunction extends SqlFunction implements SqlTabl
             @Override
             public @Nullable RelDataType inferReturnType(SqlOperatorBinding opBinding) {
                 final RelDataTypeFactory typeFactory = opBinding.getTypeFactory();
-                final RelDataType inputRowType = opBinding.getOperandType(0);
+                RelDataType inputRowType;
+                if (opBinding instanceof SqlCallBinding) {
+                    SqlCallBinding callBinding = (SqlCallBinding) opBinding;
+                    List<SqlNode> operands = callBinding.operands();
+                    inputRowType = callBinding.getValidator().getValidatedNodeType(operands.get(0));
+                } else {
+                    inputRowType = opBinding.getOperandType(0);
+                }
 
                 return typeFactory
                         .builder()
@@ -125,7 +145,10 @@ public class SqlVectorSearchTableFunction extends SqlFunction implements SqlTabl
                                 PARAM_SEARCH_TABLE,
                                 PARAM_COLUMN_TO_SEARCH,
                                 PARAM_COLUMN_TO_QUERY,
-                                PARAM_TOP_K));
+                                PARAM_TOP_K,
+                                PARAM_CONFIG));
+
+        private static final int OPTIONAL_ARG_IDX = 4;
 
         @Override
         public List<RelDataType> paramTypes(RelDataTypeFactory relDataTypeFactory) {
@@ -217,33 +240,113 @@ public class SqlVectorSearchTableFunction extends SqlFunction implements SqlTabl
                                                 topK))),
                         throwOnFailure);
             }
-            return true;
+
+            // check config type
+            return SqlValidatorUtils.throwExceptionOrReturnFalse(
+                    checkOptionalConfigOperands(
+                            callBinding,
+                            OPTIONAL_ARG_IDX,
+                            SqlVectorSearchTableFunction::checkConfigValue),
+                    throwOnFailure);
         }
 
         @Override
         public SqlOperandCountRange getOperandCountRange() {
-            return SqlOperandCountRanges.between(4, 4);
+            return SqlOperandCountRanges.between(4, 5);
         }
 
         @Override
         public String getAllowedSignatures(SqlOperator op, String opName) {
             return opName
-                    + "(TABLE search_table, DESCRIPTOR(column_to_search), column_to_query, top_k)";
-        }
-
-        @Override
-        public Consistency getConsistency() {
-            return Consistency.NONE;
+                    + "(TABLE search_table, DESCRIPTOR(column_to_search), column_to_query, top_k, [MAP['key1', 'value1']...])";
         }
 
         @Override
         public boolean isOptional(int i) {
-            return false;
+            return i == OPTIONAL_ARG_IDX;
+        }
+    }
+
+    /**
+     * Check optional config parameter. Config parameter is a map that define some parameters and
+     * values.
+     *
+     * @param callBinding The call binding
+     * @param configLocation The location of the config parameter
+     * @param checkConfigValue Check value in the config map.
+     */
+    public static Optional<RuntimeException> checkOptionalConfigOperands(
+            SqlCallBinding callBinding,
+            int configLocation,
+            Function<Map<String, String>, Optional<RuntimeException>> checkConfigValue) {
+        if (callBinding.getOperandCount() <= configLocation) {
+            return Optional.empty();
         }
 
-        @Override
-        public boolean isFixedParameters() {
-            return true;
+        SqlNode configNode = callBinding.operand(configLocation);
+        if (!configNode.getKind().equals(SqlKind.MAP_VALUE_CONSTRUCTOR)) {
+            return Optional.of(new ValidationException("Config param should be a MAP."));
         }
+
+        RelDataType mapType =
+                callBinding
+                        .getValidator()
+                        .getValidatedNodeType(callBinding.operand(configLocation));
+
+        assert mapType instanceof MapSqlType;
+
+        LogicalType keyType = toLogicalType(mapType.getKeyType());
+        LogicalType valueType = toLogicalType(mapType.getValueType());
+        if (!keyType.is(CHARACTER_STRING) || !valueType.is(CHARACTER_STRING)) {
+            return Optional.of(
+                    new ValidationException(
+                            String.format(
+                                    "Config param can only be a MAP of string literals but node's type is %s at position %s.",
+                                    mapType, callBinding.operand(3).getParserPosition())));
+        }
+
+        List<SqlNode> operands = ((SqlCall) configNode).getOperandList();
+        Map<String, String> runtimeConfig = new HashMap<>();
+        for (int i = 0; i < operands.size(); i += 2) {
+            Either<String, RuntimeException> key =
+                    reduceLiteralToString(operands.get(i), callBinding.getValidator());
+            Either<String, RuntimeException> value =
+                    reduceLiteralToString(operands.get(i + 1), callBinding.getValidator());
+
+            if (key.isRight()) {
+                return Optional.of(key.right());
+            } else if (value.isRight()) {
+                return Optional.of(value.right());
+            } else {
+                runtimeConfig.put(key.left(), value.left());
+            }
+        }
+        return checkConfigValue.apply(runtimeConfig);
+    }
+
+    public static Optional<RuntimeException> checkConfigValue(Map<String, String> runtimeConfig) {
+        Configuration config = Configuration.fromMap(runtimeConfig);
+        try {
+            VectorSearchRuntimeConfigOptions.getSupportedOptions().forEach(config::get);
+        } catch (Throwable t) {
+            return Optional.of(new ValidationException("Failed to parse the config.", t));
+        }
+
+        // option value check
+        // async options are all optional
+        Boolean async = config.get(ASYNC);
+        if (Boolean.TRUE.equals(async)) {
+            Integer maxConcurrentOperations = config.get(ASYNC_MAX_CONCURRENT_OPERATIONS);
+            if (maxConcurrentOperations != null && maxConcurrentOperations <= 0) {
+                return Optional.of(
+                        new ValidationException(
+                                String.format(
+                                        "Invalid runtime config option '%s'. Its value should be positive integer but was %s.",
+                                        ASYNC_MAX_CONCURRENT_OPERATIONS.key(),
+                                        maxConcurrentOperations)));
+            }
+        }
+
+        return Optional.empty();
     }
 }

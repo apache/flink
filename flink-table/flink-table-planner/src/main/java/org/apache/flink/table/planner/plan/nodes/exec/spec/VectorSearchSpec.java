@@ -27,6 +27,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 
 import org.apache.calcite.rel.core.JoinRelType;
 
+import javax.annotation.Nullable;
+
 import java.util.Map;
 
 /** VectorSearchSpec describes how vector search is performed. */
@@ -35,6 +37,7 @@ public class VectorSearchSpec {
     public static final String FIELD_NAME_JOIN_TYPE = "joinType";
     public static final String FIELD_NAME_SEARCH_COLUMNS = "searchColumns";
     public static final String FIELD_NAME_TOP_K = "topK";
+    public static final String FIELD_NAME_RUNTIME_CONFIG = "runtimeConfig";
     public static final String FIELD_NAME_OUTPUT_TYPE = "outputType";
 
     @JsonProperty(FIELD_NAME_JOIN_TYPE)
@@ -47,6 +50,9 @@ public class VectorSearchSpec {
     @JsonProperty(FIELD_NAME_TOP_K)
     private final FunctionParam topK;
 
+    @JsonProperty(FIELD_NAME_RUNTIME_CONFIG)
+    private final @Nullable Map<String, String> runtimeConfig;
+
     @JsonProperty(FIELD_NAME_OUTPUT_TYPE)
     private final RowType outputType;
 
@@ -55,10 +61,12 @@ public class VectorSearchSpec {
             @JsonProperty(FIELD_NAME_JOIN_TYPE) JoinRelType joinRelType,
             @JsonProperty(FIELD_NAME_SEARCH_COLUMNS) Map<Integer, FunctionParam> searchColumns,
             @JsonProperty(FIELD_NAME_TOP_K) FunctionParam topK,
+            @Nullable @JsonProperty(FIELD_NAME_RUNTIME_CONFIG) Map<String, String> runtimeConfig,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType) {
         this.joinRelType = joinRelType;
         this.searchColumns = searchColumns;
         this.topK = topK;
+        this.runtimeConfig = runtimeConfig;
         this.outputType = outputType;
     }
 
@@ -75,6 +83,11 @@ public class VectorSearchSpec {
     @JsonIgnore
     public FunctionParam getTopK() {
         return topK;
+    }
+
+    @JsonIgnore
+    public @Nullable Map<String, String> getRuntimeConfig() {
+        return runtimeConfig;
     }
 
     @JsonIgnore
