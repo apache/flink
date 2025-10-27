@@ -16,11 +16,14 @@
 # limitations under the License.
 ################################################################################
 import asyncio
+import random
 
-from pyflink.common import Types, Row, Time, Configuration
+from pyflink.common import Types, Row, Time, Configuration, WatermarkStrategy
 from pyflink.datastream import AsyncDataStream, AsyncFunction, ResultFuture, \
     StreamExecutionEnvironment
-from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
+from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction, \
+    SecondColumnTimestampAssigner
+from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
 from pyflink.util.java_utils import get_j_env_configuration
 
@@ -36,6 +39,9 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
     def assert_equals_sorted(self, expected, actual):
         expected.sort()
         actual.sort()
+        self.assertEqual(expected, actual)
+
+    def assert_equals(self, expected, actual):
         self.assertEqual(expected, actual)
 
     def test_basic_functionality(self):
@@ -61,6 +67,39 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
         results = self.test_sink.get_results(False)
         expected = ['2', '4', '6', '8', '10']
         self.assert_equals_sorted(expected, results)
+
+    def test_watermark(self):
+        self.env.set_parallelism(1)
+        ds = self.env.from_collection(
+            [(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)],
+            type_info=Types.ROW_NAMED(["v1", "v2"], [Types.INT(), Types.INT()])
+        )
+        jvm = get_gateway().jvm
+        watermark_strategy = WatermarkStrategy(
+            jvm.org.apache.flink.api.common.eventtime.WatermarkStrategy.forGenerator(
+                jvm.org.apache.flink.streaming.api.functions.python.eventtime.
+                PerElementWatermarkGenerator.getSupplier()
+            )
+        ).with_timestamp_assigner(SecondColumnTimestampAssigner())
+        ds = ds.assign_timestamps_and_watermarks(watermark_strategy)
+
+        class MyAsyncFunction(AsyncFunction):
+
+            async def async_invoke(self, value: Row, result_future: ResultFuture[int]):
+                await asyncio.sleep(random.randint(1, 3))
+                result_future.complete([value[0] + value[1]])
+
+            def timeout(self, value: Row, result_future: ResultFuture[int]):
+                result_future.complete([value[0] + value[1]])
+
+        ds = AsyncDataStream.unordered_wait(
+            ds, MyAsyncFunction(), Time.seconds(5), 2, Types.INT())
+        ds.add_sink(self.test_sink)
+        self.env.execute()
+        results = self.test_sink.get_results(False)
+        expected = ['2', '4', '6', '8', '10']
+        # note that we use assert_equals instead of assert_equals_sorted
+        self.assert_equals(expected, results)
 
     def test_complete_async_function_with_non_iterable_result(self):
         self.env.set_parallelism(1)
@@ -116,7 +155,7 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
     def test_raise_exception_in_timeout(self):
         self.env.set_parallelism(1)
         ds = self.env.from_collection(
-            [(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)],
+            [(1, 1), (2, 2), (3, 3)],
             type_info=Types.ROW_NAMED(["v1", "v2"], [Types.INT(), Types.INT()])
         )
 

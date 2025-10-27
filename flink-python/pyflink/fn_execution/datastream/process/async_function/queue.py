@@ -212,6 +212,9 @@ class UnorderedStreamElementQueue(StreamElementQueue):
 
             :return: The number of popped input elements.
             """
+            if len(self._complete_elements) == 0:
+                return 0
+
             completed_entry = self._complete_elements.popleft()
             return completed_entry.emit_result(output_processor)
 
@@ -271,7 +274,7 @@ class UnorderedStreamElementQueue(StreamElementQueue):
             if len(self._segments) == 0:
                 return
 
-            current_segment = self._segments[-1]
+            current_segment = self._segments[0]
             self._number_of_pending_entries -= current_segment.emit_completed(output_processor)
 
             # remove any segment if there are further segments, if not leave it as an optimization
@@ -284,7 +287,7 @@ class UnorderedStreamElementQueue(StreamElementQueue):
 
     def has_completed_elements(self) -> bool:
         with self._lock:
-            return len(self._segments) != 0 and self._segments[-1].has_completed()
+            return len(self._segments) != 0 and self._segments[0].has_completed()
 
     def wait_for_completed_elements(self):
         with self._not_empty:

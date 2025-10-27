@@ -30,7 +30,8 @@ from pyflink.datastream.window import (TumblingEventTimeWindows,
                                        CountSlidingWindowAssigner, SessionWindowTimeGapExtractor,
                                        CountWindow, PurgingTrigger, EventTimeTrigger, TimeWindow,
                                        GlobalWindows, CountTrigger)
-from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
+from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction, \
+    SecondColumnTimestampAssigner
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
 from pyflink.util.java_utils import get_j_env_configuration
@@ -635,12 +636,6 @@ class EmbeddedWindowTests(WindowTests, PyFlinkStreamingTestCase):
                     '(1676461740000,a1,1)',
                     '(1676461740000,a2,1)']
         self.assert_equals_sorted(expected, results)
-
-
-class SecondColumnTimestampAssigner(TimestampAssigner):
-
-    def extract_timestamp(self, value, record_timestamp) -> int:
-        return int(value[1])
 
 
 class MySessionWindowTimeGapExtractor(SessionWindowTimeGapExtractor):
