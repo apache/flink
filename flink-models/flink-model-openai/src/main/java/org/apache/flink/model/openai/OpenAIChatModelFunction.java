@@ -19,6 +19,7 @@ package org.apache.flink.model.openai;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -27,10 +28,11 @@ import org.apache.flink.table.factories.ModelProviderFactory;
 import org.apache.flink.table.functions.AsyncPredictFunction;
 import org.apache.flink.table.types.logical.VarCharType;
 
+import com.openai.models.ResponseFormatJsonObject;
+import com.openai.models.ResponseFormatText;
 import com.openai.models.chat.completions.ChatCompletion;
 import com.openai.models.chat.completions.ChatCompletionCreateParams;
-
-import javax.annotation.Nullable;
+import com.openai.models.chat.completions.ChatCompletionCreateParams.ResponseFormat;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -77,25 +79,49 @@ public class OpenAIChatModelFunction extends AbstractOpenAIModelFunction {
                     .noDefaultValue()
                     .withDescription("Maximum number of tokens to generate.");
 
+    public static final ConfigOption<Double> PRESENCE_PENALTY =
+            ConfigOptions.key("presence-penalty")
+                    .doubleType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Number between -2.0 and 2.0."
+                                    + " Positive values penalize new tokens based on whether they appear in the text so far,"
+                                    + " increasing the model's likelihood to talk about new topics.");
+
+    public static final ConfigOption<Long> N =
+            ConfigOptions.key("n")
+                    .longType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "How many chat completion choices to generate for each input message."
+                                    + " Note that you will be charged based on the number of generated tokens across all of the choices."
+                                    + " Keep n as 1 to minimize costs.");
+
+    public static final ConfigOption<Long> SEED =
+            ConfigOptions.key("seed")
+                    .longType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "If specified, the model platform will make a best effort to sample deterministically,"
+                                    + " such that repeated requests with the same seed and parameters should return the same result."
+                                    + " Determinism is not guaranteed.");
+
+    public static final ConfigOption<ChatModelResponseFormat> RESPONSE_FORMAT =
+            ConfigOptions.key("response-format")
+                    .enumType(ChatModelResponseFormat.class)
+                    .noDefaultValue()
+                    .withDescription("The format of the response, e.g., 'text' or 'json_object'.");
+
     private final String model;
     private final String systemPrompt;
-    @Nullable private final Double temperature;
-    @Nullable private final Double topP;
-    @Nullable private final List<String> stop;
-    @Nullable private final Long maxTokens;
+    private final Configuration config;
 
     public OpenAIChatModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
         super(factoryContext, config);
         model = config.get(MODEL);
         systemPrompt = config.get(SYSTEM_PROMPT);
-        temperature = config.get(TEMPERATURE);
-        topP = config.get(TOP_P);
-        stop =
-                config.get(STOP) == null
-                        ? null
-                        : Arrays.asList(config.get(STOP).split(STOP_SEPARATOR));
-        maxTokens = config.get(MAX_TOKENS);
+        this.config = Configuration.fromMap(config.toMap());
         validateSingleColumnSchema(
                 factoryContext.getCatalogModel().getResolvedOutputSchema(),
                 new VarCharType(VarCharType.MAX_LENGTH),
@@ -114,18 +140,18 @@ public class OpenAIChatModelFunction extends AbstractOpenAIModelFunction {
                         .addSystemMessage(systemPrompt)
                         .addUserMessage(input)
                         .model(model);
-        if (temperature != null) {
-            builder.temperature(temperature);
-        }
-        if (topP != null) {
-            builder.topP(topP);
-        }
-        if (stop != null) {
-            builder.stopOfStrings(stop);
-        }
-        if (maxTokens != null) {
-            builder.maxTokens(maxTokens);
-        }
+        this.config.getOptional(TEMPERATURE).ifPresent(builder::temperature);
+        this.config.getOptional(TOP_P).ifPresent(builder::topP);
+        this.config
+                .getOptional(STOP)
+                .ifPresent(x -> builder.stopOfStrings(Arrays.asList(x.split(STOP_SEPARATOR))));
+        this.config.getOptional(MAX_TOKENS).ifPresent(builder::maxTokens);
+        this.config.getOptional(PRESENCE_PENALTY).ifPresent(builder::presencePenalty);
+        this.config.getOptional(N).ifPresent(builder::n);
+        this.config.getOptional(SEED).ifPresent(builder::seed);
+        this.config
+                .getOptional(RESPONSE_FORMAT)
+                .ifPresent(x -> builder.responseFormat(x.getResponseFormat()));
 
         return client.chat()
                 .completions()
@@ -141,5 +167,37 @@ public class OpenAIChatModelFunction extends AbstractOpenAIModelFunction {
                                         BinaryStringData.fromString(
                                                 choice.message().content().orElse(""))))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * The response format for Chat model function. It's an Enum representation for {@link
+     * ResponseFormat}.
+     */
+    public enum ChatModelResponseFormat {
+        TEXT("text") {
+            @Override
+            public ResponseFormat getResponseFormat() {
+                return ResponseFormat.ofText(ResponseFormatText.builder().build());
+            }
+        },
+        JSON_OBJECT("json_object") {
+            @Override
+            public ResponseFormat getResponseFormat() {
+                return ResponseFormat.ofJsonObject(ResponseFormatJsonObject.builder().build());
+            }
+        };
+
+        private final String value;
+
+        ChatModelResponseFormat(String value) {
+            this.value = value;
+        }
+
+        public abstract ResponseFormat getResponseFormat();
+
+        @Override
+        public String toString() {
+            return value;
+        }
     }
 }

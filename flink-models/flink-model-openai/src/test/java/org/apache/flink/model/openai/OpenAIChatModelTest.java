@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.variant.Variant;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
@@ -47,6 +48,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -100,15 +102,7 @@ public class OpenAIChatModelTest {
 
     @Test
     public void testChat() {
-        CatalogManager catalogManager = ((TableEnvironmentImpl) tEnv).getCatalogManager();
-        catalogManager.createModel(
-                CatalogModel.of(INPUT_SCHEMA, OUTPUT_SCHEMA, modelOptions, "This is a new model."),
-                ObjectIdentifier.of(
-                        catalogManager.getCurrentCatalog(),
-                        catalogManager.getCurrentDatabase(),
-                        MODEL_NAME),
-                false);
-
+        createModel();
         TableResult tableResult =
                 tEnv.executeSql(
                         String.format(
@@ -128,16 +122,8 @@ public class OpenAIChatModelTest {
     @Test
     public void testMaxToken() {
         int maxTokens = 20;
-        CatalogManager catalogManager = ((TableEnvironmentImpl) tEnv).getCatalogManager();
-        Map<String, String> modelOptions = new HashMap<>(this.modelOptions);
         modelOptions.put("max-tokens", Integer.toString(maxTokens));
-        catalogManager.createModel(
-                CatalogModel.of(INPUT_SCHEMA, OUTPUT_SCHEMA, modelOptions, "This is a new model."),
-                ObjectIdentifier.of(
-                        catalogManager.getCurrentCatalog(),
-                        catalogManager.getCurrentDatabase(),
-                        MODEL_NAME),
-                false);
+        createModel();
 
         TableResult tableResult =
                 tEnv.executeSql(
@@ -159,16 +145,8 @@ public class OpenAIChatModelTest {
     @Test
     public void testStop() {
         String stop = "a,the";
-        CatalogManager catalogManager = ((TableEnvironmentImpl) tEnv).getCatalogManager();
-        Map<String, String> modelOptions = new HashMap<>(this.modelOptions);
         modelOptions.put("stop", stop);
-        catalogManager.createModel(
-                CatalogModel.of(INPUT_SCHEMA, OUTPUT_SCHEMA, modelOptions, "This is a new model."),
-                ObjectIdentifier.of(
-                        catalogManager.getCurrentCatalog(),
-                        catalogManager.getCurrentDatabase(),
-                        MODEL_NAME),
-                false);
+        createModel();
 
         TableResult tableResult =
                 tEnv.executeSql(
@@ -189,18 +167,10 @@ public class OpenAIChatModelTest {
 
     @Test
     public void testMaxContextSize() {
-        CatalogManager catalogManager = ((TableEnvironmentImpl) tEnv).getCatalogManager();
-        Map<String, String> modelOptions = new HashMap<>(this.modelOptions);
         modelOptions.put("model", "gpt-4");
         modelOptions.put("max-context-size", "2");
         modelOptions.put("context-overflow-action", "skipped");
-        catalogManager.createModel(
-                CatalogModel.of(INPUT_SCHEMA, OUTPUT_SCHEMA, modelOptions, "This is a new model."),
-                ObjectIdentifier.of(
-                        catalogManager.getCurrentCatalog(),
-                        catalogManager.getCurrentDatabase(),
-                        MODEL_NAME),
-                false);
+        createModel();
 
         TableResult tableResult =
                 tEnv.executeSql(
@@ -212,20 +182,61 @@ public class OpenAIChatModelTest {
     }
 
     @Test
+    public void testN() {
+        modelOptions.put("n", "2");
+        modelOptions.put("model", "qwen-plus");
+        createModel();
+        TableResult tableResult =
+                tEnv.executeSql(
+                        String.format(
+                                "SELECT input, content FROM ML_PREDICT(TABLE MyTable, MODEL %s, DESCRIPTOR(`input`))",
+                                MODEL_NAME));
+        List<Row> result = IteratorUtils.toList(tableResult.collect());
+        assertThat(result).hasSize(20);
+        for (Row row : result) {
+            assertThat(row.getField(0)).isInstanceOf(String.class);
+            assertThat(row.getField(1)).isInstanceOf(String.class);
+            assertThat((String) row.getFieldAs(1))
+                    .isEqualTo(
+                            "This is a mocked response continuation continuation continuation continuation continuation continuation continuation continuation continuation continuation");
+        }
+    }
+
+    @Test
+    public void testResponseFormat() {
+        modelOptions.put("response-format", "json_object");
+        modelOptions.put(
+                "system-prompt",
+                "You are a helpful assistant. Please output your response in json format.");
+        createModel();
+        TableResult tableResult =
+                tEnv.executeSql(
+                        String.format(
+                                "SELECT input, content, TRY_PARSE_JSON(content) as content_json FROM ML_PREDICT(TABLE MyTable, MODEL %s, DESCRIPTOR(`input`))",
+                                MODEL_NAME));
+        List<Row> result = IteratorUtils.toList(tableResult.collect());
+        assertThat(result).hasSize(10);
+        for (Row row : result) {
+            assertThat(row.getField(0)).isInstanceOf(String.class);
+            assertThat(row.getField(1)).isInstanceOf(String.class);
+            String content = row.getFieldAs(1);
+            assertThat(content).isNotEmpty();
+            assertThat(row.getField(2))
+                    .withFailMessage("%s is not a valid json object", content)
+                    .isInstanceOf(Variant.class);
+            assertThat((Variant) row.getFieldAs(2))
+                    .withFailMessage("%s is not a valid json object", content)
+                    .isNotNull();
+        }
+    }
+
+    @Test
     public void testNullValue() {
         tEnv.executeSql(
                 "CREATE TABLE MyTableWithNull(input STRING, invalid_input DOUBLE) "
                         + "WITH ( 'connector' = 'datagen', 'number-of-rows' = '10', 'fields.input.null-rate' = '1')");
 
-        CatalogManager catalogManager = ((TableEnvironmentImpl) tEnv).getCatalogManager();
-        catalogManager.createModel(
-                CatalogModel.of(INPUT_SCHEMA, OUTPUT_SCHEMA, modelOptions, "This is a new model."),
-                ObjectIdentifier.of(
-                        catalogManager.getCurrentCatalog(),
-                        catalogManager.getCurrentDatabase(),
-                        MODEL_NAME),
-                false);
-
+        createModel();
         TableResult tableResult =
                 tEnv.executeSql(
                         String.format(
@@ -237,24 +248,10 @@ public class OpenAIChatModelTest {
 
     @Test
     public void testInvalidInputSchema() {
-        CatalogManager catalogManager = ((TableEnvironmentImpl) tEnv).getCatalogManager();
-        ObjectIdentifier modelIdentifier =
-                ObjectIdentifier.of(
-                        catalogManager.getCurrentCatalog(),
-                        catalogManager.getCurrentDatabase(),
-                        MODEL_NAME);
-
         Schema inputSchemaWithInvalidColumnType =
                 Schema.newBuilder().column("input", DataTypes.DOUBLE()).build();
 
-        catalogManager.createModel(
-                CatalogModel.of(
-                        inputSchemaWithInvalidColumnType,
-                        OUTPUT_SCHEMA,
-                        modelOptions,
-                        "This is a new model."),
-                modelIdentifier,
-                false);
+        createModel(inputSchemaWithInvalidColumnType, OUTPUT_SCHEMA);
         assertThatThrownBy(
                         () ->
                                 tEnv.executeSql(
@@ -268,24 +265,10 @@ public class OpenAIChatModelTest {
 
     @Test
     public void testInvalidOutputSchema() {
-        CatalogManager catalogManager = ((TableEnvironmentImpl) tEnv).getCatalogManager();
-        ObjectIdentifier modelIdentifier =
-                ObjectIdentifier.of(
-                        catalogManager.getCurrentCatalog(),
-                        catalogManager.getCurrentDatabase(),
-                        MODEL_NAME);
-
         Schema outputSchemaWithInvalidColumnType =
                 Schema.newBuilder().column("output", DataTypes.DOUBLE()).build();
 
-        catalogManager.createModel(
-                CatalogModel.of(
-                        INPUT_SCHEMA,
-                        outputSchemaWithInvalidColumnType,
-                        modelOptions,
-                        "This is a new model."),
-                modelIdentifier,
-                false);
+        createModel(INPUT_SCHEMA, outputSchemaWithInvalidColumnType);
         assertThatThrownBy(
                         () ->
                                 tEnv.executeSql(
@@ -295,6 +278,23 @@ public class OpenAIChatModelTest {
                 .rootCause()
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContainingAll("output", "DOUBLE", "STRING");
+    }
+
+    private void createModel() {
+        createModel(INPUT_SCHEMA, OUTPUT_SCHEMA);
+    }
+
+    private void createModel(Schema inputSchema, Schema outputSchema) {
+        CatalogManager catalogManager = ((TableEnvironmentImpl) tEnv).getCatalogManager();
+        ObjectIdentifier modelIdentifier =
+                ObjectIdentifier.of(
+                        Objects.requireNonNull(catalogManager.getCurrentCatalog()),
+                        Objects.requireNonNull(catalogManager.getCurrentDatabase()),
+                        MODEL_NAME);
+        catalogManager.createModel(
+                CatalogModel.of(inputSchema, outputSchema, modelOptions, "This is a new model."),
+                modelIdentifier,
+                false);
     }
 
     private static class TestDispatcher extends Dispatcher {
@@ -318,6 +318,11 @@ public class OpenAIChatModelTest {
                     root.get("stop").forEach(node -> stop.add(node.asText()));
                 }
 
+                int n = 1;
+                if (root.has("n")) {
+                    n = root.get("n").intValue();
+                }
+
                 StringBuilder contentBuilder = new StringBuilder("This is a mocked response");
                 contentBuilder.append(" continuation".repeat(Math.max(0, maxTokens - 6)));
                 for (String stopWord : stop) {
@@ -329,22 +334,38 @@ public class OpenAIChatModelTest {
                     }
                 }
 
+                String content = contentBuilder.toString();
+                if (root.has("response_format")
+                        && "\"json_object\""
+                                .equalsIgnoreCase(
+                                        root.get("response_format").get("type").toString())) {
+                    content = "{\\\"content\\\": \\\"" + content + "\\\"}";
+                }
+
+                List<String> choices = new ArrayList<>();
+                for (int i = 0; i < n; i++) {
+                    choices.add(
+                            "{"
+                                    + "    \"index\": 0,"
+                                    + "    \"message\": {"
+                                    + "      \"role\": \"assistant\","
+                                    + "      \"content\": \""
+                                    + content
+                                    + "\""
+                                    + "    },"
+                                    + "    \"finish_reason\": \"stop\""
+                                    + "  }");
+                }
+
                 String responseBody =
                         "{"
                                 + "  \"id\": \"chatcmpl-1234567890ABCD\","
                                 + "  \"object\": \"chat.completion\","
                                 + "  \"created\": 1717029203,"
                                 + "  \"model\": \"gpt-3.5-turbo-0125\","
-                                + "  \"choices\": [{"
-                                + "    \"index\": 0,"
-                                + "    \"message\": {"
-                                + "      \"role\": \"assistant\","
-                                + "      \"content\": \""
-                                + contentBuilder
-                                + "\""
-                                + "    },"
-                                + "    \"finish_reason\": \"stop\""
-                                + "  }],"
+                                + "  \"choices\": "
+                                + choices
+                                + ","
                                 + "  \"usage\": {"
                                 + "    \"prompt_tokens\": 9,"
                                 + "    \"completion_tokens\": "
