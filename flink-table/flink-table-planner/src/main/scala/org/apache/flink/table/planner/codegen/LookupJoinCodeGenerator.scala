@@ -24,8 +24,7 @@ import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.connector.source.{LookupTableSource, ScanTableSource}
 import org.apache.flink.table.data.{GenericRowData, RowData}
-import org.apache.flink.table.data.utils.JoinedRowData
-import org.apache.flink.table.functions.{AsyncLookupFunction, AsyncTableFunction, LookupFunction, TableFunction, UserDefinedFunction}
+import org.apache.flink.table.functions._
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.FunctionCallCodeGenerator.GeneratedTableFunctionWithDataType
@@ -36,7 +35,6 @@ import org.apache.flink.table.planner.functions.inference.FunctionCallContext
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.FunctionParam
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.{ListenableCollector, TableFunctionResultFuture}
-import org.apache.flink.table.runtime.collector.ListenableCollector.CollectListener
 import org.apache.flink.table.runtime.generated.{GeneratedCollector, GeneratedFunction, GeneratedResultFuture}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.extraction.ExtractionUtils.extractSimpleGeneric
@@ -44,7 +42,6 @@ import org.apache.flink.table.types.inference.{TypeInference, TypeStrategies, Ty
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 import org.apache.flink.table.types.utils.DataTypeUtils.transform
 import org.apache.flink.types.Row
-import org.apache.flink.util.Collector
 
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex.RexNode
@@ -358,10 +355,31 @@ object LookupJoinCodeGenerator {
       condition: RexNode,
       outputType: RelDataType,
       tableSourceRowType: RowType): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
+    generateCalcMapFunction(
+      tableConfig,
+      classLoader,
+      projection,
+      condition,
+      FlinkTypeFactory.toLogicalRowType(outputType),
+      tableSourceRowType
+    )
+  }
+
+  /**
+   * Generates calculate flatmap function for temporal join which is used to projection/filter the
+   * dimension table results
+   */
+  def generateCalcMapFunction(
+      tableConfig: ReadableConfig,
+      classLoader: ClassLoader,
+      projection: Seq[RexNode],
+      condition: RexNode,
+      outputType: RowType,
+      tableSourceRowType: RowType): GeneratedFunction[FlatMapFunction[RowData, RowData]] = {
     CalcCodeGenerator.generateFunction(
       tableSourceRowType,
       "TableCalcMapFunction",
-      FlinkTypeFactory.toLogicalRowType(outputType),
+      outputType,
       classOf[GenericRowData],
       projection,
       Option(condition),

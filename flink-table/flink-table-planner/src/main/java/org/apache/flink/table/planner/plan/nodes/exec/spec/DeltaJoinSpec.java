@@ -24,12 +24,14 @@ import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rex.RexNode;
 
 import javax.annotation.Nullable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -44,6 +46,9 @@ public class DeltaJoinSpec {
     public static final String FIELD_NAME_LOOKUP_TABLE = "lookupTable";
     public static final String FIELD_NAME_LOOKUP_KEYS = "lookupKeys";
     public static final String FIELD_NAME_REMAINING_CONDITION = "remainingCondition";
+    public static final String FIELD_NAME_PROJECTION_ON_TEMPORAL_TABLE =
+            "projectionOnTemporalTable";
+    public static final String FIELD_NAME_FILTER_ON_TEMPORAL_TABLE = "filterOnTemporalTable";
 
     @JsonProperty(FIELD_NAME_LOOKUP_TABLE)
     private final TemporalTableSourceSpec lookupTable;
@@ -56,15 +61,29 @@ public class DeltaJoinSpec {
     @JsonProperty(FIELD_NAME_REMAINING_CONDITION)
     private final @Nullable RexNode remainingCondition;
 
+    @JsonProperty(FIELD_NAME_PROJECTION_ON_TEMPORAL_TABLE)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final @Nullable List<RexNode> projectionOnTemporalTable;
+
+    @JsonProperty(FIELD_NAME_FILTER_ON_TEMPORAL_TABLE)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final @Nullable RexNode filterOnTemporalTable;
+
     @JsonCreator
     public DeltaJoinSpec(
             @JsonProperty(FIELD_NAME_LOOKUP_TABLE) TemporalTableSourceSpec lookupTable,
             @JsonProperty(FIELD_NAME_LOOKUP_KEYS)
                     Map<Integer, FunctionCallUtil.FunctionParam> lookupKeyMap,
-            @JsonProperty(FIELD_NAME_REMAINING_CONDITION) @Nullable RexNode remainingCondition) {
+            @JsonProperty(FIELD_NAME_REMAINING_CONDITION) @Nullable RexNode remainingCondition,
+            @JsonProperty(FIELD_NAME_PROJECTION_ON_TEMPORAL_TABLE) @Nullable
+                    List<RexNode> projectionOnTemporalTable,
+            @JsonProperty(FIELD_NAME_FILTER_ON_TEMPORAL_TABLE) @Nullable
+                    RexNode filterOnTemporalTable) {
         this.lookupKeyMap = lookupKeyMap;
         this.lookupTable = lookupTable;
         this.remainingCondition = remainingCondition;
+        this.projectionOnTemporalTable = projectionOnTemporalTable;
+        this.filterOnTemporalTable = filterOnTemporalTable;
     }
 
     @JsonIgnore
@@ -80,5 +99,15 @@ public class DeltaJoinSpec {
     @JsonIgnore
     public Optional<RexNode> getRemainingCondition() {
         return Optional.ofNullable(remainingCondition);
+    }
+
+    @JsonIgnore
+    public Optional<List<RexNode>> getProjectionOnTemporalTable() {
+        return Optional.ofNullable(projectionOnTemporalTable);
+    }
+
+    @JsonIgnore
+    public Optional<RexNode> getFilterOnTemporalTable() {
+        return Optional.ofNullable(filterOnTemporalTable);
     }
 }

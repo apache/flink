@@ -24,7 +24,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSp
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLookupJoin
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, JoinTypeUtil, UpsertKeyUtil}
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.{RelNode, RelWriter}
@@ -102,7 +101,7 @@ class StreamPhysicalLookupJoin(
     val (projectionOnTemporalTable, filterOnTemporalTable) = calcOnTemporalTable match {
       case Some(program) =>
         val (projection, filter) = FlinkRexUtil.expandRexProgram(program)
-        (JavaScalaConversionUtil.toJava(projection), filter.orNull)
+        (projection, filter.orNull)
       case _ =>
         (null, null)
     }

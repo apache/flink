@@ -17,12 +17,13 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql
 
+import org.apache.flink.shaded.guava33.com.google.common.collect.Lists
 import org.apache.flink.table.api.{DataTypes, ExplainDetail, Schema}
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
 import org.apache.flink.table.api.config.OptimizerConfigOptions.DeltaJoinStrategy
 import org.apache.flink.table.catalog.{CatalogTable, ObjectPath, ResolvedCatalogTable}
-import org.apache.flink.table.planner.JMap
+import org.apache.flink.table.planner.{JList, JMap}
 import org.apache.flink.table.planner.utils.{TableTestBase, TestingTableEnvironment}
 
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -171,7 +172,6 @@ class DeltaJoinTest extends TableTestBase {
 
   @Test
   def testWithNonEquiCondition2(): Unit = {
-    // could not optimize into delta join because there is a calc between join and source
     util.verifyRelPlanInsert(
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
@@ -179,6 +179,15 @@ class DeltaJoinTest extends TableTestBase {
         "and src2.b0 > src1.a0 " +
         "and src2.b2 <> 'Hello' " +
         "and src1.a0 > 99")
+  }
+
+  @Test
+  def testWithNonDeterministicInNonEquiCondition(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk select * from src1 join src2 " +
+        "on src1.a1 = src2.b1 " +
+        "and src1.a2 = src2.b2 " +
+        "and src1.a0 + rand(10) < src2.b0")
   }
 
   @Test
@@ -193,7 +202,6 @@ class DeltaJoinTest extends TableTestBase {
 
   @Test
   def testProjectFieldsBeforeJoin(): Unit = {
-    // could not optimize into delta join because the source has ProjectPushDownSpec
     util.verifyRelPlanInsert(
       "insert into snk(l0, l1, l2, r0, r2, r1) " +
         "select * from ( " +
@@ -212,8 +220,95 @@ class DeltaJoinTest extends TableTestBase {
   }
 
   @Test
+  def testProjectFieldsBeforeJoinWhileModifyingOnIndex(): Unit = {
+    // a2 is modified
+    util.verifyRelPlanInsert(
+      "insert into snk(l0, l1, l2, r0, r2, r1) " +
+        "select * from ( " +
+        "  select a0, a1, SUBSTRING(a2, 2) as a2 from src1" +
+        ") tmp join src2 " +
+        "on tmp.a1 = src2.b1 " +
+        "and tmp.a2 = src2.b2")
+  }
+
+  @Test
+  def testProjectFieldsBeforeJoinWhileModifyingOnOneIndexButRetainingAnother(): Unit = {
+    addTable(
+      "src1WithMultiIndexes",
+      Schema
+        .newBuilder()
+        .column("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING)
+        .column("a3", DataTypes.INT)
+        .index("a1", "a2")
+        .index("a1")
+        .build()
+    )
+
+    // a2 is modified
+    util.verifyRelPlanInsert(
+      "insert into snk(l0, l1, l2, r0, r2, r1) " +
+        "select * from ( " +
+        "  select a0, a1, SUBSTRING(a2, 2) as a2 from src1WithMultiIndexes" +
+        ") tmp join src2 " +
+        "on tmp.a1 = src2.b1 " +
+        "and tmp.a2 = src2.b2")
+  }
+
+  @Test
+  def testProjectFieldsBeforeJoinWhileAliasAndReorderOnIndex(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk(l1, l2, l0, r0, r2, r1) " +
+        "select * from ( " +
+        "  select a1 as a0, a2 as a1, a0 as a2 from src1" +
+        ") tmp join src2 " +
+        "on tmp.a0 = src2.b1 " +
+        "and tmp.a1 = src2.b2")
+  }
+
+  @Test
+  def testSourceDDLContainsComputingCol(): Unit = {
+    addTable(
+      "src1WithComputingCol",
+      Schema
+        .newBuilder()
+        .column("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING)
+        .columnByExpression("new_a1", "a1 + 1")
+        .index("a1", "a2")
+        .build()
+    )
+    util.verifyRelPlanInsert(
+      "insert into snk(l0, l1, r0) select a0, new_a1, b0 " +
+        "from src1WithComputingCol join src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2")
+  }
+
+  @Test
+  def testSourceDDLContainsNonDeterministicComputingCol(): Unit = {
+    addTable(
+      "src1WithComputingCol",
+      Schema
+        .newBuilder()
+        .column("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING)
+        .columnByExpression("new_a1", "a1 + rand(10)")
+        .index("a1", "a2")
+        .build()
+    )
+    util.verifyRelPlanInsert(
+      "insert into snk(l0, l1, r0) select a0, new_a1, b0 " +
+        "from src1WithComputingCol join src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2")
+  }
+
+  @Test
   def testFilterFieldsBeforeJoin(): Unit = {
-    // could not optimize into delta join because there is a calc between source and join
     util.verifyRelPlanInsert(
       "insert into snk select * from (  " +
         "  select * from src1 where a1 > 1.1 " +
@@ -232,6 +327,124 @@ class DeltaJoinTest extends TableTestBase {
   }
 
   @Test
+  def testFilterFieldsBeforeJoinWithFilterPushDown(): Unit = {
+    replaceTable("src1", "src1", Maps.newHashMap("filterable-fields", "a0"))
+    replaceTable("src2", "src2", Maps.newHashMap("filterable-fields", "b0"))
+
+    util.verifyRelPlanInsert("""
+                               |insert into snk(l0, l1, r0, r2, r1)
+                               |  select a0, a1, b0, b2, b1 from (
+                               |    select a0, a2, a1 from src1 where a0 > 1
+                               |  ) join (
+                               |    select b1, b2, b0 from src2 where b1 < 10
+                               |  )
+                               |  on a1 = b1
+                               |  and a2 = b2
+                               |  and b0 <> 0
+                               |""".stripMargin)
+  }
+
+  @Test
+  def testNonDeterministicFilterFieldsBeforeJoin(): Unit = {
+    util.verifyRelPlanInsert("""
+                               |insert into snk(l0, l1, r0, r2, r1)
+                               |  select a0, a1, b0, b2, b1 from (
+                               |    select a0, a2, a1 from src1 where a0 > rand(10)
+                               |  ) join src2
+                               |  on a1 = b1
+                               |  and a2 = b2
+                               |""".stripMargin)
+  }
+
+  @Test
+  def testNonDeterministicFilterFieldsBeforeJoinWithFilterPushDown(): Unit = {
+    replaceTable("src1", "src1", Maps.newHashMap("filterable-fields", "a0"))
+
+    // actually, 'values' source will not push down filter 'a0 > rand(10)' into source
+    util.verifyRelPlanInsert("""
+                               |insert into snk(l0, l1, r0, r2, r1)
+                               |  select a0, a1, b0, b2, b1 from (
+                               |    select a0, a2, a1 from src1 where a0 > rand(10)
+                               |  ) join src2
+                               |  on a1 = b1
+                               |  and a2 = b2
+                               |""".stripMargin)
+  }
+
+  @Test
+  def testPartitionPushDown(): Unit = {
+    addTable(
+      "src1WithPartition",
+      Schema
+        .newBuilder()
+        .column("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING)
+        .column("pt", DataTypes.INT)
+        .index("a1", "a2")
+        .build(),
+      Maps.newHashMap("partition-list", "pt:1;pt:2"),
+      Lists.newArrayList("pt")
+    )
+
+    util.verifyRelPlanInsert("""
+                               |insert into snk(l0, r0, r2)
+                               |  select a0, b0, b2 from (
+                               |    select a0, a2, a1 from src1WithPartition where pt = 1
+                               |  ) join src2
+                               |  on a1 = b1
+                               |  and a2 = b2
+                               |""".stripMargin)
+  }
+
+  @Test
+  def testReadingMetadata(): Unit = {
+    addTable(
+      "src1WithMetadata",
+      Schema
+        .newBuilder()
+        .columnByMetadata("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING)
+        .column("a3", DataTypes.INT)
+        .index("a1", "a2")
+        .build(),
+      Maps.newHashMap("readable-metadata", "a0:int")
+    )
+
+    util.verifyRelPlanInsert("""
+                               |insert into snk(l0, r0, r2)
+                               |  select a0, b0, b2 from (
+                               |    select a0, a2, a1 from src1WithMetadata
+                               |  ) join src2
+                               |  on a1 = b1
+                               |  and a2 = b2
+                               |""".stripMargin)
+  }
+
+  @Test
+  def testFilterOnNonUpsertKeysBeforeJoinWithCdcSourceWithoutDelete(): Unit = {
+    testInnerFilterOnNonUpsertKeysBeforeJoinWithCdcSourceWithoutDelete()
+  }
+
+  @Test
+  def testFilterOnNonUpsertKeysBeforeJoinWithCdcSourceWithoutDeleteAndFilterPushDown(): Unit = {
+    replaceTable("no_delete_src1", "no_delete_src1", Maps.newHashMap("filterable-fields", "a3"))
+    testInnerFilterOnNonUpsertKeysBeforeJoinWithCdcSourceWithoutDelete()
+  }
+
+  private def testInnerFilterOnNonUpsertKeysBeforeJoinWithCdcSourceWithoutDelete(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk_for_cdc_src select * from no_delete_src1 " +
+        "join no_delete_src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2 " +
+        "where a3 > 1",
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
   def testFilterOnNonUpsertKeysAfterJoinWithCdcSourceWithoutDelete(): Unit = {
     util.verifyRelPlanInsert(
       "insert into snk_for_cdc_src select * from no_delete_src1 " +
@@ -239,6 +452,28 @@ class DeltaJoinTest extends TableTestBase {
         "on a1 = b1 " +
         "and a2 = b2 " +
         "where a3 > b0",
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testFilterOnUpsertKeysBeforeJoinWithCdcSourceWithoutDelete(): Unit = {
+    testFilterOnUpsertKeysBeforeJoinWithCdcSourceWithoutDeleteInner()
+  }
+
+  @Test
+  def testFilterOnUpsertKeysBeforeJoinWithCdcSourceWithoutDeleteAndFilterPushDown(): Unit = {
+    replaceTable("no_delete_src1", "no_delete_src1", Maps.newHashMap("filterable-fields", "a0"))
+    testFilterOnUpsertKeysBeforeJoinWithCdcSourceWithoutDeleteInner()
+  }
+
+  private def testFilterOnUpsertKeysBeforeJoinWithCdcSourceWithoutDeleteInner(): Unit = {
+    util.verifyRelPlanInsert(
+      "insert into snk_for_cdc_src select * from no_delete_src1 " +
+        "join no_delete_src2 " +
+        "on a1 = b1 " +
+        "and a2 = b2 " +
+        "where a0 > 1",
       ExplainDetail.CHANGELOG_MODE
     )
   }
@@ -410,9 +645,7 @@ class DeltaJoinTest extends TableTestBase {
 
   @Test
   def testWithoutLookupTable(): Unit = {
-    util.tableEnv.executeSql(
-      "create table non_lookup_src with ('disable-lookup' = 'true') " +
-        "like src2 (OVERWRITING OPTIONS)")
+    replaceTable("src2", "non_lookup_src", Maps.newHashMap("disable-lookup", "true"))
 
     util.verifyRelPlanInsert(
       "insert into snk select * from src1 join non_lookup_src " +
@@ -444,9 +677,7 @@ class DeltaJoinTest extends TableTestBase {
       ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
       UpsertMaterialize.NONE)
 
-    util.tableEnv.executeSql(
-      "create table cdc_src with ('changelog-mode' = 'I,UA,UB,D') " +
-        "like src2 (OVERWRITING OPTIONS)")
+    replaceTable("src2", "cdc_src", Maps.newHashMap("changelog-mode", "I,UA,UB,D"))
 
     util.verifyRelPlanInsert(
       "insert into snk select * from src1 join cdc_src " +
@@ -482,11 +713,10 @@ class DeltaJoinTest extends TableTestBase {
 
   @Test
   def testPKContainJoinKeyAndOnlyOneSourceNoDelete(): Unit = {
-    util.tableEnv.executeSql("""
-                               |create table all_changelog_src with (
-                               | 'changelog-mode' = 'I,UA,UB,D'
-                               |) like no_delete_src1
-                               |""".stripMargin)
+    replaceTable(
+      "no_delete_src1",
+      "all_changelog_src",
+      Maps.newHashMap("changelog-mode", "I,UA,UB,D"))
 
     util.verifyRelPlanInsert(
       "insert into snk_for_cdc_src " +
@@ -501,17 +731,15 @@ class DeltaJoinTest extends TableTestBase {
   def testPKContainsJoinKeyAndSourceNoUBAndD(): Unit = {
     // FLINK-38489 Currently, ChangelogNormalize will always generate changelog mode with D,
     // and Join with D cannot be optimized into Delta Join
-    util.tableEnv.executeSql("""
-                               |create table no_delete_and_update_before_src1 with (
-                               | 'changelog-mode' = 'I,UA'
-                               |) like no_delete_src1
-                               |""".stripMargin)
+    replaceTable(
+      "no_delete_src1",
+      "no_delete_and_update_before_src1",
+      Maps.newHashMap("changelog-mode", "I,UA"))
 
-    util.tableEnv.executeSql("""
-                               |create table no_delete_and_update_before_src2 with (
-                               | 'changelog-mode' = 'I,UA'
-                               |) like no_delete_src2
-                               |""".stripMargin)
+    replaceTable(
+      "no_delete_src2",
+      "no_delete_and_update_before_src2",
+      Maps.newHashMap("changelog-mode", "I,UA"))
 
     util.verifyRelPlanInsert(
       "insert into snk_for_cdc_src " +
@@ -548,19 +776,6 @@ class DeltaJoinTest extends TableTestBase {
   }
 
   @Test
-  def testSourceWithSourceAbilities(): Unit = {
-    util.tableEnv.executeSql(
-      "create table filterable_src with ('filterable-fields' = 'a3') " +
-        "like src1 (OVERWRITING OPTIONS)")
-
-    util.verifyRelPlanInsert(
-      "insert into snk select * from filterable_src join src2 " +
-        "on filterable_src.a1 = src2.b1 " +
-        "and filterable_src.a2 = src2.b2 " +
-        "and filterable_src.a3 = 1")
-  }
-
-  @Test
   def testWithAggregatingSourceTableBeforeJoin(): Unit = {
     util.tableConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE,
@@ -590,7 +805,7 @@ class DeltaJoinTest extends TableTestBase {
 
   @Test
   def testWithCascadeJoin(): Unit = {
-    util.tableEnv.executeSql("create table src3 like src2")
+    replaceTable("src2", "src3", Collections.emptyMap(), dropOldTable = false)
 
     addTable(
       "tmp_snk",
@@ -817,7 +1032,8 @@ class DeltaJoinTest extends TableTestBase {
   private def addTable(
       tableName: String,
       schema: Schema,
-      extraOptions: JMap[String, String] = Collections.emptyMap()): Unit = {
+      extraOptions: JMap[String, String] = Collections.emptyMap(),
+      partitionKeys: JList[String] = Collections.emptyList()): Unit = {
     val currentCatalog = tEnv.getCurrentCatalog
     val currentDatabase = tEnv.getCurrentDatabase
     val tablePath = new ObjectPath(currentDatabase, tableName)
@@ -831,12 +1047,49 @@ class DeltaJoinTest extends TableTestBase {
       .newBuilder()
       .schema(schema)
       .comment(testComment)
-      .partitionKeys(Collections.emptyList())
+      .partitionKeys(partitionKeys)
       .options(options)
       .build()
     val resolvedTable = new ResolvedCatalogTable(original, schemaResolver.resolve(schema))
 
     catalog.createTable(tablePath, resolvedTable, false)
+  }
+
+  /** TODO remove this after fix FLINK-38571. */
+  private def replaceTable(
+      oldTableName: String,
+      newTableName: String,
+      overridesOptions: JMap[String, String],
+      dropOldTable: Boolean = true): Unit = {
+    val currentCatalog = tEnv.getCurrentCatalog
+    val currentDatabase = tEnv.getCurrentDatabase
+    val oldTablePath = new ObjectPath(currentDatabase, oldTableName)
+    val newTablePath = new ObjectPath(currentDatabase, newTableName)
+    val catalog = tEnv.getCatalog(currentCatalog).get()
+    val schemaResolver = tEnv.getCatalogManager.getSchemaResolver
+
+    val originalTable = catalog.getTable(oldTablePath).asInstanceOf[CatalogTable]
+    if (dropOldTable) {
+      catalog.dropTable(oldTablePath, false)
+    }
+
+    val originalOptions = originalTable.getOptions
+    val newOptions = new JHashMap[String, String]()
+    newOptions.putAll(originalOptions)
+    newOptions.putAll(overridesOptions)
+
+    val newTable = CatalogTable
+      .newBuilder()
+      .schema(originalTable.getUnresolvedSchema)
+      .comment(originalTable.getComment)
+      .partitionKeys(originalTable.getPartitionKeys)
+      .options(newOptions)
+      .build()
+
+    val newResolvedTable =
+      new ResolvedCatalogTable(newTable, schemaResolver.resolve(originalTable.getUnresolvedSchema))
+
+    catalog.createTable(newTablePath, newResolvedTable, false)
   }
 
 }
