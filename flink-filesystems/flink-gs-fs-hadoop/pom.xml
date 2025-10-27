@@ -36,6 +36,7 @@ under the License.
 		<!-- in the GCS file system documentation. -->
 		<fs.gs.sdk.version>2.29.1</fs.gs.sdk.version>
 		<fs.gs.connector.version>hadoop3-2.2.18</fs.gs.connector.version>
+		<fs.gs.cloud.nio.version>0.128.7</fs.gs.cloud.nio.version>
 		<!-- Set this to the highest version of grpc artifacts from gcs-connector and google-cloud-storage -->
 		<fs.gs.grpc.version>1.59.1</fs.gs.grpc.version>
 	</properties>
@@ -147,6 +148,13 @@ under the License.
 					<artifactId>javax.annotation-api</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.google.cloud</groupId>
+			<artifactId>google-cloud-nio</artifactId>
+			<version>${fs.gs.cloud.nio.version}</version>
+			<scope>test</scope>
 		</dependency>
 
 	</dependencies>
