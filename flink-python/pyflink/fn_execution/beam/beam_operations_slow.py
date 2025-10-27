@@ -198,7 +198,7 @@ class StatelessFunctionOperation(FunctionOperation):
         func_type = self.spec.serialized_fn.function_type \
             if hasattr(self.spec.serialized_fn, "function_type") else None
         if (func_type == UserDefinedDataStreamFunction.PROCESS and
-            isinstance(pickle.loads(self.spec.serialized_fn.payload), AsyncFunctionDescriptor)):
+                isinstance(pickle.loads(self.spec.serialized_fn.payload), AsyncFunctionDescriptor)):
             return AsyncOperation(self.spec.serialized_fn, self.operator_state_backend)
 
         if self.operator_state_backend is not None:

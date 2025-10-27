@@ -127,6 +127,31 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
             self.assertTrue("The 'result_future' of AsyncFunction should be completed with data of "
                             "list type" in message)
 
+    def test_complete_async_function_with_exception(self):
+        self.env.set_parallelism(1)
+        ds = self.env.from_collection(
+            [(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)],
+            type_info=Types.ROW_NAMED(["v1", "v2"], [Types.INT(), Types.INT()])
+        )
+
+        class MyAsyncFunction(AsyncFunction):
+
+            async def async_invoke(self, value: Row, result_future: ResultFuture[int]):
+                result_future.complete_exceptionally(Exception("encountered an exception"))
+
+            def timeout(self, value: Row, result_future: ResultFuture[int]):
+                # raise the same exception to make sure test case is stable in all cases
+                result_future.complete_exceptionally(Exception("encountered an exception"))
+
+        ds = AsyncDataStream.unordered_wait(
+            ds, MyAsyncFunction(), Time.seconds(5), 2, Types.INT())
+        ds.add_sink(self.test_sink)
+        try:
+            self.env.execute()
+        except Exception as e:
+            message = str(e)
+            self.assertTrue("Could not complete the element" in message)
+
     def test_raise_exception_in_async_invoke(self):
         self.env.set_parallelism(1)
         ds = self.env.from_collection(

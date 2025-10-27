@@ -53,6 +53,7 @@ class DataStreamTestSinkFunction(SinkFunction):
             return
         self.j_data_stream_collect_sink.clear()
 
+
 class SecondColumnTimestampAssigner(TimestampAssigner):
 
     def extract_timestamp(self, value, record_timestamp) -> int:

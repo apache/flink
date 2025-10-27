@@ -26,6 +26,7 @@ from pyflink.fn_execution.datastream.process.input_handler import _emit_results
 
 OUT = TypeVar('OUT')
 
+
 class StreamElementQueueEntry(ABC, ResultFuture, Generic[OUT]):
     """
     An entry for the StreamElementQueue. The stream element queue entry stores the
@@ -313,7 +314,8 @@ class UnorderedStreamElementQueue(StreamElementQueue):
             if self.has_completed_elements():
                 self._not_empty.notify()
 
-    def _add_record(self, windowed_value, timestamp, watermark, record) -> 'UnorderedStreamElementQueue.SegmentedStreamRecordQueueEntry':
+    def _add_record(self, windowed_value, timestamp, watermark, record) -> \
+            'UnorderedStreamElementQueue.SegmentedStreamRecordQueueEntry':
         if len(self._segments) == 0:
             last_segment = self._add_segment(self._capacity)
         else:
@@ -341,4 +343,3 @@ class UnorderedStreamElementQueue(StreamElementQueue):
         new_segment = UnorderedStreamElementQueue.Segment(capacity)
         self._segments.append(new_segment)
         return new_segment
-

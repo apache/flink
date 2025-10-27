@@ -18,7 +18,7 @@
 import asyncio
 import pickle
 import threading
-from typing import TypeVar, Generic, List, Iterable
+from typing import TypeVar, Generic, List, Iterable, Callable
 
 from pyflink.datastream import RuntimeContext, ResultFuture
 from pyflink.datastream.functions import AsyncFunctionDescriptor
@@ -27,6 +27,7 @@ from pyflink.fn_execution.datastream.process.async_function.queue import \
 from pyflink.fn_execution.datastream.process.operations import Operation
 from pyflink.fn_execution.datastream.process.runtime_context import StreamingRuntimeContext
 
+IN = TypeVar('IN')
 OUT = TypeVar('OUT')
 
 
@@ -57,9 +58,13 @@ class AtomicBoolean(object):
             return False
 
 
-class ResultHandler(ResultFuture, Generic[OUT]):
+class ResultHandler(ResultFuture, Generic[IN, OUT]):
 
-    def __init__(self, classname, timeout_func, exception_handler, record,
+    def __init__(self,
+                 classname: str,
+                 timeout_func: Callable[[IN, ResultFuture[[OUT]]], None],
+                 exception_handler: Callable[[Exception], None],
+                 record: IN,
                  result_future: ResultFuture[OUT]):
         self._classname = classname
         self._timeout_func = timeout_func
@@ -112,9 +117,13 @@ class ResultHandler(ResultFuture, Generic[OUT]):
         if not self._completed.get():
             self._timeout_func(self._record, self)
 
+
 class Emitter(threading.Thread):
 
-    def __init__(self, exception_handler, output_processor, queue: StreamElementQueue):
+    def __init__(self,
+                 exception_handler: Callable[[Exception], None],
+                 output_processor,
+                 queue: StreamElementQueue):
         super().__init__()
         self._exception_handler = exception_handler
         self._output_processor = output_processor
@@ -135,8 +144,9 @@ class Emitter(threading.Thread):
     def stop(self):
         self._running = False
 
+
 class AsyncFunctionRunner(threading.Thread):
-    def __init__(self, exception_handler):
+    def __init__(self, exception_handler: Callable[[Exception], None]):
         super().__init__()
         self._exception_handler = exception_handler
         self._loop = None
@@ -160,6 +170,7 @@ class AsyncFunctionRunner(threading.Thread):
     def run_async(self, async_function, *arg):
         wrapped_function = self.exception_handler_wrapper(async_function, *arg)
         asyncio.run_coroutine_threadsafe(wrapped_function, self._loop)
+
 
 class AsyncOperation(Operation):
     def __init__(self, serialized_fn, operator_state_backend):
@@ -247,6 +258,7 @@ class AsyncOperation(Operation):
         if self._exception is not None:
             raise self._exception
 
+
 def extract_async_function(user_defined_function_proto, runtime_context: RuntimeContext):
     """
     Extracts user-defined-function from the proto representation of a
@@ -273,4 +285,5 @@ def extract_async_function(user_defined_function_proto, runtime_context: Runtime
     async_invoke_func = async_function.async_invoke
     timeout_func = async_function.timeout
 
-    return class_name, open_func, close_func, async_invoke_func, timeout_func, timeout, capacity, output_mode
+    return (class_name, open_func, close_func, async_invoke_func, timeout_func, timeout, capacity,
+            output_mode)

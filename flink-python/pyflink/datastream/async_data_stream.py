@@ -64,7 +64,7 @@ class AsyncDataStream(object):
             j_python_data_stream_function_operator))
 
     @staticmethod
-    def _validate(data_stream: DataStream, async_function: AsyncFunction):
+    def _validate(data_stream: DataStream, async_function: AsyncFunction) -> None:
         if not inspect.iscoroutinefunction(async_function.async_invoke):
             raise Exception("Method 'async_invoke' of class '%s' should be declared as 'async def'."
                             % type(async_function))
