@@ -21,6 +21,7 @@ import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.rules.logical._
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.planner.plan.rules.physical.batch._
+import org.apache.flink.table.planner.plan.rules.physical.common.PhysicalVectorSearchTableFunctionRule
 
 import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.logical.{LogicalIntersect, LogicalMinus, LogicalUnion}
@@ -121,6 +122,8 @@ object FlinkBatchRuleSets {
         // unnest rule
         LogicalUnnestRule.INSTANCE,
         UncollectToTableFunctionScanRule.INSTANCE,
+        // vector search rule.
+        ConstantVectorSearchCallToCorrelateRule.INSTANCE,
         // Wrap arguments for JSON aggregate functions
         WrapJsonAggFunctionArgumentsRule.INSTANCE
       )).asJava)
@@ -425,6 +428,8 @@ object FlinkBatchRuleSets {
     BatchPhysicalLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
     // CEP
     BatchPhysicalMatchRule.INSTANCE,
+    // ml
+    PhysicalVectorSearchTableFunctionRule.BATCH_INSTANCE,
     // correlate
     BatchPhysicalConstantTableFunctionScanRule.INSTANCE,
     BatchPhysicalCorrelateRule.INSTANCE,

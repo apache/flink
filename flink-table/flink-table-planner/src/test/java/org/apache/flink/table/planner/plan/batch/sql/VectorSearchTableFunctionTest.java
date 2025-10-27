@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.stream.sql;
+package org.apache.flink.table.planner.plan.batch.sql;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.functions.sql.ml.SqlVectorSearchTableFunction;
@@ -28,6 +28,6 @@ public class VectorSearchTableFunctionTest extends VectorSearchTableFunctionTest
 
     @Override
     protected TableTestUtil getUtil() {
-        return streamTestUtil(TableConfig.getDefault());
+        return batchTestUtil(TableConfig.getDefault());
     }
 }

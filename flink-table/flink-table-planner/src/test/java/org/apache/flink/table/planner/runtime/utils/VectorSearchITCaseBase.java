@@ -16,61 +16,59 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.runtime.stream.table;
+package org.apache.flink.table.planner.runtime.utils;
 
 import org.apache.flink.core.testutils.FlinkAssertions;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase;
-import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
-import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
-import java.time.Duration;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.TimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThatList;
 
-/** ITCase for async VECTOR_SEARCH. */
-@ExtendWith(ParameterizedTestExtension.class)
-public class AsyncVectorSearchITCase extends StreamingWithStateTestBase {
+/** Base ITCase to verify {@code VECTOR_SEARCH} function. */
+public abstract class VectorSearchITCaseBase {
 
-    public AsyncVectorSearchITCase(StateBackendMode state) {
-        super(state);
-    }
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION = new MiniClusterExtension();
+
+    protected TableEnvironment tEnv;
+
+    protected abstract TableEnvironment getTableEnvironment();
+
+    protected abstract boolean isAsync();
 
     private final List<Row> data =
             Arrays.asList(
                     Row.of(1L, new Float[] {5f, 12f, 13f}),
                     Row.of(2L, new Float[] {11f, 60f, 61f}),
                     Row.of(3L, new Float[] {8f, 15f, 17f}));
-
     private final List<Row> nullableData =
             Arrays.asList(Row.of(1L, new Float[] {5f, 12f, 13f}), Row.of(4L, null));
 
     @BeforeEach
-    public void before() {
-        super.before();
+    public void before() throws Exception {
+        tEnv = getTableEnvironment();
         createTable("src", data);
         createTable("nullableSrc", nullableData);
         createTable("vector", data);
     }
 
-    @TestTemplate
+    @Test
     void testSimple() {
         List<Row> actual =
                 CollectionUtil.iteratorToList(
-                        tEnv().executeSql(
+                        tEnv.executeSql(
                                         "SELECT * FROM src, LATERAL TABLE(VECTOR_SEARCH(TABLE vector, DESCRIPTOR(`vector`), src.vector, 2))")
                                 .collect());
         assertThatList(actual)
@@ -113,11 +111,11 @@ public class AsyncVectorSearchITCase extends StreamingWithStateTestBase {
                                 0.9977375565610862));
     }
 
-    @TestTemplate
+    @Test
     void testLeftLateralJoin() {
         List<Row> actual =
                 CollectionUtil.iteratorToList(
-                        tEnv().executeSql(
+                        tEnv.executeSql(
                                         "SELECT * FROM nullableSrc LEFT JOIN LATERAL TABLE(VECTOR_SEARCH(TABLE vector, DESCRIPTOR(`vector`), nullableSrc.vector, 2)) ON TRUE")
                                 .collect());
         assertThatList(actual)
@@ -137,28 +135,11 @@ public class AsyncVectorSearchITCase extends StreamingWithStateTestBase {
                         Row.of(4L, null, null, null, null));
     }
 
-    @TestTemplate
-    void testTimeout() {
-        tEnv().getConfig()
-                .set(
-                        ExecutionConfigOptions.TABLE_EXEC_ASYNC_VECTOR_SEARCH_TIMEOUT,
-                        Duration.ofMillis(100));
-        assertThatThrownBy(
-                        () ->
-                                CollectionUtil.iteratorToList(
-                                        tEnv().executeSql(
-                                                        "SELECT * FROM nullableSrc LEFT JOIN LATERAL TABLE(VECTOR_SEARCH(TABLE vector, DESCRIPTOR(`vector`), nullableSrc.vector, 2)) ON TRUE")
-                                                .collect()))
-                .satisfies(
-                        FlinkAssertions.anyCauseMatches(
-                                TimeoutException.class, "Async function call has timed out."));
-    }
-
-    @TestTemplate
+    @Test
     void testConstantValue() {
         List<Row> actual =
                 CollectionUtil.iteratorToList(
-                        tEnv().executeSql(
+                        tEnv.executeSql(
                                         "SELECT * FROM TABLE(VECTOR_SEARCH(TABLE vector, DESCRIPTOR(`vector`), ARRAY[5, 12, 13], 2))")
                                 .collect());
         assertThat(actual)
@@ -167,93 +148,33 @@ public class AsyncVectorSearchITCase extends StreamingWithStateTestBase {
                         Row.of(3L, new Float[] {8f, 15f, 17f}, 0.9977375565610862));
     }
 
-    @TestTemplate
+    @Test
     void testVectorSearchWithCalc() {
         assertThatThrownBy(
                         () ->
-                                tEnv().executeSql(
-                                                "SELECT * FROM nullableSrc\n "
-                                                        + "LEFT JOIN LATERAL TABLE(VECTOR_SEARCH((SELECT id+1, vector FROM vector), DESCRIPTOR(`vector`), nullableSrc.vector, 2)) ON TRUE"))
+                                tEnv.executeSql(
+                                        "SELECT * FROM nullableSrc\n "
+                                                + "LEFT JOIN LATERAL TABLE(VECTOR_SEARCH((SELECT id+1, vector FROM vector), DESCRIPTOR(`vector`), nullableSrc.vector, 2)) ON TRUE"))
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 UnsupportedOperationException.class,
                                 "Don't support calc on VECTOR_SEARCH node now."));
     }
 
-    @TestTemplate
-    void testRuntimeConfig() {
-        assertThatThrownBy(
-                        () ->
-                                CollectionUtil.iteratorToList(
-                                        tEnv().executeSql(
-                                                        "SELECT * FROM nullableSrc LEFT JOIN LATERAL TABLE(VECTOR_SEARCH(TABLE vector, DESCRIPTOR(`vector`), nullableSrc.vector, 2, MAP['timeout', '100ms'])) ON TRUE")
-                                                .collect()))
-                .satisfies(
-                        FlinkAssertions.anyCauseMatches(
-                                TimeoutException.class, "Async function call has timed out."));
-    }
-
-    @Parameters(name = "backend = {0}, objectReuse = {1}, asyncOutputMode = {2}")
-    public static Collection<Object[]> parameters() {
-        return Arrays.asList(
-                new Object[][] {
-                    {
-                        StreamingWithStateTestBase.HEAP_BACKEND(),
-                        true,
-                        ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED
-                    },
-                    {
-                        StreamingWithStateTestBase.HEAP_BACKEND(),
-                        true,
-                        ExecutionConfigOptions.AsyncOutputMode.ORDERED
-                    },
-                    {
-                        StreamingWithStateTestBase.HEAP_BACKEND(),
-                        false,
-                        ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED
-                    },
-                    {
-                        StreamingWithStateTestBase.HEAP_BACKEND(),
-                        false,
-                        ExecutionConfigOptions.AsyncOutputMode.ORDERED
-                    },
-                    {
-                        StreamingWithStateTestBase.ROCKSDB_BACKEND(),
-                        true,
-                        ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED
-                    },
-                    {
-                        StreamingWithStateTestBase.ROCKSDB_BACKEND(),
-                        true,
-                        ExecutionConfigOptions.AsyncOutputMode.ORDERED
-                    },
-                    {
-                        StreamingWithStateTestBase.ROCKSDB_BACKEND(),
-                        false,
-                        ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED
-                    },
-                    {
-                        StreamingWithStateTestBase.ROCKSDB_BACKEND(),
-                        false,
-                        ExecutionConfigOptions.AsyncOutputMode.ORDERED
-                    }
-                });
-    }
-
     private void createTable(String tableName, List<Row> data) {
         String dataId = TestValuesTableFactory.registerData(data);
-        tEnv().executeSql(
-                        String.format(
-                                "CREATE TABLE `%s`(\n"
-                                        + "  id BIGINT,\n"
-                                        + "  vector ARRAY<FLOAT>\n"
-                                        + ") WITH (\n"
-                                        + "  'connector' = 'values',\n"
-                                        + "  'enable-vector-search' = 'true',\n"
-                                        + "  'data-id' = '%s',\n"
-                                        + "  'async' = 'true',\n"
-                                        + "  'latency' = '1000'"
-                                        + ")",
-                                tableName, dataId));
+        tEnv.executeSql(
+                String.format(
+                        "CREATE TABLE `%s`(\n"
+                                + "  id BIGINT,\n"
+                                + "  vector ARRAY<FLOAT>\n"
+                                + ") WITH (\n"
+                                + "  'connector' = 'values',\n"
+                                + "  'enable-vector-search' = 'true',\n"
+                                + "  'data-id' = '%s',\n"
+                                + "  'bounded' = 'true',\n"
+                                + "  'async' = '%s' "
+                                + ")",
+                        tableName, dataId, isAsync()));
     }
 }

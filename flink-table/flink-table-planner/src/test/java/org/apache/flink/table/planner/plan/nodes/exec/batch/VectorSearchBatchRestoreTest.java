@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
-import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchRestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
@@ -28,11 +28,11 @@ import static org.apache.flink.table.planner.plan.nodes.exec.common.VectorSearch
 import static org.apache.flink.table.planner.plan.nodes.exec.common.VectorSearchTestPrograms.SYNC_VECTOR_SEARCH;
 import static org.apache.flink.table.planner.plan.nodes.exec.common.VectorSearchTestPrograms.VECTOR_SEARCH_WITH_RUNTIME_CONFIG;
 
-/** Restore tests for {@link StreamExecVectorSearchTableFunction}. */
-public class VectorSearchRestoreTest extends RestoreTestBase {
+/** Batch Compiled Plan tests for {@link BatchExecVectorSearchTableFunction}. */
+public class VectorSearchBatchRestoreTest extends BatchRestoreTestBase {
 
-    public VectorSearchRestoreTest() {
-        super(StreamExecVectorSearchTableFunction.class);
+    public VectorSearchBatchRestoreTest() {
+        super(BatchExecVectorSearchTableFunction.class);
     }
 
     @Override

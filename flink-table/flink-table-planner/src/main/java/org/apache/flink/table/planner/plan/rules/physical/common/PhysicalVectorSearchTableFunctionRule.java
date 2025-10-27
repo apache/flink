@@ -16,16 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.rules.physical.stream;
+package org.apache.flink.table.planner.plan.rules.physical.common;
 
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.ml.SqlVectorSearchTableFunction;
+import org.apache.flink.table.planner.plan.nodes.FlinkConvention;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.VectorSearchSpec;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCorrelate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRel;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalVectorSearchTableFunction;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalVectorSearchTableFunction;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
@@ -65,13 +67,16 @@ import java.util.Map;
  * StreamPhysicalVectorSearchTableFunction}.
  */
 @Value.Enclosing
-public class StreamPhysicalVectorSearchTableFunctionRule
-        extends RelRule<StreamPhysicalVectorSearchTableFunctionRule.Config> {
+public class PhysicalVectorSearchTableFunctionRule
+        extends RelRule<PhysicalVectorSearchTableFunctionRule.Config> {
 
-    public static final StreamPhysicalVectorSearchTableFunctionRule INSTANCE =
-            Config.DEFAULT.toRule();
+    public static final PhysicalVectorSearchTableFunctionRule STREAM_INSTANCE =
+            Config.STREAM_INSTANCE.toRule();
 
-    protected StreamPhysicalVectorSearchTableFunctionRule(Config config) {
+    public static final PhysicalVectorSearchTableFunctionRule BATCH_INSTANCE =
+            Config.BATCH_INSTANCE.toRule();
+
+    protected PhysicalVectorSearchTableFunctionRule(Config config) {
         super(config);
     }
 
@@ -90,7 +95,7 @@ public class StreamPhysicalVectorSearchTableFunctionRule
     public void onMatch(RelOptRuleCall call) {
         // QUERY_TABLE
         RelNode input = call.rel(1);
-        final RelNode newInput = RelOptRule.convert(input, FlinkConventions.STREAM_PHYSICAL());
+        final RelNode newInput = RelOptRule.convert(input, config.convention());
 
         // SEARCH_TABLE
         FlinkLogicalCorrelate correlate = call.rel(0);
@@ -99,28 +104,62 @@ public class StreamPhysicalVectorSearchTableFunctionRule
         SearchTableExtractor extractor = new SearchTableExtractor(functionName);
         extractor.visit(vectorSearchCall.getInput(0));
 
-        call.transformTo(
-                new StreamPhysicalVectorSearchTableFunction(
-                        correlate.getCluster(),
-                        correlate.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL()),
-                        newInput,
-                        extractor.searchTable,
-                        extractor.calcProgram == null
-                                ? null
-                                : pullUpRexProgram(
-                                        input.getCluster(),
-                                        extractor.searchTable.getRowType(),
-                                        vectorSearchCall.getRowType(),
-                                        correlate
-                                                .getRowType()
-                                                .getFieldList()
-                                                .subList(
-                                                        input.getRowType().getFieldCount(),
-                                                        correlate.getRowType().getFieldCount()),
-                                        extractor.calcProgram),
-                        buildVectorSearchSpec(
-                                correlate, vectorSearchCall, extractor.searchTable, functionName),
-                        correlate.getRowType()));
+        if (config.convention() == FlinkConventions.STREAM_PHYSICAL()) {
+            call.transformTo(
+                    new StreamPhysicalVectorSearchTableFunction(
+                            correlate.getCluster(),
+                            correlate.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL()),
+                            newInput,
+                            extractor.searchTable,
+                            extractor.calcProgram == null
+                                    ? null
+                                    : pullUpRexProgram(
+                                            input.getCluster(),
+                                            extractor.searchTable.getRowType(),
+                                            vectorSearchCall.getRowType(),
+                                            correlate
+                                                    .getRowType()
+                                                    .getFieldList()
+                                                    .subList(
+                                                            input.getRowType().getFieldCount(),
+                                                            correlate.getRowType().getFieldCount()),
+                                            extractor.calcProgram),
+                            buildVectorSearchSpec(
+                                    correlate,
+                                    vectorSearchCall,
+                                    extractor.searchTable,
+                                    functionName),
+                            correlate.getRowType()));
+        } else if (config.convention() == FlinkConventions.BATCH_PHYSICAL()) {
+            call.transformTo(
+                    new BatchPhysicalVectorSearchTableFunction(
+                            correlate.getCluster(),
+                            correlate.getTraitSet().replace(FlinkConventions.BATCH_PHYSICAL()),
+                            newInput,
+                            extractor.searchTable,
+                            extractor.calcProgram == null
+                                    ? null
+                                    : pullUpRexProgram(
+                                            input.getCluster(),
+                                            extractor.searchTable.getRowType(),
+                                            vectorSearchCall.getRowType(),
+                                            correlate
+                                                    .getRowType()
+                                                    .getFieldList()
+                                                    .subList(
+                                                            input.getRowType().getFieldCount(),
+                                                            correlate.getRowType().getFieldCount()),
+                                            extractor.calcProgram),
+                            buildVectorSearchSpec(
+                                    correlate,
+                                    vectorSearchCall,
+                                    extractor.searchTable,
+                                    functionName),
+                            correlate.getRowType()));
+        } else {
+            throw new UnsupportedOperationException(
+                    "Unsupported convention: " + config.convention());
+        }
     }
 
     private VectorSearchSpec buildVectorSearchSpec(
@@ -257,10 +296,10 @@ public class StreamPhysicalVectorSearchTableFunctionRule
     @Value.Immutable
     public interface Config extends RelRule.Config {
 
-        Config DEFAULT =
-                ImmutableStreamPhysicalVectorSearchTableFunctionRule.Config.builder()
-                        .build()
-                        .withOperandSupplier(
+        Config STREAM_INSTANCE =
+                ImmutablePhysicalVectorSearchTableFunctionRule.Config.builder()
+                        .convention(FlinkConventions.STREAM_PHYSICAL())
+                        .operandSupplier(
                                 b0 ->
                                         b0.operand(FlinkLogicalCorrelate.class)
                                                 .inputs(
@@ -272,12 +311,33 @@ public class StreamPhysicalVectorSearchTableFunctionRule
                                                                                 FlinkLogicalTableFunctionScan
                                                                                         .class)
                                                                         .anyInputs()))
-                        .withDescription("StreamPhysicalVectorSearchTableFunctionRule");
+                        .description("StreamPhysicalVectorSearchTableFunctionRule")
+                        .build();
+
+        Config BATCH_INSTANCE =
+                ImmutablePhysicalVectorSearchTableFunctionRule.Config.builder()
+                        .convention(FlinkConventions.BATCH_PHYSICAL())
+                        .operandSupplier(
+                                b0 ->
+                                        b0.operand(FlinkLogicalCorrelate.class)
+                                                .inputs(
+                                                        b1 ->
+                                                                b1.operand(FlinkLogicalRel.class)
+                                                                        .anyInputs(),
+                                                        b2 ->
+                                                                b2.operand(
+                                                                                FlinkLogicalTableFunctionScan
+                                                                                        .class)
+                                                                        .anyInputs()))
+                        .description("BatchPhysicalVectorSearchTableFunctionRule")
+                        .build();
 
         @Override
-        default StreamPhysicalVectorSearchTableFunctionRule toRule() {
-            return new StreamPhysicalVectorSearchTableFunctionRule(this);
+        default PhysicalVectorSearchTableFunctionRule toRule() {
+            return new PhysicalVectorSearchTableFunctionRule(this);
         }
+
+        FlinkConvention convention();
     }
 
     /**
