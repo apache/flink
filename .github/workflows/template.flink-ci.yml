@@ -70,7 +70,7 @@ env:
 jobs:
   compile:
     name: "Compile"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     container:
       image: chesnay/flink-ci:java_8_11_17_21_maven_386_jammy
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
@@ -126,7 +126,7 @@ jobs:
   packaging:
     name: "Test packaging/licensing"
     needs: compile
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     container:
       image: chesnay/flink-ci:java_8_11_17_21_maven_386_jammy
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
@@ -166,7 +166,7 @@ jobs:
   test:
     name: "Test (module: ${{ matrix.module }})"
     needs: compile
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     container:
       image: chesnay/flink-ci:java_8_11_17_21_maven_386_jammy
       # --init makes the process in the container being started as an init process which will clean up any daemon processes during shutdown
@@ -290,7 +290,7 @@ jobs:
     name: "E2E (group ${{ matrix.group }})"
     needs: compile
     # the end to end tests are not executed in Flink's CI Docker container due to problems when running Docker-in-Docker
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 310
     env:
       # timeout in minutes - this environment variable is required by uploading_watchdog.sh
@@ -331,7 +331,9 @@ jobs:
           python-version: '3.12'
 
       - name: "Install missing packages"
-        run: sudo apt-get install -y net-tools docker zip
+        run: sudo apt-get install -y net-tools zip &&
+             curl -sSL -o kubectl "https://dl.k8s.io/release/$(curl -sSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" &&
+             sudo install -m 0755 kubectl /usr/local/bin/kubectl
 
       # netty-tcnative requires OpenSSL v1.0.0
       - name: "Install OpenSSL"
