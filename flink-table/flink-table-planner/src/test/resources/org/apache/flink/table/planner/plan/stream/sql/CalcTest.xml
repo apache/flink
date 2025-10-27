@@ -535,4 +535,72 @@ Calc(select=[ROW(1, 'Hi', a) AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRepeatedTryCast">
+    <Resource name="sql">
+      <![CDATA[SELECT TRY_CAST(TRY_CAST(a AS STRING) AS STRING) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[TRY_CAST($0)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[TRY_CAST(a AS VARCHAR(2147483647)) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRepeatedTryCastAfterCast">
+    <Resource name="sql">
+      <![CDATA[SELECT TRY_CAST(CAST(a AS STRING) AS STRING) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[CAST($0):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[CAST(a AS VARCHAR(2147483647)) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRepeatedTryCastSameType">
+    <Resource name="sql">
+      <![CDATA[SELECT TRY_CAST(a AS BIGINT) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRepeatedTryCastDifferentType">
+    <Resource name="sql">
+      <![CDATA[SELECT TRY_CAST(TRY_CAST(a AS STRING) AS INTEGER) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[TRY_CAST(TRY_CAST($0))])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[TRY_CAST(TRY_CAST(a AS VARCHAR(2147483647)) AS INTEGER) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
 </Root>
