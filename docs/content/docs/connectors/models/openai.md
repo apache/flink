@@ -218,6 +218,42 @@ FROM ML_PREDICT(
             <td>Long</td>
             <td>Maximum number of tokens to generate. See <a href="https://platform.openai.com/docs/api-reference/chat/create#chat-create-max_tokens">max tokens</a></td>
         </tr>
+        <tr>
+            <td>
+                <h5>presence-penalty</h5>
+            </td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Double</td>
+            <td>Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they appear in the text so far, increasing the model's likelihood to talk about new topics.</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>n</h5>
+            </td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Long</td>
+            <td>How many chat completion choices to generate for each input message. Note that you will be charged based on the number of generated tokens across all of the choices. Keep n as 1 to minimize costs.</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>seed</h5>
+            </td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Long</td>
+            <td>If specified, the model platform will make a best effort to sample deterministically, such that repeated requests with the same seed and parameters should return the same result. Determinism is not guaranteed.</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>response-format</h5>
+            </td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Enum</td>
+            <td>The format of the response, e.g., 'text' or 'json_object'.</td>
+        </tr>
     </tbody>
 </table>
 

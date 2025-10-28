@@ -218,6 +218,42 @@ FROM ML_PREDICT(
             <td>Long</td>
             <td>生成的最大token数。参考<a href="https://platform.openai.com/docs/api-reference/chat/create#chat-create-max_tokens">max tokens</a></td>
         </tr>
+        <tr>
+            <td>
+                <h5>presence-penalty</h5>
+            </td>
+            <td>可选</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Double</td>
+            <td>数值范围为-2.0到2.0之间。正值会根据新token是否出现在当前文本中对其进行惩罚，从而增加模型讨论新话题的可能性。</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>n</h5>
+            </td>
+            <td>可选</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Long</td>
+            <td>为每个输入消息生成的聊天完成选项数量。请注意，您将根据所有选项生成的token数量进行收费。为最小化成本，需将n保持为1。</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>seed</h5>
+            </td>
+            <td>可选</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Long</td>
+            <td>如果指定，模型平台将尽最大努力进行确定性采样，使得使用相同种子和参数的重复请求应返回相同的结果。但不保证结果一定是确定的。</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>response-format</h5>
+            </td>
+            <td>可选</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Enum</td>
+            <td>响应的格式，例如 'text' 或 'json_object'。</td>
+        </tr>
     </tbody>
 </table>
 

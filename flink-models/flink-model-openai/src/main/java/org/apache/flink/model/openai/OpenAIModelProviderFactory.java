@@ -74,6 +74,10 @@ public class OpenAIModelProviderFactory implements ModelProviderFactory {
         set.add(OpenAIChatModelFunction.TOP_P);
         set.add(OpenAIChatModelFunction.STOP);
         set.add(OpenAIChatModelFunction.MAX_TOKENS);
+        set.add(OpenAIChatModelFunction.PRESENCE_PENALTY);
+        set.add(OpenAIChatModelFunction.N);
+        set.add(OpenAIChatModelFunction.SEED);
+        set.add(OpenAIChatModelFunction.RESPONSE_FORMAT);
         set.add(OpenAIEmbeddingModelFunction.DIMENSION);
         return set;
     }
