@@ -179,7 +179,7 @@ class UnorderedStreamElementQueue(StreamElementQueue):
 
         def __init__(self, capacity):
             self._incomplete_elements = set()
-            self._complete_elements = collections.deque(maxlen=capacity)
+            self._completed_elements = collections.deque(maxlen=capacity)
 
         def add(self, entry: StreamElementQueueEntry):
             """
@@ -187,7 +187,7 @@ class UnorderedStreamElementQueue(StreamElementQueue):
             directly moved into the completed queue.
             """
             if entry.is_done():
-                self._complete_elements.append(entry)
+                self._completed_elements.append(entry)
             else:
                 self._incomplete_elements.add(entry)
 
@@ -201,7 +201,7 @@ class UnorderedStreamElementQueue(StreamElementQueue):
             """
             try:
                 self._incomplete_elements.remove(entry)
-                self._complete_elements.append(entry)
+                self._completed_elements.append(entry)
             except KeyError:
                 pass
 
@@ -213,23 +213,23 @@ class UnorderedStreamElementQueue(StreamElementQueue):
 
             :return: The number of popped input elements.
             """
-            if len(self._complete_elements) == 0:
+            if len(self._completed_elements) == 0:
                 return 0
 
-            completed_entry = self._complete_elements.popleft()
+            completed_entry = self._completed_elements.popleft()
             return completed_entry.emit_result(output_processor)
 
         def is_empty(self):
             """
             True if there are no incomplete elements and all complete elements have been consumed.
             """
-            return len(self._incomplete_elements) == 0 and len(self._complete_elements) == 0
+            return len(self._incomplete_elements) == 0 and len(self._completed_elements) == 0
 
         def has_completed(self):
             """
             True if there is at least one completed elements.
             """
-            return len(self._complete_elements) > 0
+            return len(self._completed_elements) > 0
 
     class SegmentedStreamRecordQueueEntry(StreamRecordQueueEntry):
         """

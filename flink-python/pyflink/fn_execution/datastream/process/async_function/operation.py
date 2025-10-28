@@ -90,7 +90,6 @@ class ResultHandler(ResultFuture, Generic[IN, OUT]):
             # complete with empty result, so that we remove timer and move ahead processing
             self._process_results([])
 
-        if not isinstance(result, Iterable):
             raise RuntimeError("The 'result_future' of AsyncFunction should be completed with "
                                "data of list type, please check the methods 'async_invoke' and "
                                "'timeout' of class '%s'." % self._classname)
@@ -150,16 +149,29 @@ class AsyncFunctionRunner(threading.Thread):
         super().__init__()
         self._exception_handler = exception_handler
         self._loop = None
+        self._ready = threading.Event()
 
     def run(self):
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
-        self._loop.run_forever()
+        # notify that the event loop is ready
+        self._ready.set()
+
+        try:
+            self._loop.run_forever()
+        finally:
+            self._loop.close()
+
+    def wait_ready(self):
+        """
+        Waits until the event loop is ready.
+        """
+        return self._ready.wait()
 
     def stop(self):
-        if self._loop is not None:
-            self._loop.stop()
-            self._loop = None
+        if self._loop is not None and not self._loop.is_closed():
+            self._loop.call_soon_threadsafe(self._loop.stop)
+            self.join(timeout=1.0)
 
     async def exception_handler_wrapper(self, async_function, *arg):
         try:
@@ -194,7 +206,7 @@ class AsyncOperation(Operation):
         if output_mode == AsyncFunctionDescriptor.OutputMode.UNORDERED:
             self._queue = UnorderedStreamElementQueue(capacity, self._raise_exception_if_exists)
         else:
-            raise NotImplementedError()
+            raise NotImplementedError("ORDERED mode is still not supported.")
         self._emitter = None
         self._async_function_runner = None
         self._exception = None
@@ -204,6 +216,7 @@ class AsyncOperation(Operation):
 
     def open(self):
         self.open_func()
+
         self._emitter = Emitter(self._mark_exception, self._output_processor, self._queue)
         self._emitter.daemon = True
         self._emitter.start()
@@ -211,9 +224,9 @@ class AsyncOperation(Operation):
         self._async_function_runner = AsyncFunctionRunner(self._mark_exception)
         self._async_function_runner.daemon = True
         self._async_function_runner.start()
+        self._async_function_runner.wait_ready()
 
     def close(self):
-        self.close_func()
         if self._emitter is not None:
             self._emitter.stop()
             self._emitter = None
@@ -221,6 +234,10 @@ class AsyncOperation(Operation):
         if self._async_function_runner is not None:
             self._async_function_runner.stop()
             self._async_function_runner = None
+
+        self._exception = None
+
+        self.close_func()
 
     def process_element(self, windowed_value, element):
         self._raise_exception_if_exists()
