@@ -41,6 +41,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
+
 /** Tests for {@link ChangelogStateBackend} delegating {@link EmbeddedRocksDBStateBackend}. */
 public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
         extends EmbeddedRocksDBStateBackendTest {
@@ -60,11 +62,6 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
     @Override
     protected boolean supportsMetaInfoVerification() {
         return false;
-    }
-
-    @Override
-    protected boolean isSafeToReuseKVState() {
-        return true;
     }
 
     @TestTemplate
@@ -118,6 +115,9 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
 
     @TestTemplate
     public void testMaterializedRestorePriorityQueue() throws Exception {
+        assumeFalse(
+                useHeapTimer,
+                "Heap priority queue does not support restore test on managed keyed state");
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         ChangelogStateBackendTestUtils.testMaterializedRestoreForPriorityQueue(
