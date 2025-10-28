@@ -21,25 +21,41 @@ package org.apache.flink.model.openai;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.description.InlineElement;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.data.ArrayData;
+import org.apache.flink.table.data.GenericArrayData;
+import org.apache.flink.table.data.GenericMapData;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.BinaryStringData;
 import org.apache.flink.table.factories.ModelProviderFactory;
 import org.apache.flink.table.functions.AsyncPredictFunction;
 import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.Preconditions;
 
 import com.openai.client.OpenAIClientAsync;
+import com.openai.core.http.Headers;
+import com.openai.errors.OpenAIServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -58,6 +74,7 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
     private final String model;
     @Nullable private final Integer maxContextSize;
     private final ContextOverflowAction contextOverflowAction;
+    protected final List<String> outputColumnNames;
 
     public AbstractOpenAIModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
@@ -79,6 +96,9 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
                 factoryContext.getCatalogModel().getResolvedInputSchema(),
                 new VarCharType(VarCharType.MAX_LENGTH),
                 "input");
+
+        this.outputColumnNames =
+                factoryContext.getCatalogModel().getResolvedOutputSchema().getColumnNames();
     }
 
     @Override
@@ -123,23 +143,19 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
     protected void validateSingleColumnSchema(
             ResolvedSchema schema, LogicalType expectedType, String inputOrOutput) {
         List<Column> columns = schema.getColumns();
-        if (columns.size() != 1) {
+        List<String> physicalColumnNames =
+                columns.stream()
+                        .filter(Column::isPhysical)
+                        .map(Column::getName)
+                        .collect(Collectors.toList());
+        if (physicalColumnNames.size() != 1) {
             throw new IllegalArgumentException(
                     String.format(
-                            "Model should have exactly one %s column, but actually has %s columns: %s",
-                            inputOrOutput,
-                            columns.size(),
-                            columns.stream().map(Column::getName).collect(Collectors.toList())));
+                            "Model should have exactly one %s physical column, but actually has %s physical columns: %s",
+                            inputOrOutput, physicalColumnNames.size(), physicalColumnNames));
         }
 
-        Column column = columns.get(0);
-        if (!column.isPhysical()) {
-            throw new IllegalArgumentException(
-                    String.format(
-                            "%s column %s should be a physical column, but is a %s.",
-                            inputOrOutput, column.getName(), column.getClass()));
-        }
-
+        Column column = schema.getColumn(physicalColumnNames.get(0)).get();
         if (!expectedType.equals(column.getDataType().getLogicalType())) {
             throw new IllegalArgumentException(
                     String.format(
@@ -148,6 +164,33 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
                             column.getName(),
                             expectedType,
                             column.getDataType().getLogicalType()));
+        }
+
+        List<Column> metadataColumns =
+                columns.stream()
+                        .filter(x -> x instanceof Column.MetadataColumn)
+                        .collect(Collectors.toList());
+        if (!metadataColumns.isEmpty()) {
+            Preconditions.checkArgument(
+                    "output".equals(inputOrOutput), "Only output schema supports metadata column");
+
+            for (Column metadataColumn : metadataColumns) {
+                ErrorMessageMetadata errorMessageMetadata =
+                        ErrorMessageMetadata.get(metadataColumn.getName());
+                Preconditions.checkNotNull(
+                        errorMessageMetadata,
+                        String.format(
+                                "Unexpected metadata column %s. Supported metadata columns:\n%s",
+                                metadataColumn.getName(),
+                                ErrorMessageMetadata.getAllKeysAndDescriptions()));
+                Preconditions.checkArgument(
+                        errorMessageMetadata.dataType.equals(metadataColumn.getDataType()),
+                        String.format(
+                                "Expected metadata column %s to be of type %s, but is of type %s",
+                                metadataColumn.getName(),
+                                errorMessageMetadata.dataType,
+                                metadataColumn.getDataType()));
+            }
         }
     }
 
@@ -160,7 +203,20 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
         if (finalErrorHandlingStrategy == ErrorHandlingStrategy.FAILOVER) {
             throw new RuntimeException(t);
         } else if (finalErrorHandlingStrategy == ErrorHandlingStrategy.IGNORE) {
-            return Collections.emptyList();
+            LOG.warn(
+                    "The input row data failed to acquire a valid response. Ignoring the input.",
+                    t);
+            GenericRowData rowData = new GenericRowData(this.outputColumnNames.size());
+            boolean isMetadataSet = false;
+            for (int i = 0; i < this.outputColumnNames.size(); i++) {
+                String columnName = this.outputColumnNames.get(i);
+                ErrorMessageMetadata errorMessageMetadata = ErrorMessageMetadata.get(columnName);
+                if (errorMessageMetadata != null) {
+                    rowData.setField(i, errorMessageMetadata.converter.apply(t));
+                    isMetadataSet = true;
+                }
+            }
+            return isMetadataSet ? Collections.singletonList(rowData) : Collections.emptyList();
         } else {
             throw new UnsupportedOperationException(
                     "Unsupported error handling strategy: " + finalErrorHandlingStrategy);
@@ -202,6 +258,80 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
         @Override
         public InlineElement getDescription() {
             return text(strategy.description);
+        }
+    }
+
+    /**
+     * Metadata that can be read from the output row about error messages. Referenced from Flink
+     * HTTP Connector's ReadableMetadata.
+     */
+    protected enum ErrorMessageMetadata {
+        ERROR_STRING(
+                "error-string",
+                DataTypes.STRING(),
+                x -> BinaryStringData.fromString(x.getMessage()),
+                "A message associated with the error"),
+        HTTP_STATUS_CODE(
+                "http-status-code",
+                DataTypes.INT(),
+                e ->
+                        ExceptionUtils.findThrowable(e, OpenAIServiceException.class)
+                                .map(OpenAIServiceException::statusCode)
+                                .orElse(null),
+                "The HTTP status code"),
+        HTTP_HEADERS_MAP(
+                "http-headers-map",
+                DataTypes.MAP(DataTypes.STRING(), DataTypes.ARRAY(DataTypes.STRING())),
+                e ->
+                        ExceptionUtils.findThrowable(e, OpenAIServiceException.class)
+                                .map(
+                                        e1 -> {
+                                            Map<StringData, ArrayData> map = new HashMap<>();
+                                            Headers headers = e1.headers();
+                                            for (String name : headers.names()) {
+                                                map.put(
+                                                        BinaryStringData.fromString(name),
+                                                        new GenericArrayData(
+                                                                headers.values(name).stream()
+                                                                        .map(
+                                                                                BinaryStringData
+                                                                                        ::fromString)
+                                                                        .toArray()));
+                                            }
+                                            return new GenericMapData(map);
+                                        })
+                                .orElse(null),
+                "The headers returned with the response");
+
+        final String key;
+        final DataType dataType;
+        final Function<Throwable, Object> converter;
+        final String description;
+
+        ErrorMessageMetadata(
+                String key,
+                DataType dataType,
+                Function<Throwable, Object> converter,
+                String description) {
+            this.key = key;
+            this.dataType = dataType;
+            this.converter = converter;
+            this.description = description;
+        }
+
+        static @Nullable ErrorMessageMetadata get(String key) {
+            for (ErrorMessageMetadata value : values()) {
+                if (value.key.equals(key)) {
+                    return value;
+                }
+            }
+            return null;
+        }
+
+        static String getAllKeysAndDescriptions() {
+            return Arrays.stream(values())
+                    .map(value -> value.key + ":\t" + value.description)
+                    .collect(Collectors.joining("\n"));
         }
     }
 }

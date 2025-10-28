@@ -48,6 +48,7 @@ public class OpenAIChatModelFunction extends AbstractOpenAIModelFunction {
     private final String model;
     private final String systemPrompt;
     private final Configuration config;
+    private final int outputColumnIndex;
 
     public OpenAIChatModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
@@ -59,6 +60,21 @@ public class OpenAIChatModelFunction extends AbstractOpenAIModelFunction {
                 factoryContext.getCatalogModel().getResolvedOutputSchema(),
                 new VarCharType(VarCharType.MAX_LENGTH),
                 "output");
+        this.outputColumnIndex = getOutputColumnIndex();
+    }
+
+    private int getOutputColumnIndex() {
+        for (int i = 0; i < this.outputColumnNames.size(); i++) {
+            String columnName = this.outputColumnNames.get(i);
+            if (ErrorMessageMetadata.get(columnName) == null) {
+                // Prior checks have guaranteed that there is one and only one physical output
+                // column.
+                return i;
+            }
+        }
+        throw new IllegalArgumentException(
+                "There should be one and only one physical output column. Actual columns: "
+                        + this.outputColumnNames);
     }
 
     @Override
@@ -97,10 +113,15 @@ public class OpenAIChatModelFunction extends AbstractOpenAIModelFunction {
 
         return chatCompletion.choices().stream()
                 .map(
-                        choice ->
-                                GenericRowData.of(
-                                        BinaryStringData.fromString(
-                                                choice.message().content().orElse(""))))
+                        choice -> {
+                            GenericRowData rowData =
+                                    new GenericRowData(this.outputColumnNames.size());
+                            rowData.setField(
+                                    this.outputColumnIndex,
+                                    BinaryStringData.fromString(
+                                            choice.message().content().orElse("")));
+                            return rowData;
+                        })
                 .collect(Collectors.toList());
     }
 
