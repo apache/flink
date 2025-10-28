@@ -33,7 +33,6 @@ import com.openai.models.embeddings.EmbeddingCreateParams.EncodingFormat;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -73,10 +72,15 @@ public class OpenAIEmbeddingModelFunction extends AbstractOpenAIModelFunction {
             builder.dimensions(dimensions);
         }
 
-        return client.embeddings().create(builder.build()).thenApply(this::convertToRowData);
+        return client.embeddings().create(builder.build()).handle(this::convertToRowData);
     }
 
-    private List<RowData> convertToRowData(CreateEmbeddingResponse response) {
+    private Collection<RowData> convertToRowData(
+            CreateEmbeddingResponse response, Throwable throwable) {
+        if (throwable != null) {
+            return handleErrorsAndRespond(throwable);
+        }
+
         return response.data().stream()
                 .map(
                         embedding ->

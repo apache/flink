@@ -34,7 +34,6 @@ import com.openai.models.chat.completions.ChatCompletionCreateParams.ResponseFor
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -87,13 +86,15 @@ public class OpenAIChatModelFunction extends AbstractOpenAIModelFunction {
                 .getOptional(OpenAIOptions.RESPONSE_FORMAT)
                 .ifPresent(x -> builder.responseFormat(x.getResponseFormat()));
 
-        return client.chat()
-                .completions()
-                .create(builder.build())
-                .thenApply(this::convertToRowData);
+        return client.chat().completions().create(builder.build()).handle(this::convertToRowData);
     }
 
-    private List<RowData> convertToRowData(ChatCompletion chatCompletion) {
+    private Collection<RowData> convertToRowData(
+            ChatCompletion chatCompletion, Throwable throwable) {
+        if (throwable != null) {
+            return handleErrorsAndRespond(throwable);
+        }
+
         return chatCompletion.choices().stream()
                 .map(
                         choice ->
