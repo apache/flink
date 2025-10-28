@@ -110,8 +110,8 @@ public class DeltaJoinUtil {
     private static final Set<Class<?>> ALL_SUPPORTED_ABILITY_SPEC_IN_SOURCE =
             Sets.newHashSet(
                     FilterPushDownSpec.class,
-                    PartitionPushDownSpec.class,
                     ProjectPushDownSpec.class,
+                    PartitionPushDownSpec.class,
                     // TODO FLINK-38569 ReadingMetadataSpec should not be generated when there are
                     //  no metadata keys to be read
                     ReadingMetadataSpec.class);
@@ -143,7 +143,7 @@ public class DeltaJoinUtil {
             return false;
         }
 
-        if (!allUpstreamCalcSupported(join)) {
+        if (!areAllUpstreamCalcSupported(join)) {
             return false;
         }
 
@@ -313,7 +313,8 @@ public class DeltaJoinUtil {
         }
         JoinSpec joinSpec = join.joinSpec();
         Optional<RexNode> nonEquiCond = joinSpec.getNonEquiCondition();
-        if (nonEquiCond.isPresent() && !RexUtil.isDeterministic(nonEquiCond.get())) {
+        if (nonEquiCond.isPresent()
+                && !areAllRexNodeDeterministic(Collections.singletonList(nonEquiCond.get()))) {
             return false;
         }
 
@@ -519,19 +520,24 @@ public class DeltaJoinUtil {
         return (TableScan) node;
     }
 
-    private static boolean allUpstreamCalcSupported(StreamPhysicalJoin join) {
-        List<Calc> calcListFromLeftInput = collectCalcBetweenJoinAndTableScan(join.getLeft());
+    private static boolean areAllUpstreamCalcSupported(StreamPhysicalJoin join) {
+        return areAllUpstreamCalcFromOneJoinInputSupported(join.getLeft())
+                && areAllUpstreamCalcFromOneJoinInputSupported(join.getRight());
+    }
+
+    private static boolean areAllUpstreamCalcFromOneJoinInputSupported(RelNode joinInput) {
+        List<Calc> calcListFromThisInput = collectCalcBetweenJoinAndTableScan(joinInput);
 
         // currently, at most one calc is allowed to appear between Join and TableScan
-        if (calcListFromLeftInput.size() > 1) {
+        if (calcListFromThisInput.size() > 1) {
             return false;
         }
 
-        if (calcListFromLeftInput.isEmpty()) {
+        if (calcListFromThisInput.isEmpty()) {
             return true;
         }
 
-        Calc calc = calcListFromLeftInput.get(0);
+        Calc calc = calcListFromThisInput.get(0);
         return isCalcSupported(calc);
     }
 
@@ -564,6 +570,11 @@ public class DeltaJoinUtil {
     }
 
     private static boolean areAllRexNodeDeterministic(List<RexNode> rexNodes) {
+        // Delta joins may produce duplicate data, and when this data is sent downstream, we want it
+        // to be processed in an idempotent manner. However, the presence of non-deterministic
+        // functions can lead to unpredictable results, such as random filtering or the addition of
+        // non-deterministic columns. Therefore, we strictly prohibit the use of non-deterministic
+        // functions in this context to ensure consistent and reliable processing.
         return rexNodes.stream().allMatch(RexUtil::isDeterministic);
     }
 

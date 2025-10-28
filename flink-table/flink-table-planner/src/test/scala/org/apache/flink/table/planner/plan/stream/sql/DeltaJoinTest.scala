@@ -345,12 +345,25 @@ class DeltaJoinTest extends TableTestBase {
   }
 
   @Test
-  def testNonDeterministicFilterFieldsBeforeJoin(): Unit = {
+  def testNonDeterministicFilterFieldsBeforeJoin1(): Unit = {
     util.verifyRelPlanInsert("""
                                |insert into snk(l0, l1, r0, r2, r1)
                                |  select a0, a1, b0, b2, b1 from (
                                |    select a0, a2, a1 from src1 where a0 > rand(10)
                                |  ) join src2
+                               |  on a1 = b1
+                               |  and a2 = b2
+                               |""".stripMargin)
+  }
+
+  @Test
+  def testNonDeterministicFilterFieldsBeforeJoin2(): Unit = {
+    util.verifyRelPlanInsert("""
+                               |insert into snk
+                               |  select * from src1
+                               |  join (
+                               |    select * from src2 where b0 > rand(10)
+                               |  )
                                |  on a1 = b1
                                |  and a2 = b2
                                |""".stripMargin)

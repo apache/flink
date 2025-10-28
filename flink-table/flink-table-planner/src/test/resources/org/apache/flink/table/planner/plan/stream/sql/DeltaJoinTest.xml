@@ -780,7 +780,7 @@ Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, 
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testNonDeterministicFilterFieldsBeforeJoin">
+  <TestCase name="testNonDeterministicFilterFieldsBeforeJoin1">
     <Resource name="sql">
       <![CDATA[
 insert into snk(l0, l1, r0, r2, r1)
@@ -812,6 +812,41 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5
       :     +- TableSourceScan(table=[[default_catalog, default_database, src1, filter=[], project=[a0, a1, a2], metadata=[]]], fields=[a0, a1, a2])
       +- Exchange(distribution=[hash[b1, b2]])
          +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNonDeterministicFilterFieldsBeforeJoin2">
+    <Resource name="sql">
+      <![CDATA[
+insert into snk
+  select * from src1
+  join (
+    select * from src2 where b0 > rand(10)
+  )
+  on a1 = b1
+  and a2 = b2
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
+   +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalProject(b0=[$0], b2=[$1], b1=[$2])
+         +- LogicalFilter(condition=[>($0, RAND(10))])
+            +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a1, a2]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
+   +- Exchange(distribution=[hash[b1, b2]])
+      +- Calc(select=[b0, b2, b1], where=[>(b0, RAND(10))])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2, filter=[]]], fields=[b0, b2, b1])
 ]]>
     </Resource>
   </TestCase>
