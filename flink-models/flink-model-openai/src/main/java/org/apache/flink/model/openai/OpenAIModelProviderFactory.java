@@ -69,6 +69,9 @@ public class OpenAIModelProviderFactory implements ModelProviderFactory {
         Set<ConfigOption<?>> set = new HashSet<>();
         set.add(OpenAIOptions.MAX_CONTEXT_SIZE);
         set.add(OpenAIOptions.CONTEXT_OVERFLOW_ACTION);
+        set.add(OpenAIOptions.ERROR_HANDLING_STRATEGY);
+        set.add(OpenAIOptions.RETRY_NUM);
+        set.add(OpenAIOptions.RETRY_FALLBACK_STRATEGY);
         set.add(OpenAIOptions.SYSTEM_PROMPT);
         set.add(OpenAIOptions.TEMPERATURE);
         set.add(OpenAIOptions.TOP_P);

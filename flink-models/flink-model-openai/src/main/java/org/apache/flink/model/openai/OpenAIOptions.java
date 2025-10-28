@@ -83,6 +83,34 @@ public class OpenAIOptions {
                                     .text("Action to handle context overflows.")
                                     .build());
 
+    @Documentation.Section({Documentation.Sections.MODEL_OPENAI_COMMON})
+    public static final ConfigOption<AbstractOpenAIModelFunction.ErrorHandlingStrategy>
+            ERROR_HANDLING_STRATEGY =
+                    ConfigOptions.key("error-handling-strategy")
+                            .enumType(AbstractOpenAIModelFunction.ErrorHandlingStrategy.class)
+                            .defaultValue(AbstractOpenAIModelFunction.ErrorHandlingStrategy.RETRY)
+                            .withDescription("Strategy for handling errors during model requests.");
+
+    // The model service enforces rate-limiting constraints, necessitating retry mechanisms in
+    // most operational scenarios.
+    @Documentation.Section({Documentation.Sections.MODEL_OPENAI_COMMON})
+    public static final ConfigOption<Integer> RETRY_NUM =
+            ConfigOptions.key("retry-num")
+                    .intType()
+                    .defaultValue(100)
+                    .withDescription("Number of retry for OpenAI client requests.");
+
+    @Documentation.Section({Documentation.Sections.MODEL_OPENAI_COMMON})
+    public static final ConfigOption<AbstractOpenAIModelFunction.RetryFallbackStrategy>
+            RETRY_FALLBACK_STRATEGY =
+                    ConfigOptions.key("retry-fallback-strategy")
+                            .enumType(AbstractOpenAIModelFunction.RetryFallbackStrategy.class)
+                            .defaultValue(
+                                    AbstractOpenAIModelFunction.RetryFallbackStrategy.FAILOVER)
+                            .withDescription(
+                                    "Fallback strategy to employ if the retry attempts are exhausted."
+                                            + " This strategy is applied when error-handling-strategy is set to retry.");
+
     // ------------------------------------------------------------------------
     // Options for Chat Completion Model Functions
     // ------------------------------------------------------------------------

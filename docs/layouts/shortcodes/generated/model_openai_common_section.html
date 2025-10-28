@@ -27,6 +27,12 @@
             <td>Full URL of the OpenAI API endpoint, e.g., <code class="highlighter-rouge">https://api.openai.com/v1/chat/completions</code> or <code class="highlighter-rouge">https://api.openai.com/v1/embeddings</code></td>
         </tr>
         <tr>
+            <td><h5>error-handling-strategy</h5></td>
+            <td style="word-wrap: break-word;">RETRY</td>
+            <td><p>Enum</p></td>
+            <td>Strategy for handling errors during model requests.<br /><br />Possible values:<ul><li>"RETRY": Retry sending the request.</li><li>"FAILOVER": Throw exceptions and fail the Flink job.</li><li>"IGNORE": Ignore the input that caused the error and continue. The error itself would be recorded in log.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>max-context-size</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Integer</td>
@@ -37,6 +43,18 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Model name, e.g., <code class="highlighter-rouge">gpt-3.5-turbo</code>, <code class="highlighter-rouge">text-embedding-ada-002</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>retry-fallback-strategy</h5></td>
+            <td style="word-wrap: break-word;">FAILOVER</td>
+            <td><p>Enum</p></td>
+            <td>Fallback strategy to employ if the retry attempts are exhausted. This strategy is applied when error-handling-strategy is set to retry.<br /><br />Possible values:<ul><li>"FAILOVER": Throw exceptions and fail the Flink job.</li><li>"IGNORE": Ignore the input that caused the error and continue. The error itself would be recorded in log.</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>retry-num</h5></td>
+            <td style="word-wrap: break-word;">100</td>
+            <td>Integer</td>
+            <td>Number of retry for OpenAI client requests.</td>
         </tr>
     </tbody>
 </table>
