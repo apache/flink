@@ -105,7 +105,7 @@ public class DeltaJoinUtil {
     /**
      * All supported {@link SourceAbilitySpec}s in sources. Only the sources with the following
      * {@link SourceAbilitySpec} can be used as delta join sources. Otherwise, the regular join will
-     * not be optimized into * the delta join.
+     * not be optimized into the delta join.
      */
     private static final Set<Class<?>> ALL_SUPPORTED_ABILITY_SPEC_IN_SOURCE =
             Sets.newHashSet(

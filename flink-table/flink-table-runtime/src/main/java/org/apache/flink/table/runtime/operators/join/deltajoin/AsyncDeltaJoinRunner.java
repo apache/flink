@@ -145,7 +145,7 @@ public class AsyncDeltaJoinRunner extends RichAsyncFunction<RowData, RowData> {
         FunctionUtils.setFunctionRuntimeContext(fetcher, getRuntimeContext());
         FunctionUtils.openFunction(fetcher, openContext);
 
-        // try to compile the generated calc and ResultFuture, fail fast if the code is corrupt.
+        // try to compile the generated Calc and ResultFuture, fail fast if the code is corrupt.
         if (lookupSideGeneratedCalc != null) {
             lookupSideGeneratedCalc.compile(getRuntimeContext().getUserCodeClassLoader());
         }
