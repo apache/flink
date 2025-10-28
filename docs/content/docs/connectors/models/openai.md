@@ -94,6 +94,8 @@ FROM ML_PREDICT(
 
 ## Schema Requirement
 
+The following table lists the schema requirement for each task.
+
 <table class="table table-bordered">
     <thead>
         <tr>
@@ -115,3 +117,15 @@ FROM ML_PREDICT(
         </tr>
     </tbody>
 </table>
+
+### Available Metadata
+
+When configuring `error-handling-strategy` as `ignore`, you can choose to additionally specify the
+following metadata columns to surface information about failures into your stream.
+
+* error-string(STRING): A message associated with the error
+* http-status-code(INT): The HTTP status code
+* http-headers-map(MAP<STRING, ARRAY<STRING>>): The headers returned with the response
+
+If you defined these metadata columns in the output schema but the call did not fail, the columns 
+will be filled with null values.

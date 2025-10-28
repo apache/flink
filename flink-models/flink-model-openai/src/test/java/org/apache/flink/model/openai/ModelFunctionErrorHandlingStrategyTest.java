@@ -172,6 +172,43 @@ public class ModelFunctionErrorHandlingStrategyTest {
     }
 
     @Test
+    public void testIgnoreAndSurfaceError() {
+        modelOptions.put("error-handling-strategy", "ignore");
+        Schema outputSchemaWithErrorMessage =
+                Schema.newBuilder()
+                        .columnByMetadata("error-string", DataTypes.STRING())
+                        .column("content", DataTypes.STRING())
+                        .columnByMetadata("http-status-code", DataTypes.INT())
+                        .columnByMetadata(
+                                "http-headers-map",
+                                DataTypes.MAP(
+                                        DataTypes.STRING(), DataTypes.ARRAY(DataTypes.STRING())))
+                        .build();
+
+        createModel(INPUT_SCHEMA, outputSchemaWithErrorMessage);
+        TableResult tableResult =
+                tEnv.executeSql(
+                        String.format(
+                                "WITH v(input) AS (SELECT * FROM (VALUES ('%s'))) "
+                                        + "SELECT * FROM ML_PREDICT( "
+                                        + "  TABLE v, "
+                                        + "  MODEL `%s`, "
+                                        + "  DESCRIPTOR(`input`) "
+                                        + ")",
+                                RETRYABLE_INPUT_DATA, modelName));
+        List<Row> result = IteratorUtils.toList(tableResult.collect());
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getArity()).isEqualTo(5);
+        assertThat((String) result.get(0).getFieldAs(0)).isEqualTo(RETRYABLE_INPUT_DATA);
+        assertThat((String) result.get(0).getFieldAs(1))
+                .isEqualTo("com.openai.errors.RateLimitException: 429: null");
+        assertThat(result.get(0).getField(2)).isNull();
+        assertThat((Integer) result.get(0).getFieldAs(3)).isEqualTo(429);
+        assertThat((Map<String, String[]>) result.get(0).getFieldAs(4))
+                .containsEntry("Content-Length", new String[] {"0"});
+    }
+
+    @Test
     public void testFailoverStrategy() {
         modelOptions.put("error-handling-strategy", "failover");
         createModel();

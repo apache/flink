@@ -115,3 +115,13 @@ FROM ML_PREDICT(
         </tr>
     </tbody>
 </table>
+
+### 可用元数据
+
+当配置 `error-handling-strategy` 为 `ignore` 时，您可以选择额外指定以下元数据列，将故障信息展示到您的输出流中。
+
+* error-string(STRING)：与错误相关的消息
+* http-status-code(INT)：HTTP状态码
+* http-headers-map(MAP<STRING, ARRAY<STRING>>)：响应返回的头部信息
+
+如果您在Output Schema中定义了这些元数据列，但调用未失败，则这些列将填充为null值。

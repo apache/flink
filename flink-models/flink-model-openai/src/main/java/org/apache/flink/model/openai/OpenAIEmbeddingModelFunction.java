@@ -44,6 +44,7 @@ public class OpenAIEmbeddingModelFunction extends AbstractOpenAIModelFunction {
 
     private final String model;
     @Nullable private final Long dimensions;
+    private final int outputColumnIndex;
 
     public OpenAIEmbeddingModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
@@ -55,6 +56,21 @@ public class OpenAIEmbeddingModelFunction extends AbstractOpenAIModelFunction {
                 factoryContext.getCatalogModel().getResolvedOutputSchema(),
                 new ArrayType(new FloatType()),
                 "output");
+        this.outputColumnIndex = getOutputColumnIndex();
+    }
+
+    private int getOutputColumnIndex() {
+        for (int i = 0; i < this.outputColumnNames.size(); i++) {
+            String columnName = this.outputColumnNames.get(i);
+            if (ErrorMessageMetadata.get(columnName) == null) {
+                // Prior checks have guaranteed that there is one and only one physical output
+                // column.
+                return i;
+            }
+        }
+        throw new IllegalArgumentException(
+                "There should be one and only one physical output column. Actual columns: "
+                        + this.outputColumnNames);
     }
 
     @Override
@@ -83,12 +99,17 @@ public class OpenAIEmbeddingModelFunction extends AbstractOpenAIModelFunction {
 
         return response.data().stream()
                 .map(
-                        embedding ->
-                                GenericRowData.of(
-                                        new GenericArrayData(
-                                                embedding.embedding().stream()
-                                                        .map(Double::floatValue)
-                                                        .toArray(Float[]::new))))
+                        embedding -> {
+                            GenericRowData rowData =
+                                    new GenericRowData(this.outputColumnNames.size());
+                            rowData.setField(
+                                    outputColumnIndex,
+                                    new GenericArrayData(
+                                            embedding.embedding().stream()
+                                                    .map(Double::floatValue)
+                                                    .toArray(Float[]::new)));
+                            return rowData;
+                        })
                 .collect(Collectors.toList());
     }
 }
