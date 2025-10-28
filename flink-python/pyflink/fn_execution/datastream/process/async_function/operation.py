@@ -18,10 +18,11 @@
 import asyncio
 import pickle
 import threading
-from typing import TypeVar, Generic, List, Iterable, Callable
+from datetime import datetime
+from typing import TypeVar, Generic, List, Iterable, Callable, Optional
 
 from pyflink.datastream import RuntimeContext, ResultFuture
-from pyflink.datastream.functions import AsyncFunctionDescriptor
+from pyflink.datastream.functions import AsyncFunctionDescriptor, AsyncRetryStrategy
 from pyflink.fn_execution.datastream.process.async_function.queue import \
     UnorderedStreamElementQueue, StreamElementQueue
 from pyflink.fn_execution.datastream.process.operations import Operation
@@ -117,6 +118,83 @@ class ResultHandler(ResultFuture, Generic[IN, OUT]):
             self._timeout_func(self._record, self)
 
 
+class RetryableResultHandler(ResultFuture, Generic[IN, OUT]):
+
+    def __init__(self,
+                 result_handler: ResultHandler[IN, OUT],
+                 async_invoke_func_runner: Callable[[IN, ResultFuture[[OUT]]], None],
+                 retry_strategy: AsyncRetryStrategy[OUT]):
+        self._result_handler = result_handler
+        self._async_invoke_func_runner = async_invoke_func_runner
+        self._retry_strategy = retry_strategy
+        self._retry_result_predicate = \
+            retry_strategy.get_retry_predicate().result_predicate() or (lambda _: False)
+        self._retry_exception_predicate = \
+            retry_strategy.get_retry_predicate().exception_predicate() or (lambda _: False)
+        self._retry_awaiting = AtomicBoolean(False)
+        self._current_attempts = 1
+
+    def register_timeout(self, timeout):
+        timer = threading.Timer(timeout, self._timer_triggered)
+        timer.start()
+        self._result_handler._timer = timer
+        self._start_ts = datetime.now()
+        self._timeout = timeout
+
+    def complete(self, result: List[OUT]):
+        self._process_retry(result, None)
+
+    def complete_exceptionally(self, error: Exception):
+        self._process_retry(None, error)
+
+    def _process_retry(self, result: Optional[List[OUT]], error: Optional[Exception]):
+        if not self._retry_awaiting.compare_and_set(False, True):
+            return
+
+        satisfy = ((result is not None and self._retry_result_predicate(result)) or
+                   (error is not None and self._retry_exception_predicate(error)))
+
+        if (not self._is_timeout() and satisfy and
+                self._retry_strategy.can_retry(self._current_attempts)):
+
+            next_backoff_time_sec = self._retry_strategy.get_backoff_time_millis(
+                self._current_attempts) / 1000
+            self._delayed_retry_timer = threading.Timer(next_backoff_time_sec, self._do_retry)
+            self._delayed_retry_timer.start()
+        else:
+            if result is not None:
+                self._result_handler.complete(result)
+            else:
+                self._result_handler.complete_exceptionally(error)
+
+    def _is_timeout(self) -> bool:
+        diff = datetime.now() - self._start_ts
+        return diff.total_seconds() > self._timeout
+
+    def _do_retry(self):
+        if self._retry_awaiting.compare_and_set(True, False):
+            self._current_attempts += 1
+            self._async_invoke_func_runner(self._result_handler._record, self)
+
+    def _cancel_retry_timer(self):
+        if self._delayed_retry_timer is not None:
+            self._delayed_retry_timer.cancel()
+            self._delayed_retry_timer = None
+
+    def _timer_triggered(self):
+        """
+        Rewrite the timeout process to deal with retry state.
+        """
+        if not self._result_handler._completed.get():
+            # cancel delayed retry timer first
+            self._cancel_retry_timer()
+
+            # force reset _retry_awaiting to prevent the handler to trigger retry unnecessarily
+            self._retry_awaiting.set(False)
+
+            self._result_handler._timeout_func(self._result_handler._record, self)
+
+
 class Emitter(threading.Thread):
 
     def __init__(self,
@@ -195,6 +273,7 @@ class AsyncOperation(Operation):
             self.timeout_func,
             self._timeout,
             capacity,
+            self._async_retry_strategy,
             output_mode
         ) = extract_async_function(
             user_defined_function_proto=serialized_fn,
@@ -202,7 +281,13 @@ class AsyncOperation(Operation):
                 serialized_fn.runtime_context, self.base_metric_group
             )
         )
-        self._retry_enabled = False
+
+        self._result_predicate = self._async_retry_strategy.get_retry_predicate().result_predicate()
+        self._exception_predicate = (
+            self._async_retry_strategy.get_retry_predicate().exception_predicate())
+        self._retry_enabled = (self._result_predicate is not None or
+                               self._exception_predicate is not None)
+
         if output_mode == AsyncFunctionDescriptor.OutputMode.UNORDERED:
             self._queue = UnorderedStreamElementQueue(capacity, self._raise_exception_if_exists)
         else:
@@ -251,13 +336,19 @@ class AsyncOperation(Operation):
         entry = self._queue.put(windowed_value, timestamp, watermark, record)
 
         if self._retry_enabled:
-            raise NotImplementedError
+            result_handler = ResultHandler(
+                self.class_name, self.timeout_func, self._mark_exception, record, entry)
+            retryable_result_handler = RetryableResultHandler(
+                result_handler, self._async_invoke_func_runner, self._async_retry_strategy)
+            # timeout is always > 0
+            retryable_result_handler.register_timeout(self._timeout)
+            self._async_invoke_func_runner(record, retryable_result_handler)
         else:
             result_handler = ResultHandler(
                 self.class_name, self.timeout_func, self._mark_exception, record, entry)
             if self._timeout > 0:
                 result_handler.register_timeout(self._timeout)
-            self._async_function_runner.run_async(self.async_invoke_func, record, result_handler)
+            self._async_invoke_func_runner(record, result_handler)
 
     def finish(self):
         self._wait_for_in_flight_inputs_finished()
@@ -275,6 +366,9 @@ class AsyncOperation(Operation):
         if self._exception is not None:
             raise self._exception
 
+    def _async_invoke_func_runner(self, record, result_handler):
+        self._async_function_runner.run_async(self.async_invoke_func, record, result_handler)
+
 
 def extract_async_function(user_defined_function_proto, runtime_context: RuntimeContext):
     """
@@ -289,6 +383,7 @@ def extract_async_function(user_defined_function_proto, runtime_context: Runtime
     class_name = type(async_function)
     timeout = async_function_descriptor.timeout.to_milliseconds() / 1000
     capacity = async_function_descriptor.capacity
+    async_retry_strategy = async_function_descriptor.async_retry_strategy
     output_mode = async_function_descriptor.output_mode
 
     def open_func():
@@ -303,4 +398,4 @@ def extract_async_function(user_defined_function_proto, runtime_context: Runtime
     timeout_func = async_function.timeout
 
     return (class_name, open_func, close_func, async_invoke_func, timeout_func, timeout, capacity,
-            output_mode)
+            async_retry_strategy, output_mode)

@@ -20,7 +20,7 @@ import random
 
 from pyflink.common import Types, Row, Time, Configuration, WatermarkStrategy
 from pyflink.datastream import AsyncDataStream, AsyncFunction, ResultFuture, \
-    StreamExecutionEnvironment
+    StreamExecutionEnvironment, AsyncRetryStrategy
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction, \
     SecondColumnTimestampAssigner
 from pyflink.java_gateway import get_gateway
@@ -224,6 +224,46 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
         self.env.execute()
         results = self.test_sink.get_results(False)
         expected = ['0', '0', '0', '0', '0']
+        self.assert_equals_sorted(expected, results)
+
+    def test_async_with_retry(self):
+        self.env.set_parallelism(1)
+        ds = self.env.from_collection(
+            [(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)],
+            type_info=Types.ROW_NAMED(["v1", "v2"], [Types.INT(), Types.INT()])
+        )
+
+        class MyAsyncFunction(AsyncFunction):
+
+            def __init__(self):
+                self.retries = {}
+
+            async def async_invoke(self, value: Row, result_future: ResultFuture[int]):
+                await asyncio.sleep(1)
+                if value in self.retries:
+                    result_future.complete([value[0] + value[1]])
+                else:
+                    self.retries[value] = True
+                    result_future.complete_exceptionally(ValueError("failed the first time"))
+
+            def timeout(self, value: Row, result_future: ResultFuture[int]):
+                result_future.complete([value[0] + value[1]])
+
+        def exception_predicate(exception: Exception):
+            return "failed the first time" in str(exception)
+
+        async_retry_strategy = AsyncRetryStrategy.fixed_delay(
+            max_attempts=5,
+            backoff_time_millis=1000,
+            result_predicate=None,
+            exception_predicate=exception_predicate
+        )
+        ds = AsyncDataStream.unordered_wait_with_retry(
+            ds, MyAsyncFunction(), Time.seconds(5), async_retry_strategy, 2, Types.INT())
+        ds.add_sink(self.test_sink)
+        self.env.execute()
+        results = self.test_sink.get_results(False)
+        expected = ['2', '4', '6', '8', '10']
         self.assert_equals_sorted(expected, results)
 
 
