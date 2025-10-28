@@ -1481,7 +1481,7 @@ public class DateTimeUtils {
         try {
             return formatter.format(date);
         } catch (Exception e) {
-            LOG.error("Exception when formatting.", e);
+            LOG.debug("Exception when formatting.", e);
             return null;
         }
     }
