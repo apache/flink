@@ -24,7 +24,7 @@ from typing import TypeVar, Generic, List, Iterable, Callable, Optional
 from pyflink.datastream import RuntimeContext, ResultFuture
 from pyflink.datastream.functions import AsyncFunctionDescriptor, AsyncRetryStrategy
 from pyflink.fn_execution.datastream.process.async_function.queue import \
-    UnorderedStreamElementQueue, StreamElementQueue
+    UnorderedStreamElementQueue, StreamElementQueue, OrderedStreamElementQueue
 from pyflink.fn_execution.datastream.process.operations import Operation
 from pyflink.fn_execution.datastream.process.runtime_context import StreamingRuntimeContext
 
@@ -291,7 +291,7 @@ class AsyncOperation(Operation):
         if output_mode == AsyncFunctionDescriptor.OutputMode.UNORDERED:
             self._queue = UnorderedStreamElementQueue(capacity, self._raise_exception_if_exists)
         else:
-            raise NotImplementedError("ORDERED mode is still not supported.")
+            self._queue = OrderedStreamElementQueue(capacity, self._raise_exception_if_exists)
         self._emitter = None
         self._async_function_runner = None
         self._exception = None

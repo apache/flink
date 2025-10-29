@@ -90,6 +90,65 @@ class AsyncDataStream(object):
             j_python_data_stream_function_operator))
 
     @staticmethod
+    def ordered_wait(
+            data_stream: DataStream,
+            async_function: AsyncFunction,
+            timeout: Time,
+            capacity: int = 100,
+            output_type: TypeInformation = None) -> 'DataStream':
+        """
+        Adds an async function to the data stream. The order to process input records
+        is guaranteed to be the same as input ones.
+
+        :param data_stream: The input data stream.
+        :param async_function: The async function.
+        :param timeout: The timeout for the asynchronous operation to complete.
+        :param capacity: The max number of async i/o operation that can be triggered.
+        :param output_type: The output data type.
+        :return: The transformed DataStream.
+        """
+        return AsyncDataStream.ordered_wait_with_retry(
+            data_stream, async_function, timeout, async_retry_strategies.NO_RETRY_STRATEGY,
+            capacity, output_type)
+
+    @staticmethod
+    def ordered_wait_with_retry(
+            data_stream: DataStream,
+            async_function: AsyncFunction,
+            timeout: Time,
+            async_retry_strategy: AsyncRetryStrategy,
+            capacity: int = 100,
+            output_type: TypeInformation = None) -> 'DataStream':
+        """
+        Adds an async function with an AsyncRetryStrategy to support retry of AsyncFunction to the
+        data stream. The order to process input records is guaranteed to be the same as input ones.
+
+        :param data_stream: The input data stream.
+        :param async_function: The async function.
+        :param timeout: The timeout for the asynchronous operation to complete.
+        :param async_retry_strategy: The strategy of reattempt async i/o operation that can be
+                                     triggered
+        :param capacity: The max number of async i/o operation that can be triggered.
+        :param output_type: The output data type.
+        :return: The transformed DataStream.
+        """
+        AsyncDataStream._validate(data_stream, async_function, timeout, async_retry_strategy)
+
+        from pyflink.fn_execution import flink_fn_execution_pb2
+        j_python_data_stream_function_operator, j_output_type_info = \
+            _get_one_input_stream_operator(
+                data_stream,
+                AsyncFunctionDescriptor(
+                    async_function, timeout, capacity, async_retry_strategy,
+                    AsyncFunctionDescriptor.OutputMode.ORDERED),
+                flink_fn_execution_pb2.UserDefinedDataStreamFunction.PROCESS,  # type: ignore
+                output_type)
+        return DataStream(data_stream._j_data_stream.transform(
+            "async wait operator",
+            j_output_type_info,
+            j_python_data_stream_function_operator))
+
+    @staticmethod
     def _validate(data_stream: DataStream, async_function: AsyncFunction,
                   timeout: Time, async_retry_strategy: AsyncRetryStrategy) -> None:
         if not inspect.iscoroutinefunction(async_function.async_invoke):
