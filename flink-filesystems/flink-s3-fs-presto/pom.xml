@@ -22,8 +22,9 @@ under the License.
 
 	<parent>
 		<groupId>org.apache.flink</groupId>
-		<artifactId>flink-filesystems</artifactId>
+		<artifactId>flink-hadoop33-fs-base</artifactId>
 		<version>2.2-SNAPSHOT</version>
+		<relativePath>../flink-hadoop33-fs-base</relativePath>
 	</parent>
 
 	<artifactId>flink-s3-fs-presto</artifactId>
@@ -40,22 +41,6 @@ under the License.
 	</properties>
 
 	<dependencies>
-
-		<!-- Flink's file system abstraction (compiled against, not bundled) -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<!-- ArchUnit test dependencies -->
-
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-architecture-tests-test</artifactId>
-			<scope>test</scope>
-		</dependency>
 		
 		<!-- S3 base (bundled) -->
 		<dependency>
@@ -343,15 +328,6 @@ under the License.
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- for the behavior test suite -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-core</artifactId>
-			<version>${project.version}</version>
-			<scope>test</scope>
-			<type>test-jar</type>
-		</dependency>
-
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-hadoop-fs</artifactId>
@@ -366,7 +342,6 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-common</artifactId>
-				<version>${fs.hadoopshaded.version}</version>
 				<optional>${flink.markBundledAsOptional}</optional>
 				<exclusions>
 					<exclusion>
@@ -394,7 +369,6 @@ under the License.
 			<dependency>
 				<groupId>org.apache.hadoop</groupId>
 				<artifactId>hadoop-hdfs</artifactId>
-				<version>${fs.hadoopshaded.version}</version>
 				<optional>${flink.markBundledAsOptional}</optional>
 				<exclusions>
 					<exclusion>
@@ -418,14 +392,6 @@ under the License.
 						<artifactId>slf4j-reload4j</artifactId>
 					</exclusion>
 				</exclusions>
-			</dependency>
-
-			<dependency>
-				<!-- Bumped for security purposes -->
-				<groupId>commons-beanutils</groupId>
-				<artifactId>commons-beanutils</artifactId>
-				<version>1.9.4</version>
-				<optional>${flink.markBundledAsOptional}</optional>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
