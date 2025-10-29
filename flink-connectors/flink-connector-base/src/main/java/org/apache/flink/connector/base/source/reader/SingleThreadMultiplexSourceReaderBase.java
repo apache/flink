@@ -26,7 +26,6 @@ import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
-import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 
 import javax.annotation.Nullable;
 
@@ -83,10 +82,9 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
     }
 
     /**
-     * The primary constructor for the source reader.
-     *
-     * <p>The reader will use a handover queue sized as configured via {@link
-     * SourceReaderOptions#ELEMENT_QUEUE_CAPACITY}.
+     * This constructor behaves like {@link #SingleThreadMultiplexSourceReaderBase(Supplier,
+     * RecordEmitter, Configuration, SourceReaderContext)}, but accepts a specific {@link
+     * RateLimiterStrategy}.
      */
     public SingleThreadMultiplexSourceReaderBase(
             Supplier<SplitReader<E, SplitT>> splitReaderSupplier,
@@ -106,7 +104,7 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
     /**
      * This constructor behaves like {@link #SingleThreadMultiplexSourceReaderBase(Supplier,
      * RecordEmitter, Configuration, SourceReaderContext)}, but accepts a specific {@link
-     * FutureCompletingBlockingQueue} and {@link SingleThreadFetcherManager}.
+     * SingleThreadFetcherManager}.
      */
     public SingleThreadMultiplexSourceReaderBase(
             SingleThreadFetcherManager<E, SplitT> splitFetcherManager,
@@ -119,8 +117,7 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
     /**
      * This constructor behaves like {@link #SingleThreadMultiplexSourceReaderBase(Supplier,
      * RecordEmitter, Configuration, SourceReaderContext)}, but accepts a specific {@link
-     * FutureCompletingBlockingQueue}, {@link SingleThreadFetcherManager} and {@link
-     * RecordEvaluator}.
+     * SingleThreadFetcherManager} and {@link RecordEvaluator}.
      */
     public SingleThreadMultiplexSourceReaderBase(
             SingleThreadFetcherManager<E, SplitT> splitFetcherManager,
@@ -132,10 +129,10 @@ public abstract class SingleThreadMultiplexSourceReaderBase<
     }
 
     /**
-     * This constructor behaves like {@link #SingleThreadMultiplexSourceReaderBase(Supplier,
-     * RecordEmitter, Configuration, SourceReaderContext)}, but accepts a specific {@link
-     * FutureCompletingBlockingQueue}, {@link SingleThreadFetcherManager}, {@link RecordEvaluator}
-     * and {@link RateLimiterStrategy}.
+     * This constructor behaves like {@link
+     * #SingleThreadMultiplexSourceReaderBase(SingleThreadFetcherManager, RecordEmitter,
+     * RecordEvaluator, Configuration, SourceReaderContext)}, but accepts a specific {@link
+     * RateLimiterStrategy}.
      */
     public SingleThreadMultiplexSourceReaderBase(
             SingleThreadFetcherManager<E, SplitT> splitFetcherManager,

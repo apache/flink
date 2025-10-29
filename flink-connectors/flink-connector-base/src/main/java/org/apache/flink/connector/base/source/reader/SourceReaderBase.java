@@ -109,10 +109,13 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
 
     @Nullable protected final RecordEvaluator<T> eofRecordEvaluator;
 
-    @Nullable protected RateLimiter<SplitT> rateLimiter;
+    /** Indicating whether the SourceReader is currently rate limited. */
+    private final boolean isRateLimited;
+
+    private final RateLimiter<SplitT> rateLimiter;
 
     /** Future that tracks the result of acquiring permission from {@link #rateLimiter}. */
-    @Nullable protected CompletableFuture<Void> rateLimitPermissionFuture;
+    @Nullable private CompletableFuture<Void> rateLimitPermissionFuture;
 
     /**
      * The primary constructor for the source reader.
@@ -155,10 +158,12 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
         this.eofRecordEvaluator = eofRecordEvaluator;
 
         numRecordsInCounter = context.metricGroup().getIOMetricGroup().getNumRecordsInCounter();
+        isRateLimited = rateLimiterStrategy != null;
+        LOG.info("Rate limiting of SourceReader is " + (isRateLimited ? "enabled" : "disabled"));
         rateLimiter =
-                rateLimiterStrategy == null
-                        ? null
-                        : rateLimiterStrategy.createRateLimiter(context.currentParallelism());
+                isRateLimited
+                        ? rateLimiterStrategy.createRateLimiter(context.currentParallelism())
+                        : null;
     }
 
     @Override
@@ -178,7 +183,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
         // we need to loop here, because we may have to go across splits
         while (true) {
             // Check if the previous record count reached the limit of rateLimiter.
-            if (rateLimitPermissionFuture != null && !rateLimitPermissionFuture.isDone()) {
+            if (isRateLimited && !rateLimitPermissionFuture.isDone()) {
                 return trace(InputStatus.MORE_AVAILABLE);
             }
             // Process one record.
@@ -188,17 +193,19 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
                 numRecordsInCounter.inc(1);
                 recordEmitter.emitRecord(record, currentSplitOutput, currentSplitContext.state);
                 LOG.trace("Emitted record: {}", record);
-                if (rateLimiter != null) {
-                    RecordCountingSourceOutputWrapper<T> recordCountingSourceOutputWrapper =
-                            (RecordCountingSourceOutputWrapper<T>) currentSplitOutput;
-                    if (recordCountingSourceOutputWrapper.getRecordCount() > 0) {
+                if (isRateLimited) {
+                    RateLimitingSourceOutputWrapper<T> rateLimitingSourceOutputWrapper =
+                            (RateLimitingSourceOutputWrapper<T>) currentSplitOutput;
+                    if (rateLimitingSourceOutputWrapper.getCurrentWindowRecordCount() > 0) {
                         // Acquire permit from rateLimiter.
                         rateLimitPermissionFuture =
                                 rateLimiter
-                                        .acquire(recordCountingSourceOutputWrapper.getRecordCount())
+                                        .acquire(
+                                                rateLimitingSourceOutputWrapper
+                                                        .getCurrentWindowRecordCount())
                                         .toCompletableFuture();
                     }
-                    recordCountingSourceOutputWrapper.resetRecordCount();
+                    rateLimitingSourceOutputWrapper.resetWindowRecordCount();
                 }
                 // We always emit MORE_AVAILABLE here, even though we do not strictly know whether
                 // more is available. If nothing more is available, the next invocation will find
@@ -281,14 +288,13 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
                         return true;
                     };
         }
-        boolean rateLimited = this.rateLimiter != null;
-        if (rateLimited) {
+        if (isRateLimited) {
             rateLimiter.notifyStatusChange(
                     this.toSplitType(
                             this.currentSplitContext.splitId, this.currentSplitContext.state));
         }
         currentSplitOutput =
-                currentSplitContext.getOrCreateSplitOutput(output, eofRecordHandler, rateLimited);
+                currentSplitContext.getOrCreateSplitOutput(output, eofRecordHandler, isRateLimited);
         LOG.trace("Emitting records from fetch for split {}", nextSplitId);
         return true;
     }
@@ -311,7 +317,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
         splitStates.forEach(
                 (id, context) -> {
-                    if (rateLimiter != null) {
+                    if (isRateLimited) {
                         rateLimiter.notifyCheckpointComplete(checkpointId);
                     }
                 });
@@ -419,7 +425,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
         SourceOutput<T> getOrCreateSplitOutput(
                 ReaderOutput<T> mainOutput,
                 @Nullable Function<T, Boolean> eofRecordHandler,
-                boolean rateLimited) {
+                boolean isRateLimited) {
             if (sourceOutput == null) {
                 // The split output should have been created when AddSplitsEvent was processed in
                 // SourceOperator. Here we just use this method to get the previously created
@@ -428,8 +434,8 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
                 if (eofRecordHandler != null) {
                     sourceOutput = new SourceOutputWrapper<>(sourceOutput, eofRecordHandler);
                 }
-                if (rateLimited) {
-                    sourceOutput = new RecordCountingSourceOutputWrapper<>(sourceOutput);
+                if (isRateLimited) {
+                    sourceOutput = new RateLimitingSourceOutputWrapper<>(sourceOutput);
                 }
             }
             return sourceOutput;
@@ -495,7 +501,8 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
     }
 
     /**
-     * A wrapper around {@link SourceOutput} that counts the number of records emitted.
+     * A wrapper around {@link SourceOutput} that counts the number of records during the current
+     * rate-limiting window.
      *
      * <p>This wrapper is used when rate limiting is enabled to track how many records have been
      * emitted since the last rate limit check, allowing the reader to properly apply backpressure
@@ -503,21 +510,21 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
      *
      * @param <T> The type of records being emitted
      */
-    private static final class RecordCountingSourceOutputWrapper<T> implements SourceOutput<T> {
+    private static final class RateLimitingSourceOutputWrapper<T> implements SourceOutput<T> {
         /** The underlying source output to delegate to. */
         final SourceOutput<T> sourceOutput;
 
-        /** The number of records emitted since the last reset. */
-        int recordCount;
+        /** Count of records handled during the current rate-limiting window. */
+        int currentWindowRecordCount;
 
         /**
          * Creates a new RecordCountingSourceOutputWrapper.
          *
          * @param sourceOutput The underlying source output to wrap
          */
-        public RecordCountingSourceOutputWrapper(SourceOutput<T> sourceOutput) {
+        public RateLimitingSourceOutputWrapper(SourceOutput<T> sourceOutput) {
             this.sourceOutput = sourceOutput;
-            this.recordCount = 0;
+            this.currentWindowRecordCount = 0;
         }
 
         @Override
@@ -538,27 +545,27 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
         @Override
         public void collect(T record) {
             sourceOutput.collect(record);
-            recordCount++;
+            currentWindowRecordCount++;
         }
 
         @Override
         public void collect(T record, long timestamp) {
             sourceOutput.collect(record, timestamp);
-            recordCount++;
+            currentWindowRecordCount++;
         }
 
         /**
-         * Gets the number of records emitted.
+         * Gets the currentWindowRecordCount.
          *
-         * @return the number of records emitted.
+         * @return the number of currentWindowRecordCount.
          */
-        public int getRecordCount() {
-            return recordCount;
+        public int getCurrentWindowRecordCount() {
+            return currentWindowRecordCount;
         }
 
-        /** Resets the record count to 0. */
-        public void resetRecordCount() {
-            recordCount = 0;
+        /** Resets the currentWindowRecordCount to 0. */
+        public void resetWindowRecordCount() {
+            currentWindowRecordCount = 0;
         }
     }
 }
