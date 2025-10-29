@@ -20,6 +20,7 @@ package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
+import org.apache.flink.runtime.io.disk.iomanager.AsynchronousFileIOChannelTest;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertex.FinalizeOnMasterContext;
@@ -30,6 +31,8 @@ import org.apache.flink.testutils.executor.TestExecutorExtension;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -45,6 +48,7 @@ import static org.mockito.Mockito.verify;
  * only when the execution graph reaches the successful final state.
  */
 class FinalizeOnMasterTest {
+    private static final Logger LOG = LoggerFactory.getLogger(FinalizeOnMasterTest.class);
 
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
@@ -68,7 +72,11 @@ class FinalizeOnMasterTest {
         scheduler.startScheduling();
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();
-
+        if (!eg.getState().equals(JobStatus.RUNNING)) {
+            ErrorInfo ei = eg.getFailureInfo();
+            LOG.info("Unexpected state found: Exception as string " + ei.getExceptionAsString());
+            LOG.info("Unexpected state found: ErrorInfo as string " + ei);
+        }
         assertThat(eg.getState()).isEqualTo(JobStatus.RUNNING);
 
         ExecutionGraphTestUtils.switchAllVerticesToRunning(eg);
