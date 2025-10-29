@@ -110,12 +110,12 @@ class ExponentialBackoffDelayRetryStrategy(AsyncRetryStrategy, Generic[OUT]):
             self._last_retry_delay = self._initial_delay
             return self._last_retry_delay
 
-        backoff = min(self._last_retry_delay * self._multiplier, self._max_retry_delay)
+        backoff = int(min(self._last_retry_delay * self._multiplier, self._max_retry_delay))
         self._last_retry_delay = backoff
-        return int(backoff)
+        return backoff
 
     def get_retry_predicate(self) -> AsyncRetryPredicate[OUT]:
         return RetryPredicate(self._result_predicate, self._exception_predicate)
 
 
-NO_RETRY_STRATEGY = NoRetryStrategy()
+NO_RETRY_STRATEGY: AsyncRetryStrategy = NoRetryStrategy()
