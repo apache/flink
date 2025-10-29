@@ -45,7 +45,7 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
     def assert_equals(self, expected, actual):
         self.assertEqual(expected, actual)
 
-    def test_basic_functionality(self):
+    def test_unordered_mode(self):
         self.env.set_parallelism(1)
         ds = self.env.from_collection(
             [(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)],
@@ -68,6 +68,30 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
         results = self.test_sink.get_results(False)
         expected = ['2', '4', '6', '8', '10']
         self.assert_equals_sorted(expected, results)
+
+    def test_ordered_mode(self):
+        self.env.set_parallelism(1)
+        ds = self.env.from_collection(
+            [(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)],
+            type_info=Types.ROW_NAMED(["v1", "v2"], [Types.INT(), Types.INT()])
+        )
+
+        class MyAsyncFunction(AsyncFunction):
+
+            async def async_invoke(self, value: Row, result_future: ResultFuture[int]):
+                await asyncio.sleep(random.randint(1, 2))
+                result_future.complete([value[0] + value[1]])
+
+            def timeout(self, value: Row, result_future: ResultFuture[int]):
+                result_future.complete([value[0] + value[1]])
+
+        ds = AsyncDataStream.ordered_wait(
+            ds, MyAsyncFunction(), Time.seconds(5), 2, Types.INT())
+        ds.add_sink(self.test_sink)
+        self.env.execute()
+        results = self.test_sink.get_results(False)
+        expected = ['2', '4', '6', '8', '10']
+        self.assert_equals(expected, results)
 
     def test_watermark(self):
         self.env.set_parallelism(1)

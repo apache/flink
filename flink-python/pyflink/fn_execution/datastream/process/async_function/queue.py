@@ -17,7 +17,7 @@
 ################################################################################
 import collections
 import threading
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, List
 
 from pyflink.datastream import ResultFuture
@@ -34,12 +34,14 @@ class StreamElementQueueEntry(ABC, ResultFuture, Generic[OUT]):
     allows to set the result of a completed entry through ResultFuture.
     """
 
+    @abstractmethod
     def is_done(self) -> bool:
         """
         True if the stream element queue entry has been completed; otherwise false.
         """
         pass
 
+    @abstractmethod
     def emit_result(self, output_processor) -> int:
         """
         Emits the results associated with this queue entry.
@@ -109,6 +111,7 @@ class WatermarkQueueEntry(StreamElementQueueEntry):
 
 class StreamElementQueue(ABC, Generic[OUT]):
 
+    @abstractmethod
     def put(self, windowed_value, timestamp, watermark, record) -> ResultFuture[OUT]:
         """
         Put the given record in the queue. This operation blocks until the queue has
@@ -125,6 +128,7 @@ class StreamElementQueue(ABC, Generic[OUT]):
         """
         pass
 
+    @abstractmethod
     def advance_watermark(self, watermark):
         """
         Tries to put the given watermark in the queue. This operation succeeds if the queue has
@@ -134,6 +138,7 @@ class StreamElementQueue(ABC, Generic[OUT]):
         """
         pass
 
+    @abstractmethod
     def emit_completed_element(self, output_processor):
         """
         Emits one completed element from the head of this queue into the given output.
@@ -142,30 +147,35 @@ class StreamElementQueue(ABC, Generic[OUT]):
         """
         pass
 
+    @abstractmethod
     def has_completed_elements(self) -> bool:
         """
         Checks if there is at least one completed head element.
         """
         pass
 
+    @abstractmethod
     def wait_for_completed_elements(self):
         """
         Waits until there is completed elements.
         """
         pass
 
-    def wait_for_in_flight_elements_processed(self):
+    @abstractmethod
+    def wait_for_in_flight_elements_processed(self, timeout=1):
         """
         Waits until any inflight elements have been processed.
         """
         pass
 
+    @abstractmethod
     def is_empty(self) -> bool:
         """
         True if the queue is empty; otherwise false.
         """
         pass
 
+    @abstractmethod
     def size(self) -> int:
         """
         Return the size of the queue.
@@ -265,9 +275,10 @@ class UnorderedStreamElementQueue(StreamElementQueue):
             return entry
 
     def advance_watermark(self, watermark):
-        with self._lock:
-            if watermark > self._current_watermark:
-                self._current_watermark = watermark
+        if watermark > self._current_watermark:
+            self._current_watermark = watermark
+
+            with self._lock:
                 self._add_watermark(watermark)
 
     def emit_completed_element(self, output_processor):
@@ -343,3 +354,67 @@ class UnorderedStreamElementQueue(StreamElementQueue):
         new_segment = UnorderedStreamElementQueue.Segment(capacity)
         self._segments.append(new_segment)
         return new_segment
+
+
+class OrderedStreamElementQueue(StreamElementQueue):
+
+    def __init__(self, capacity: int, exception_checker):
+        self._capacity = capacity
+        self._exception_checker = exception_checker
+        self._queue = collections.deque()
+        self._lock = threading.RLock()
+        self._not_full = threading.Condition(self._lock)
+        self._not_empty = threading.Condition(self._lock)
+        self._number_of_pending_entries = 0
+
+    def put(self, windowed_value, timestamp, watermark, record) -> ResultFuture[OUT]:
+        with self._not_full:
+            while self.size() >= self._capacity:
+                self._not_full.wait(1)
+                self._exception_checker()
+
+            entry = StreamRecordQueueEntry(windowed_value, timestamp, watermark, record)
+            entry.on_complete(self.on_complete_handler)
+            self._queue.append(entry)
+            self._number_of_pending_entries += 1
+            return entry
+
+    def advance_watermark(self, watermark):
+        # do nothing in ordered mode
+        pass
+
+    def emit_completed_element(self, output_processor):
+        with self._not_full:
+            if not self.has_completed_elements():
+                return
+
+            self._queue.popleft().emit_result(output_processor)
+            self._number_of_pending_entries -= 1
+            self._not_full.notify_all()
+
+    def has_completed_elements(self) -> bool:
+        with self._lock:
+            return len(self._queue) > 0 and self._queue[0].is_done()
+
+    def wait_for_completed_elements(self):
+        with self._not_empty:
+            while not self.has_completed_elements():
+                self._not_empty.wait()
+
+    def wait_for_in_flight_elements_processed(self, timeout=1):
+        with self._not_full:
+            if self._number_of_pending_entries != 0:
+                self._not_full.wait(timeout)
+
+    def is_empty(self) -> bool:
+        with self._lock:
+            return self._number_of_pending_entries == 0
+
+    def size(self) -> int:
+        with self._lock:
+            return self._number_of_pending_entries
+
+    def on_complete_handler(self, entry):
+        with self._not_empty:
+            if self.has_completed_elements():
+                self._not_empty.notify()
