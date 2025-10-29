@@ -1736,18 +1736,18 @@ class JobMasterTest {
                         .map(x -> (String) x.get("newJobStatus"))
                         .collect(Collectors.toList());
 
-        if (schedulerType == SchedulerType.Default) {
-            // Default scheduler does not emit CREATED: RUNNING → FAILING → FAILED
-            assertThat(jobStatusTransitions)
-                    .containsExactly(
-                            JobStatus.RUNNING.toString(),
-                            JobStatus.FAILING.toString(),
-                            JobStatus.FAILED.toString());
-        } else {
+        if (schedulerType == SchedulerType.Adaptive) {
             // Adaptive schedulers emit CREATED: CREATED → RUNNING → FAILING → FAILED
             assertThat(jobStatusTransitions)
                     .containsExactly(
                             JobStatus.CREATED.toString(),
+                            JobStatus.RUNNING.toString(),
+                            JobStatus.FAILING.toString(),
+                            JobStatus.FAILED.toString());
+        } else {
+            // Default scheduler does not emit CREATED: RUNNING → FAILING → FAILED
+            assertThat(jobStatusTransitions)
+                    .containsExactly(
                             JobStatus.RUNNING.toString(),
                             JobStatus.FAILING.toString(),
                             JobStatus.FAILED.toString());
