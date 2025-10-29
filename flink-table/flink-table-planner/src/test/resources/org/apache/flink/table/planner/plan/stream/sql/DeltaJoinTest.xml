@@ -268,12 +268,52 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- Calc(select=[a0, a1, a2, a3], where=[>(a1, 1.1)])
    :     +- TableSourceScan(table=[[default_catalog, default_database, src1, filter=[]]], fields=[a0, a1, a2, a3])
    +- Exchange(distribution=[hash[b1, b2]])
       +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterFieldsBeforeJoinWithFilterPushDown">
+    <Resource name="sql">
+      <![CDATA[
+insert into snk(l0, l1, r0, r2, r1)
+  select a0, a1, b0, b2, b1 from (
+    select a0, a2, a1 from src1 where a0 > 1
+  ) join (
+    select b1, b2, b0 from src2 where b1 < 10
+  )
+  on a1 = b1
+  and a2 = b2
+  and b0 <> 0
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$2], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$5], b2=[$4], b1=[$3])
+   +- LogicalJoin(condition=[AND(=($2, $3), =($1, $4), <>($5, 0))], joinType=[inner])
+      :- LogicalProject(a0=[$0], a2=[$2], a1=[$1])
+      :  +- LogicalFilter(condition=[>($0, 1)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalProject(b1=[$2], b2=[$1], b0=[$0])
+         +- LogicalFilter(condition=[<($2, 10)])
+            +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1])
++- Calc(select=[a0, a1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, b2, b1])
+   +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a2, a1, b1, b2, b0])
+      :- Exchange(distribution=[hash[a1, a2]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1, filter=[>(a0, 1)], project=[a0, a2, a1], metadata=[]]], fields=[a0, a2, a1])
+      +- Exchange(distribution=[hash[b1, b2]])
+         +- Calc(select=[b1, b2, b0], where=[<(b1, 10)])
+            +- TableSourceScan(table=[[default_catalog, default_database, src2, filter=[<>(b0, 0)]]], fields=[b0, b2, b1])
 ]]>
     </Resource>
   </TestCase>
@@ -304,6 +344,59 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testFilterOnNonUpsertKeysBeforeJoinWithCdcSourceWithoutDelete">
+    <Resource name="sql">
+      <![CDATA[insert into snk_for_cdc_src select * from no_delete_src1 join no_delete_src2 on a1 = b1 and a2 = b2 where a3 > 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
+   +- LogicalFilter(condition=[>($3, 1)])
+      +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src1]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1], changelogMode=[NONE])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UB,UA])
+   :- Exchange(distribution=[hash[a1, a2]], changelogMode=[I,UB,UA])
+   :  +- Calc(select=[a0, a1, a2, a3], where=[>(a3, 1)], changelogMode=[I,UB,UA])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src1, filter=[]]], fields=[a0, a1, a2, a3], changelogMode=[I,UB,UA])
+   +- Exchange(distribution=[hash[b1, b2]], changelogMode=[I,UB,UA])
+      +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2]], fields=[b0, b2, b1], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterOnNonUpsertKeysBeforeJoinWithCdcSourceWithoutDeleteAndFilterPushDown">
+    <Resource name="sql">
+      <![CDATA[insert into snk_for_cdc_src select * from no_delete_src1 join no_delete_src2 on a1 = b1 and a2 = b2 where a3 > 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
+   +- LogicalFilter(condition=[>($3, 1)])
+      +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src1]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1], changelogMode=[NONE])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[HasUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UA])
+   :- Exchange(distribution=[hash[a1, a2]], changelogMode=[I,UA])
+   :  +- DropUpdateBefore(changelogMode=[I,UA])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src1, filter=[>(a3, 1)]]], fields=[a0, a1, a2, a3], changelogMode=[I,UB,UA])
+   +- Exchange(distribution=[hash[b1, b2]], changelogMode=[I,UA])
+      +- DropUpdateBefore(changelogMode=[I,UA])
+         +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2]], fields=[b0, b2, b1], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testFilterOnUpsertKeysAfterJoinWithCdcSourceWithoutDelete">
     <Resource name="sql">
       <![CDATA[insert into snk_for_cdc_src select * from no_delete_src1 join no_delete_src2 on a1 = b1 and a2 = b2 where a0 > b1]]>
@@ -325,6 +418,61 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
    :- Exchange(distribution=[hash[a1, a2]], changelogMode=[I,UA])
    :  +- DropUpdateBefore(changelogMode=[I,UA])
    :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src1]], fields=[a0, a1, a2, a3], changelogMode=[I,UB,UA])
+   +- Exchange(distribution=[hash[b1, b2]], changelogMode=[I,UA])
+      +- DropUpdateBefore(changelogMode=[I,UA])
+         +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2]], fields=[b0, b2, b1], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterOnUpsertKeysBeforeJoinWithCdcSourceWithoutDelete">
+    <Resource name="sql">
+      <![CDATA[insert into snk_for_cdc_src select * from no_delete_src1 join no_delete_src2 on a1 = b1 and a2 = b2 where a0 > 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
+   +- LogicalFilter(condition=[>($0, 1)])
+      +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src1]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1], changelogMode=[NONE])
++- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], changelogMode=[I,UA])
+   :- Exchange(distribution=[hash[a1, a2]], changelogMode=[I,UA])
+   :  +- Calc(select=[a0, a1, a2, a3], where=[>(a0, 1)], changelogMode=[I,UA])
+   :     +- DropUpdateBefore(changelogMode=[I,UA])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src1, filter=[]]], fields=[a0, a1, a2, a3], changelogMode=[I,UB,UA])
+   +- Exchange(distribution=[hash[b1, b2]], changelogMode=[I,UA])
+      +- DropUpdateBefore(changelogMode=[I,UA])
+         +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2]], fields=[b0, b2, b1], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterOnUpsertKeysBeforeJoinWithCdcSourceWithoutDeleteAndFilterPushDown">
+    <Resource name="sql">
+      <![CDATA[insert into snk_for_cdc_src select * from no_delete_src1 join no_delete_src2 on a1 = b1 and a2 = b2 where a0 > 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
+   +- LogicalFilter(condition=[>($0, 1)])
+      +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src1]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, no_delete_src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a2, a3, b0, b2, b1], changelogMode=[NONE])
++- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], changelogMode=[I,UA])
+   :- Exchange(distribution=[hash[a1, a2]], changelogMode=[I,UA])
+   :  +- DropUpdateBefore(changelogMode=[I,UA])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src1, filter=[>(a0, 1)]]], fields=[a0, a1, a2, a3], changelogMode=[I,UB,UA])
    +- Exchange(distribution=[hash[b1, b2]], changelogMode=[I,UA])
       +- DropUpdateBefore(changelogMode=[I,UA])
          +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2]], fields=[b0, b2, b1], changelogMode=[I,UB,UA])
@@ -598,31 +746,6 @@ Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, 
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSourceWithSourceAbilities">
-    <Resource name="sql">
-      <![CDATA[insert into snk select * from filterable_src join src2 on filterable_src.a1 = src2.b1 and filterable_src.a2 = src2.b2 and filterable_src.a3 = 1]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
-   +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5), =($3, 1))], joinType=[inner])
-      :- LogicalTableScan(table=[[default_catalog, default_database, filterable_src]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- Calc(select=[a0, a1, a2, CAST(1 AS INTEGER) AS a3, b0, b2, b1])
-   +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-      :- Exchange(distribution=[hash[a1, a2]])
-      :  +- TableSourceScan(table=[[default_catalog, default_database, filterable_src, filter=[=(a3, 1)], project=[a0, a1, a2], metadata=[]]], fields=[a0, a1, a2])
-      +- Exchange(distribution=[hash[b1, b2]])
-         +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testMultiRootsWithReusingJoinView2">
     <Resource name="ast">
       <![CDATA[
@@ -654,6 +777,145 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
 
 Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1])
 +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNonDeterministicFilterFieldsBeforeJoin1">
+    <Resource name="sql">
+      <![CDATA[
+insert into snk(l0, l1, r0, r2, r1)
+  select a0, a1, b0, b2, b1 from (
+    select a0, a2, a1 from src1 where a0 > rand(10)
+  ) join src2
+  on a1 = b1
+  and a2 = b2
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$2], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
+   +- LogicalJoin(condition=[AND(=($2, $5), =($1, $4))], joinType=[inner])
+      :- LogicalProject(a0=[$0], a2=[$2], a1=[$1])
+      :  +- LogicalFilter(condition=[>($0, RAND(10))])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1])
++- Calc(select=[a0, a1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, b2, b1])
+   +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a2, a1, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a1, a2]])
+      :  +- Calc(select=[a0, a2, a1], where=[>(a0, RAND(10))])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, src1, filter=[], project=[a0, a1, a2], metadata=[]]], fields=[a0, a1, a2])
+      +- Exchange(distribution=[hash[b1, b2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNonDeterministicFilterFieldsBeforeJoin2">
+    <Resource name="sql">
+      <![CDATA[
+insert into snk
+  select * from src1
+  join (
+    select * from src2 where b0 > rand(10)
+  )
+  on a1 = b1
+  and a2 = b2
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
+   +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalProject(b0=[$0], b2=[$1], b1=[$2])
+         +- LogicalFilter(condition=[>($0, RAND(10))])
+            +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a1, a2]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
+   +- Exchange(distribution=[hash[b1, b2]])
+      +- Calc(select=[b0, b2, b1], where=[>(b0, RAND(10))])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2, filter=[]]], fields=[b0, b2, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNonDeterministicFilterFieldsBeforeJoinWithFilterPushDown">
+    <Resource name="sql">
+      <![CDATA[
+insert into snk(l0, l1, r0, r2, r1)
+  select a0, a1, b0, b2, b1 from (
+    select a0, a2, a1 from src1 where a0 > rand(10)
+  ) join src2
+  on a1 = b1
+  and a2 = b2
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$2], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
+   +- LogicalJoin(condition=[AND(=($2, $5), =($1, $4))], joinType=[inner])
+      :- LogicalProject(a0=[$0], a2=[$2], a1=[$1])
+      :  +- LogicalFilter(condition=[>($0, RAND(10))])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1])
++- Calc(select=[a0, a1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, b2, b1])
+   +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a2, a1, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a1, a2]])
+      :  +- Calc(select=[a0, a2, a1], where=[>(a0, RAND(10))])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, src1, filter=[], project=[a0, a1, a2], metadata=[]]], fields=[a0, a1, a2])
+      +- Exchange(distribution=[hash[b1, b2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPartitionPushDown">
+    <Resource name="sql">
+      <![CDATA[
+insert into snk(l0, r0, r2)
+  select a0, b0, b2 from (
+    select a0, a2, a1 from src1WithPartition where pt = 1
+  ) join src2
+  on a1 = b1
+  and a2 = b2
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[a0, EXPR$1, EXPR$2, EXPR$3, b0, b2, EXPR$6])
++- LogicalProject(a0=[$0], EXPR$1=[null:DOUBLE], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], EXPR$6=[null:DOUBLE])
+   +- LogicalJoin(condition=[AND(=($2, $5), =($1, $4))], joinType=[inner])
+      :- LogicalProject(a0=[$0], a2=[$2], a1=[$1])
+      :  +- LogicalFilter(condition=[=($3, 1)])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, src1WithPartition]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[a0, EXPR$1, EXPR$2, EXPR$3, b0, b2, EXPR$6])
++- Calc(select=[a0, null:DOUBLE AS EXPR$1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, b2, null:DOUBLE AS EXPR$6])
+   +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a2, a1, b0, b2, b1])
+      :- Exchange(distribution=[hash[a1, a2]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1WithPartition, partitions=[{pt=1}], project=[a0, a2, a1], metadata=[]]], fields=[a0, a2, a1])
+      +- Exchange(distribution=[hash[b1, b2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
 ]]>
     </Resource>
   </TestCase>
@@ -737,129 +999,6 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testProjectFieldsAfterJoin">
-    <Resource name="sql">
-      <![CDATA[insert into snk select a0, a1 + 1.1, a2, a3, b0, b2, b1 from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], EXPR$1=[+($1, 1.1:DECIMAL(2, 1))], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
-   +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
-      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, a2, a3, b0, b2, b1])
-+- Calc(select=[a0, +(a1, 1.1) AS EXPR$1, a2, a3, b0, b2, b1])
-   +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1])
-      :- Exchange(distribution=[hash[a1, a2]])
-      :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
-      +- Exchange(distribution=[hash[b1, b2]])
-         +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testProjectFieldsBeforeJoin">
-    <Resource name="sql">
-      <![CDATA[insert into snk(l0, l1, l2, r0, r2, r1) select * from (   select a0, a1, a2 from src1) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
-   +- LogicalJoin(condition=[AND(=($1, $5), =($2, $4))], joinType=[inner])
-      :- LogicalProject(a0=[$0], a1=[$1], a2=[$2])
-      :  +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
-+- Calc(select=[a0, a1, a2, null:INTEGER AS EXPR$3, b0, b2, b1])
-   +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-      :- Exchange(distribution=[hash[a1, a2]])
-      :  +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a0, a1, a2], metadata=[]]], fields=[a0, a1, a2])
-      +- Exchange(distribution=[hash[b1, b2]])
-         +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRetractSink">
-    <Resource name="sql">
-      <![CDATA[insert into retract_snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.retract_snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
-   +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
-      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.retract_snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[a1, a2]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
-   +- Exchange(distribution=[hash[b1, b2]])
-      +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSourceWithAllRowKinds">
-    <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join cdc_src on src1.a1 = cdc_src.b1 and src1.a2 = cdc_src.b2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
-   +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
-      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_src]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[a1, a2]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
-   +- Exchange(distribution=[hash[b1, b2]])
-      +- TableSourceScan(table=[[default_catalog, default_database, cdc_src]], fields=[b0, b2, b1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSourceWithoutIndexes">
-    <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join non_index_src on src1.a1 = non_index_src.b1 and src1.a2 = non_index_src.b2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
-   +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
-      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, non_index_src]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey])
-   :- Exchange(distribution=[hash[a1, a2]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
-   +- Exchange(distribution=[hash[b1, b2]])
-      +- TableSourceScan(table=[[default_catalog, default_database, non_index_src]], fields=[b0, b2, b1])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testWithCascadeJoin">
     <Resource name="sql">
       <![CDATA[insert into tmp_snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 join src3 on src1.a1 = src3.b1 and src1.a2 = src3.b2]]>
@@ -911,6 +1050,298 @@ Sink(table=[default_catalog.default_database.snk_for_cdc_src], fields=[a0, a1, a
    :  +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src1]], fields=[a0, a1, a2, a3], changelogMode=[I,UB,UA])
    +- Exchange(distribution=[hash[b0, b1, b2]], changelogMode=[I,UB,UA])
       +- TableSourceScan(table=[[default_catalog, default_database, no_delete_src2]], fields=[b0, b2, b1], changelogMode=[I,UB,UA])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectFieldsAfterJoin">
+    <Resource name="sql">
+      <![CDATA[insert into snk select a0, a1 + 1.1, a2, a3, b0, b2, b1 from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, a2, a3, b0, b2, b1])
++- LogicalProject(a0=[$0], EXPR$1=[+($1, 1.1:DECIMAL(2, 1))], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
+   +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, a2, a3, b0, b2, b1])
++- Calc(select=[a0, +(a1, 1.1) AS EXPR$1, a2, a3, b0, b2, b1])
+   +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1])
+      :- Exchange(distribution=[hash[a1, a2]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
+      +- Exchange(distribution=[hash[b1, b2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectFieldsBeforeJoin">
+    <Resource name="sql">
+      <![CDATA[insert into snk(l0, l1, l2, r0, r2, r1) select * from (   select a0, a1, a2 from src1) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$1], a2=[$2], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
+   +- LogicalJoin(condition=[AND(=($1, $5), =($2, $4))], joinType=[inner])
+      :- LogicalProject(a0=[$0], a1=[$1], a2=[$2])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
++- Calc(select=[a0, a1, a2, null:INTEGER AS EXPR$3, b0, b2, b1])
+   +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, b0, b2, b1])
+      :- Exchange(distribution=[hash[a1, a2]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a0, a1, a2], metadata=[]]], fields=[a0, a1, a2])
+      +- Exchange(distribution=[hash[b1, b2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectFieldsBeforeJoinWhileAliasAndReorderOnIndex">
+    <Resource name="sql">
+      <![CDATA[insert into snk(l1, l2, l0, r0, r2, r1) select * from (   select a1 as a0, a2 as a1, a0 as a2 from src1) tmp join src2 on tmp.a0 = src2.b1 and tmp.a1 = src2.b2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[1],[2],[0],[4],[5],[6]], fields=[a2, a0, a1, EXPR$3, b0, b2, b1])
++- LogicalProject(a2=[$2], a0=[$0], a1=[$1], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
+   +- LogicalJoin(condition=[AND(=($0, $5), =($1, $4))], joinType=[inner])
+      :- LogicalProject(a0=[$1], a1=[$2], a2=[$0])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[1],[2],[0],[4],[5],[6]], fields=[a2, a0, a1, EXPR$3, b0, b2, b1])
++- Calc(select=[a0 AS a2, a1 AS a0, a2 AS a1, null:INTEGER AS EXPR$3, b0, b2, b1])
+   +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a1, a2, a0, b0, b2, b1])
+      :- Exchange(distribution=[hash[a1, a2]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a1, a2, a0], metadata=[]]], fields=[a1, a2, a0])
+      +- Exchange(distribution=[hash[b1, b2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectFieldsBeforeJoinWhileModifyingOnIndex">
+    <Resource name="sql">
+      <![CDATA[insert into snk(l0, l1, l2, r0, r2, r1) select * from (   select a0, a1, SUBSTRING(a2, 2) as a2 from src1) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$1], a2=[$2], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
+   +- LogicalJoin(condition=[AND(=($1, $5), =($2, $4))], joinType=[inner])
+      :- LogicalProject(a0=[$0], a1=[$1], a2=[SUBSTRING($2, 2)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
++- Calc(select=[a0, a1, a2, null:INTEGER AS EXPR$3, b0, b2, b1])
+   +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a1, a2]])
+      :  +- Calc(select=[a0, a1, SUBSTRING(a2, 2) AS a2])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a0, a1, a2], metadata=[]]], fields=[a0, a1, a2])
+      +- Exchange(distribution=[hash[b1, b2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectFieldsBeforeJoinWhileModifyingOnOneIndexButRetainingAnother">
+    <Resource name="sql">
+      <![CDATA[insert into snk(l0, l1, l2, r0, r2, r1) select * from (   select a0, a1, SUBSTRING(a2, 2) as a2 from src1WithMultiIndexes) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$1], a2=[$2], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], b1=[$5])
+   +- LogicalJoin(condition=[AND(=($1, $5), =($2, $4))], joinType=[inner])
+      :- LogicalProject(a0=[$0], a1=[$1], a2=[SUBSTRING($2, 2)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, src1WithMultiIndexes]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
++- Calc(select=[a0, a1, a2, null:INTEGER AS EXPR$3, b0, b2, b1])
+   +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, b0, b2, b1])
+      :- Exchange(distribution=[hash[a1, a2]])
+      :  +- Calc(select=[a0, a1, SUBSTRING(a2, 2) AS a2])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, src1WithMultiIndexes, project=[a0, a1, a2], metadata=[]]], fields=[a0, a1, a2])
+      +- Exchange(distribution=[hash[b1, b2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReadingMetadata">
+    <Resource name="sql">
+      <![CDATA[
+insert into snk(l0, r0, r2)
+  select a0, b0, b2 from (
+    select a0, a2, a1 from src1WithMetadata
+  ) join src2
+  on a1 = b1
+  and a2 = b2
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[a0, EXPR$1, EXPR$2, EXPR$3, b0, b2, EXPR$6])
++- LogicalProject(a0=[$0], EXPR$1=[null:DOUBLE], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$3], b2=[$4], EXPR$6=[null:DOUBLE])
+   +- LogicalJoin(condition=[AND(=($2, $5), =($1, $4))], joinType=[inner])
+      :- LogicalProject(a0=[$0], a2=[$2], a1=[$1])
+      :  +- LogicalProject(a0=[CAST($3):INTEGER NOT NULL], a1=[$0], a2=[$1], a3=[$2])
+      :     +- LogicalTableScan(table=[[default_catalog, default_database, src1WithMetadata, metadata=[a0]]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[a0, EXPR$1, EXPR$2, EXPR$3, b0, b2, EXPR$6])
++- Calc(select=[a0, null:DOUBLE AS EXPR$1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, b2, null:DOUBLE AS EXPR$6])
+   +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a2, a1, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a1, a2]])
+      :  +- Calc(select=[CAST(a0 AS INTEGER) AS a0, a2, a1])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, src1WithMetadata, project=[a2, a1], metadata=[a0]]], fields=[a2, a1, a0])
+      +- Exchange(distribution=[hash[b1, b2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSourceDDLContainsComputingCol">
+    <Resource name="sql">
+      <![CDATA[insert into snk(l0, l1, r0) select a0, new_a1, b0 from src1WithComputingCol join src2 on a1 = b1 and a2 = b2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[a0, new_a1, EXPR$2, EXPR$3, b0, EXPR$5, EXPR$6])
++- LogicalProject(a0=[$0], new_a1=[$3], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$4], EXPR$5=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$6=[null:DOUBLE])
+   +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
+      :- LogicalProject(a0=[$0], a1=[$1], a2=[$2], new_a1=[+($1, 1)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, src1WithComputingCol]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[a0, new_a1, EXPR$2, EXPR$3, b0, EXPR$5, EXPR$6])
++- Calc(select=[a0, new_a1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, null:VARCHAR(2147483647) AS EXPR$5, null:DOUBLE AS EXPR$6])
+   +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, new_a1, b0, b2, b1])
+      :- Exchange(distribution=[hash[a1, a2]])
+      :  +- Calc(select=[a0, a1, a2, +(a1, 1) AS new_a1])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, src1WithComputingCol]], fields=[a0, a1, a2])
+      +- Exchange(distribution=[hash[b1, b2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSourceDDLContainsNonDeterministicComputingCol">
+    <Resource name="sql">
+      <![CDATA[insert into snk(l0, l1, r0) select a0, new_a1, b0 from src1WithComputingCol join src2 on a1 = b1 and a2 = b2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[a0, new_a1, EXPR$2, EXPR$3, b0, EXPR$5, EXPR$6])
++- LogicalProject(a0=[$0], new_a1=[$3], EXPR$2=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$3=[null:INTEGER], b0=[$4], EXPR$5=[null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"], EXPR$6=[null:DOUBLE])
+   +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
+      :- LogicalProject(a0=[$0], a1=[$1], a2=[$2], new_a1=[+($1, RAND(10))])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, src1WithComputingCol]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[a0, new_a1, EXPR$2, EXPR$3, b0, EXPR$5, EXPR$6])
++- Calc(select=[a0, new_a1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, null:VARCHAR(2147483647) AS EXPR$5, null:DOUBLE AS EXPR$6])
+   +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, new_a1, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+      :- Exchange(distribution=[hash[a1, a2]])
+      :  +- Calc(select=[a0, a1, a2, +(a1, RAND(10)) AS new_a1])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, src1WithComputingCol]], fields=[a0, a1, a2])
+      +- Exchange(distribution=[hash[b1, b2]])
+         +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSourceWithAllRowKinds">
+    <Resource name="sql">
+      <![CDATA[insert into snk select * from src1 join cdc_src on src1.a1 = cdc_src.b1 and src1.a2 = cdc_src.b2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
+   +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, cdc_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a1, a2]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
+   +- Exchange(distribution=[hash[b1, b2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, cdc_src]], fields=[b0, b2, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRetractSink">
+    <Resource name="sql">
+      <![CDATA[insert into retract_snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.retract_snk], fields=[a0, a1, a2, a3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
+   +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.retract_snk], fields=[a0, a1, a2, a3, b0, b2, b1])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a1, a2]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
+   +- Exchange(distribution=[hash[b1, b2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSourceWithoutIndexes">
+    <Resource name="sql">
+      <![CDATA[insert into snk select * from src1 join non_index_src on src1.a1 = non_index_src.b1 and src1.a2 = non_index_src.b2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
+   +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5))], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, non_index_src]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey])
+   :- Exchange(distribution=[hash[a1, a2]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
+   +- Exchange(distribution=[hash[b1, b2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, non_index_src]], fields=[b0, b2, b1])
 ]]>
     </Resource>
   </TestCase>
@@ -997,6 +1428,30 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testWithNonDeterministicInNonEquiCondition">
+    <Resource name="sql">
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src1.a0 + rand(10) < src2.b0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
++- LogicalProject(a0=[$0], a1=[$1], a2=[$2], a3=[$3], b0=[$4], b2=[$5], b1=[$6])
+   +- LogicalJoin(condition=[AND(=($1, $6), =($2, $5), <(+($0, RAND(10)), $4))], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, src1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
++- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2), <(+(a0, RAND(10)), b0))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a1, a2]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
+   +- Exchange(distribution=[hash[b1, b2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testWithNonEquiCondition1">
     <Resource name="sql">
       <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src2.b0 > src1.a0]]>
@@ -1037,7 +1492,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     <Resource name="optimized rel plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
-+- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2), >(b0, a0))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
++- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2), >(b0, a0))], select=[a0, a1, a2, a3, b0, b2, b1])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- Calc(select=[a0, a1, a2, a3], where=[AND(>(a0, 99), <>(a2, 'Hello'))])
    :     +- TableSourceScan(table=[[default_catalog, default_database, src1, filter=[]]], fields=[a0, a1, a2, a3])

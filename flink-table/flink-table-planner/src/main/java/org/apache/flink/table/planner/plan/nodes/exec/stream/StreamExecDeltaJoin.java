@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ReadableConfig;
@@ -54,6 +55,7 @@ import org.apache.flink.table.planner.plan.utils.LookupJoinUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.collector.TableFunctionResultFuture;
+import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.StreamingDeltaJoinOperatorFactory;
@@ -389,6 +391,7 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
             boolean treatRightAsLookupTable) {
         RelOptTable lookupTable = treatRightAsLookupTable ? rightTempTable : leftTempTable;
         RowType streamSideType = treatRightAsLookupTable ? leftStreamSideType : rightStreamSideType;
+        RowType lookupSideType = treatRightAsLookupTable ? rightStreamSideType : leftStreamSideType;
 
         AsyncTableFunction<?> lookupSideAsyncTableFunction =
                 getUnwrappedAsyncLookupFunction(lookupTable, lookupKeys.keySet(), classLoader);
@@ -454,11 +457,36 @@ public class StreamExecDeltaJoin extends ExecNodeBase<RowData>
                             JavaScalaConversionUtil.toScala(newCond));
         }
 
+        GeneratedFunction<FlatMapFunction<RowData, RowData>> lookupSideGeneratedCalc = null;
+        if ((treatRightAsLookupTable
+                        && lookupRightTableJoinSpec.getProjectionOnTemporalTable().isPresent())
+                || (!treatRightAsLookupTable
+                        && lookupLeftTableJoinSpec.getProjectionOnTemporalTable().isPresent())) {
+            // a projection or filter after lookup table
+            List<RexNode> projectionOnTemporalTable =
+                    treatRightAsLookupTable
+                            ? lookupRightTableJoinSpec.getProjectionOnTemporalTable().get()
+                            : lookupLeftTableJoinSpec.getProjectionOnTemporalTable().get();
+            RexNode filterOnTemporalTable =
+                    treatRightAsLookupTable
+                            ? lookupRightTableJoinSpec.getFilterOnTemporalTable().orElse(null)
+                            : lookupLeftTableJoinSpec.getFilterOnTemporalTable().orElse(null);
+            lookupSideGeneratedCalc =
+                    LookupJoinCodeGenerator.generateCalcMapFunction(
+                            config,
+                            planner.getFlinkContext().getClassLoader(),
+                            JavaScalaConversionUtil.toScala(projectionOnTemporalTable),
+                            filterOnTemporalTable,
+                            lookupSideType,
+                            lookupTableSourceRowType);
+        }
+
         return new AsyncDeltaJoinRunner(
                 lookupSideGeneratedFuncWithType.tableFunc(),
                 (DataStructureConverter<RowData, Object>) lookupSideFetcherConverter,
+                lookupSideGeneratedCalc,
                 lookupSideGeneratedResultFuture,
-                InternalSerializers.create(lookupTableSourceRowType),
+                InternalSerializers.create(lookupSideType),
                 leftJoinKeySelector,
                 leftUpsertKeySelector,
                 rightJoinKeySelector,

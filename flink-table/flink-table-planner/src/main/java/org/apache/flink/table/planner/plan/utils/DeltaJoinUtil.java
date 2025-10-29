@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.catalog.Index;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -25,10 +26,16 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.UserDefinedFunction;
+import org.apache.flink.table.planner.plan.abilities.source.FilterPushDownSpec;
+import org.apache.flink.table.planner.plan.abilities.source.PartitionPushDownSpec;
+import org.apache.flink.table.planner.plan.abilities.source.ProjectPushDownSpec;
+import org.apache.flink.table.planner.plan.abilities.source.ReadingMetadataSpec;
+import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DeltaJoinSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCalc;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeltaJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDropUpdateBefore;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
@@ -51,23 +58,32 @@ import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelVisitor;
+import org.apache.calcite.rel.core.Calc;
 import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.mapping.IntPair;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import scala.Option;
 
 /** Utils for delta joins. */
 public class DeltaJoinUtil {
@@ -83,7 +99,22 @@ public class DeltaJoinUtil {
             Sets.newHashSet(
                     StreamPhysicalTableSourceScan.class,
                     StreamPhysicalExchange.class,
-                    StreamPhysicalDropUpdateBefore.class);
+                    StreamPhysicalDropUpdateBefore.class,
+                    StreamPhysicalCalc.class);
+
+    /**
+     * All supported {@link SourceAbilitySpec}s in sources. Only the sources with the following
+     * {@link SourceAbilitySpec} can be used as delta join sources. Otherwise, the regular join will
+     * not be optimized into the delta join.
+     */
+    private static final Set<Class<?>> ALL_SUPPORTED_ABILITY_SPEC_IN_SOURCE =
+            Sets.newHashSet(
+                    FilterPushDownSpec.class,
+                    ProjectPushDownSpec.class,
+                    PartitionPushDownSpec.class,
+                    // TODO FLINK-38569 ReadingMetadataSpec should not be generated when there are
+                    //  no metadata keys to be read
+                    ReadingMetadataSpec.class);
 
     private DeltaJoinUtil() {}
 
@@ -112,6 +143,10 @@ public class DeltaJoinUtil {
             return false;
         }
 
+        if (!areAllUpstreamCalcSupported(join)) {
+            return false;
+        }
+
         return areAllJoinTableScansSupported(join);
     }
 
@@ -135,13 +170,29 @@ public class DeltaJoinUtil {
         Optional<RexNode> remainingCondition =
                 condition.isAlwaysTrue() ? Optional.empty() : Optional.of(condition);
 
+        List<IntPair> joinPairs = joinInfo.pairs();
         final RelOptTable lookupRelOptTable;
-        List<IntPair> streamToLookupJoinKeys = joinInfo.pairs();
+        final IntPair[] streamToLookupJoinKeys;
+        final Optional<RexProgram> calcOnLookupTable;
+
         if (treatRightAsLookupSide) {
+            calcOnLookupTable = getRexProgramBetweenJoinAndTableScan(join.getRight());
+
             lookupRelOptTable = DeltaJoinUtil.getTableScanRelOptTable(join.getRight());
+            streamToLookupJoinKeys =
+                    TemporalJoinUtil.getTemporalTableJoinKeyPairs(
+                            joinPairs.toArray(new IntPair[0]),
+                            JavaScalaConversionUtil.toScala(calcOnLookupTable));
+
         } else {
-            streamToLookupJoinKeys = reverseIntPairs(streamToLookupJoinKeys);
+            calcOnLookupTable = getRexProgramBetweenJoinAndTableScan(join.getLeft());
+
+            joinPairs = reverseIntPairs(joinInfo.pairs());
             lookupRelOptTable = DeltaJoinUtil.getTableScanRelOptTable(join.getLeft());
+            streamToLookupJoinKeys =
+                    TemporalJoinUtil.getTemporalTableJoinKeyPairs(
+                            joinPairs.toArray(new IntPair[0]),
+                            JavaScalaConversionUtil.toScala(calcOnLookupTable));
         }
         Preconditions.checkState(lookupRelOptTable instanceof TableSourceTable);
         final TableSourceTable lookupTable = (TableSourceTable) lookupRelOptTable;
@@ -149,10 +200,24 @@ public class DeltaJoinUtil {
         Map<Integer, FunctionCallUtil.FunctionParam> allLookupKeys =
                 analyzerDeltaJoinLookupKeys(streamToLookupJoinKeys);
 
+        List<RexNode> projectionOnTemporalTable = null;
+        RexNode filterOnTemporalTable = null;
+
+        if (calcOnLookupTable.isPresent()) {
+            Tuple2<List<RexNode>, Option<RexNode>> projectionsAndFilter =
+                    JavaScalaConversionUtil.toJava(
+                            FlinkRexUtil.expandRexProgram(calcOnLookupTable.get()));
+            projectionOnTemporalTable = projectionsAndFilter.f0;
+            filterOnTemporalTable =
+                    JavaScalaConversionUtil.toJava(projectionsAndFilter.f1).orElse(null);
+        }
+
         return new DeltaJoinSpec(
                 new TemporalTableSourceSpec(lookupTable),
                 allLookupKeys,
-                remainingCondition.orElse(null));
+                remainingCondition.orElse(null),
+                projectionOnTemporalTable,
+                filterOnTemporalTable);
     }
 
     /**
@@ -212,7 +277,7 @@ public class DeltaJoinUtil {
      * @param streamToLookupJoinKeys the join keys from stream side to lookup side
      */
     private static Map<Integer, FunctionCallUtil.FunctionParam> analyzerDeltaJoinLookupKeys(
-            List<IntPair> streamToLookupJoinKeys) {
+            IntPair[] streamToLookupJoinKeys) {
         Map<Integer, FunctionCallUtil.FunctionParam> allFieldRefLookupKeys = new LinkedHashMap<>();
         for (IntPair intPair : streamToLookupJoinKeys) {
             allFieldRefLookupKeys.put(
@@ -227,28 +292,29 @@ public class DeltaJoinUtil {
                 .collect(Collectors.toList());
     }
 
-    private static int[][] getColumnIndicesOfAllTableIndexes(TableSourceTable tableSourceTable) {
-        List<List<String>> columnsOfIndexes = getAllIndexesColumnsOfTable(tableSourceTable);
+    private static int[][] getAllIndexesColumnsFromTableSchema(ResolvedSchema schema) {
+        List<Index> indexes = schema.getIndexes();
+        List<List<String>> columnsOfIndexes =
+                indexes.stream().map(Index::getColumns).collect(Collectors.toList());
         int[][] results = new int[columnsOfIndexes.size()][];
         for (int i = 0; i < columnsOfIndexes.size(); i++) {
-            List<String> fieldNames = tableSourceTable.getRowType().getFieldNames();
+            List<String> fieldNames = schema.getColumnNames();
             results[i] = columnsOfIndexes.get(i).stream().mapToInt(fieldNames::indexOf).toArray();
         }
 
         return results;
     }
 
-    private static List<List<String>> getAllIndexesColumnsOfTable(
-            TableSourceTable tableSourceTable) {
-        ResolvedSchema schema = tableSourceTable.contextResolvedTable().getResolvedSchema();
-        List<Index> indexes = schema.getIndexes();
-        return indexes.stream().map(Index::getColumns).collect(Collectors.toList());
-    }
-
     private static boolean areJoinConditionsSupported(StreamPhysicalJoin join) {
         JoinInfo joinInfo = join.analyzeCondition();
         // there must be one pair of join key
         if (joinInfo.pairs().isEmpty()) {
+            return false;
+        }
+        JoinSpec joinSpec = join.joinSpec();
+        Optional<RexNode> nonEquiCond = joinSpec.getNonEquiCondition();
+        if (nonEquiCond.isPresent()
+                && !areAllRexNodeDeterministic(Collections.singletonList(nonEquiCond.get()))) {
             return false;
         }
 
@@ -258,25 +324,59 @@ public class DeltaJoinUtil {
         if (changelogMode.containsOnly(RowKind.INSERT)) {
             return true;
         }
-        JoinSpec joinSpec = join.joinSpec();
-        Optional<RexNode> nonEquiCond = joinSpec.getNonEquiCondition();
+
         if (nonEquiCond.isEmpty()) {
             return true;
         }
-        ImmutableBitSet fieldRefIndices =
-                ImmutableBitSet.of(
-                        RexNodeExtractor.extractRefInputFields(
-                                Collections.singletonList(nonEquiCond.get())));
+
         FlinkRelMetadataQuery fmq =
                 FlinkRelMetadataQuery.reuseOrCreate(join.getCluster().getMetadataQuery());
         Set<ImmutableBitSet> upsertKeys = fmq.getUpsertKeys(join);
+        return isFilterOnOneSetOfUpsertKeys(nonEquiCond.get(), upsertKeys);
+    }
+
+    private static boolean isFilterOnOneSetOfUpsertKeys(
+            RexNode filter, @Nullable Set<ImmutableBitSet> upsertKeys) {
+        ImmutableBitSet fieldRefIndices =
+                ImmutableBitSet.of(
+                        RexNodeExtractor.extractRefInputFields(Collections.singletonList(filter)));
         return upsertKeys.stream().anyMatch(uk -> uk.contains(fieldRefIndices));
     }
 
     private static boolean areAllJoinTableScansSupported(StreamPhysicalJoin join) {
-        return isTableScanSupported(getTableScan(join.getLeft()), join.joinSpec().getLeftKeys())
+        List<IntPair> left2RightJoinPairs =
+                JoinUtil.createJoinInfo(
+                                join.getLeft(),
+                                join.getRight(),
+                                join.getCondition(),
+                                new ArrayList<>())
+                        .pairs();
+
+        Optional<RexProgram> calcOnLeftLookupTable =
+                getRexProgramBetweenJoinAndTableScan(join.getLeft());
+        Optional<RexProgram> calcOnRightLookupTable =
+                getRexProgramBetweenJoinAndTableScan(join.getRight());
+
+        List<IntPair> right2LeftJoinPair = reverseIntPairs(left2RightJoinPairs);
+
+        int[] leftJoinKeyOnLeftLookupTable =
+                Arrays.stream(
+                                TemporalJoinUtil.getTemporalTableJoinKeyPairs(
+                                        right2LeftJoinPair.toArray(new IntPair[0]),
+                                        JavaScalaConversionUtil.toScala(calcOnLeftLookupTable)))
+                        .mapToInt(pair -> pair.target)
+                        .toArray();
+        int[] rightJoinKeyOnRightLookupTable =
+                Arrays.stream(
+                                TemporalJoinUtil.getTemporalTableJoinKeyPairs(
+                                        left2RightJoinPairs.toArray(new IntPair[0]),
+                                        JavaScalaConversionUtil.toScala(calcOnRightLookupTable)))
+                        .mapToInt(pair -> pair.target)
+                        .toArray();
+
+        return isTableScanSupported(getTableScan(join.getLeft()), leftJoinKeyOnLeftLookupTable)
                 && isTableScanSupported(
-                        getTableScan(join.getRight()), join.joinSpec().getRightKeys());
+                        getTableScan(join.getRight()), rightJoinKeyOnRightLookupTable);
     }
 
     private static boolean isTableScanSupported(TableScan tableScan, int[] lookupKeys) {
@@ -288,8 +388,8 @@ public class DeltaJoinUtil {
         TableSourceTable tableSourceTable =
                 ((StreamPhysicalTableSourceScan) tableScan).tableSourceTable();
 
-        // source with ability specs are not supported yet
-        if (tableSourceTable.abilitySpecs().length != 0) {
+        if (tableSourceTable.abilitySpecs().length != 0
+                && !areAllSourceAbilitySpecsSupported(tableScan, tableSourceTable.abilitySpecs())) {
             return false;
         }
 
@@ -299,32 +399,111 @@ public class DeltaJoinUtil {
             return false;
         }
 
-        int[][] idxsOfAllIndexes = getColumnIndicesOfAllTableIndexes(tableSourceTable);
-        if (idxsOfAllIndexes.length == 0) {
-            return false;
-        }
-        // the source must have at least one index, and the join key contains one index
-        Set<Integer> lookupKeysSet = Arrays.stream(lookupKeys).boxed().collect(Collectors.toSet());
+        Set<Integer> lookupKeySet = Arrays.stream(lookupKeys).boxed().collect(Collectors.toSet());
 
-        boolean lookupKeyContainsOneIndex =
-                Arrays.stream(idxsOfAllIndexes)
-                        .peek(idxsOfIndex -> Preconditions.checkState(idxsOfIndex.length > 0))
-                        .anyMatch(
-                                idxsOfIndex ->
-                                        Arrays.stream(idxsOfIndex)
-                                                .allMatch(lookupKeysSet::contains));
-        if (!lookupKeyContainsOneIndex) {
+        if (!isLookupKeysContainsIndex(tableSourceTable, lookupKeySet)) {
             return false;
         }
 
         // the lookup source must support async lookup
         return LookupJoinUtil.isAsyncLookup(
                 tableSourceTable,
-                lookupKeysSet,
+                lookupKeySet,
                 null, // hint
                 false, // upsertMaterialize
                 false // preferCustomShuffle
                 );
+    }
+
+    private static boolean isLookupKeysContainsIndex(
+            TableSourceTable tableSourceTable, Set<Integer> lookupKeySet) {
+        // the source must have at least one index, and the join key contains one index
+        int[][] idxsOfAllIndexes =
+                getAllIndexesColumnsFromTableSchema(
+                        tableSourceTable.contextResolvedTable().getResolvedSchema());
+        if (idxsOfAllIndexes.length == 0) {
+            return false;
+        }
+
+        final Set<Integer> lookupKeySetPassThroughProjectPushDownSpec;
+        Optional<ProjectPushDownSpec> projectPushDownSpec =
+                Arrays.stream(tableSourceTable.abilitySpecs())
+                        .filter(spec -> spec instanceof ProjectPushDownSpec)
+                        .map(spec -> (ProjectPushDownSpec) spec)
+                        .findFirst();
+
+        if (projectPushDownSpec.isEmpty()) {
+            lookupKeySetPassThroughProjectPushDownSpec = lookupKeySet;
+        } else {
+            Map<Integer, Integer> mapOut2InPos = new HashMap<>();
+            int[][] projectedFields = projectPushDownSpec.get().getProjectedFields();
+            for (int i = 0; i < projectedFields.length; i++) {
+                int[] projectedField = projectedFields[i];
+                // skip nested projection push-down spec
+                if (projectedField.length > 1) {
+                    continue;
+                }
+                int input = projectedField[0];
+                mapOut2InPos.put(i, input);
+            }
+
+            lookupKeySetPassThroughProjectPushDownSpec =
+                    lookupKeySet.stream()
+                            .flatMap(out -> Stream.ofNullable(mapOut2InPos.get(out)))
+                            .collect(Collectors.toSet());
+        }
+
+        return Arrays.stream(idxsOfAllIndexes)
+                .peek(idxsOfIndex -> Preconditions.checkState(idxsOfIndex.length > 0))
+                .anyMatch(
+                        idxsOfIndex ->
+                                Arrays.stream(idxsOfIndex)
+                                        .allMatch(
+                                                lookupKeySetPassThroughProjectPushDownSpec
+                                                        ::contains));
+    }
+
+    private static boolean areAllSourceAbilitySpecsSupported(
+            TableScan tableScan, SourceAbilitySpec[] sourceAbilitySpecs) {
+        if (!Arrays.stream(sourceAbilitySpecs)
+                .allMatch(spec -> ALL_SUPPORTED_ABILITY_SPEC_IN_SOURCE.contains(spec.getClass()))) {
+            return false;
+        }
+
+        Optional<ReadingMetadataSpec> metadataSpec =
+                Arrays.stream(sourceAbilitySpecs)
+                        .filter(spec -> spec instanceof ReadingMetadataSpec)
+                        .map(spec -> (ReadingMetadataSpec) spec)
+                        .findFirst();
+        if (metadataSpec.isPresent() && !metadataSpec.get().getMetadataKeys().isEmpty()) {
+            return false;
+        }
+
+        // source with non-deterministic filter pushed down is not supported
+        Optional<FilterPushDownSpec> filterPushDownSpec =
+                Arrays.stream(sourceAbilitySpecs)
+                        .filter(spec -> spec instanceof FilterPushDownSpec)
+                        .map(spec -> (FilterPushDownSpec) spec)
+                        .findFirst();
+        if (filterPushDownSpec.isEmpty()) {
+            return true;
+        }
+
+        List<RexNode> filtersOnSource = filterPushDownSpec.get().getPredicates();
+        if (!areAllRexNodeDeterministic(filtersOnSource)) {
+            return false;
+        }
+
+        ChangelogMode changelogMode = getChangelogMode((StreamPhysicalRel) tableScan);
+        if (changelogMode.containsOnly(RowKind.INSERT)) {
+            return true;
+        }
+
+        FlinkRelMetadataQuery fmq =
+                FlinkRelMetadataQuery.reuseOrCreate(tableScan.getCluster().getMetadataQuery());
+        Set<ImmutableBitSet> upsertKeys = fmq.getUpsertKeys(tableScan);
+        return filtersOnSource.stream()
+                .allMatch(filter -> isFilterOnOneSetOfUpsertKeys(filter, upsertKeys));
     }
 
     private static TableScan getTableScan(RelNode node) {
@@ -332,12 +511,71 @@ public class DeltaJoinUtil {
         // support to get table across more nodes if we support more nodes in
         // `ALL_SUPPORTED_DELTA_JOIN_UPSTREAM_NODES`
         if (node instanceof StreamPhysicalExchange
-                || node instanceof StreamPhysicalDropUpdateBefore) {
+                || node instanceof StreamPhysicalDropUpdateBefore
+                || node instanceof StreamPhysicalCalc) {
             return getTableScan(node.getInput(0));
         }
 
         Preconditions.checkState(node instanceof TableScan);
         return (TableScan) node;
+    }
+
+    private static boolean areAllUpstreamCalcSupported(StreamPhysicalJoin join) {
+        return areAllUpstreamCalcFromOneJoinInputSupported(join.getLeft())
+                && areAllUpstreamCalcFromOneJoinInputSupported(join.getRight());
+    }
+
+    private static boolean areAllUpstreamCalcFromOneJoinInputSupported(RelNode joinInput) {
+        List<Calc> calcListFromThisInput = collectCalcBetweenJoinAndTableScan(joinInput);
+
+        // currently, at most one calc is allowed to appear between Join and TableScan
+        if (calcListFromThisInput.size() > 1) {
+            return false;
+        }
+
+        if (calcListFromThisInput.isEmpty()) {
+            return true;
+        }
+
+        Calc calc = calcListFromThisInput.get(0);
+        return isCalcSupported(calc);
+    }
+
+    private static Optional<Calc> getCalcBetweenJoinAndTableScan(RelNode joinInput) {
+        List<Calc> calcListFromLeftInput = collectCalcBetweenJoinAndTableScan(joinInput);
+        Preconditions.checkState(
+                calcListFromLeftInput.size() <= 1,
+                "Should be validated before calling this function");
+        if (calcListFromLeftInput.isEmpty()) {
+            return Optional.empty();
+        } else {
+            return Optional.of(calcListFromLeftInput.get(0));
+        }
+    }
+
+    private static Optional<RexProgram> getRexProgramBetweenJoinAndTableScan(RelNode joinInput) {
+        return getCalcBetweenJoinAndTableScan(joinInput).map(Calc::getProgram);
+    }
+
+    private static List<Calc> collectCalcBetweenJoinAndTableScan(RelNode joinInput) {
+        CalcCollector calcCollector = new CalcCollector();
+        calcCollector.go(joinInput);
+        return calcCollector.collectResult;
+    }
+
+    private static boolean isCalcSupported(Calc calc) {
+        RexProgram calcProgram = calc.getProgram();
+        // calc with non-deterministic fields or filters is not supported
+        return calcProgram == null || areAllRexNodeDeterministic(calcProgram.getExprList());
+    }
+
+    private static boolean areAllRexNodeDeterministic(List<RexNode> rexNodes) {
+        // Delta joins may produce duplicate data, and when this data is sent downstream, we want it
+        // to be processed in an idempotent manner. However, the presence of non-deterministic
+        // functions can lead to unpredictable results, such as random filtering or the addition of
+        // non-deterministic columns. Therefore, we strictly prohibit the use of non-deterministic
+        // functions in this context to ensure consistent and reliable processing.
+        return rexNodes.stream().allMatch(RexUtil::isDeterministic);
     }
 
     private static boolean areAllJoinInputsInWhiteList(RelNode node) {
@@ -406,5 +644,21 @@ public class DeltaJoinUtil {
             node = inputBlockOptimizedTree.relNode();
         }
         return (StreamPhysicalRel) node;
+    }
+
+    private static class CalcCollector extends RelVisitor {
+
+        private final List<Calc> collectResult = new ArrayList<>();
+
+        @Override
+        public void visit(RelNode node, int ordinal, @Nullable RelNode parent) {
+            node = unwrapNode(node, true);
+
+            super.visit(node, ordinal, parent);
+
+            if (node instanceof Calc) {
+                collectResult.add((Calc) node);
+            }
+        }
     }
 }
