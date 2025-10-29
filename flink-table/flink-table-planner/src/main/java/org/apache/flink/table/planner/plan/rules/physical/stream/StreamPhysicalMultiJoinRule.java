@@ -32,17 +32,13 @@ import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.convert.ConverterRule;
-import org.apache.calcite.rex.RexCall;
-import org.apache.calcite.rex.RexInputRef;
-import org.apache.calcite.rex.RexNode;
-import org.apache.calcite.sql.SqlKind;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import static org.apache.flink.table.planner.plan.utils.MultiJoinUtil.createJoinAttributeMap;
 
 /** Rule that converts {@link FlinkLogicalMultiJoin} to {@link StreamPhysicalMultiJoin}. */
 public class StreamPhysicalMultiJoinRule extends ConverterRule {
@@ -61,7 +57,7 @@ public class StreamPhysicalMultiJoinRule extends ConverterRule {
     public RelNode convert(final RelNode rel) {
         final FlinkLogicalMultiJoin multiJoin = (FlinkLogicalMultiJoin) rel;
         final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap =
-                createJoinAttributeMap(multiJoin);
+                createJoinAttributeMap(multiJoin.getInputs(), multiJoin.getJoinConditions());
         final List<RowType> inputRowTypes =
                 multiJoin.getInputs().stream()
                         .map(i -> FlinkTypeFactory.toLogicalRowType(i.getRowType()))
@@ -116,121 +112,5 @@ public class StreamPhysicalMultiJoinRule extends ConverterRule {
         }
 
         return inputTraitSet;
-    }
-
-    private Map<Integer, List<ConditionAttributeRef>> createJoinAttributeMap(
-            final FlinkLogicalMultiJoin multiJoin) {
-        final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap = new HashMap<>();
-        final List<Integer> inputFieldCounts =
-                multiJoin.getInputs().stream()
-                        .map(input -> input.getRowType().getFieldCount())
-                        .collect(Collectors.toList());
-
-        final List<Integer> inputOffsets = new ArrayList<>();
-        int currentOffset = 0;
-        for (final Integer count : inputFieldCounts) {
-            inputOffsets.add(currentOffset);
-            currentOffset += count;
-        }
-
-        final List<? extends RexNode> joinConditions = multiJoin.getJoinConditions();
-        for (final RexNode condition : joinConditions) {
-            extractEqualityConditions(condition, inputOffsets, inputFieldCounts, joinAttributeMap);
-        }
-        return joinAttributeMap;
-    }
-
-    private void extractEqualityConditions(
-            final RexNode condition,
-            final List<Integer> inputOffsets,
-            final List<Integer> inputFieldCounts,
-            final Map<Integer, List<ConditionAttributeRef>> joinAttributeMap) {
-        if (!(condition instanceof RexCall)) {
-            return;
-        }
-
-        final RexCall call = (RexCall) condition;
-        final SqlKind kind = call.getOperator().getKind();
-
-        if (kind != SqlKind.EQUALS) {
-            for (final RexNode operand : call.getOperands()) {
-                extractEqualityConditions(
-                        operand, inputOffsets, inputFieldCounts, joinAttributeMap);
-            }
-            return;
-        }
-
-        if (call.getOperands().size() != 2) {
-            return;
-        }
-
-        final RexNode op1 = call.getOperands().get(0);
-        final RexNode op2 = call.getOperands().get(1);
-
-        if (!(op1 instanceof RexInputRef) || !(op2 instanceof RexInputRef)) {
-            return;
-        }
-
-        final InputRef inputRef1 =
-                findInputRef(((RexInputRef) op1).getIndex(), inputOffsets, inputFieldCounts);
-        final InputRef inputRef2 =
-                findInputRef(((RexInputRef) op2).getIndex(), inputOffsets, inputFieldCounts);
-
-        if (inputRef1 == null || inputRef2 == null) {
-            return;
-        }
-
-        final InputRef leftRef;
-        final InputRef rightRef;
-        if (inputRef1.inputIndex < inputRef2.inputIndex) {
-            leftRef = inputRef1;
-            rightRef = inputRef2;
-        } else {
-            leftRef = inputRef2;
-            rightRef = inputRef1;
-        }
-
-        // Special case for input 0:
-        // Since we are building attribute references that do left -> right index,
-        // we need a special base case for input 0 which has no input to the left.
-        // So we do {-1, -1} -> {0, attributeIndex}
-        if (leftRef.inputIndex == 0) {
-            final ConditionAttributeRef firstAttrRef =
-                    new ConditionAttributeRef(-1, -1, leftRef.inputIndex, leftRef.attributeIndex);
-            joinAttributeMap
-                    .computeIfAbsent(leftRef.inputIndex, k -> new ArrayList<>())
-                    .add(firstAttrRef);
-        }
-
-        final ConditionAttributeRef attrRef =
-                new ConditionAttributeRef(
-                        leftRef.inputIndex,
-                        leftRef.attributeIndex,
-                        rightRef.inputIndex,
-                        rightRef.attributeIndex);
-        joinAttributeMap.computeIfAbsent(rightRef.inputIndex, k -> new ArrayList<>()).add(attrRef);
-    }
-
-    private @Nullable InputRef findInputRef(
-            final int fieldIndex,
-            final List<Integer> inputOffsets,
-            final List<Integer> inputFieldCounts) {
-        for (int i = 0; i < inputOffsets.size(); i++) {
-            final int offset = inputOffsets.get(i);
-            if (fieldIndex >= offset && fieldIndex < offset + inputFieldCounts.get(i)) {
-                return new InputRef(i, fieldIndex - offset);
-            }
-        }
-        return null;
-    }
-
-    private static final class InputRef {
-        private final int inputIndex;
-        private final int attributeIndex;
-
-        private InputRef(final int inputIndex, final int attributeIndex) {
-            this.inputIndex = inputIndex;
-            this.attributeIndex = attributeIndex;
-        }
     }
 }
