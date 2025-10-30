@@ -158,7 +158,7 @@ public class DslEventCorrelationTest extends AbstractTestBaseJUnit4 {
                                 "NASDAQ",
                                 10.0));
 
-        String dslExpression = "A(price > 0) -> B((price > A.price) and (volume > A.volume))";
+        String dslExpression = "A(price > 0) -> B(price > A.price and volume > A.volume)";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 

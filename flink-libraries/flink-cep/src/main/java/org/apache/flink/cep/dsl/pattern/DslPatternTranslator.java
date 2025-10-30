@@ -94,9 +94,6 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
     // Pattern combiner (determines how patterns are connected)
     private Function<String, Pattern<T, T>> patternCombiner;
 
-    // Track used pattern names to avoid conflicts when same event type is used multiple times
-    private final Map<String, Integer> usedPatternNames = new HashMap<>();
-
     // Skip strategy helpers
     private static final Map<String, Function<String, AfterMatchSkipStrategy>> SKIP_STRATEGIES =
             new HashMap<>();
@@ -173,26 +170,8 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
         // Pattern name is either explicitly specified or defaults to event type
         if (nameToken != null) {
             currentPatternName = nameToken.getText();
-        } else { // Auto-generate unique name based on event type to avoid conflicts
-            currentPatternName = generateUniquePatternName(currentEventType);
-        }
-    }
-
-    /**
-     * Generate a unique pattern name based on the event type. If the name is used for the first
-     * time, return it as-is. Otherwise, append a counter (e.g., TRADE, TRADE_2, TRADE_3).
-     */
-    private String generateUniquePatternName(String baseName) {
-        Integer count = usedPatternNames.get(baseName);
-        if (count == null) {
-            // First use - no suffix needed
-            usedPatternNames.put(baseName, 1);
-            return baseName;
         } else {
-            // Subsequent use - add suffix
-            count++;
-            usedPatternNames.put(baseName, count);
-            return baseName + "_" + count;
+            currentPatternName = currentEventType;
         }
     }
 
@@ -237,11 +216,10 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
             LOG.debug("Added pattern node: {}", currentPatternName);
         }
 
-        // Add condition if we have expressions or need type matching
-        // Use currentEventType for matching unless strictTypeMatching explicitly disables it
-        String typePattern = currentEventType;
+        // Add condition - do NOT use eventType for filtering
+        // Pattern name is not the same as event type
         DslCondition<T> condition =
-                new DslCondition<>(eventAdapter, typePattern, currentExpressions, currentLogicalOp);
+                new DslCondition<>(eventAdapter, null, currentExpressions, currentLogicalOp);
         currentPattern = currentPattern.where(condition);
 
         // Apply quantifiers
@@ -293,12 +271,14 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
 
     @Override
     public void enterPlus_quantifier(CepDslParser.Plus_quantifierContext ctx) {
+        // Mark that we need to apply oneOrMore quantifier
         quantifierLower = 1;
         quantifierUpper = Integer.MAX_VALUE;
     }
 
     @Override
     public void enterStar_quantifier(CepDslParser.Star_quantifierContext ctx) {
+        // Mark that we need to apply zeroOrMore quantifier
         quantifierLower = 0;
         quantifierUpper = Integer.MAX_VALUE;
     }
@@ -339,12 +319,18 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
 
     @Override
     public void enterEvalOrExpression(CepDslParser.EvalOrExpressionContext ctx) {
-        currentLogicalOp = DslCondition.LogicalOperator.OR;
+        // Only set OR if there's actually an OR operator
+        if (ctx.op != null || (ctx.getChildCount() > 1 && ctx.getText().contains("or"))) {
+            currentLogicalOp = DslCondition.LogicalOperator.OR;
+        }
     }
 
     @Override
     public void enterEvalAndExpression(CepDslParser.EvalAndExpressionContext ctx) {
-        currentLogicalOp = DslCondition.LogicalOperator.AND;
+        // Only override if we haven't already set OR
+        if (currentLogicalOp != DslCondition.LogicalOperator.OR) {
+            currentLogicalOp = DslCondition.LogicalOperator.AND;
+        }
     }
 
     @Override
