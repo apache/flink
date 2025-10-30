@@ -99,7 +99,8 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                         new MockOperatorEventGateway(),
                         1,
                         5,
-                        true);
+                        true,
+                        false);
         operator.initializeState(
                 new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));
 
@@ -547,7 +548,8 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                         new MockOperatorEventGateway(),
                         1,
                         5,
-                        true);
+                        true,
+                        false);
         operator.initializeState(
                 new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));
         operator.open();

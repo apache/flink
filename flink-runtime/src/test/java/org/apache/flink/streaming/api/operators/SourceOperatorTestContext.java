@@ -75,14 +75,15 @@ public class SourceOperatorTestContext implements AutoCloseable {
 
     public SourceOperatorTestContext(boolean idle, WatermarkStrategy<Integer> watermarkStrategy)
             throws Exception {
-        this(idle, false, watermarkStrategy, new MockOutput<>(new ArrayList<>()));
+        this(idle, false, watermarkStrategy, new MockOutput<>(new ArrayList<>()), false);
     }
 
     public SourceOperatorTestContext(
             boolean idle,
             boolean usePerSplitOutputs,
             WatermarkStrategy<Integer> watermarkStrategy,
-            Output<StreamRecord<Integer>> output)
+            Output<StreamRecord<Integer>> output,
+            boolean supportsSplitReassignmentOnRecovery)
             throws Exception {
         mockSourceReader =
                 new MockSourceReader(
@@ -109,7 +110,8 @@ public class SourceOperatorTestContext implements AutoCloseable {
                         mockGateway,
                         SUBTASK_INDEX,
                         5,
-                        true);
+                        true,
+                        supportsSplitReassignmentOnRecovery);
         operator.initializeState(
                 new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));
     }

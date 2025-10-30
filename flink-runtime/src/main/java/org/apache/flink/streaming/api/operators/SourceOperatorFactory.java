@@ -27,6 +27,7 @@ import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.SupportsSplitReassignmentOnRecovery;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -128,7 +129,8 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                                 .getTaskManagerExternalAddress(),
                         emitProgressiveWatermarks,
                         parameters.getContainingTask().getCanEmitBatchOfRecords(),
-                        getSourceWatermarkDeclarations());
+                        getSourceWatermarkDeclarations(),
+                        source instanceof SupportsSplitReassignmentOnRecovery);
 
         parameters.getOperatorEventDispatcher().registerEventHandler(operatorId, sourceOperator);
 
@@ -199,7 +201,8 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                     String localHostName,
                     boolean emitProgressiveWatermarks,
                     CanEmitBatchOfRecordsChecker canEmitBatchOfRecords,
-                    Collection<? extends WatermarkDeclaration> watermarkDeclarations) {
+                    Collection<? extends WatermarkDeclaration> watermarkDeclarations,
+                    boolean supportsSplitReassignmentOnRecovery) {
 
         // jumping through generics hoops: cast the generics away to then cast them back more
         // strictly typed
@@ -231,6 +234,7 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                 localHostName,
                 emitProgressiveWatermarks,
                 canEmitBatchOfRecords,
-                watermarkIsAlignedMap);
+                watermarkIsAlignedMap,
+                supportsSplitReassignmentOnRecovery);
     }
 }

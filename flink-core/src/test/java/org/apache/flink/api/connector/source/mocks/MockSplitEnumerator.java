@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.connector.source.mocks;
 
+import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
@@ -28,20 +29,20 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /** A mock {@link SplitEnumerator} for unit tests. */
 public class MockSplitEnumerator
         implements SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>>, SupportsBatchSnapshot {
-    private final SortedSet<MockSourceSplit> unassignedSplits;
+    private final Map<Integer, Set<MockSourceSplit>> pendingSplitAssignment;
+    private final Map<String, Integer> globalSplitAssignment;
     private final SplitEnumeratorContext<MockSourceSplit> enumContext;
     private final List<SourceEvent> handledSourceEvent;
     private final List<Long> successfulCheckpoints;
@@ -50,22 +51,24 @@ public class MockSplitEnumerator
 
     public MockSplitEnumerator(int numSplits, SplitEnumeratorContext<MockSourceSplit> enumContext) {
         this(new HashSet<>(), enumContext);
+        List<MockSourceSplit> unassignedSplits = new ArrayList<>();
         for (int i = 0; i < numSplits; i++) {
             unassignedSplits.add(new MockSourceSplit(i));
         }
+        recalculateAssignments(unassignedSplits);
     }
 
     public MockSplitEnumerator(
             Set<MockSourceSplit> unassignedSplits,
             SplitEnumeratorContext<MockSourceSplit> enumContext) {
-        this.unassignedSplits =
-                new TreeSet<>(Comparator.comparingInt(o -> Integer.parseInt(o.splitId())));
-        this.unassignedSplits.addAll(unassignedSplits);
+        this.pendingSplitAssignment = new HashMap<>();
+        this.globalSplitAssignment = new HashMap<>();
         this.enumContext = enumContext;
         this.handledSourceEvent = new ArrayList<>();
         this.successfulCheckpoints = new ArrayList<>();
         this.started = false;
         this.closed = false;
+        recalculateAssignments(unassignedSplits);
     }
 
     @Override
@@ -83,25 +86,36 @@ public class MockSplitEnumerator
 
     @Override
     public void addSplitsBack(List<MockSourceSplit> splits, int subtaskId) {
-        unassignedSplits.addAll(splits);
+        // add back to same subtaskId.
+        putPendingAssignments(subtaskId, splits);
     }
 
     @Override
     public void addReader(int subtaskId) {
-        List<MockSourceSplit> assignment = new ArrayList<>();
-        for (MockSourceSplit split : unassignedSplits) {
-            if (Integer.parseInt(split.splitId()) % enumContext.currentParallelism() == subtaskId) {
-                assignment.add(split);
+        ReaderInfo readerInfo = enumContext.registeredReaders().get(subtaskId);
+        List<MockSourceSplit> splitsOnRecovery = readerInfo.getReportedSplitsOnRegistration();
+
+        List<MockSourceSplit> redistributedSplits = new ArrayList<>();
+        List<MockSourceSplit> addBackSplits = new ArrayList<>();
+        for (MockSourceSplit split : splitsOnRecovery) {
+            if (!globalSplitAssignment.containsKey(split.splitId())) {
+                // if the split is not present in globalSplitAssignment, it means that this split is
+                // being registered for the first time and is eligible for redistribution.
+                redistributedSplits.add(split);
+            } else if (!globalSplitAssignment.containsKey(split.splitId())) {
+                //  if split is already assigned to other sub-task, just ignore it. Otherwise, add
+                // back to this sub-task again.
+                addBackSplits.add(split);
             }
         }
-        enumContext.assignSplits(
-                new SplitsAssignment<>(Collections.singletonMap(subtaskId, assignment)));
-        unassignedSplits.removeAll(assignment);
+        recalculateAssignments(redistributedSplits);
+        putPendingAssignments(subtaskId, addBackSplits);
+        assignAllSplits();
     }
 
     @Override
     public Set<MockSourceSplit> snapshotState(long checkpointId) {
-        return unassignedSplits;
+        return getUnassignedSplits();
     }
 
     @Override
@@ -112,11 +126,6 @@ public class MockSplitEnumerator
     @Override
     public void close() throws IOException {
         this.closed = true;
-    }
-
-    public void addNewSplits(List<MockSourceSplit> newSplits) {
-        unassignedSplits.addAll(newSplits);
-        assignAllSplits();
     }
 
     // --------------------
@@ -130,7 +139,9 @@ public class MockSplitEnumerator
     }
 
     public Set<MockSourceSplit> getUnassignedSplits() {
-        return unassignedSplits;
+        return pendingSplitAssignment.values().stream()
+                .flatMap(Set::stream)
+                .collect(Collectors.toSet());
     }
 
     public List<SourceEvent> getHandledSourceEvent() {
@@ -145,17 +156,27 @@ public class MockSplitEnumerator
 
     private void assignAllSplits() {
         Map<Integer, List<MockSourceSplit>> assignment = new HashMap<>();
-        unassignedSplits.forEach(
-                split -> {
-                    int subtaskId =
-                            Integer.parseInt(split.splitId()) % enumContext.currentParallelism();
-                    if (enumContext.registeredReaders().containsKey(subtaskId)) {
-                        assignment
-                                .computeIfAbsent(subtaskId, ignored -> new ArrayList<>())
-                                .add(split);
-                    }
-                });
+        for (Map.Entry<Integer, Set<MockSourceSplit>> iter : pendingSplitAssignment.entrySet()) {
+            Integer subtaskId = iter.getKey();
+            if (enumContext.registeredReaders().containsKey(subtaskId)) {
+                assignment.put(subtaskId, new ArrayList<>(iter.getValue()));
+            }
+        }
         enumContext.assignSplits(new SplitsAssignment<>(assignment));
-        assignment.values().forEach(l -> unassignedSplits.removeAll(l));
+        assignment.keySet().forEach(pendingSplitAssignment::remove);
+    }
+
+    private void recalculateAssignments(Collection<MockSourceSplit> newSplits) {
+        for (MockSourceSplit split : newSplits) {
+            int subtaskId = Integer.parseInt(split.splitId()) % enumContext.currentParallelism();
+            putPendingAssignments(subtaskId, Collections.singletonList(split));
+        }
+    }
+
+    private void putPendingAssignments(int subtaskId, Collection<MockSourceSplit> splits) {
+        Set<MockSourceSplit> pendingSplits =
+                pendingSplitAssignment.computeIfAbsent(subtaskId, HashSet::new);
+        pendingSplits.addAll(splits);
+        splits.forEach(split -> globalSplitAssignment.put(split.splitId(), subtaskId));
     }
 }

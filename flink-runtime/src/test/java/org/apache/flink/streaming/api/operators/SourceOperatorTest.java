@@ -43,11 +43,14 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.CollectorOutput;
+import org.apache.flink.streaming.util.MockOutput;
 import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nullable;
 
@@ -99,24 +102,46 @@ class SourceOperatorTest {
                 .isNotNull();
     }
 
-    @Test
-    void testOpen() throws Exception {
-        // Initialize the operator.
-        operator.initializeState(context.createStateContext());
-        // Open the operator.
-        operator.open();
-        // The source reader should have been assigned a split.
-        assertThat(mockSourceReader.getAssignedSplits())
-                .containsExactly(SourceOperatorTestContext.MOCK_SPLIT);
-        // The source reader should have started.
-        assertThat(mockSourceReader.isStarted()).isTrue();
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testOpen(boolean supportsSplitReassignmentOnRecovery) throws Exception {
+        try (SourceOperatorTestContext context =
+                new SourceOperatorTestContext(
+                        false,
+                        false,
+                        WatermarkStrategy.noWatermarks(),
+                        new MockOutput<>(new ArrayList<>()),
+                        supportsSplitReassignmentOnRecovery)) {
+            SourceOperator<Integer, MockSourceSplit> operator = context.getOperator();
+            // Initialize the operator.
+            operator.initializeState(context.createStateContext());
+            // Open the operator.
+            operator.open();
+            // The source reader should have been assigned a split.
+            if (supportsSplitReassignmentOnRecovery) {
+                assertThat(context.getSourceReader().getAssignedSplits()).isEmpty();
+            } else {
+                assertThat(context.getSourceReader().getAssignedSplits())
+                        .containsExactly(SourceOperatorTestContext.MOCK_SPLIT);
+            }
 
-        // A ReaderRegistrationRequest should have been sent.
-        assertThat(mockGateway.getEventsSent()).hasSize(1);
-        OperatorEvent operatorEvent = mockGateway.getEventsSent().get(0);
-        assertThat(operatorEvent).isInstanceOf(ReaderRegistrationEvent.class);
-        assertThat(((ReaderRegistrationEvent) operatorEvent).subtaskId())
-                .isEqualTo(SourceOperatorTestContext.SUBTASK_INDEX);
+            // The source reader should have started.
+            assertThat(context.getSourceReader().isStarted()).isTrue();
+
+            // A ReaderRegistrationRequest should have been sent.
+            assertThat(context.getGateway().getEventsSent()).hasSize(1);
+            OperatorEvent operatorEvent = context.getGateway().getEventsSent().get(0);
+            assertThat(operatorEvent).isInstanceOf(ReaderRegistrationEvent.class);
+            ReaderRegistrationEvent registrationEvent = (ReaderRegistrationEvent) operatorEvent;
+            assertThat(registrationEvent.subtaskId())
+                    .isEqualTo(SourceOperatorTestContext.SUBTASK_INDEX);
+            if (supportsSplitReassignmentOnRecovery) {
+                assertThat(registrationEvent.splits(new MockSourceSplitSerializer()))
+                        .containsExactly(SourceOperatorTestContext.MOCK_SPLIT);
+            } else {
+                assertThat(registrationEvent.splits(new MockSourceSplitSerializer())).isEmpty();
+            }
+        }
     }
 
     @Test
@@ -210,7 +235,8 @@ class SourceOperatorTest {
                         false,
                         WatermarkStrategy.<Integer>forMonotonousTimestamps()
                                 .withTimestampAssigner((element, recordTimestamp) -> element),
-                        new CollectorOutput<>(outputStreamElements));
+                        new CollectorOutput<>(outputStreamElements),
+                        false);
         operator = context.getOperator();
         operator.initializeState(context.createStateContext());
         operator.open();
@@ -251,7 +277,7 @@ class SourceOperatorTest {
 
     @Test
     public void testMetricGroupIsCreatedForRestoredSplit() throws Exception {
-        MockSourceSplit restoredSplit = new MockSourceSplit((2));
+        MockSourceSplit restoredSplit = new MockSourceSplit((1));
         StateInitializationContext stateContext =
                 context.createStateContext(Collections.singletonList(restoredSplit));
         operator.initializeState(stateContext);
