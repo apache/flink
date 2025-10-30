@@ -205,7 +205,7 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
     }
 
     @Test
-    void testLimitingRateWithStatusChangeInSplitReader() throws Exception {
+    void testLimitingRateWithAddingSplitInSplitReader() throws Exception {
         String[] recordArr = new String[60];
         for (int i = 0; i < recordArr.length; i++) {
             recordArr[i] = "value" + i;
@@ -237,7 +237,7 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
     /** A rate limiter that reduce the maxPerSecond for specific splits. */
     private static class SplitAwaredRateLimiter
             implements org.apache.flink.api.connector.source.util.ratelimit.RateLimiter<
-                    org.apache.flink.connector.base.source.reader.mocks.TestingSourceSplit> {
+                    TestingSourceSplit> {
 
         private final Executor limiter =
                 Executors.newSingleThreadExecutor(new ExecutorThreadFactory("flink-rate-limiter"));
@@ -255,8 +255,7 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
         }
 
         @Override
-        public void notifyStatusChange(
-                org.apache.flink.connector.base.source.reader.mocks.TestingSourceSplit split) {
+        public void notifyAddingSplit(TestingSourceSplit split) {
             if (!split.splitId().equals("test-split1")) {
                 this.rateLimiter = RateLimiter.create(maxPerSecond / 2);
             }

@@ -19,6 +19,7 @@
 package org.apache.flink.api.connector.source.util.ratelimit;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import org.apache.flink.shaded.guava33.com.google.common.util.concurrent.RateLimiter;
@@ -30,8 +31,8 @@ import java.util.concurrent.Executors;
 
 /** An implementation of {@link RateLimiter} based on Guava's RateLimiter. */
 @Internal
-public class GuavaRateLimiter<S>
-        implements org.apache.flink.api.connector.source.util.ratelimit.RateLimiter<S> {
+public class GuavaRateLimiter<Split extends SourceSplit>
+        implements org.apache.flink.api.connector.source.util.ratelimit.RateLimiter<Split> {
 
     private final Executor limiter =
             Executors.newSingleThreadExecutor(new ExecutorThreadFactory("flink-rate-limiter"));

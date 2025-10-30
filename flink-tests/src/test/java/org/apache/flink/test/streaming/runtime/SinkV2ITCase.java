@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.IntegerTypeInfo;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.api.connector.source.Source;
+import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.util.ratelimit.GatedRateLimiter;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiter;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
@@ -365,7 +366,7 @@ public class SinkV2ITCase extends AbstractTestBase {
      * for another two checkpoints and 5) exiting.
      */
     private Source<Integer, ?, ?> createStreamingSource() {
-        RateLimiterStrategy<Void> rateLimiterStrategy =
+        RateLimiterStrategy<NumberSequenceSource.NumberSequenceSplit> rateLimiterStrategy =
                 parallelism -> new BurstingRateLimiter(SOURCE_DATA.size() / 4, 2);
         return new DataGeneratorSource<>(
                 l -> SOURCE_DATA.get(l.intValue() % SOURCE_DATA.size()),
@@ -374,8 +375,9 @@ public class SinkV2ITCase extends AbstractTestBase {
                 IntegerTypeInfo.INT_TYPE_INFO);
     }
 
-    private static class BurstingRateLimiter implements RateLimiter<Void> {
-        private final RateLimiter<Void> rateLimiter;
+    private static class BurstingRateLimiter
+            implements RateLimiter<NumberSequenceSource.NumberSequenceSplit> {
+        private final RateLimiter<NumberSequenceSource.NumberSequenceSplit> rateLimiter;
         private final int numCheckpointCooldown;
         private int cooldown;
 

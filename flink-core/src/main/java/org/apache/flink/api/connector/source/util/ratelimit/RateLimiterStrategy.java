@@ -18,6 +18,7 @@
 package org.apache.flink.api.connector.source.util.ratelimit;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.connector.source.SourceSplit;
 
 import java.io.Serializable;
 
@@ -25,16 +26,18 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A factory for {@link RateLimiter RateLimiters} which apply rate-limiting to a source sub-task.
+ *
+ * @param <SplitT> The type of the source splits.
  */
 @Experimental
-public interface RateLimiterStrategy<S> extends Serializable {
+public interface RateLimiterStrategy<SplitT extends SourceSplit> extends Serializable {
 
     /**
      * Creates a {@link RateLimiter} that limits the rate of records going through. When there is
      * parallelism, the limiting rate is evenly reduced per subtask, such that all the sub-tasks
      * limiting rates equals the cumulative limiting rate.
      */
-    RateLimiter<S> createRateLimiter(int parallelism);
+    RateLimiter<SplitT> createRateLimiter(int parallelism);
 
     /**
      * Creates a {@code RateLimiterStrategy} that is limiting the number of records per second.

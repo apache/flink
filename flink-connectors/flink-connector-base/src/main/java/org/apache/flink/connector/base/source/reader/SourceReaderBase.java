@@ -290,7 +290,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
                     };
         }
         if (isRateLimited) {
-            rateLimiter.notifyStatusChange(
+            rateLimiter.notifyAddingSplit(
                     this.toSplitType(
                             this.currentSplitContext.splitId, this.currentSplitContext.state));
         }
@@ -516,7 +516,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
         final SourceOutput<T> sourceOutput;
 
         /** Count of records handled during the current rate-limiting window. */
-        int currentWindowRecordCount;
+        private int currentWindowRecordCount;
 
         /**
          * Creates a new RecordCountingSourceOutputWrapper.

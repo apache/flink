@@ -19,15 +19,20 @@
 package org.apache.flink.api.connector.source.util.ratelimit;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.connector.source.SourceSplit;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.util.concurrent.CompletionStage;
 
-/** The interface to rate limit execution of methods. */
+/**
+ * The interface to rate limit execution of methods.
+ *
+ * @param <SplitT> The type of the source splits.
+ */
 @NotThreadSafe
 @Experimental
-public interface RateLimiter<S> {
+public interface RateLimiter<SplitT extends SourceSplit> {
 
     /**
      * Returns a future that is completed once another event would not exceed the rate limit. For
@@ -57,10 +62,8 @@ public interface RateLimiter<S> {
     default void notifyCheckpointComplete(long checkpointId) {}
 
     /**
-     * Notifies this {@code RateLimiter} that the status has changed. This can be used to adjust the
-     * rate limiting behavior based on the new status.
-     *
-     * @param status The new status.
+     * Notifies this {@code RateLimiter} that a new split has been added. the result of before
+     * {@link #acquire(int)} method call should be ensured to be completed when calling this method.
      */
-    default void notifyStatusChange(S status) {}
+    default void notifyAddingSplit(SplitT split) {}
 }
