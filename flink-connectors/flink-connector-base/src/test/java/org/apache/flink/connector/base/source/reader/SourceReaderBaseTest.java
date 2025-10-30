@@ -169,6 +169,7 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
         while (testingReaderOutput.getEmittedRecords().size() < recordArr.length) {
             reader.pollNext(testingReaderOutput);
         }
+        // Expected time: 60/2 ("test-split1") = 30 seconds.
         // The first few seconds require preheating, there may be a deviation of a few seconds.
         assertThat(System.currentTimeMillis() - startTime)
                 .isGreaterThan(Duration.ofSeconds(25).toMillis())
