@@ -154,7 +154,7 @@ public class DslCompiler {
             Pattern<T, T> pattern = parseDsl(dslExpression, eventAdapter, strictTypeMatching);
 
             // Step 2: Create PatternStream
-            PatternStream<T> patternStream = CEP.pattern(dataStream, pattern);
+            PatternStream<T> patternStream = CEP.pattern(dataStream, pattern).inProcessingTime();
 
             LOG.info("Successfully compiled DSL expression into pattern: {}", pattern.getName());
             return patternStream;
