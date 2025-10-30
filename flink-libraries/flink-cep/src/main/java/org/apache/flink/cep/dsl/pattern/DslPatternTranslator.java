@@ -143,6 +143,13 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
         quantifierLower = null;
         quantifierUpper = null;
 
+        // Reset expression parsing state
+        currentAttribute = null;
+        currentOperator = null;
+        currentValue = null;
+        currentRefPattern = null;
+        currentRefAttribute = null;
+
         // Extract pattern name and event type
         if (ctx.patternFilterExpressionMandatory() != null) {
             CepDslParser.PatternFilterExpressionMandatoryContext mandatory =
@@ -217,8 +224,7 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
         }
 
         // Add condition if we have expressions or need type matching
-        // Use currentEventType for matching unless strictTypeMatching explicitly disables it
-        String typePattern = currentEventType;
+        String typePattern = strictTypeMatching ? currentEventType : null;
         DslCondition<T> condition =
                 new DslCondition<>(eventAdapter, typePattern, currentExpressions, currentLogicalOp);
         currentPattern = currentPattern.where(condition);
