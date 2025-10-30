@@ -320,12 +320,18 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
 
     @Override
     public void enterEvalOrExpression(CepDslParser.EvalOrExpressionContext ctx) {
-        currentLogicalOp = DslCondition.LogicalOperator.OR;
+        // Only set OR if there's actually an OR operator
+        if (ctx.op != null || (ctx.getChildCount() > 1 && ctx.getText().contains("or"))) {
+            currentLogicalOp = DslCondition.LogicalOperator.OR;
+        }
     }
 
     @Override
     public void enterEvalAndExpression(CepDslParser.EvalAndExpressionContext ctx) {
-        currentLogicalOp = DslCondition.LogicalOperator.AND;
+        // Only override if we haven't already set OR
+        if (currentLogicalOp != DslCondition.LogicalOperator.OR) {
+            currentLogicalOp = DslCondition.LogicalOperator.AND;
+        }
     }
 
     @Override
