@@ -200,11 +200,6 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
     }
 
     private void buildPattern() {
-        System.out.println(
-                "[DEBUG] buildPattern called, currentEventType="
-                        + currentEventType
-                        + ", expressions.size="
-                        + currentExpressions.size());
         // Create or extend pattern
         if (currentPattern == null) {
             // First pattern - use begin()
@@ -277,12 +272,16 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
 
     @Override
     public void enterPlus_quantifier(CepDslParser.Plus_quantifierContext ctx) {
-        currentPattern = currentPattern.oneOrMore();
+        // Mark that we need to apply oneOrMore quantifier
+        quantifierLower = 1;
+        quantifierUpper = Integer.MAX_VALUE;
     }
 
     @Override
     public void enterStar_quantifier(CepDslParser.Star_quantifierContext ctx) {
-        currentPattern = currentPattern.oneOrMore().optional();
+        // Mark that we need to apply zeroOrMore quantifier
+        quantifierLower = 0;
+        quantifierUpper = Integer.MAX_VALUE;
     }
 
     @Override

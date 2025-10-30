@@ -18,6 +18,7 @@
 
 package org.apache.flink.cep.dsl;
 
+import org.apache.flink.cep.PatternSelectFunction;
 import org.apache.flink.cep.PatternStream;
 import org.apache.flink.cep.dsl.api.DslCompiler;
 import org.apache.flink.cep.dsl.model.StockEvent;
@@ -56,7 +57,10 @@ public class DslQuantifierTest extends AbstractTestBaseJUnit4 {
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
-        DataStream<List<StockEvent>> result = patternStream.select(match -> match.get("TRADE"));
+        DataStream<List<StockEvent>> result =
+                patternStream.select(
+                        (PatternSelectFunction<StockEvent, List<StockEvent>>)
+                                match -> match.get("TRADE"));
 
         List<List<StockEvent>> results = new ArrayList<>();
         result.executeAndCollect().forEachRemaining(results::add);
@@ -115,7 +119,10 @@ public class DslQuantifierTest extends AbstractTestBaseJUnit4 {
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
-        DataStream<List<StockEvent>> result = patternStream.select(match -> match.get("TRADE"));
+        DataStream<List<StockEvent>> result =
+                patternStream.select(
+                        (PatternSelectFunction<StockEvent, List<StockEvent>>)
+                                match -> match.get("TRADE"));
 
         List<List<StockEvent>> results = new ArrayList<>();
         result.executeAndCollect().forEachRemaining(results::add);
@@ -157,7 +164,10 @@ public class DslQuantifierTest extends AbstractTestBaseJUnit4 {
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
-        DataStream<List<StockEvent>> result = patternStream.select(match -> match.get("TRADE"));
+        DataStream<List<StockEvent>> result =
+                patternStream.select(
+                        (PatternSelectFunction<StockEvent, List<StockEvent>>)
+                                match -> match.get("TRADE"));
 
         List<List<StockEvent>> results = new ArrayList<>();
         result.executeAndCollect().forEachRemaining(results::add);
@@ -176,7 +186,10 @@ public class DslQuantifierTest extends AbstractTestBaseJUnit4 {
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
-        DataStream<List<StockEvent>> result = patternStream.select(match -> match.get("TRADE"));
+        DataStream<List<StockEvent>> result =
+                patternStream.select(
+                        (PatternSelectFunction<StockEvent, List<StockEvent>>)
+                                match -> match.get("TRADE"));
 
         List<List<StockEvent>> results = new ArrayList<>();
         result.executeAndCollect().forEachRemaining(results::add);
