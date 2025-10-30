@@ -52,6 +52,8 @@ source "${CONDA_HOME}/bin/activate"
 
 cd "${FLINK_PYTHON_DIR}"
 
+pip install -r dev/dev-requirements.txt
+
 if [[ -d "dist" ]]; then rm -Rf dist; fi
 
 pushd apache-flink-libraries
