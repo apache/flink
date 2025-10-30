@@ -57,8 +57,7 @@ public class DslPatternMatchingTest extends AbstractTestBaseJUnit4 {
                                 "NASDAQ",
                                 0.0));
 
-        String dslExpression =
-                "PATTERN ORDER WHERE eventType = 'ORDER' " + "NEXT TRADE WHERE eventType = 'TRADE'";
+        String dslExpression = "ORDER(eventType = 'ORDER') -> TRADE(eventType = 'TRADE')";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 

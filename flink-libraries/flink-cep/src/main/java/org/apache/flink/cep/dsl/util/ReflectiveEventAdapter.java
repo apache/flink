@@ -81,6 +81,14 @@ public class ReflectiveEventAdapter<T> implements EventAdapter<T> {
         if (event == null) {
             return "null";
         }
+
+        // Try to get eventType attribute first
+        Optional<Object> eventTypeAttr = getAttribute(event, "eventType");
+        if (eventTypeAttr.isPresent()) {
+            return String.valueOf(eventTypeAttr.get());
+        }
+
+        // Fall back to class simple name
         return event.getClass().getSimpleName();
     }
 

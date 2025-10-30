@@ -217,7 +217,8 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
         }
 
         // Add condition if we have expressions or need type matching
-        String typePattern = strictTypeMatching ? currentEventType : null;
+        // Use currentEventType for matching unless strictTypeMatching explicitly disables it
+        String typePattern = currentEventType;
         DslCondition<T> condition =
                 new DslCondition<>(eventAdapter, typePattern, currentExpressions, currentLogicalOp);
         currentPattern = currentPattern.where(condition);
