@@ -20,8 +20,6 @@ import os
 import unittest
 import uuid
 
-import pytz
-
 from pyflink.common import Row
 from pyflink.table import DataTypes, expressions as expr
 from pyflink.table.expressions import call
