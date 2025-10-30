@@ -164,6 +164,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
                 isRateLimited
                         ? rateLimiterStrategy.createRateLimiter(context.currentParallelism())
                         : null;
+        rateLimitPermissionFuture = CompletableFuture.completedFuture(null);
     }
 
     @Override
