@@ -83,7 +83,7 @@ public class SourceOperatorTestContext implements AutoCloseable {
             boolean usePerSplitOutputs,
             WatermarkStrategy<Integer> watermarkStrategy,
             Output<StreamRecord<Integer>> output,
-            boolean supportSupportSplitReassignmentOnRecovery)
+            boolean supportsSplitReassignmentOnRecovery)
             throws Exception {
         mockSourceReader =
                 new MockSourceReader(
@@ -111,7 +111,7 @@ public class SourceOperatorTestContext implements AutoCloseable {
                         SUBTASK_INDEX,
                         5,
                         true,
-                        supportSupportSplitReassignmentOnRecovery);
+                        supportsSplitReassignmentOnRecovery);
         operator.initializeState(
                 new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));
     }

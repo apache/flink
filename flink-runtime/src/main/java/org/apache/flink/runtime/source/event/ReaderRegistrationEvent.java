@@ -19,6 +19,7 @@ limitations under the License.
 package org.apache.flink.runtime.source.event;
 
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.api.connector.source.SupportsSplitReassignmentOnRecovery;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 
@@ -30,7 +31,7 @@ import java.util.List;
 /**
  * The SourceOperator should always send the ReaderRegistrationEvent with the
  * `reportedSplitsOnRegistration` list. But it will not add the splits to readers if {@link
- * org.apache.flink.api.connector.source.SupportSplitReassignmentOnRecovery} is implemented.
+ * SupportsSplitReassignmentOnRecovery} is implemented.
  */
 public class ReaderRegistrationEvent implements OperatorEvent {
 

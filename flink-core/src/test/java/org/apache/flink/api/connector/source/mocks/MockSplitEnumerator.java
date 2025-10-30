@@ -41,7 +41,6 @@ import java.util.stream.Collectors;
 /** A mock {@link SplitEnumerator} for unit tests. */
 public class MockSplitEnumerator
         implements SplitEnumerator<MockSourceSplit, Set<MockSourceSplit>>, SupportsBatchSnapshot {
-    // 扩成16个partition, unas
     private final Map<Integer, Set<MockSourceSplit>> pendingSplitAssignment;
     private final Map<String, Integer> globalSplitAssignment;
     private final SplitEnumeratorContext<MockSourceSplit> enumContext;
@@ -56,7 +55,7 @@ public class MockSplitEnumerator
         for (int i = 0; i < numSplits; i++) {
             unassignedSplits.add(new MockSourceSplit(i));
         }
-        calculateAndPutPendingAssignments(unassignedSplits);
+        recalculateAssignments(unassignedSplits);
     }
 
     public MockSplitEnumerator(
@@ -69,7 +68,7 @@ public class MockSplitEnumerator
         this.successfulCheckpoints = new ArrayList<>();
         this.started = false;
         this.closed = false;
-        calculateAndPutPendingAssignments(unassignedSplits);
+        recalculateAssignments(unassignedSplits);
     }
 
     @Override
@@ -100,16 +99,16 @@ public class MockSplitEnumerator
         List<MockSourceSplit> addBackSplits = new ArrayList<>();
         for (MockSourceSplit split : splitsOnRecovery) {
             if (!globalSplitAssignment.containsKey(split.splitId())) {
-                // if split not existed in globalSplitAssignment, mean that it's registered first
-                // time, can be redistibuted.
+                // if the split is not present in globalSplitAssignment, it means that this split is
+                // being registered for the first time and is eligible for redistribution.
                 redistributedSplits.add(split);
             } else if (!globalSplitAssignment.containsKey(split.splitId())) {
-                //  if split already is assigned to other substaskId, just ignore it. Otherwise,
-                // addback to this subtaskId again.
+                //  if split is already assigned to other sub-task, just ignore it. Otherwise, add
+                // back to this sub-task again.
                 addBackSplits.add(split);
             }
         }
-        calculateAndPutPendingAssignments(redistributedSplits);
+        recalculateAssignments(redistributedSplits);
         putPendingAssignments(subtaskId, addBackSplits);
         assignAllSplits();
     }
@@ -167,7 +166,7 @@ public class MockSplitEnumerator
         assignment.keySet().forEach(pendingSplitAssignment::remove);
     }
 
-    private void calculateAndPutPendingAssignments(Collection<MockSourceSplit> newSplits) {
+    private void recalculateAssignments(Collection<MockSourceSplit> newSplits) {
         for (MockSourceSplit split : newSplits) {
             int subtaskId = Integer.parseInt(split.splitId()) % enumContext.currentParallelism();
             putPendingAssignments(subtaskId, Collections.singletonList(split));

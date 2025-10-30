@@ -21,8 +21,8 @@ package org.apache.flink.api.connector.source;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * A decorative interface {@link Source}. Implementing this interface indicates that the source
+ * A decorative interface for {@link Source}. Implementing this interface indicates that the source
  * operator needs to report splits to the enumerator and receive reassignment.
  */
 @PublicEvolving
-public interface SupportSplitReassignmentOnRecovery {}
+public interface SupportsSplitReassignmentOnRecovery {}

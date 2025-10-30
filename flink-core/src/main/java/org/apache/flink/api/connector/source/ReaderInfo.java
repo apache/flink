@@ -29,7 +29,7 @@ import java.util.Objects;
  * A container class hosting the information of a {@link SourceReader}.
  *
  * <p>The {@code reportedSplitsOnRegistration} can only be provided when the source implements
- * {@link SupportSplitReassignmentOnRecovery}.
+ * {@link SupportsSplitReassignmentOnRecovery}.
  */
 @Public
 public final class ReaderInfo implements Serializable {

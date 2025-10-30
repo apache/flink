@@ -104,21 +104,21 @@ class SourceOperatorTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    void testOpen(boolean supportSupportSplitReassignmentOnRecovery) throws Exception {
+    void testOpen(boolean supportsSplitReassignmentOnRecovery) throws Exception {
         try (SourceOperatorTestContext context =
                 new SourceOperatorTestContext(
                         false,
                         false,
                         WatermarkStrategy.noWatermarks(),
                         new MockOutput<>(new ArrayList<>()),
-                        supportSupportSplitReassignmentOnRecovery)) {
+                        supportsSplitReassignmentOnRecovery)) {
             SourceOperator<Integer, MockSourceSplit> operator = context.getOperator();
             // Initialize the operator.
             operator.initializeState(context.createStateContext());
             // Open the operator.
             operator.open();
             // The source reader should have been assigned a split.
-            if (supportSupportSplitReassignmentOnRecovery) {
+            if (supportsSplitReassignmentOnRecovery) {
                 assertThat(context.getSourceReader().getAssignedSplits()).isEmpty();
             } else {
                 assertThat(context.getSourceReader().getAssignedSplits())
@@ -135,7 +135,7 @@ class SourceOperatorTest {
             ReaderRegistrationEvent registrationEvent = (ReaderRegistrationEvent) operatorEvent;
             assertThat(registrationEvent.subtaskId())
                     .isEqualTo(SourceOperatorTestContext.SUBTASK_INDEX);
-            if (supportSupportSplitReassignmentOnRecovery) {
+            if (supportsSplitReassignmentOnRecovery) {
                 assertThat(registrationEvent.splits(new MockSourceSplitSerializer()))
                         .containsExactly(SourceOperatorTestContext.MOCK_SPLIT);
             } else {

@@ -215,7 +215,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     /** Watermark identifier to whether the watermark are aligned. */
     private final Map<String, Boolean> watermarkIsAlignedMap;
 
-    private final boolean supportSupportSplitReassignmentOnRecovery;
+    private final boolean supportsSplitReassignmentOnRecovery;
 
     public SourceOperator(
             StreamOperatorParameters<OUT> parameters,
@@ -230,7 +230,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             boolean emitProgressiveWatermarks,
             CanEmitBatchOfRecordsChecker canEmitBatchOfRecords,
             Map<String, Boolean> watermarkIsAlignedMap,
-            boolean supportSupportSplitReassignmentOnRecovery) {
+            boolean supportsSplitReassignmentOnRecovery) {
         super(parameters);
         this.readerFactory = checkNotNull(readerFactory);
         this.operatorEventGateway = checkNotNull(operatorEventGateway);
@@ -245,7 +245,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         this.allowUnalignedSourceSplits = configuration.get(ALLOW_UNALIGNED_SOURCE_SPLITS);
         this.canEmitBatchOfRecords = checkNotNull(canEmitBatchOfRecords);
         this.watermarkIsAlignedMap = watermarkIsAlignedMap;
-        this.supportSupportSplitReassignmentOnRecovery = supportSupportSplitReassignmentOnRecovery;
+        this.supportsSplitReassignmentOnRecovery = supportsSplitReassignmentOnRecovery;
     }
 
     @Override
@@ -415,7 +415,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
         // restore the state if necessary.
         final List<SplitT> splits = CollectionUtil.iterableToList(readerState.get());
-        if (!splits.isEmpty() && !supportSupportSplitReassignmentOnRecovery) {
+        if (!splits.isEmpty() && !supportsSplitReassignmentOnRecovery) {
             LOG.info("Restoring state for {} split(s) to reader.", splits.size());
             for (SplitT s : splits) {
                 getOrCreateSplitMetricGroup(s.splitId());
@@ -425,8 +425,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         }
 
         // Register the reader to the coordinator.
-        registerReader(
-                supportSupportSplitReassignmentOnRecovery ? splits : Collections.emptyList());
+        registerReader(supportsSplitReassignmentOnRecovery ? splits : Collections.emptyList());
 
         sourceMetricGroup.idlingStarted();
         // Start the reader after registration, sending messages in start is allowed.
