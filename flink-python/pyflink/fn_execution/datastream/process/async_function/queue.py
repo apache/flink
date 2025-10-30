@@ -393,7 +393,8 @@ class OrderedStreamElementQueue(StreamElementQueue):
             self._not_full.notify_all()
 
     def has_completed_elements(self) -> bool:
-        return len(self._queue) > 0 and self._queue[0].is_done()
+        with self._lock:
+            return len(self._queue) > 0 and self._queue[0].is_done()
 
     def wait_for_completed_elements(self):
         with self._not_empty:
@@ -410,7 +411,8 @@ class OrderedStreamElementQueue(StreamElementQueue):
             return self._number_of_pending_entries == 0
 
     def size(self) -> int:
-        return self._number_of_pending_entries
+        with self._lock:
+            return self._number_of_pending_entries
 
     def on_complete_handler(self, entry):
         with self._not_empty:
