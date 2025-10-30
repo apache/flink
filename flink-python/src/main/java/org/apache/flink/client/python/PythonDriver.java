@@ -75,6 +75,8 @@ public final class PythonDriver {
                                 .getConfiguration()
                                 .toMap());
 
+        config.addAll(pythonDriverOptions.getPythonDependencyConfig());
+
         // start gateway server
         GatewayServer gatewayServer = PythonEnvUtils.startGatewayServer();
         PythonEnvUtils.setGatewayServer(gatewayServer);

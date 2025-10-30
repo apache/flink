@@ -18,6 +18,8 @@
 
 package org.apache.flink.client.python;
 
+import org.apache.flink.configuration.Configuration;
+
 import org.junit.jupiter.api.Test;
 import py4j.GatewayServer;
 
@@ -50,7 +52,8 @@ class PythonDriverTest {
         args.add("--input");
         args.add("in.txt");
 
-        PythonDriverOptions pythonDriverOptions = new PythonDriverOptions("xxx", null, args);
+        PythonDriverOptions pythonDriverOptions =
+                new PythonDriverOptions(new Configuration(), "xxx", null, args);
         List<String> commands = PythonDriver.constructPythonCommands(pythonDriverOptions);
         // verify the generated commands
         assertThat(commands).containsExactly("-u", "-m", "xxx", "--input", "in.txt");
@@ -62,7 +65,8 @@ class PythonDriverTest {
         args.add("--input");
         args.add("in.txt");
 
-        PythonDriverOptions pythonDriverOptions = new PythonDriverOptions(null, "xxx.py", args);
+        PythonDriverOptions pythonDriverOptions =
+                new PythonDriverOptions(new Configuration(), null, "xxx.py", args);
         List<String> commands = PythonDriver.constructPythonCommands(pythonDriverOptions);
         assertThat(commands).containsExactly("-u", "xxx.py", "--input", "in.txt");
     }
