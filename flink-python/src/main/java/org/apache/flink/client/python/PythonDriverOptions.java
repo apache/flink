@@ -18,6 +18,8 @@
 
 package org.apache.flink.client.python;
 
+import org.apache.flink.configuration.Configuration;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -29,11 +31,17 @@ import static java.util.Objects.requireNonNull;
 /** Options for the {@link PythonDriver}. */
 final class PythonDriverOptions {
 
+    private final Configuration pythonDependencyConfig;
+
     @Nullable private final String entryPointModule;
 
     @Nullable private final String entryPointScript;
 
     @Nonnull private final List<String> programArgs;
+
+    Configuration getPythonDependencyConfig() {
+        return pythonDependencyConfig;
+    }
 
     @Nullable
     String getEntryPointModule() {
@@ -50,9 +58,11 @@ final class PythonDriverOptions {
     }
 
     PythonDriverOptions(
+            Configuration pythonDependencyConfig,
             @Nullable String entryPointModule,
             @Nullable String entryPointScript,
             List<String> programArgs) {
+        this.pythonDependencyConfig = pythonDependencyConfig;
         this.entryPointModule = entryPointModule;
         this.entryPointScript = entryPointScript;
         this.programArgs = requireNonNull(programArgs, "programArgs");

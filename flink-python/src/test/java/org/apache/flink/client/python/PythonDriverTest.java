@@ -50,7 +50,7 @@ class PythonDriverTest {
         args.add("--input");
         args.add("in.txt");
 
-        PythonDriverOptions pythonDriverOptions = new PythonDriverOptions("xxx", null, args);
+        PythonDriverOptions pythonDriverOptions = new PythonDriverOptions(null, "xxx", null, args);
         List<String> commands = PythonDriver.constructPythonCommands(pythonDriverOptions);
         // verify the generated commands
         assertThat(commands).containsExactly("-u", "-m", "xxx", "--input", "in.txt");
@@ -62,7 +62,8 @@ class PythonDriverTest {
         args.add("--input");
         args.add("in.txt");
 
-        PythonDriverOptions pythonDriverOptions = new PythonDriverOptions(null, "xxx.py", args);
+        PythonDriverOptions pythonDriverOptions =
+                new PythonDriverOptions(null, null, "xxx.py", args);
         List<String> commands = PythonDriver.constructPythonCommands(pythonDriverOptions);
         assertThat(commands).containsExactly("-u", "xxx.py", "--input", "in.txt");
     }
