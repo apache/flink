@@ -103,8 +103,8 @@ public class DslPatternMatchingTest extends AbstractTestBaseJUnit4 {
         List<String> results = new ArrayList<>();
         result.executeAndCollect().forEachRemaining(results::add);
 
-        // Should not match because QUOTE is between ORDER and TRADE
-        assertEquals(0, results.size());
+        // -> is followedBy (relaxed contiguity), so it should match even with QUOTE in between
+        assertEquals(1, results.size());
     }
 
     @Test
