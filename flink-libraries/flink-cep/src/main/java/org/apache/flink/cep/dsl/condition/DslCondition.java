@@ -35,6 +35,7 @@ import java.util.List;
  * logic. It also supports optional event type matching when strict type matching is enabled.
  *
  * <p>Features:
+ *
  * <ul>
  *   <li>Short-circuit evaluation (AND stops on first false, OR stops on first true)
  *   <li>Event type filtering (optional)

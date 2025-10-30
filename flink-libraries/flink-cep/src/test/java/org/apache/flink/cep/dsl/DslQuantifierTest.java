@@ -43,17 +43,20 @@ public class DslQuantifierTest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "TRADE", 95.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 105.0, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 110.0, 1000, DslTestDataSets.ts(2), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 90.0, 1000, DslTestDataSets.ts(3), "NASDAQ", 0.0));
+                        new StockEvent(
+                                "AAPL", "TRADE", 95.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL", "TRADE", 105.0, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL", "TRADE", 110.0, 1000, DslTestDataSets.ts(2), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL", "TRADE", 90.0, 1000, DslTestDataSets.ts(3), "NASDAQ", 0.0));
 
         String dslExpression = "TRADE+(price > 100)";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
-        DataStream<List<StockEvent>> result =
-                patternStream.select(match -> match.get("TRADE"));
+        DataStream<List<StockEvent>> result = patternStream.select(match -> match.get("TRADE"));
 
         List<List<StockEvent>> results = new ArrayList<>();
         result.executeAndCollect().forEachRemaining(results::add);
@@ -68,9 +71,12 @@ public class DslQuantifierTest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "TRADE", 100.0, 800, DslTestDataSets.ts(0), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 100.0, 1200, DslTestDataSets.ts(1), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 100.0, 500, DslTestDataSets.ts(2), "NASDAQ", 0.0));
+                        new StockEvent(
+                                "AAPL", "TRADE", 100.0, 800, DslTestDataSets.ts(0), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL", "TRADE", 100.0, 1200, DslTestDataSets.ts(1), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL", "TRADE", 100.0, 500, DslTestDataSets.ts(2), "NASDAQ", 0.0));
 
         String dslExpression = "TRADE?(volume > 1000)";
 
@@ -90,17 +96,26 @@ public class DslQuantifierTest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 101.0, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 102.0, 1000, DslTestDataSets.ts(2), "NASDAQ", 0.0),
-                        new StockEvent("GOOGL", "TRADE", 2800.0, 500, DslTestDataSets.ts(3), "NASDAQ", 0.0));
+                        new StockEvent(
+                                "AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL", "TRADE", 101.0, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL", "TRADE", 102.0, 1000, DslTestDataSets.ts(2), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "GOOGL",
+                                "TRADE",
+                                2800.0,
+                                500,
+                                DslTestDataSets.ts(3),
+                                "NASDAQ",
+                                0.0));
 
         String dslExpression = "TRADE{3}(symbol = 'AAPL')";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
-        DataStream<List<StockEvent>> result =
-                patternStream.select(match -> match.get("TRADE"));
+        DataStream<List<StockEvent>> result = patternStream.select(match -> match.get("TRADE"));
 
         List<List<StockEvent>> results = new ArrayList<>();
         result.executeAndCollect().forEachRemaining(results::add);
@@ -115,18 +130,34 @@ public class DslQuantifierTest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 101.0, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 102.0, 1000, DslTestDataSets.ts(2), "NASDAQ", 0.0),
-                        new StockEvent("GOOGL", "QUOTE", 2800.0, 500, DslTestDataSets.ts(3), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 103.0, 1000, DslTestDataSets.ts(4), "NASDAQ", 0.0));
+                        new StockEvent(
+                                "AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL", "TRADE", 101.0, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL", "TRADE", 102.0, 1000, DslTestDataSets.ts(2), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "GOOGL",
+                                "QUOTE",
+                                2800.0,
+                                500,
+                                DslTestDataSets.ts(3),
+                                "NASDAQ",
+                                0.0),
+                        new StockEvent(
+                                "AAPL",
+                                "TRADE",
+                                103.0,
+                                1000,
+                                DslTestDataSets.ts(4),
+                                "NASDAQ",
+                                0.0));
 
         String dslExpression = "TRADE{2,4}(eventType = 'TRADE')";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
-        DataStream<List<StockEvent>> result =
-                patternStream.select(match -> match.get("TRADE"));
+        DataStream<List<StockEvent>> result = patternStream.select(match -> match.get("TRADE"));
 
         List<List<StockEvent>> results = new ArrayList<>();
         result.executeAndCollect().forEachRemaining(results::add);
@@ -145,8 +176,7 @@ public class DslQuantifierTest extends AbstractTestBaseJUnit4 {
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
-        DataStream<List<StockEvent>> result =
-                patternStream.select(match -> match.get("TRADE"));
+        DataStream<List<StockEvent>> result = patternStream.select(match -> match.get("TRADE"));
 
         List<List<StockEvent>> results = new ArrayList<>();
         result.executeAndCollect().forEachRemaining(results::add);
@@ -154,6 +184,7 @@ public class DslQuantifierTest extends AbstractTestBaseJUnit4 {
         assertTrue(results.size() > 0);
         assertTrue(
                 results.stream()
-                        .allMatch(list -> list.stream().allMatch(e -> e.getSymbol().equals("AAPL"))));
+                        .allMatch(
+                                list -> list.stream().allMatch(e -> e.getSymbol().equals("AAPL"))));
     }
 }

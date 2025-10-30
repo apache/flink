@@ -27,8 +27,8 @@ import java.util.Optional;
 /**
  * Event adapter for Map-based events.
  *
- * <p>This adapter supports events represented as {@code Map<String, Object>}, where attribute
- * names are map keys. This is useful for dynamic or schema-less event types.
+ * <p>This adapter supports events represented as {@code Map<String, Object>}, where attribute names
+ * are map keys. This is useful for dynamic or schema-less event types.
  *
  * <p>Example usage:
  *

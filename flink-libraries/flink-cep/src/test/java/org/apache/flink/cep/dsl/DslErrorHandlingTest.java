@@ -40,7 +40,14 @@ public class DslErrorHandlingTest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "TRADE", 150.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0));
+                        new StockEvent(
+                                "AAPL",
+                                "TRADE",
+                                150.0,
+                                1000,
+                                DslTestDataSets.ts(0),
+                                "NASDAQ",
+                                0.0));
 
         String invalidDsl = "TRADE(price >>>)"; // Invalid syntax
 
@@ -58,7 +65,14 @@ public class DslErrorHandlingTest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "TRADE", 150.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0));
+                        new StockEvent(
+                                "AAPL",
+                                "TRADE",
+                                150.0,
+                                1000,
+                                DslTestDataSets.ts(0),
+                                "NASDAQ",
+                                0.0));
 
         String invalidDsl = "TRADE symbol = 'AAPL'"; // Missing WHERE
 
@@ -79,7 +93,14 @@ public class DslErrorHandlingTest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "TRADE", 150.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0));
+                        new StockEvent(
+                                "AAPL",
+                                "TRADE",
+                                150.0,
+                                1000,
+                                DslTestDataSets.ts(0),
+                                "NASDAQ",
+                                0.0));
 
         String invalidDsl = ""; // Empty string
 
@@ -88,8 +109,7 @@ public class DslErrorHandlingTest extends AbstractTestBaseJUnit4 {
             fail("Expected DslCompilationException or IllegalArgumentException");
         } catch (Exception e) {
             assertTrue(
-                    e instanceof DslCompilationException
-                            || e instanceof IllegalArgumentException);
+                    e instanceof DslCompilationException || e instanceof IllegalArgumentException);
         }
     }
 
@@ -99,7 +119,14 @@ public class DslErrorHandlingTest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "TRADE", 150.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0));
+                        new StockEvent(
+                                "AAPL",
+                                "TRADE",
+                                150.0,
+                                1000,
+                                DslTestDataSets.ts(0),
+                                "NASDAQ",
+                                0.0));
 
         String invalidDsl = "TRADE(price <> 150)"; // Invalid operator
 
@@ -117,7 +144,14 @@ public class DslErrorHandlingTest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "TRADE", 150.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0));
+                        new StockEvent(
+                                "AAPL",
+                                "TRADE",
+                                150.0,
+                                1000,
+                                DslTestDataSets.ts(0),
+                                "NASDAQ",
+                                0.0));
 
         String invalidDsl = "TRADE((price > 100)"; // Missing closing paren
 
@@ -138,7 +172,14 @@ public class DslErrorHandlingTest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "TRADE", 150.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0));
+                        new StockEvent(
+                                "AAPL",
+                                "TRADE",
+                                150.0,
+                                1000,
+                                DslTestDataSets.ts(0),
+                                "NASDAQ",
+                                0.0));
 
         String invalidDsl = "TRADE{-1}(price > 0)"; // Negative quantifier
 
@@ -159,7 +200,14 @@ public class DslErrorHandlingTest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "TRADE", 150.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0));
+                        new StockEvent(
+                                "AAPL",
+                                "TRADE",
+                                150.0,
+                                1000,
+                                DslTestDataSets.ts(0),
+                                "NASDAQ",
+                                0.0));
 
         String validDsl = "TRADE(price > 100)"; // Valid DSL
 

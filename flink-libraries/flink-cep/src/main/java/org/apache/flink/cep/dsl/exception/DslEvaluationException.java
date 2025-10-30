@@ -27,6 +27,7 @@ import org.apache.flink.annotation.PublicEvolving;
  * evaluation, typically due to type mismatches or missing attributes.
  *
  * <p>Common causes:
+ *
  * <ul>
  *   <li>Type mismatch (e.g., comparing a string with a number)
  *   <li>Missing attributes on events

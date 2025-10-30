@@ -26,8 +26,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 /**
  * Builder for configuring and compiling DSL expressions.
  *
- * <p>This builder provides a fluent API for configuring DSL compilation options before compiling
- * an expression into a PatternStream.
+ * <p>This builder provides a fluent API for configuring DSL compilation options before compiling an
+ * expression into a PatternStream.
  *
  * <p>Example usage:
  *

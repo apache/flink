@@ -95,8 +95,8 @@ public class DslCompiler {
     /**
      * Compile a DSL expression using the default reflective event adapter.
      *
-     * <p>This method uses reflection to automatically access POJO fields and getters. It's
-     * suitable for most use cases where events are simple Java objects.
+     * <p>This method uses reflection to automatically access POJO fields and getters. It's suitable
+     * for most use cases where events are simple Java objects.
      *
      * @param dslExpression The DSL pattern expression to compile
      * @param dataStream The input data stream
@@ -194,8 +194,7 @@ public class DslCompiler {
             String dslExpression, EventAdapter<T> eventAdapter, boolean strictTypeMatching) {
 
         // Create case-insensitive input stream
-        CaseInsensitiveInputStream inputStream =
-                new CaseInsensitiveInputStream(dslExpression);
+        CaseInsensitiveInputStream inputStream = new CaseInsensitiveInputStream(dslExpression);
 
         // Create lexer and parser
         CepDslLexer lexer = new CepDslLexer(inputStream);

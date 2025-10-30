@@ -32,6 +32,7 @@ import java.util.Optional;
  * Represents a single condition expression in the DSL.
  *
  * <p>An expression consists of:
+ *
  * <ul>
  *   <li>An attribute name (e.g., "temperature")
  *   <li>A comparison operator (e.g., >, <, =)
@@ -39,6 +40,7 @@ import java.util.Optional;
  * </ul>
  *
  * <p>Examples:
+ *
  * <ul>
  *   <li>temperature > 100 (constant comparison)
  *   <li>A.id = B.id (event correlation)
@@ -81,10 +83,7 @@ public class DslExpression<T> implements Serializable {
      * @param refAttribute The attribute name on the referenced pattern
      */
     public DslExpression(
-            String attribute,
-            ComparisonOperator operator,
-            String refPattern,
-            String refAttribute) {
+            String attribute, ComparisonOperator operator, String refPattern, String refAttribute) {
         this.attribute = attribute;
         this.operator = operator;
         this.constantValue = null;
@@ -167,10 +166,7 @@ public class DslExpression<T> implements Serializable {
                 }
             }
         } catch (Exception e) {
-            LOG.warn(
-                    "Error accessing reference pattern '{}' in context",
-                    referencePattern,
-                    e);
+            LOG.warn("Error accessing reference pattern '{}' in context", referencePattern, e);
         }
         return null;
     }

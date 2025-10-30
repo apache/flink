@@ -105,15 +105,15 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
     public void testUserJourneyFunnel() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<UserActivityEvent> input = env.fromCollection(DslTestDataSets.userJourneyDataset());
+        DataStream<UserActivityEvent> input =
+                env.fromCollection(DslTestDataSets.userJourneyDataset());
 
         String dslExpression =
                 "LOGIN(eventType = 'LOGIN') "
                         + "-> CLICK((eventType = 'CLICK') and (duration > 10)) "
                         + "-> PURCHASE((eventType = 'PURCHASE') and (count > 0))";
 
-        PatternStream<UserActivityEvent> patternStream =
-                DslCompiler.compile(dslExpression, input);
+        PatternStream<UserActivityEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
         DataStream<String> result =
                 patternStream.select(
@@ -136,10 +136,20 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 102.0, 1100, DslTestDataSets.ts(1), "NASDAQ", 2.0),
-                        new StockEvent("AAPL", "TRADE", 104.0, 1200, DslTestDataSets.ts(2), "NASDAQ", 4.0),
-                        new StockEvent("AAPL", "TRADE", 106.0, 1300, DslTestDataSets.ts(3), "NASDAQ", 6.0));
+                        new StockEvent(
+                                "AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL", "TRADE", 102.0, 1100, DslTestDataSets.ts(1), "NASDAQ", 2.0),
+                        new StockEvent(
+                                "AAPL", "TRADE", 104.0, 1200, DslTestDataSets.ts(2), "NASDAQ", 4.0),
+                        new StockEvent(
+                                "AAPL",
+                                "TRADE",
+                                106.0,
+                                1300,
+                                DslTestDataSets.ts(3),
+                                "NASDAQ",
+                                6.0));
 
         String dslExpression =
                 "A(price > 0) "
@@ -163,10 +173,20 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 105.0, 1200, DslTestDataSets.ts(1), "NASDAQ", 5.0),
-                        new StockEvent("GOOGL", "TRADE", 110.0, 800, DslTestDataSets.ts(2), "NYSE", 1.0),
-                        new StockEvent("AAPL", "TRADE", 110.0, 1500, DslTestDataSets.ts(3), "NASDAQ", 10.0));
+                        new StockEvent(
+                                "AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL", "TRADE", 105.0, 1200, DslTestDataSets.ts(1), "NASDAQ", 5.0),
+                        new StockEvent(
+                                "GOOGL", "TRADE", 110.0, 800, DslTestDataSets.ts(2), "NYSE", 1.0),
+                        new StockEvent(
+                                "AAPL",
+                                "TRADE",
+                                110.0,
+                                1500,
+                                DslTestDataSets.ts(3),
+                                "NASDAQ",
+                                10.0));
 
         String dslExpression =
                 "START((symbol = 'AAPL') and (price > 100) and (volume > 1000)) "
@@ -191,12 +211,20 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
-                        new StockEvent("GOOGL", "TRADE", 100.0, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(2), "NYSE", 0.0));
+                        new StockEvent(
+                                "AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "GOOGL",
+                                "TRADE",
+                                100.0,
+                                1000,
+                                DslTestDataSets.ts(1),
+                                "NASDAQ",
+                                0.0),
+                        new StockEvent(
+                                "AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(2), "NYSE", 0.0));
 
-        String dslExpression =
-                "TRADE((symbol = 'AAPL') and (exchange = 'NASDAQ'))";
+        String dslExpression = "TRADE((symbol = 'AAPL') and (exchange = 'NASDAQ'))";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -220,10 +248,26 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 105.0, 1100, DslTestDataSets.ts(1), "NASDAQ", 5.0),
-                        new StockEvent("AAPL", "TRADE", 110.0, 1200, DslTestDataSets.ts(2), "NASDAQ", 10.0),
-                        new StockEvent("AAPL", "QUOTE", 111.0, 1300, DslTestDataSets.ts(3), "NASDAQ", 11.0));
+                        new StockEvent(
+                                "AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL", "TRADE", 105.0, 1100, DslTestDataSets.ts(1), "NASDAQ", 5.0),
+                        new StockEvent(
+                                "AAPL",
+                                "TRADE",
+                                110.0,
+                                1200,
+                                DslTestDataSets.ts(2),
+                                "NASDAQ",
+                                10.0),
+                        new StockEvent(
+                                "AAPL",
+                                "QUOTE",
+                                111.0,
+                                1300,
+                                DslTestDataSets.ts(3),
+                                "NASDAQ",
+                                11.0));
 
         String dslExpression =
                 "TRADES((eventType = 'TRADE') and (symbol = 'AAPL')) "

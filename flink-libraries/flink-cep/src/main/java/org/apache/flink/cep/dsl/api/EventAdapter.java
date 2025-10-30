@@ -27,11 +27,12 @@ import java.util.Optional;
  * Adapter interface for extracting attributes from events.
  *
  * <p>This interface allows the CEP DSL to work with any event type without requiring specific
- * interfaces to be implemented. Users can provide custom adapters for their event types, or use
- * the built-in {@link org.apache.flink.cep.dsl.util.ReflectiveEventAdapter} which uses Java
- * reflection to access POJO fields and getters.
+ * interfaces to be implemented. Users can provide custom adapters for their event types, or use the
+ * built-in {@link org.apache.flink.cep.dsl.util.ReflectiveEventAdapter} which uses Java reflection
+ * to access POJO fields and getters.
  *
  * <p>Example usage with custom adapter:
+ *
  * <pre>{@code
  * EventAdapter<MyEvent> adapter = new EventAdapter<MyEvent>() {
  *     @Override
@@ -73,9 +74,9 @@ public interface EventAdapter<T> extends Serializable {
     /**
      * Get the event type name for type matching in DSL patterns.
      *
-     * <p>When strict type matching is enabled, the DSL uses this method to verify that events
-     * match the expected type specified in the pattern (e.g., {@code Sensor(temperature > 100)}
-     * expects events with type "Sensor").
+     * <p>When strict type matching is enabled, the DSL uses this method to verify that events match
+     * the expected type specified in the pattern (e.g., {@code Sensor(temperature > 100)} expects
+     * events with type "Sensor").
      *
      * @param event The event
      * @return The event type name (typically the simple class name)

@@ -67,11 +67,16 @@ public class DslTestDataSets {
     /** Dataset with temperature anomaly pattern. */
     public static List<SensorEvent> temperatureAnomalyDataset() {
         return Arrays.asList(
-                new SensorEvent("TEMP_001", "TEMPERATURE", 20.0, "CELSIUS", ts(0), "ZONE_A", "NORMAL"),
-                new SensorEvent("TEMP_001", "TEMPERATURE", 25.0, "CELSIUS", ts(1), "ZONE_A", "NORMAL"),
-                new SensorEvent("TEMP_001", "TEMPERATURE", 35.0, "CELSIUS", ts(2), "ZONE_A", "WARNING"),
-                new SensorEvent("TEMP_001", "TEMPERATURE", 45.0, "CELSIUS", ts(3), "ZONE_A", "CRITICAL"),
-                new SensorEvent("TEMP_001", "TEMPERATURE", 22.0, "CELSIUS", ts(4), "ZONE_A", "NORMAL"));
+                new SensorEvent(
+                        "TEMP_001", "TEMPERATURE", 20.0, "CELSIUS", ts(0), "ZONE_A", "NORMAL"),
+                new SensorEvent(
+                        "TEMP_001", "TEMPERATURE", 25.0, "CELSIUS", ts(1), "ZONE_A", "NORMAL"),
+                new SensorEvent(
+                        "TEMP_001", "TEMPERATURE", 35.0, "CELSIUS", ts(2), "ZONE_A", "WARNING"),
+                new SensorEvent(
+                        "TEMP_001", "TEMPERATURE", 45.0, "CELSIUS", ts(3), "ZONE_A", "CRITICAL"),
+                new SensorEvent(
+                        "TEMP_001", "TEMPERATURE", 22.0, "CELSIUS", ts(4), "ZONE_A", "NORMAL"));
     }
 
     /** Dataset for user journey testing. */
@@ -127,10 +132,15 @@ public class DslTestDataSets {
     /** Sensor dataset with escalating values. */
     public static List<SensorEvent> escalatingValues() {
         return Arrays.asList(
-                new SensorEvent("TEMP_001", "TEMPERATURE", 25.0, "CELSIUS", ts(0), "ZONE_A", "NORMAL"),
-                new SensorEvent("TEMP_001", "TEMPERATURE", 30.0, "CELSIUS", ts(1), "ZONE_A", "NORMAL"),
-                new SensorEvent("TEMP_001", "TEMPERATURE", 38.0, "CELSIUS", ts(2), "ZONE_A", "WARNING"),
-                new SensorEvent("TEMP_001", "TEMPERATURE", 46.0, "CELSIUS", ts(3), "ZONE_A", "CRITICAL"),
-                new SensorEvent("TEMP_001", "TEMPERATURE", 50.0, "CELSIUS", ts(4), "ZONE_A", "CRITICAL"));
+                new SensorEvent(
+                        "TEMP_001", "TEMPERATURE", 25.0, "CELSIUS", ts(0), "ZONE_A", "NORMAL"),
+                new SensorEvent(
+                        "TEMP_001", "TEMPERATURE", 30.0, "CELSIUS", ts(1), "ZONE_A", "NORMAL"),
+                new SensorEvent(
+                        "TEMP_001", "TEMPERATURE", 38.0, "CELSIUS", ts(2), "ZONE_A", "WARNING"),
+                new SensorEvent(
+                        "TEMP_001", "TEMPERATURE", 46.0, "CELSIUS", ts(3), "ZONE_A", "CRITICAL"),
+                new SensorEvent(
+                        "TEMP_001", "TEMPERATURE", 50.0, "CELSIUS", ts(4), "ZONE_A", "CRITICAL"));
     }
 }

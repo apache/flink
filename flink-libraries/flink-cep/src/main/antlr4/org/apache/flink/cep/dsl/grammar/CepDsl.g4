@@ -20,7 +20,7 @@
 grammar CepDsl;
 
 startPatternExpressionRule : patternExpression EOF;
-patternExpression : skipStrategy patternFilterExpression (followedByOrNext)* timeWindow?;
+patternExpression : skipStrategy? patternFilterExpression (followedByOrNext)* timeWindow?;
 skipStrategy: MOD ((s=SKIP_NO_SKIP) | (s=SKIP_SKIP_PAST_LAST) | s=SKIP_SKIP_TO_FIRST k=LBRACK stringconstant m=RBRACK | s=SKIP_SKIP_TO_LAST k=LBRACK stringconstant m=RBRACK);
 followedByOrNext : followedBy | followedByAny | notFollowedBy | (f=LNOT)? patternFilterExpression;
 followedBy: f=FOLLOWED_BY patternFilterExpression;

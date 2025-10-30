@@ -76,8 +76,9 @@ public class DslExampleUsage {
                         new SensorReading("sensor2", 110.0, 3000L));
 
         // Pattern with event correlation
-        String dsl = "Start(id = 'sensor1' and temperature > 90) -> " +
-                    "End(id = Start.id and temperature > Start.temperature)";
+        String dsl =
+                "Start(id = 'sensor1' and temperature > 90) -> "
+                        + "End(id = Start.id and temperature > Start.temperature)";
 
         PatternStream<SensorReading> pattern = DslCompiler.compile(dsl, sensorData);
 
@@ -113,8 +114,7 @@ public class DslExampleUsage {
 
         // Use MapEventAdapter
         PatternStream<Map<String, Object>> pattern =
-                DslCompiler.compile(
-                        "Alert(severity > 5)", alerts, new MapEventAdapter());
+                DslCompiler.compile("Alert(severity > 5)", alerts, new MapEventAdapter());
 
         pattern.select(match -> match.get("Alert").get(0).get("message")).print();
 

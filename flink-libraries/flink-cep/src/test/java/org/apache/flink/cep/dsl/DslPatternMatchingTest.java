@@ -44,13 +44,21 @@ public class DslPatternMatchingTest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "ORDER", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "QUOTE", 101.0, 1100, DslTestDataSets.ts(2), "NASDAQ", 0.0));
+                        new StockEvent(
+                                "AAPL", "ORDER", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL",
+                                "QUOTE",
+                                101.0,
+                                1100,
+                                DslTestDataSets.ts(2),
+                                "NASDAQ",
+                                0.0));
 
         String dslExpression =
-                "PATTERN ORDER WHERE eventType = 'ORDER' "
-                        + "NEXT TRADE WHERE eventType = 'TRADE'";
+                "PATTERN ORDER WHERE eventType = 'ORDER' " + "NEXT TRADE WHERE eventType = 'TRADE'";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -74,12 +82,20 @@ public class DslPatternMatchingTest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "ORDER", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "QUOTE", 100.5, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(2), "NASDAQ", 0.0));
+                        new StockEvent(
+                                "AAPL", "ORDER", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL", "QUOTE", 100.5, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL",
+                                "TRADE",
+                                100.0,
+                                1000,
+                                DslTestDataSets.ts(2),
+                                "NASDAQ",
+                                0.0));
 
-        String dslExpression =
-                "ORDER(eventType = 'ORDER') -> TRADE(eventType = 'TRADE')";
+        String dslExpression = "ORDER(eventType = 'ORDER') -> TRADE(eventType = 'TRADE')";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -96,13 +112,12 @@ public class DslPatternMatchingTest extends AbstractTestBaseJUnit4 {
     public void testFollowedBy() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-        DataStream<UserActivityEvent> input = env.fromCollection(DslTestDataSets.userJourneyDataset());
+        DataStream<UserActivityEvent> input =
+                env.fromCollection(DslTestDataSets.userJourneyDataset());
 
-        String dslExpression =
-                "LOGIN(eventType = 'LOGIN') -> LOGOUT(eventType = 'LOGOUT')";
+        String dslExpression = "LOGIN(eventType = 'LOGIN') -> LOGOUT(eventType = 'LOGOUT')";
 
-        PatternStream<UserActivityEvent> patternStream =
-                DslCompiler.compile(dslExpression, input);
+        PatternStream<UserActivityEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
         DataStream<String> result =
                 patternStream.select(
@@ -124,16 +139,18 @@ public class DslPatternMatchingTest extends AbstractTestBaseJUnit4 {
 
         DataStream<UserActivityEvent> input =
                 env.fromData(
-                        new UserActivityEvent("user1", "LOGIN", "/home", 0, DslTestDataSets.ts(0), "s1", 1),
-                        new UserActivityEvent("user1", "CLICK", "/products", 30, DslTestDataSets.ts(1), "s1", 1),
-                        new UserActivityEvent("user1", "CLICK", "/cart", 20, DslTestDataSets.ts(2), "s1", 1),
-                        new UserActivityEvent("user1", "CLICK", "/checkout", 10, DslTestDataSets.ts(3), "s1", 1));
+                        new UserActivityEvent(
+                                "user1", "LOGIN", "/home", 0, DslTestDataSets.ts(0), "s1", 1),
+                        new UserActivityEvent(
+                                "user1", "CLICK", "/products", 30, DslTestDataSets.ts(1), "s1", 1),
+                        new UserActivityEvent(
+                                "user1", "CLICK", "/cart", 20, DslTestDataSets.ts(2), "s1", 1),
+                        new UserActivityEvent(
+                                "user1", "CLICK", "/checkout", 10, DslTestDataSets.ts(3), "s1", 1));
 
-        String dslExpression =
-                "LOGIN(eventType = 'LOGIN') ->> CLICK(eventType = 'CLICK')";
+        String dslExpression = "LOGIN(eventType = 'LOGIN') ->> CLICK(eventType = 'CLICK')";
 
-        PatternStream<UserActivityEvent> patternStream =
-                DslCompiler.compile(dslExpression, input);
+        PatternStream<UserActivityEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
         DataStream<String> result =
                 patternStream.select(match -> match.get("CLICK").get(0).getPage());
@@ -151,15 +168,16 @@ public class DslPatternMatchingTest extends AbstractTestBaseJUnit4 {
 
         DataStream<UserActivityEvent> input =
                 env.fromData(
-                        new UserActivityEvent("user1", "LOGIN", "/home", 0, DslTestDataSets.ts(0), "s1", 1),
-                        new UserActivityEvent("user1", "CLICK", "/products", 30, DslTestDataSets.ts(1), "s1", 1),
-                        new UserActivityEvent("user1", "LOGOUT", "/home", 0, DslTestDataSets.ts(2), "s1", 1));
+                        new UserActivityEvent(
+                                "user1", "LOGIN", "/home", 0, DslTestDataSets.ts(0), "s1", 1),
+                        new UserActivityEvent(
+                                "user1", "CLICK", "/products", 30, DslTestDataSets.ts(1), "s1", 1),
+                        new UserActivityEvent(
+                                "user1", "LOGOUT", "/home", 0, DslTestDataSets.ts(2), "s1", 1));
 
-        String dslExpression =
-                "LOGIN(eventType = 'LOGIN') !-> ERROR(eventType = 'ERROR')";
+        String dslExpression = "LOGIN(eventType = 'LOGIN') !-> ERROR(eventType = 'ERROR')";
 
-        PatternStream<UserActivityEvent> patternStream =
-                DslCompiler.compile(dslExpression, input);
+        PatternStream<UserActivityEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
         DataStream<String> result =
                 patternStream.select(match -> match.get("LOGIN").get(0).getUserId());
@@ -177,10 +195,20 @@ public class DslPatternMatchingTest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input =
                 env.fromData(
-                        new StockEvent("AAPL", "ORDER", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "QUOTE", 101.0, 1100, DslTestDataSets.ts(2), "NASDAQ", 0.0),
-                        new StockEvent("AAPL", "TRADE", 101.0, 1100, DslTestDataSets.ts(3), "NASDAQ", 0.0));
+                        new StockEvent(
+                                "AAPL", "ORDER", 100.0, 1000, DslTestDataSets.ts(0), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(1), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL", "QUOTE", 101.0, 1100, DslTestDataSets.ts(2), "NASDAQ", 0.0),
+                        new StockEvent(
+                                "AAPL",
+                                "TRADE",
+                                101.0,
+                                1100,
+                                DslTestDataSets.ts(3),
+                                "NASDAQ",
+                                0.0));
 
         String dslExpression =
                 "A(eventType = 'ORDER') -> B(eventType = 'TRADE') -> C(eventType = 'TRADE')";

@@ -34,10 +34,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * Event adapter that uses Java reflection to access POJO fields and getters.
  *
  * <p>This adapter automatically discovers and caches field accessors for performance. It supports:
+ *
  * <ul>
- *   <li>Public getter methods (e.g., {@code getTemperature()} for attribute "temperature")</li>
- *   <li>Direct field access (if no getter is found)</li>
- *   <li>Nested attributes using dot notation (e.g., "sensor.location.city")</li>
+ *   <li>Public getter methods (e.g., {@code getTemperature()} for attribute "temperature")
+ *   <li>Direct field access (if no getter is found)
+ *   <li>Nested attributes using dot notation (e.g., "sensor.location.city")
  * </ul>
  *
  * <p>Thread-safe and optimized for repeated access to the same attributes.
@@ -160,8 +161,7 @@ public class ReflectiveEventAdapter<T> implements EventAdapter<T> {
                 current = current.getSuperclass();
             }
         }
-        throw new NoSuchFieldException(
-                "Field '" + fieldName + "' not found in " + clazz.getName());
+        throw new NoSuchFieldException("Field '" + fieldName + "' not found in " + clazz.getName());
     }
 
     /** Capitalize the first letter of a string. */

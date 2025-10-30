@@ -28,6 +28,7 @@ import org.apache.flink.annotation.PublicEvolving;
  * Pattern.
  *
  * <p>Common causes:
+ *
  * <ul>
  *   <li>Invalid syntax (e.g., unmatched parentheses, invalid operators)
  *   <li>Unknown pattern names in event correlation
