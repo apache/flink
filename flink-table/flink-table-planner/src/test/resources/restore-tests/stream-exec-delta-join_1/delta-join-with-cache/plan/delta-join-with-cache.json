@@ -1,7 +1,7 @@
 {
   "flinkVersion" : "2.2",
   "nodes" : [ {
-    "id" : 19,
+    "id" : 37,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -29,7 +29,7 @@
     "outputType" : "ROW<`a1` INT, `a0` DOUBLE, `a2` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, leftSrc]], fields=[a1, a0, a2])"
   }, {
-    "id" : 20,
+    "id" : 38,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -42,7 +42,7 @@
     "outputType" : "ROW<`a1` INT, `a0` DOUBLE, `a2` VARCHAR(2147483647)>",
     "description" : "Exchange(distribution=[hash[a1]])"
   }, {
-    "id" : 21,
+    "id" : 39,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -70,7 +70,7 @@
     "outputType" : "ROW<`b0` DOUBLE, `b2` VARCHAR(2147483647), `b1` INT>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, rightSrc]], fields=[b0, b2, b1])"
   }, {
-    "id" : 22,
+    "id" : 40,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -83,7 +83,7 @@
     "outputType" : "ROW<`b0` DOUBLE, `b2` VARCHAR(2147483647), `b1` INT>",
     "description" : "Exchange(distribution=[hash[b1]])"
   }, {
-    "id" : 23,
+    "id" : 41,
     "type" : "stream-exec-delta-join_1",
     "configuration" : {
       "table.exec.async-lookup.buffer-capacity" : "100",
@@ -212,7 +212,7 @@
       "output-mode" : "ORDERED"
     }
   }, {
-    "id" : 24,
+    "id" : 42,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -255,6 +255,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
+    "upsertMaterializeStrategy" : "MAP",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -266,36 +267,36 @@
     "description" : "Sink(table=[default_catalog.default_database.snk], fields=[a1, a0, a2, b0, b2, b1])"
   } ],
   "edges" : [ {
-    "source" : 19,
-    "target" : 20,
+    "source" : 37,
+    "target" : 38,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 21,
-    "target" : 22,
+    "source" : 39,
+    "target" : 40,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 20,
-    "target" : 23,
+    "source" : 38,
+    "target" : 41,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 22,
-    "target" : 23,
+    "source" : 40,
+    "target" : 41,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 23,
-    "target" : 24,
+    "source" : 41,
+    "target" : 42,
     "shuffle" : {
       "type" : "FORWARD"
     },

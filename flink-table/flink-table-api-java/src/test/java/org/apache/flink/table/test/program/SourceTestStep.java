@@ -57,6 +57,19 @@ public final class SourceTestStep extends TableTestStep {
         return new Builder(name);
     }
 
+    public SourceTestStep withNewOptions(Map<String, String> newOptions) {
+        return new SourceTestStep(
+                name,
+                schemaComponents,
+                distribution,
+                partitionKeys,
+                newOptions,
+                indexes,
+                dataBeforeRestore,
+                dataAfterRestore,
+                treatDataBeforeRestoreAsFullStageData);
+    }
+
     @Override
     public TestKind getKind() {
         return dataBeforeRestore.isEmpty()

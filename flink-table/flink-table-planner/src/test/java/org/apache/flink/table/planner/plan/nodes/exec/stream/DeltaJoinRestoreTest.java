@@ -37,8 +37,13 @@ public class DeltaJoinRestoreTest extends RestoreTestBase {
                 DeltaJoinTestPrograms.DELTA_JOIN_WITH_JOIN_KEY_EQUALS_INDEX,
                 DeltaJoinTestPrograms.DELTA_JOIN_WITH_JOIN_KEY_CONTAINS_INDEX,
                 DeltaJoinTestPrograms.DELTA_JOIN_WITH_NON_EQUIV_CONDITION,
+                DeltaJoinTestPrograms.DELTA_JOIN_WITH_CALC_ON_SOURCE,
+                DeltaJoinTestPrograms.DELTA_JOIN_WITH_CALC_ON_SOURCE_AND_FILTER_PUSHED_DOWN,
                 DeltaJoinTestPrograms.DELTA_JOIN_WITH_CACHE,
+                DeltaJoinTestPrograms.DELTA_JOIN_WITH_CACHE_AND_CALC_ON_SOURCE,
                 DeltaJoinTestPrograms.DELTA_JOIN_WITH_CDC_SOURCE_WITHOUT_DELETE,
-                DeltaJoinTestPrograms.DELTA_JOIN_WITH_CACHE_AND_CDC_SOURCE_WITHOUT_DELETE);
+                DeltaJoinTestPrograms.DELTA_JOIN_WITH_CALC_ON_CDC_SOURCE_WITHOUT_DELETE,
+                DeltaJoinTestPrograms.DELTA_JOIN_WITH_CACHE_AND_CDC_SOURCE_WITHOUT_DELETE,
+                DeltaJoinTestPrograms.DELTA_JOIN_WITH_CACHE_AND_CALC_ON_CDC_SOURCE_WITHOUT_DELETE);
     }
 }

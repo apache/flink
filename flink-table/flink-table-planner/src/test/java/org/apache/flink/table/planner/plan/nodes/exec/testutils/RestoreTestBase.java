@@ -326,7 +326,6 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         Files.move(savepointPath, savepointDirPath, StandardCopyOption.ATOMIC_MOVE);
     }
 
-    //    @Disabled
     @ParameterizedTest
     @MethodSource("createSpecs")
     @Order(1)

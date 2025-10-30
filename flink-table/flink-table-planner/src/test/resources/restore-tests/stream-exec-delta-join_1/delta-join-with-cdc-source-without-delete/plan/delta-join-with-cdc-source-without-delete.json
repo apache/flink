@@ -1,7 +1,7 @@
 {
   "flinkVersion" : "2.2",
   "nodes" : [ {
-    "id" : 19,
+    "id" : 52,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -34,7 +34,7 @@
     "outputType" : "ROW<`a1` INT NOT NULL, `a0` DOUBLE NOT NULL, `a2` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, leftSrc]], fields=[a1, a0, a2])"
   }, {
-    "id" : 20,
+    "id" : 53,
     "type" : "stream-exec-drop-update-before_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -46,7 +46,7 @@
     "outputType" : "ROW<`a1` INT NOT NULL, `a0` DOUBLE NOT NULL, `a2` VARCHAR(2147483647)>",
     "description" : "DropUpdateBefore"
   }, {
-    "id" : 21,
+    "id" : 54,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -59,7 +59,7 @@
     "outputType" : "ROW<`a1` INT NOT NULL, `a0` DOUBLE NOT NULL, `a2` VARCHAR(2147483647)>",
     "description" : "Exchange(distribution=[hash[a1]])"
   }, {
-    "id" : 22,
+    "id" : 55,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -92,7 +92,7 @@
     "outputType" : "ROW<`b0` DOUBLE NOT NULL, `b2` VARCHAR(2147483647), `b1` INT NOT NULL>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, rightSrc]], fields=[b0, b2, b1])"
   }, {
-    "id" : 23,
+    "id" : 56,
     "type" : "stream-exec-drop-update-before_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -104,7 +104,7 @@
     "outputType" : "ROW<`b0` DOUBLE NOT NULL, `b2` VARCHAR(2147483647), `b1` INT NOT NULL>",
     "description" : "DropUpdateBefore"
   }, {
-    "id" : 24,
+    "id" : 57,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -117,7 +117,7 @@
     "outputType" : "ROW<`b0` DOUBLE NOT NULL, `b2` VARCHAR(2147483647), `b1` INT NOT NULL>",
     "description" : "Exchange(distribution=[hash[b1]])"
   }, {
-    "id" : 25,
+    "id" : 58,
     "type" : "stream-exec-delta-join_1",
     "configuration" : {
       "table.exec.async-lookup.buffer-capacity" : "100",
@@ -230,7 +230,7 @@
       "output-mode" : "ORDERED"
     }
   }, {
-    "id" : 26,
+    "id" : 59,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -273,6 +273,7 @@
       }
     },
     "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER" ],
+    "upsertMaterializeStrategy" : "MAP",
     "inputUpsertKey" : [ 0, 1, 3, 5 ],
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -285,50 +286,50 @@
     "description" : "Sink(table=[default_catalog.default_database.snk], fields=[a1, a0, a2, b0, b2, b1])"
   } ],
   "edges" : [ {
-    "source" : 19,
-    "target" : 20,
+    "source" : 52,
+    "target" : 53,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 20,
-    "target" : 21,
+    "source" : 53,
+    "target" : 54,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 22,
-    "target" : 23,
+    "source" : 55,
+    "target" : 56,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 23,
-    "target" : 24,
+    "source" : 56,
+    "target" : 57,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 21,
-    "target" : 25,
+    "source" : 54,
+    "target" : 58,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 24,
-    "target" : 25,
+    "source" : 57,
+    "target" : 58,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 25,
-    "target" : 26,
+    "source" : 58,
+    "target" : 59,
     "shuffle" : {
       "type" : "FORWARD"
     },
