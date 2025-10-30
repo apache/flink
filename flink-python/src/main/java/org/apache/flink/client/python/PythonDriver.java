@@ -71,6 +71,8 @@ public final class PythonDriver {
         // also get its configuration from batch environments.
         Configuration config = ExecutionEnvironment.getExecutionEnvironment().getConfiguration();
 
+        config.addAll(pythonDriverOptions.getPythonDependencyConfig());
+
         // start gateway server
         GatewayServer gatewayServer = PythonEnvUtils.startGatewayServer();
         PythonEnvUtils.setGatewayServer(gatewayServer);
