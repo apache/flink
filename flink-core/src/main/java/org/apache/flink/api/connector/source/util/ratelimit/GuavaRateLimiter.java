@@ -43,7 +43,7 @@ public class GuavaRateLimiter<Split extends SourceSplit>
     }
 
     @Override
-    public CompletionStage<Void> acquire(int requestSize) {
-        return CompletableFuture.runAsync(() -> rateLimiter.acquire(requestSize), limiter);
+    public CompletionStage<Void> acquire(int numberOfEvents) {
+        return CompletableFuture.runAsync(() -> rateLimiter.acquire(numberOfEvents), limiter);
     }
 }

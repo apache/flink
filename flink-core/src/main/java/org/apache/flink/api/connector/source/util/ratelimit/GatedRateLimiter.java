@@ -51,14 +51,14 @@ public class GatedRateLimiter<Split extends SourceSplit> implements RateLimiter<
     transient CompletableFuture<Void> gatingFuture = null;
 
     @Override
-    public CompletionStage<Void> acquire(int requestSize) {
+    public CompletionStage<Void> acquire(int numberOfEvents) {
         if (gatingFuture == null) {
             gatingFuture = CompletableFuture.completedFuture(null);
         }
         if (capacityLeft <= 0) {
             gatingFuture = new CompletableFuture<>();
         }
-        return gatingFuture.thenRun(() -> capacityLeft -= requestSize);
+        return gatingFuture.thenRun(() -> capacityLeft -= numberOfEvents);
     }
 
     @Override

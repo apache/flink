@@ -171,8 +171,7 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
         }
         // The first few seconds require preheating, there may be a deviation of a few seconds.
         assertThat(System.currentTimeMillis() - startTime)
-                .isGreaterThan(Duration.ofSeconds(25).toMillis());
-        assertThat(System.currentTimeMillis() - startTime)
+                .isGreaterThan(Duration.ofSeconds(25).toMillis())
                 .isLessThan(Duration.ofSeconds(35).toMillis());
     }
 
@@ -197,8 +196,7 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
                 reader.pollNext(testingReaderOutput);
             }
             assertThat(testingReaderOutput.getEmittedRecords().size())
-                    .isGreaterThanOrEqualTo(1 + recordsPerCheckpoint * (i - 1));
-            assertThat(testingReaderOutput.getEmittedRecords().size())
+                    .isGreaterThanOrEqualTo(1 + recordsPerCheckpoint * (i - 1))
                     .isLessThanOrEqualTo(1 + recordsPerCheckpoint * i);
             reader.notifyCheckpointComplete(i);
         }
@@ -215,6 +213,8 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
         final TestingRecordsWithSplitIds<String> secondRecords =
                 new TestingRecordsWithSplitIds<>("test-split2", recordArr);
         int maxPerSecond = 2;
+        // SplitAwaredRateLimiter will reduce the maxPerSecond for splits whose splitId is not
+        // "test-split1".
         final SourceReader<?, ?> reader =
                 createReaderAndAwaitAvailable(
                         Arrays.asList("test-split1", "test-split2"),
@@ -226,11 +226,10 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
         while (testingReaderOutput.getEmittedRecords().size() < 2 * recordArr.length) {
             reader.pollNext(testingReaderOutput);
         }
+        // Expected time: 60/2 ("test-split1") + 60/1 ("test-split2") = 90 seconds.
         // The first few seconds require preheating, there may be a deviation of a few seconds.
         assertThat(System.currentTimeMillis() - startTime)
-                .isGreaterThan(Duration.ofSeconds(85).toMillis());
-        // The first few seconds require preheating, there may be a deviation of a few seconds.
-        assertThat(System.currentTimeMillis() - startTime)
+                .isGreaterThan(Duration.ofSeconds(85).toMillis())
                 .isLessThan(Duration.ofSeconds(95).toMillis());
     }
 
@@ -250,8 +249,8 @@ class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
         }
 
         @Override
-        public CompletionStage<Void> acquire(int requestSize) {
-            return CompletableFuture.runAsync(() -> rateLimiter.acquire(requestSize), limiter);
+        public CompletionStage<Void> acquire(int numberOfEvents) {
+            return CompletableFuture.runAsync(() -> rateLimiter.acquire(numberOfEvents), limiter);
         }
 
         @Override

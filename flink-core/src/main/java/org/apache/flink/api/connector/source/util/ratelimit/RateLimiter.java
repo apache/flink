@@ -44,13 +44,13 @@ public interface RateLimiter<SplitT extends SourceSplit> {
     }
 
     /**
-     * Returns a future that is completed once another event would not exceed the rate limit. For
+     * Returns a future that is completed once other events would not exceed the rate limit. For
      * correct functioning, the next invocation of this method should only happen after the
      * previously returned future has been completed.
      *
-     * @param requestSize The size of requests.
+     * @param numberOfEvents The number of events.
      */
-    CompletionStage<Void> acquire(int requestSize);
+    CompletionStage<Void> acquire(int numberOfEvents);
 
     /**
      * Notifies this {@code RateLimiter} that the checkpoint with the given {@code checkpointId}
@@ -62,8 +62,11 @@ public interface RateLimiter<SplitT extends SourceSplit> {
     default void notifyCheckpointComplete(long checkpointId) {}
 
     /**
-     * Notifies this {@code RateLimiter} that a new split has been added. the result of before
-     * {@link #acquire(int)} method call should be ensured to be completed when calling this method.
+     * Notifies this {@code RateLimiter} that a new split has been added. For correct functioning,
+     * this method should only be invoked after the returned future of previous {@link
+     * #acquire(int)} method invocation has been completed.
+     *
+     * @param split The split that has been added.
      */
     default void notifyAddingSplit(SplitT split) {}
 }

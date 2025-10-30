@@ -29,7 +29,7 @@ import java.util.concurrent.CompletionStage;
 public class NoOpRateLimiter<Split extends SourceSplit> implements RateLimiter<Split> {
 
     @Override
-    public CompletionStage<Void> acquire(int requestSize) {
+    public CompletionStage<Void> acquire(int numberOfEvents) {
         return FutureUtils.completedVoidFuture();
     }
 }
