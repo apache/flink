@@ -90,6 +90,9 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
     private Object currentValue;
     private String currentRefPattern;
     private String currentRefAttribute;
+    private boolean inRelationalExpression = false;
+    private String
+            tempClassIdText; // Temporary storage for class identifier when determining pattern name
 
     // Pattern combiner (determines how patterns are connected)
     private Function<String, Pattern<T, T>> patternCombiner;
@@ -150,7 +153,14 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
         if (ctx.patternFilterExpressionMandatory() != null) {
             CepDslParser.PatternFilterExpressionMandatoryContext mandatory =
                     ctx.patternFilterExpressionMandatory();
-            extractPatternInfo(mandatory.classIdentifier(), mandatory.i);
+
+            if (mandatory.i != null) {
+                // Explicit name token provided
+                extractPatternInfo(mandatory.classIdentifier(), mandatory.i);
+            } else {
+                // No explicit name - store classId for later determination
+                tempClassIdText = extractClassIdentifier(mandatory.classIdentifier());
+            }
             isOptional = false;
         } else if (ctx.patternFilterExpressionOptional() != null) {
             CepDslParser.PatternFilterExpressionOptionalContext optional =
@@ -162,18 +172,40 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
 
     @Override
     public void exitPatternFilterExpression(CepDslParser.PatternFilterExpressionContext ctx) {
+        // Handle pattern name detection for cases like "A(price > 0)" where A is pattern name
+        if (currentPatternName == null
+                && tempClassIdText != null
+                && !currentExpressions.isEmpty()) {
+            // Check if this looks like pattern name syntax (simple identifier with expressions)
+            CepDslParser.ClassIdentifierContext classId =
+                    ctx.patternFilterExpressionMandatory().classIdentifier();
+            if (classId.escapableStr().size() == 1 && classId.escapableStr().get(0).i1 != null) {
+                // Use the identifier as pattern name, and set event type to null (any type)
+                currentPatternName = tempClassIdText;
+                currentEventType = null;
+            } else {
+                // Normal case: use classId as event type and generate pattern name
+                currentEventType = tempClassIdText;
+                currentPatternName = generateUniquePatternName(currentEventType);
+            }
+            tempClassIdText = null; // Clean up
+        }
+
         // Build the pattern
         buildPattern();
     }
 
     private void extractPatternInfo(CepDslParser.ClassIdentifierContext classId, Token nameToken) {
         // Event type is the class identifier
-        currentEventType = extractClassIdentifier(classId);
+        String classIdText = extractClassIdentifier(classId);
 
         // Pattern name is either explicitly specified or defaults to event type
         if (nameToken != null) {
             currentPatternName = nameToken.getText();
-        } else { // Auto-generate unique name based on event type to avoid conflicts
+            currentEventType = classIdText;
+        } else {
+            // Normal case: classId is event type
+            currentEventType = classIdText;
             currentPatternName = generateUniquePatternName(currentEventType);
         }
     }
@@ -237,10 +269,19 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
             LOG.debug("Added pattern node: {}", currentPatternName);
         }
 
-        // Add condition - do NOT use eventType for filtering
-        // Pattern name (e.g., START) is NOT the same as event type (e.g., TRADE)
+        // Add condition if we have expressions or need type matching
+        // Use currentEventType for matching unless strictTypeMatching explicitly disables it
+        String typePattern = currentEventType;
+        LOG.debug(
+                "Building pattern '{}' with eventType '{}' and {} expressions",
+                currentPatternName,
+                typePattern,
+                currentExpressions.size());
+        for (DslExpression<T> expr : currentExpressions) {
+            LOG.debug("  Expression: {}", expr);
+        }
         DslCondition<T> condition =
-                new DslCondition<>(eventAdapter, null, currentExpressions, currentLogicalOp);
+                new DslCondition<>(eventAdapter, typePattern, currentExpressions, currentLogicalOp);
         currentPattern = currentPattern.where(condition);
 
         // Apply quantifiers
@@ -338,7 +379,16 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
 
     @Override
     public void enterEvalOrExpression(CepDslParser.EvalOrExpressionContext ctx) {
-        currentLogicalOp = DslCondition.LogicalOperator.OR;
+        // If this OR expression has multiple AND expressions, use OR logic
+        // Check if there are multiple operands (separated by OR)
+        System.out.println(
+                "DEBUG: enterEvalOrExpression with "
+                        + ctx.evalAndExpression().size()
+                        + " AND expressions");
+        if (ctx.evalAndExpression().size() > 1) {
+            currentLogicalOp = DslCondition.LogicalOperator.OR;
+            System.out.println("DEBUG: Set logical operator to OR");
+        }
     }
 
     @Override
@@ -362,12 +412,66 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
             String op = ctx.r.getText();
             currentOperator = ComparisonOperator.fromSymbol(op);
         }
+        inRelationalExpression = true;
+    }
+
+    @Override
+    public void exitEvalRelationalExpression(CepDslParser.EvalRelationalExpressionContext ctx) {
+        // Only create expressions for actual relational operations (>, <, >=, <=)
+        // Simple equals expressions are handled in exitEvalEqualsExpression
+        if (ctx.r != null && currentAttribute != null && currentOperator != null) {
+            DslExpression<T> expr;
+            if (currentRefPattern != null) {
+                // Event reference: currentAttribute > currentRefPattern.currentRefAttribute
+                expr =
+                        new DslExpression<>(
+                                currentAttribute,
+                                currentOperator,
+                                currentRefPattern,
+                                currentRefAttribute);
+            } else if (currentValue != null) {
+                // Constant comparison: currentAttribute > currentValue
+                expr = new DslExpression<>(currentAttribute, currentOperator, currentValue);
+            } else {
+                // Invalid state - skip expression creation
+                System.out.println(
+                        "DEBUG: Skipping relational expression creation - currentAttribute: "
+                                + currentAttribute
+                                + ", currentOperator: "
+                                + currentOperator
+                                + ", currentValue: "
+                                + currentValue
+                                + ", currentRefPattern: "
+                                + currentRefPattern);
+                inRelationalExpression = false;
+                return;
+            }
+            currentExpressions.add(expr);
+            System.out.println("DEBUG: Created relational expression: " + expr);
+
+            // Reset state
+            currentAttribute = null;
+            currentOperator = null;
+            currentValue = null;
+            currentRefPattern = null;
+            currentRefAttribute = null;
+        }
+        inRelationalExpression = false;
     }
 
     @Override
     public void exitEvalEqualsExpression(CepDslParser.EvalEqualsExpressionContext ctx) {
-        // Create expression if we have all parts
-        if (currentAttribute != null && currentOperator != null) {
+        // Create expression for equals operations
+        System.out.println(
+                "DEBUG: exitEvalEqualsExpression - currentAttribute: "
+                        + currentAttribute
+                        + ", currentOperator: "
+                        + currentOperator
+                        + ", currentValue: "
+                        + currentValue
+                        + ", currentRefPattern: "
+                        + currentRefPattern);
+        if (currentAttribute != null && currentOperator != null && currentValue != null) {
             DslExpression<T> expr;
             if (currentRefPattern != null) {
                 expr =
@@ -380,25 +484,66 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
                 expr = new DslExpression<>(currentAttribute, currentOperator, currentValue);
             }
             currentExpressions.add(expr);
-            LOG.trace("Added expression: {}", expr);
+            System.out.println("DEBUG: Created equals expression: " + expr);
 
-            // Reset expression state
+            // Reset state
             currentAttribute = null;
             currentOperator = null;
             currentValue = null;
             currentRefPattern = null;
             currentRefAttribute = null;
+        } else {
+            System.out.println("DEBUG: Cannot create equals expression - missing components");
         }
     }
 
     @Override
     public void enterEventPropertyIdent(CepDslParser.EventPropertyIdentContext ctx) {
         String ident = extractEventProperty(ctx);
+
+        // Check if this is part of an event reference (e.g., START.price)
+        if (ctx.getParent() != null && ctx.getParent().getParent() != null) {
+            org.antlr.v4.runtime.tree.ParseTree grandParent = ctx.getParent().getParent();
+
+            // If grandparent has 3 children and middle one is DOT, it's an event reference
+            if (grandParent.getChildCount() == 3) {
+                String fullText = grandParent.getText();
+                if (fullText.contains(".")) {
+                    String[] parts = fullText.split("\\.");
+                    if (parts.length == 2) {
+                        String refPattern = parts[0];
+                        String refAttribute = parts[1];
+
+                        // Only process when current ident matches the attribute part (second part)
+                        if (ident.equals(refAttribute)) {
+                            // This is the attribute part of event reference
+                            if (currentAttribute != null && currentOperator != null) {
+                                // Right side reference: price > START.price
+                                currentRefPattern = refPattern;
+                                currentRefAttribute = refAttribute;
+                            } else {
+                                // Left side reference: START.price > 100
+                                currentAttribute = refAttribute;
+                            }
+                            return; // Skip normal processing - THIS IS CRITICAL!
+                        } else if (ident.equals(refPattern)) {
+                            // This is the pattern name part, skip it
+                            return; // Skip normal processing - THIS IS CRITICAL!
+                        }
+                    }
+                }
+            }
+        }
+
+        // Normal processing for simple attributes
         if (currentAttribute == null) {
             currentAttribute = ident;
         } else if (currentRefPattern == null) {
-            currentRefPattern = currentAttribute;
-            currentRefAttribute = ident;
+            // Only set if different to avoid duplicate calls
+            if (!ident.equals(currentAttribute)) {
+                currentRefPattern = currentAttribute;
+                currentRefAttribute = ident;
+            }
         }
     }
 
@@ -422,12 +567,47 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
         } catch (NumberFormatException e) {
             currentValue = Double.parseDouble(ctx.getText());
         }
+
+        // Check if we can create an expression now that we have the value
+        // Only create if we're not in a relational expression (those are handled in
+        // exitEvalRelationalExpression)
+        if (!inRelationalExpression
+                && currentAttribute != null
+                && currentOperator != null
+                && currentValue != null) {
+            DslExpression<T> expr;
+            if (currentRefPattern != null) {
+                expr =
+                        new DslExpression<>(
+                                currentAttribute,
+                                currentOperator,
+                                currentRefPattern,
+                                currentRefAttribute);
+            } else {
+                expr = new DslExpression<>(currentAttribute, currentOperator, currentValue);
+            }
+            currentExpressions.add(expr);
+
+            // Reset state
+            currentAttribute = null;
+            currentOperator = null;
+            currentValue = null;
+            currentRefPattern = null;
+            currentRefAttribute = null;
+        }
     }
 
     @Override
     public void exitStringconstant(CepDslParser.StringconstantContext ctx) {
         String value = extractStringLiteral(ctx.getText());
+        System.out.println(
+                "DEBUG: exitStringconstant: ctx.getText()='"
+                        + ctx.getText()
+                        + "', extracted value='"
+                        + value
+                        + "'");
         currentValue = value;
+        System.out.println("DEBUG: Set currentValue to: " + currentValue);
     }
 
     @Override
@@ -438,6 +618,34 @@ public class DslPatternTranslator<T> extends CepDslBaseListener {
             currentValue = false;
         } else if (ctx.nu != null) {
             currentValue = null;
+        }
+
+        // Check if we can create an expression now that we have the value
+        // Only create if we're not in a relational expression (those are handled in
+        // exitEvalRelationalExpression)
+        if (!inRelationalExpression
+                && currentAttribute != null
+                && currentOperator != null
+                && currentValue != null) {
+            DslExpression<T> expr;
+            if (currentRefPattern != null) {
+                expr =
+                        new DslExpression<>(
+                                currentAttribute,
+                                currentOperator,
+                                currentRefPattern,
+                                currentRefAttribute);
+            } else {
+                expr = new DslExpression<>(currentAttribute, currentOperator, currentValue);
+            }
+            currentExpressions.add(expr);
+
+            // Reset state
+            currentAttribute = null;
+            currentOperator = null;
+            currentValue = null;
+            currentRefPattern = null;
+            currentRefAttribute = null;
         }
     }
 

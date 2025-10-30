@@ -293,7 +293,10 @@ public class DslExpressionEvaluationTest extends AbstractTestBaseJUnit4 {
                                 1000,
                                 DslTestDataSets.ts(2),
                                 "NASDAQ",
-                                0.0));
+                                0.0))
+                .assignTimestampsAndWatermarks(
+                        org.apache.flink.api.common.eventtime.WatermarkStrategy.<StockEvent>forMonotonousTimestamps()
+                                .withTimestampAssigner((event, timestamp) -> event.getTimestamp()));
 
         String dslExpression = "TRADE(symbol = 'AAPL' or symbol = 'GOOGL')";
 
