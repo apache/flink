@@ -174,7 +174,8 @@ public class DslPatternMatchingTest extends AbstractTestBaseJUnit4 {
                         new UserActivityEvent(
                                 "user1", "LOGOUT", "/home", 0, DslTestDataSets.ts(2), "s1", 1));
 
-        String dslExpression = "LOGIN(eventType = 'LOGIN') !-> ERROR(eventType = 'ERROR')";
+        String dslExpression =
+                "LOGIN(eventType = 'LOGIN') !-> ERROR(eventType = 'ERROR') within 10s";
 
         PatternStream<UserActivityEvent> patternStream = DslCompiler.compile(dslExpression, input);
 

@@ -47,7 +47,7 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
 
         // Complex DSL: Detect sustained price increase with volume
         String dslExpression =
-                "START((symbol = 'AAPL') and (price > 150) and (volume > 1000)) "
+                "START(symbol = 'AAPL' and price > 150 and volume > 1000) "
                         + "-> INCREASE1(price > START.price) "
                         + "-> INCREASE2(price > INCREASE1.price)";
 
@@ -78,9 +78,9 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
         DataStream<SensorEvent> input = env.fromCollection(DslTestDataSets.escalatingValues());
 
         String dslExpression =
-                "NORMAL((status = 'NORMAL') and (value < 35)) "
-                        + "-> WARNING((status = 'WARNING') and (value > NORMAL.value)) "
-                        + "-> CRITICAL((status = 'CRITICAL') and (value > WARNING.value))";
+                "NORMAL(status = 'NORMAL' and value < 35) "
+                        + "-> WARNING(status = 'WARNING' and value > NORMAL.value) "
+                        + "-> CRITICAL(status = 'CRITICAL' and value > WARNING.value)";
 
         PatternStream<SensorEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -110,8 +110,8 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
 
         String dslExpression =
                 "LOGIN(eventType = 'LOGIN') "
-                        + "-> CLICK((eventType = 'CLICK') and (duration > 10)) "
-                        + "-> PURCHASE((eventType = 'PURCHASE') and (count > 0))";
+                        + "-> CLICK(eventType = 'CLICK' and duration > 10) "
+                        + "-> PURCHASE(eventType = 'PURCHASE' and count > 0)";
 
         PatternStream<UserActivityEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -189,8 +189,8 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
                                 10.0));
 
         String dslExpression =
-                "START((symbol = 'AAPL') and (price > 100) and (volume > 1000)) "
-                        + "-> END((symbol = 'AAPL') and (price > START.price) and (volume > START.volume))";
+                "START(symbol = 'AAPL' and price > 100 and volume > 1000) "
+                        + "-> END(symbol = 'AAPL' and price > START.price and volume > START.volume)";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -224,7 +224,7 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
                         new StockEvent(
                                 "AAPL", "TRADE", 100.0, 1000, DslTestDataSets.ts(2), "NYSE", 0.0));
 
-        String dslExpression = "TRADE((symbol = 'AAPL') and (exchange = 'NASDAQ'))";
+        String dslExpression = "TRADE(symbol = 'AAPL' and exchange = 'NASDAQ')";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
@@ -270,7 +270,7 @@ public class DslCompilerE2ETest extends AbstractTestBaseJUnit4 {
                                 11.0));
 
         String dslExpression =
-                "TRADES((eventType = 'TRADE') and (symbol = 'AAPL')) "
+                "TRADES(eventType = 'TRADE' and symbol = 'AAPL') "
                         + "-> QUOTE(eventType = 'QUOTE')";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);

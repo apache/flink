@@ -316,7 +316,7 @@ public class DslExpressionEvaluationTest extends AbstractTestBaseJUnit4 {
 
         DataStream<StockEvent> input = env.fromCollection(DslTestDataSets.logicalOperatorDataset());
 
-        String dslExpression = "TRADE((price > 100 and volume > 1000) or change > 5.0)";
+        String dslExpression = "TRADE(price > 100 and volume > 1000 or change > 5.0)";
 
         PatternStream<StockEvent> patternStream = DslCompiler.compile(dslExpression, input);
 
