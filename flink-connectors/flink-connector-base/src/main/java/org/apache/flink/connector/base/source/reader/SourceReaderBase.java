@@ -463,7 +463,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
         SourceOutput<T> getOrCreateSplitOutput(
                 ReaderOutput<T> mainOutput,
                 @Nullable Function<T, Boolean> eofRecordHandler,
-                boolean isRateLimited) {
+                boolean rateLimitingEnabled) {
             if (sourceOutput == null) {
                 // The split output should have been created when AddSplitsEvent was processed in
                 // SourceOperator. Here we just use this method to get the previously created
@@ -472,7 +472,7 @@ public abstract class SourceReaderBase<E, T, SplitT extends SourceSplit, SplitSt
                 if (eofRecordHandler != null) {
                     sourceOutput = new SourceOutputWrapper<>(sourceOutput, eofRecordHandler);
                 }
-                if (isRateLimited) {
+                if (rateLimitingEnabled) {
                     sourceOutput = new RateLimitingSourceOutputWrapper<>(sourceOutput);
                 }
             }
