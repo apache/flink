@@ -188,7 +188,7 @@ class StreamDependencyTests(DependencyTests, PyFlinkTestCase):
                 "AAAIAKF6XVtRLwOqEgAAABAAAAAtAAAAAAAAAAAAAACkgZoBAABweXRob25fcGFja2FnZTEtMC4wLjAu"
                 "ZGlzdC1pbmZvL3RvcF9sZXZlbC50eHRQSwECFAMUAAAACAChel1b8FAoCAMBAACcAQAAJgAAAAAAAAAA"
                 "AAAAtIH3AQAAcHl0aG9uX3BhY2thZ2UxLTAuMC4wLmRpc3QtaW5mby9SRUNPUkRQSwUGAAAAAAUABQCh"
-                "AQAAPgMAAAAA'"))
+                "AQAAPgMAAAAA"))
         self.t_env.set_python_requirements(requirements_txt_path, requirements_dir_path)
 
         def add_one(i):
