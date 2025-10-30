@@ -31,6 +31,7 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -59,8 +60,12 @@ public class DslQuantifierTest extends AbstractTestBaseJUnit4 {
 
         DataStream<List<StockEvent>> result =
                 patternStream.select(
-                        (PatternSelectFunction<StockEvent, List<StockEvent>>)
-                                match -> match.get("TRADE"));
+                        new PatternSelectFunction<StockEvent, List<StockEvent>>() {
+                            @Override
+                            public List<StockEvent> select(Map<String, List<StockEvent>> match) {
+                                return match.get("TRADE");
+                            }
+                        });
 
         List<List<StockEvent>> results = new ArrayList<>();
         result.executeAndCollect().forEachRemaining(results::add);
@@ -121,8 +126,12 @@ public class DslQuantifierTest extends AbstractTestBaseJUnit4 {
 
         DataStream<List<StockEvent>> result =
                 patternStream.select(
-                        (PatternSelectFunction<StockEvent, List<StockEvent>>)
-                                match -> match.get("TRADE"));
+                        new PatternSelectFunction<StockEvent, List<StockEvent>>() {
+                            @Override
+                            public List<StockEvent> select(Map<String, List<StockEvent>> match) {
+                                return match.get("TRADE");
+                            }
+                        });
 
         List<List<StockEvent>> results = new ArrayList<>();
         result.executeAndCollect().forEachRemaining(results::add);
@@ -166,8 +175,12 @@ public class DslQuantifierTest extends AbstractTestBaseJUnit4 {
 
         DataStream<List<StockEvent>> result =
                 patternStream.select(
-                        (PatternSelectFunction<StockEvent, List<StockEvent>>)
-                                match -> match.get("TRADE"));
+                        new PatternSelectFunction<StockEvent, List<StockEvent>>() {
+                            @Override
+                            public List<StockEvent> select(Map<String, List<StockEvent>> match) {
+                                return match.get("TRADE");
+                            }
+                        });
 
         List<List<StockEvent>> results = new ArrayList<>();
         result.executeAndCollect().forEachRemaining(results::add);
@@ -188,8 +201,12 @@ public class DslQuantifierTest extends AbstractTestBaseJUnit4 {
 
         DataStream<List<StockEvent>> result =
                 patternStream.select(
-                        (PatternSelectFunction<StockEvent, List<StockEvent>>)
-                                match -> match.get("TRADE"));
+                        new PatternSelectFunction<StockEvent, List<StockEvent>>() {
+                            @Override
+                            public List<StockEvent> select(Map<String, List<StockEvent>> match) {
+                                return match.get("TRADE");
+                            }
+                        });
 
         List<List<StockEvent>> results = new ArrayList<>();
         result.executeAndCollect().forEachRemaining(results::add);
