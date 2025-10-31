@@ -121,6 +121,7 @@ class DebeziumAvroFormatFactoryTest {
 
     private static final String SUBJECT = "test-debezium-avro";
     private static final String REGISTRY_URL = "http://localhost:8081";
+    private static final String TOKEN_ENDPOINT_URL = "http://localhost:8080/token";
 
     @Test
     void testSeDeSchema() {
@@ -209,6 +210,9 @@ class DebeziumAvroFormatFactoryTest {
         final Map<String, String> registryConfigs = new HashMap<>();
         registryConfigs.put("basic.auth.user.info", "something1");
         registryConfigs.put("basic.auth.credentials.source", "something2");
+        registryConfigs.put("sasl.oauthbearer.token.endpoint.url", TOKEN_ENDPOINT_URL);
+        registryConfigs.put("sasl.jaas.config", "something3");
+        registryConfigs.put("bearer.auth.logical.cluster", "something4");
         return registryConfigs;
     }
 
@@ -223,6 +227,9 @@ class DebeziumAvroFormatFactoryTest {
         options.put("debezium-avro-confluent.subject", SUBJECT);
         options.put("debezium-avro-confluent.basic-auth.user-info", "something1");
         options.put("debezium-avro-confluent.basic-auth.credentials-source", "something2");
+        options.put("debezium-avro-confluent.bearer-auth.token.endpoint.url", TOKEN_ENDPOINT_URL);
+        options.put("debezium-avro-confluent.bearer-auth.jaas.config", "something3");
+        options.put("debezium-avro-confluent.bearer-auth.logical.cluster", "something4");
         return options;
     }
 
