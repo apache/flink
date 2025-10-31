@@ -16,19 +16,20 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecVectorSearchTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.VectorSearchSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.VectorSearchTableSourceSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMLPredictTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecVectorSearchTableFunction;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -40,9 +41,9 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 
-/** Stream {@link ExecNode} for {@code VECTOR_SEARCH}. */
+/** Batch ExecNode for {@code VECTOR_SEARCH}. */
 @ExecNodeMetadata(
-        name = "stream-exec-vector-search-table-function",
+        name = "batch-exec-vector-search-table-function",
         version = 1,
         consumedOptions = {
             "table.exec.async-vector-search.max-concurrent-operations",
@@ -52,10 +53,10 @@ import java.util.List;
         producedTransformations = StreamExecMLPredictTableFunction.ML_PREDICT_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v2_2,
         minStateVersion = FlinkVersion.v2_2)
-public class StreamExecVectorSearchTableFunction extends CommonExecVectorSearchTableFunction
-        implements MultipleTransformationTranslator<RowData>, StreamExecNode<RowData> {
+public class BatchExecVectorSearchTableFunction extends CommonExecVectorSearchTableFunction
+        implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
-    public StreamExecVectorSearchTableFunction(
+    public BatchExecVectorSearchTableFunction(
             ReadableConfig tableConfig,
             VectorSearchTableSourceSpec tableSourceSpec,
             VectorSearchSpec vectorSearchSpec,
@@ -77,7 +78,7 @@ public class StreamExecVectorSearchTableFunction extends CommonExecVectorSearchT
     }
 
     @JsonCreator
-    public StreamExecVectorSearchTableFunction(
+    public BatchExecVectorSearchTableFunction(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
             @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,

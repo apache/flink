@@ -21,6 +21,7 @@ import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalMLPredictTableFunctionRule, StreamPhysicalProcessTableFunctionRule}
 import org.apache.flink.table.planner.plan.rules.logical.{JoinToMultiJoinRule, _}
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
+import org.apache.flink.table.planner.plan.rules.physical.common.PhysicalVectorSearchTableFunctionRule
 import org.apache.flink.table.planner.plan.rules.physical.stream._
 
 import org.apache.calcite.rel.core.RelFactories
@@ -490,7 +491,7 @@ object FlinkStreamRuleSets {
     StreamPhysicalProcessTableFunctionRule.INSTANCE,
     // model TVFs
     StreamPhysicalMLPredictTableFunctionRule.INSTANCE,
-    StreamPhysicalVectorSearchTableFunctionRule.INSTANCE,
+    PhysicalVectorSearchTableFunctionRule.STREAM_INSTANCE,
     // join
     StreamPhysicalJoinRule.INSTANCE,
     StreamPhysicalMultiJoinRule.INSTANCE,

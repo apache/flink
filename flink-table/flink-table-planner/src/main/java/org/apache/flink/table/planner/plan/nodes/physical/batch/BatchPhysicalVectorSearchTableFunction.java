@@ -16,27 +16,24 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.physical.stream;
+package org.apache.flink.table.planner.plan.nodes.physical.batch;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecVectorSearchTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.VectorSearchSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.VectorSearchTableSourceSpec;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecVectorSearchTableFunction;
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalVectorSearchFunction;
-import org.apache.flink.table.planner.plan.schema.TableSourceTable;
-import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils;
 import org.apache.flink.table.planner.plan.utils.VectorSearchUtil;
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexProgram;
@@ -47,15 +44,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-/** Stream physical RelNode for vector search table function. */
-public class StreamPhysicalVectorSearchTableFunction extends CommonPhysicalVectorSearchFunction
-        implements StreamPhysicalRel {
+/** Batch physical node for {@code VECTOR_SEARCH} and {@code VECTOR_SEARCH_AGG}. */
+public class BatchPhysicalVectorSearchTableFunction extends CommonPhysicalVectorSearchFunction
+        implements BatchPhysicalRel {
 
-    public StreamPhysicalVectorSearchTableFunction(
+    public BatchPhysicalVectorSearchTableFunction(
             RelOptCluster cluster,
             RelTraitSet traits,
             RelNode input,
-            TableSourceTable searchTable,
+            RelOptTable searchTable,
             @Nullable RexProgram projectionOnVectorTable,
             VectorSearchSpec vectorSearchSpec,
             RelDataType outputRowType) {
@@ -71,7 +68,7 @@ public class StreamPhysicalVectorSearchTableFunction extends CommonPhysicalVecto
 
     @Override
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-        return new StreamPhysicalVectorSearchTableFunction(
+        return new BatchPhysicalVectorSearchTableFunction(
                 getCluster(),
                 traitSet,
                 inputs.get(0),
@@ -79,11 +76,6 @@ public class StreamPhysicalVectorSearchTableFunction extends CommonPhysicalVecto
                 projectionOnVectorTable,
                 vectorSearchSpec,
                 outputRowType);
-    }
-
-    @Override
-    public boolean requireWatermark() {
-        return false;
     }
 
     @Override
@@ -96,7 +88,7 @@ public class StreamPhysicalVectorSearchTableFunction extends CommonPhysicalVecto
             throw new UnsupportedOperationException(
                     "Don't support calc on VECTOR_SEARCH node now.");
         }
-        return new StreamExecVectorSearchTableFunction(
+        return new BatchExecVectorSearchTableFunction(
                 tableConfig,
                 sourceSpec,
                 vectorSearchSpec,
@@ -110,28 +102,10 @@ public class StreamPhysicalVectorSearchTableFunction extends CommonPhysicalVecto
                                         ? Collections.emptyMap()
                                         : vectorSearchSpec.getRuntimeConfig(),
                                 tableConfig,
-                                getInputChangelogMode())
+                                ChangelogMode.insertOnly())
                         : null,
                 InputProperty.DEFAULT,
                 FlinkTypeFactory.toLogicalRowType(outputRowType),
                 getRelDetailedDescription());
-    }
-
-    // ~ Utilities --------------------------------------------------------------------------
-
-    private ChangelogMode getInputChangelogMode() {
-        return getInputChangelogMode(getInput());
-    }
-
-    private ChangelogMode getInputChangelogMode(RelNode rel) {
-        if (rel instanceof StreamPhysicalRel) {
-            return JavaScalaConversionUtil.toJava(
-                            ChangelogPlanUtils.getChangelogMode((StreamPhysicalRel) rel))
-                    .orElse(ChangelogMode.insertOnly());
-        } else if (rel instanceof HepRelVertex) {
-            return getInputChangelogMode(((HepRelVertex) rel).getCurrentRel());
-        } else {
-            return ChangelogMode.insertOnly();
-        }
     }
 }
