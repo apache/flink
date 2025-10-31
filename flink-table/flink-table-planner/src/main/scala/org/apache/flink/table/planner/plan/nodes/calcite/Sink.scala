@@ -80,7 +80,9 @@ abstract class Sink(
           .getOrElse(Array.empty[Array[Int]])
           .map(_.mkString("[", ",", "]"))
           .mkString(","),
-        targetColumns != null
+        // only print target columns when the sink supports TargetColumnWriting
+        targetColumns != null && abilitySpecs.exists(
+          spec => spec.isInstanceOf[TargetColumnWritingSpec])
       )
       .item("fields", getRowType.getFieldNames.mkString(", "))
       .itemIf("hints", RelExplainUtil.hintsToString(hints), !hints.isEmpty)
