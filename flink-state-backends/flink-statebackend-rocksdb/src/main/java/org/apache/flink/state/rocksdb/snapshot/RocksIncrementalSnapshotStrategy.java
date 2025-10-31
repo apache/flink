@@ -196,30 +196,29 @@ public class RocksIncrementalSnapshotStrategy<K>
             long checkpointId, @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots) {
 
         final long lastCompletedCheckpoint;
-        final Collection<HandleAndLocalPath> confirmedSstFiles;
+        final SortedMap<Long, Collection<HandleAndLocalPath>> currentUploadedSstFiles;
 
         // use the last completed checkpoint as the comparison base.
         synchronized (uploadedSstFiles) {
             lastCompletedCheckpoint = lastCompletedCheckpointId;
-            confirmedSstFiles = uploadedSstFiles.get(lastCompletedCheckpoint);
-            LOG.trace(
-                    "Use confirmed SST files for checkpoint {}: {}",
-                    checkpointId,
-                    confirmedSstFiles);
+            currentUploadedSstFiles =
+                    new TreeMap<>(uploadedSstFiles.tailMap(lastCompletedCheckpoint));
         }
+        PreviousSnapshot previousSnapshot =
+                new PreviousSnapshot(currentUploadedSstFiles, lastCompletedCheckpoint);
         LOG.trace(
                 "Taking incremental snapshot for checkpoint {}. Snapshot is based on last completed checkpoint {} "
                         + "assuming the following (shared) confirmed files as base: {}.",
                 checkpointId,
                 lastCompletedCheckpoint,
-                confirmedSstFiles);
+                previousSnapshot);
 
         // snapshot meta data to save
         for (Map.Entry<String, RocksDbKvStateInfo> stateMetaInfoEntry :
                 kvStateInformation.entrySet()) {
             stateMetaInfoSnapshots.add(stateMetaInfoEntry.getValue().metaInfo.snapshot());
         }
-        return new PreviousSnapshot(confirmedSstFiles);
+        return previousSnapshot;
     }
 
     /**
@@ -352,6 +351,7 @@ public class RocksIncrementalSnapshotStrategy<K>
                 List<Path> miscFilePaths = new ArrayList<>(files.length);
 
                 createUploadFilePaths(files, sstFiles, sstFilePaths, miscFilePaths);
+                LOG.info("Will re-use {} SST files. {}", sstFiles.size(), sstFiles);
 
                 final CheckpointedStateScope stateScope =
                         sharingFilesStrategy == SnapshotType.SharingFilesStrategy.NO_SHARING
