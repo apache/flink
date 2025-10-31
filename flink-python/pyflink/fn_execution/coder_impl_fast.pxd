@@ -148,6 +148,10 @@ cdef class TimestampCoderImpl(FieldCoderImpl):
 
     cdef _decode_timestamp_data_from_stream(self, InputStream in_stream)
 
+    cdef _to_utc_timestamp(self, value)
+
+    cdef _to_datetime(self, int64_t seconds, int32_t microseconds)
+
 cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
     cdef object _timezone
 

@@ -685,8 +685,9 @@ cdef class TimestampCoderImpl(FieldCoderImpl):
     cpdef encode_to_stream(self, value, OutputStream out_stream):
         cdef int32_t microseconds_of_second, nanoseconds
         cdef int64_t timestamp_seconds, timestamp_milliseconds
-        timestamp_seconds = <int64_t> (value.replace(tzinfo=datetime.timezone.utc).timestamp())
-        microseconds_of_second = value.microsecond
+        utc_ts = self._to_utc_timestamp(value)
+        timestamp_seconds = <int64_t> (utc_ts.timestamp())
+        microseconds_of_second = utc_ts.microsecond
         timestamp_milliseconds = timestamp_seconds * 1000 + microseconds_of_second // 1000
         nanoseconds = microseconds_of_second % 1000 * 1000
         if self._is_compact:
@@ -709,7 +710,15 @@ cdef class TimestampCoderImpl(FieldCoderImpl):
             nanoseconds = in_stream.read_int32()
         seconds = milliseconds // 1000
         microseconds = milliseconds % 1000 * 1000 + nanoseconds // 1000
-        return datetime.datetime.utcfromtimestamp(seconds).replace(microsecond=microseconds)
+        return self._to_datetime(seconds, microseconds)
+
+    cdef _to_utc_timestamp(self, value):
+        return value.replace(tzinfo=datetime.timezone.utc)
+
+    cdef _to_datetime(self, int64_t seconds, int32_t microseconds):
+        datetime.datetime.utcfromtimestamp(seconds).replace(microsecond=microseconds)
+
+    cdef _to_datetime(self, int64_t seconds, int32_t microseconds)
 
 cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
     """
@@ -722,6 +731,13 @@ cdef class LocalZonedTimestampCoderImpl(TimestampCoderImpl):
 
     cpdef decode_from_stream(self, InputStream in_stream, size_t size):
         return self._timezone.localize(self._decode_timestamp_data_from_stream(in_stream))
+
+    cpdef _to_utc_timestamp(self, value):
+        return value.astimezone(tzinfo=datetime.timezone.utc)
+
+    cdef _to_datetime(self, int64_t seconds, int32_t microseconds):
+        (datetime.datetime.fromtimestamp(seconds, tz=datetime.timezone.utc)
+         .replace(microsecond=microseconds).astimezone(self._timezone))
 
 cdef class InstantCoderImpl(FieldCoderImpl):
     """
