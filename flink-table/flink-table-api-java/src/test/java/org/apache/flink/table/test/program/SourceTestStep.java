@@ -34,7 +34,7 @@ public final class SourceTestStep extends TableTestStep {
     public final List<Row> dataBeforeRestore;
     public final List<Row> dataAfterRestore;
 
-    public final boolean treatDataBeforeRestoreAsFullStageData;
+    public final boolean treatDataBeforeRestoreAsConsumedData;
 
     SourceTestStep(
             String name,
@@ -45,11 +45,11 @@ public final class SourceTestStep extends TableTestStep {
             List<List<String>> indexes,
             List<Row> dataBeforeRestore,
             List<Row> dataAfterRestore,
-            boolean treatDataBeforeRestoreAsFullStageData) {
+            boolean treatDataBeforeRestoreAsConsumedData) {
         super(name, schemaComponents, distribution, partitionKeys, options, indexes);
         this.dataBeforeRestore = dataBeforeRestore;
         this.dataAfterRestore = dataAfterRestore;
-        this.treatDataBeforeRestoreAsFullStageData = treatDataBeforeRestoreAsFullStageData;
+        this.treatDataBeforeRestoreAsConsumedData = treatDataBeforeRestoreAsConsumedData;
     }
 
     /** Builder for creating a {@link SourceTestStep}. */
@@ -67,7 +67,7 @@ public final class SourceTestStep extends TableTestStep {
                 indexes,
                 dataBeforeRestore,
                 dataAfterRestore,
-                treatDataBeforeRestoreAsFullStageData);
+                treatDataBeforeRestoreAsConsumedData);
     }
 
     @Override
@@ -85,7 +85,7 @@ public final class SourceTestStep extends TableTestStep {
         private final List<Row> dataBeforeRestore = new ArrayList<>();
         private final List<Row> dataAfterRestore = new ArrayList<>();
         private final List<List<String>> indexes = new ArrayList<>();
-        private boolean treatDataBeforeRestoreAsFullStageData = false;
+        private boolean treatDataBeforeRestoreAsConsumedData = false;
 
         private Builder(String name) {
             super(name);
@@ -110,8 +110,8 @@ public final class SourceTestStep extends TableTestStep {
             return this;
         }
 
-        public Builder treatDataBeforeRestoreAsFullStageData() {
-            this.treatDataBeforeRestoreAsFullStageData = true;
+        public Builder treatDataBeforeRestoreAsConsumedData() {
+            this.treatDataBeforeRestoreAsConsumedData = true;
             return this;
         }
 
@@ -125,7 +125,7 @@ public final class SourceTestStep extends TableTestStep {
                     indexes,
                     dataBeforeRestore,
                     dataAfterRestore,
-                    treatDataBeforeRestoreAsFullStageData);
+                    treatDataBeforeRestoreAsConsumedData);
         }
     }
 }

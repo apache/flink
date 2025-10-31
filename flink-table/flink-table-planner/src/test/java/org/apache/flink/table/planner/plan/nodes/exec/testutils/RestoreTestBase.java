@@ -358,12 +358,12 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
 
             final String id = TestValuesTableFactory.registerData(data);
 
-            if (sourceTestStep.treatDataBeforeRestoreAsFullStageData) {
-                final Collection<Row> fullStageData =
+            if (sourceTestStep.treatDataBeforeRestoreAsConsumedData) {
+                final Collection<Row> consumedData =
                         afterRestoreSource == AfterRestoreSource.NO_RESTORE
                                 ? Collections.emptyList()
                                 : sourceTestStep.dataBeforeRestore;
-                TestValuesTableFactory.registerFullStageData(fullStageData, id);
+                TestValuesTableFactory.registerConsumedData(consumedData, id);
             }
 
             final Map<String, String> options = new HashMap<>();

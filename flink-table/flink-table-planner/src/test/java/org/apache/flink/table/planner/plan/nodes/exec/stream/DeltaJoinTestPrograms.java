@@ -62,11 +62,11 @@ public class DeltaJoinTestPrograms {
                                     .addSchema(LEFT_TABLE_BASE_SCHEMA)
                                     .addOptions(TABLE_BASE_OPTIONS)
                                     .addIndex("a1")
-                                    .treatDataBeforeRestoreAsFullStageData()
                                     .producedBeforeRestore(
                                             Row.of(1, 1.0, "l-1-1"),
                                             Row.of(1, 1.0, "l-1-2"),
                                             Row.of(5, 5.0, "l-5-1"))
+                                    .treatDataBeforeRestoreAsConsumedData()
                                     .producedAfterRestore(
                                             Row.of(3, 3.0, "l-3-1"),
                                             Row.of(3, 3.0, "l-3-2"),
@@ -77,9 +77,9 @@ public class DeltaJoinTestPrograms {
                                     .addSchema(RIGHT_TABLE_BASE_SCHEMA)
                                     .addOptions(TABLE_BASE_OPTIONS)
                                     .addIndex("b1")
-                                    .treatDataBeforeRestoreAsFullStageData()
                                     .producedBeforeRestore(
                                             Row.of(5.0, "r-5-1", 5), Row.of(3.0, "r-3-1", 3))
+                                    .treatDataBeforeRestoreAsConsumedData()
                                     .producedAfterRestore(
                                             Row.of(3.0, "r-3-2", 3), Row.of(1.0, "r-1-1", 1))
                                     .build())
@@ -130,11 +130,11 @@ public class DeltaJoinTestPrograms {
                                     .addSchema(LEFT_TABLE_BASE_SCHEMA)
                                     .addOptions(TABLE_BASE_OPTIONS)
                                     .addIndex("a1")
-                                    .treatDataBeforeRestoreAsFullStageData()
                                     .producedBeforeRestore(
                                             Row.of(1, 1.0, "Tim"),
                                             Row.of(1, 1.0, "Sandy"),
                                             Row.of(5, 5.0, "Bob"))
+                                    .treatDataBeforeRestoreAsConsumedData()
                                     .producedAfterRestore(
                                             Row.of(3, 3.0, "Lilith"),
                                             Row.of(3, 3.1, "Lilith"),
@@ -145,9 +145,9 @@ public class DeltaJoinTestPrograms {
                                     .addSchema(RIGHT_TABLE_BASE_SCHEMA)
                                     .addOptions(TABLE_BASE_OPTIONS)
                                     .addIndex("b1")
-                                    .treatDataBeforeRestoreAsFullStageData()
                                     .producedBeforeRestore(
                                             Row.of(5.0, "Mark", 5), Row.of(3.0, "Lilith", 3))
+                                    .treatDataBeforeRestoreAsConsumedData()
                                     .producedAfterRestore(
                                             Row.of(3.2, "Lilith", 3), Row.of(1.0, "Tim", 1))
                                     .build())
@@ -271,7 +271,6 @@ public class DeltaJoinTestPrograms {
                                     .addOptions(TABLE_BASE_OPTIONS)
                                     .addOption("changelog-mode", "I,UA,UB")
                                     .addIndex("a1")
-                                    .treatDataBeforeRestoreAsFullStageData()
                                     .producedBeforeRestore(
                                             // insert pk1
                                             Row.ofKind(RowKind.INSERT, 1, 1.0, "left-pk1-1"),
@@ -280,6 +279,7 @@ public class DeltaJoinTestPrograms {
                                             Row.ofKind(RowKind.UPDATE_AFTER, 1, 1.0, "left-pk1-2"),
                                             // insert pk2
                                             Row.ofKind(RowKind.INSERT, 1, 2.0, "left-pk2-1"))
+                                    .treatDataBeforeRestoreAsConsumedData()
                                     .producedAfterRestore(
                                             // update pk2
                                             Row.ofKind(RowKind.UPDATE_BEFORE, 1, 2.0, "left-pk2-1"),
@@ -293,12 +293,12 @@ public class DeltaJoinTestPrograms {
                                     .addOptions(TABLE_BASE_OPTIONS)
                                     .addOption("changelog-mode", "I,UA,UB")
                                     .addIndex("b1")
-                                    .treatDataBeforeRestoreAsFullStageData()
                                     .producedBeforeRestore(
                                             // insert pk1
                                             Row.ofKind(RowKind.INSERT, 2.0, "right-pk1-1", 1),
                                             // insert pk2
                                             Row.ofKind(RowKind.INSERT, 1.0, "right-pk2", 1))
+                                    .treatDataBeforeRestoreAsConsumedData()
                                     .producedAfterRestore(
                                             // update pk1
                                             Row.ofKind(

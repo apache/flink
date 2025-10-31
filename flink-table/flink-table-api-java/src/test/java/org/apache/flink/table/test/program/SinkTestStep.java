@@ -20,7 +20,6 @@ package org.apache.flink.table.test.program;
 
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -121,7 +120,9 @@ public final class SinkTestStep extends TableTestStep {
             data.addAll(getExpectedAfterRestoreAsStrings());
             return data;
         }
-        Preconditions.checkState(hasRowsSet());
+        if (!hasRowsSet()) {
+            return Collections.emptyList();
+        }
         final List<Row> data = new ArrayList<>();
         if (expectedBeforeRestore != null) {
             data.addAll(expectedBeforeRestore);
@@ -133,8 +134,8 @@ public final class SinkTestStep extends TableTestStep {
         Map<List<Object>, Row> deduplicatedMap = new HashMap<>();
         for (Row row : data) {
             List<Object> key = new ArrayList<>(deduplicatedFieldIndices.length);
-            for (int i = 0; i < deduplicatedFieldIndices.length; i++) {
-                key.add(row.getField(deduplicatedFieldIndices[i]));
+            for (int deduplicatedFieldIndex : deduplicatedFieldIndices) {
+                key.add(row.getField(deduplicatedFieldIndex));
             }
             deduplicatedMap.put(key, row);
         }
