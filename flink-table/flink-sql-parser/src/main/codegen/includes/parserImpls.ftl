@@ -448,20 +448,15 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
     ]
     [
         <USING> {
-            if ("SQL".equals(functionLanguage) || "PYTHON".equals(functionLanguage)) {
-                throw SqlUtil.newContextException(
-                    functionLanguagePos,
-                    ParserResource.RESOURCE.createFunctionUsingJar(functionLanguage));
-            }
             List<SqlNode> resourceList = new ArrayList<SqlNode>();
             SqlResource sqlResource = null;
         }
-        sqlResource = SqlResourceInfo() {
+        sqlResource = SqlResourceInfo(functionLanguage) {
             resourceList.add(sqlResource);
         }
         (
             <COMMA>
-            sqlResource = SqlResourceInfo() {
+            sqlResource = SqlResourceInfo(functionLanguage) {
                 resourceList.add(sqlResource);
             }
         )*
@@ -488,16 +483,30 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
 /**
  * Parse resource type and path.
  */
-SqlResource SqlResourceInfo() :
+SqlResource SqlResourceInfo(String functionLanguage) :
 {
     String resourcePath;
 }
 {
     <JAR> <QUOTED_STRING> {
         resourcePath = SqlParserUtil.parseString(token.image);
+        if ("SQL".equals(functionLanguage) || "PYTHON".equals(functionLanguage)) {
+            throw SqlUtil.newContextException(
+                getPos(),
+                ParserResource.RESOURCE.createFunctionUsingJar(functionLanguage));
+        }
         return new SqlResource(
                     getPos(),
                     SqlResourceType.JAR.symbol(getPos()),
+                    SqlLiteral.createCharString(resourcePath, getPos()));
+    }
+|
+    <ARTIFACT> <QUOTED_STRING> {
+        resourcePath = SqlParserUtil.parseString(token.image);
+        // ARTIFACT can be used by any language
+        return new SqlResource(
+                    getPos(),
+                    SqlResourceType.ARTIFACT.symbol(getPos()),
                     SqlLiteral.createCharString(resourcePath, getPos()));
     }
 }
