@@ -47,7 +47,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * belong to the same SlotSharingGroup, tend to be put in the same ExecutionSlotSharingGroup.
  * Co-location constraints will be respected.
  */
-class LocalInputPreferredSlotSharingStrategy extends AbstractSlotSharingStrategy {
+public class LocalInputPreferredSlotSharingStrategy extends AbstractSlotSharingStrategy {
 
     LocalInputPreferredSlotSharingStrategy(
             final SchedulingTopology topology,
@@ -56,7 +56,7 @@ class LocalInputPreferredSlotSharingStrategy extends AbstractSlotSharingStrategy
         super(topology, logicalSlotSharingGroups, coLocationGroups);
     }
 
-    static class Factory implements SlotSharingStrategy.Factory {
+    public static class Factory implements SlotSharingStrategy.Factory {
 
         public LocalInputPreferredSlotSharingStrategy create(
                 final SchedulingTopology topology,

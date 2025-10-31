@@ -32,7 +32,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-final class PendingRequest implements WeightLoadable {
+public final class PendingRequest implements WeightLoadable {
 
     private final SlotRequestId slotRequestId;
 
@@ -72,7 +72,7 @@ final class PendingRequest implements WeightLoadable {
                 slotRequestId, resourceProfile, loadingWeight, preferredAllocations, true);
     }
 
-    static PendingRequest createNormalRequest(
+    public static PendingRequest createNormalRequest(
             SlotRequestId slotRequestId,
             ResourceProfile resourceProfile,
             LoadingWeight loadingWeight,

@@ -26,7 +26,7 @@ import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
 import java.util.Set;
 
 /** Strategy which determines {@link ExecutionSlotSharingGroup} for each execution vertex. */
-interface SlotSharingStrategy {
+public interface SlotSharingStrategy {
 
     ExecutionSlotSharingGroup getExecutionSlotSharingGroup(ExecutionVertexID executionVertexId);
 

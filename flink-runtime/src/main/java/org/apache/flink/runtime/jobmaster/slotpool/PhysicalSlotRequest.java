@@ -65,7 +65,7 @@ public class PhysicalSlotRequest implements WeightLoadable {
         return slotWillBeOccupiedIndefinitely;
     }
 
-    PendingRequest toPendingRequest() {
+    public PendingRequest toPendingRequest() {
         return slotWillBeOccupiedIndefinitely
                 ? PendingRequest.createNormalRequest(
                         slotRequestId,
