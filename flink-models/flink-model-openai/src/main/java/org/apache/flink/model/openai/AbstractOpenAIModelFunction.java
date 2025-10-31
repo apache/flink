@@ -18,10 +18,7 @@
 
 package org.apache.flink.model.openai;
 
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.configuration.description.Description;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -44,58 +41,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.configuration.description.TextElement.code;
-
 /** Abstract parent class for {@link AsyncPredictFunction}s for OpenAI API. */
 public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractOpenAIModelFunction.class);
-
-    public static final ConfigOption<String> ENDPOINT =
-            ConfigOptions.key("endpoint")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Full URL of the OpenAI API endpoint, e.g., %s or %s",
-                                            code("https://api.openai.com/v1/chat/completions"),
-                                            code("https://api.openai.com/v1/embeddings"))
-                                    .build());
-
-    public static final ConfigOption<String> API_KEY =
-            ConfigOptions.key("api-key")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("OpenAI API key for authentication.");
-
-    public static final ConfigOption<String> MODEL =
-            ConfigOptions.key("model")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Model name, e.g., %s, %s.",
-                                            code("gpt-3.5-turbo"), code("text-embedding-ada-002"))
-                                    .build());
-
-    public static final ConfigOption<Integer> MAX_CONTEXT_SIZE =
-            ConfigOptions.key("max-context-size")
-                    .intType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Max number of tokens for context. context-overflow-action would be triggered if this threshold is exceeded.");
-
-    public static final ConfigOption<ContextOverflowAction> CONTEXT_OVERFLOW_ACTION =
-            ConfigOptions.key("context-overflow-action")
-                    .enumType(ContextOverflowAction.class)
-                    .defaultValue(ContextOverflowAction.TRUNCATED_TAIL)
-                    .withDescription(
-                            Description.builder()
-                                    .text("Action to handle context overflows. Supported actions:")
-                                    .linebreak()
-                                    .text(ContextOverflowAction.getAllValuesAndDescriptions())
-                                    .build());
 
     protected transient OpenAIClientAsync client;
 
@@ -108,9 +56,9 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
 
     public AbstractOpenAIModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
-        String endpoint = config.get(ENDPOINT);
+        String endpoint = config.get(OpenAIOptions.ENDPOINT);
         this.baseUrl = endpoint.replaceAll(String.format("/%s/*$", getEndpointSuffix()), "");
-        this.apiKey = config.get(API_KEY);
+        this.apiKey = config.get(OpenAIOptions.API_KEY);
         // The model service enforces rate-limiting constraints, necessitating retry mechanisms in
         // most operational scenarios. Within the asynchronous operator framework, the system is
         // designed to process up to
@@ -121,9 +69,9 @@ public abstract class AbstractOpenAIModelFunction extends AsyncPredictFunction {
         // resilience while maintaining throughput efficiency.
         this.numRetry =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY) * 10;
-        this.model = config.get(MODEL);
-        this.maxContextSize = config.get(MAX_CONTEXT_SIZE);
-        this.contextOverflowAction = config.get(CONTEXT_OVERFLOW_ACTION);
+        this.model = config.get(OpenAIOptions.MODEL);
+        this.maxContextSize = config.get(OpenAIOptions.MAX_CONTEXT_SIZE);
+        this.contextOverflowAction = config.get(OpenAIOptions.CONTEXT_OVERFLOW_ACTION);
 
         validateSingleColumnSchema(
                 factoryContext.getCatalogModel().getResolvedInputSchema(),
