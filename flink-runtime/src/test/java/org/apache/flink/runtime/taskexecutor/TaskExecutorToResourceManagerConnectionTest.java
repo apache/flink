@@ -140,7 +140,8 @@ class TaskExecutorToResourceManagerConnectionTest {
                         TASK_MANAGER_MEMORY_CONFIGURATION,
                         ResourceProfile.ZERO,
                         ResourceProfile.ZERO,
-                        TASK_MANAGER_NODE_ID);
+                        TASK_MANAGER_NODE_ID,
+                        1);
         return new TaskExecutorToResourceManagerConnection(
                 LOGGER,
                 rpcService,
