@@ -52,6 +52,8 @@ source "${CONDA_HOME}/bin/activate"
 
 cd "${FLINK_PYTHON_DIR}"
 
+pip install -r dev/dev-requirements.txt
+
 if [[ -d "dist" ]]; then rm -Rf dist; fi
 
 pushd apache-flink-libraries
@@ -68,8 +70,8 @@ rm -rf .conda/pkgs
 
 deactivate
 
-PYFLINK_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/dist/apache-flink-*.tar.gz)
-PYFLINK_LIBRARIES_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/apache-flink-libraries/dist/apache-flink-libraries-*.tar.gz)
+PYFLINK_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/dist/apache_flink-*.tar.gz)
+PYFLINK_LIBRARIES_PACKAGE_FILE=$(basename "${FLINK_PYTHON_DIR}"/apache-flink-libraries/dist/apache_flink_libraries-*.tar.gz)
 echo ${PYFLINK_PACKAGE_FILE}
 echo ${PYFLINK_LIBRARIES_PACKAGE_FILE}
 # Create a new docker image that has python and PyFlink installed.
