@@ -99,6 +99,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.state.rocksdb.RocksDBConfigurableOptions.INCREMENTAL_RESTORE_ASYNC_COMPACT_AFTER_RESCALE;
 import static org.apache.flink.state.rocksdb.RocksDBConfigurableOptions.USE_DELETE_FILES_IN_RANGE_DURING_RESCALING;
 import static org.apache.flink.state.rocksdb.RocksDBConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
+import static org.apache.flink.state.rocksdb.RocksDBOptions.TIMER_SERVICE_FACTORY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -131,13 +132,15 @@ public class EmbeddedRocksDBStateBackendTest
                         true,
                         (SupplierWithException<CheckpointStorage, IOException>)
                                 JobManagerCheckpointStorage::new,
+                        false,
                         false
                     },
                     {
                         true,
                         (SupplierWithException<CheckpointStorage, IOException>)
                                 JobManagerCheckpointStorage::new,
-                        true
+                        true,
+                        false
                     },
                     {
                         false,
@@ -148,8 +151,16 @@ public class EmbeddedRocksDBStateBackendTest
                                     return new FileSystemCheckpointStorage(
                                             new Path(checkpointPath), 0, -1);
                                 },
+                        false,
                         false
-                    }
+                    },
+                    {
+                        true,
+                        (SupplierWithException<CheckpointStorage, IOException>)
+                                JobManagerCheckpointStorage::new,
+                        false,
+                        true
+                    },
                 });
     }
 
@@ -161,6 +172,9 @@ public class EmbeddedRocksDBStateBackendTest
 
     @Parameter(value = 2)
     public boolean useIngestDB;
+
+    @Parameter(value = 3)
+    public boolean useHeapTimer;
 
     // Store it because we need it for the cleanup test.
     private String dbPath;
@@ -203,8 +217,10 @@ public class EmbeddedRocksDBStateBackendTest
         Configuration configuration = new Configuration();
         configuration.set(USE_INGEST_DB_RESTORE_MODE, useIngestDB);
         configuration.set(
-                RocksDBOptions.TIMER_SERVICE_FACTORY,
-                EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
+                TIMER_SERVICE_FACTORY,
+                useHeapTimer
+                        ? EmbeddedRocksDBStateBackend.PriorityQueueStateType.HEAP
+                        : EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
         configuration.set(RocksDBManualCompactionOptions.MIN_INTERVAL, Duration.ofMillis(1));
         return configuration;
     }
@@ -234,7 +250,7 @@ public class EmbeddedRocksDBStateBackendTest
 
     @Override
     protected boolean isSafeToReuseKVState() {
-        return true;
+        return !useHeapTimer;
     }
 
     // small safety net for instance cleanups, so that no native objects are left

@@ -938,7 +938,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
 
     @Override
     public boolean isSafeToReuseKVState() {
-        return true;
+        return !(priorityQueueFactory instanceof HeapPriorityQueueSetFactory);
     }
 
     @VisibleForTesting
