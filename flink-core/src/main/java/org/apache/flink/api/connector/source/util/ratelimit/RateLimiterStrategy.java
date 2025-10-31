@@ -18,6 +18,7 @@
 package org.apache.flink.api.connector.source.util.ratelimit;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.connector.source.SourceSplit;
 
 import java.io.Serializable;
 
@@ -25,16 +26,18 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * A factory for {@link RateLimiter RateLimiters} which apply rate-limiting to a source sub-task.
+ *
+ * @param <SplitT> The type of the source splits.
  */
 @Experimental
-public interface RateLimiterStrategy extends Serializable {
+public interface RateLimiterStrategy<SplitT extends SourceSplit> extends Serializable {
 
     /**
-     * Creates a {@link RateLimiter} that lets records through with rate proportional to the
-     * parallelism. This method will be called once per source subtask. The cumulative rate over all
-     * rate limiters for a source must not exceed the rate limit configured for the strategy.
+     * Creates a {@link RateLimiter} that limits the rate of records going through. When there is
+     * parallelism, the limiting rate is evenly reduced per subtask, such that all the sub-tasks
+     * limiting rates equals the cumulative limiting rate.
      */
-    RateLimiter createRateLimiter(int parallelism);
+    RateLimiter<SplitT> createRateLimiter(int parallelism);
 
     /**
      * Creates a {@code RateLimiterStrategy} that is limiting the number of records per second.
@@ -44,7 +47,7 @@ public interface RateLimiterStrategy extends Serializable {
      *     among the parallel instances.
      */
     static RateLimiterStrategy perSecond(double recordsPerSecond) {
-        return parallelism -> new GuavaRateLimiter(recordsPerSecond / parallelism);
+        return parallelism -> new GuavaRateLimiter<>(recordsPerSecond / parallelism);
     }
 
     /**
@@ -62,7 +65,7 @@ public interface RateLimiterStrategy extends Serializable {
                     "recordsPerCheckpoint has to be greater or equal to parallelism. "
                             + "Either decrease the parallelism or increase the number of "
                             + "recordsPerCheckpoint.");
-            return new GatedRateLimiter(recordsPerSubtask);
+            return new GatedRateLimiter<>(recordsPerSubtask);
         };
     }
 

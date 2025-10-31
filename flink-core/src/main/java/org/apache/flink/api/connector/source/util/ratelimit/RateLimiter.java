@@ -19,22 +19,38 @@
 package org.apache.flink.api.connector.source.util.ratelimit;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.connector.source.SourceSplit;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.util.concurrent.CompletionStage;
 
-/** The interface to rate limit execution of methods. */
+/**
+ * The interface to rate limit execution of methods.
+ *
+ * @param <SplitT> The type of the source splits.
+ */
 @NotThreadSafe
 @Experimental
-public interface RateLimiter {
+public interface RateLimiter<SplitT extends SourceSplit> {
 
     /**
      * Returns a future that is completed once another event would not exceed the rate limit. For
      * correct functioning, the next invocation of this method should only happen after the
      * previously returned future has been completed.
      */
-    CompletionStage<Void> acquire();
+    default CompletionStage<Void> acquire() {
+        return acquire(1);
+    }
+
+    /**
+     * Returns a future that is completed once other events would not exceed the rate limit. For
+     * correct functioning, the next invocation of this method should only happen after the
+     * previously returned future has been completed.
+     *
+     * @param numberOfEvents The number of events.
+     */
+    CompletionStage<Void> acquire(int numberOfEvents);
 
     /**
      * Notifies this {@code RateLimiter} that the checkpoint with the given {@code checkpointId}
@@ -44,4 +60,13 @@ public interface RateLimiter {
      * @param checkpointId The ID of the checkpoint that has been completed.
      */
     default void notifyCheckpointComplete(long checkpointId) {}
+
+    /**
+     * Notifies this {@code RateLimiter} that a new split has been added. For correct functioning,
+     * this method should only be invoked after the returned future of previous {@link
+     * #acquire(int)} method invocation has been completed.
+     *
+     * @param split The split that has been added.
+     */
+    default void notifyAddingSplit(SplitT split) {}
 }

@@ -20,6 +20,7 @@ package org.apache.flink.api.connector.source.lib.util;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.Types;
+import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiter;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
@@ -87,12 +88,13 @@ public class RateLimitedSourceReaderITCase extends TestLogger {
                 .collect(Collectors.toList());
     }
 
-    private static final class MockRateLimiter implements RateLimiter {
+    private static final class MockRateLimiter
+            implements RateLimiter<NumberSequenceSource.NumberSequenceSplit> {
 
         int callCount;
 
         @Override
-        public CompletableFuture<Void> acquire() {
+        public CompletableFuture<Void> acquire(int numberOfEvents) {
             callCount++;
             return CompletableFuture.completedFuture(null);
         }
@@ -102,13 +104,15 @@ public class RateLimitedSourceReaderITCase extends TestLogger {
         }
     }
 
-    private static class MockRateLimiterStrategy implements RateLimiterStrategy {
+    private static class MockRateLimiterStrategy
+            implements RateLimiterStrategy<NumberSequenceSource.NumberSequenceSplit> {
 
         private static final List<MockRateLimiter> rateLimiters =
                 Collections.synchronizedList(new ArrayList<>());
 
         @Override
-        public RateLimiter createRateLimiter(int parallelism) {
+        public RateLimiter<NumberSequenceSource.NumberSequenceSplit> createRateLimiter(
+                int parallelism) {
             MockRateLimiter mockRateLimiter = new MockRateLimiter();
             rateLimiters.add(mockRateLimiter);
             return mockRateLimiter;
