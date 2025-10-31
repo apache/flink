@@ -22,10 +22,21 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.planner.runtime.utils.VectorSearchITCaseBase;
+
+import org.junit.jupiter.api.BeforeEach;
 
 /** ITCase to verify {@code VECTOR_SEARCH} function. */
 public class VectorSearchITCase extends VectorSearchITCaseBase {
+
+    @BeforeEach
+    @Override
+    public void before() throws Exception {
+        super.before();
+        ((StreamTableEnvironmentImpl) tEnv).execEnv().setParallelism(4);
+        ((StreamTableEnvironmentImpl) tEnv).execEnv().getConfig().enableObjectReuse();
+    }
 
     @Override
     protected TableEnvironment getTableEnvironment() {
