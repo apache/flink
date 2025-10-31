@@ -196,30 +196,29 @@ public class ForStIncrementalSnapshotStrategy<K> extends ForStNativeFullSnapshot
             long checkpointId, @Nonnull List<StateMetaInfoSnapshot> stateMetaInfoSnapshots) {
 
         final long lastCompletedCheckpoint;
-        final Collection<HandleAndLocalPath> confirmedSstFiles;
+        final SortedMap<Long, Collection<HandleAndLocalPath>> currentUploadedSstFiles;
 
         // use the last completed checkpoint as the comparison base.
         synchronized (uploadedSstFiles) {
             lastCompletedCheckpoint = lastCompletedCheckpointId;
-            confirmedSstFiles = uploadedSstFiles.get(lastCompletedCheckpoint);
-            LOG.trace(
-                    "Use confirmed SST files for checkpoint {}: {}",
-                    checkpointId,
-                    confirmedSstFiles);
+            currentUploadedSstFiles =
+                    new TreeMap<>(uploadedSstFiles.tailMap(lastCompletedCheckpoint));
         }
+        PreviousSnapshot previousSnapshot =
+                new PreviousSnapshot(currentUploadedSstFiles, lastCompletedCheckpoint);
         LOG.trace(
                 "Taking incremental snapshot for checkpoint {}. Snapshot is based on last completed checkpoint {} "
                         + "assuming the following (shared) confirmed files as base: {}.",
                 checkpointId,
                 lastCompletedCheckpoint,
-                confirmedSstFiles);
+                previousSnapshot);
 
         // snapshot meta data to save
         for (Map.Entry<String, ForStOperationUtils.ForStKvStateInfo> stateMetaInfoEntry :
                 kvStateInformation.entrySet()) {
             stateMetaInfoSnapshots.add(stateMetaInfoEntry.getValue().metaInfo.snapshot());
         }
-        return new PreviousSnapshot(confirmedSstFiles);
+        return previousSnapshot;
     }
 
     /** Encapsulates the process to perform an incremental snapshot of a ForStKeyedStateBackend. */
