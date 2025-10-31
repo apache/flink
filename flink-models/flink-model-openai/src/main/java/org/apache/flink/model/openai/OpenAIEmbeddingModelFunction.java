@@ -17,8 +17,6 @@
 
 package org.apache.flink.model.openai;
 
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericRowData;
@@ -45,20 +43,14 @@ public class OpenAIEmbeddingModelFunction extends AbstractOpenAIModelFunction {
 
     public static final String ENDPOINT_SUFFIX = "embeddings";
 
-    public static final ConfigOption<Long> DIMENSION =
-            ConfigOptions.key("dimension")
-                    .longType()
-                    .noDefaultValue()
-                    .withDescription("Dimension of the embedding vector.");
-
     private final String model;
     @Nullable private final Long dimensions;
 
     public OpenAIEmbeddingModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
         super(factoryContext, config);
-        model = config.get(MODEL);
-        dimensions = config.get(DIMENSION);
+        model = config.get(OpenAIOptions.MODEL);
+        dimensions = config.get(OpenAIOptions.DIMENSION);
 
         validateSingleColumnSchema(
                 factoryContext.getCatalogModel().getResolvedOutputSchema(),

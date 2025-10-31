@@ -36,7 +36,7 @@ public class OpenAIModelProviderFactory implements ModelProviderFactory {
         FactoryUtil.ModelProviderFactoryHelper helper =
                 FactoryUtil.createModelProviderFactoryHelper(this, context);
         helper.validate();
-        String endpoint = helper.getOptions().get(AbstractOpenAIModelFunction.ENDPOINT);
+        String endpoint = helper.getOptions().get(OpenAIOptions.ENDPOINT);
         endpoint = endpoint.replaceAll("/*$", "").toLowerCase();
 
         AsyncPredictFunction function;
@@ -58,27 +58,27 @@ public class OpenAIModelProviderFactory implements ModelProviderFactory {
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
         Set<ConfigOption<?>> set = new HashSet<>();
-        set.add(AbstractOpenAIModelFunction.ENDPOINT);
-        set.add(AbstractOpenAIModelFunction.API_KEY);
-        set.add(AbstractOpenAIModelFunction.MODEL);
+        set.add(OpenAIOptions.ENDPOINT);
+        set.add(OpenAIOptions.API_KEY);
+        set.add(OpenAIOptions.MODEL);
         return set;
     }
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> set = new HashSet<>();
-        set.add(AbstractOpenAIModelFunction.MAX_CONTEXT_SIZE);
-        set.add(AbstractOpenAIModelFunction.CONTEXT_OVERFLOW_ACTION);
-        set.add(OpenAIChatModelFunction.SYSTEM_PROMPT);
-        set.add(OpenAIChatModelFunction.TEMPERATURE);
-        set.add(OpenAIChatModelFunction.TOP_P);
-        set.add(OpenAIChatModelFunction.STOP);
-        set.add(OpenAIChatModelFunction.MAX_TOKENS);
-        set.add(OpenAIChatModelFunction.PRESENCE_PENALTY);
-        set.add(OpenAIChatModelFunction.N);
-        set.add(OpenAIChatModelFunction.SEED);
-        set.add(OpenAIChatModelFunction.RESPONSE_FORMAT);
-        set.add(OpenAIEmbeddingModelFunction.DIMENSION);
+        set.add(OpenAIOptions.MAX_CONTEXT_SIZE);
+        set.add(OpenAIOptions.CONTEXT_OVERFLOW_ACTION);
+        set.add(OpenAIOptions.SYSTEM_PROMPT);
+        set.add(OpenAIOptions.TEMPERATURE);
+        set.add(OpenAIOptions.TOP_P);
+        set.add(OpenAIOptions.STOP);
+        set.add(OpenAIOptions.MAX_TOKENS);
+        set.add(OpenAIOptions.PRESENCE_PENALTY);
+        set.add(OpenAIOptions.N);
+        set.add(OpenAIOptions.SEED);
+        set.add(OpenAIOptions.RESPONSE_FORMAT);
+        set.add(OpenAIOptions.DIMENSION);
         return set;
     }
 
