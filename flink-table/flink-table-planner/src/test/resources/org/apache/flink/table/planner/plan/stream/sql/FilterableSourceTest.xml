@@ -53,25 +53,6 @@ Calc(select=[a, b, c, d], where=[d IS NOT NULL])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testPartialFilterMatchWithWatermark">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable WHERE LOWER(d) = 'h' AND d IS NOT NULL]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
-+- LogicalFilter(condition=[AND(=(LOWER($3), _UTF-16LE'h'), IS NOT NULL($3))])
-   +- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, b, c, d], where=[d IS NOT NULL])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable, watermark=[$2], filter=[equals(LOWER(d), 'h')]]], fields=[a, b, c, d])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testNoFilterMatchWithWatermark">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE b > 5]]>
@@ -145,26 +126,6 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], f=[$4])
       <![CDATA[
 Calc(select=[a, b, Reinterpret(c) AS c, func(c, a) AS d, f])
 +- TableSourceScan(table=[[default_catalog, default_database, UdfTable, watermark=[func(func(func(c, a), a), a)], watermarkEmitStrategy=[on-periodic], filter=[=(UPPER(f), _UTF-16LE'welcome':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")]]], fields=[a, b, c, f])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testFilterPushdownWithUdf">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM UdfTable WHERE UPPER(f) = 'welcome']]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], f=[$4])
-+- LogicalFilter(condition=[=(UPPER($4), _UTF-16LE'welcome')])
-   +- LogicalWatermarkAssigner(rowtime=[c], watermark=[func(func($3, $0), $0)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[func($2, $0)], f=[$3])
-         +- LogicalTableScan(table=[[default_catalog, default_database, UdfTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, b, Reinterpret(c) AS c, func(c, a) AS d, f])
-+- TableSourceScan(table=[[default_catalog, default_database, UdfTable, watermark=[func(func(func(c, a), a), a)], filter=[=(UPPER(f), _UTF-16LE'welcome':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")]]], fields=[a, b, c, f])
 ]]>
     </Resource>
   </TestCase>
