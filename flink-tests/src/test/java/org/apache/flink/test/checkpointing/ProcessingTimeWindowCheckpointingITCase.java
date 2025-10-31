@@ -78,216 +78,190 @@ public class ProcessingTimeWindowCheckpointingITCase extends TestLogger {
     // ------------------------------------------------------------------------
 
     @Test
-    public void testTumblingProcessingTimeWindow() {
+    public void testTumblingProcessingTimeWindow() throws Exception {
         final int numElements = 3000;
 
-        try {
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(PARALLELISM);
-            env.getConfig().setAutoWatermarkInterval(10);
-            env.enableCheckpointing(100);
-            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
+        env.getConfig().setAutoWatermarkInterval(10);
+        env.enableCheckpointing(100);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
 
-            SinkValidatorUpdaterAndChecker updaterAndChecker =
-                    new SinkValidatorUpdaterAndChecker(numElements, 1);
+        SinkValidatorUpdaterAndChecker updaterAndChecker =
+                new SinkValidatorUpdaterAndChecker(numElements, 1);
 
-            env.addSource(new FailingSource(new Generator(), numElements, true))
-                    .rebalance()
-                    .keyBy(x -> x.f0)
-                    .window(TumblingProcessingTimeWindows.of(Duration.ofMillis(100)))
-                    .apply(
-                            new RichWindowFunction<
-                                    Tuple2<Long, IntType>,
-                                    Tuple2<Long, IntType>,
-                                    Long,
-                                    TimeWindow>() {
+        env.addSource(new FailingSource(new Generator(), numElements, true))
+                .rebalance()
+                .keyBy(x -> x.f0)
+                .window(TumblingProcessingTimeWindows.of(Duration.ofMillis(100)))
+                .apply(
+                        new RichWindowFunction<
+                                Tuple2<Long, IntType>, Tuple2<Long, IntType>, Long, TimeWindow>() {
 
-                                private boolean open = false;
+                            private boolean open = false;
 
-                                @Override
-                                public void open(OpenContext openContext) {
-                                    assertEquals(
-                                            PARALLELISM,
-                                            getRuntimeContext()
-                                                    .getTaskInfo()
-                                                    .getNumberOfParallelSubtasks());
-                                    open = true;
+                            @Override
+                            public void open(OpenContext openContext) {
+                                assertEquals(
+                                        PARALLELISM,
+                                        getRuntimeContext()
+                                                .getTaskInfo()
+                                                .getNumberOfParallelSubtasks());
+                                open = true;
+                            }
+
+                            @Override
+                            public void apply(
+                                    Long l,
+                                    TimeWindow window,
+                                    Iterable<Tuple2<Long, IntType>> values,
+                                    Collector<Tuple2<Long, IntType>> out) {
+
+                                // validate that the function has been opened properly
+                                assertTrue(open);
+
+                                for (Tuple2<Long, IntType> value : values) {
+                                    assertEquals(value.f0.intValue(), value.f1.value);
+                                    out.collect(new Tuple2<>(value.f0, new IntType(1)));
                                 }
+                            }
+                        })
+                .addSink(new ValidatingSink<>(updaterAndChecker, updaterAndChecker, true))
+                .setParallelism(1);
 
-                                @Override
-                                public void apply(
-                                        Long l,
-                                        TimeWindow window,
-                                        Iterable<Tuple2<Long, IntType>> values,
-                                        Collector<Tuple2<Long, IntType>> out) {
-
-                                    // validate that the function has been opened properly
-                                    assertTrue(open);
-
-                                    for (Tuple2<Long, IntType> value : values) {
-                                        assertEquals(value.f0.intValue(), value.f1.value);
-                                        out.collect(new Tuple2<>(value.f0, new IntType(1)));
-                                    }
-                                }
-                            })
-                    .addSink(new ValidatingSink<>(updaterAndChecker, updaterAndChecker, true))
-                    .setParallelism(1);
-
-            tryExecute(env, "Tumbling Window Test");
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        tryExecute(env, "Tumbling Window Test");
     }
 
     @Test
-    public void testSlidingProcessingTimeWindow() {
+    public void testSlidingProcessingTimeWindow() throws Exception {
         final int numElements = 3000;
 
-        try {
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(PARALLELISM);
-            env.getConfig().setAutoWatermarkInterval(10);
-            env.enableCheckpointing(100);
-            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
-            SinkValidatorUpdaterAndChecker updaterAndChecker =
-                    new SinkValidatorUpdaterAndChecker(numElements, 3);
-            env.addSource(new FailingSource(new Generator(), numElements, true))
-                    .rebalance()
-                    .keyBy(x -> x.f0)
-                    .window(
-                            SlidingProcessingTimeWindows.of(
-                                    Duration.ofMillis(150), Duration.ofMillis(50)))
-                    .apply(
-                            new RichWindowFunction<
-                                    Tuple2<Long, IntType>,
-                                    Tuple2<Long, IntType>,
-                                    Long,
-                                    TimeWindow>() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
+        env.getConfig().setAutoWatermarkInterval(10);
+        env.enableCheckpointing(100);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
+        SinkValidatorUpdaterAndChecker updaterAndChecker =
+                new SinkValidatorUpdaterAndChecker(numElements, 3);
+        env.addSource(new FailingSource(new Generator(), numElements, true))
+                .rebalance()
+                .keyBy(x -> x.f0)
+                .window(
+                        SlidingProcessingTimeWindows.of(
+                                Duration.ofMillis(150), Duration.ofMillis(50)))
+                .apply(
+                        new RichWindowFunction<
+                                Tuple2<Long, IntType>, Tuple2<Long, IntType>, Long, TimeWindow>() {
 
-                                private boolean open = false;
+                            private boolean open = false;
 
-                                @Override
-                                public void open(OpenContext openContext) {
-                                    assertEquals(
-                                            PARALLELISM,
-                                            getRuntimeContext()
-                                                    .getTaskInfo()
-                                                    .getNumberOfParallelSubtasks());
-                                    open = true;
+                            @Override
+                            public void open(OpenContext openContext) {
+                                assertEquals(
+                                        PARALLELISM,
+                                        getRuntimeContext()
+                                                .getTaskInfo()
+                                                .getNumberOfParallelSubtasks());
+                                open = true;
+                            }
+
+                            @Override
+                            public void apply(
+                                    Long l,
+                                    TimeWindow window,
+                                    Iterable<Tuple2<Long, IntType>> values,
+                                    Collector<Tuple2<Long, IntType>> out) {
+
+                                // validate that the function has been opened properly
+                                assertTrue(open);
+
+                                for (Tuple2<Long, IntType> value : values) {
+                                    assertEquals(value.f0.intValue(), value.f1.value);
+                                    out.collect(new Tuple2<>(value.f0, new IntType(1)));
                                 }
+                            }
+                        })
+                .addSink(new ValidatingSink<>(updaterAndChecker, updaterAndChecker, true))
+                .setParallelism(1);
 
-                                @Override
-                                public void apply(
-                                        Long l,
-                                        TimeWindow window,
-                                        Iterable<Tuple2<Long, IntType>> values,
-                                        Collector<Tuple2<Long, IntType>> out) {
-
-                                    // validate that the function has been opened properly
-                                    assertTrue(open);
-
-                                    for (Tuple2<Long, IntType> value : values) {
-                                        assertEquals(value.f0.intValue(), value.f1.value);
-                                        out.collect(new Tuple2<>(value.f0, new IntType(1)));
-                                    }
-                                }
-                            })
-                    .addSink(new ValidatingSink<>(updaterAndChecker, updaterAndChecker, true))
-                    .setParallelism(1);
-
-            tryExecute(env, "Sliding Window Test");
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        tryExecute(env, "Sliding Window Test");
     }
 
     @Test
-    public void testAggregatingTumblingProcessingTimeWindow() {
+    public void testAggregatingTumblingProcessingTimeWindow() throws Exception {
         final int numElements = 3000;
 
-        try {
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(PARALLELISM);
-            env.getConfig().setAutoWatermarkInterval(10);
-            env.enableCheckpointing(100);
-            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
-            SinkValidatorUpdaterAndChecker updaterAndChecker =
-                    new SinkValidatorUpdaterAndChecker(numElements, 1);
-            env.addSource(new FailingSource(new Generator(), numElements, true))
-                    .map(
-                            new MapFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>>() {
-                                @Override
-                                public Tuple2<Long, IntType> map(Tuple2<Long, IntType> value) {
-                                    value.f1.value = 1;
-                                    return value;
-                                }
-                            })
-                    .rebalance()
-                    .keyBy(x -> x.f0)
-                    .window(TumblingProcessingTimeWindows.of(Duration.ofMillis(100)))
-                    .reduce(
-                            new ReduceFunction<Tuple2<Long, IntType>>() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
+        env.getConfig().setAutoWatermarkInterval(10);
+        env.enableCheckpointing(100);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
+        SinkValidatorUpdaterAndChecker updaterAndChecker =
+                new SinkValidatorUpdaterAndChecker(numElements, 1);
+        env.addSource(new FailingSource(new Generator(), numElements, true))
+                .map(
+                        new MapFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>>() {
+                            @Override
+                            public Tuple2<Long, IntType> map(Tuple2<Long, IntType> value) {
+                                value.f1.value = 1;
+                                return value;
+                            }
+                        })
+                .rebalance()
+                .keyBy(x -> x.f0)
+                .window(TumblingProcessingTimeWindows.of(Duration.ofMillis(100)))
+                .reduce(
+                        new ReduceFunction<Tuple2<Long, IntType>>() {
 
-                                @Override
-                                public Tuple2<Long, IntType> reduce(
-                                        Tuple2<Long, IntType> a, Tuple2<Long, IntType> b) {
-                                    return new Tuple2<>(a.f0, new IntType(1));
-                                }
-                            })
-                    .addSink(new ValidatingSink<>(updaterAndChecker, updaterAndChecker, true))
-                    .setParallelism(1);
+                            @Override
+                            public Tuple2<Long, IntType> reduce(
+                                    Tuple2<Long, IntType> a, Tuple2<Long, IntType> b) {
+                                return new Tuple2<>(a.f0, new IntType(1));
+                            }
+                        })
+                .addSink(new ValidatingSink<>(updaterAndChecker, updaterAndChecker, true))
+                .setParallelism(1);
 
-            tryExecute(env, "Aggregating Tumbling Window Test");
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        tryExecute(env, "Aggregating Tumbling Window Test");
     }
 
     @Test
-    public void testAggregatingSlidingProcessingTimeWindow() {
+    public void testAggregatingSlidingProcessingTimeWindow() throws Exception {
         final int numElements = 3000;
 
-        try {
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(PARALLELISM);
-            env.getConfig().setAutoWatermarkInterval(10);
-            env.enableCheckpointing(100);
-            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
-            SinkValidatorUpdaterAndChecker updaterAndChecker =
-                    new SinkValidatorUpdaterAndChecker(numElements, 3);
-            env.addSource(new FailingSource(new Generator(), numElements, true))
-                    .map(
-                            new MapFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>>() {
-                                @Override
-                                public Tuple2<Long, IntType> map(Tuple2<Long, IntType> value) {
-                                    value.f1.value = 1;
-                                    return value;
-                                }
-                            })
-                    .rebalance()
-                    .keyBy(x -> x.f0)
-                    .window(
-                            SlidingProcessingTimeWindows.of(
-                                    Duration.ofMillis(150), Duration.ofMillis(50)))
-                    .reduce(
-                            new ReduceFunction<Tuple2<Long, IntType>>() {
-                                @Override
-                                public Tuple2<Long, IntType> reduce(
-                                        Tuple2<Long, IntType> a, Tuple2<Long, IntType> b) {
-                                    return new Tuple2<>(a.f0, new IntType(1));
-                                }
-                            })
-                    .addSink(new ValidatingSink<>(updaterAndChecker, updaterAndChecker, true))
-                    .setParallelism(1);
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
+        env.getConfig().setAutoWatermarkInterval(10);
+        env.enableCheckpointing(100);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, 1, 0L);
+        SinkValidatorUpdaterAndChecker updaterAndChecker =
+                new SinkValidatorUpdaterAndChecker(numElements, 3);
+        env.addSource(new FailingSource(new Generator(), numElements, true))
+                .map(
+                        new MapFunction<Tuple2<Long, IntType>, Tuple2<Long, IntType>>() {
+                            @Override
+                            public Tuple2<Long, IntType> map(Tuple2<Long, IntType> value) {
+                                value.f1.value = 1;
+                                return value;
+                            }
+                        })
+                .rebalance()
+                .keyBy(x -> x.f0)
+                .window(
+                        SlidingProcessingTimeWindows.of(
+                                Duration.ofMillis(150), Duration.ofMillis(50)))
+                .reduce(
+                        new ReduceFunction<Tuple2<Long, IntType>>() {
+                            @Override
+                            public Tuple2<Long, IntType> reduce(
+                                    Tuple2<Long, IntType> a, Tuple2<Long, IntType> b) {
+                                return new Tuple2<>(a.f0, new IntType(1));
+                            }
+                        })
+                .addSink(new ValidatingSink<>(updaterAndChecker, updaterAndChecker, true))
+                .setParallelism(1);
 
-            tryExecute(env, "Aggregating Sliding Window Test");
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
-        }
+        tryExecute(env, "Aggregating Sliding Window Test");
     }
 
     // ------------------------------------------------------------------------
