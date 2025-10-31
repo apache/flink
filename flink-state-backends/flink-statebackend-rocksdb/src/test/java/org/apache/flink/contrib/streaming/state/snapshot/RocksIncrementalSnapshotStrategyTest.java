@@ -96,6 +96,41 @@ class RocksIncrementalSnapshotStrategyTest {
         }
     }
 
+    @Test
+    void testCheckpointIsIncrementalWithLateNotification() throws Exception {
+
+        try (CloseableRegistry closeableRegistry = new CloseableRegistry();
+                RocksIncrementalSnapshotStrategy<?> checkpointSnapshotStrategy =
+                        createSnapshotStrategy()) {
+            FsCheckpointStreamFactory checkpointStreamFactory = createFsCheckpointStreamFactory();
+
+            // make and checkpoint with id 1
+            snapshot(1L, checkpointSnapshotStrategy, checkpointStreamFactory, closeableRegistry);
+
+            // make and checkpoint with id 2
+            snapshot(2L, checkpointSnapshotStrategy, checkpointStreamFactory, closeableRegistry);
+
+            // Late notify checkpoint with id 1
+            checkpointSnapshotStrategy.notifyCheckpointComplete(1L);
+
+            // make checkpoint with id 3, based on checkpoint 1
+            IncrementalRemoteKeyedStateHandle incrementalRemoteKeyedStateHandle3 =
+                    snapshot(
+                            3L,
+                            checkpointSnapshotStrategy,
+                            checkpointStreamFactory,
+                            closeableRegistry);
+
+            // Late notify checkpoint with id 2
+            checkpointSnapshotStrategy.notifyCheckpointComplete(2L);
+
+            // 3rd checkpoint is based on 1st checkpoint, BUT the 2nd checkpoint re-uploaded the 1st
+            // one, so it should be based on nothing, thus this is effectively a full checkpoint.
+            assertThat(incrementalRemoteKeyedStateHandle3.getStateSize())
+                    .isEqualTo(incrementalRemoteKeyedStateHandle3.getCheckpointedSize());
+        }
+    }
+
     public RocksIncrementalSnapshotStrategy<?> createSnapshotStrategy()
             throws IOException, RocksDBException {
 
