@@ -240,13 +240,14 @@ It is quite common that a `SourceReader` implementation does the following:
   - Handle the synchronization between the internal fetching threads and other methods invocations such as `pollNext(ReaderOutput)`.
   - Maintain the per split watermark for watermark alignment.
   - Maintain the state of each split for checkpoint.
-  - Limit the rate of record ingestion.
+  - Limit the rate of record emitting.
   
 In order to reduce the work of writing a new `SourceReader`, Flink provides a {{< gh_link file="flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/SourceReaderBase.java" name="SourceReaderBase" >}} class to serve as a base implementation of the `SourceReader`. 
 `SourceReaderBase` has all the above work done out of the box. To write a new `SourceReader`, one can just let the `SourceReader` implementation inherit from the `SourceReaderBase`, fill in a few methods and implement a high level {{< gh_link file="flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/splitreader/SplitReader.java" name="SplitReader" >}}.
 
 #### Rate Limiting
-User can limit the record ingestion rate by passing a {{< javadoc name="RateLimiterStrategy" file="org/apache/flink/api/connector/source/util/ratelimit/RateLimiterStrategy.html">}} to the constructor of `SourceReaderBase`.
+User can limit the record emitting rate by passing a {{< javadoc name="RateLimiterStrategy" file="org/apache/flink/api/connector/source/util/ratelimit/RateLimiterStrategy.html">}} to the constructor of `SourceReaderBase`.
+By default, rate limiting is not applied in SourceReaderBase.
 
 ### SplitFetcherManager
 

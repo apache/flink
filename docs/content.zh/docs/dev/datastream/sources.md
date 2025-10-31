@@ -258,6 +258,7 @@ env.from_source(
 
 #### 数据限流
 通过在`SourceReaderBase`的构造方法中传递 {{< javadoc name="RateLimiterStrategy" file="org/apache/flink/api/connector/source/util/ratelimit/RateLimiterStrategy.html">}}，可以限制数据下发的速率。
+在默认情况下，`SourceReaderBase`不会进行数据限流。
 
 <a name="SplitFetcherManager"></a>
 
