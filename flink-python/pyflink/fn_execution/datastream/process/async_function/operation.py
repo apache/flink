@@ -63,7 +63,7 @@ class ResultHandler(ResultFuture, Generic[IN, OUT]):
 
     def __init__(self,
                  classname: str,
-                 timeout_func: Callable[[IN, ResultFuture[[OUT]]], None],
+                 timeout_func: Callable[[IN, ResultFuture[OUT]], None],
                  exception_handler: Callable[[Exception], None],
                  record: IN,
                  result_future: ResultFuture[OUT]):
@@ -122,7 +122,7 @@ class RetryableResultHandler(ResultFuture, Generic[IN, OUT]):
 
     def __init__(self,
                  result_handler: ResultHandler[IN, OUT],
-                 async_invoke_func_runner: Callable[[IN, ResultFuture[[OUT]]], None],
+                 async_invoke_func_runner: Callable[[IN, ResultFuture[OUT]], None],
                  retry_strategy: AsyncRetryStrategy[OUT]):
         self._result_handler = result_handler
         self._async_invoke_func_runner = async_invoke_func_runner
