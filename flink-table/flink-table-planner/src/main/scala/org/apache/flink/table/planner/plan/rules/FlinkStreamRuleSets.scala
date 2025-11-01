@@ -145,11 +145,11 @@ object FlinkStreamRuleSets {
     // push filter into the children of a join
     FlinkFilterJoinRule.JOIN_CONDITION_PUSH,
     // push filter through an aggregation
-    CoreRules.FILTER_AGGREGATE_TRANSPOSE,
+    FlinkFilterAggregateTransposeRule.INSTANCE,
     // push a filter past a project
     FlinkFilterProjectTransposeRule.INSTANCE,
     // push a filter past a setop
-    CoreRules.FILTER_SET_OP_TRANSPOSE,
+    FlinkFilterSetOpTransposeRule.INSTANCE,
     CoreRules.FILTER_MERGE
   )
 
