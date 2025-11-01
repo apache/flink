@@ -19,14 +19,16 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A validated {@link CatalogMaterializedTable} that is backed by the original metadata coming from
@@ -43,13 +45,19 @@ public class ResolvedCatalogMaterializedTable
 
     private final ResolvedSchema resolvedSchema;
 
+    private final RefreshMode refreshMode;
+
+    private final IntervalFreshness freshness;
+
     public ResolvedCatalogMaterializedTable(
-            CatalogMaterializedTable origin, ResolvedSchema resolvedSchema) {
-        this.origin =
-                Preconditions.checkNotNull(
-                        origin, "Original catalog materialized table must not be null.");
-        this.resolvedSchema =
-                Preconditions.checkNotNull(resolvedSchema, "Resolved schema must not be null.");
+            CatalogMaterializedTable origin,
+            ResolvedSchema resolvedSchema,
+            RefreshMode refreshMode,
+            IntervalFreshness freshness) {
+        this.origin = checkNotNull(origin, "Original catalog materialized table must not be null.");
+        this.resolvedSchema = checkNotNull(resolvedSchema, "Resolved schema must not be null.");
+        this.refreshMode = checkNotNull(refreshMode, "Refresh mode must not be null.");
+        this.freshness = checkNotNull(freshness, "Freshness must not be null.");
     }
 
     @Override
@@ -65,12 +73,13 @@ public class ResolvedCatalogMaterializedTable
     @Override
     public CatalogBaseTable copy() {
         return new ResolvedCatalogMaterializedTable(
-                (CatalogMaterializedTable) origin.copy(), resolvedSchema);
+                (CatalogMaterializedTable) origin.copy(), resolvedSchema, refreshMode, freshness);
     }
 
     @Override
     public ResolvedCatalogMaterializedTable copy(Map<String, String> options) {
-        return new ResolvedCatalogMaterializedTable(origin.copy(options), resolvedSchema);
+        return new ResolvedCatalogMaterializedTable(
+                origin.copy(options), resolvedSchema, refreshMode, freshness);
     }
 
     @Override
@@ -80,7 +89,9 @@ public class ResolvedCatalogMaterializedTable
             byte[] serializedRefreshHandler) {
         return new ResolvedCatalogMaterializedTable(
                 origin.copy(refreshStatus, refreshHandlerDescription, serializedRefreshHandler),
-                resolvedSchema);
+                resolvedSchema,
+                refreshMode,
+                freshness);
     }
 
     @Override
@@ -124,8 +135,8 @@ public class ResolvedCatalogMaterializedTable
     }
 
     @Override
-    public IntervalFreshness getDefinitionFreshness() {
-        return origin.getDefinitionFreshness();
+    public @Nonnull IntervalFreshness getDefinitionFreshness() {
+        return freshness;
     }
 
     @Override
@@ -134,8 +145,8 @@ public class ResolvedCatalogMaterializedTable
     }
 
     @Override
-    public RefreshMode getRefreshMode() {
-        return origin.getRefreshMode();
+    public @Nonnull RefreshMode getRefreshMode() {
+        return refreshMode;
     }
 
     @Override

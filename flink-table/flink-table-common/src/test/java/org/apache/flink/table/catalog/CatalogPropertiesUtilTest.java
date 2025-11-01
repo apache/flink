@@ -20,6 +20,7 @@ package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.expressions.DefaultSqlFactory;
 
 import org.junit.jupiter.api.Test;
@@ -165,6 +166,8 @@ class CatalogPropertiesUtilTest {
                                 .refreshStatus(CatalogMaterializedTable.RefreshStatus.ACTIVATED)
                                 .refreshHandlerDescription("description")
                                 .build(),
-                        resolvedSchema));
+                        resolvedSchema,
+                        RefreshMode.CONTINUOUS,
+                        IntervalFreshness.ofHour("123")));
     }
 }

@@ -30,8 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToDuration;
-
 /**
  * Represents the unresolved metadata of a materialized table in a {@link Catalog}.
  *
@@ -126,20 +124,27 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
      * Get the definition freshness of materialized table which is used to determine the physical
      * refresh mode.
      */
+    @Nullable
     IntervalFreshness getDefinitionFreshness();
 
     /**
      * Get the {@link Duration} value of materialized table definition freshness, it is converted
      * from {@link IntervalFreshness}.
+     *
+     * @deprecated use {@link #getDefinitionFreshness()} together with {@link
+     *     IntervalFreshness#toDuration()} instead.
      */
-    default Duration getFreshness() {
-        return convertFreshnessToDuration(getDefinitionFreshness());
+    @Deprecated
+    default @Nullable Duration getFreshness() {
+        final IntervalFreshness definitionFreshness = getDefinitionFreshness();
+        return definitionFreshness == null ? null : definitionFreshness.toDuration();
     }
 
     /** Get the logical refresh mode of materialized table. */
     LogicalRefreshMode getLogicalRefreshMode();
 
     /** Get the physical refresh mode of materialized table. */
+    @Nullable
     RefreshMode getRefreshMode();
 
     /** Get the refresh status of materialized table. */
@@ -205,9 +210,9 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
         private Map<String, String> options = Collections.emptyMap();
         private @Nullable Long snapshot;
         private String definitionQuery;
-        private IntervalFreshness freshness;
+        private @Nullable IntervalFreshness freshness;
         private LogicalRefreshMode logicalRefreshMode;
-        private RefreshMode refreshMode;
+        private @Nullable RefreshMode refreshMode;
         private RefreshStatus refreshStatus;
         private @Nullable String refreshHandlerDescription;
         private @Nullable byte[] serializedRefreshHandler;
@@ -247,8 +252,8 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
             return this;
         }
 
-        public Builder freshness(IntervalFreshness freshness) {
-            this.freshness = Preconditions.checkNotNull(freshness, "Freshness must not be null.");
+        public Builder freshness(@Nullable IntervalFreshness freshness) {
+            this.freshness = freshness;
             return this;
         }
 
@@ -259,9 +264,8 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
             return this;
         }
 
-        public Builder refreshMode(RefreshMode refreshMode) {
-            this.refreshMode =
-                    Preconditions.checkNotNull(refreshMode, "Refresh mode must not be null.");
+        public Builder refreshMode(@Nullable RefreshMode refreshMode) {
+            this.refreshMode = refreshMode;
             return this;
         }
 

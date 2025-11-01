@@ -61,7 +61,7 @@ public class SqlCreateMaterializedTable extends SqlCreate {
 
     private final SqlNodeList propertyList;
 
-    private final SqlIntervalLiteral freshness;
+    private final @Nullable SqlIntervalLiteral freshness;
 
     private final @Nullable SqlLiteral refreshMode;
 
@@ -75,7 +75,7 @@ public class SqlCreateMaterializedTable extends SqlCreate {
             @Nullable SqlDistribution distribution,
             SqlNodeList partitionKeyList,
             SqlNodeList propertyList,
-            SqlIntervalLiteral freshness,
+            @Nullable SqlIntervalLiteral freshness,
             @Nullable SqlLiteral refreshMode,
             SqlNode asQuery) {
         super(OPERATOR, pos, false, false);
@@ -86,7 +86,7 @@ public class SqlCreateMaterializedTable extends SqlCreate {
         this.partitionKeyList =
                 requireNonNull(partitionKeyList, "partitionKeyList should not be null");
         this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
-        this.freshness = requireNonNull(freshness, "freshness should not be null");
+        this.freshness = freshness;
         this.refreshMode = refreshMode;
         this.asQuery = requireNonNull(asQuery, "asQuery should not be null");
     }
@@ -136,12 +136,14 @@ public class SqlCreateMaterializedTable extends SqlCreate {
         return propertyList;
     }
 
+    @Nullable
     public SqlIntervalLiteral getFreshness() {
         return freshness;
     }
 
-    public Optional<SqlLiteral> getRefreshMode() {
-        return Optional.ofNullable(refreshMode);
+    @Nullable
+    public SqlLiteral getRefreshMode() {
+        return refreshMode;
     }
 
     public SqlNode getAsQuery() {
@@ -195,10 +197,12 @@ public class SqlCreateMaterializedTable extends SqlCreate {
             writer.endList(withFrame);
         }
 
-        writer.newlineAndIndent();
-        writer.keyword("FRESHNESS");
-        writer.keyword("=");
-        freshness.unparse(writer, leftPrec, rightPrec);
+        if (freshness != null) {
+            writer.newlineAndIndent();
+            writer.keyword("FRESHNESS");
+            writer.keyword("=");
+            freshness.unparse(writer, leftPrec, rightPrec);
+        }
 
         if (refreshMode != null) {
             writer.newlineAndIndent();

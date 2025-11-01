@@ -386,6 +386,8 @@ class ShowCreateUtilTest {
                         .logicalRefreshMode(LogicalRefreshMode.AUTOMATIC)
                         .refreshStatus(RefreshStatus.ACTIVATED)
                         .build(),
-                resolvedSchema);
+                resolvedSchema,
+                refreshMode,
+                freshness);
     }
 }
