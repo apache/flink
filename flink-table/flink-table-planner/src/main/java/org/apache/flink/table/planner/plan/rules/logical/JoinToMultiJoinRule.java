@@ -18,15 +18,17 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.hint.StateTtlHint;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin;
 import org.apache.flink.table.planner.plan.utils.IntervalJoinUtil;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
+import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelRule;
 import org.apache.calcite.plan.hep.HepRelVertex;
@@ -36,21 +38,15 @@ import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinInfo;
 import org.apache.calcite.rel.core.JoinRelType;
-import org.apache.calcite.rel.core.TableFunctionScan;
-import org.apache.calcite.rel.core.TableScan;
-import org.apache.calcite.rel.core.Values;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalSnapshot;
-import org.apache.calcite.rel.metadata.RelColumnOrigin;
-import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.rules.CoreRules;
 import org.apache.calcite.rel.rules.FilterMultiJoinMergeRule;
 import org.apache.calcite.rel.rules.MultiJoin;
 import org.apache.calcite.rel.rules.ProjectMultiJoinMergeRule;
 import org.apache.calcite.rel.rules.TransformationRule;
 import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
@@ -65,14 +61,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.planner.hint.StateTtlHint.STATE_TTL;
+import static org.apache.flink.table.planner.plan.utils.MultiJoinUtil.createJoinAttributeMap;
 
 /**
  * Flink Planner rule to flatten a tree of {@link Join}s into a single {@link MultiJoin} with N
@@ -442,134 +438,51 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
 
     /**
      * Checks if original join and child multi-join have common join keys to decide if we can merge
-     * them into a single MultiJoin with one more input.
+     * them into a single MultiJoin with one more input. The method uses {@link
+     * AttributeBasedJoinKeyExtractor} to try to create valid common join key extractors.
      *
      * @param origJoin original Join
      * @param otherJoin child MultiJoin
      * @return true if original Join and child multi-join have at least one common JoinKey
      */
     private boolean haveCommonJoinKey(Join origJoin, MultiJoin otherJoin) {
-        Set<String> origJoinKeys = getJoinKeys(origJoin);
-        Set<String> otherJoinKeys = getJoinKeys(otherJoin);
+        final List<RowType> otherJoinInputTypes =
+                otherJoin.getInputs().stream()
+                        .map(i -> FlinkTypeFactory.toLogicalRowType(i.getRowType()))
+                        .collect(Collectors.toUnmodifiableList());
+        final List<RowType> origJoinInputTypes =
+                List.of(FlinkTypeFactory.toLogicalRowType(origJoin.getRight().getRowType()));
+        final List<RowType> combinedInputTypes =
+                Stream.concat(otherJoinInputTypes.stream(), origJoinInputTypes.stream())
+                        .collect(Collectors.toUnmodifiableList());
 
-        origJoinKeys.retainAll(otherJoinKeys);
+        final List<RexNode> otherJoinConditions = otherJoin.getOuterJoinConditions();
+        final List<RexNode> origJoinCondition = List.of(origJoin.getCondition());
+        final List<RexNode> combinedJoinConditions =
+                Stream.concat(otherJoinConditions.stream(), origJoinCondition.stream())
+                        .collect(Collectors.toUnmodifiableList());
 
-        return !origJoinKeys.isEmpty();
-    }
+        final Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
+                joinAttributeMap =
+                        createJoinAttributeMap(
+                                Stream.concat(
+                                                otherJoin.getInputs().stream(),
+                                                Stream.of(origJoin.getRight()))
+                                        .collect(Collectors.toUnmodifiableList()),
+                                combinedJoinConditions);
 
-    /**
-     * Returns a set of join keys as strings following this format [table_name.field_name].
-     *
-     * @param join Join or MultiJoin node
-     * @return set of all the join keys (keys from join conditions)
-     */
-    public Set<String> getJoinKeys(RelNode join) {
-        Set<String> joinKeys = new HashSet<>();
-        List<RexCall> conditions = Collections.emptyList();
-        List<RelNode> inputs = join.getInputs();
-
-        if (join instanceof Join) {
-            conditions = collectConjunctions(((Join) join).getCondition());
-        } else if (join instanceof MultiJoin) {
-            conditions =
-                    ((MultiJoin) join)
-                            .getOuterJoinConditions().stream()
-                                    .flatMap(cond -> collectConjunctions(cond).stream())
-                                    .collect(Collectors.toList());
+        boolean haveCommonJoinKey = false;
+        try {
+            // we probe to instantiate AttributeBasedJoinKeyExtractor's constructor to check whether
+            // it's possible to initialize common join key structures
+            final JoinKeyExtractor keyExtractor =
+                    new AttributeBasedJoinKeyExtractor(joinAttributeMap, combinedInputTypes);
+            haveCommonJoinKey = keyExtractor.getCommonJoinKeyIndices(0).length > 0;
+        } catch (IllegalStateException ignored) {
+            // failed to instantiate common join key structures => haveCommonJoinKey is false
         }
 
-        RelMetadataQuery mq = join.getCluster().getMetadataQuery();
-
-        for (RexCall condition : conditions) {
-            for (RexNode operand : condition.getOperands()) {
-                if (operand instanceof RexInputRef) {
-                    addJoinKeysByOperand((RexInputRef) operand, inputs, mq, joinKeys);
-                }
-            }
-        }
-
-        return joinKeys;
-    }
-
-    /**
-     * Retrieves conjunctions from joinCondition.
-     *
-     * @param joinCondition join condition
-     * @return List of RexCalls representing conditions
-     */
-    private List<RexCall> collectConjunctions(RexNode joinCondition) {
-        return RelOptUtil.conjunctions(joinCondition).stream()
-                .map(rexNode -> (RexCall) rexNode)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Appends join key's string representation to the set of join keys.
-     *
-     * @param ref input ref to the operand
-     * @param inputs List of node's inputs
-     * @param mq RelMetadataQuery needed to retrieve column origins
-     * @param joinKeys Set of join keys to be added
-     */
-    private void addJoinKeysByOperand(
-            RexInputRef ref, List<RelNode> inputs, RelMetadataQuery mq, Set<String> joinKeys) {
-        int inputRefIndex = ref.getIndex();
-        Tuple2<RelNode, Integer> targetInputAndIdx = getTargetInputAndIdx(inputRefIndex, inputs);
-        RelNode targetInput = targetInputAndIdx.f0;
-        int idxInTargetInput = targetInputAndIdx.f1;
-
-        Set<RelColumnOrigin> origins = mq.getColumnOrigins(targetInput, idxInTargetInput);
-        if (origins != null) {
-            for (RelColumnOrigin origin : origins) {
-                RelOptTable originTable = origin.getOriginTable();
-                List<String> qualifiedName = originTable.getQualifiedName();
-                String fieldName =
-                        originTable
-                                .getRowType()
-                                .getFieldList()
-                                .get(origin.getOriginColumnOrdinal())
-                                .getName();
-                joinKeys.add(qualifiedName.get(qualifiedName.size() - 1) + "." + fieldName);
-            }
-        }
-    }
-
-    /**
-     * Get real table that contains needed input ref (join key).
-     *
-     * @param inputRefIndex index of the required field
-     * @param inputs inputs of the node
-     * @return target input + idx of the required field as target input's
-     */
-    private Tuple2<RelNode, Integer> getTargetInputAndIdx(int inputRefIndex, List<RelNode> inputs) {
-        RelNode targetInput = null;
-        int idxInTargetInput = 0;
-        int inputFieldEnd = 0;
-        for (RelNode input : inputs) {
-            inputFieldEnd += input.getRowType().getFieldCount();
-            if (inputRefIndex < inputFieldEnd) {
-                targetInput = input;
-                int targetInputStartIdx = inputFieldEnd - input.getRowType().getFieldCount();
-                idxInTargetInput = inputRefIndex - targetInputStartIdx;
-                break;
-            }
-        }
-
-        targetInput =
-                (targetInput instanceof HepRelVertex)
-                        ? ((HepRelVertex) targetInput).getCurrentRel()
-                        : targetInput;
-
-        assert targetInput != null;
-
-        if (targetInput instanceof TableScan
-                || targetInput instanceof Values
-                || targetInput instanceof TableFunctionScan
-                || targetInput.getInputs().isEmpty()) {
-            return new Tuple2<>(targetInput, idxInTargetInput);
-        } else {
-            return getTargetInputAndIdx(idxInTargetInput, targetInput.getInputs());
-        }
+        return haveCommonJoinKey;
     }
 
     /**
