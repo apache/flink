@@ -115,6 +115,12 @@ public final class Documentation {
 
         public static final String CHECKPOINT_FILE_MERGING = "checkpoint_file_merging";
 
+        public static final String MODEL_OPENAI_COMMON = "model_openai_common";
+
+        public static final String MODEL_OPENAI_CHAT = "model_openai_chat";
+
+        public static final String MODEL_OPENAI_EMBEDDING = "model_openai_embedding";
+
         private Sections() {}
     }
 

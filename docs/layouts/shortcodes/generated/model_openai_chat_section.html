@@ -1,0 +1,66 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>max-tokens</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Long</td>
+            <td>The maximum number of tokens that can be generated in the chat completion.</td>
+        </tr>
+        <tr>
+            <td><h5>n</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Long</td>
+            <td>How many chat completion choices to generate for each input message. Note that you will be charged based on the number of generated tokens across all of the choices. Keep n as 1 to minimize costs.</td>
+        </tr>
+        <tr>
+            <td><h5>presence-penalty</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Double</td>
+            <td>Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they appear in the text so far, increasing the model's likelihood to talk about new topics.</td>
+        </tr>
+        <tr>
+            <td><h5>response-format</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td><p>Enum</p></td>
+            <td>The format of the response, e.g., 'text' or 'json_object'.<br /><br />Possible values:<ul><li>"text"</li><li>"json_object"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>seed</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Long</td>
+            <td>If specified, the model platform will make a best effort to sample deterministically, such that repeated requests with the same seed and parameters should return the same result. Determinism is not guaranteed.</td>
+        </tr>
+        <tr>
+            <td><h5>stop</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>A CSV list of strings to pass as stop sequences to the model.</td>
+        </tr>
+        <tr>
+            <td><h5>system-prompt</h5></td>
+            <td style="word-wrap: break-word;">"You are a helpful assistant."</td>
+            <td>String</td>
+            <td>The system message of a chat.</td>
+        </tr>
+        <tr>
+            <td><h5>temperature</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Double</td>
+            <td>Controls the randomness or “creativity” of the output. Typical values are between 0.0 and 1.0.</td>
+        </tr>
+        <tr>
+            <td><h5>top-p</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Double</td>
+            <td>The probability cutoff for token selection. Usually, either temperature or topP are specified, but not both.</td>
+        </tr>
+    </tbody>
+</table>

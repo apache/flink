@@ -17,6 +17,9 @@
 
 package org.apache.flink.model.openai;
 
+import org.apache.flink.configuration.DescribedEnum;
+import org.apache.flink.configuration.description.InlineElement;
+
 import com.knuddels.jtokkit.Encodings;
 import com.knuddels.jtokkit.api.Encoding;
 import com.knuddels.jtokkit.api.EncodingRegistry;
@@ -34,8 +37,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static org.apache.flink.configuration.description.TextElement.text;
+
 /** Context overflow action. */
-public enum ContextOverflowAction {
+public enum ContextOverflowAction implements DescribedEnum {
     TRUNCATED_TAIL("truncated-tail", "Truncates exceeded tokens from the tail of the context.") {
         @Override
         public String processTokensWithLimitInternal(
@@ -165,6 +170,11 @@ public enum ContextOverflowAction {
 
     abstract @Nullable String processTokensWithLimitInternal(
             Encoding encoding, String input, int maxContextSize, int actualNumTokens);
+
+    @Override
+    public InlineElement getDescription() {
+        return text(description);
+    }
 
     @Override
     public String toString() {

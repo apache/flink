@@ -17,8 +17,6 @@
 
 package org.apache.flink.model.openai;
 
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericRowData;
@@ -35,7 +33,6 @@ import com.openai.models.embeddings.EmbeddingCreateParams.EncodingFormat;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -45,25 +42,35 @@ public class OpenAIEmbeddingModelFunction extends AbstractOpenAIModelFunction {
 
     public static final String ENDPOINT_SUFFIX = "embeddings";
 
-    public static final ConfigOption<Long> DIMENSION =
-            ConfigOptions.key("dimension")
-                    .longType()
-                    .noDefaultValue()
-                    .withDescription("Dimension of the embedding vector.");
-
     private final String model;
     @Nullable private final Long dimensions;
+    private final int outputColumnIndex;
 
     public OpenAIEmbeddingModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
         super(factoryContext, config);
-        model = config.get(MODEL);
-        dimensions = config.get(DIMENSION);
+        model = config.get(OpenAIOptions.MODEL);
+        dimensions = config.get(OpenAIOptions.DIMENSION);
 
         validateSingleColumnSchema(
                 factoryContext.getCatalogModel().getResolvedOutputSchema(),
                 new ArrayType(new FloatType()),
                 "output");
+        this.outputColumnIndex = getOutputColumnIndex();
+    }
+
+    private int getOutputColumnIndex() {
+        for (int i = 0; i < this.outputColumnNames.size(); i++) {
+            String columnName = this.outputColumnNames.get(i);
+            if (ErrorMessageMetadata.get(columnName) == null) {
+                // Prior checks have guaranteed that there is one and only one physical output
+                // column.
+                return i;
+            }
+        }
+        throw new IllegalArgumentException(
+                "There should be one and only one physical output column. Actual columns: "
+                        + this.outputColumnNames);
     }
 
     @Override
@@ -81,18 +88,28 @@ public class OpenAIEmbeddingModelFunction extends AbstractOpenAIModelFunction {
             builder.dimensions(dimensions);
         }
 
-        return client.embeddings().create(builder.build()).thenApply(this::convertToRowData);
+        return client.embeddings().create(builder.build()).handle(this::convertToRowData);
     }
 
-    private List<RowData> convertToRowData(CreateEmbeddingResponse response) {
+    private Collection<RowData> convertToRowData(
+            CreateEmbeddingResponse response, Throwable throwable) {
+        if (throwable != null) {
+            return handleErrorsAndRespond(throwable);
+        }
+
         return response.data().stream()
                 .map(
-                        embedding ->
-                                GenericRowData.of(
-                                        new GenericArrayData(
-                                                embedding.embedding().stream()
-                                                        .map(Double::floatValue)
-                                                        .toArray(Float[]::new))))
+                        embedding -> {
+                            GenericRowData rowData =
+                                    new GenericRowData(this.outputColumnNames.size());
+                            rowData.setField(
+                                    outputColumnIndex,
+                                    new GenericArrayData(
+                                            embedding.embedding().stream()
+                                                    .map(Double::floatValue)
+                                                    .toArray(Float[]::new)));
+                            return rowData;
+                        })
                 .collect(Collectors.toList());
     }
 }
