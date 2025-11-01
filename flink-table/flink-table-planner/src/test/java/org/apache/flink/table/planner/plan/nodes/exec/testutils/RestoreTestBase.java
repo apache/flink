@@ -244,7 +244,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                     if (!ignoreAfter) {
                         expected.addAll(sinkTestStep.getExpectedAfterRestoreAsStrings());
                     }
-                    final List<String> actual = getExpectedResults(sinkTestStep, tableName);
+                    final List<String> actual = getActualResults(sinkTestStep, tableName);
                     final boolean shouldComplete =
                             CollectionUtils.isEqualCollection(actual, expected);
                     if (shouldComplete) {
@@ -355,7 +355,17 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                     afterRestoreSource == AfterRestoreSource.NO_RESTORE
                             ? sourceTestStep.dataBeforeRestore
                             : sourceTestStep.dataAfterRestore;
+
             final String id = TestValuesTableFactory.registerData(data);
+
+            if (sourceTestStep.treatDataBeforeRestoreAsConsumedData) {
+                final Collection<Row> consumedData =
+                        afterRestoreSource == AfterRestoreSource.NO_RESTORE
+                                ? Collections.emptyList()
+                                : sourceTestStep.dataBeforeRestore;
+                TestValuesTableFactory.registerConsumedData(consumedData, id);
+            }
+
             final Map<String, String> options = new HashMap<>();
             options.put("connector", "values");
             options.put("data-id", id);
@@ -401,18 +411,11 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         } else {
             compiledPlan.execute().await();
             for (SinkTestStep sinkTestStep : program.getSetupSinkTestSteps()) {
-                List<String> expectedResults = getExpectedResults(sinkTestStep, sinkTestStep.name);
-                assertThat(expectedResults)
+                List<String> actualResults = getActualResults(sinkTestStep, sinkTestStep.name);
+                assertThat(actualResults)
                         .as("%s", program.id)
                         .containsExactlyInAnyOrder(
-                                Stream.concat(
-                                                sinkTestStep
-                                                        .getExpectedBeforeRestoreAsStrings()
-                                                        .stream(),
-                                                sinkTestStep
-                                                        .getExpectedAfterRestoreAsStrings()
-                                                        .stream())
-                                        .toArray(String[]::new));
+                                sinkTestStep.getExpectedAsStrings().toArray(new String[0]));
             }
         }
     }
@@ -428,7 +431,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                 System.getProperty("user.dir"), metadata.name(), metadata.version(), program.id);
     }
 
-    private static List<String> getExpectedResults(SinkTestStep sinkTestStep, String tableName) {
+    private static List<String> getActualResults(SinkTestStep sinkTestStep, String tableName) {
         if (sinkTestStep.shouldTestChangelogData()) {
             return TestValuesTableFactory.getRawResultsAsStrings(tableName);
         } else {
