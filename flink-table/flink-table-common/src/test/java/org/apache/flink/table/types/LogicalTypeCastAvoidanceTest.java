@@ -100,12 +100,24 @@ class LogicalTypeCastAvoidanceTest {
                         new YearMonthIntervalType(
                                 YearMonthIntervalType.YearMonthResolution.YEAR_TO_MONTH, 2),
                         new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.MONTH),
+                        true),
+                of(
+                        new YearMonthIntervalType(
+                                YearMonthIntervalType.YearMonthResolution.YEAR_TO_MONTH, 4),
+                        new YearMonthIntervalType(
+                                YearMonthIntervalType.YearMonthResolution.MONTH, 2),
                         false),
                 of(
                         new DayTimeIntervalType(
                                 DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND, 2, 6),
                         new DayTimeIntervalType(
                                 DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND, 2, 7),
+                        true),
+                of(
+                        new DayTimeIntervalType(
+                                DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND, 2, 7),
+                        new DayTimeIntervalType(
+                                DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND, 2, 6),
                         false),
                 of(new ArrayType(new TimestampType()), new ArrayType(new SmallIntType()), false),
                 of(
