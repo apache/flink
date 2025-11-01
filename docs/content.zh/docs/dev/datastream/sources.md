@@ -251,9 +251,14 @@ env.from_source(
   - 解决内部提取线程与其他方法调用（如 `pollNext(ReaderOutput)`）之间的同步。
   - 维护每个分片的水印（watermark）以保证水印对齐。
   - 维护每个分片的状态以进行 Checkpoint。
+  - 限制数据下发的速率。
 
 为了减少开发新的 `SourceReader` 所需的工作，Flink 提供了 {{< gh_link file="flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/SourceReaderBase.java" name="SourceReaderBase" >}} 类作为 `SourceReader` 的基本实现。
 `SourceReaderBase` 已经实现了上述需求。要重新编写新的 `SourceReader`，只需要让 `SourceReader` 继承 `SourceReaderBase`，而后完善一些方法并实现 {{< gh_link file="flink-connectors/flink-connector-base/src/main/java/org/apache/flink/connector/base/source/reader/splitreader/SplitReader.java" name="SplitReader" >}}。
+
+#### 数据限流
+通过在`SourceReaderBase`的构造方法中传递 {{< javadoc name="RateLimiterStrategy" file="org/apache/flink/api/connector/source/util/ratelimit/RateLimiterStrategy.html">}}，可以限制数据下发的速率。
+在默认情况下，`SourceReaderBase`不会进行数据限流。
 
 <a name="SplitFetcherManager"></a>
 
