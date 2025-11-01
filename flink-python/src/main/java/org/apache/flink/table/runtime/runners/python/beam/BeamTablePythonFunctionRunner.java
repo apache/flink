@@ -29,7 +29,7 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.runners.python.beam.BeamPythonFunctionRunner;
 import org.apache.flink.util.Preconditions;
 
-import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.GeneratedMessage;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.graph.TimerReference;
 
@@ -50,14 +50,14 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
     /** The urn which represents the function kind to be executed. */
     private final String functionUrn;
 
-    private final GeneratedMessageV3 userDefinedFunctionProto;
+    private final GeneratedMessage userDefinedFunctionProto;
 
     public BeamTablePythonFunctionRunner(
             Environment environment,
             String taskName,
             ProcessPythonEnvironmentManager environmentManager,
             String functionUrn,
-            GeneratedMessageV3 userDefinedFunctionProto,
+            GeneratedMessage userDefinedFunctionProto,
             FlinkMetricContainer flinkMetricContainer,
             KeyedStateBackend<?> keyedStateBackend,
             TypeSerializer<?> keySerializer,
@@ -124,7 +124,7 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
             String taskName,
             ProcessPythonEnvironmentManager environmentManager,
             String functionUrn,
-            GeneratedMessageV3 userDefinedFunctionProto,
+            GeneratedMessage userDefinedFunctionProto,
             FlinkMetricContainer flinkMetricContainer,
             MemoryManager memoryManager,
             double managedMemoryFraction,
@@ -151,7 +151,7 @@ public class BeamTablePythonFunctionRunner extends BeamPythonFunctionRunner {
             String taskName,
             ProcessPythonEnvironmentManager environmentManager,
             String functionUrn,
-            GeneratedMessageV3 userDefinedFunctionProto,
+            GeneratedMessage userDefinedFunctionProto,
             FlinkMetricContainer flinkMetricContainer,
             KeyedStateBackend<?> keyedStateBackend,
             TypeSerializer<?> keySerializer,
