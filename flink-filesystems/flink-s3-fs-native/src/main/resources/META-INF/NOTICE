@@ -1,0 +1,52 @@
+flink-s3-fs-native
+Copyright 2014-2025 The Apache Software Foundation
+
+This project includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+This project bundles the following dependencies under the Apache Software License 2.0 (http://www.apache.org/licenses/LICENSE-2.0.txt)
+
+- software.amazon.awssdk:annotations:2.20.160
+- software.amazon.awssdk:apache-client:2.20.160
+- software.amazon.awssdk:arns:2.20.160
+- software.amazon.awssdk:auth:2.20.160
+- software.amazon.awssdk:aws-core:2.20.160
+- software.amazon.awssdk:aws-query-protocol:2.20.160
+- software.amazon.awssdk:aws-xml-protocol:2.20.160
+- software.amazon.awssdk:checksums:2.20.160
+- software.amazon.awssdk:checksums-spi:2.20.160
+- software.amazon.awssdk:crt-core:2.20.160
+- software.amazon.awssdk:endpoints-spi:2.20.160
+- software.amazon.awssdk:http-client-spi:2.20.160
+- software.amazon.awssdk:json-utils:2.20.160
+- software.amazon.awssdk:metrics-spi:2.20.160
+- software.amazon.awssdk:netty-nio-client:2.20.160
+- software.amazon.awssdk:profiles:2.20.160
+- software.amazon.awssdk:protocol-core:2.20.160
+- software.amazon.awssdk:regions:2.20.160
+- software.amazon.awssdk:s3:2.20.160
+- software.amazon.awssdk:s3-transfer-manager:2.20.160
+- software.amazon.awssdk:sdk-core:2.20.160
+- software.amazon.awssdk:sts:2.20.160
+- software.amazon.awssdk:third-party-jackson-core:2.20.160
+- software.amazon.awssdk:utils:2.20.160
+- org.apache.httpcomponents:httpclient:4.5.13
+- org.apache.httpcomponents:httpcore:4.4.14
+- commons-logging:commons-logging:1.1.3
+- commons-codec:commons-codec:1.15
+
+This project bundles the following dependencies under the MIT License (https://opensource.org/licenses/MIT)
+
+- org.reactivestreams:reactive-streams:1.0.4
+
+===============================================================================
+
+This project does not bundle any code from Hadoop, Presto, or other external file systems.
+
+All S3 operations are performed directly using the AWS SDK for Java 2.x.
+
+This native implementation was created to eliminate dependencies on Hadoop and Presto
+while providing complete feature parity and enhanced performance.
+
+For more information, see the project documentation in README.md.
+
