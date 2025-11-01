@@ -286,6 +286,20 @@ jobs:
         if: ${{ !cancelled() && (failure() || !steps.docker-cache.cache.hit) }}
         run: ./tools/azure-pipelines/cache_docker_images.sh save
 
+  flink-kubernetes:
+    name: "Build & test flink-kubernetes with multiple HTTP clients"
+    needs: compile
+    strategy:
+      fail-fast: false
+      matrix:
+        http-client: [ "okhttp", "jdk", "jetty", "vertx" ]
+    uses: ./.github/workflows/template.flink-kubernetes-ci.yml
+    with:
+      http-client: ${{ matrix.http-client }}
+      jdk_version: ${{ inputs.jdk_version }}
+      cache-name: ${{ needs.compile.outputs.stringified-workflow-name }}-${{ github.run_number }}
+      environment: "${{ inputs.environment }}"
+
   e2e:
     name: "E2E (group ${{ matrix.group }})"
     needs: compile
