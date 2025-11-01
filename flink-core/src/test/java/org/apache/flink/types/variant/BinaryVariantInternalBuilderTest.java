@@ -22,8 +22,11 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class BinaryVariantInternalBuilderTest {
@@ -115,5 +118,13 @@ class BinaryVariantInternalBuilderTest {
         variant = BinaryVariantInternalBuilder.parseJson("{\"k1\":1,\"k1\":2,\"k2\":1.5}", true);
         assertThat(variant.getField("k1").getByte()).isEqualTo((byte) 2);
         assertThat(variant.getField("k2").getDecimal()).isEqualTo(BigDecimal.valueOf(1.5));
+    }
+
+    @Test
+    void testAppendFloat() {
+        BinaryVariantInternalBuilder builder = new BinaryVariantInternalBuilder(false);
+        ArrayList<Float> floatList = new ArrayList<>(Collections.nCopies(25, 4.2f));
+
+        assertThatCode(() -> floatList.forEach(builder::appendFloat)).doesNotThrowAnyException();
     }
 }
