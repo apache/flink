@@ -825,4 +825,34 @@ class CalcITCase extends StreamingTestBase {
     val expected = List("16")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
   }
+
+  @Test
+  def testCastRow(): Unit = {
+    val testDataId = TestValuesTableFactory.registerData(
+      Seq(
+        row(row(row(row("1")))),
+        row(row(row(row("2"))))
+      ))
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE t (
+         |  a ROW<`data` ROW<`nested` ROW<`trId` STRING NOT NULL>>NOT NULL>,
+         |  b AS CAST(a as ROW<`data` ROW<`nested` ROW<`trId` STRING NOT NULL>>NOT NULL>)
+         |) WITH (
+         |  'connector' = 'values',
+         |  'data-id' = '$testDataId',
+         |  'bounded' = 'true'
+         |)
+         |""".stripMargin)
+    val expected = List(
+      row("1", "1", row(row(row("1")))),
+      row("2", "2", row(row(row("2"))))
+    )
+    val actual = tEnv
+      .executeSql("select a.data.nested.trId, b.data.nested.trId, b AS col from t")
+      .collect()
+      .map(r => r)
+      .toList
+    assertThat(actual).isEqualTo(expected)
+  }
 }
