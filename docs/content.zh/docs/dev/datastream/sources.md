@@ -55,8 +55,14 @@ Data Source API 以统一的方式对无界流数据和有界批数据进行处�
 
 事实上，这两种情况之间的区别是非常小的：在有界/批处理情况中，枚举器生成固定数量的分片，而且每个分片都必须是有限的。但在无界流的情况下，则无需遵从限制，也就是分片大小可以不是有限的，或者枚举器将不断生成新的分片。
 
-<a name="examples"></a>
 
+**作业恢复时Split重新分配**
+
+在通常情况下，一旦 *SplitEnumerator* 将*分片*分配给 *SourceReader*，这些*分片*不会再重新分配给其他 *SourceReader* 。当作业从故障中恢复时，来自状态的*分片*会立即添加回 *SourceReader*。
+
+当 source 实现了 `SupportsSplitReassignmentOnRecovery` 接口时，恢复过程的行为会有所不同。 发生故障时，不会立即将*分片*重新分配给原来的 *SourceReader*，而是将所有*分片*收集并添加回 *SplitEnumerator*。 然后 *SplitEnumerator* 负责在 *SourceReader* 之间重新分配这些*分片*，以实现平衡的分配。 这种机制通过让中心化的 *SplitEnumerator* 对*分片*分配做出正确的决策，从而实现更灵活和高效的恢复。
+
+<a name="examples"></a>
 #### 示例
 
 以下是一些简化的概念示例，以说明在流和批处理情况下 data source 组件如何交互。
