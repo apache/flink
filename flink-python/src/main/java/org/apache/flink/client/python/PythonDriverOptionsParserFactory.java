@@ -18,6 +18,8 @@
 
 package org.apache.flink.client.python;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.python.util.PythonDependencyUtils;
 import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.entrypoint.parser.ParserResultFactory;
 
@@ -26,7 +28,13 @@ import org.apache.commons.cli.Options;
 
 import javax.annotation.Nonnull;
 
+import static org.apache.flink.client.cli.CliFrontendParser.PYARCHIVE_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYCLIENTEXEC_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYEXEC_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYFILES_OPTION;
 import static org.apache.flink.client.cli.CliFrontendParser.PYMODULE_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYREQUIREMENTS_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.PYTHON_PATH;
 import static org.apache.flink.client.cli.CliFrontendParser.PY_OPTION;
 
 /**
@@ -40,6 +48,12 @@ final class PythonDriverOptionsParserFactory implements ParserResultFactory<Pyth
         final Options options = new Options();
         options.addOption(PY_OPTION);
         options.addOption(PYMODULE_OPTION);
+        options.addOption(PYFILES_OPTION);
+        options.addOption(PYREQUIREMENTS_OPTION);
+        options.addOption(PYARCHIVE_OPTION);
+        options.addOption(PYEXEC_OPTION);
+        options.addOption(PYCLIENTEXEC_OPTION);
+        options.addOption(PYTHON_PATH);
         return options;
     }
 
@@ -67,7 +81,13 @@ final class PythonDriverOptionsParserFactory implements ParserResultFactory<Pyth
                     "The Python entry point has not been specified. It can be specified with options -py or -pym");
         }
 
+        Configuration pythonDependencyConfig =
+                PythonDependencyUtils.parsePythonDependencyConfiguration(commandLine);
+
         return new PythonDriverOptions(
-                entryPointModule, entryPointScript, commandLine.getArgList());
+                pythonDependencyConfig,
+                entryPointModule,
+                entryPointScript,
+                commandLine.getArgList());
     }
 }
