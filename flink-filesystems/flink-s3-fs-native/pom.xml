@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+  http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.apache.flink</groupId>
+		<artifactId>flink-filesystems</artifactId>
+		<version>2.3-SNAPSHOT</version>
+	</parent>
+
+	<artifactId>flink-s3-fs-native</artifactId>
+	<name>Flink : FileSystems : S3 FS Native</name>
+	<packaging>jar</packaging>
+
+	<properties>
+		<fs.s3.aws.sdk.version>2.20.160</fs.s3.aws.sdk.version>
+		<japicmp.skip>true</japicmp.skip>
+		<surefire.module.config>--add-opens=java.base/java.util=ALL-UNNAMED</surefire.module.config>
+	</properties>
+
+	<dependencies>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+	<dependency>
+		<groupId>software.amazon.awssdk</groupId>
+		<artifactId>s3</artifactId>
+		<version>${fs.s3.aws.sdk.version}</version>
+	</dependency>
+
+	<!-- S3 Transfer Manager for async/high-throughput transfers -->
+	<dependency>
+		<groupId>software.amazon.awssdk</groupId>
+		<artifactId>s3-transfer-manager</artifactId>
+		<version>${fs.s3.aws.sdk.version}</version>
+	</dependency>
+
+	<dependency>
+		<groupId>software.amazon.awssdk</groupId>
+		<artifactId>sts</artifactId>
+		<version>${fs.s3.aws.sdk.version}</version>
+	</dependency>
+
+	<!-- Netty async HTTP client (required for Transfer Manager) -->
+	<dependency>
+		<groupId>software.amazon.awssdk</groupId>
+		<artifactId>netty-nio-client</artifactId>
+		<version>${fs.s3.aws.sdk.version}</version>
+	</dependency>
+
+	<!-- Apache HTTP client for sync operations -->
+	<dependency>
+		<groupId>software.amazon.awssdk</groupId>
+		<artifactId>apache-client</artifactId>
+		<version>${fs.s3.aws.sdk.version}</version>
+	</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-runtime</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.curator</groupId>
+			<artifactId>curator-test</artifactId>
+			<version>${curator.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-test-utils</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>shade-flink</id>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<artifactSet>
+								<includes>
+									<include>software.amazon.awssdk:*</include>
+									<include>org.apache.httpcomponents:*</include>
+									<include>commons-logging:*</include>
+									<include>org.reactivestreams:*</include>
+									<include>io.netty:*</include>
+									<include>com.typesafe.netty:*</include>
+								</includes>
+							</artifactSet>
+							<relocations>
+								<relocation>
+									<pattern>software.amazon.awssdk</pattern>
+									<shadedPattern>org.apache.flink.fs.s3native.shaded.software.amazon.awssdk</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.http</pattern>
+									<shadedPattern>org.apache.flink.fs.s3native.shaded.org.apache.http</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.apache.commons.logging</pattern>
+									<shadedPattern>org.apache.flink.fs.s3native.shaded.org.apache.commons.logging</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>io.netty</pattern>
+									<shadedPattern>org.apache.flink.fs.s3native.shaded.io.netty</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>com.typesafe.netty</pattern>
+									<shadedPattern>org.apache.flink.fs.s3native.shaded.com.typesafe.netty</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.reactivestreams</pattern>
+									<shadedPattern>org.apache.flink.fs.s3native.shaded.org.reactivestreams</shadedPattern>
+								</relocation>
+							</relocations>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+										<!-- Exclude execution.interceptors files that reference unshaded classes -->
+										<exclude>**/execution.interceptors</exclude>
+									</excludes>
+								</filter>
+							</filters>
+							<transformers>
+								<!-- Merge and relocate service provider files -->
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+								<!-- Handle AWS SDK execution interceptors -->
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer"/>
+							</transformers>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>test-jar</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+</project>
+
