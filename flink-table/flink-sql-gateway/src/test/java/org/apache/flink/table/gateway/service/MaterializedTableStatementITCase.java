@@ -431,7 +431,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         verifyRefreshJobCreated(restClusterClient, jobId, currentTime);
 
         // 2. verify the new job overwrite the data
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 () ->
                         fetchTableData(sessionHandle, "SELECT * FROM my_materialized_table").size()
                                 == data.size(),

@@ -144,7 +144,7 @@ class OperationManagerTest {
                                 isRunning.compareAndSet(false, true);
                             }
                         });
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 isRunning::get, Duration.ofSeconds(10), "Failed to start up the task.");
         assertThatThrownBy(() -> operationManager.cancelOperation(operationHandle))
                 .satisfies(
@@ -176,7 +176,7 @@ class OperationManagerTest {
                                         });
                             });
         }
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 isRunning::get, Duration.ofSeconds(10), "Failed to start up the task.");
 
         assertThatThrownBy(() -> operationManager.close())

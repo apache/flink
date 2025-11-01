@@ -104,13 +104,13 @@ class SqlGatewayTest {
                             .newThread(() -> SqlGateway.startSqlGateway(stream, args));
             thread.start();
 
-            CommonTestUtils.waitUtil(
+            CommonTestUtils.waitUntil(
                     () -> MockedSqlGatewayEndpoint.isRunning(id),
                     Duration.ofSeconds(10),
                     "Failed to get the endpoint starts.");
 
             thread.interrupt();
-            CommonTestUtils.waitUtil(
+            CommonTestUtils.waitUntil(
                     () -> !thread.isAlive(),
                     Duration.ofSeconds(10),
                     "Failed to get the endpoint starts.");

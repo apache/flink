@@ -68,7 +68,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
-import static org.apache.flink.core.testutils.CommonTestUtils.waitUtil;
+import static org.apache.flink.core.testutils.CommonTestUtils.waitUntil;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyAssignment;
 import static org.apache.flink.runtime.source.coordinator.CoordinatorTestUtils.verifyException;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -302,7 +302,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                                 null)) {
 
             coordinator.start();
-            waitUtil(
+            waitUntil(
                     () -> operatorCoordinatorContext.isJobFailed(),
                     Duration.ofSeconds(10),
                     "The job should have failed due to the artificial exception.");
@@ -358,7 +358,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
             coordinator.start();
             coordinator.handleEventFromOperator(1, 0, new SourceEventWrapper(new SourceEvent() {}));
 
-            waitUtil(
+            waitUntil(
                     () -> operatorCoordinatorContext.isJobFailed(),
                     Duration.ofSeconds(10),
                     "The job should have failed due to the artificial exception.");
@@ -415,7 +415,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                             })
                     .get();
 
-            waitUtil(
+            waitUntil(
                     splitEnumerator::closed,
                     Duration.ofSeconds(5),
                     "Split enumerator was not closed in 5 seconds.");
@@ -534,7 +534,7 @@ class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         sourceCoordinator.executionAttemptFailed(0, attemptNumber, null);
         sourceCoordinator.subtaskReset(0, 99L);
 
-        waitUtilNumberReached(() -> getEnumerator().getUnassignedSplits().size(), 2);
+        waitUntilNumberReached(() -> getEnumerator().getUnassignedSplits().size(), 2);
 
         attemptNumber++;
         setReaderTaskReady(sourceCoordinator, 0, attemptNumber);
