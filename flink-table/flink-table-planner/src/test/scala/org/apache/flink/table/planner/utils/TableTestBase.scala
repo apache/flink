@@ -1189,6 +1189,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withQueryBlockAlias: Boolean = false,
       withDuplicateChanges: Boolean = false): Unit = {
 
+    val expectedPlanKinds = new util.HashSet[PlanKind](expectedPlans.toSeq.asJava)
+
     // build ast plan
     val astBuilder = new StringBuilder
     relNodes.foreach {
@@ -1214,8 +1216,8 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
         withRowType = withRowType,
         withDuplicateChanges = withDuplicateChanges)
 
-    // build optimized exec plan if `expectedPlans` contains OPT_EXEC
-    val optimizedExecPlan = if (expectedPlans.contains(PlanKind.OPT_EXEC)) {
+    // build optimized exec plan if `expectedPlanKinds` contains OPT_EXEC
+    val optimizedExecPlan = if (expectedPlanKinds.contains(PlanKind.OPT_EXEC)) {
       val execGraph = getPlanner.translateToExecNodeGraph(optimizedRels, isCompiled = false)
       System.lineSeparator + ExecNodePlanDumper.dagToString(execGraph)
     } else {
@@ -1225,19 +1227,27 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
     // check whether the sql equals to the expected if the `relNodes` are translated from sql
     assertSqlEqualsOrExpandFunc()
     // check ast plan
-    if (expectedPlans.contains(PlanKind.AST)) {
+    if (expectedPlanKinds.contains(PlanKind.AST)) {
+      expectedPlanKinds.remove(PlanKind.AST)
       assertEqualsOrExpand("ast", astPlan)
     }
     // check optimized rel plan
-    if (expectedPlans.contains(PlanKind.OPT_REL)) {
-      assertEqualsOrExpand("optimized rel plan", optimizedRelPlan, expand = false)
+    if (expectedPlanKinds.contains(PlanKind.OPT_REL)) {
+      expectedPlanKinds.remove(PlanKind.OPT_REL)
+      // if there is something else in plan kinds to check, then use it for xml generation if needed
+      assertEqualsOrExpand("optimized rel plan", optimizedRelPlan, !expectedPlanKinds.isEmpty)
     }
     // check optimized rel plan with available advice
-    if (expectedPlans.contains(PlanKind.OPT_REL_WITH_ADVICE)) {
-      assertEqualsOrExpand("optimized rel plan with advice", optimizedRelPlan, expand = false)
+    if (expectedPlanKinds.contains(PlanKind.OPT_REL_WITH_ADVICE)) {
+      expectedPlanKinds.remove(PlanKind.OPT_REL_WITH_ADVICE)
+      // if there is something else in plan kinds to check, then use it for xml generation if needed
+      assertEqualsOrExpand(
+        "optimized rel plan with advice",
+        optimizedRelPlan,
+        !expectedPlanKinds.isEmpty)
     }
     // check optimized exec plan
-    if (expectedPlans.contains(PlanKind.OPT_EXEC)) {
+    if (expectedPlanKinds.contains(PlanKind.OPT_EXEC)) {
       assertEqualsOrExpand("optimized exec plan", optimizedExecPlan, expand = false)
     }
   }
