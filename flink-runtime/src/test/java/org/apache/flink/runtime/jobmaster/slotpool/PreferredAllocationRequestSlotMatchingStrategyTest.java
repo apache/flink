@@ -221,7 +221,7 @@ class PreferredAllocationRequestSlotMatchingStrategyTest {
         return createSlot(finedGrainProfile, new AllocationID(), tmLocation);
     }
 
-    private static TestingPhysicalSlot createSlot(
+    static TestingPhysicalSlot createSlot(
             ResourceProfile profile, AllocationID allocationId, TaskManagerLocation tmLocation) {
         return TestingPhysicalSlot.builder()
                 .withAllocationID(allocationId)
