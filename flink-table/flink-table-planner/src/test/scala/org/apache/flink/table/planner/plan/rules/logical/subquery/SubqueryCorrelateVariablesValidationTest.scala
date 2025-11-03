@@ -143,7 +143,6 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
   }
 
   @Test
-  // TODO some bugs in RelDecorrelator.AdjustProjectForCountAggregateRule
   def testWithProjectCaseWhenCorrelate(): Unit = {
     val sqlQuery =
       """
@@ -155,8 +154,6 @@ class SubqueryCorrelateVariablesValidationTest extends SubQueryTestBase {
         |FROM   t1
         |    WHERE  t1a = 'test'
       """.stripMargin
-    assertThatExceptionOfType(classOf[AssertionError])
-      .isThrownBy(() => util.verifyRelPlan(sqlQuery))
+    util.verifyRelPlan(sqlQuery)
   }
-
 }
