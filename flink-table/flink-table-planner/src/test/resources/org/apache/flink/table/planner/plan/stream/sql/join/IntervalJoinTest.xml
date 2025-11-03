@@ -91,7 +91,7 @@ Calc(select=[a0 AS a])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testInteravalNotCnfCondition">
+  <TestCase name="testIntervalNotCnfCondition">
     <Resource name="sql">
       <![CDATA[
 SELECT t2.a FROM MyTable t1 JOIN MyTable2 t2 ON

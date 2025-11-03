@@ -32,7 +32,7 @@ class UnnestTest extends UnnestTestBase(true) {
     util.addTableSource[(Int, Array[Int])]("T2", 'a, 'b)
     verifyPlan(
       """
-        |SELECT /*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss','retry-strategy'='fixed_delay', 
+        |SELECT /*+ LOOKUP('table'='D', 'retry-predicate'='lookup_miss','retry-strategy'='fixed_delay',
         |         'fixed-delay'='155 ms', 'max-attempts'='10') */ T2.a
         |FROM T2 CROSS JOIN UNNEST(T2.b) AS D(c)
         |""".stripMargin)

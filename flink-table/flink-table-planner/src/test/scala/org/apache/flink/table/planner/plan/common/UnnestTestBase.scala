@@ -212,8 +212,8 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
   def testUnnestWithOrdinalityWithFilter(): Unit = {
     util.addTableSource[(Int, Array[Int])]("MyTable", 'a, 'b)
     verifyPlan("""
-                 |SELECT a, number, ordinality 
-                 |FROM MyTable 
+                 |SELECT a, number, ordinality
+                 |FROM MyTable
                  |CROSS JOIN UNNEST(b) WITH ORDINALITY AS t(number, ordinality)
                  |WHERE number > 10 AND ordinality < 3
                  |""".stripMargin)
@@ -224,10 +224,10 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
     util.addTableSource[(Int, Array[Int])]("MyTable", 'a, 'b)
     verifyPlan("""
                  |SELECT * FROM (
-                 |  SELECT a, number, ordinality 
-                 |  FROM MyTable 
+                 |  SELECT a, number, ordinality
+                 |  FROM MyTable
                  |  CROSS JOIN UNNEST(b) WITH ORDINALITY AS t(number, ordinality)
-                 |) subquery 
+                 |) subquery
                  |WHERE ordinality = 1
                  |""".stripMargin)
   }

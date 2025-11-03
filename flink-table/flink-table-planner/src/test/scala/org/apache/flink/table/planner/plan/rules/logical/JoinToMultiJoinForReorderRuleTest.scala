@@ -238,7 +238,7 @@ class JoinToMultiJoinForReorderRuleTest extends TableTestBase {
 
     val sqlQuery =
       """
-        |SELECT * FROM T1 JOIN T2 ON a = c LEFT OUTER JOIN 
+        |SELECT * FROM T1 JOIN T2 ON a = c LEFT OUTER JOIN
         | T3 ON a = e JOIN
         | T4 ON a = g LEFT OUTER JOIN
         | T5 ON a = i
@@ -254,7 +254,7 @@ class JoinToMultiJoinForReorderRuleTest extends TableTestBase {
 
     val sqlQuery =
       """
-        |SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c JOIN 
+        |SELECT * FROM T1 LEFT OUTER JOIN T2 ON a = c JOIN
         | T3 ON a = e LEFT OUTER JOIN
         | T4 ON a = g JOIN
         | T5 ON a = i
@@ -269,7 +269,7 @@ class JoinToMultiJoinForReorderRuleTest extends TableTestBase {
 
     val sqlQuery =
       """
-        |SELECT * FROM T1 JOIN T2 ON a = c RIGHT OUTER JOIN 
+        |SELECT * FROM T1 JOIN T2 ON a = c RIGHT OUTER JOIN
         | T3 ON a = e JOIN
         | T4 ON a = g RIGHT OUTER JOIN
         | T5 ON a = i
@@ -299,8 +299,8 @@ class JoinToMultiJoinForReorderRuleTest extends TableTestBase {
 
     val sqlQuery =
       """
-        |SELECT * FROM T1 LEFT OUTER JOIN 
-        |T2 ON a = c LEFT OUTER JOIN 
+        |SELECT * FROM T1 LEFT OUTER JOIN
+        |T2 ON a = c LEFT OUTER JOIN
         |T3 ON a = e LEFT OUTER JOIN
         |T4 ON a = g LEFT OUTER JOIN
         |T5 ON a = i

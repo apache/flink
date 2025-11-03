@@ -807,7 +807,7 @@ class LookupJoinTest extends TableTestBase with Serializable {
         |SELECT /*+ LOOKUP('table'='D', 'output-mode'='allow_unordered'),
         |           LOOKUP('table'='D', 'output-mode'='ordered') */ *
         |FROM MyTable AS T
-        |JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D 
+        |JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
         | ON T.a = D.id
       """.stripMargin
     util.verifyExecPlan(sql)
@@ -837,9 +837,9 @@ class LookupJoinTest extends TableTestBase with Serializable {
         |SELECT /*+ LOOKUP('table'='D', 'output-mode'='allow_unordered'),
         |           LOOKUP('table'='D1', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ *
         |FROM MyTable AS T
-        |JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D 
+        |JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
         |  ON T.a = D.id
-        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D1 
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D1
         |  ON T.a = D1.id
       """.stripMargin
     util.verifyExecPlan(sql)
