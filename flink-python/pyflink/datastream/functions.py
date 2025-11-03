@@ -907,6 +907,7 @@ class AsyncRetryPredicate(ABC, Generic[OUT]):
     Interface encapsulates an asynchronous retry predicate.
     """
 
+    @abstractmethod
     def result_predicate(self) -> Optional[Callable[[List[OUT]], bool]]:
         """
         An optional Python predicate function that defines a condition on asyncFunction's future
@@ -915,6 +916,7 @@ class AsyncRetryPredicate(ABC, Generic[OUT]):
         """
         pass
 
+    @abstractmethod
     def exception_predicate(self) -> Optional[Callable[[Exception], bool]]:
         """
         An optional Python predicate function that defines a condition on asyncFunction's exception
@@ -929,18 +931,21 @@ class AsyncRetryStrategy(ABC, Generic[OUT]):
     Interface encapsulates an asynchronous retry strategy.
     """
 
+    @abstractmethod
     def can_retry(self, current_attempts: int) -> bool:
         """
         Whether the next attempt can happen.
         """
         pass
 
+    @abstractmethod
     def get_backoff_time_millis(self, current_attempts: int) -> int:
         """
         The delay time of next attempt.
         """
         pass
 
+    @abstractmethod
     def get_retry_predicate(self) -> AsyncRetryPredicate[OUT]:
         """
         Returns the defined retry predicate.
