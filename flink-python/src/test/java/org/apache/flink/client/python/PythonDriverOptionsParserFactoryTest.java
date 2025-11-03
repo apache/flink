@@ -34,6 +34,7 @@ import static org.apache.flink.python.PythonOptions.PYTHON_PATH;
 import static org.apache.flink.python.PythonOptions.PYTHON_REQUIREMENTS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the {@link PythonDriverOptionsParserFactory}. */
 class PythonDriverOptionsParserFactoryTest {
@@ -78,8 +79,6 @@ class PythonDriverOptionsParserFactoryTest {
         final String[] args = {
             "--python",
             "xxx.py",
-            "--input",
-            "in.txt",
             "-pyfs",
             "dep1.zip,dep2.zip",
             "-pyreq",
@@ -91,16 +90,15 @@ class PythonDriverOptionsParserFactoryTest {
             "-pyclientexec",
             "python3.9",
             "--pyPythonPath",
-            "/python/lib64/python3.9"
+            "/python/lib64/python3.9",
+            "--input",
+            "in.txt",
         };
 
         final PythonDriverOptions pythonCommandOptions = commandLineParser.parse(args);
 
-        if (pythonCommandOptions.getEntryPointScript().isPresent()) {
-            assertThat(pythonCommandOptions.getEntryPointScript().get()).isEqualTo("xxx.py");
-        } else {
-            assertThat(pythonCommandOptions.getEntryPointModule()).isEqualTo("xxx");
-        }
+        assertTrue(pythonCommandOptions.getEntryPointScript().isPresent());
+        assertThat(pythonCommandOptions.getEntryPointScript().get()).isEqualTo("xxx.py");
 
         // verify the python program arguments
         final List<String> programArgs = pythonCommandOptions.getProgramArgs();
