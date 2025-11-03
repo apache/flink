@@ -129,4 +129,36 @@ LogicalProject(t1a=[$0])
 ]]>
 	</Resource>
   </TestCase>
+	<TestCase name="testWithProjectCaseWhenCorrelate">
+		<Resource name="sql">
+			<![CDATA[
+SELECT
+    (CASE WHEN EXISTS (SELECT min(t3d)
+                       FROM t3
+                       WHERE t3.t3a = t1.t1a)
+     THEN 1 ELSE 2 END)
+FROM   t1
+    WHERE  t1a = 'test'
+      ]]>
+		</Resource>
+		<Resource name="ast">
+			<![CDATA[
+LogicalProject(variablesSet=[[$cor0]], EXPR$0=[CASE(EXISTS({
+LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
+  LogicalProject(t3d=[$3])
+    LogicalFilter(condition=[=($0, $cor0.t1a)])
+      LogicalTableScan(table=[[default_catalog, default_database, t3]])
+}), 1, 2)])
++- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+		</Resource>
+		<Resource name="optimized rel plan">
+			<![CDATA[
+LogicalProject(EXPR$0=[1])
++- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+		</Resource>
+	</TestCase>
 </Root>
