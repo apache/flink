@@ -19,12 +19,22 @@
 package org.apache.flink.runtime.util;
 
 import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.io.network.netty.exception.RemoteTransportException;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedThrowable;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -178,5 +188,63 @@ class SerializedThrowableTest {
         assertThat(actualSuppressed)
                 .isInstanceOf(SerializedThrowable.class)
                 .hasMessage("java.lang.Exception: suppressed");
+    }
+
+    @Test
+    void testCyclicSuppressedThrowableSerialized() {
+        SerializedThrowable serializedThrowable = new SerializedThrowable(mockThrowable());
+        assertThat(serializedThrowable).isNotNull();
+    }
+
+    @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
+    void testCyclicSuppressedThrowableConcurrentSerialized() throws InterruptedException {
+        Throwable throwable = mockThrowable();
+        int threadNum = 16;
+        CountDownLatch countDownLatch = new CountDownLatch(threadNum);
+        List<Thread> threads = new ArrayList<>();
+        for (int i = 0; i < threadNum; i++) {
+            String threadName = "thread-" + i;
+            Thread t = createThread(countDownLatch, throwable, threadName);
+            t.start();
+            countDownLatch.countDown();
+            threads.add(t);
+        }
+        for (Thread thread : threads) {
+            thread.join();
+        }
+    }
+
+    private static Thread createThread(
+            CountDownLatch countDownLatch, Throwable throwable, String threadName) {
+        Thread t =
+                new Thread(
+                        () -> {
+                            try {
+                                countDownLatch.await();
+                                SerializedThrowable serializedThrowable =
+                                        new SerializedThrowable(throwable);
+                                assertThat(serializedThrowable).isNotNull();
+                            } catch (Exception e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+        t.setName(threadName);
+        return t;
+    }
+
+    private static Throwable mockThrowable() {
+        SocketAddress remoteAddr = new InetSocketAddress(80);
+        RemoteTransportException remoteTransportException =
+                new RemoteTransportException(
+                        "Connection unexpectedly closed by remote task manager '"
+                                + remoteAddr
+                                + "'. "
+                                + "This might indicate that the remote task manager was lost.",
+                        remoteAddr,
+                        new IOException("connection reset by peer."));
+        RuntimeException runtimeException = new RuntimeException(remoteTransportException);
+        remoteTransportException.addSuppressed(runtimeException);
+        return remoteTransportException;
     }
 }
