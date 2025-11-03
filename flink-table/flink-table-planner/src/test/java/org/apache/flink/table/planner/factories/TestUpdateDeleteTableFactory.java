@@ -43,6 +43,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsDeletePushDown;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
+import org.apache.flink.table.connector.sink.abilities.SupportsTargetColumnWriting;
 import org.apache.flink.table.connector.sink.abilities.SupportsTruncate;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -323,7 +324,7 @@ public class TestUpdateDeleteTableFactory
 
     /** A sink that supports row-level update. */
     private static class SupportsRowLevelUpdateSink
-            implements DynamicTableSink, SupportsRowLevelUpdate {
+            implements DynamicTableSink, SupportsRowLevelUpdate, SupportsTargetColumnWriting {
 
         protected final ObjectIdentifier tableIdentifier;
         protected final ResolvedCatalogTable resolvedCatalogTable;
@@ -446,6 +447,12 @@ public class TestUpdateDeleteTableFactory
                     return updateMode;
                 }
             };
+        }
+
+        @Override
+        public boolean applyTargetColumns(int[][] targetColumns) {
+            // Implement SupportsTargetColumnWriting for the compatibility of existing test cases
+            return true;
         }
     }
 
