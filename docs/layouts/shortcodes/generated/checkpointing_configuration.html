@@ -183,6 +183,12 @@
             <td>Defines the maximum number of subtasks that share the same channel state file. It can reduce the number of small files when enable unaligned checkpoint. Each subtask will create a new channel state file when this is configured to 1.</td>
         </tr>
         <tr>
+            <td><h5>execution.checkpointing.unaligned.recover-output-on-downstream.enabled</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether recovering output buffers of upstream task on downstream task directly when job restores from the unaligned checkpoint.</td>
+        </tr>
+        <tr>
             <td><h5>execution.checkpointing.write-buffer-size</h5></td>
             <td style="word-wrap: break-word;">4096</td>
             <td>Integer</td>

@@ -162,8 +162,14 @@ public class StateHandleDummyUtil {
 
     public static ResultSubpartitionStateHandle createNewResultSubpartitionStateHandle(
             int numNamedStates, int partitionIndex, Random random) {
+        return createNewResultSubpartitionStateHandle(
+                numNamedStates, partitionIndex, random.nextInt(), random);
+    }
+
+    public static ResultSubpartitionStateHandle createNewResultSubpartitionStateHandle(
+            int numNamedStates, int partitionIndex, int subPartitionIdx, Random random) {
         return new ResultSubpartitionStateHandle(
-                new ResultSubpartitionInfo(partitionIndex, random.nextInt()),
+                new ResultSubpartitionInfo(partitionIndex, subPartitionIdx),
                 createStreamStateHandle(numNamedStates, random),
                 genOffsets(numNamedStates, random));
     }

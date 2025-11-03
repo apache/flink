@@ -241,6 +241,8 @@ public class CheckpointCoordinator {
 
     private final boolean isExactlyOnceMode;
 
+    private final boolean recoverOutputOnDownstreamTask;
+
     /** Flag represents there is an in-flight trigger request. */
     private boolean isTriggering = false;
 
@@ -344,6 +346,7 @@ public class CheckpointCoordinator {
         this.clock = checkNotNull(clock);
         this.isExactlyOnceMode = chkConfig.isExactlyOnce();
         this.unalignedCheckpointsEnabled = chkConfig.isUnalignedCheckpointsEnabled();
+        this.recoverOutputOnDownstreamTask = chkConfig.isRecoverOutputOnDownstreamTask();
         this.alignedCheckpointTimeout = chkConfig.getAlignedCheckpointTimeout();
         this.checkpointIdOfIgnoredInFlightData = chkConfig.getCheckpointIdOfIgnoredInFlightData();
 
@@ -1816,7 +1819,11 @@ public class CheckpointCoordinator {
 
             StateAssignmentOperation stateAssignmentOperation =
                     new StateAssignmentOperation(
-                            latest.getCheckpointID(), tasks, operatorStates, allowNonRestoredState);
+                            latest.getCheckpointID(),
+                            tasks,
+                            operatorStates,
+                            allowNonRestoredState,
+                            recoverOutputOnDownstreamTask);
 
             stateAssignmentOperation.assignStates();
 
