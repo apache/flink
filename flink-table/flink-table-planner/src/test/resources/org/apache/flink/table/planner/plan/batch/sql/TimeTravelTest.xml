@@ -64,23 +64,6 @@ Union(all=[true], union=[f1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTimeTravelWithDifferentTimezone">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM t1 FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 10:00:00']]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(f1=[$0], f2=[$1])
-+- LogicalSnapshot(period=[2023-01-01 10:00:00])
-   +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-TableSourceScan(table=[[TimeTravelCatalog, default, t1]], fields=[f1, f2], version=[1672538400000])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testTimeTravelWithAsExpression">
     <Resource name="sql">
       <![CDATA[SELECT * FROM t1 FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 02:00:00' AS t2]]>
@@ -95,6 +78,23 @@ LogicalProject(f1=[$0], f2=[$1])
     <Resource name="optimized exec plan">
       <![CDATA[
 TableSourceScan(table=[[TimeTravelCatalog, default, t1, project=[f1, f2], metadata=[]]], fields=[f1, f2], version=[1672542000000])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTimeTravelWithDifferentTimezone">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM t1 FOR SYSTEM_TIME AS OF TIMESTAMP '2023-01-01 10:00:00']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f1=[$0], f2=[$1])
++- LogicalSnapshot(period=[2023-01-01 10:00:00])
+   +- LogicalTableScan(table=[[TimeTravelCatalog, default, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+TableSourceScan(table=[[TimeTravelCatalog, default, t1]], fields=[f1, f2], version=[1672538400000])
 ]]>
     </Resource>
   </TestCase>

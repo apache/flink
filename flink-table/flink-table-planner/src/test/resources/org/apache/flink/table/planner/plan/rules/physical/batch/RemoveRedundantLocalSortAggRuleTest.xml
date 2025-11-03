@@ -16,6 +16,41 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testRemoveRedundantLocalSortAggWithSort">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
+SELECT sum(b) FROM r group by a
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(a=[$0], b=[$1])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
+         +- LogicalFilter(condition=[AND(=($0, $3), LIKE($2, _UTF-16LE'He%'))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[default_catalog, default_database, x]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, y]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- SortAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$0])
+   +- Calc(select=[a, b])
+      +- Sort(orderBy=[a ASC])
+         +- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d], build=[left])
+            :- Exchange(distribution=[hash[a]])
+            :  +- Calc(select=[a, b], where=[LIKE(c, 'He%')])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, x]], fields=[a, b, c])
+            +- Exchange(distribution=[hash[d]])
+               +- Calc(select=[d])
+                  +- TableSourceScan(table=[[default_catalog, default_database, y]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRemoveRedundantLocalSortAggWithoutSort">
     <Resource name="sql">
       <![CDATA[
@@ -77,41 +112,6 @@ SortAggregate(isMerge=[true], groupBy=[d], select=[d, Final_MIN(min$0) AS EXPR$1
                         +- Expand(projects=[{d, e, $f2, c, $f4, null AS b, null AS $f6, 3 AS $e}, {d, e, $f2, c, null AS $f4, null AS b, null AS $f6, 7 AS $e}, {d, e, $f2, null AS c, null AS $f4, b, $f6, 12 AS $e}, {d, e, $f2, null AS c, null AS $f4, null AS b, null AS $f6, 15 AS $e}])
                            +- Calc(select=[d, e, IS TRUE(<(a, 10)) AS $f2, c, IS TRUE(>(a, 5)) AS $f4, b, IS TRUE(>(b, 3)) AS $f6])
                               +- TableSourceScan(table=[[default_catalog, default_database, z]], fields=[a, b, c, d, e])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRemoveRedundantLocalSortAggWithSort">
-    <Resource name="sql">
-      <![CDATA[
-WITH r AS (SELECT * FROM x, y WHERE a = d AND c LIKE 'He%')
-SELECT sum(b) FROM r group by a
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[$1])
-+- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
-   +- LogicalProject(a=[$0], b=[$1])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
-         +- LogicalFilter(condition=[AND(=($0, $3), LIKE($2, _UTF-16LE'He%'))])
-            +- LogicalJoin(condition=[true], joinType=[inner])
-               :- LogicalTableScan(table=[[default_catalog, default_database, x]])
-               +- LogicalTableScan(table=[[default_catalog, default_database, y]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[EXPR$0])
-+- SortAggregate(isMerge=[false], groupBy=[a], select=[a, SUM(b) AS EXPR$0])
-   +- Calc(select=[a, b])
-      +- Sort(orderBy=[a ASC])
-         +- HashJoin(joinType=[InnerJoin], where=[=(a, d)], select=[a, b, d], build=[left])
-            :- Exchange(distribution=[hash[a]])
-            :  +- Calc(select=[a, b], where=[LIKE(c, 'He%')])
-            :     +- TableSourceScan(table=[[default_catalog, default_database, x]], fields=[a, b, c])
-            +- Exchange(distribution=[hash[d]])
-               +- Calc(select=[d])
-                  +- TableSourceScan(table=[[default_catalog, default_database, y]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>

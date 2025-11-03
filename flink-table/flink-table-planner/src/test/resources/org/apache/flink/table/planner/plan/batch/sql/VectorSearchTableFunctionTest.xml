@@ -235,33 +235,6 @@ Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e,
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSearchTableWithProjection">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM QueryTable, LATERAL TABLE(
-VECTOR_SEARCH(
-    (SELECT add_one(e) as e1, g, proctime FROM VectorTableWithProctime), DESCRIPTOR(`g`), QueryTable.d, 10))]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e1=[$6], g=[$7], proctime0=[$8], score=[$9])
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, QueryTable]])
-   +- LogicalTableFunctionScan(invocation=[VECTOR_SEARCH(TABLE(#0), DESCRIPTOR(_UTF-16LE'g'), $cor0.d, 10)], rowType=[RecordType(BIGINT e1, FLOAT ARRAY g, TIMESTAMP_LTZ(3) *PROCTIME* proctime, DOUBLE score)])
-      +- LogicalProject(e1=[add_one(CAST($0):BIGINT)], g=[$2], proctime=[$3])
-         +- LogicalProject(e=[$0], f=[$1], g=[$2], proctime=[PROCTIME()])
-            +- LogicalTableScan(table=[[default_catalog, default_database, VectorTableWithProctime]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e1, g, PROCTIME_MATERIALIZE(proctime0) AS proctime0, score])
-+- VectorSearchTableFunction(table=[default_catalog.default_database.VectorTableWithProctime], joinType=[InnerJoin], columnToSearch=[g], columnToQuery=[d], topK=[10], select=[a, b, c, d, rowtime, proctime, add_one(CAST(e AS BIGINT)) AS e1, g, PROCTIME() AS proctime0, score])
-   +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
-      +- TableSourceScan(table=[[default_catalog, default_database, QueryTable]], fields=[a, b, c, d, rowtime])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testSearchTableWithMetadataTable">
     <Resource name="sql">
       <![CDATA[SELECT * FROM QueryTable, LATERAL TABLE(
@@ -288,6 +261,33 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e=[$
       <![CDATA[
 Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e, f, g, h, score])
 +- VectorSearchTableFunction(table=[default_catalog.default_database.VectorTableWithMetadata], joinType=[InnerJoin], columnToSearch=[g], columnToQuery=[d], topK=[10], select=[a, b, c, d, rowtime, proctime, e, f, g, +(e, 1) AS h, score])
+   +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
+      +- TableSourceScan(table=[[default_catalog, default_database, QueryTable]], fields=[a, b, c, d, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSearchTableWithProjection">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM QueryTable, LATERAL TABLE(
+VECTOR_SEARCH(
+    (SELECT add_one(e) as e1, g, proctime FROM VectorTableWithProctime), DESCRIPTOR(`g`), QueryTable.d, 10))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], e1=[$6], g=[$7], proctime0=[$8], score=[$9])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{3}])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, QueryTable]])
+   +- LogicalTableFunctionScan(invocation=[VECTOR_SEARCH(TABLE(#0), DESCRIPTOR(_UTF-16LE'g'), $cor0.d, 10)], rowType=[RecordType(BIGINT e1, FLOAT ARRAY g, TIMESTAMP_LTZ(3) *PROCTIME* proctime, DOUBLE score)])
+      +- LogicalProject(e1=[add_one(CAST($0):BIGINT)], g=[$2], proctime=[$3])
+         +- LogicalProject(e=[$0], f=[$1], g=[$2], proctime=[PROCTIME()])
+            +- LogicalTableScan(table=[[default_catalog, default_database, VectorTableWithProctime]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, e1, g, PROCTIME_MATERIALIZE(proctime0) AS proctime0, score])
++- VectorSearchTableFunction(table=[default_catalog.default_database.VectorTableWithProctime], joinType=[InnerJoin], columnToSearch=[g], columnToQuery=[d], topK=[10], select=[a, b, c, d, rowtime, proctime, add_one(CAST(e AS BIGINT)) AS e1, g, PROCTIME() AS proctime0, score])
    +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
       +- TableSourceScan(table=[[default_catalog, default_database, QueryTable]], fields=[a, b, c, d, rowtime])
 ]]>

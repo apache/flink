@@ -667,43 +667,6 @@ SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS b])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTwoPhaseSortAggOnSortMergeJoinWithHashShuffle">
-    <Resource name="sql">
-      <![CDATA[WITH r AS (SELECT * FROM T1, T2 WHERE a1 = a2 AND c1 LIKE 'He%')
-SELECT sum(b1) FROM r group by a1]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[$1])
-+- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
-   +- LogicalProject(a1=[$0], b1=[$1])
-      +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
-         +- LogicalFilter(condition=[AND(=($0, $4), LIKE($2, _UTF-16LE'He%'))])
-            +- LogicalJoin(condition=[true], joinType=[inner])
-               :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-               +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[EXPR$0])
-+- SortAggregate(isMerge=[true], groupBy=[a1], select=[a1, Final_SUM(sum$0) AS EXPR$0])
-   +- Exchange(distribution=[forward])
-      +- Sort(orderBy=[a1 ASC])
-         +- Exchange(distribution=[hash[a1]])
-            +- LocalSortAggregate(groupBy=[a1], select=[a1, Partial_SUM(b1) AS sum$0])
-               +- Exchange(distribution=[forward])
-                  +- Sort(orderBy=[a1 ASC])
-                     +- Calc(select=[a1, b1])
-                        +- SortMergeJoin(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, a2])
-                           :- Exchange(distribution=[hash[a1]])
-                           :  +- Calc(select=[a1, b1], where=[LIKE(c1, 'He%')])
-                           :     +- TableSourceScan(table=[[default_catalog, default_database, T1, filter=[], project=[a1, b1, c1], metadata=[]]], fields=[a1, b1, c1])
-                           +- Exchange(distribution=[hash[a2]])
-                              +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testSortJoinWithMultipleInputDisabled">
     <Resource name="sql">
       <![CDATA[SELECT * FROM
@@ -744,6 +707,43 @@ SortMergeJoin(joinType=[InnerJoin], where=[(a = d2)], select=[a, d2])
             :- Reused(reference_id=[1])
             +- Exchange(distribution=[hash[d2]])
                +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[d2], metadata=[]]], fields=[d2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTwoPhaseSortAggOnSortMergeJoinWithHashShuffle">
+    <Resource name="sql">
+      <![CDATA[WITH r AS (SELECT * FROM T1, T2 WHERE a1 = a2 AND c1 LIKE 'He%')
+SELECT sum(b1) FROM r group by a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
+   +- LogicalProject(a1=[$0], b1=[$1])
+      +- LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
+         +- LogicalFilter(condition=[AND(=($0, $4), LIKE($2, _UTF-16LE'He%'))])
+            +- LogicalJoin(condition=[true], joinType=[inner])
+               :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+               +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- SortAggregate(isMerge=[true], groupBy=[a1], select=[a1, Final_SUM(sum$0) AS EXPR$0])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a1 ASC])
+         +- Exchange(distribution=[hash[a1]])
+            +- LocalSortAggregate(groupBy=[a1], select=[a1, Partial_SUM(b1) AS sum$0])
+               +- Exchange(distribution=[forward])
+                  +- Sort(orderBy=[a1 ASC])
+                     +- Calc(select=[a1, b1])
+                        +- SortMergeJoin(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, a2])
+                           :- Exchange(distribution=[hash[a1]])
+                           :  +- Calc(select=[a1, b1], where=[LIKE(c1, 'He%')])
+                           :     +- TableSourceScan(table=[[default_catalog, default_database, T1, filter=[], project=[a1, b1, c1], metadata=[]]], fields=[a1, b1, c1])
+                           +- Exchange(distribution=[hash[a2]])
+                              +- TableSourceScan(table=[[default_catalog, default_database, T2, project=[a2], metadata=[]]], fields=[a2])
 ]]>
     </Resource>
   </TestCase>

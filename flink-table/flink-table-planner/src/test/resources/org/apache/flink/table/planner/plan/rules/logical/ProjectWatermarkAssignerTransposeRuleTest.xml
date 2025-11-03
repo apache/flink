@@ -163,26 +163,6 @@ LogicalProject(a=[$0], EXPR$1=[EXTRACT(FLAG(SECOND), $1)])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="transposeWithWatermarkWithMultipleInput">
-    <Resource name="sql">
-      <![CDATA[SELECT a FROM UdfTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0])
-+- LogicalWatermarkAssigner(rowtime=[b], watermark=[myFunc($1, $2)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, UdfTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(a=[$0])
-+- LogicalWatermarkAssigner(rowtime=[b], watermark=[myFunc($1, $2)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, UdfTable]])
-]]>
-		</Resource>
-	</TestCase>
   <TestCase name="transposeWithIncludeComputedRowTime">
     <Resource name="sql">
       <![CDATA[SELECT a, b, d FROM VirtualTable]]>
@@ -201,6 +181,26 @@ LogicalWatermarkAssigner(rowtime=[d], watermark=[-($2, 5000:INTERVAL SECOND)])
 +- LogicalProject(a=[$0], b=[$1], d=[$3])
    +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
       +- LogicalTableScan(table=[[default_catalog, default_database, VirtualTable]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="transposeWithNestedField">
+    <Resource name="sql">
+      <![CDATA[SELECT b, d.d1, d.d2 FROM SimpleTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$1], d1=[$3.d1], d2=[$3.d2])
++- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(b=[$0], d1=[$1.d1], d2=[$1.d2])
++- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
+   +- LogicalProject(b=[$1], d=[$3], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
 ]]>
     </Resource>
   </TestCase>
@@ -224,23 +224,23 @@ LogicalProject(b=[$0], a=[$1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="transposeWithNestedField">
+  <TestCase name="transposeWithWatermarkWithMultipleInput">
     <Resource name="sql">
-      <![CDATA[SELECT b, d.d1, d.d2 FROM SimpleTable]]>
+      <![CDATA[SELECT a FROM UdfTable]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(b=[$1], d1=[$3.d1], d2=[$3.d2])
-+- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
-   +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
+LogicalProject(a=[$0])
++- LogicalWatermarkAssigner(rowtime=[b], watermark=[myFunc($1, $2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, UdfTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(b=[$0], d1=[$1.d1], d2=[$1.d2])
-+- LogicalWatermarkAssigner(rowtime=[c], watermark=[$2])
-   +- LogicalProject(b=[$1], d=[$3], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, SimpleTable]])
+LogicalProject(a=[$0])
++- LogicalWatermarkAssigner(rowtime=[b], watermark=[myFunc($1, $2)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, UdfTable]])
 ]]>
     </Resource>
   </TestCase>

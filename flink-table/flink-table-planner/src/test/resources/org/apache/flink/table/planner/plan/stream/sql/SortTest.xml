@@ -58,27 +58,6 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSortRowTimeSecondDesc">
-    <Resource name="sql">
-      <![CDATA[SELECT a FROM MyTable ORDER BY c, rowtime desc]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0])
-+- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last])
-   +- LogicalProject(a=[$0], c=[$2], rowtime=[$4])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a])
-+- Sort(orderBy=[c ASC, rowtime DESC])
-   +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testSortProcessingTimeSecond">
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c, proctime]]>
@@ -142,6 +121,27 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSortRowTimeDesc">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM MyTable ORDER BY rowtime desc, c]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first])
+   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a])
++- Sort(orderBy=[rowtime DESC, c ASC])
+   +- Exchange(distribution=[single])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSortRowTimeSecond">
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c, rowtime]]>
@@ -163,6 +163,27 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSortRowTimeSecondDesc">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM MyTable ORDER BY c, rowtime desc]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalSort(sort0=[$1], sort1=[$2], dir0=[ASC-nulls-first], dir1=[DESC-nulls-last])
+   +- LogicalProject(a=[$0], c=[$2], rowtime=[$4])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a])
++- Sort(orderBy=[c ASC, rowtime DESC])
+   +- Exchange(distribution=[single])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSortWithoutTime">
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY c]]>
@@ -179,27 +200,6 @@ LogicalProject(a=[$0])
       <![CDATA[
 Calc(select=[a])
 +- Sort(orderBy=[c ASC])
-   +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSortRowTimeDesc">
-    <Resource name="sql">
-      <![CDATA[SELECT a FROM MyTable ORDER BY rowtime desc, c]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0])
-+- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first])
-   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a])
-+- Sort(orderBy=[rowtime DESC, c ASC])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>

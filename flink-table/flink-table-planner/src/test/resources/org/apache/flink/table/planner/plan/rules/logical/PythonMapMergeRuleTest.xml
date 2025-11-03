@@ -16,21 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testMapOperationsChained">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(f0=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*($0, $1, $2).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*($0, $1, $2).f1, _UTF-16LE'f1')).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*($0, $1, $2).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*($0, $1, $2).f1, _UTF-16LE'f1')).f1, _UTF-16LE'f1')).f0, _UTF-16LE'f0')], f1=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*($0, $1, $2).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*($0, $1, $2).f1, _UTF-16LE'f1')).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*($0, $1, $2).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*($0, $1, $2).f1, _UTF-16LE'f1')).f1, _UTF-16LE'f1')).f1, _UTF-16LE'f1')])
-+- LogicalTableScan(table=[[default_catalog, default_database, source]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
-+- FlinkLogicalCalc(select=[*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(a, b, c))) AS f0])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, source]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testMapOperationMixedWithPandasUDFAndGeneralUDF">
     <Resource name="ast">
       <![CDATA[
@@ -45,6 +30,21 @@ FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
    +- FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
       +- FlinkLogicalCalc(select=[*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$6d0a5b48d8e66954803fdd965425adec*(a, b, c) AS f0])
          +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, source]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMapOperationsChained">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*($0, $1, $2).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*($0, $1, $2).f1, _UTF-16LE'f1')).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*($0, $1, $2).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*($0, $1, $2).f1, _UTF-16LE'f1')).f1, _UTF-16LE'f1')).f0, _UTF-16LE'f0')], f1=[AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*($0, $1, $2).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*($0, $1, $2).f1, _UTF-16LE'f1')).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*($0, $1, $2).f0, _UTF-16LE'f0'), AS(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*($0, $1, $2).f1, _UTF-16LE'f1')).f1, _UTF-16LE'f1')).f1, _UTF-16LE'f1')])
++- LogicalTableScan(table=[[default_catalog, default_database, source]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
++- FlinkLogicalCalc(select=[*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$RowPythonScalarFunction$4548a2f7c9e382d11c82a28716e0fd02*(a, b, c))) AS f0])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, source]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

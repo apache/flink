@@ -551,36 +551,6 @@ GroupAggregate(select=[MAX(byte) AS EXPR$0, MAX(short) AS EXPR$1, MAX(int) AS EX
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSum">
-    <Resource name="sql">
-      <![CDATA[
-SELECT SUM(`byte`),
-       SUM(`short`),
-       SUM(`int`),
-       SUM(`long`),
-       SUM(`float`),
-       SUM(`double`),
-       SUM(`decimal3020`),
-       SUM(`decimal105`)
-FROM MyTable1
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[SUM($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)], EXPR$4=[SUM($4)], EXPR$5=[SUM($5)], EXPR$6=[SUM($6)], EXPR$7=[SUM($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
-+- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-GroupAggregate(select=[SUM(byte) AS EXPR$0, SUM(short) AS EXPR$1, SUM(int) AS EXPR$2, SUM(long) AS EXPR$3, SUM(float) AS EXPR$4, SUM(double) AS EXPR$5, SUM(decimal3020) AS EXPR$6, SUM(decimal105) AS EXPR$7]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
-+- Exchange(distribution=[single]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-   +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testMaxWithRetract">
     <Resource name="sql">
       <![CDATA[SELECT MAX(a) FROM (SELECT MAX(a) AS a FROM T GROUP BY b)]]>
@@ -662,6 +632,36 @@ GroupAggregate(select=[MIN(a) AS EXPR$0], changelogMode=[I,UA,D])
          +- Exchange(distribution=[hash[b]], changelogMode=[I])
             +- Calc(select=[b, a], changelogMode=[I])
                +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c, d], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSum">
+    <Resource name="sql">
+      <![CDATA[
+SELECT SUM(`byte`),
+       SUM(`short`),
+       SUM(`int`),
+       SUM(`long`),
+       SUM(`float`),
+       SUM(`double`),
+       SUM(`decimal3020`),
+       SUM(`decimal105`)
+FROM MyTable1
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[SUM($0)], EXPR$1=[SUM($1)], EXPR$2=[SUM($2)], EXPR$3=[SUM($3)], EXPR$4=[SUM($4)], EXPR$5=[SUM($5)], EXPR$6=[SUM($6)], EXPR$7=[SUM($7)]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
++- LogicalProject(byte=[$0], short=[$1], int=[$2], long=[$3], float=[$4], double=[$5], decimal3020=[$11], decimal105=[$12]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(select=[SUM(byte) AS EXPR$0, SUM(short) AS EXPR$1, SUM(int) AS EXPR$2, SUM(long) AS EXPR$3, SUM(float) AS EXPR$4, SUM(double) AS EXPR$5, SUM(decimal3020) AS EXPR$6, SUM(decimal105) AS EXPR$7]), rowType=[RecordType(TINYINT EXPR$0, SMALLINT EXPR$1, INTEGER EXPR$2, BIGINT EXPR$3, FLOAT EXPR$4, DOUBLE EXPR$5, DECIMAL(38, 20) EXPR$6, DECIMAL(38, 5) EXPR$7)]
++- Exchange(distribution=[single]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+   +- Calc(select=[byte, short, int, long, float, double, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[byte, short, int, long, float, double, boolean, string, date, time, timestamp, decimal3020, decimal105]), rowType=[RecordType(TINYINT byte, SMALLINT short, INTEGER int, BIGINT long, FLOAT float, DOUBLE double, BOOLEAN boolean, VARCHAR(2147483647) string, DATE date, TIME(0) time, TIMESTAMP(3) timestamp, DECIMAL(30, 20) decimal3020, DECIMAL(10, 5) decimal105)]
 ]]>
     </Resource>
   </TestCase>

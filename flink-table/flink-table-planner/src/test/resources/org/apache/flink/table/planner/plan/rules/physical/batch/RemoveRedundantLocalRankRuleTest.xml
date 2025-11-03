@@ -16,37 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testSameRankRange">
-    <Resource name="sql">
-      <![CDATA[
-SELECT a FROM (
- SELECT a, RANK() OVER(PARTITION BY a ORDER BY SUM(b)) rk FROM x GROUP BY a
-) WHERE rk <= 5
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0])
-+- LogicalFilter(condition=[<=($1, 5)])
-   +- LogicalProject(a=[$0], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
-      +- LogicalAggregate(group=[{0}], agg#0=[SUM($1)])
-         +- LogicalProject(a=[$0], b=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, x]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[a])
-+- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=5], partitionBy=[a], orderBy=[$f1 ASC], global=[true], select=[a, $f1])
-   +- Sort(orderBy=[a ASC, $f1 ASC])
-      +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS $f1])
-         +- Exchange(distribution=[hash[a]])
-            +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
-               +- Calc(select=[a, b])
-                  +- TableSourceScan(table=[[default_catalog, default_database, x]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testDiffRankRange">
     <Resource name="sql">
       <![CDATA[
@@ -106,6 +75,37 @@ Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=5], partitionBy=[a], order
       +- Exchange(distribution=[hash[a]])
          +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=5], partitionBy=[a], orderBy=[b ASC], global=[false], select=[a, b])
             +- Sort(orderBy=[a ASC, b ASC])
+               +- Calc(select=[a, b])
+                  +- TableSourceScan(table=[[default_catalog, default_database, x]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSameRankRange">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a FROM (
+ SELECT a, RANK() OVER(PARTITION BY a ORDER BY SUM(b)) rk FROM x GROUP BY a
+) WHERE rk <= 5
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalFilter(condition=[<=($1, 5)])
+   +- LogicalProject(a=[$0], rk=[RANK() OVER (PARTITION BY $0 ORDER BY $1 NULLS FIRST)])
+      +- LogicalAggregate(group=[{0}], agg#0=[SUM($1)])
+         +- LogicalProject(a=[$0], b=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, x]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a])
++- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=5], partitionBy=[a], orderBy=[$f1 ASC], global=[true], select=[a, $f1])
+   +- Sort(orderBy=[a ASC, $f1 ASC])
+      +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_SUM(sum$0) AS $f1])
+         +- Exchange(distribution=[hash[a]])
+            +- LocalHashAggregate(groupBy=[a], select=[a, Partial_SUM(b) AS sum$0])
                +- Calc(select=[a, b])
                   +- TableSourceScan(table=[[default_catalog, default_database, x]], fields=[a, b, c])
 ]]>

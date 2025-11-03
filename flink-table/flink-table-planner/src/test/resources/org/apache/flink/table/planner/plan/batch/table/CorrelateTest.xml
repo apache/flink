@@ -16,7 +16,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testCorrelateWithMultiFilterAndWithoutCalcMergeRules">
+  <TestCase name="testCorrelatePythonTableFunction">
+    <Resource name="ast">
+      <![CDATA[
+LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
+:- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
++- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.MockPythonTableFunction*($0, $1)], rowType=[RecordType(INTEGER x, INTEGER y)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+PythonCorrelate(invocation=[*org.apache.flink.table.planner.utils.MockPythonTableFunction*($0, $1)], correlate=[table(*org.apache.flink.table.planner.utils.MockPythonTableFunction*(a,b))], select=[a,b,c,x,y], rowType=[RecordType(INTEGER a, INTEGER b, VARCHAR(2147483647) c, INTEGER x, INTEGER y)], joinType=[INNER])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCorrelateWithMultiFilter">
     <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$0], d=[$1])
@@ -37,22 +52,7 @@ Calc(select=[c, d])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCorrelatePythonTableFunction">
-    <Resource name="ast">
-      <![CDATA[
-LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
-:- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-+- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.MockPythonTableFunction*($0, $1)], rowType=[RecordType(INTEGER x, INTEGER y)])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-PythonCorrelate(invocation=[*org.apache.flink.table.planner.utils.MockPythonTableFunction*($0, $1)], correlate=[table(*org.apache.flink.table.planner.utils.MockPythonTableFunction*(a,b))], select=[a,b,c,x,y], rowType=[RecordType(INTEGER a, INTEGER b, VARCHAR(2147483647) c, INTEGER x, INTEGER y)], joinType=[INNER])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testCorrelateWithMultiFilter">
+  <TestCase name="testCorrelateWithMultiFilterAndWithoutCalcMergeRules">
     <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$0], d=[$1])
@@ -107,6 +107,23 @@ Calc(select=[c, s])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testLeftOuterJoinWithLiteralTrue">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$2], s=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc1*($2)], rowType=[RecordType(VARCHAR(2147483647) s)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c, s])
++- Correlate(invocation=[*org.apache.flink.table.planner.utils.TableFunc1*($2)], correlate=[table(*org.apache.flink.table.planner.utils.TableFunc1*(c))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[LEFT])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testLeftOuterJoinWithoutJoinPredicates">
     <Resource name="ast">
       <![CDATA[
@@ -120,23 +137,6 @@ LogicalFilter(condition=[>($1, _UTF-16LE'')])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, s], where=[(s > '')])
-+- Correlate(invocation=[*org.apache.flink.table.planner.utils.TableFunc1*($2)], correlate=[table(*org.apache.flink.table.planner.utils.TableFunc1*(c))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[LEFT])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testLeftOuterJoinWithLiteralTrue">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(c=[$2], s=[$3])
-+- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{}])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc1*($2)], rowType=[RecordType(VARCHAR(2147483647) s)])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[c, s])
 +- Correlate(invocation=[*org.apache.flink.table.planner.utils.TableFunc1*($2)], correlate=[table(*org.apache.flink.table.planner.utils.TableFunc1*(c))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[LEFT])
    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>

@@ -494,15 +494,15 @@ GroupAggregate(groupBy=[b1], select=[b1, SUM(a1) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
-	<TestCase name="testWatermarkAssigner">
-		<Resource name="sql">
-			<![CDATA[
+  <TestCase name="testWatermarkAssigner">
+    <Resource name="sql">
+      <![CDATA[
 SELECT /*+ STATE_TTL('tableWithWatermark1'='1d', 'tww2' = '3d') */ tableWithWatermark1.* FROM tableWithWatermark1
 LEFT JOIN(SELECT DISTINCT b FROM tableWithWatermark2) tww2
 ON tableWithWatermark1.b = tww2.b WHERE tww2.b IS NOT NULL]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IS NOT NULL($3)])
    +- LogicalJoin(condition=[=($1, $3)], joinType=[left], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0] options:{tww2=3d, tableWithWatermark1=1d}]]])
@@ -514,9 +514,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
                +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, tableWithWatermark2]])
 ]]>
-		</Resource>
-		<Resource name="optimized rel plan">
-			<![CDATA[
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
 Calc(select=[a, b, c])
 +- Join(joinType=[InnerJoin], where=[=(b, b0)], select=[a, b, c, b0], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], stateTtlHints=[[[STATE_TTL options:{LEFT=1d, RIGHT=3d}]]])
    :- Exchange(distribution=[hash[b]])
@@ -531,17 +531,17 @@ Calc(select=[a, b, c])
                   +- Calc(select=[b, +(c.c1, 5000:INTERVAL SECOND) AS d])
                      +- TableSourceScan(table=[[default_catalog, default_database, tableWithWatermark2, project=[b, c], metadata=[]]], fields=[b, c])
 ]]>
-		</Resource>
-	</TestCase>
+    </Resource>
+  </TestCase>
   <TestCase name="testWatermarkAssignerWithAliases">
-		<Resource name="sql">
-			<![CDATA[
+    <Resource name="sql">
+      <![CDATA[
 SELECT /*+ STATE_TTL('tww1'='1d', 'tww2' = '3d') */ tww1.* FROM tableWithWatermark1 tww1
 LEFT JOIN(SELECT DISTINCT b FROM tableWithWatermark2) tww2
 ON tww1.b = tww2.b WHERE tww2.b IS NOT NULL]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalFilter(condition=[IS NOT NULL($3)])
    +- LogicalJoin(condition=[=($1, $3)], joinType=[left], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0] options:{tww2=3d, tww1=1d}]]])
@@ -553,9 +553,9 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
                +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[+($2.c1, 5000:INTERVAL SECOND)])
                   +- LogicalTableScan(table=[[default_catalog, default_database, tableWithWatermark2]])
 ]]>
-		</Resource>
-		<Resource name="optimized rel plan">
-			<![CDATA[
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
 Calc(select=[a, b, c])
 +- Join(joinType=[InnerJoin], where=[=(b, b0)], select=[a, b, c, b0], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], stateTtlHints=[[[STATE_TTL options:{LEFT=1d, RIGHT=3d}]]])
    :- Exchange(distribution=[hash[b]])
@@ -570,6 +570,6 @@ Calc(select=[a, b, c])
                   +- Calc(select=[b, +(c.c1, 5000:INTERVAL SECOND) AS d])
                      +- TableSourceScan(table=[[default_catalog, default_database, tableWithWatermark2, project=[b, c], metadata=[]]], fields=[b, c])
 ]]>
-		</Resource>
-	</TestCase>
+    </Resource>
+  </TestCase>
 </Root>

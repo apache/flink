@@ -96,11 +96,11 @@ GroupTableAggregate(groupBy=[f0], select=[f0, EmptyTableAggFuncWithIntResultType
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTableAggregateWithoutGroupBy">
+  <TestCase name="testTableAggregateWithSelectStar">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[*org.apache.flink.table.planner.expressions.utils.Func0$$6ad060e6c46e5cd996d7b888db472ebc*($0)], b=[$1])
-+- LogicalTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($0, $1)]])
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($1)]])
    +- LogicalWatermarkAssigner(rowtime=[d], watermark=[$3])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[PROCTIME()])
          +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
@@ -108,12 +108,11 @@ LogicalProject(a=[*org.apache.flink.table.planner.expressions.utils.Func0$$6ad06
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[*org.apache.flink.table.planner.expressions.utils.Func0$$6ad060e6c46e5cd996d7b888db472ebc*(f0) AS a, f1 AS b])
-+- GroupTableAggregate(select=[EmptyTableAggFunc(a, b) AS (f0, f1)])
-   +- Exchange(distribution=[single])
-      +- WatermarkAssigner(rowtime=[d], watermark=[d])
-         +- Calc(select=[a, b, c, d, PROCTIME() AS e])
-            +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d])
+GroupTableAggregate(select=[EmptyTableAggFunc(b) AS (f0, f1)])
++- Exchange(distribution=[single])
+   +- WatermarkAssigner(rowtime=[d], watermark=[d])
+      +- Calc(select=[a, b, c, d, PROCTIME() AS e])
+         +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -138,11 +137,11 @@ GroupTableAggregate(select=[EmptyTableAggFunc(d, e) AS (f0, f1)])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTableAggregateWithSelectStar">
+  <TestCase name="testTableAggregateWithoutGroupBy">
     <Resource name="ast">
       <![CDATA[
-LogicalProject(f0=[$0], f1=[$1])
-+- LogicalTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($1)]])
+LogicalProject(a=[*org.apache.flink.table.planner.expressions.utils.Func0$$6ad060e6c46e5cd996d7b888db472ebc*($0)], b=[$1])
++- LogicalTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($0, $1)]])
    +- LogicalWatermarkAssigner(rowtime=[d], watermark=[$3])
       +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[PROCTIME()])
          +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
@@ -150,11 +149,12 @@ LogicalProject(f0=[$0], f1=[$1])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-GroupTableAggregate(select=[EmptyTableAggFunc(b) AS (f0, f1)])
-+- Exchange(distribution=[single])
-   +- WatermarkAssigner(rowtime=[d], watermark=[d])
-      +- Calc(select=[a, b, c, d, PROCTIME() AS e])
-         +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d])
+Calc(select=[*org.apache.flink.table.planner.expressions.utils.Func0$$6ad060e6c46e5cd996d7b888db472ebc*(f0) AS a, f1 AS b])
++- GroupTableAggregate(select=[EmptyTableAggFunc(a, b) AS (f0, f1)])
+   +- Exchange(distribution=[single])
+      +- WatermarkAssigner(rowtime=[d], watermark=[d])
+         +- Calc(select=[a, b, c, d, PROCTIME() AS e])
+            +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>

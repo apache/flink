@@ -16,26 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testCalcMergeWithTopMultiNonDeterministicExpr">
-    <Resource name="sql">
-      <![CDATA[SELECT random_udf(a1) as a2, random_udf(a1) as a3 FROM (SELECT random_udf(a) as a1, b FROM MyTable) t WHERE b > 10]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a2=[random_udf($0)], a3=[random_udf($0)])
-+- LogicalFilter(condition=[>($1, 10)])
-   +- LogicalProject(a1=[random_udf($0)], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-FlinkLogicalCalc(select=[random_udf(a1) AS a2, random_udf(a1) AS a3])
-+- FlinkLogicalCalc(select=[random_udf(a) AS a1, b], where=[>(b, 10)])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testCalcMergeTopFilterHasNonDeterministicExpr">
     <Resource name="sql">
       <![CDATA[SELECT a, c FROM (SELECT a, random_udf(b) as b1, c FROM MyTable) t WHERE b1 > 10]]>
@@ -112,6 +92,26 @@ FlinkLogicalCalc(select=[random_udf(random_udf(a)) AS a2], where=[>(b, 10)])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCalcMergeWithNonDeterministicExpr1">
+    <Resource name="sql">
+      <![CDATA[SELECT a, a1 FROM (SELECT a, random_udf(a) AS a1 FROM MyTable) t WHERE a1 > 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], a1=[$1])
++- LogicalFilter(condition=[>($1, 10)])
+   +- LogicalProject(a=[$0], a1=[random_udf($0)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, a1], where=[>(a1, 10)])
++- FlinkLogicalCalc(select=[a, random_udf(a) AS a1])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testCalcMergeWithNonDeterministicExpr2">
     <Resource name="sql">
       <![CDATA[SELECT a FROM (SELECT a FROM MyTable) t WHERE random_udf(a) > 10]]>
@@ -127,25 +127,6 @@ LogicalProject(a=[$0])
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[a], where=[>(random_udf(a), 10)])
-+- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testCalcMergeWithoutInnerNonDeterministicExpr">
-    <Resource name="sql">
-      <![CDATA[SELECT a, c FROM (SELECT a, random_udf(a) as a1, c FROM MyTable) t WHERE c > 10]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], c=[$2])
-+- LogicalFilter(condition=[>(CAST($2):BIGINT, 10)])
-   +- LogicalProject(a=[$0], a1=[random_udf($0)], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-FlinkLogicalCalc(select=[a, c], where=[>(CAST(c AS BIGINT), 10)])
 +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -170,23 +151,42 @@ FlinkLogicalCalc(select=[a, b], where=[=(a, b)])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCalcMergeWithNonDeterministicExpr1">
+  <TestCase name="testCalcMergeWithTopMultiNonDeterministicExpr">
     <Resource name="sql">
-      <![CDATA[SELECT a, a1 FROM (SELECT a, random_udf(a) AS a1 FROM MyTable) t WHERE a1 > 10]]>
+      <![CDATA[SELECT random_udf(a1) as a2, random_udf(a1) as a3 FROM (SELECT random_udf(a) as a1, b FROM MyTable) t WHERE b > 10]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], a1=[$1])
+LogicalProject(a2=[random_udf($0)], a3=[random_udf($0)])
 +- LogicalFilter(condition=[>($1, 10)])
-   +- LogicalProject(a=[$0], a1=[random_udf($0)])
+   +- LogicalProject(a1=[random_udf($0)], b=[$1])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, a1], where=[>(a1, 10)])
-+- FlinkLogicalCalc(select=[a, random_udf(a) AS a1])
+FlinkLogicalCalc(select=[random_udf(a1) AS a2, random_udf(a1) AS a3])
++- FlinkLogicalCalc(select=[random_udf(a) AS a1, b], where=[>(b, 10)])
    +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcMergeWithoutInnerNonDeterministicExpr">
+    <Resource name="sql">
+      <![CDATA[SELECT a, c FROM (SELECT a, random_udf(a) as a1, c FROM MyTable) t WHERE c > 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2])
++- LogicalFilter(condition=[>(CAST($2):BIGINT, 10)])
+   +- LogicalProject(a=[$0], a1=[random_udf($0)], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, c], where=[>(CAST(c AS BIGINT), 10)])
++- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

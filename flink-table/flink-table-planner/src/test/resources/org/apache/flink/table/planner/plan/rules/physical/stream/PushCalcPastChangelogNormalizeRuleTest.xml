@@ -118,27 +118,6 @@ GroupAggregate(groupBy=[f0, f1, f2, f3], select=[f0, f1, f2, f3])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testWithMultiplePrimaryKeyColumns">
-    <Resource name="sql">
-      <![CDATA[SELECT f0, f1 FROM T WHERE (f1 < 1 OR f2 > 10) AND f0 IS NOT NULL]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(f0=[$0], f1=[$1])
-+- LogicalFilter(condition=[AND(OR(<($1, 1), >($2, 10)), IS NOT NULL($0))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[f0, f1])
-+- ChangelogNormalize(key=[f1, f2], condition=[IS NOT NULL(f0)])
-   +- Exchange(distribution=[hash[f1, f2]])
-      +- Calc(select=[f0, f1, f2], where=[OR(<(f1, 1), >(f2, 10))])
-         +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2, f3, f4, f5, f6, f7])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testNonPrimaryKeySeveralSameSources">
     <Resource name="sql">
       <![CDATA[SELECT * FROM T WHERE f3 < 1
@@ -219,25 +198,6 @@ GroupAggregate(groupBy=[f0, f1, f2, f3], select=[f0, f1, f2, f3])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testOnlyProjection">
-    <Resource name="sql">
-      <![CDATA[SELECT f1, f2 FROM T]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(f1=[$1], f2=[$2])
-+- LogicalTableScan(table=[[default_catalog, default_database, T]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-ChangelogNormalize(key=[f1])
-+- Exchange(distribution=[hash[f1]])
-   +- Calc(select=[f1, f2])
-      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2, f3])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testNonPrimaryKeySeveralSameSourcesWithFullPushDown">
     <Resource name="sql">
       <![CDATA[SELECT * FROM T WHERE f3 < 1 AND f3 > 0
@@ -271,6 +231,25 @@ GroupAggregate(groupBy=[f0, f1, f2, f3], select=[f0, f1, f2, f3])
          :- Exchange(distribution=[hash[f0, f1, f2, f3]])(reuse_id=[2])
          :  +- Reused(reference_id=[1])
          +- Reused(reference_id=[2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnlyProjection">
+    <Resource name="sql">
+      <![CDATA[SELECT f1, f2 FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f1=[$1], f2=[$2])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ChangelogNormalize(key=[f1])
++- Exchange(distribution=[hash[f1]])
+   +- Calc(select=[f1, f2])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2, f3])
 ]]>
     </Resource>
   </TestCase>
@@ -539,26 +518,6 @@ GroupAggregate(groupBy=[f0, f1, f2, f3], select=[f0, f1, f2, f3])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testWithSinglePrimaryKeyFilter">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM T WHERE f1 < 1]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(f0=[$0], f1=[$1], f2=[$2], f3=[$3])
-+- LogicalFilter(condition=[<($1, 1)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-ChangelogNormalize(key=[f1])
-+- Exchange(distribution=[hash[f1]])
-   +- Calc(select=[f0, f1, f2, f3], where=[<(f1, 1)])
-      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2, f3])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testWithMultipleFilters">
     <Resource name="sql">
       <![CDATA[SELECT f1, SUM(f1) AS `sum` FROM T WHERE f1 < 10 AND (f1 > 3 OR f2 IS NULL) GROUP BY f1]]>
@@ -578,6 +537,47 @@ Calc(select=[f1, f1 AS sum])
    +- Exchange(distribution=[hash[f1]])
       +- Calc(select=[f1, f2], where=[<(f1, 10)])
          +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2, f3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithMultiplePrimaryKeyColumns">
+    <Resource name="sql">
+      <![CDATA[SELECT f0, f1 FROM T WHERE (f1 < 1 OR f2 > 10) AND f0 IS NOT NULL]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1])
++- LogicalFilter(condition=[AND(OR(<($1, 1), >($2, 10)), IS NOT NULL($0))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[f0, f1])
++- ChangelogNormalize(key=[f1, f2], condition=[IS NOT NULL(f0)])
+   +- Exchange(distribution=[hash[f1, f2]])
+      +- Calc(select=[f0, f1, f2], where=[OR(<(f1, 1), >(f2, 10))])
+         +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2, f3, f4, f5, f6, f7])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithSinglePrimaryKeyFilter">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T WHERE f1 < 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1], f2=[$2], f3=[$3])
++- LogicalFilter(condition=[<($1, 1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ChangelogNormalize(key=[f1])
++- Exchange(distribution=[hash[f1]])
+   +- Calc(select=[f0, f1, f2, f3], where=[<(f1, 1)])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2, f3])
 ]]>
     </Resource>
   </TestCase>

@@ -1498,46 +1498,6 @@ MultipleInput(readOrder=[0,0,1,1], members=[\nNestedLoopJoin(joinType=[LeftSemiJ
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultiNotExistsWithCorrelate">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND NOT EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) AND c >= 1 AND NOT EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
-+- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
-LogicalFilter(condition=[AND(=($cor0.b, $1), >(CAST($2):BIGINT, 50))])
-  LogicalTableScan(table=[[default_catalog, default_database, t]])
-})), >=(CAST($2):BIGINT, 1), NOT(EXISTS({
-LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
-  LogicalTableScan(table=[[default_catalog, default_database, t]])
-})))], variablesSet=[[$cor0]])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalTableScan(table=[[default_catalog, default_database, l]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, r]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-SortMergeJoin(joinType=[LeftAntiJoin], where=[(a = i)], select=[a, b, c, d, e, f])
-:- Exchange(distribution=[hash[a]])
-:  +- SortMergeJoin(joinType=[LeftAntiJoin], where=[(b = j)], select=[a, b, c, d, e, f])
-:     :- Exchange(distribution=[hash[b]])
-:     :  +- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f])
-:     :     :- Exchange(distribution=[hash[a]])
-:     :     :  +- Calc(select=[a, b, c], where=[(CAST(c AS BIGINT) >= 1)])
-:     :     :     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
-:     :     +- Exchange(distribution=[hash[d]])
-:     :        +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
-:     +- Exchange(distribution=[hash[j]])
-:        +- Calc(select=[j], where=[(CAST(k AS BIGINT) > 50)])
-:           +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])(reuse_id=[1])
-+- Exchange(distribution=[hash[i]])
-   +- Calc(select=[i], where=[(j < 100)])
-      +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testMultiInWithCorrelated1">
     <Resource name="sql">
       <![CDATA[SELECT * FROM l WHERE a IN (SELECT d FROM r WHERE c = f) AND b IN (SELECT j FROM t WHERE a = i AND k <> 'test')]]>
@@ -1707,6 +1667,46 @@ SortMergeJoin(joinType=[LeftSemiJoin], where=[(a = d)], select=[a, b, c])
          +- Exchange(distribution=[hash[j]])
             +- Calc(select=[j])
                +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiNotExistsWithCorrelate">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM l, r WHERE l.a = r.d AND NOT EXISTS (SELECT * FROM t t1 WHERE l.b = t1.j AND t1.k > 50) AND c >= 1 AND NOT EXISTS (SELECT * FROM t t2 WHERE l.a = t2.i AND t2.j < 100)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.b, $1), >(CAST($2):BIGINT, 50))])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
+})), >=(CAST($2):BIGINT, 1), NOT(EXISTS({
+LogicalFilter(condition=[AND(=($cor0.a, $0), <($1, 100))])
+  LogicalTableScan(table=[[default_catalog, default_database, t]])
+})))], variablesSet=[[$cor0]])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, l]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, r]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+SortMergeJoin(joinType=[LeftAntiJoin], where=[(a = i)], select=[a, b, c, d, e, f])
+:- Exchange(distribution=[hash[a]])
+:  +- SortMergeJoin(joinType=[LeftAntiJoin], where=[(b = j)], select=[a, b, c, d, e, f])
+:     :- Exchange(distribution=[hash[b]])
+:     :  +- SortMergeJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, b, c, d, e, f])
+:     :     :- Exchange(distribution=[hash[a]])
+:     :     :  +- Calc(select=[a, b, c], where=[(CAST(c AS BIGINT) >= 1)])
+:     :     :     +- TableSourceScan(table=[[default_catalog, default_database, l]], fields=[a, b, c])
+:     :     +- Exchange(distribution=[hash[d]])
+:     :        +- TableSourceScan(table=[[default_catalog, default_database, r]], fields=[d, e, f])
+:     +- Exchange(distribution=[hash[j]])
+:        +- Calc(select=[j], where=[(CAST(k AS BIGINT) > 50)])
+:           +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, j, k])(reuse_id=[1])
++- Exchange(distribution=[hash[i]])
+   +- Calc(select=[i], where=[(j < 100)])
+      +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>

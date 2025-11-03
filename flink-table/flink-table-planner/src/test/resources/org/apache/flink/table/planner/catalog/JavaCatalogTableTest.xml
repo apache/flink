@@ -109,6 +109,24 @@ GroupWindowAggregate(window=[TumblingGroupWindow('w$, rowtime, 600000)], select=
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testResolvingSchemaOfCustomCatalogTableTableApi[streamingMode = false]">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT()], window=[TumblingGroupWindow('w, rowtime, 600000)], properties=[])
+   +- LogicalProject(count=[$0], rowtime=[$1], proctime=[PROCTIME()], $f3=[1])
+      +- LogicalTableScan(table=[[testCatalog, default, testTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[Final_COUNT(count1$0) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[Partial_COUNT(*) AS count1$0])
+      +- TableSourceScan(table=[[testCatalog, default, testTable]], fields=[count, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testResolvingSchemaOfCustomCatalogTableTableApi[streamingMode = true]">
     <Resource name="ast">
       <![CDATA[
@@ -130,21 +148,29 @@ GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testResolvingSchemaOfCustomCatalogTableTableApi[streamingMode = false]">
+  <TestCase name="testTimeAttributeOfViewSelect[streamingMode = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM `cat`.`default`.v]]>
+    </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[$0])
-+- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT()], window=[TumblingGroupWindow('w, rowtime, 600000)], properties=[])
-   +- LogicalProject(count=[$0], rowtime=[$1], proctime=[PROCTIME()], $f3=[1])
-      +- LogicalTableScan(table=[[testCatalog, default, testTable]])
+LogicalProject(order_id=[$0], customer_id=[$1], product_id=[$2], ts=[$3])
++- LogicalProject(order_id=[$0], customer_id=[$1], product_id=[$5], ts=[$4])
+   +- LogicalCorrelate(correlation=[$cor2], joinType=[inner], requiredColumns=[{3}])
+      :- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$4])
+      :  +- LogicalTableScan(table=[[cat, default, t]])
+      +- LogicalProject(product_id=[$0])
+         +- Uncollect
+            +- LogicalProject(product_ids=[$cor2.product_ids])
+               +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-HashWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[Final_COUNT(count1$0) AS EXPR$0])
-+- Exchange(distribution=[single])
-   +- LocalHashWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 600000)], select=[Partial_COUNT(*) AS count1$0])
-      +- TableSourceScan(table=[[testCatalog, default, testTable]], fields=[count, rowtime])
+Calc(select=[order_id, customer_id, f0 AS product_id, ts])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor2.product_ids)], correlate=[table($UNNEST_ROWS$1($cor2.product_ids))], select=[order_id,customer_id,product_id,product_ids,ts,f0], rowType=[RecordType(INTEGER order_id, INTEGER customer_id, INTEGER product_id, INTEGER ARRAY product_ids, TIMESTAMP_LTZ(3) *ROWTIME* ts, INTEGER f0)], joinType=[INNER])
+   +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
+      +- TableSourceScan(table=[[cat, default, t]], fields=[order_id, customer_id, product_id, product_ids, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -176,32 +202,6 @@ Calc(select=[EXPR$0, window_start])
       +- LocalWindowAggregate(window=[TUMBLE(time_col=[ts], size=[10 min])], select=[SUM(i) AS sum$0, slice_end('w$) AS $slice_end])
          +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
             +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[i, ts])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testTimeAttributeOfViewSelect[streamingMode = true]">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM `cat`.`default`.v]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(order_id=[$0], customer_id=[$1], product_id=[$2], ts=[$3])
-+- LogicalProject(order_id=[$0], customer_id=[$1], product_id=[$5], ts=[$4])
-   +- LogicalCorrelate(correlation=[$cor2], joinType=[inner], requiredColumns=[{3}])
-      :- LogicalWatermarkAssigner(rowtime=[ts], watermark=[$4])
-      :  +- LogicalTableScan(table=[[cat, default, t]])
-      +- LogicalProject(product_id=[$0])
-         +- Uncollect
-            +- LogicalProject(product_ids=[$cor2.product_ids])
-               +- LogicalValues(tuples=[[{ 0 }]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[order_id, customer_id, f0 AS product_id, ts])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor2.product_ids)], correlate=[table($UNNEST_ROWS$1($cor2.product_ids))], select=[order_id,customer_id,product_id,product_ids,ts,f0], rowType=[RecordType(INTEGER order_id, INTEGER customer_id, INTEGER product_id, INTEGER ARRAY product_ids, TIMESTAMP_LTZ(3) *ROWTIME* ts, INTEGER f0)], joinType=[INNER])
-   +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
-      +- TableSourceScan(table=[[cat, default, t]], fields=[order_id, customer_id, product_id, product_ids, ts])
 ]]>
     </Resource>
   </TestCase>

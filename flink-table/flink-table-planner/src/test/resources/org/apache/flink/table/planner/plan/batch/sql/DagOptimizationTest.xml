@@ -578,40 +578,6 @@ Sink(table=[default_catalog.default_database.sink2], fields=[total_min])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultiSinksWithWindow">
-    <Resource name="ast">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink1], fields=[a, sum_c, time, window_start, window_end])
-+- LogicalProject(a=[$1], sum_c=[$2], time=[TUMBLE_END($0)], window_start=[TUMBLE_START($0)], window_end=[TUMBLE_END($0)])
-   +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
-      +- LogicalProject($f0=[$TUMBLE($3, 15000:INTERVAL SECOND)], a=[$0], $f2=[CAST($2):DOUBLE])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-
-LogicalSink(table=[default_catalog.default_database.sink2], fields=[a, sum_c, time])
-+- LogicalProject(a=[$1], sum_c=[$2], time=[TUMBLE_END($0)])
-   +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
-      +- LogicalProject($f0=[$TUMBLE($3, 15000:INTERVAL SECOND)], a=[$0], $f2=[CAST($2):DOUBLE])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-HashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 15000)], properties=[w$start, w$end, w$rowtime], select=[a, Final_SUM(sum$0) AS sum_c])(reuse_id=[1])
-+- Exchange(distribution=[hash[a]])
-   +- LocalHashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 15000)], properties=[w$start, w$end, w$rowtime], select=[a, Partial_SUM(c) AS sum$0])
-      +- Calc(select=[ts, a, CAST(c AS DOUBLE) AS c])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, ts])
-
-Sink(table=[default_catalog.default_database.sink1], fields=[a, sum_c, time, window_start, window_end])
-+- Calc(select=[a, sum_c, w$end AS time, w$start AS window_start, w$end AS window_end])
-   +- Reused(reference_id=[1])
-
-Sink(table=[default_catalog.default_database.sink2], fields=[a, sum_c, time])
-+- Calc(select=[a, sum_c, w$end AS time])
-   +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testMultiSinksWithUDTF">
     <Resource name="ast">
       <![CDATA[
@@ -684,6 +650,40 @@ Sink(table=[default_catalog.default_database.sink2], fields=[a, total_c])
    :  +- Reused(reference_id=[2])
    +- Calc(select=[a, CAST(total_c AS BIGINT) AS total_c], where=[(a < 50)])
       +- Reused(reference_id=[3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiSinksWithWindow">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink1], fields=[a, sum_c, time, window_start, window_end])
++- LogicalProject(a=[$1], sum_c=[$2], time=[TUMBLE_END($0)], window_start=[TUMBLE_START($0)], window_end=[TUMBLE_END($0)])
+   +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
+      +- LogicalProject($f0=[$TUMBLE($3, 15000:INTERVAL SECOND)], a=[$0], $f2=[CAST($2):DOUBLE])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+
+LogicalSink(table=[default_catalog.default_database.sink2], fields=[a, sum_c, time])
++- LogicalProject(a=[$1], sum_c=[$2], time=[TUMBLE_END($0)])
+   +- LogicalAggregate(group=[{0, 1}], sum_c=[SUM($2)])
+      +- LogicalProject($f0=[$TUMBLE($3, 15000:INTERVAL SECOND)], a=[$0], $f2=[CAST($2):DOUBLE])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 15000)], properties=[w$start, w$end, w$rowtime], select=[a, Final_SUM(sum$0) AS sum_c])(reuse_id=[1])
++- Exchange(distribution=[hash[a]])
+   +- LocalHashWindowAggregate(groupBy=[a], window=[TumblingGroupWindow('w$, ts, 15000)], properties=[w$start, w$end, w$rowtime], select=[a, Partial_SUM(c) AS sum$0])
+      +- Calc(select=[ts, a, CAST(c AS DOUBLE) AS c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, ts])
+
+Sink(table=[default_catalog.default_database.sink1], fields=[a, sum_c, time, window_start, window_end])
++- Calc(select=[a, sum_c, w$end AS time, w$start AS window_start, w$end AS window_end])
+   +- Reused(reference_id=[1])
+
+Sink(table=[default_catalog.default_database.sink2], fields=[a, sum_c, time])
++- Calc(select=[a, sum_c, w$end AS time])
+   +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -835,6 +835,33 @@ Sink(table=[default_catalog.default_database.sink], fields=[a1, b1, c1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSingleSinkSplitOnUnion">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[total_sum])
++- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
+   +- LogicalProject(a=[$0])
+      +- LogicalUnion(all=[true])
+         :- LogicalProject(a=[$0], c=[$2])
+         :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+         +- LogicalProject(d=[$0], f=[$2])
+            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[total_sum])
++- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS total_sum])
+   +- Exchange(distribution=[single])
+      +- LocalHashAggregate(select=[Partial_SUM(a) AS sum$0])
+         +- Union(all=[true], union=[a])
+            :- Calc(select=[a])
+            :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+            +- Calc(select=[d AS a])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSingleSinkWithUDTF">
     <Resource name="ast">
       <![CDATA[
@@ -864,33 +891,6 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b, c, d, e, f, i,
       :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f])
       +- Exchange(distribution=[hash[i]])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[i, j, k, l, m])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSingleSinkSplitOnUnion">
-    <Resource name="ast">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink], fields=[total_sum])
-+- LogicalAggregate(group=[{}], total_sum=[SUM($0)])
-   +- LogicalProject(a=[$0])
-      +- LogicalUnion(all=[true])
-         :- LogicalProject(a=[$0], c=[$2])
-         :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-         +- LogicalProject(d=[$0], f=[$2])
-            +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.sink], fields=[total_sum])
-+- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS total_sum])
-   +- Exchange(distribution=[single])
-      +- LocalHashAggregate(select=[Partial_SUM(a) AS sum$0])
-         +- Union(all=[true], union=[a])
-            :- Calc(select=[a])
-            :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-            +- Calc(select=[d AS a])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[d, e, f])
 ]]>
     </Resource>
   </TestCase>

@@ -114,6 +114,18 @@ TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testTableApiScanWithTemporaryTable">
+    <Resource name="ast">
+      <![CDATA[
+LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[word])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testTableApiScanWithWatermark">
     <Resource name="ast">
       <![CDATA[
@@ -125,18 +137,6 @@ LogicalProject(a=[$0], b=[$1], c=[+($0, 1)], d=[TO_TIMESTAMP($1)], e=[my_udf($0)
       <![CDATA[
 Calc(select=[a, b, (a + 1) AS c, TO_TIMESTAMP(b) AS d, my_udf(a) AS e])
 +- TableSourceScan(table=[[default_catalog, default_database, c_watermark_t]], fields=[a, b])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testTableApiScanWithTemporaryTable">
-    <Resource name="ast">
-      <![CDATA[
-LogicalTableScan(table=[[default_catalog, default_database, t1]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[word])
 ]]>
     </Resource>
   </TestCase>

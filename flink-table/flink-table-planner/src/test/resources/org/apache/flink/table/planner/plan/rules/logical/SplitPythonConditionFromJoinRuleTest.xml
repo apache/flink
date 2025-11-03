@@ -16,30 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testPythonFunctionInJoinCondition">
-    <Resource name="sql">
-      <![CDATA[SELECT a, b, d FROM leftTable JOIN rightTable ON a=d and pyFunc(a, d)=b ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], d=[$3])
-+- LogicalJoin(condition=[AND(=($0, $3), =(pyFunc($0, $3), $1))], joinType=[inner])
-   :- LogicalTableScan(table=[[default_catalog, default_database, leftTable]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, rightTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-FlinkLogicalCalc(select=[a, b, d], where=[=(f0, b)])
-+- FlinkLogicalCalc(select=[a, b, d, pyFunc(a, d) AS f0])
-   +- FlinkLogicalJoin(condition=[=($0, $2)], joinType=[inner])
-      :- FlinkLogicalCalc(select=[a, b])
-      :  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, leftTable]], fields=[a, b, c])
-      +- FlinkLogicalCalc(select=[d])
-         +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, rightTable]], fields=[d, e, f])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testPythonFunctionInAboveFilter">
     <Resource name="sql">
       <![CDATA[
@@ -68,6 +44,30 @@ FlinkLogicalCalc(select=[a, +(d, 1) AS EXPR$1], where=[AND(=(f0, +(a, d)), =(f1,
 +- FlinkLogicalCalc(select=[a, d, pyFunc(a, a) AS f0, pyFunc(a, d) AS f1])
    +- FlinkLogicalJoin(condition=[=($0, $1)], joinType=[inner])
       :- FlinkLogicalCalc(select=[a])
+      :  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, leftTable]], fields=[a, b, c])
+      +- FlinkLogicalCalc(select=[d])
+         +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, rightTable]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPythonFunctionInJoinCondition">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, d FROM leftTable JOIN rightTable ON a=d and pyFunc(a, d)=b ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], d=[$3])
++- LogicalJoin(condition=[AND(=($0, $3), =(pyFunc($0, $3), $1))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, leftTable]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, rightTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, d], where=[=(f0, b)])
++- FlinkLogicalCalc(select=[a, b, d, pyFunc(a, d) AS f0])
+   +- FlinkLogicalJoin(condition=[=($0, $2)], joinType=[inner])
+      :- FlinkLogicalCalc(select=[a, b])
       :  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, leftTable]], fields=[a, b, c])
       +- FlinkLogicalCalc(select=[d])
          +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, rightTable]], fields=[d, e, f])

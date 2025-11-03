@@ -16,28 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testSemiJoinRightIsEmpty">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM T1 WHERE a IN (SELECT d FROM T2 WHERE 1=0)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[IN($0, {
-LogicalProject(d=[$0])
-  LogicalFilter(condition=[=(1, 0)])
-    LogicalTableScan(table=[[default_catalog, default_database, T2]])
-})])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalValues(tuples=[[]])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testAntiJoinRightIsEmpty">
     <Resource name="sql">
       <![CDATA[SELECT * FROM T1 WHERE a NOT IN (SELECT d FROM T2 WHERE 1=0)]]>
@@ -240,6 +218,28 @@ LogicalMinus(all=[false])
 LogicalAggregate(group=[{0, 1}])
 +- LogicalProject(X=[$0], Y=[$1])
    +- LogicalValues(tuples=[[{ 30, 3 }, { 30, 3 }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSemiJoinRightIsEmpty">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1 WHERE a IN (SELECT d FROM T2 WHERE 1=0)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=(1, 0)])
+    LogicalTableScan(table=[[default_catalog, default_database, T2]])
+})])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalValues(tuples=[[]])
 ]]>
     </Resource>
   </TestCase>

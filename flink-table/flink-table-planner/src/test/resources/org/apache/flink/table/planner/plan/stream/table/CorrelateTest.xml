@@ -181,28 +181,6 @@ Calc(select=[f0, f1_0 AS f1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testInnerJoinConstantNonDeterministicFunction">
-    <Resource name="sql">
-      <![CDATA[
-SELECT *
-FROM MyTable, LATERAL TABLE(str_split('Jack,John')) AS T
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$0=[$3])
-+- LogicalJoin(condition=[true], joinType=[inner])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalTableFunctionScan(invocation=[str_split(_UTF-16LE'Jack,John')], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Correlate(invocation=[str_split(_UTF-16LE'Jack,John')], correlate=[table(str_split('Jack,John'))], select=[a,b,c,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testHierarchyType">
     <Resource name="ast">
       <![CDATA[
@@ -240,24 +218,24 @@ Correlate(invocation=[str_split(_UTF-16LE'Jack,John', _UTF-16LE',')], correlate=
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testLeftJoinConstantNonDeterministicFunction">
+  <TestCase name="testInnerJoinConstantNonDeterministicFunction">
     <Resource name="sql">
       <![CDATA[
 SELECT *
-FROM MyTable Left JOIN LATERAL TABLE(str_split('Jack,John')) AS T ON TRUE
+FROM MyTable, LATERAL TABLE(str_split('Jack,John')) AS T
 ]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$0=[$3])
-+- LogicalJoin(condition=[true], joinType=[left])
++- LogicalJoin(condition=[true], joinType=[inner])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[str_split(_UTF-16LE'Jack,John')], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Correlate(invocation=[str_split(_UTF-16LE'Jack,John')], correlate=[table(str_split('Jack,John'))], select=[a,b,c,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) EXPR$0)], joinType=[LEFT])
+Correlate(invocation=[str_split(_UTF-16LE'Jack,John')], correlate=[table(str_split('Jack,John'))], select=[a,b,c,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -284,6 +262,28 @@ Correlate(invocation=[str_split(_UTF-16LE'Jack,John', _UTF-16LE',')], correlate=
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testLeftJoinConstantNonDeterministicFunction">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM MyTable Left JOIN LATERAL TABLE(str_split('Jack,John')) AS T ON TRUE
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], EXPR$0=[$3])
++- LogicalJoin(condition=[true], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[str_split(_UTF-16LE'Jack,John')], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Correlate(invocation=[str_split(_UTF-16LE'Jack,John')], correlate=[table(str_split('Jack,John'))], select=[a,b,c,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) EXPR$0)], joinType=[LEFT])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testLeftOuterJoinWithLiteralTrue">
     <Resource name="ast">
       <![CDATA[
@@ -301,21 +301,6 @@ Calc(select=[c, s])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testScalarFunction">
-    <Resource name="ast">
-      <![CDATA[
-LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
-:- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-+- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc1*(SUBSTRING($2, 2))], rowType=[RecordType(VARCHAR(2147483647) s)])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Correlate(invocation=[*org.apache.flink.table.planner.utils.TableFunc1*(SUBSTRING($2, 2))], correlate=[table(*org.apache.flink.table.planner.utils.TableFunc1*(SUBSTRING(c, 2)))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testPojoType">
     <Resource name="ast">
       <![CDATA[
@@ -327,6 +312,21 @@ LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
     <Resource name="optimized exec plan">
       <![CDATA[
 Correlate(invocation=[*org.apache.flink.table.planner.utils.PojoTableFunc*($2)], correlate=[table(*org.apache.flink.table.planner.utils.PojoTableFunc*(c))], select=[a,b,c,name,age], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) name, INTEGER age)], joinType=[INNER])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testScalarFunction">
+    <Resource name="ast">
+      <![CDATA[
+LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{}])
+:- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
++- LogicalTableFunctionScan(invocation=[*org.apache.flink.table.planner.utils.TableFunc1*(SUBSTRING($2, 2))], rowType=[RecordType(VARCHAR(2147483647) s)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Correlate(invocation=[*org.apache.flink.table.planner.utils.TableFunc1*(SUBSTRING($2, 2))], correlate=[table(*org.apache.flink.table.planner.utils.TableFunc1*(SUBSTRING(c, 2)))], select=[a,b,c,s], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) s)], joinType=[INNER])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>

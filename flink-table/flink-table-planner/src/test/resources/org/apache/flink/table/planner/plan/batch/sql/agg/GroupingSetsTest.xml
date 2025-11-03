@@ -374,30 +374,6 @@ Calc(select=[deptno, gender, CASE(($e = 0), 0, ($e = 1), 5, 7) AS EXPR$2, c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSimpleCube">
-    <Resource name="sql">
-      <![CDATA[SELECT deptno + 1, COUNT(*) AS c FROM emp GROUP BY CUBE(deptno, gender)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[+($0, 1)], c=[$2])
-+- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], c=[COUNT()])
-   +- LogicalProject(deptno=[$1], gender=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[(deptno + 1) AS EXPR$0, c])
-+- HashAggregate(isMerge=[true], groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Final_COUNT(count1$0) AS c])
-   +- Exchange(distribution=[hash[deptno, gender, $e]])
-      +- LocalHashAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Partial_COUNT(*) AS count1$0])
-         +- Expand(projects=[{deptno, gender, 0 AS $e}, {deptno, null AS gender, 1 AS $e}, {null AS deptno, gender, 2 AS $e}, {null AS deptno, null AS gender, 3 AS $e}])
-            +- Calc(select=[deptno, gender])
-               +- TableSourceScan(table=[[default_catalog, default_database, emp]], fields=[ename, deptno, gender])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testFromBlogspot">
     <Resource name="sql">
       <![CDATA[
@@ -537,6 +513,37 @@ Calc(select=[deptno, gender, CASE(SEARCH($e, Sarg[0, 1]), 0, 1) AS gd, CASE(($e 
          +- Expand(projects=[{deptno, gender, 0 AS $e}, {deptno, null AS gender, 1 AS $e}, {null AS deptno, gender, 2 AS $e}, {null AS deptno, null AS gender, 3 AS $e}])
             +- Calc(select=[deptno, gender])
                +- TableSourceScan(table=[[default_catalog, default_database, emp]], fields=[ename, deptno, gender])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupingInOrderByClause">
+    <Resource name="sql">
+      <![CDATA[
+SELECT COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno) ORDER BY GROUPING(deptno), c
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$0])
++- LogicalSort(sort0=[$1], sort1=[$0], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
+   +- LogicalProject(c=[$1], EXPR$1=[$2])
+      +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()], agg#1=[GROUPING($0)])
+         +- LogicalProject(deptno=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c])
++- Sort(orderBy=[EXPR$1 ASC, c ASC])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[c, CASE(($e = 0), 0, 1) AS EXPR$1])
+         +- HashAggregate(isMerge=[true], groupBy=[deptno, $e], select=[deptno, $e, Final_COUNT(count1$0) AS c])
+            +- Exchange(distribution=[hash[deptno, $e]])
+               +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
+                  +- Expand(projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
+                     +- Calc(select=[deptno])
+                        +- TableSourceScan(table=[[default_catalog, default_database, emp]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -728,37 +735,6 @@ Calc(select=[EXPR$0, c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testGroupingInOrderByClause">
-    <Resource name="sql">
-      <![CDATA[
-SELECT COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno) ORDER BY GROUPING(deptno), c
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(c=[$0])
-+- LogicalSort(sort0=[$1], sort1=[$0], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
-   +- LogicalProject(c=[$1], EXPR$1=[$2])
-      +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()], agg#1=[GROUPING($0)])
-         +- LogicalProject(deptno=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[c])
-+- Sort(orderBy=[EXPR$1 ASC, c ASC])
-   +- Exchange(distribution=[single])
-      +- Calc(select=[c, CASE(($e = 0), 0, 1) AS EXPR$1])
-         +- HashAggregate(isMerge=[true], groupBy=[deptno, $e], select=[deptno, $e, Final_COUNT(count1$0) AS c])
-            +- Exchange(distribution=[hash[deptno, $e]])
-               +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
-                  +- Expand(projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
-                     +- Calc(select=[deptno])
-                        +- TableSourceScan(table=[[default_catalog, default_database, emp]], fields=[ename, deptno, gender])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testGroupingSetsOutputsNullability">
     <Resource name="sql">
       <![CDATA[
@@ -938,6 +914,30 @@ Calc(select=[($f0 + 1) AS half1, c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRollupOn1Column">
+    <Resource name="sql">
+      <![CDATA[SELECT deptno + 1, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 1)], c=[$1])
++- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
+   +- LogicalProject(deptno=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[(deptno + 1) AS EXPR$0, c])
++- HashAggregate(isMerge=[true], groupBy=[deptno, $e], select=[deptno, $e, Final_COUNT(count1$0) AS c])
+   +- Exchange(distribution=[hash[deptno, $e]])
+      +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
+         +- Expand(projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
+            +- Calc(select=[deptno])
+               +- TableSourceScan(table=[[default_catalog, default_database, emp]], fields=[ename, deptno, gender])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRollupOn2Column">
     <Resource name="sql">
       <![CDATA[
@@ -1040,26 +1040,26 @@ Calc(select=[(deptno + 1) AS d1, c], where=[(c > 3)])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRollupOn1Column">
+  <TestCase name="testSimpleCube">
     <Resource name="sql">
-      <![CDATA[SELECT deptno + 1, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno)]]>
+      <![CDATA[SELECT deptno + 1, COUNT(*) AS c FROM emp GROUP BY CUBE(deptno, gender)]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[+($0, 1)], c=[$1])
-+- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
-   +- LogicalProject(deptno=[$1])
+LogicalProject(EXPR$0=[+($0, 1)], c=[$2])
++- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], c=[COUNT()])
+   +- LogicalProject(deptno=[$1], gender=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[(deptno + 1) AS EXPR$0, c])
-+- HashAggregate(isMerge=[true], groupBy=[deptno, $e], select=[deptno, $e, Final_COUNT(count1$0) AS c])
-   +- Exchange(distribution=[hash[deptno, $e]])
-      +- LocalHashAggregate(groupBy=[deptno, $e], select=[deptno, $e, Partial_COUNT(*) AS count1$0])
-         +- Expand(projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
-            +- Calc(select=[deptno])
++- HashAggregate(isMerge=[true], groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Final_COUNT(count1$0) AS c])
+   +- Exchange(distribution=[hash[deptno, gender, $e]])
+      +- LocalHashAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, Partial_COUNT(*) AS count1$0])
+         +- Expand(projects=[{deptno, gender, 0 AS $e}, {deptno, null AS gender, 1 AS $e}, {null AS deptno, gender, 2 AS $e}, {null AS deptno, null AS gender, 3 AS $e}])
+            +- Calc(select=[deptno, gender])
                +- TableSourceScan(table=[[default_catalog, default_database, emp]], fields=[ename, deptno, gender])
 ]]>
     </Resource>

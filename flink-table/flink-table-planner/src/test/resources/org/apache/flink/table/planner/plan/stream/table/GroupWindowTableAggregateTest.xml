@@ -42,6 +42,27 @@ Calc(select=[EXPR$0, f1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSingleWindow">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$1], _c1=[AS(+($2, 1), _UTF-16LE'_c1')], EXPR$0=[$3], EXPR$1=[$4])
++- LogicalWindowTableAggregate(group=[{2}], tableAggregate=[[EmptyTableAggFunc($0, $1)]], window=[TumblingGroupWindow('w, d, 5)], properties=[EXPR$0, EXPR$1])
+   +- LogicalWatermarkAssigner(rowtime=[d], watermark=[$3])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[PROCTIME()])
+         +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[f0, (f1 + 1) AS _c1, EXPR$0, EXPR$1])
++- GroupWindowTableAggregate(groupBy=[c], window=[TumblingGroupWindow('w, d, 5)], properties=[EXPR$0, EXPR$1], select=[c, EmptyTableAggFunc(a, b) AS (f0, f1), start('w) AS EXPR$0, end('w) AS EXPR$1])
+   +- Exchange(distribution=[hash[c]])
+      +- WatermarkAssigner(rowtime=[d], watermark=[d])
+         +- Calc(select=[a, b, c, d, PROCTIME() AS e])
+            +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testTimeMaterializer">
     <Resource name="ast">
       <![CDATA[
@@ -61,27 +82,6 @@ Calc(select=[f0, (f1 + 1) AS _c1, EXPR$0, EXPR$1])
          +- WatermarkAssigner(rowtime=[d], watermark=[d])
             +- Calc(select=[a, b, c, d, PROCTIME() AS e])
                +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSingleWindow">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(f0=[$1], _c1=[AS(+($2, 1), _UTF-16LE'_c1')], EXPR$0=[$3], EXPR$1=[$4])
-+- LogicalWindowTableAggregate(group=[{2}], tableAggregate=[[EmptyTableAggFunc($0, $1)]], window=[TumblingGroupWindow('w, d, 5)], properties=[EXPR$0, EXPR$1])
-   +- LogicalWatermarkAssigner(rowtime=[d], watermark=[$3])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[PROCTIME()])
-         +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[f0, (f1 + 1) AS _c1, EXPR$0, EXPR$1])
-+- GroupWindowTableAggregate(groupBy=[c], window=[TumblingGroupWindow('w, d, 5)], properties=[EXPR$0, EXPR$1], select=[c, EmptyTableAggFunc(a, b) AS (f0, f1), start('w) AS EXPR$0, end('w) AS EXPR$1])
-   +- Exchange(distribution=[hash[c]])
-      +- WatermarkAssigner(rowtime=[d], watermark=[d])
-         +- Calc(select=[a, b, c, d, PROCTIME() AS e])
-            +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>

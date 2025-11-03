@@ -174,26 +174,6 @@ Union(all=[true], union=[f0, f1, f2])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testValuesOverrideSchema">
-    <Resource name="ast">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(a=[CAST(+(1, 2)):BIGINT], b=[CAST(_UTF-16LE'ABC':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
-:  +- LogicalValues(tuples=[[{ 0 }]])
-+- LogicalProject(a=[CAST(2:BIGINT):BIGINT], b=[CAST(_UTF-16LE'ABC':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
-   +- LogicalValues(tuples=[[{ 0 }]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Union(all=[true], union=[a, b])
-:- Calc(select=[CAST(3 AS BIGINT) AS a, CAST('ABC' AS VARCHAR(2147483647)) AS b])
-:  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
-+- Calc(select=[CAST(2 AS BIGINT) AS a, CAST('ABC' AS VARCHAR(2147483647)) AS b])
-   +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testValuesFromRowObjectInCollection">
     <Resource name="ast">
       <![CDATA[
@@ -226,6 +206,40 @@ Union(all=[true], union=[a, b])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testValuesOverrideNullability">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[CAST(+(1, 2)):BIGINT NOT NULL], b=[_UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE"], c=[X'01020300':BINARY(4)])
++- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[3 AS a, 'ABC' AS b, X'01020300' AS c])
++- Values(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testValuesOverrideSchema">
+    <Resource name="ast">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[CAST(+(1, 2)):BIGINT], b=[CAST(_UTF-16LE'ABC':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
+:  +- LogicalValues(tuples=[[{ 0 }]])
++- LogicalProject(a=[CAST(2:BIGINT):BIGINT], b=[CAST(_UTF-16LE'ABC':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
+   +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Union(all=[true], union=[a, b])
+:- Calc(select=[CAST(3 AS BIGINT) AS a, CAST('ABC' AS VARCHAR(2147483647)) AS b])
+:  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
++- Calc(select=[CAST(2 AS BIGINT) AS a, CAST('ABC' AS VARCHAR(2147483647)) AS b])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testValuesWithComplexNesting">
     <Resource name="ast">
       <![CDATA[
@@ -243,20 +257,6 @@ Union(all=[true], union=[number, row, array])
 :  +- Values(tuples=[[{ 0 }]])(reuse_id=[1])
 +- Calc(select=[CAST(3.141592653589793E0 AS DOUBLE) AS number, ROW('ABC  ', 3.0E0, ROW(00:00:00)) AS row, ARRAY(3) AS array])
    +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testValuesOverrideNullability">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[CAST(+(1, 2)):BIGINT NOT NULL], b=[_UTF-16LE'ABC':VARCHAR(4) CHARACTER SET "UTF-16LE"], c=[X'01020300':BINARY(4)])
-+- LogicalValues(tuples=[[{ 0 }]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[3 AS a, 'ABC' AS b, X'01020300' AS c])
-+- Values(tuples=[[{ 0 }]])
 ]]>
     </Resource>
   </TestCase>

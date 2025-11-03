@@ -50,23 +50,6 @@ Calc(select=[f1 AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testOnlyLastNonNull">
-    <Resource name="sql">
-      <![CDATA[SELECT COALESCE(f0, f1) FROM T]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[COALESCE($0, $1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, T]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[COALESCE(f0, f1) AS EXPR$0])
-+- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testDropLastConstant">
     <Resource name="sql">
       <![CDATA[SELECT COALESCE(f0, f1, '-') FROM T]]>
@@ -159,6 +142,23 @@ LogicalProject(EXPR$0=[COALESCE(1)], EXPR$1=[COALESCE(1, 2)], EXPR$2=[COALESCE(n
       <![CDATA[
 Calc(select=[1 AS EXPR$0, 1 AS EXPR$1, 2 AS EXPR$2, 1 AS EXPR$3, 3 AS EXPR$4, 4 AS EXPR$5, '1' AS EXPR$6, '1' AS EXPR$7, '2' AS EXPR$8, '1' AS EXPR$9, '3' AS EXPR$10, '4' AS EXPR$11, 1.0 AS EXPR$12, 1.0 AS EXPR$13, 2E0 AS EXPR$14, 2E0 AS EXPR$15, 2.0 AS EXPR$16, null:DOUBLE AS EXPR$17])
 +- Values(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnlyLastNonNull">
+    <Resource name="sql">
+      <![CDATA[SELECT COALESCE(f0, f1) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[COALESCE($0, $1)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[COALESCE(f0, f1) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
 ]]>
     </Resource>
   </TestCase>

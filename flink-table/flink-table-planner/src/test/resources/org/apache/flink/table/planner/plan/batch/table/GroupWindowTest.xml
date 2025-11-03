@@ -67,23 +67,6 @@ HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)],
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testLongEventTimeTumblingGroupWindowWithProperties">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(string=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3])
-   +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Final_COUNT(count$0) AS EXPR$0])
-+- Exchange(distribution=[hash[string]])
-   +- LocalHashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Partial_COUNT(int) AS count$0])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[ts, int, string])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testEventTimeTumblingGroupWindowOverTimeWithUdAgg">
     <Resource name="ast">
       <![CDATA[
@@ -103,6 +86,23 @@ SortWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, long, 5)],
             +- Calc(select=[long, int, string, CAST(int AS BIGINT) AS int0])
                +- Sort(orderBy=[string ASC, long ASC])
                   +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[long, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLongEventTimeTumblingGroupWindowWithProperties">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3], EXPR$3=[$4])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Final_COUNT(count$0) AS EXPR$0])
++- Exchange(distribution=[hash[string]])
+   +- LocalHashWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, ts, 7200000)], properties=[EXPR$1, EXPR$2, EXPR$3], select=[string, Partial_COUNT(int) AS count$0])
+      +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[ts, int, string])
 ]]>
     </Resource>
   </TestCase>

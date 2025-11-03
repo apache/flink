@@ -41,30 +41,6 @@ GroupAggregate(groupBy=[cat, gmt_date], select=[cat, gmt_date, SUM(cnt) AS EXPR$
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCalcMerge">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM ( 
-   SELECT *, SUBSTR(CAST(LOCALTIME AS VARCHAR), 1, 2) hh
-   FROM src
- ) t1 WHERE hh > 12 AND cat LIKE 'fruit%'
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], cat=[$2], gmt_date=[$3], cnt=[$4], ts=[$5], hh=[$6])
-+- LogicalFilter(condition=[AND(>(CAST($6):BIGINT, 12), LIKE($2, _UTF-16LE'fruit%'))])
-   +- LogicalProject(a=[$0], b=[$1], cat=[$2], gmt_date=[$3], cnt=[$4], ts=[$5], hh=[SUBSTR(CAST(LOCALTIME):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, 1, 2)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, b, cat, gmt_date, cnt, ts, hh], where=[((CAST(hh AS BIGINT) > 12) AND LIKE(cat, 'fruit%'))])
-+- Calc(select=[a, b, cat, gmt_date, cnt, ts, SUBSTR(CAST(LOCALTIME() AS VARCHAR(2147483647)), 1, 2) AS hh])
-   +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b, cat, gmt_date, cnt, ts])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testAggregateReduceConstants2">
     <Resource name="sql">
       <![CDATA[SELECT
@@ -117,6 +93,30 @@ Calc(select=[gmt_date, ts, 'fruit' AS cat, SUBSTR(CAST(ts AS VARCHAR(2147483647)
    +- Exchange(distribution=[hash[gmt_date, ts]])
       +- Calc(select=[gmt_date, ts, cnt], where=[((gmt_date = CURRENT_DATE()) AND (cat = 'fruit') AND (ts = CURRENT_TIME()))])
          +- TableSourceScan(table=[[default_catalog, default_database, src, filter=[], project=[cat, gmt_date, cnt, ts], metadata=[]]], fields=[cat, gmt_date, cnt, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcMerge">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM ( 
+   SELECT *, SUBSTR(CAST(LOCALTIME AS VARCHAR), 1, 2) hh
+   FROM src
+ ) t1 WHERE hh > 12 AND cat LIKE 'fruit%'
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], cat=[$2], gmt_date=[$3], cnt=[$4], ts=[$5], hh=[$6])
++- LogicalFilter(condition=[AND(>(CAST($6):BIGINT, 12), LIKE($2, _UTF-16LE'fruit%'))])
+   +- LogicalProject(a=[$0], b=[$1], cat=[$2], gmt_date=[$3], cnt=[$4], ts=[$5], hh=[SUBSTR(CAST(LOCALTIME):VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL, 1, 2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, cat, gmt_date, cnt, ts, hh], where=[((CAST(hh AS BIGINT) > 12) AND LIKE(cat, 'fruit%'))])
++- Calc(select=[a, b, cat, gmt_date, cnt, ts, SUBSTR(CAST(LOCALTIME() AS VARCHAR(2147483647)), 1, 2) AS hh])
+   +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b, cat, gmt_date, cnt, ts])
 ]]>
     </Resource>
   </TestCase>

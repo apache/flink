@@ -86,6 +86,52 @@ Calc(select=[EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCountWithoutGroupBy">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(a) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
++- LogicalProject(a=[$0])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GlobalGroupAggregate(select=[COUNT(count$0) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- LocalGroupAggregate(select=[COUNT(a) AS count$0])
+      +- Calc(select=[a])
+         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupAggregateWithConstant">
+    <Resource name="sql">
+      <![CDATA[SELECT four, SUM(a) FROM (SELECT b, 4 AS four, a FROM MyTable) GROUP BY b, four]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(four=[$1], EXPR$1=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$1=[SUM($2)])
+   +- LogicalProject(b=[$1], four=[4], a=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[4 AS four, EXPR$1])
++- GlobalGroupAggregate(groupBy=[b], select=[b, SUM(sum$0) AS EXPR$1])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalGroupAggregate(groupBy=[b], select=[b, SUM(a) AS sum$0])
+         +- Calc(select=[b, a])
+            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testGroupAggregateWithExpressionInSelect">
     <Resource name="sql">
       <![CDATA[SELECT MIN(c), AVG(a) FROM (SELECT a, b + 3 AS d, c FROM MyTable) GROUP BY d]]>
@@ -111,28 +157,6 @@ Calc(select=[EXPR$0, EXPR$1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testCountWithoutGroupBy">
-    <Resource name="sql">
-      <![CDATA[SELECT COUNT(a) FROM MyTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{}], EXPR$0=[COUNT($0)])
-+- LogicalProject(a=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-GlobalGroupAggregate(select=[COUNT(count$0) AS EXPR$0])
-+- Exchange(distribution=[single])
-   +- LocalGroupAggregate(select=[COUNT(a) AS count$0])
-      +- Calc(select=[a])
-         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testGroupAggregateWithFilter">
     <Resource name="sql">
       <![CDATA[SELECT * FROM (SELECT b, SUM(a) FROM MyTable GROUP BY b) WHERE b = 2]]>
@@ -153,30 +177,6 @@ Calc(select=[CAST(2 AS BIGINT) AS b, EXPR$1])
    +- Exchange(distribution=[hash[b]])
       +- LocalGroupAggregate(groupBy=[b], select=[b, SUM(a) AS sum$0])
          +- Calc(select=[CAST(2 AS BIGINT) AS b, a], where=[(b = 2)])
-            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testGroupAggregateWithConstant">
-    <Resource name="sql">
-      <![CDATA[SELECT four, SUM(a) FROM (SELECT b, 4 AS four, a FROM MyTable) GROUP BY b, four]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(four=[$1], EXPR$1=[$2])
-+- LogicalAggregate(group=[{0, 1}], EXPR$1=[SUM($2)])
-   +- LogicalProject(b=[$1], four=[4], a=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[4 AS four, EXPR$1])
-+- GlobalGroupAggregate(groupBy=[b], select=[b, SUM(sum$0) AS EXPR$1])
-   +- Exchange(distribution=[hash[b]])
-      +- LocalGroupAggregate(groupBy=[b], select=[b, SUM(a) AS sum$0])
-         +- Calc(select=[b, a])
             +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
                +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
