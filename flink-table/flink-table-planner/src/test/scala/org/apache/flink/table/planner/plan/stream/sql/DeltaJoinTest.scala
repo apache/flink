@@ -284,6 +284,33 @@ class DeltaJoinTest extends TableTestBase {
   }
 
   @Test
+  def testLookupTableWithCache(): Unit = {
+    val lookupOptions = new JHashMap[String, String]()
+    lookupOptions.put("lookup.cache", "partial")
+    lookupOptions.put("lookup.partial-cache.max-rows", "1000")
+
+    addTable(
+      "lc_src",
+      Schema
+        .newBuilder()
+        .column("a0", DataTypes.INT.notNull)
+        .column("a1", DataTypes.DOUBLE.notNull)
+        .column("a2", DataTypes.STRING)
+        .column("a3", DataTypes.INT)
+        .index("a1", "a2")
+        .index("a3")
+        .build(),
+      lookupOptions
+    )
+
+    util.verifyExplainInsert(
+      "insert into snk select * from lc_src join src2 " +
+        "on lc_src.a1 = src2.b1 " +
+        "and lc_src.a2 = src2.b2",
+      ExplainDetail.PLAN_ADVICE)
+  }
+
+  @Test
   def testWithWatermarkAssigner(): Unit = {
     addTable(
       "wm_source",
