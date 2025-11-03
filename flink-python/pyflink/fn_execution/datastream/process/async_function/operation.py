@@ -21,10 +21,10 @@ import threading
 from datetime import datetime
 from typing import TypeVar, Generic, List, Iterable, Callable, Optional
 
-from pyflink.datastream import RuntimeContext, ResultFuture
+from pyflink.datastream import RuntimeContext
 from pyflink.datastream.functions import AsyncFunctionDescriptor, AsyncRetryStrategy
 from pyflink.fn_execution.datastream.process.async_function.queue import \
-    UnorderedStreamElementQueue, StreamElementQueue, OrderedStreamElementQueue
+    UnorderedStreamElementQueue, StreamElementQueue, OrderedStreamElementQueue, ResultFuture
 from pyflink.fn_execution.datastream.process.operations import Operation
 from pyflink.fn_execution.datastream.process.runtime_context import StreamingRuntimeContext
 
@@ -63,7 +63,7 @@ class ResultHandler(ResultFuture, Generic[IN, OUT]):
 
     def __init__(self,
                  classname: str,
-                 timeout_func: Callable[[IN, ResultFuture[OUT]], None],
+                 timeout_func: Callable[[IN], List[OUT]],
                  exception_handler: Callable[[Exception], None],
                  record: IN,
                  result_future: ResultFuture[OUT]):
@@ -115,7 +115,11 @@ class ResultHandler(ResultFuture, Generic[IN, OUT]):
 
     def _timer_triggered(self):
         if not self._completed.get():
-            self._timeout_func(self._record, self)
+            try:
+                result = self._timeout_func(self._record)
+                self._result_future.complete(result)
+            except Exception as e:
+                self._result_future.complete_exceptionally(e)
 
 
 class RetryableResultHandler(ResultFuture, Generic[IN, OUT]):
@@ -192,7 +196,11 @@ class RetryableResultHandler(ResultFuture, Generic[IN, OUT]):
             # force reset _retry_awaiting to prevent the handler to trigger retry unnecessarily
             self._retry_awaiting.set(False)
 
-            self._result_handler._timeout_func(self._result_handler._record, self)
+            try:
+                result = self._result_handler._timeout_func(self._result_handler._record)
+                self._result_handler.complete(result)
+            except Exception as e:
+                self._result_handler.complete_exceptionally(e)
 
 
 class Emitter(threading.Thread):
@@ -223,9 +231,8 @@ class Emitter(threading.Thread):
 
 
 class AsyncFunctionRunner(threading.Thread):
-    def __init__(self, exception_handler: Callable[[Exception], None]):
+    def __init__(self):
         super().__init__()
-        self._exception_handler = exception_handler
         self._loop = None
         self._ready = threading.Event()
 
@@ -251,14 +258,15 @@ class AsyncFunctionRunner(threading.Thread):
             self._loop.call_soon_threadsafe(self._loop.stop)
             self.join(timeout=1.0)
 
-    async def exception_handler_wrapper(self, async_function, *arg):
+    async def exception_handler_wrapper(self, async_function, record, result_handler):
         try:
-            await async_function(*arg)
+            result = await async_function(record)
+            result_handler.complete(result)
         except Exception as e:
-            self._exception_handler(e)
+            result_handler.complete_exceptionally(e)
 
-    def run_async(self, async_function, *arg):
-        wrapped_function = self.exception_handler_wrapper(async_function, *arg)
+    def run_async(self, async_function, record, result_handler):
+        wrapped_function = self.exception_handler_wrapper(async_function, record, result_handler)
         asyncio.run_coroutine_threadsafe(wrapped_function, self._loop)
 
 
@@ -306,7 +314,7 @@ class AsyncOperation(Operation):
         self._emitter.daemon = True
         self._emitter.start()
 
-        self._async_function_runner = AsyncFunctionRunner(self._mark_exception)
+        self._async_function_runner = AsyncFunctionRunner()
         self._async_function_runner.daemon = True
         self._async_function_runner.start()
         self._async_function_runner.wait_ready()
