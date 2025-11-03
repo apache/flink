@@ -240,13 +240,13 @@ public class DeltaJoinUtil {
         while (changed) {
             // unwrap cache delegator
             if (lookupFunction instanceof CachingAsyncLookupFunction) {
-                lookupFunction = ((CachingAsyncLookupFunction) temporalTable).getDelegate();
+                lookupFunction = ((CachingAsyncLookupFunction) lookupFunction).getDelegate();
                 continue;
             }
             // unwrap retryable delegator
             if (lookupFunction instanceof RetryableAsyncLookupFunctionDelegator) {
                 lookupFunction =
-                        ((RetryableAsyncLookupFunctionDelegator) temporalTable)
+                        ((RetryableAsyncLookupFunctionDelegator) lookupFunction)
                                 .getUserLookupFunction();
                 continue;
             }
