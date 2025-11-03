@@ -90,6 +90,14 @@ public class ForStFlinkFileSystem extends FileSystem implements Closeable {
         this.fileMappingManager = new FileMappingManager(delegateFS, remoteBase, localBase);
     }
 
+    protected ForStFlinkFileSystem(ForStFlinkFileSystem forStFlinkFileSystem) {
+        this.localFS = forStFlinkFileSystem.localFS;
+        this.delegateFS = forStFlinkFileSystem.delegateFS;
+        this.remoteBase = forStFlinkFileSystem.remoteBase;
+        this.fileBasedCache = forStFlinkFileSystem.fileBasedCache;
+        this.fileMappingManager = forStFlinkFileSystem.fileMappingManager;
+    }
+
     /**
      * Returns a reference to the {@link FileSystem} instance for accessing the file system
      * identified by the given {@link URI}.
