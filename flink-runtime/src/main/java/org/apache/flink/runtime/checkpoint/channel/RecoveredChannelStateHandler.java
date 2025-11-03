@@ -158,19 +158,27 @@ class ResultSubpartitionRecoveredStateHandler
 
     private final ResultPartitionWriter[] writers;
     private final boolean notifyAndBlockOnCompletion;
-
-    private final InflightDataRescalingDescriptor channelMapping;
-
-    private final Map<ResultSubpartitionInfo, List<ResultSubpartitionInfo>> rescaledChannels =
-            new HashMap<>();
-    private final Map<Integer, RescaleMappings> oldToNewMappings = new HashMap<>();
+    private final ResultSubpartitionDistributor resultSubpartitionDistributor;
 
     ResultSubpartitionRecoveredStateHandler(
             ResultPartitionWriter[] writers,
             boolean notifyAndBlockOnCompletion,
             InflightDataRescalingDescriptor channelMapping) {
         this.writers = writers;
-        this.channelMapping = channelMapping;
+        this.resultSubpartitionDistributor =
+                new ResultSubpartitionDistributor(channelMapping) {
+                    /**
+                     * Override the getSubpartitionInfo to perform type checking on the
+                     * ResultPartitionWriter.
+                     */
+                    @Override
+                    ResultSubpartitionInfo getSubpartitionInfo(
+                            int partitionIndex, int subPartitionIdx) {
+                        CheckpointedResultPartition writer =
+                                getCheckpointedResultPartition(partitionIndex);
+                        return writer.getCheckpointedSubpartitionInfo(subPartitionIdx);
+                    }
+                };
         this.notifyAndBlockOnCompletion = notifyAndBlockOnCompletion;
     }
 
@@ -197,7 +205,7 @@ class ResultSubpartitionRecoveredStateHandler
                 return;
             }
             final List<ResultSubpartitionInfo> mappedSubpartitions =
-                    getMappedSubpartitions(subpartitionInfo);
+                    resultSubpartitionDistributor.getMappedSubpartitions(subpartitionInfo);
             CheckpointedResultPartition checkpointedResultPartition =
                     getCheckpointedResultPartition(subpartitionInfo.getPartitionIdx());
             for (final ResultSubpartitionInfo mappedSubpartition : mappedSubpartitions) {
@@ -215,11 +223,6 @@ class ResultSubpartitionRecoveredStateHandler
         }
     }
 
-    private ResultSubpartitionInfo getSubpartitionInfo(int partitionIndex, int subPartitionIdx) {
-        CheckpointedResultPartition writer = getCheckpointedResultPartition(partitionIndex);
-        return writer.getCheckpointedSubpartitionInfo(subPartitionIdx);
-    }
-
     private CheckpointedResultPartition getCheckpointedResultPartition(int partitionIndex) {
         ResultPartitionWriter writer = writers[partitionIndex];
         if (!(writer instanceof CheckpointedResultPartition)) {
@@ -227,32 +230,6 @@ class ResultSubpartitionRecoveredStateHandler
                     "Cannot restore state to a non-checkpointable partition type: " + writer);
         }
         return (CheckpointedResultPartition) writer;
-    }
-
-    private List<ResultSubpartitionInfo> getMappedSubpartitions(
-            ResultSubpartitionInfo subpartitionInfo) {
-        return rescaledChannels.computeIfAbsent(subpartitionInfo, this::calculateMapping);
-    }
-
-    private List<ResultSubpartitionInfo> calculateMapping(ResultSubpartitionInfo info) {
-        final RescaleMappings oldToNewMapping =
-                oldToNewMappings.computeIfAbsent(
-                        info.getPartitionIdx(),
-                        idx -> channelMapping.getChannelMapping(idx).invert());
-        final List<ResultSubpartitionInfo> subpartitions =
-                Arrays.stream(oldToNewMapping.getMappedIndexes(info.getSubPartitionIdx()))
-                        .mapToObj(
-                                newIndexes ->
-                                        getSubpartitionInfo(info.getPartitionIdx(), newIndexes))
-                        .collect(Collectors.toList());
-        if (subpartitions.isEmpty()) {
-            throw new IllegalStateException(
-                    "Recovered a buffer from old "
-                            + info
-                            + " that has no mapping in "
-                            + channelMapping.getChannelMapping(info.getPartitionIdx()));
-        }
-        return subpartitions;
     }
 
     @Override
