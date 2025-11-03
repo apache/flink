@@ -59,8 +59,8 @@ The difference between both cases is minimal: In the bounded/batch case, the enu
 
 Under normal circumstances, once the *SplitEnumerator* assigns *Splits* to *SourceReaders*, these *splits* are not reassigned to other readers again. When the source is recovering from a failure, the *splits* from the saved state will be added back to the readers immediately.
 
-When a source implements the `SupportsSplitReassignmentOnRecovery` interface, the recovery process behaves differently.
-Upon failure, instead of immediately reassigning the *splits* back to the same *SourceReaders*, all *splits* are collected and added back to the *SplitEnumerator*.
+When a source implements the {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/SupportsSplitReassignmentOnRecovery.java" name="SupportsSplitReassignmentOnRecovery" >}} interface, the recovery process behaves differently.
+On Recovery, instead of immediately reassigning the *splits* back to the same *SourceReaders*, all *splits* are collected and added back to the *SplitEnumerator*.
 The *SplitEnumerator* then takes responsibility for redistributing these *splits* among the available *SourceReaders* in a balanced manner.
 This mechanism enables more flexible and efficient recovery by allowing the central *SplitEnumerator* to make informed decisions about split distribution.
 
