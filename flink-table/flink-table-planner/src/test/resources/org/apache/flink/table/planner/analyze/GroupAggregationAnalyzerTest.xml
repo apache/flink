@@ -477,28 +477,6 @@ advice[1]: [ADVICE] You might want to enable local-global two-phase optimization
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testUserDefinedAggCalls[isMiniBatchEnabled=true, strategy=ONE_PHASE, miniBatchLatency=10, miniBatchSize=5]">
-    <Resource name="optimized rel plan with advice">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.MySink1], fields=[avg_a_1])
-+- Calc(select=[CAST(avg_a_1 AS DOUBLE) AS avg_a_1])
-   +- GroupAggregate(advice=[1], select=[weightedAvg(a, d) AS avg_a_1])
-      +- Exchange(distribution=[single])
-         +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, d], metadata=[]]], fields=[a, d])
-
-Sink(table=[default_catalog.default_database.MySink2], fields=[avg_a_1, avg_a_2])
-+- Calc(select=[CAST(avg_a_1 AS DOUBLE) AS avg_a_1, CAST(avg_a_2 AS DOUBLE) AS avg_a_2])
-   +- GroupAggregate(select=[weightedAvg(a, d) AS avg_a_1, weightedAvgWithoutMerge(a, d) AS avg_a_2])
-      +- Exchange(distribution=[single])
-         +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, d], metadata=[]]], fields=[a, d])
-
-advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.optimizer.agg-phase-strategy' to 'AUTO').
-
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testUserDefinedAggCalls[isMiniBatchEnabled=true, strategy=AUTO, miniBatchLatency=10, miniBatchSize=5]">
     <Resource name="optimized rel plan with advice">
       <![CDATA[
@@ -518,6 +496,28 @@ Sink(table=[default_catalog.default_database.MySink2], fields=[avg_a_1, avg_a_2]
             +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, d], metadata=[]]], fields=[a, d])
 
 No available advice...
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUserDefinedAggCalls[isMiniBatchEnabled=true, strategy=ONE_PHASE, miniBatchLatency=10, miniBatchSize=5]">
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.MySink1], fields=[avg_a_1])
++- Calc(select=[CAST(avg_a_1 AS DOUBLE) AS avg_a_1])
+   +- GroupAggregate(advice=[1], select=[weightedAvg(a, d) AS avg_a_1])
+      +- Exchange(distribution=[single])
+         +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, d], metadata=[]]], fields=[a, d])
+
+Sink(table=[default_catalog.default_database.MySink2], fields=[avg_a_1, avg_a_2])
++- Calc(select=[CAST(avg_a_1 AS DOUBLE) AS avg_a_1, CAST(avg_a_2 AS DOUBLE) AS avg_a_2])
+   +- GroupAggregate(select=[weightedAvg(a, d) AS avg_a_1, weightedAvgWithoutMerge(a, d) AS avg_a_2])
+      +- Exchange(distribution=[single])
+         +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, d], metadata=[]]], fields=[a, d])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.optimizer.agg-phase-strategy' to 'AUTO').
 
 ]]>
     </Resource>

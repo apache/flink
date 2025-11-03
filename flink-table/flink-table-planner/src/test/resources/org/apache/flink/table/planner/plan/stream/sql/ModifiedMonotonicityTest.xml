@@ -16,6 +16,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testMaxWithRetractOptimize">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, MAX(a3) FROM (SELECT a1, a2, MAX(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)])
++- LogicalProject(a1=[$0], a3=[$2])
+   +- LogicalAggregate(group=[{0, 1}], a3=[MAX($2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, A]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(groupBy=[a1], select=[a1, MAX(a3) AS EXPR$1], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[a1]], changelogMode=[I,UB,UA])
+   +- Calc(select=[a1, a3], changelogMode=[I,UB,UA])
+      +- GroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(a3) AS a3], changelogMode=[I,UB,UA])
+         +- Exchange(distribution=[hash[a1, a2]], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMaxWithRetractOptimizeWithLocalGlobal">
     <Resource name="sql">
       <![CDATA[SELECT a1, max(a3) from (SELECT a1, a2, max(a3) as a3 FROM A GROUP BY a1, a2) group by a1]]>
@@ -39,29 +62,6 @@ GlobalGroupAggregate(groupBy=[a1], select=[a1, MAX(max$0) AS EXPR$1], changelogM
                +- LocalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(a3) AS max$0], changelogMode=[I])
                   +- MiniBatchAssigner(interval=[100ms], mode=[ProcTime], changelogMode=[I])
                      +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testMaxWithRetractOptimize">
-    <Resource name="sql">
-      <![CDATA[SELECT a1, MAX(a3) FROM (SELECT a1, a2, MAX(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{0}], EXPR$1=[MAX($1)])
-+- LogicalProject(a1=[$0], a3=[$2])
-   +- LogicalAggregate(group=[{0, 1}], a3=[MAX($2)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, A]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-GroupAggregate(groupBy=[a1], select=[a1, MAX(a3) AS EXPR$1], changelogMode=[I,UA,D])
-+- Exchange(distribution=[hash[a1]], changelogMode=[I,UB,UA])
-   +- Calc(select=[a1, a3], changelogMode=[I,UB,UA])
-      +- GroupAggregate(groupBy=[a1, a2], select=[a1, a2, MAX(a3) AS a3], changelogMode=[I,UB,UA])
-         +- Exchange(distribution=[hash[a1, a2]], changelogMode=[I])
-            +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -114,6 +114,29 @@ GlobalGroupAggregate(groupBy=[a1], select=[a1, MIN_RETRACT(min$0) AS EXPR$1], ch
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testMinWithRetractOptimize">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, MIN(a3) FROM (SELECT a1, a2, MIN(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)])
++- LogicalProject(a1=[$0], a3=[$2])
+   +- LogicalAggregate(group=[{0, 1}], a3=[MIN($2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, A]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(groupBy=[a1], select=[a1, MIN(a3) AS EXPR$1], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[a1]], changelogMode=[I,UB,UA])
+   +- Calc(select=[a1, a3], changelogMode=[I,UB,UA])
+      +- GroupAggregate(groupBy=[a1, a2], select=[a1, a2, MIN(a3) AS a3], changelogMode=[I,UB,UA])
+         +- Exchange(distribution=[hash[a1, a2]], changelogMode=[I])
+            +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMinWithRetractOptimizeWithLocalGlobal">
     <Resource name="sql">
       <![CDATA[SELECT min(a3) from (SELECT a1, a2, min(a3) as a3 FROM A GROUP BY a1, a2)]]>
@@ -137,29 +160,6 @@ GlobalGroupAggregate(select=[MIN(min$0) AS EXPR$0], changelogMode=[I,UA,D])
                +- LocalGroupAggregate(groupBy=[a1, a2], select=[a1, a2, MIN(a3) AS min$0], changelogMode=[I])
                   +- MiniBatchAssigner(interval=[100ms], mode=[ProcTime], changelogMode=[I])
                      +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testMinWithRetractOptimize">
-    <Resource name="sql">
-      <![CDATA[SELECT a1, MIN(a3) FROM (SELECT a1, a2, MIN(a3) AS a3 FROM A GROUP BY a1, a2) t GROUP BY a1]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{0}], EXPR$1=[MIN($1)])
-+- LogicalProject(a1=[$0], a3=[$2])
-   +- LogicalAggregate(group=[{0, 1}], a3=[MIN($2)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, A]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-GroupAggregate(groupBy=[a1], select=[a1, MIN(a3) AS EXPR$1], changelogMode=[I,UA,D])
-+- Exchange(distribution=[hash[a1]], changelogMode=[I,UB,UA])
-   +- Calc(select=[a1, a3], changelogMode=[I,UB,UA])
-      +- GroupAggregate(groupBy=[a1, a2], select=[a1, a2, MIN(a3) AS a3], changelogMode=[I,UB,UA])
-         +- Exchange(distribution=[hash[a1, a2]], changelogMode=[I])
-            +- DataStreamScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>

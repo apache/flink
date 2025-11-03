@@ -137,46 +137,6 @@ SortAggregate(isMerge=[true], groupBy=[f0], select=[f0, Final_COUNT(count1$0) AS
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonArrayAgg[batchMode = false]">
-    <Resource name="sql">
-      <![CDATA[SELECT JSON_ARRAYAGG(f0) FROM T]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{}], EXPR$0=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
-+- LogicalProject(f0=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-GroupAggregate(select=[JSON_ARRAYAGG_ABSENT_ON_NULL($f1) AS EXPR$0])
-+- Exchange(distribution=[single])
-   +- Calc(select=[f0, JSON_STRING(f0) AS $f1])
-      +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f0], metadata=[]]], fields=[f0])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testJsonArrayAgg[batchMode = true]">
-    <Resource name="sql">
-      <![CDATA[SELECT JSON_ARRAYAGG(f0) FROM T]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{}], EXPR$0=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
-+- LogicalProject(f0=[$0])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-SortAggregate(isMerge=[false], select=[JSON_ARRAYAGG_ABSENT_ON_NULL($f1) AS EXPR$0])
-+- Calc(select=[f0, JSON_STRING(f0) AS $f1])
-   +- Exchange(distribution=[single])
-      +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f0], metadata=[]]], fields=[f0])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testJsonArrayAggAndJsonObjectAggWithOtherAggs[batchMode = false]">
     <Resource name="sql">
       <![CDATA[SELECT MAX(f0), JSON_OBJECTAGG(f1 VALUE f0), JSON_ARRAYAGG(f1), JSON_ARRAYAGG(f0) FROM T]]>
@@ -298,44 +258,43 @@ SortAggregate(isMerge=[false], select=[COUNT(*) AS EXPR$0, JSON_ARRAYAGG_ABSENT_
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonObjectAgg[batchMode = false]">
+  <TestCase name="testJsonArrayAgg[batchMode = false]">
     <Resource name="sql">
-      <![CDATA[SELECT JSON_OBJECTAGG(f1 VALUE f1) FROM T]]>
+      <![CDATA[SELECT JSON_ARRAYAGG(f0) FROM T]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalAggregate(group=[{}], EXPR$0=[JSON_OBJECTAGG_NULL_ON_NULL($0, $0)])
-+- LogicalProject(f1=[$1])
+LogicalAggregate(group=[{}], EXPR$0=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
++- LogicalProject(f0=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-GroupAggregate(select=[JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1) AS EXPR$0])
+GroupAggregate(select=[JSON_ARRAYAGG_ABSENT_ON_NULL($f1) AS EXPR$0])
 +- Exchange(distribution=[single])
-   +- Calc(select=[f1, JSON_STRING(f1) AS $f1])
-      +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f1], metadata=[]]], fields=[f1])
+   +- Calc(select=[f0, JSON_STRING(f0) AS $f1])
+      +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f0], metadata=[]]], fields=[f0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonObjectAgg[batchMode = true]">
+  <TestCase name="testJsonArrayAgg[batchMode = true]">
     <Resource name="sql">
-      <![CDATA[SELECT JSON_OBJECTAGG(f1 VALUE f1) FROM T]]>
+      <![CDATA[SELECT JSON_ARRAYAGG(f0) FROM T]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalAggregate(group=[{}], EXPR$0=[JSON_OBJECTAGG_NULL_ON_NULL($0, $0)])
-+- LogicalProject(f1=[$1])
+LogicalAggregate(group=[{}], EXPR$0=[JSON_ARRAYAGG_ABSENT_ON_NULL($0)])
++- LogicalProject(f0=[$0])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-SortAggregate(isMerge=[true], select=[Final_JSON_OBJECTAGG_NULL_ON_NULL(EXPR$0) AS EXPR$0])
-+- Exchange(distribution=[single])
-   +- LocalSortAggregate(select=[Partial_JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1) AS EXPR$0])
-      +- Calc(select=[f1, JSON_STRING(f1) AS $f1])
-         +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f1], metadata=[]]], fields=[f1])
+SortAggregate(isMerge=[false], select=[JSON_ARRAYAGG_ABSENT_ON_NULL($f1) AS EXPR$0])
++- Calc(select=[f0, JSON_STRING(f0) AS $f1])
+   +- Exchange(distribution=[single])
+      +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f0], metadata=[]]], fields=[f0])
 ]]>
     </Resource>
   </TestCase>
@@ -382,6 +341,26 @@ SortAggregate(isMerge=[true], groupBy=[f0], select=[f0, Final_JSON_OBJECTAGG_NUL
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJsonObjectAggWithOtherAggs[batchMode = false]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(*), JSON_OBJECTAGG(f1 VALUE f1) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NULL($0, $0)])
++- LogicalProject(f1=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+GroupAggregate(select=[COUNT(*) AS EXPR$0, JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1) AS EXPR$1])
++- Exchange(distribution=[single])
+   +- Calc(select=[f1, JSON_STRING(f1) AS $f1])
+      +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f1], metadata=[]]], fields=[f1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testJsonObjectAggWithOtherAggs[batchMode = true]">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(*), JSON_OBJECTAGG(f1 VALUE f1) FROM T]]>
@@ -403,23 +382,44 @@ SortAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0, Final_JSO
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJsonObjectAggWithOtherAggs[batchMode = false]">
+  <TestCase name="testJsonObjectAgg[batchMode = false]">
     <Resource name="sql">
-      <![CDATA[SELECT COUNT(*), JSON_OBJECTAGG(f1 VALUE f1) FROM T]]>
+      <![CDATA[SELECT JSON_OBJECTAGG(f1 VALUE f1) FROM T]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalAggregate(group=[{}], EXPR$0=[COUNT()], EXPR$1=[JSON_OBJECTAGG_NULL_ON_NULL($0, $0)])
+LogicalAggregate(group=[{}], EXPR$0=[JSON_OBJECTAGG_NULL_ON_NULL($0, $0)])
 +- LogicalProject(f1=[$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-GroupAggregate(select=[COUNT(*) AS EXPR$0, JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1) AS EXPR$1])
+GroupAggregate(select=[JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- Calc(select=[f1, JSON_STRING(f1) AS $f1])
       +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f1], metadata=[]]], fields=[f1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJsonObjectAgg[batchMode = true]">
+    <Resource name="sql">
+      <![CDATA[SELECT JSON_OBJECTAGG(f1 VALUE f1) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[JSON_OBJECTAGG_NULL_ON_NULL($0, $0)])
++- LogicalProject(f1=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortAggregate(isMerge=[true], select=[Final_JSON_OBJECTAGG_NULL_ON_NULL(EXPR$0) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- LocalSortAggregate(select=[Partial_JSON_OBJECTAGG_NULL_ON_NULL($f1, $f1) AS EXPR$0])
+      +- Calc(select=[f1, JSON_STRING(f1) AS $f1])
+         +- TableSourceScan(table=[[default_catalog, default_database, T, project=[f1], metadata=[]]], fields=[f1])
 ]]>
     </Resource>
   </TestCase>

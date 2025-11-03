@@ -41,22 +41,6 @@ Union(all=[true], union=[EXPR$0, EXPR$1]), rowType=[RecordType(INTEGER EXPR$0, D
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSingleRow">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM (VALUES (1, 2, 3)) AS T(a, b, c)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalValues(tuples=[[{ 1, 2, 3 }]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Values(tuples=[[{ 1, 2, 3 }]])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testMultiRows">
     <Resource name="sql">
       <![CDATA[SELECT * FROM (VALUES (1, 2), (3, CAST(NULL AS INT)), (4, 5)) AS T(a, b)]]>
@@ -101,6 +85,22 @@ LogicalProject(EXPR$0=[$0])
       <![CDATA[
 Calc(select=[null:INTEGER AS EXPR$0])
 +- Values(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleRow">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM (VALUES (1, 2, 3)) AS T(a, b, c)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalValues(tuples=[[{ 1, 2, 3 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Values(tuples=[[{ 1, 2, 3 }]])
 ]]>
     </Resource>
   </TestCase>

@@ -16,36 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testSingleRowNotEquiJoin">
-    <Resource name="sql">
-      <![CDATA[SELECT a1, a2 FROM A, (SELECT COUNT(a1) AS cnt FROM A) WHERE a1 < cnt]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a1=[$0], a2=[$1])
-+- LogicalFilter(condition=[<($0, $2)])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalTableScan(table=[[default_catalog, default_database, A]])
-      +- LogicalAggregate(group=[{}], cnt=[COUNT($0)])
-         +- LogicalProject(a1=[$0])
-            +- LogicalTableScan(table=[[default_catalog, default_database, A]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a1, a2])
-+- NestedLoopJoin(joinType=[InnerJoin], where=[(a1 < cnt)], select=[a1, a2, cnt], build=[right], singleRowJoin=[true])
-   :- Exchange(distribution=[any], shuffle_mode=[BATCH])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2])(reuse_id=[1])
-   +- Exchange(distribution=[broadcast])
-      +- HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS cnt])
-         +- Exchange(distribution=[single])
-            +- LocalHashAggregate(select=[Partial_COUNT(a1) AS count$0])
-               +- Calc(select=[a1])
-                  +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testLeftSingleRightJoinEqualPredicate">
     <Resource name="sql">
       <![CDATA[SELECT a1 FROM (SELECT COUNT(*) AS cnt FROM B) RIGHT JOIN A ON cnt = a2]]>
@@ -82,6 +52,26 @@ LogicalProject(a1=[$1])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a1])
++- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightSingleLeftJoinEqualPredicate">
+    <Resource name="sql">
+      <![CDATA[SELECT a2 FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) AS x  ON a1 = cnt]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a2=[$1])
++- LogicalJoin(condition=[=($0, $2)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   +- LogicalAggregate(group=[{}], cnt=[COUNT()])
+      +- LogicalTableScan(table=[[default_catalog, default_database, B]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a2])
 +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2])
 ]]>
     </Resource>
@@ -135,23 +125,38 @@ NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a1, a_sum], build=[ri
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRightSingleLeftJoinEqualPredicate">
+  <TestCase name="testSingleRowJoinInnerJoin">
     <Resource name="sql">
-      <![CDATA[SELECT a2 FROM A LEFT JOIN (SELECT COUNT(*) AS cnt FROM B) AS x  ON a1 = cnt]]>
+      <![CDATA[SELECT a2, SUM(a1) FROM A GROUP BY a2 HAVING SUM(a1) > (SELECT SUM(a1) * 0.1 FROM A)]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a2=[$1])
-+- LogicalJoin(condition=[=($0, $2)], joinType=[left])
-   :- LogicalTableScan(table=[[default_catalog, default_database, A]])
-   +- LogicalAggregate(group=[{}], cnt=[COUNT()])
-      +- LogicalTableScan(table=[[default_catalog, default_database, B]])
+LogicalFilter(condition=[>($1, $SCALAR_QUERY({
+LogicalProject(EXPR$0=[*($0, 0.1:DECIMAL(2, 1))])
+  LogicalAggregate(group=[{}], agg#0=[SUM($0)])
+    LogicalProject(a1=[$0])
+      LogicalTableScan(table=[[default_catalog, default_database, A]])
+}))])
++- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
+   +- LogicalProject(a2=[$1], a1=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a2])
-+- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2])
+Calc(select=[a2, EXPR$1])
++- MultipleInput(readOrder=[0,1], members=[\nNestedLoopJoin(joinType=[InnerJoin], where=[(EXPR$1 > $f0)], select=[a2, EXPR$1, $f0], build=[right], singleRowJoin=[true])\n:- HashAggregate(isMerge=[true], groupBy=[a2], select=[a2, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#2] Exchange(distribution=[hash[a2]])\n+- [#1] Exchange(distribution=[broadcast])\n])
+   :- Exchange(distribution=[broadcast])
+   :  +- HashAggregate(isMerge=[false], select=[SINGLE_VALUE(EXPR$0) AS $f0])
+   :     +- Calc(select=[($f0 * 0.1) AS EXPR$0])
+   :        +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS $f0])
+   :           +- Exchange(distribution=[single])
+   :              +- LocalHashAggregate(select=[Partial_SUM(a1) AS sum$0])
+   :                 +- Calc(select=[a1])
+   :                    +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2])(reuse_id=[1])
+   +- Exchange(distribution=[hash[a2]])
+      +- LocalHashAggregate(groupBy=[a2], select=[a2, Partial_SUM(a1) AS sum$0])
+         +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -185,38 +190,33 @@ NestedLoopJoin(joinType=[InnerJoin], where=[((a1 < b1) AND (a2 = b2))], select=[
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSingleRowJoinInnerJoin">
+  <TestCase name="testSingleRowNotEquiJoin">
     <Resource name="sql">
-      <![CDATA[SELECT a2, SUM(a1) FROM A GROUP BY a2 HAVING SUM(a1) > (SELECT SUM(a1) * 0.1 FROM A)]]>
+      <![CDATA[SELECT a1, a2 FROM A, (SELECT COUNT(a1) AS cnt FROM A) WHERE a1 < cnt]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalFilter(condition=[>($1, $SCALAR_QUERY({
-LogicalProject(EXPR$0=[*($0, 0.1:DECIMAL(2, 1))])
-  LogicalAggregate(group=[{}], agg#0=[SUM($0)])
-    LogicalProject(a1=[$0])
-      LogicalTableScan(table=[[default_catalog, default_database, A]])
-}))])
-+- LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)])
-   +- LogicalProject(a2=[$1], a1=[$0])
-      +- LogicalTableScan(table=[[default_catalog, default_database, A]])
+LogicalProject(a1=[$0], a2=[$1])
++- LogicalFilter(condition=[<($0, $2)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+      +- LogicalAggregate(group=[{}], cnt=[COUNT($0)])
+         +- LogicalProject(a1=[$0])
+            +- LogicalTableScan(table=[[default_catalog, default_database, A]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a2, EXPR$1])
-+- MultipleInput(readOrder=[0,1], members=[\nNestedLoopJoin(joinType=[InnerJoin], where=[(EXPR$1 > $f0)], select=[a2, EXPR$1, $f0], build=[right], singleRowJoin=[true])\n:- HashAggregate(isMerge=[true], groupBy=[a2], select=[a2, Final_SUM(sum$0) AS EXPR$1])\n:  +- [#2] Exchange(distribution=[hash[a2]])\n+- [#1] Exchange(distribution=[broadcast])\n])
-   :- Exchange(distribution=[broadcast])
-   :  +- HashAggregate(isMerge=[false], select=[SINGLE_VALUE(EXPR$0) AS $f0])
-   :     +- Calc(select=[($f0 * 0.1) AS EXPR$0])
-   :        +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS $f0])
-   :           +- Exchange(distribution=[single])
-   :              +- LocalHashAggregate(select=[Partial_SUM(a1) AS sum$0])
-   :                 +- Calc(select=[a1])
-   :                    +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2])(reuse_id=[1])
-   +- Exchange(distribution=[hash[a2]])
-      +- LocalHashAggregate(groupBy=[a2], select=[a2, Partial_SUM(a1) AS sum$0])
-         +- Reused(reference_id=[1])
+Calc(select=[a1, a2])
++- NestedLoopJoin(joinType=[InnerJoin], where=[(a1 < cnt)], select=[a1, a2, cnt], build=[right], singleRowJoin=[true])
+   :- Exchange(distribution=[any], shuffle_mode=[BATCH])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2])(reuse_id=[1])
+   +- Exchange(distribution=[broadcast])
+      +- HashAggregate(isMerge=[true], select=[Final_COUNT(count$0) AS cnt])
+         +- Exchange(distribution=[single])
+            +- LocalHashAggregate(select=[Partial_COUNT(a1) AS count$0])
+               +- Calc(select=[a1])
+                  +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>

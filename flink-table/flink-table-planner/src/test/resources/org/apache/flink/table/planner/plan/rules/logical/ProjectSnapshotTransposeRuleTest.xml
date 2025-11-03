@@ -44,37 +44,6 @@ FlinkLogicalJoin(condition=[=($0, $5)], joinType=[inner])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinTemporalTableWithReorderedProject[mode = stream]">
-    <Resource name="sql">
-      <![CDATA[SELECT T.*, D.age, D.name, D.id
-FROM MyTable AS T
-JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
-ON T.a = D.id]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], age=[$7], name=[$6], id=[$5])
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
-   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalFilter(condition=[=($cor0.a, $0)])
-      +- LogicalSnapshot(period=[$cor0.proctime])
-         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-FlinkLogicalCalc(select=[a, b, c, proctime, rowtime, age, name, id])
-+- FlinkLogicalJoin(condition=[=($0, $5)], joinType=[inner])
-   :- FlinkLogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
-   :  +- FlinkLogicalCalc(select=[a, b, c, PROCTIME() AS proctime, TO_TIMESTAMP(FROM_UNIXTIME(c)) AS rowtime])
-   :     +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-   +- FlinkLogicalSnapshot(period=[$cor0.proctime])
-      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LookupTable]], fields=[id, name, age])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testJoinTemporalTableNotProjectable[mode = stream]">
     <Resource name="sql">
       <![CDATA[SELECT T.*, D.*
@@ -249,6 +218,37 @@ FlinkLogicalCalc(select=[a, b, c, proctime, rowtime, age, name, id])
 +- FlinkLogicalJoin(condition=[=($0, $5)], joinType=[inner])
    :- FlinkLogicalCalc(select=[a, b, c, PROCTIME() AS proctime, TO_TIMESTAMP(FROM_UNIXTIME(c)) AS rowtime])
    :  +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+   +- FlinkLogicalSnapshot(period=[$cor0.proctime])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LookupTable]], fields=[id, name, age])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinTemporalTableWithReorderedProject[mode = stream]">
+    <Resource name="sql">
+      <![CDATA[SELECT T.*, D.age, D.name, D.id
+FROM MyTable AS T
+JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
+ON T.a = D.id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], age=[$7], name=[$6], id=[$5])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
+   :  +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[TO_TIMESTAMP(FROM_UNIXTIME($2))])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalFilter(condition=[=($cor0.a, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, c, proctime, rowtime, age, name, id])
++- FlinkLogicalJoin(condition=[=($0, $5)], joinType=[inner])
+   :- FlinkLogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($4, 1000:INTERVAL SECOND)])
+   :  +- FlinkLogicalCalc(select=[a, b, c, PROCTIME() AS proctime, TO_TIMESTAMP(FROM_UNIXTIME(c)) AS rowtime])
+   :     +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
    +- FlinkLogicalSnapshot(period=[$cor0.proctime])
       +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, LookupTable]], fields=[id, name, age])
 ]]>

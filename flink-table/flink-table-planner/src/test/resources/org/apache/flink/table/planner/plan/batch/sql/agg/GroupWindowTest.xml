@@ -206,29 +206,6 @@ Calc(select=[EXPR$0, w$start AS EXPR$1], where=[(($f1 > 0) AND (EXTRACT(QUARTER,
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSlidingWindowSortAggWithPaneOptimization[aggStrategy=AUTO]">
-    <Resource name="sql">
-      <![CDATA[SELECT COUNT(c) FROM MyTable1 GROUP BY a, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[$2])
-+- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
-   +- LogicalProject(a=[$1], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[EXPR$0])
-+- HashWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Final_COUNT(count$0) AS EXPR$0])
-   +- Exchange(distribution=[hash[a]])
-      +- LocalHashWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Partial_COUNT(c) AS count$0])
-         +- Calc(select=[a, ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testNoGroupingSlidingWindow[aggStrategy=AUTO]">
     <Resource name="sql">
       <![CDATA[
@@ -380,6 +357,28 @@ HashWindowAggregate(window=[TumblingGroupWindow('w$, b, 3000)], select=[Final_AV
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testNonPartitionedSlidingWindow[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY HOP(ts, INTERVAL '15' MINUTE, INTERVAL '90' MINUTE)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(sumA=[$1], cntB=[$2])
++- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
+   +- LogicalProject($f0=[$HOP($4, 900000:INTERVAL MINUTE, 5400000:INTERVAL MINUTE)], a=[$0], b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], select=[Final_SUM(sum$0) AS sumA, Final_COUNT(count$1) AS cntB])
++- Exchange(distribution=[single])
+   +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], select=[Partial_SUM(a) AS sum$0, Partial_COUNT(b) AS count$1])
+      +- Calc(select=[ts, a, b])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testNonPartitionedSlidingWindow[aggStrategy=ONE_PHASE]">
     <Resource name="sql">
       <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY HOP(ts, INTERVAL '15' MINUTE, INTERVAL '90' MINUTE)]]>
@@ -507,28 +506,6 @@ Calc(select=[c, w$end AS EXPR$1, w$start AS EXPR$2, w$rowtime AS EXPR$3, sumA, a
 +- HashWindowAggregate(groupBy=[c, d], window=[SlidingGroupWindow('w$, ts, 10800000, 3600000)], properties=[w$start, w$end, w$rowtime], select=[c, d, Final_SUM(sum$0) AS sumA, Final_AVG(sum$1, count$2) AS avgB])
    +- Exchange(distribution=[hash[c, d]])
       +- LocalHashWindowAggregate(groupBy=[c, d], window=[SlidingGroupWindow('w$, ts, 10800000, 3600000)], properties=[w$start, w$end, w$rowtime], select=[c, d, Partial_SUM(a) AS sum$0, Partial_AVG(b) AS (sum$1, count$2)])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testNonPartitionedSlidingWindow[aggStrategy=AUTO]">
-    <Resource name="sql">
-      <![CDATA[SELECT SUM(a) AS sumA, COUNT(b) AS cntB FROM MyTable2 GROUP BY HOP(ts, INTERVAL '15' MINUTE, INTERVAL '90' MINUTE)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(sumA=[$1], cntB=[$2])
-+- LogicalAggregate(group=[{0}], sumA=[SUM($1)], cntB=[COUNT($2)])
-   +- LogicalProject($f0=[$HOP($4, 900000:INTERVAL MINUTE, 5400000:INTERVAL MINUTE)], a=[$0], b=[$1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-HashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], select=[Final_SUM(sum$0) AS sumA, Final_COUNT(count$1) AS cntB])
-+- Exchange(distribution=[single])
-   +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 5400000, 900000)], select=[Partial_SUM(a) AS sum$0, Partial_COUNT(b) AS count$1])
-      +- Calc(select=[ts, a, b])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
@@ -1075,6 +1052,29 @@ Calc(select=[EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSlidingWindowSortAggWithPaneOptimization[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(c) FROM MyTable1 GROUP BY a, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
+   +- LogicalProject(a=[$1], $f1=[$HOP($0, 3000:INTERVAL SECOND, 3600000:INTERVAL HOUR)], c=[$3])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- HashWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Final_COUNT(count$0) AS EXPR$0])
+   +- Exchange(distribution=[hash[a]])
+      +- LocalHashWindowAggregate(groupBy=[a], window=[SlidingGroupWindow('w$, ts, 3600000, 3000)], select=[a, Partial_COUNT(c) AS count$0])
+         +- Calc(select=[a, ts, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[ts, a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSlidingWindowSortAggWithPaneOptimization[aggStrategy=ONE_PHASE]">
     <Resource name="sql">
       <![CDATA[SELECT COUNT(c) FROM MyTable1 GROUP BY a, HOP(ts, INTERVAL '3' SECOND, INTERVAL '1' HOUR)]]>
@@ -1529,29 +1529,6 @@ Union(all=[true], union=[EXPR$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testWindowEndOnly[aggStrategy=AUTO]">
-    <Resource name="sql">
-      <![CDATA[SELECT TUMBLE_END(ts, INTERVAL '4' MINUTE) FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[TUMBLE_END($0)])
-+- LogicalAggregate(group=[{0, 1}])
-   +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[w$end AS EXPR$0])
-+- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
-   +- Exchange(distribution=[hash[c]])
-      +- LocalHashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
-         +- Calc(select=[ts, c])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testWindowAggregateWithDifferentWindows[aggStrategy=ONE_PHASE]">
     <Resource name="sql">
       <![CDATA[
@@ -1599,28 +1576,6 @@ Union(all=[true], union=[EXPR$0])
    +- SortWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
       +- Sort(orderBy=[ts ASC])
          +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testWindowEndOnly[aggStrategy=ONE_PHASE]">
-    <Resource name="sql">
-      <![CDATA[SELECT TUMBLE_END(ts, INTERVAL '4' MINUTE) FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[TUMBLE_END($0)])
-+- LogicalAggregate(group=[{0, 1}])
-   +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[w$end AS EXPR$0])
-+- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
-   +- Exchange(distribution=[hash[c]])
-      +- Calc(select=[ts, c])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -1673,6 +1628,51 @@ Union(all=[true], union=[EXPR$0])
       +- Exchange(distribution=[single])
          +- LocalHashWindowAggregate(window=[SlidingGroupWindow('w$, ts, 7200000, 3600000)], select=[])
             +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowEndOnly[aggStrategy=AUTO]">
+    <Resource name="sql">
+      <![CDATA[SELECT TUMBLE_END(ts, INTERVAL '4' MINUTE) FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[TUMBLE_END($0)])
++- LogicalAggregate(group=[{0, 1}])
+   +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[w$end AS EXPR$0])
++- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
+   +- Exchange(distribution=[hash[c]])
+      +- LocalHashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
+         +- Calc(select=[ts, c])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWindowEndOnly[aggStrategy=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT TUMBLE_END(ts, INTERVAL '4' MINUTE) FROM MyTable2 GROUP BY TUMBLE(ts, INTERVAL '4' MINUTE), c]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[TUMBLE_END($0)])
++- LogicalAggregate(group=[{0, 1}])
+   +- LogicalProject($f0=[$TUMBLE($4, 240000:INTERVAL MINUTE)], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[w$end AS EXPR$0])
++- HashWindowAggregate(groupBy=[c], window=[TumblingGroupWindow('w$, ts, 240000)], properties=[w$start, w$end, w$rowtime], select=[c])
+   +- Exchange(distribution=[hash[c]])
+      +- Calc(select=[ts, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>

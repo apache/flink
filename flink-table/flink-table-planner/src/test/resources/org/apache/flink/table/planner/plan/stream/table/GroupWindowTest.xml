@@ -80,22 +80,6 @@ GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 5)], select=[COUNT
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testAllProcessingTimeSlidingGroupWindowOverCount">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[$0])
-+- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, proctime, 2, 1)], properties=[])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-GroupWindowAggregate(window=[SlidingGroupWindow('w, proctime, 2, 1)], select=[COUNT(int) AS EXPR$0])
-+- Exchange(distribution=[single])
-   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testAllEventTimeTumblingGroupWindowOverTime">
     <Resource name="ast">
       <![CDATA[
@@ -109,6 +93,22 @@ LogicalProject(EXPR$0=[$0])
 GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 5)], select=[COUNT(int) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAllProcessingTimeSlidingGroupWindowOverCount">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$0])
++- LogicalWindowAggregate(group=[{}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, proctime, 2, 1)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(window=[SlidingGroupWindow('w, proctime, 2, 1)], select=[COUNT(int) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
 ]]>
     </Resource>
   </TestCase>
@@ -212,22 +212,6 @@ GroupWindowAggregate(groupBy=[string], window=[SessionGroupWindow('w, rowtime, 7
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testProcessingTimeSlidingGroupWindowOverCount">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(string=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, proctime, 2, 1)], properties=[])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, proctime, 2, 1)], select=[string, COUNT(int) AS EXPR$0])
-+- Exchange(distribution=[hash[string]])
-   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testEventTimeSlidingGroupWindowOverCount">
     <Resource name="ast">
       <![CDATA[
@@ -312,22 +296,6 @@ GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w, rowtime, 
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSlideWindowStartEnd">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(string=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3])
-+- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, rowtime, 10, 5)], properties=[EXPR$1, EXPR$2])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, rowtime, 10, 5)], properties=[EXPR$1, EXPR$2], select=[string, COUNT(int) AS EXPR$0, start('w) AS EXPR$1, end('w) AS EXPR$2])
-+- Exchange(distribution=[hash[string]])
-   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testMultiWindow">
     <Resource name="ast">
       <![CDATA[
@@ -345,6 +313,22 @@ GroupWindowAggregate(window=[SlidingGroupWindow('w2, proctime, 20, 10)], select=
    +- GroupWindowAggregate(groupBy=[string], window=[TumblingGroupWindow('w1, proctime, 50)], properties=[EXPR$0], select=[string, COUNT(int) AS EXPR$1, proctime('w1) AS EXPR$0])
       +- Exchange(distribution=[hash[string]])
          +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProcessingTimeSlidingGroupWindowOverCount">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], EXPR$0=[$1])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, proctime, 2, 1)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, proctime, 2, 1)], select=[string, COUNT(int) AS EXPR$0])
++- Exchange(distribution=[hash[string]])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, proctime])
 ]]>
     </Resource>
   </TestCase>
@@ -410,6 +394,22 @@ Calc(select=[EXPR$0 AS we1, string, EXPR$1 AS cnt, EXPR$2 AS ws, EXPR$0 AS we2])
 +- GroupWindowAggregate(groupBy=[string], window=[SessionGroupWindow('w, rowtime, 3)], properties=[EXPR$0, EXPR$2], select=[string, COUNT(int) AS EXPR$1, end('w) AS EXPR$0, start('w) AS EXPR$2])
    +- Exchange(distribution=[hash[string]])
       +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[rowtime, int, string])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSlideWindowStartEnd">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(string=[$0], EXPR$0=[$1], EXPR$1=[$2], EXPR$2=[$3])
++- LogicalWindowAggregate(group=[{2}], EXPR$0=[COUNT($1)], window=[SlidingGroupWindow('w, rowtime, 10, 5)], properties=[EXPR$1, EXPR$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupWindowAggregate(groupBy=[string], window=[SlidingGroupWindow('w, rowtime, 10, 5)], properties=[EXPR$1, EXPR$2], select=[string, COUNT(int) AS EXPR$0, start('w) AS EXPR$1, end('w) AS EXPR$2])
++- Exchange(distribution=[hash[string]])
+   +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[long, int, string, rowtime])
 ]]>
     </Resource>
   </TestCase>

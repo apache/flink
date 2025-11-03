@@ -140,27 +140,6 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSortProcessingTimeDescWithOffset">
-    <Resource name="sql">
-      <![CDATA[SELECT a FROM MyTable ORDER BY proctime desc, c OFFSET 2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0])
-+- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], offset=[2])
-   +- LogicalProject(a=[$0], proctime=[$3], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a])
-+- SortLimit(orderBy=[proctime DESC, c ASC], offset=[2], fetch=[unlimited], strategy=[AppendFastStrategy])
-   +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testSortProcessingTimeDescWithOffSet0AndLimit1">
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY proctime DESC LIMIT 1 OFFSET 0]]>
@@ -198,6 +177,27 @@ LogicalProject(a=[$0])
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[proctime DESC], offset=[1], fetch=[1], strategy=[AppendFastStrategy])
+   +- Exchange(distribution=[single])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortProcessingTimeDescWithOffset">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM MyTable ORDER BY proctime desc, c OFFSET 2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], offset=[2])
+   +- LogicalProject(a=[$0], proctime=[$3], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a])
++- SortLimit(orderBy=[proctime DESC, c ASC], offset=[2], fetch=[unlimited], strategy=[AppendFastStrategy])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -728,27 +728,6 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSortRowTimeDescWithOffset">
-    <Resource name="sql">
-      <![CDATA[SELECT a FROM MyTable ORDER BY rowtime desc, c OFFSET 2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0])
-+- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], offset=[2])
-   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a])
-+- SortLimit(orderBy=[rowtime DESC, c ASC], offset=[2], fetch=[unlimited], strategy=[AppendFastStrategy])
-   +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testSortRowTimeDescWithOffSet0AndLimit0">
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime desc LIMIT 0 OFFSET 0]]>
@@ -822,6 +801,27 @@ LogicalProject(a=[$0])
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[rowtime DESC], offset=[1], fetch=[1], strategy=[AppendFastStrategy])
+   +- Exchange(distribution=[single])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortRowTimeDescWithOffset">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM MyTable ORDER BY rowtime desc, c OFFSET 2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalSort(sort0=[$1], sort1=[$2], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], offset=[2])
+   +- LogicalProject(a=[$0], rowtime=[$4], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a])
++- SortLimit(orderBy=[rowtime DESC, c ASC], offset=[2], fetch=[unlimited], strategy=[AppendFastStrategy])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -1103,27 +1103,6 @@ Calc(select=[a])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSortWithoutTimeWithLimit">
-    <Resource name="sql">
-      <![CDATA[SELECT a FROM MyTable ORDER BY c LIMIT 2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0])
-+- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[2])
-   +- LogicalProject(a=[$0], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a])
-+- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], strategy=[AppendFastStrategy])
-   +- Exchange(distribution=[single])
-      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testSortRowTimeWithLimit">
     <Resource name="sql">
       <![CDATA[SELECT a FROM MyTable ORDER BY rowtime, c LIMIT 2]]>
@@ -1161,6 +1140,27 @@ LogicalProject(a=[$0])
       <![CDATA[
 Calc(select=[a])
 +- SortLimit(orderBy=[rowtime ASC, c ASC], offset=[2], fetch=[unlimited], strategy=[AppendFastStrategy])
+   +- Exchange(distribution=[single])
+      +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortWithoutTimeWithLimit">
+    <Resource name="sql">
+      <![CDATA[SELECT a FROM MyTable ORDER BY c LIMIT 2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0])
++- LogicalSort(sort0=[$1], dir0=[ASC-nulls-first], fetch=[2])
+   +- LogicalProject(a=[$0], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a])
++- SortLimit(orderBy=[c ASC], offset=[0], fetch=[2], strategy=[AppendFastStrategy])
    +- Exchange(distribution=[single])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>

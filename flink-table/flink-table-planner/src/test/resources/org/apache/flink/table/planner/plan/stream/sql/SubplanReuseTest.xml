@@ -16,34 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testSubplanReuseOnCalcWithNonDeterministicUdf">
-    <Resource name="sql">
-      <![CDATA[
-(SELECT a FROM x WHERE b > random_udf(a))
-UNION ALL
-(SELECT a FROM x WHERE b > random_udf(a))
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(a=[$0])
-:  +- LogicalFilter(condition=[>($1, random_udf($0))])
-:     +- LogicalTableScan(table=[[default_catalog, default_database, x]])
-+- LogicalProject(a=[$0])
-   +- LogicalFilter(condition=[>($1, random_udf($0))])
-      +- LogicalTableScan(table=[[default_catalog, default_database, x]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Union(all=[true], union=[a])
-:- Calc(select=[a], where=[(b > random_udf(a))])(reuse_id=[1])
-:  +- TableSourceScan(table=[[default_catalog, default_database, x]], fields=[a, b, c])
-+- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testDisableReuseTableSource">
     <Resource name="sql">
       <![CDATA[
@@ -231,6 +203,34 @@ Join(joinType=[InnerJoin], where=[(b = e0)], select=[a, b, d, e, a0, b0, d0, e0]
       +- Exchange(distribution=[hash[d]])
          +- Calc(select=[d, e], where=[(d > 5)])
             +- Reused(reference_id=[2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReuseTableSourceWithProjectPushDownAndMetaDataKey">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink1], fields=[a1, b1, my_time1, d1])
++- LogicalProject(a1=[$0], b1=[CAST($1):VARCHAR(32) CHARACTER SET "UTF-16LE"], my_time1=[CAST($2):TIMESTAMP(6)], d1=[CAST($3):DECIMAL(20, 2)])
+   +- LogicalProject(a=[$0], b=[$1], my_time=[$4], d1=[CAST($3):DECIMAL(28, 2)])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], my_time=[$4], unUse_time=[$5])
+         +- LogicalTableScan(table=[[default_catalog, default_database, reuseTable, metadata=[ts1, ts2]]])
+
+LogicalSink(table=[default_catalog.default_database.sink2], fields=[a2, update_time])
++- LogicalProject(a2=[$0], update_time=[CAST($1):TIMESTAMP(6)])
+   +- LogicalProject(a=[$0], update_time=[$4])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], my_time=[$4], unUse_time=[$5])
+         +- LogicalTableScan(table=[[default_catalog, default_database, reuseTable, metadata=[ts1, ts2]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink1], fields=[a1, b1, my_time1, d1])
++- Calc(select=[a AS a1, CAST(b AS VARCHAR(32)) AS b1, CAST(my_time AS TIMESTAMP(6)) AS my_time1, CAST(CAST(d AS DECIMAL(28, 2)) AS DECIMAL(20, 2)) AS d1])
+   +- TableSourceScan(table=[[default_catalog, default_database, reuseTable, project=[a, b, d], metadata=[ts1]]], fields=[a, b, d, my_time])
+
+Sink(table=[default_catalog.default_database.sink2], fields=[a2, update_time])
++- Calc(select=[a AS a2, CAST(my_time AS TIMESTAMP(6)) AS update_time])
+   +- TableSourceScan(table=[[default_catalog, default_database, reuseTable, project=[a], metadata=[ts1]]], fields=[a, my_time])
 ]]>
     </Resource>
   </TestCase>
@@ -464,31 +464,31 @@ Union(all=[true], union=[a, EXPR$1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testReuseTableSourceWithProjectPushDownAndMetaDataKey">
+  <TestCase name="testSubplanReuseOnCalcWithNonDeterministicUdf">
+    <Resource name="sql">
+      <![CDATA[
+(SELECT a FROM x WHERE b > random_udf(a))
+UNION ALL
+(SELECT a FROM x WHERE b > random_udf(a))
+      ]]>
+    </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink1], fields=[a1, b1, my_time1, d1])
-+- LogicalProject(a1=[$0], b1=[CAST($1):VARCHAR(32) CHARACTER SET "UTF-16LE"], my_time1=[CAST($2):TIMESTAMP(6)], d1=[CAST($3):DECIMAL(20, 2)])
-   +- LogicalProject(a=[$0], b=[$1], my_time=[$4], d1=[CAST($3):DECIMAL(28, 2)])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], my_time=[$4], unUse_time=[$5])
-         +- LogicalTableScan(table=[[default_catalog, default_database, reuseTable, metadata=[ts1, ts2]]])
-
-LogicalSink(table=[default_catalog.default_database.sink2], fields=[a2, update_time])
-+- LogicalProject(a2=[$0], update_time=[CAST($1):TIMESTAMP(6)])
-   +- LogicalProject(a=[$0], update_time=[$4])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], my_time=[$4], unUse_time=[$5])
-         +- LogicalTableScan(table=[[default_catalog, default_database, reuseTable, metadata=[ts1, ts2]]])
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0])
+:  +- LogicalFilter(condition=[>($1, random_udf($0))])
+:     +- LogicalTableScan(table=[[default_catalog, default_database, x]])
++- LogicalProject(a=[$0])
+   +- LogicalFilter(condition=[>($1, random_udf($0))])
+      +- LogicalTableScan(table=[[default_catalog, default_database, x]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink1], fields=[a1, b1, my_time1, d1])
-+- Calc(select=[a AS a1, CAST(b AS VARCHAR(32)) AS b1, CAST(my_time AS TIMESTAMP(6)) AS my_time1, CAST(CAST(d AS DECIMAL(28, 2)) AS DECIMAL(20, 2)) AS d1])
-   +- TableSourceScan(table=[[default_catalog, default_database, reuseTable, project=[a, b, d], metadata=[ts1]]], fields=[a, b, d, my_time])
-
-Sink(table=[default_catalog.default_database.sink2], fields=[a2, update_time])
-+- Calc(select=[a AS a2, CAST(my_time AS TIMESTAMP(6)) AS update_time])
-   +- TableSourceScan(table=[[default_catalog, default_database, reuseTable, project=[a], metadata=[ts1]]], fields=[a, my_time])
+Union(all=[true], union=[a])
+:- Calc(select=[a], where=[(b > random_udf(a))])(reuse_id=[1])
+:  +- TableSourceScan(table=[[default_catalog, default_database, x]], fields=[a, b, c])
++- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>
@@ -729,38 +729,6 @@ Union(all=[true], union=[a, b])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSubplanReuseOnOverWindow">
-    <Resource name="sql">
-      <![CDATA[
-WITH r AS (SELECT a, b, RANK() OVER (ORDER BY c DESC) FROM x)
-SELECT * FROM r r1, r r2 WHERE r1.a = r2.a AND r1.b < 100 AND r2.b > 10
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], EXPR$2=[$2], a0=[$3], b0=[$4], EXPR$20=[$5])
-+- LogicalFilter(condition=[AND(=($0, $3), <($1, 100), >($4, 10))])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalProject(a=[$0], b=[$1], EXPR$2=[RANK() OVER (ORDER BY $2 DESC NULLS LAST)])
-      :  +- LogicalTableScan(table=[[default_catalog, default_database, x]])
-      +- LogicalProject(a=[$0], b=[$1], EXPR$2=[RANK() OVER (ORDER BY $2 DESC NULLS LAST)])
-         +- LogicalTableScan(table=[[default_catalog, default_database, x]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, w0$o0, a0, b0, w0$o00], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-:- Exchange(distribution=[hash[a]])
-:  +- Calc(select=[a, b, w0$o0], where=[(b < 100)])
-:     +- OverAggregate(orderBy=[c DESC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, RANK(*) AS w0$o0])(reuse_id=[1])
-:        +- Exchange(distribution=[single])
-:           +- TableSourceScan(table=[[default_catalog, default_database, x]], fields=[a, b, c])
-+- Exchange(distribution=[hash[a]])
-   +- Calc(select=[a, b, w0$o0], where=[(b > 10)])
-      +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testSubplanReuseOnLimit">
     <Resource name="sql">
       <![CDATA[
@@ -795,6 +763,38 @@ Union(all=[true], union=[a, b])
 :        +- TableSourceScan(table=[[default_catalog, default_database, x]], fields=[a, b, c])
 +- Calc(select=[a, (b * 2) AS b], where=[(b < 10)])
    +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSubplanReuseOnOverWindow">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT a, b, RANK() OVER (ORDER BY c DESC) FROM x)
+SELECT * FROM r r1, r r2 WHERE r1.a = r2.a AND r1.b < 100 AND r2.b > 10
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], EXPR$2=[$2], a0=[$3], b0=[$4], EXPR$20=[$5])
++- LogicalFilter(condition=[AND(=($0, $3), <($1, 100), >($4, 10))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalProject(a=[$0], b=[$1], EXPR$2=[RANK() OVER (ORDER BY $2 DESC NULLS LAST)])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, x]])
+      +- LogicalProject(a=[$0], b=[$1], EXPR$2=[RANK() OVER (ORDER BY $2 DESC NULLS LAST)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, x]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Join(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, w0$o0, a0, b0, w0$o00], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[a]])
+:  +- Calc(select=[a, b, w0$o0], where=[(b < 100)])
+:     +- OverAggregate(orderBy=[c DESC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, RANK(*) AS w0$o0])(reuse_id=[1])
+:        +- Exchange(distribution=[single])
+:           +- TableSourceScan(table=[[default_catalog, default_database, x]], fields=[a, b, c])
++- Exchange(distribution=[hash[a]])
+   +- Calc(select=[a, b, w0$o0], where=[(b > 10)])
+      +- Reused(reference_id=[1])
 ]]>
     </Resource>
   </TestCase>

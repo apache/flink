@@ -140,28 +140,6 @@ Calc(select=[c, g])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testLeftOuterJoinWithEquiAndNonEquiPred">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable2 LEFT OUTER JOIN  MyTable1 ON a = d AND d < 2 AND b < h]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
-+- LogicalJoin(condition=[AND(=($5, $0), <($0, 2), <($6, $4))], joinType=[left])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-HashJoin(joinType=[LeftOuterJoin], where=[((a = d) AND (d < 2) AND (b < h))], select=[d, e, f, g, h, a, b, c], build=[right])
-:- Exchange(distribution=[hash[d]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
-+- Exchange(distribution=[hash[a]])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testInnerJoinWithEquiAndNonEquiPred">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable2 INNER JOIN MyTable1 ON a = d AND d < 2 AND b < h]]>
@@ -302,6 +280,43 @@ Calc(select=[c, g])
    +- Exchange(distribution=[hash[e, d]])
       +- Calc(select=[d, e, g])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInnerJoinWithJoinConditionPushDown">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM
+   (select a, count(b) as b from MyTable1 group by a)
+   join
+   (select d, count(e) as e from MyTable2 group by d)
+   on a = d and b = e and d = 2 and b = 1
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3])
++- LogicalJoin(condition=[AND(=($0, $2), =($1, $3), =($2, 2), =($1, 1))], joinType=[inner])
+   :- LogicalAggregate(group=[{0}], b=[COUNT($1)])
+   :  +- LogicalProject(a=[$0], b=[$1])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+   +- LogicalAggregate(group=[{0}], e=[COUNT($1)])
+      +- LogicalProject(d=[$0], e=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, 1 AS b, CAST(2 AS INTEGER) AS d, 1 AS e])
++- MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[left])\n:- Calc(select=[a], where=[(b = 1)])\n:  +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])\n:     +- [#1] Exchange(distribution=[hash[a]])\n+- Calc(select=[d], where=[(e = 1)])\n   +- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS e])\n      +- [#2] Exchange(distribution=[hash[d]])\n])
+   :- Exchange(distribution=[hash[a]])
+   :  +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
+   :     +- Calc(select=[CAST(2 AS INTEGER) AS a, b], where=[(a = 2)])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[d]])
+      +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(e) AS count$0])
+         +- Calc(select=[CAST(2 AS INTEGER) AS d, e], where=[(d = 2)])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
 ]]>
     </Resource>
   </TestCase>
@@ -454,6 +469,25 @@ MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[LeftOuterJoin], whe
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testLeftOuterJoinOnFalse">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable2 LEFT OUTER JOIN MyTable1 ON false]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
++- LogicalJoin(condition=[false], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[d, e, f, g, h, null:INTEGER AS a, null:BIGINT AS b, null:VARCHAR(2147483647) AS c])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testLeftOuterJoinWithEquiAndLocalPred">
     <Resource name="sql">
       <![CDATA[SELECT c, g FROM MyTable2 LEFT OUTER JOIN  MyTable1 ON a = d AND d < 2]]>
@@ -479,14 +513,36 @@ Calc(select=[c, g])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRightOuterJoinWithEquiPred">
+  <TestCase name="testLeftOuterJoinWithEquiAndNonEquiPred">
     <Resource name="sql">
-      <![CDATA[SELECT c, g FROM MyTable1 RIGHT OUTER JOIN MyTable2 ON b = e]]>
+      <![CDATA[SELECT * FROM MyTable2 LEFT OUTER JOIN  MyTable1 ON a = d AND d < 2 AND b < h]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
++- LogicalJoin(condition=[AND(=($5, $0), <($0, 2), <($6, $4))], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashJoin(joinType=[LeftOuterJoin], where=[((a = d) AND (d < 2) AND (b < h))], select=[d, e, f, g, h, a, b, c], build=[right])
+:- Exchange(distribution=[hash[d]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
++- Exchange(distribution=[hash[a]])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftOuterJoinWithEquiPred">
+    <Resource name="sql">
+      <![CDATA[SELECT c, g FROM MyTable1 LEFT OUTER JOIN MyTable2 ON b = e]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$2], g=[$6])
-+- LogicalJoin(condition=[=($1, $4)], joinType=[right])
++- LogicalJoin(condition=[=($1, $4)], joinType=[left])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
@@ -494,50 +550,13 @@ LogicalProject(c=[$2], g=[$6])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, g])
-+- HashJoin(joinType=[RightOuterJoin], where=[(b = e)], select=[b, c, e, g], build=[left])
++- HashJoin(joinType=[LeftOuterJoin], where=[(b = e)], select=[b, c, e, g], build=[left])
    :- Exchange(distribution=[hash[b]])
    :  +- Calc(select=[b, c])
    :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
    +- Exchange(distribution=[hash[e]])
       +- Calc(select=[e, g])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testInnerJoinWithJoinConditionPushDown">
-    <Resource name="sql">
-      <![CDATA[
-SELECT * FROM
-   (select a, count(b) as b from MyTable1 group by a)
-   join
-   (select d, count(e) as e from MyTable2 group by d)
-   on a = d and b = e and d = 2 and b = 1
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], d=[$2], e=[$3])
-+- LogicalJoin(condition=[AND(=($0, $2), =($1, $3), =($2, 2), =($1, 1))], joinType=[inner])
-   :- LogicalAggregate(group=[{0}], b=[COUNT($1)])
-   :  +- LogicalProject(a=[$0], b=[$1])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalAggregate(group=[{0}], e=[COUNT($1)])
-      +- LogicalProject(d=[$0], e=[$1])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, 1 AS b, CAST(2 AS INTEGER) AS d, 1 AS e])
-+- MultipleInput(readOrder=[0,1], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d)], select=[a, d], build=[left])\n:- Calc(select=[a], where=[(b = 1)])\n:  +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])\n:     +- [#1] Exchange(distribution=[hash[a]])\n+- Calc(select=[d], where=[(e = 1)])\n   +- HashAggregate(isMerge=[true], groupBy=[d], select=[d, Final_COUNT(count$0) AS e])\n      +- [#2] Exchange(distribution=[hash[d]])\n])
-   :- Exchange(distribution=[hash[a]])
-   :  +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
-   :     +- Calc(select=[CAST(2 AS INTEGER) AS a, b], where=[(a = 2)])
-   :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
-   +- Exchange(distribution=[hash[d]])
-      +- LocalHashAggregate(groupBy=[d], select=[d, Partial_COUNT(e) AS count$0])
-         +- Calc(select=[CAST(2 AS INTEGER) AS d, e], where=[(d = 2)])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
 ]]>
     </Resource>
   </TestCase>
@@ -690,28 +709,47 @@ MultipleInput(readOrder=[1,0], members=[\nHashJoin(joinType=[RightOuterJoin], wh
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testLeftOuterJoinWithEquiPred">
+  <TestCase name="testRightOuterJoinOnFalse">
     <Resource name="sql">
-      <![CDATA[SELECT c, g FROM MyTable1 LEFT OUTER JOIN MyTable2 ON b = e]]>
+      <![CDATA[SELECT * FROM MyTable2 RIGHT OUTER JOIN MyTable1 ON false]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], g=[$6])
-+- LogicalJoin(condition=[=($1, $4)], joinType=[left])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
++- LogicalJoin(condition=[false], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[null:INTEGER AS d, null:BIGINT AS e, null:INTEGER AS f, null:VARCHAR(2147483647) AS g, null:BIGINT AS h, a, b, c])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightOuterJoinWithEquiAndLocalPred">
+    <Resource name="sql">
+      <![CDATA[SELECT c, g FROM MyTable2 RIGHT OUTER JOIN  MyTable1 ON a = d AND d < 2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$7], g=[$3])
++- LogicalJoin(condition=[AND(=($5, $0), <($0, 2))], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, g])
-+- HashJoin(joinType=[LeftOuterJoin], where=[(b = e)], select=[b, c, e, g], build=[left])
-   :- Exchange(distribution=[hash[b]])
-   :  +- Calc(select=[b, c])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
-   +- Exchange(distribution=[hash[e]])
-      +- Calc(select=[e, g])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
++- HashJoin(joinType=[RightOuterJoin], where=[(a = d)], select=[d, g, a, c], build=[left])
+   :- Exchange(distribution=[hash[d]])
+   :  +- Calc(select=[d, g], where=[(d < 2)])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -738,28 +776,28 @@ HashJoin(joinType=[RightOuterJoin], where=[((a = d) AND (b < h))], select=[d, e,
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRightOuterJoinWithEquiAndLocalPred">
+  <TestCase name="testRightOuterJoinWithEquiPred">
     <Resource name="sql">
-      <![CDATA[SELECT c, g FROM MyTable2 RIGHT OUTER JOIN  MyTable1 ON a = d AND d < 2]]>
+      <![CDATA[SELECT c, g FROM MyTable1 RIGHT OUTER JOIN MyTable2 ON b = e]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$7], g=[$3])
-+- LogicalJoin(condition=[AND(=($5, $0), <($0, 2))], joinType=[right])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+LogicalProject(c=[$2], g=[$6])
++- LogicalJoin(condition=[=($1, $4)], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, g])
-+- HashJoin(joinType=[RightOuterJoin], where=[(a = d)], select=[d, g, a, c], build=[left])
-   :- Exchange(distribution=[hash[d]])
-   :  +- Calc(select=[d, g], where=[(d < 2)])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
-   +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a, c])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
++- HashJoin(joinType=[RightOuterJoin], where=[(b = e)], select=[b, c, e, g], build=[left])
+   :- Exchange(distribution=[hash[b]])
+   :  +- Calc(select=[b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+   +- Exchange(distribution=[hash[e]])
+      +- Calc(select=[e, g])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
 ]]>
     </Resource>
   </TestCase>
@@ -791,42 +829,4 @@ Calc(select=[CAST(0 AS BIGINT) AS k, v, null:BIGINT AS k0, null:VARCHAR(21474836
 ]]>
     </Resource>
   </TestCase>
-	<TestCase name="testRightOuterJoinOnFalse">
-		<Resource name="sql">
-			<![CDATA[SELECT * FROM MyTable2 RIGHT OUTER JOIN MyTable1 ON false]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
-LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
-+- LogicalJoin(condition=[false], joinType=[right])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-]]>
-		</Resource>
-		<Resource name="optimized exec plan">
-			<![CDATA[
-Calc(select=[null:INTEGER AS d, null:BIGINT AS e, null:INTEGER AS f, null:VARCHAR(2147483647) AS g, null:BIGINT AS h, a, b, c])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
-]]>
-		</Resource>
-	</TestCase>
-	<TestCase name="testLeftOuterJoinOnFalse">
-		<Resource name="sql">
-			<![CDATA[SELECT * FROM MyTable2 LEFT OUTER JOIN MyTable1 ON false]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
-LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
-+- LogicalJoin(condition=[false], joinType=[left])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-]]>
-		</Resource>
-		<Resource name="optimized exec plan">
-			<![CDATA[
-Calc(select=[d, e, f, g, h, null:INTEGER AS a, null:BIGINT AS b, null:VARCHAR(2147483647) AS c])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
-]]>
-		</Resource>
-	</TestCase>
 </Root>

@@ -203,23 +203,6 @@ Calc(select=[a, w0$o0 AS _c1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRowTimeBoundedPartitionedRangeOver">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], _c1=[AS(AVG($2) OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'_c1')], wAvg=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'wAvg')])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, w0$o0 AS _c1, w0$o1 AS wAvg])
-+- OverAggregate(partitionBy=[a], orderBy=[rowtime ASC], window=[ RANGE BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, AVG(c) AS w0$o0, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*(c, $3) AS w0$o1])
-   +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a, c, rowtime, CAST(a AS BIGINT) AS $3])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testRowTimeBoundedNonPartitionedRowsOver">
     <Resource name="ast">
       <![CDATA[
@@ -233,6 +216,23 @@ Calc(select=[c, w0$o0 AS _c1])
 +- OverAggregate(orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, rowtime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeBoundedPartitionedRangeOver">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], _c1=[AS(AVG($2) OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'_c1')], wAvg=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'wAvg')])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, w0$o0 AS _c1, w0$o1 AS wAvg])
++- OverAggregate(partitionBy=[a], orderBy=[rowtime ASC], window=[ RANGE BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, AVG(c) AS w0$o0, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*(c, $3) AS w0$o1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c, rowtime, CAST(a AS BIGINT) AS $3])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -322,23 +322,6 @@ Calc(select=[c, w0$o0 AS _c1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRowTimeUnboundedPartitionedRowsOver">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(c=[$2], _c1=[AS(COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c1')], wAvg=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'wAvg')])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[c, w0$o0 AS _c1, w0$o1 AS wAvg])
-+- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, COUNT(a) AS w0$o0, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*(c, $3) AS w0$o1])
-   +- Exchange(distribution=[hash[c]])
-      +- Calc(select=[a, c, rowtime, CAST(a AS BIGINT) AS $3])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testRowTimeUnboundedPartitionedRangeOver">
     <Resource name="ast">
       <![CDATA[
@@ -350,6 +333,23 @@ LogicalProject(a=[$0], c=[$2], _c2=[AS(COUNT($0) OVER (PARTITION BY $2 ORDER BY 
       <![CDATA[
 Calc(select=[a, c, w0$o0 AS _c2, w0$o1 AS wAvg])
 +- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, COUNT(a) AS w0$o0, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*(c, $3) AS w0$o1])
+   +- Exchange(distribution=[hash[c]])
+      +- Calc(select=[a, c, rowtime, CAST(a AS BIGINT) AS $3])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeUnboundedPartitionedRowsOver">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$2], _c1=[AS(COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'_c1')], wAvg=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST ROWS UNBOUNDED PRECEDING), _UTF-16LE'wAvg')])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c, w0$o0 AS _c1, w0$o1 AS wAvg])
++- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, COUNT(a) AS w0$o0, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*(c, $3) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, rowtime, CAST(a AS BIGINT) AS $3])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])

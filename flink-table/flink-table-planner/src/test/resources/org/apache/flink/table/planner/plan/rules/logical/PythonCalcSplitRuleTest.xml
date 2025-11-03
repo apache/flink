@@ -180,24 +180,6 @@ FlinkLogicalCalc(select=[a, b], where=[f0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testPythonFunctionAsInputOfJavaFunction">
-    <Resource name="sql">
-      <![CDATA[SELECT pyFunc1(a, b) + 1 FROM MyTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[+(pyFunc1($0, $1), 1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-FlinkLogicalCalc(select=[+(f0, 1) AS EXPR$0])
-+- FlinkLogicalCalc(select=[pyFunc1(a, b) AS f0])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testPandasFunctionAsInputOfJavaFunction">
     <Resource name="sql">
       <![CDATA[SELECT pandasFunc1(a, b) + 1 FROM MyTable]]>
@@ -294,6 +276,25 @@ FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testPandasFunctionNotChainingWithGeneralPythonFunction">
+    <Resource name="sql">
+      <![CDATA[SELECT pyFunc1(a, pandasFunc1(a, b)) + 1 FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[+(pyFunc1($0, pandasFunc1($0, $1)), 1)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[+(f0, 1) AS EXPR$0])
++- FlinkLogicalCalc(select=[pyFunc1(a, f0) AS f0])
+   +- FlinkLogicalCalc(select=[a, pandasFunc1(a, b) AS f0])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testPandasFunctionWithCompositeInputs">
     <Resource name="sql">
       <![CDATA[SELECT a, pandasFunc1(b, d._1) FROM MyTable]]>
@@ -312,40 +313,21 @@ FlinkLogicalCalc(select=[a, pandasFunc1(b, f0) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testPythonFunctionWithCompositeInputs">
+  <TestCase name="testPythonFunctionAsInputOfJavaFunction">
     <Resource name="sql">
-      <![CDATA[SELECT a, pyFunc1(b, d._1) FROM MyTable]]>
+      <![CDATA[SELECT pyFunc1(a, b) + 1 FROM MyTable]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[pyFunc1($1, $3._1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-FlinkLogicalCalc(select=[a, pyFunc1(b, f0) AS EXPR$1])
-+- FlinkLogicalCalc(select=[a, b, d._1 AS f0])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testPandasFunctionNotChainingWithGeneralPythonFunction">
-    <Resource name="sql">
-      <![CDATA[SELECT pyFunc1(a, pandasFunc1(a, b)) + 1 FROM MyTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[+(pyFunc1($0, pandasFunc1($0, $1)), 1)])
+LogicalProject(EXPR$0=[+(pyFunc1($0, $1), 1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
 FlinkLogicalCalc(select=[+(f0, 1) AS EXPR$0])
-+- FlinkLogicalCalc(select=[pyFunc1(a, f0) AS f0])
-   +- FlinkLogicalCalc(select=[a, pandasFunc1(a, b) AS f0])
-      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
++- FlinkLogicalCalc(select=[pyFunc1(a, b) AS f0])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -408,6 +390,24 @@ FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testPythonFunctionWithCompositeInputs">
+    <Resource name="sql">
+      <![CDATA[SELECT a, pyFunc1(b, d._1) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[pyFunc1($1, $3._1)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, pyFunc1(b, f0) AS EXPR$1])
++- FlinkLogicalCalc(select=[a, b, d._1 AS f0])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testPythonFunctionWithCompositeInputsAndOutputs">
     <Resource name="sql">
       <![CDATA[SELECT e.* FROM (SELECT pyFunc5(d._1) as e FROM MyTable) AS T]]>
@@ -447,6 +447,25 @@ FlinkLogicalCalc(select=[a, pyFunc1(b, f0) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testPythonFunctionWithCompositeOutputs">
+    <Resource name="sql">
+      <![CDATA[SELECT e.* FROM (SELECT pyFunc5(a) as e FROM MyTable) AS T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0.f0], f1=[$0.f1])
++- LogicalProject(e=[pyFunc5($0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
++- FlinkLogicalCalc(select=[pyFunc5(a) AS f0])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testPythonFunctionWithCompositeWhereClause">
     <Resource name="sql">
       <![CDATA[SELECT a + 1 FROM MyTable where RowJavaFunc(pyFunc5(a).f0).f0 is NULL and b > 0]]>
@@ -464,25 +483,6 @@ FlinkLogicalCalc(select=[+(a, 1) AS EXPR$0], where=[AND(IS NULL(f0.f0), >(b, 0))
 +- FlinkLogicalCalc(select=[a, b, RowJavaFunc(f0.f0) AS f0])
    +- FlinkLogicalCalc(select=[a, b, pyFunc5(a) AS f0])
       +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testPythonFunctionWithCompositeOutputs">
-    <Resource name="sql">
-      <![CDATA[SELECT e.* FROM (SELECT pyFunc5(a) as e FROM MyTable) AS T]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(f0=[$0.f0], f1=[$0.f1])
-+- LogicalProject(e=[pyFunc5($0)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-FlinkLogicalCalc(select=[f0.f0 AS f0, f0.f1 AS f1])
-+- FlinkLogicalCalc(select=[pyFunc5(a) AS f0])
-   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>

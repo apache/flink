@@ -16,20 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testScalarFunctionAccess">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(_c0=[*org.apache.flink.table.planner.plan.batch.table.CalcTest$giveMeCaseClass$*().my], _c1=[CAST(*org.apache.flink.table.planner.plan.batch.table.CalcTest$giveMeCaseClass$*().clazz):INTEGER], _c2=[*org.apache.flink.table.planner.plan.batch.table.CalcTest$giveMeCaseClass$*().my], _c3=[CAST(*org.apache.flink.table.planner.plan.batch.table.CalcTest$giveMeCaseClass$*().clazz):INTEGER])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[*org.apache.flink.table.planner.plan.batch.table.CalcTest$giveMeCaseClass$*().my AS _c0, CAST(*org.apache.flink.table.planner.plan.batch.table.CalcTest$giveMeCaseClass$*().clazz AS INTEGER) AS _c1, *org.apache.flink.table.planner.plan.batch.table.CalcTest$giveMeCaseClass$*().my AS _c2, CAST(*org.apache.flink.table.planner.plan.batch.table.CalcTest$giveMeCaseClass$*().clazz AS INTEGER) AS _c3])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testMultiFilter">
     <Resource name="ast">
       <![CDATA[
@@ -71,6 +57,20 @@ LogicalProject(a$_1=[$0._1], a$_2=[$0._2], b=[$1])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a._1 AS a$_1, a._2 AS a$_2, b])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testScalarFunctionAccess">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(_c0=[*org.apache.flink.table.planner.plan.batch.table.CalcTest$giveMeCaseClass$*().my], _c1=[CAST(*org.apache.flink.table.planner.plan.batch.table.CalcTest$giveMeCaseClass$*().clazz):INTEGER], _c2=[*org.apache.flink.table.planner.plan.batch.table.CalcTest$giveMeCaseClass$*().my], _c3=[CAST(*org.apache.flink.table.planner.plan.batch.table.CalcTest$giveMeCaseClass$*().clazz):INTEGER])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[*org.apache.flink.table.planner.plan.batch.table.CalcTest$giveMeCaseClass$*().my AS _c0, CAST(*org.apache.flink.table.planner.plan.batch.table.CalcTest$giveMeCaseClass$*().clazz AS INTEGER) AS _c1, *org.apache.flink.table.planner.plan.batch.table.CalcTest$giveMeCaseClass$*().my AS _c2, CAST(*org.apache.flink.table.planner.plan.batch.table.CalcTest$giveMeCaseClass$*().clazz AS INTEGER) AS _c3])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
 ]]>
     </Resource>
@@ -204,20 +204,6 @@ Calc(select=[EXPR$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSimpleSelect">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, b])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testSelectFunction">
     <Resource name="ast">
       <![CDATA[
@@ -228,6 +214,20 @@ LogicalProject(_c0=[hashCode($2)], b=[$1])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[hashCode(c) AS _c0, b])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleSelect">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>

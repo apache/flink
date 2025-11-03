@@ -154,23 +154,6 @@ Calc(select=[4 AS four, EXPR$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSimpleAggregate">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(b=[AS($0, _UTF-16LE'b')], f0=[AS($1.f0, _UTF-16LE'f0')], f1=[AS($1.f1, _UTF-16LE'f1')])
-+- LogicalAggregate(group=[{1}], TMP_0=[CountMinMax($0)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[b, TMP_0.f0 AS f0, TMP_0.f1 AS f1])
-+- GroupAggregate(groupBy=[b], select=[b, CountMinMax(a) AS TMP_0])
-   +- Exchange(distribution=[hash[b]])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testGroupAggregateWithExpressionInSelect">
     <Resource name="ast">
       <![CDATA[
@@ -209,6 +192,23 @@ Calc(select=[CAST(2 AS INTEGER) AS b, EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testGroupDistinctAggregate">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
++- LogicalAggregate(group=[{1}], EXPR$0=[SUM(DISTINCT $0)], EXPR$1=[COUNT(DISTINCT $2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[EXPR$0, EXPR$1])
++- GroupAggregate(groupBy=[b], select=[b, SUM(DISTINCT a) AS EXPR$0, COUNT(DISTINCT c) AS EXPR$1])
+   +- Exchange(distribution=[hash[b]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testGroupDistinctAggregateWithUDAGG">
     <Resource name="ast">
       <![CDATA[
@@ -225,23 +225,6 @@ Calc(select=[EXPR$0, EXPR$1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, CAST(b AS BIGINT) AS b0])
          +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testGroupDistinctAggregate">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[$1], EXPR$1=[$2])
-+- LogicalAggregate(group=[{1}], EXPR$0=[SUM(DISTINCT $0)], EXPR$1=[COUNT(DISTINCT $2)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[EXPR$0, EXPR$1])
-+- GroupAggregate(groupBy=[b], select=[b, SUM(DISTINCT a) AS EXPR$0, COUNT(DISTINCT c) AS EXPR$1])
-   +- Exchange(distribution=[hash[b]])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -272,6 +255,23 @@ LogicalProject(b=[AS($0, _UTF-16LE'b')], f0=[AS($1.f0, _UTF-16LE'f0')], f1=[AS($
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, TMP_0.f0 AS f0, TMP_0.f1 AS f1, TMP_0.f2 AS f2])
++- GroupAggregate(groupBy=[b], select=[b, CountMinMax(a) AS TMP_0])
+   +- Exchange(distribution=[hash[b]])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleAggregate">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[AS($0, _UTF-16LE'b')], f0=[AS($1.f0, _UTF-16LE'f0')], f1=[AS($1.f1, _UTF-16LE'f1')])
++- LogicalAggregate(group=[{1}], TMP_0=[CountMinMax($0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[b, TMP_0.f0 AS f0, TMP_0.f1 AS f1])
 +- GroupAggregate(groupBy=[b], select=[b, CountMinMax(a) AS TMP_0])
    +- Exchange(distribution=[hash[b]])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])

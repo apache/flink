@@ -659,31 +659,6 @@ Calc(select=[c, g])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testLeftOuterJoinWithFilter1">
-    <Resource name="sql">
-      <![CDATA[SELECT d, e, f FROM MyTable1 LEFT JOIN MyTable2 ON a = d where d = 10 AND a < 12]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(d=[$3], e=[$4], f=[$5])
-+- LogicalFilter(condition=[AND(=($3, 10), <($0, 12))])
-   +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
-      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[CAST(10 AS INTEGER) AS d, e, f])
-+- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, e, f], build=[left])
-   :- Exchange(distribution=[broadcast])
-   :  +- Calc(select=[a], where=[(a = 10)])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
-   +- Calc(select=[e, f], where=[(d = 10)])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testLeftOuterJoinWithEquiAndNonEquiPred">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable2 LEFT OUTER JOIN  MyTable1 ON a = d AND d < 2 AND b < h]]>
@@ -726,6 +701,31 @@ Calc(select=[c, g])
    +- Exchange(distribution=[broadcast])
       +- Calc(select=[e, g])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLeftOuterJoinWithFilter1">
+    <Resource name="sql">
+      <![CDATA[SELECT d, e, f FROM MyTable1 LEFT JOIN MyTable2 ON a = d where d = 10 AND a < 12]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(d=[$3], e=[$4], f=[$5])
++- LogicalFilter(condition=[AND(=($3, 10), <($0, 12))])
+   +- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[CAST(10 AS INTEGER) AS d, e, f])
++- NestedLoopJoin(joinType=[InnerJoin], where=[true], select=[a, e, f], build=[left])
+   :- Exchange(distribution=[broadcast])
+   :  +- Calc(select=[a], where=[(a = 10)])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+   +- Calc(select=[e, f], where=[(d = 10)])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
 ]]>
     </Resource>
   </TestCase>
@@ -838,30 +838,6 @@ Calc(select=[a, CAST(b AS BIGINT) AS b, CAST(2 AS INTEGER) AS d, e])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRightOuterJoinWithEquiPred">
-    <Resource name="sql">
-      <![CDATA[SELECT c, g FROM MyTable1 RIGHT OUTER JOIN MyTable2 ON b = e]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(c=[$2], g=[$6])
-+- LogicalJoin(condition=[=($1, $4)], joinType=[right])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[c, g])
-+- NestedLoopJoin(joinType=[RightOuterJoin], where=[(b = e)], select=[b, c, e, g], build=[left])
-   :- Exchange(distribution=[broadcast])
-   :  +- Calc(select=[b, c])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
-   +- Calc(select=[e, g])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testRightJoinWithJoinConditionPushDown">
     <Resource name="sql">
       <![CDATA[
@@ -965,27 +941,6 @@ Calc(select=[c, g])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRightOuterJoinWithNonEquiPred">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable2 RIGHT OUTER JOIN MyTable1 ON a <> d]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
-+- LogicalJoin(condition=[<>($5, $0)], joinType=[right])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-NestedLoopJoin(joinType=[RightOuterJoin], where=[(a <> d)], select=[d, e, f, g, h, a, b, c], build=[left])
-:- Exchange(distribution=[broadcast])
-:  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testRightOuterJoinWithEquiAndNonEquiPred">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable2 RIGHT OUTER JOIN  MyTable1 ON a = d AND d < 2 AND b < h]]>
@@ -1004,6 +959,51 @@ NestedLoopJoin(joinType=[RightOuterJoin], where=[((a = d) AND (b < h))], select=
 :- Exchange(distribution=[broadcast])
 :  +- Calc(select=[d, e, f, g, h], where=[(d < 2)])
 :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightOuterJoinWithEquiPred">
+    <Resource name="sql">
+      <![CDATA[SELECT c, g FROM MyTable1 RIGHT OUTER JOIN MyTable2 ON b = e]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$2], g=[$6])
++- LogicalJoin(condition=[=($1, $4)], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c, g])
++- NestedLoopJoin(joinType=[RightOuterJoin], where=[(b = e)], select=[b, c, e, g], build=[left])
+   :- Exchange(distribution=[broadcast])
+   :  +- Calc(select=[b, c])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
+   +- Calc(select=[e, g])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightOuterJoinWithNonEquiPred">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable2 RIGHT OUTER JOIN MyTable1 ON a <> d]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(d=[$0], e=[$1], f=[$2], g=[$3], h=[$4], a=[$5], b=[$6], c=[$7])
++- LogicalJoin(condition=[<>($5, $0)], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+NestedLoopJoin(joinType=[RightOuterJoin], where=[(a <> d)], select=[d, e, f, g, h, a, b, c], build=[left])
+:- Exchange(distribution=[broadcast])
+:  +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f, g, h])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c])
 ]]>
     </Resource>

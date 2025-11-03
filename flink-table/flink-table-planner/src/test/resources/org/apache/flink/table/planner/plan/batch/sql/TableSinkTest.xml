@@ -79,28 +79,6 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSingleSink">
-    <Resource name="ast">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.sink], fields=[cnt])
-+- LogicalProject(cnt=[$1])
-   +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
-      +- LogicalProject(a=[$0])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.sink], fields=[cnt])
-+- Calc(select=[cnt])
-   +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt])
-      +- Exchange(distribution=[hash[a]])
-         +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
-            +- Calc(select=[a])
-               +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testMultiSinks">
     <Resource name="ast">
       <![CDATA[
@@ -141,6 +119,28 @@ Sink(table=[default_catalog.default_database.sink2], fields=[total_min])
    +- Exchange(distribution=[single])
       +- LocalHashAggregate(select=[Partial_MIN(sum_a) AS min$0])
          +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleSink">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[cnt])
++- LogicalProject(cnt=[$1])
+   +- LogicalAggregate(group=[{0}], cnt=[COUNT()])
+      +- LogicalProject(a=[$0])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink], fields=[cnt])
++- Calc(select=[cnt])
+   +- HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count1$0) AS cnt])
+      +- Exchange(distribution=[hash[a]])
+         +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(*) AS count1$0])
+            +- Calc(select=[a])
+               +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

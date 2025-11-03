@@ -113,14 +113,4 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testWrongFields">
-    <Resource name="sql">
-      <![CDATA[INSERT INTO sink PARTITION (b=1) SELECT a, b, c FROM MyTable]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testWrongStatic">
-    <Resource name="sql">
-      <![CDATA[INSERT INTO sink PARTITION (a=1) SELECT b, c FROM MyTable]]>
-    </Resource>
-  </TestCase>
 </Root>

@@ -16,16 +16,137 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-	<TestCase name="testShuffleJoinWithForwardForConsecutiveHash">
-		<Resource name="sql">
-			<![CDATA[
+  <TestCase name="testAdaptiveJoinWithAdaptiveSkewedOptimizationEnabled">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE a1 = a2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
++- LogicalFilter(condition=[=($0, $4)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+AdaptiveJoin(originalJoin=[ShuffleHashJoin], joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, c1, d1, a2, b2, c2, d2], build=[left])
+:- Exchange(distribution=[hash[a1]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1, c1, d1])
++- Exchange(distribution=[hash[a2]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2, c2, d2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAdaptiveJoinWithBatchJobRecovery">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE a1 = a2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
++- LogicalFilter(condition=[=($0, $4)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashJoin(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, c1, d1, a2, b2, c2, d2], build=[left])
+:- Exchange(distribution=[hash[a1]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1, c1, d1])
++- Exchange(distribution=[hash[a2]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2, c2, d2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinWithMultipleInput">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM
+  (SELECT a FROM T1 JOIN T ON a = a1) t1
+  INNER JOIN
+  (SELECT d2 FROM T JOIN T2 ON d2 = a) t2
+ON t1.a = t2.d2
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], d2=[$1])
++- LogicalJoin(condition=[=($0, $1)], joinType=[inner])
+   :- LogicalProject(a=[$4])
+   :  +- LogicalJoin(condition=[=($4, $0)], joinType=[inner])
+   :     :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+   +- LogicalProject(d2=[$7])
+      +- LogicalJoin(condition=[=($7, $0)], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, T]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+MultipleInput(readOrder=[0,1,1,2], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d2)], select=[a, d2], build=[left])\n:- Calc(select=[a])\n:  +- HashJoin(joinType=[InnerJoin], where=[(a = a1)], select=[a1, a], build=[left])\n:     :- [#1] Exchange(distribution=[hash[a1]])\n:     +- [#2] Exchange(distribution=[hash[a]])\n+- Calc(select=[d2])\n   +- HashJoin(joinType=[InnerJoin], where=[(d2 = a)], select=[a, d2], build=[left])\n      :- [#2] Exchange(distribution=[hash[a]])\n      +- [#4] Exchange(distribution=[hash[d2]])\n])
+:- Exchange(distribution=[hash[a1]])
+:  +- Calc(select=[a1])
+:     +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1, c1, d1])
+:- Exchange(distribution=[hash[a]])(reuse_id=[1])
+:  +- Calc(select=[a])
+:     +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c, d])
+:- Reused(reference_id=[1])
++- Exchange(distribution=[hash[d2]])
+   +- Calc(select=[d2])
+      +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2, c2, d2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinWithUnionInput">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM
+  (SELECT a FROM (SELECT a1 as a FROM T1) UNION ALL (SELECT a2 as a FROM T2)) Y
+  LEFT JOIN T ON T.a = Y.a
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], a0=[$1], b=[$2], c=[$3], d=[$4])
++- LogicalJoin(condition=[=($1, $0)], joinType=[left])
+   :- LogicalUnion(all=[true])
+   :  :- LogicalProject(a=[$0])
+   :  :  +- LogicalProject(a=[$0])
+   :  :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+   :  +- LogicalProject(a=[$0])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+AdaptiveJoin(originalJoin=[ShuffleHashJoin], joinType=[LeftOuterJoin], where=[(a0 = a)], select=[a, a0, b, c, d], build=[left])
+:- Exchange(distribution=[hash[a]])
+:  +- Union(all=[true], union=[a])
+:     :- Calc(select=[a1 AS a])
+:     :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1, c1, d1])
+:     +- Calc(select=[a2 AS a])
+:        +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2, c2, d2])
++- Exchange(distribution=[hash[a]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testShuffleJoinWithForwardForConsecutiveHash">
+    <Resource name="sql">
+      <![CDATA[
 WITH
   r AS (SELECT * FROM T1, T2, T3 WHERE a1 = a2 and a1 = a3)
 SELECT sum(b1) FROM r group by a1
 ]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
 LogicalProject(EXPR$0=[$1])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)])
    +- LogicalProject(a1=[$0], b1=[$1])
@@ -37,9 +158,9 @@ LogicalProject(EXPR$0=[$1])
                :  +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
                +- LogicalTableScan(table=[[default_catalog, default_database, T3]])
 ]]>
-		</Resource>
-		<Resource name="optimized exec plan">
-			<![CDATA[
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
 Calc(select=[EXPR$0])
 +- HashAggregate(isMerge=[false], groupBy=[a1], select=[a1, SUM(b1) AS EXPR$0])
    +- Exchange(distribution=[keep_input_as_is[hash[a1]]])
@@ -60,218 +181,97 @@ Calc(select=[EXPR$0])
                   +- Calc(select=[a3])
                      +- TableSourceScan(table=[[default_catalog, default_database, T3]], fields=[a3, b3, c3, d3])
 ]]>
-		</Resource>
-	</TestCase>
-	<TestCase name="testWithShuffleMergeJoin">
-		<Resource name="sql">
-			<![CDATA[SELECT * FROM T1, T2 WHERE a1 = a2]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithBroadcastJoinRuntimeOnly">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE a1 = a2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
 +- LogicalFilter(condition=[=($0, $4)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
-		</Resource>
-		<Resource name="optimized exec plan">
-			<![CDATA[
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+AdaptiveJoin(originalJoin=[ShuffleHashJoin], joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, c1, d1, a2, b2, c2, d2], build=[left])
+:- Exchange(distribution=[hash[a1]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1, c1, d1])
++- Exchange(distribution=[hash[a2]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2, c2, d2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithShuffleHashJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE a1 = a2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
++- LogicalFilter(condition=[=($0, $4)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+AdaptiveJoin(originalJoin=[ShuffleHashJoin], joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, c1, d1, a2, b2, c2, d2], build=[left])
+:- Exchange(distribution=[hash[a1]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1, c1, d1])
++- Exchange(distribution=[hash[a2]])
+   +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2, c2, d2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithShuffleMergeJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE a1 = a2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
++- LogicalFilter(condition=[=($0, $4)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
 AdaptiveJoin(originalJoin=[SortMergeJoin], joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, c1, d1, a2, b2, c2, d2])
 :- Exchange(distribution=[hash[a1]])
 :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1, c1, d1])
 +- Exchange(distribution=[hash[a2]])
    +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2, c2, d2])
 ]]>
-		</Resource>
-	</TestCase>
-	<TestCase name="testWithBroadcastJoinRuntimeOnly">
-		<Resource name="sql">
-			<![CDATA[SELECT * FROM T1, T2 WHERE a1 = a2]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithStaticBroadcastJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1, T2 WHERE a1 = a2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
 +- LogicalFilter(condition=[=($0, $4)])
    +- LogicalJoin(condition=[true], joinType=[inner])
       :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
       +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
 ]]>
-		</Resource>
-		<Resource name="optimized exec plan">
-			<![CDATA[
-AdaptiveJoin(originalJoin=[ShuffleHashJoin], joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, c1, d1, a2, b2, c2, d2], build=[left])
-:- Exchange(distribution=[hash[a1]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1, c1, d1])
-+- Exchange(distribution=[hash[a2]])
-   +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2, c2, d2])
-]]>
-		</Resource>
-	</TestCase>
-	<TestCase name="testWithShuffleHashJoin">
-		<Resource name="sql">
-			<![CDATA[SELECT * FROM T1, T2 WHERE a1 = a2]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
-+- LogicalFilter(condition=[=($0, $4)])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
-]]>
-		</Resource>
-		<Resource name="optimized exec plan">
-			<![CDATA[
-AdaptiveJoin(originalJoin=[ShuffleHashJoin], joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, c1, d1, a2, b2, c2, d2], build=[left])
-:- Exchange(distribution=[hash[a1]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1, c1, d1])
-+- Exchange(distribution=[hash[a2]])
-   +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2, c2, d2])
-]]>
-		</Resource>
-	</TestCase>
-	<TestCase name="testWithStaticBroadcastJoin">
-		<Resource name="sql">
-			<![CDATA[SELECT * FROM T1, T2 WHERE a1 = a2]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
-+- LogicalFilter(condition=[=($0, $4)])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
-]]>
-		</Resource>
-		<Resource name="optimized exec plan">
-			<![CDATA[
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
 HashJoin(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, c1, d1, a2, b2, c2, d2], isBroadcast=[true], build=[right])
 :- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1, c1, d1])
 +- Exchange(distribution=[broadcast])
    +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2, c2, d2])
 ]]>
-		</Resource>
-	</TestCase>
-	<TestCase name="testJoinWithUnionInput">
-		<Resource name="sql">
-			<![CDATA[
-SELECT * FROM
-  (SELECT a FROM (SELECT a1 as a FROM T1) UNION ALL (SELECT a2 as a FROM T2)) Y
-  LEFT JOIN T ON T.a = Y.a
-]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
-LogicalProject(a=[$0], a0=[$1], b=[$2], c=[$3], d=[$4])
-+- LogicalJoin(condition=[=($1, $0)], joinType=[left])
-   :- LogicalUnion(all=[true])
-   :  :- LogicalProject(a=[$0])
-   :  :  +- LogicalProject(a=[$0])
-   :  :     +- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-   :  +- LogicalProject(a=[$0])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
-]]>
-		</Resource>
-		<Resource name="optimized exec plan">
-			<![CDATA[
-AdaptiveJoin(originalJoin=[ShuffleHashJoin], joinType=[LeftOuterJoin], where=[(a0 = a)], select=[a, a0, b, c, d], build=[left])
-:- Exchange(distribution=[hash[a]])
-:  +- Union(all=[true], union=[a])
-:     :- Calc(select=[a1 AS a])
-:     :  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1, c1, d1])
-:     +- Calc(select=[a2 AS a])
-:        +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2, c2, d2])
-+- Exchange(distribution=[hash[a]])
-   +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c, d])
-]]>
-		</Resource>
-	</TestCase>
-	<TestCase name="testJoinWithMultipleInput">
-		<Resource name="sql">
-			<![CDATA[
-SELECT * FROM
-  (SELECT a FROM T1 JOIN T ON a = a1) t1
-  INNER JOIN
-  (SELECT d2 FROM T JOIN T2 ON d2 = a) t2
-ON t1.a = t2.d2
-]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
-LogicalProject(a=[$0], d2=[$1])
-+- LogicalJoin(condition=[=($0, $1)], joinType=[inner])
-   :- LogicalProject(a=[$4])
-   :  +- LogicalJoin(condition=[=($4, $0)], joinType=[inner])
-   :     :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-   :     +- LogicalTableScan(table=[[default_catalog, default_database, T]])
-   +- LogicalProject(d2=[$7])
-      +- LogicalJoin(condition=[=($7, $0)], joinType=[inner])
-         :- LogicalTableScan(table=[[default_catalog, default_database, T]])
-         +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
-]]>
-		</Resource>
-		<Resource name="optimized exec plan">
-			<![CDATA[
-MultipleInput(readOrder=[0,1,1,2], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = d2)], select=[a, d2], build=[left])\n:- Calc(select=[a])\n:  +- HashJoin(joinType=[InnerJoin], where=[(a = a1)], select=[a1, a], build=[left])\n:     :- [#1] Exchange(distribution=[hash[a1]])\n:     +- [#2] Exchange(distribution=[hash[a]])\n+- Calc(select=[d2])\n   +- HashJoin(joinType=[InnerJoin], where=[(d2 = a)], select=[a, d2], build=[left])\n      :- [#2] Exchange(distribution=[hash[a]])\n      +- [#4] Exchange(distribution=[hash[d2]])\n])
-:- Exchange(distribution=[hash[a1]])
-:  +- Calc(select=[a1])
-:     +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1, c1, d1])
-:- Exchange(distribution=[hash[a]])(reuse_id=[1])
-:  +- Calc(select=[a])
-:     +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c, d])
-:- Reused(reference_id=[1])
-+- Exchange(distribution=[hash[d2]])
-   +- Calc(select=[d2])
-      +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2, c2, d2])
-]]>
-		</Resource>
-	</TestCase>
-	<TestCase name="testAdaptiveJoinWithBatchJobRecovery">
-		<Resource name="sql">
-			<![CDATA[SELECT * FROM T1, T2 WHERE a1 = a2]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
-+- LogicalFilter(condition=[=($0, $4)])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
-]]>
-		</Resource>
-		<Resource name="optimized exec plan">
-			<![CDATA[
-HashJoin(joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, c1, d1, a2, b2, c2, d2], build=[left])
-:- Exchange(distribution=[hash[a1]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1, c1, d1])
-+- Exchange(distribution=[hash[a2]])
-   +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2, c2, d2])
-]]>
-		</Resource>
-	</TestCase>
-	<TestCase name="testAdaptiveJoinWithAdaptiveSkewedOptimizationEnabled">
-		<Resource name="sql">
-			<![CDATA[SELECT * FROM T1, T2 WHERE a1 = a2]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
-LogicalProject(a1=[$0], b1=[$1], c1=[$2], d1=[$3], a2=[$4], b2=[$5], c2=[$6], d2=[$7])
-+- LogicalFilter(condition=[=($0, $4)])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
-]]>
-		</Resource>
-		<Resource name="optimized exec plan">
-			<![CDATA[
-AdaptiveJoin(originalJoin=[ShuffleHashJoin], joinType=[InnerJoin], where=[(a1 = a2)], select=[a1, b1, c1, d1, a2, b2, c2, d2], build=[left])
-:- Exchange(distribution=[hash[a1]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, T1]], fields=[a1, b1, c1, d1])
-+- Exchange(distribution=[hash[a2]])
-   +- TableSourceScan(table=[[default_catalog, default_database, T2]], fields=[a2, b2, c2, d2])
-]]>
-		</Resource>
-	</TestCase>
+    </Resource>
+  </TestCase>
 </Root>

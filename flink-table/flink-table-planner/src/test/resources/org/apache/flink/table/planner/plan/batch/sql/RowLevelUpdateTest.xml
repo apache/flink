@@ -409,68 +409,6 @@ Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a,
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testUpdateWithoutFilter[updateMode = UPDATED_ROWS]">
-    <Resource name="explain">
-      <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
-+- LogicalProject(a=[*(CHAR_LENGTH($1), $0)], b=[_UTF-16LE'n1'])
-   +- LogicalTableScan(table=[[default_catalog, default_database, t]])
-
-== Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
-+- Calc(select=[*(CHAR_LENGTH(b), a) AS a, 'n1' AS b])
-   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
-
-== Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
-+- Calc(select=[(CHAR_LENGTH(b) * a) AS a, 'n1' AS b])
-   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
-
-== Physical Execution Plan ==
-{
-  "nodes" : [ {
-    "id" : ,
-    "type" : "Source: t[]",
-    "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])",
-    "parallelism" : 1
-  }, {
-    "id" : ,
-    "type" : "Calc[]",
-    "pact" : "Operator",
-    "contents" : "[]:Calc(select=[(CHAR_LENGTH(b) * a) AS a, 'n1' AS b])",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "RowKindSetter[]",
-    "pact" : "Operator",
-    "contents" : "[]:RowKindSetter(TargetRowKind=[UPDATE_AFTER])",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "Sink: Unnamed",
-    "pact" : "Data Sink",
-    "contents" : "Sink: Unnamed",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
-  } ]
-}]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testUpdateWithFilter[updateMode = UPDATED_ROWS]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
@@ -627,6 +565,115 @@ Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[me
     "type" : "RowKindSetter[]",
     "pact" : "Operator",
     "contents" : "[]:RowKindSetter(TargetRowKind=[UPDATE_AFTER])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: Unnamed",
+    "pact" : "Data Sink",
+    "contents" : "Sink: Unnamed",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUpdateWithSubQuery[updateMode = ALL_ROWS]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
++- LogicalProject(a=[$0], b=[IF(=(CAST($0):BIGINT, $SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
+  LogicalTableScan(table=[[default_catalog, default_database, t1]])
+})), _UTF-16LE'v2', $1)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
++- Calc(select=[a, IF(=(CAST(a AS BIGINT), EXPR$0), 'v2', b) AS b])
+   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, b, EXPR$0], build=[right], singleRowJoin=[true])
+      :- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+      +- Exchange(distribution=[broadcast])
+         +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+                  +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
++- Calc(select=[a, IF((CAST(a AS BIGINT) = EXPR$0), 'v2', b) AS b])
+   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, b, EXPR$0], build=[right], singleRowJoin=[true])
+      :- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
+      +- Exchange(distribution=[broadcast])
+         +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
+            +- Exchange(distribution=[single])
+               +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
+                  +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: t[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Source: t1[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "HashAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "HashAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "GLOBAL",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "NestedLoopJoin[]",
+    "pact" : "Operator",
+    "contents" : "[]:NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, b, EXPR$0], build=[right], singleRowJoin=[true])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "BROADCAST",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, IF((CAST(a AS BIGINT) = EXPR$0), 'v2', b) AS b])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -833,37 +880,22 @@ Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields
 }]]>
     </Resource>
   </TestCase>
-  <TestCase name="testUpdateWithSubQuery[updateMode = ALL_ROWS]">
+  <TestCase name="testUpdateWithoutFilter[updateMode = UPDATED_ROWS]">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
-+- LogicalProject(a=[$0], b=[IF(=(CAST($0):BIGINT, $SCALAR_QUERY({
-LogicalAggregate(group=[{}], EXPR$0=[COUNT()])
-  LogicalTableScan(table=[[default_catalog, default_database, t1]])
-})), _UTF-16LE'v2', $1)])
+LogicalSink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
++- LogicalProject(a=[*(CHAR_LENGTH($1), $0)], b=[_UTF-16LE'n1'])
    +- LogicalTableScan(table=[[default_catalog, default_database, t]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
-+- Calc(select=[a, IF(=(CAST(a AS BIGINT), EXPR$0), 'v2', b) AS b])
-   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, b, EXPR$0], build=[right], singleRowJoin=[true])
-      :- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
-      +- Exchange(distribution=[broadcast])
-         +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
-            +- Exchange(distribution=[single])
-               +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
-                  +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
++- Calc(select=[*(CHAR_LENGTH(b), a) AS a, 'n1' AS b])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a, b])
-+- Calc(select=[a, IF((CAST(a AS BIGINT) = EXPR$0), 'v2', b) AS b])
-   +- NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, b, EXPR$0], build=[right], singleRowJoin=[true])
-      :- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
-      +- Exchange(distribution=[broadcast])
-         +- HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])
-            +- Exchange(distribution=[single])
-               +- LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])
-                  +- TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])
+Sink(table=[default_catalog.default_database.t], targetColumns=[[1],[0]], fields=[a, b])
++- Calc(select=[(CHAR_LENGTH(b) * a) AS a, 'n1' AS b])
+   +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b])
 
 == Physical Execution Plan ==
 {
@@ -875,52 +907,20 @@ Sink(table=[default_catalog.default_database.t], targetColumns=[[1]], fields=[a,
     "parallelism" : 1
   }, {
     "id" : ,
-    "type" : "Source: t1[]",
-    "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, t1]], fields=[a, b])",
-    "parallelism" : 1
-  }, {
-    "id" : ,
-    "type" : "HashAggregate[]",
-    "pact" : "Operator",
-    "contents" : "[]:LocalHashAggregate(select=[Partial_COUNT(*) AS count1$0])",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "HashAggregate[]",
-    "pact" : "Operator",
-    "contents" : "[]:HashAggregate(isMerge=[true], select=[Final_COUNT(count1$0) AS EXPR$0])",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "GLOBAL",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
-    "type" : "NestedLoopJoin[]",
-    "pact" : "Operator",
-    "contents" : "[]:NestedLoopJoin(joinType=[LeftOuterJoin], where=[true], select=[a, b, EXPR$0], build=[right], singleRowJoin=[true])",
-    "parallelism" : 1,
-    "predecessors" : [ {
-      "id" : ,
-      "ship_strategy" : "FORWARD",
-      "side" : "second"
-    }, {
-      "id" : ,
-      "ship_strategy" : "BROADCAST",
-      "side" : "second"
-    } ]
-  }, {
-    "id" : ,
     "type" : "Calc[]",
     "pact" : "Operator",
-    "contents" : "[]:Calc(select=[a, IF((CAST(a AS BIGINT) = EXPR$0), 'v2', b) AS b])",
+    "contents" : "[]:Calc(select=[(CHAR_LENGTH(b) * a) AS a, 'n1' AS b])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "RowKindSetter[]",
+    "pact" : "Operator",
+    "contents" : "[]:RowKindSetter(TargetRowKind=[UPDATE_AFTER])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

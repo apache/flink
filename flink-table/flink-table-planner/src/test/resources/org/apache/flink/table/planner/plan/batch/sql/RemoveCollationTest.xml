@@ -517,32 +517,6 @@ Calc(select=[sum_b, (CASE((w0$o0 > 0), w0$o1, null:BIGINT) / w0$o0) AS avg_b, w0
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRemoveCollation_Sort">
-    <Resource name="sql">
-      <![CDATA[
-WITH r AS (SELECT a, b, COUNT(c) AS cnt FROM x GROUP BY a, b)
-SELECT * FROM r ORDER BY a
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalSort(sort0=[$0], dir0=[ASC-nulls-first])
-+- LogicalProject(a=[$0], b=[$1], cnt=[$2])
-   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Sort(orderBy=[a ASC])
-+- Exchange(distribution=[single])
-   +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_COUNT(count$0) AS cnt])
-      +- Exchange(distribution=[hash[a, b]])
-         +- LocalHashAggregate(groupBy=[a, b], select=[a, b, Partial_COUNT(c) AS count$0])
-            +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testRemoveCollation_Rank_1">
     <Resource name="sql">
       <![CDATA[
@@ -713,6 +687,32 @@ SortAggregate(isMerge=[false], select=[COUNT(a) AS EXPR$0, SUM(b) AS EXPR$1])
                +- Sort(orderBy=[b ASC])
                   +- Calc(select=[a, b])
                      +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveCollation_Sort">
+    <Resource name="sql">
+      <![CDATA[
+WITH r AS (SELECT a, b, COUNT(c) AS cnt FROM x GROUP BY a, b)
+SELECT * FROM r ORDER BY a
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(sort0=[$0], dir0=[ASC-nulls-first])
++- LogicalProject(a=[$0], b=[$1], cnt=[$2])
+   +- LogicalAggregate(group=[{0, 1}], cnt=[COUNT($2)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sort(orderBy=[a ASC])
++- Exchange(distribution=[single])
+   +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b, Final_COUNT(count$0) AS cnt])
+      +- Exchange(distribution=[hash[a, b]])
+         +- LocalHashAggregate(groupBy=[a, b], select=[a, b, Partial_COUNT(c) AS count$0])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

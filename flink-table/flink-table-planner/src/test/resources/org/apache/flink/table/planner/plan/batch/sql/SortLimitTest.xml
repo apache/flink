@@ -16,43 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testNoneRangeSortWithOffsetLimit">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable ORDER BY a DESC, b LIMIT 10 OFFSET 1]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalSort(sort0=[$0], sort1=[$1], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], offset=[1], fetch=[10])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-SortLimit(orderBy=[a DESC, b ASC], offset=[1], fetch=[10], global=[true])
-+- Exchange(distribution=[single])
-   +- SortLimit(orderBy=[a DESC, b ASC], offset=[0], fetch=[11], global=[false])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testNoneRangeSortWithOffsetLimit0">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable ORDER BY a DESC, b LIMIT 0 OFFSET 1]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalSort(sort0=[$0], sort1=[$1], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], offset=[1], fetch=[0])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Values(tuples=[[]], values=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testNonRangeSortOnlyWithOffset">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable ORDER BY a DESC OFFSET 10 ROWS]]>
@@ -109,22 +72,40 @@ SortLimit(orderBy=[a DESC], offset=[0], fetch=[5], global=[true])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRangeSortOnlyWithOffset">
+  <TestCase name="testNoneRangeSortWithOffsetLimit">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable ORDER BY a DESC OFFSET 10 ROWS]]>
+      <![CDATA[SELECT * FROM MyTable ORDER BY a DESC, b LIMIT 10 OFFSET 1]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], offset=[10])
+LogicalSort(sort0=[$0], sort1=[$1], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], offset=[1], fetch=[10])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-SortLimit(orderBy=[a DESC], offset=[10], fetch=[unlimited], global=[true])
+SortLimit(orderBy=[a DESC, b ASC], offset=[1], fetch=[10], global=[true])
 +- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+   +- SortLimit(orderBy=[a DESC, b ASC], offset=[0], fetch=[11], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNoneRangeSortWithOffsetLimit0">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable ORDER BY a DESC, b LIMIT 0 OFFSET 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(sort0=[$0], sort1=[$1], dir0=[DESC-nulls-last], dir1=[ASC-nulls-first], offset=[1], fetch=[0])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Values(tuples=[[]], values=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -162,6 +143,25 @@ SortLimit(orderBy=[a DESC], offset=[0], fetch=[5], global=[true])
 +- Exchange(distribution=[single])
    +- SortLimit(orderBy=[a DESC], offset=[0], fetch=[5], global=[false])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRangeSortOnlyWithOffset">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable ORDER BY a DESC OFFSET 10 ROWS]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(sort0=[$0], dir0=[DESC-nulls-last], offset=[10])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+SortLimit(orderBy=[a DESC], offset=[10], fetch=[unlimited], global=[true])
++- Exchange(distribution=[single])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

@@ -139,30 +139,6 @@ Calc(select=[EXPR$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRollupWithUnmergeableAggCall">
-    <Resource name="sql">
-      <![CDATA[SELECT weightedAvg(a, 1) FROM t GROUP BY ROLLUP (b, c)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[$2])
-+- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], EXPR$0=[weightedAvg($2, $3)])
-   +- LogicalProject(b=[$1], c=[$2], a=[$0], $f3=[1])
-      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[EXPR$0])
-+- SortAggregate(isMerge=[false], groupBy=[b, c, $e], select=[b, c, $e, weightedAvg(a, $f3) AS EXPR$0])
-   +- Sort(orderBy=[b ASC, c ASC, $e ASC])
-      +- Exchange(distribution=[hash[b, c, $e]])
-         +- Expand(projects=[{b, c, a, $f3, 0 AS $e}, {b, null AS c, a, $f3, 1 AS $e}, {null AS b, null AS c, a, $f3, 3 AS $e}])
-            +- Calc(select=[b, c, a, 1 AS $f3])
-               +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, d])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testGroupSetsWithUnmergeableAggCall">
     <Resource name="sql">
       <![CDATA[select weightedAvg(a, 1) FROM t GROUP BY GROUPING SETS ((b, c), (b, d))]]>
@@ -236,6 +212,30 @@ Calc(select=[EXPR$0])
                +- Expand(projects=[{b, c, 0 AS $e}, {b, null AS c, 1 AS $e}, {null AS b, null AS c, 3 AS $e}])
                   +- Calc(select=[b, c])
                      +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRollupWithUnmergeableAggCall">
+    <Resource name="sql">
+      <![CDATA[SELECT weightedAvg(a, 1) FROM t GROUP BY ROLLUP (b, c)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$2])
++- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {}]], EXPR$0=[weightedAvg($2, $3)])
+   +- LogicalProject(b=[$1], c=[$2], a=[$0], $f3=[1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, t]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[EXPR$0])
++- SortAggregate(isMerge=[false], groupBy=[b, c, $e], select=[b, c, $e, weightedAvg(a, $f3) AS EXPR$0])
+   +- Sort(orderBy=[b ASC, c ASC, $e ASC])
+      +- Exchange(distribution=[hash[b, c, $e]])
+         +- Expand(projects=[{b, c, a, $f3, 0 AS $e}, {b, null AS c, a, $f3, 1 AS $e}, {null AS b, null AS c, a, $f3, 3 AS $e}])
+            +- Calc(select=[b, c, a, 1 AS $f3])
+               +- TableSourceScan(table=[[default_catalog, default_database, t]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>

@@ -54,28 +54,6 @@ ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($1), 1, DEFAULT(), DEF
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testViewOfDifferentPartitionKey">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM v]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(score=[$0], out=[$1])
-+- LogicalProject(score=[$0], out=[$1])
-   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($1), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER score, VARCHAR(2147483647) out)])
-      +- LogicalProject(name=[$0], score=[$1])
-         +- LogicalProject(name=[$0], score=[$1])
-            +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($1), 1, DEFAULT(), DEFAULT())], uid=[f], select=[score,out], rowType=[RecordType(INTEGER score, VARCHAR(2147483647) out)])
-+- Exchange(distribution=[hash[score]])
-   +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testEmptyArgs">
     <Resource name="sql">
       <![CDATA[SELECT * FROM f(uid => 'my-ptf')]]>
@@ -111,70 +89,6 @@ LogicalProject(out=[$0], rowtime=[$1])
 ProcessTableFunction(invocation=[f(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), DEFAULT())], uid=[null], select=[out,rowtime], rowType=[RecordType(VARCHAR(2147483647) out, TIMESTAMP_LTZ(3) *ROWTIME* rowtime)])
 +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
    +- TableSourceScan(table=[[default_catalog, default_database, t_watermarked]], fields=[name, score, ts])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testScalarArgsNoUid">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM f(i => 1, b => true)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(out=[$0])
-+- LogicalTableFunctionScan(invocation=[f(1, true, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-ProcessTableFunction(invocation=[f(1, true, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
-+- Values(tuples=[[{  }]])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testUidPipelineSplitIntoTwoFunctions">
-    <Resource name="ast">
-      <![CDATA[
-LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
-+- LogicalProject(name=[$0], out=[$1])
-   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'a')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
-      +- LogicalProject(name=[$0], score=[$1])
-         +- LogicalProject(name=[$0], score=[$1])
-            +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
-
-LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
-+- LogicalProject(name=[$0], out=[$1])
-   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'b')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
-      +- LogicalProject(name=[$0], score=[$1])
-         +- LogicalProject(name=[$0], score=[$1])
-            +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Sink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
-+- Union(all=[true], union=[name, out])
-   :- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'a')], uid=[a], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
-   :  +- Exchange(distribution=[hash[name]])(reuse_id=[1])
-   :     +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
-   +- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'b')], uid=[b], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
-      +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testScalarArgsWithUid">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM f(uid => 'my-uid', i => 1, b => true)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(out=[$0])
-+- LogicalTableFunctionScan(invocation=[f(1, true, DEFAULT(), _UTF-16LE'my-uid')], rowType=[RecordType(VARCHAR(2147483647) out)])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-ProcessTableFunction(invocation=[f(1, true, DEFAULT(), _UTF-16LE'my-uid')], uid=[my-uid], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
-+- Values(tuples=[[{  }]])
 ]]>
     </Resource>
   </TestCase>
@@ -227,6 +141,40 @@ ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], uid=[nu
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testScalarArgsNoUid">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(i => 1, b => true)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(out=[$0])
++- LogicalTableFunctionScan(invocation=[f(1, true, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(1, true, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
++- Values(tuples=[[{  }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testScalarArgsWithUid">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(uid => 'my-uid', i => 1, b => true)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(out=[$0])
++- LogicalTableFunctionScan(invocation=[f(1, true, DEFAULT(), _UTF-16LE'my-uid')], rowType=[RecordType(VARCHAR(2147483647) out)])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(1, true, DEFAULT(), _UTF-16LE'my-uid')], uid=[my-uid], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
++- Values(tuples=[[{  }]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSetSemanticTablePassThroughColumns">
     <Resource name="sql">
       <![CDATA[SELECT * FROM f(r => TABLE t PARTITION BY name, i => 1)]]>
@@ -245,6 +193,27 @@ LogicalProject(name=[$0], score=[$1], out=[$2])
 ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), DEFAULT())], uid=[f], select=[name,score,out], rowType=[RecordType(VARCHAR(5) name, INTEGER score, VARCHAR(2147483647) out)])
 +- Exchange(distribution=[hash[name]])
    +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTypedRowSemanticTableIgnoringColumnNames">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(u => TABLE t_name_diff, i => 1)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(out=[$0])
++- LogicalTableFunctionScan(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
+   +- LogicalProject(name=[$0], different=[$1])
+      +- LogicalProject(name=[_UTF-16LE'Bob'], different=[12])
+         +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
++- Calc(select=['Bob' AS name, 12 AS different])
+   +- Values(tuples=[[{ 0 }]])
 ]]>
     </Resource>
   </TestCase>
@@ -310,6 +279,36 @@ Sink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testUidPipelineSplitIntoTwoFunctions">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
++- LogicalProject(name=[$0], out=[$1])
+   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'a')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+      +- LogicalProject(name=[$0], score=[$1])
+         +- LogicalProject(name=[$0], score=[$1])
+            +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+
+LogicalSink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
++- LogicalProject(name=[$0], out=[$1])
+   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'b')], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+      +- LogicalProject(name=[$0], score=[$1])
+         +- LogicalProject(name=[$0], score=[$1])
+            +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.t_keyed_sink], fields=[name, out])
++- Union(all=[true], union=[name, out])
+   :- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'a')], uid=[a], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+   :  +- Exchange(distribution=[hash[name]])(reuse_id=[1])
+   :     +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
+   +- ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($0), 1, DEFAULT(), _UTF-16LE'b')], uid=[b], select=[name,out], rowType=[RecordType(VARCHAR(5) name, VARCHAR(2147483647) out)])
+      +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testUnknownScalarArg">
     <Resource name="sql">
       <![CDATA[SELECT * FROM f(i => 1, b => true, invalid => 'invalid')]]>
@@ -327,24 +326,25 @@ ProcessTableFunction(invocation=[f(1, true, DEFAULT(), DEFAULT())], uid=[null], 
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTypedRowSemanticTableIgnoringColumnNames">
+  <TestCase name="testViewOfDifferentPartitionKey">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM f(u => TABLE t_name_diff, i => 1)]]>
+      <![CDATA[SELECT * FROM v]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(out=[$0])
-+- LogicalTableFunctionScan(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
-   +- LogicalProject(name=[$0], different=[$1])
-      +- LogicalProject(name=[_UTF-16LE'Bob'], different=[12])
-         +- LogicalValues(tuples=[[{ 0 }]])
+LogicalProject(score=[$0], out=[$1])
++- LogicalProject(score=[$0], out=[$1])
+   +- LogicalTableFunctionScan(invocation=[f(TABLE(#0) PARTITION BY($1), 1, DEFAULT(), DEFAULT())], rowType=[RecordType(INTEGER score, VARCHAR(2147483647) out)])
+      +- LogicalProject(name=[$0], score=[$1])
+         +- LogicalProject(name=[$0], score=[$1])
+            +- LogicalValues(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-ProcessTableFunction(invocation=[f(TABLE(#0), 1, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
-+- Calc(select=['Bob' AS name, 12 AS different])
-   +- Values(tuples=[[{ 0 }]])
+ProcessTableFunction(invocation=[f(TABLE(#0) PARTITION BY($1), 1, DEFAULT(), DEFAULT())], uid=[f], select=[score,out], rowType=[RecordType(INTEGER score, VARCHAR(2147483647) out)])
++- Exchange(distribution=[hash[score]])
+   +- Values(tuples=[[{ _UTF-16LE'Bob', 12 }, { _UTF-16LE'Alice', 42 }]])
 ]]>
     </Resource>
   </TestCase>

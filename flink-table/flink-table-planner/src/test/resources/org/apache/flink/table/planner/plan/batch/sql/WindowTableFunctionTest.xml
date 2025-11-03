@@ -101,28 +101,6 @@ WindowTableFunction(window=[HOP(time_col=[ts], size=[2 h], slide=[1 h])])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTumbleTVF">
-    <Resource name="sql">
-      <![CDATA[
-SELECT *
-FROM TABLE(TUMBLE(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '15' MINUTE))
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4], window_start=[$5], window_end=[$6], window_time=[$7])
-+- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[15 min])])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c, d, ts])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testProjectWTFTransposeRule">
     <Resource name="sql">
       <![CDATA[
@@ -156,6 +134,28 @@ Calc(select=[EXPR$0])
                         +- WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[3 s])])
                            +- Calc(select=[a, c, ts])
                               +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c, d, ts])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTumbleTVF">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM TABLE(TUMBLE(TABLE MyTable1, DESCRIPTOR(ts), INTERVAL '15' MINUTE))
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4], window_start=[$5], window_end=[$6], window_time=[$7])
++- LogicalTableFunctionScan(invocation=[TUMBLE(TABLE(#0), DESCRIPTOR(_UTF-16LE'ts'), 900000:INTERVAL MINUTE)], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER d, TIMESTAMP(3) ts, TIMESTAMP(3) window_start, TIMESTAMP(3) window_end, TIMESTAMP(3) window_time)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], ts=[$4])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+WindowTableFunction(window=[TUMBLE(time_col=[ts], size=[15 min])])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a, b, c, d, ts])
 ]]>
     </Resource>
   </TestCase>

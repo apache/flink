@@ -16,6 +16,52 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="TestMultiDistinctOnDifferentColumnWithFilter">
+    <Resource name="sql">
+      <![CDATA[SELECT d, COUNT(DISTINCT c), COUNT(DISTINCT c) FILTER (WHERE a > 0),
+COUNT(DISTINCT b) FILTER (WHERE b > 1) FROM MyTable2 GROUP BY d]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT(DISTINCT $1) FILTER $2], EXPR$3=[COUNT(DISTINCT $3) FILTER $4])
++- LogicalProject(d=[$3], c=[$2], $f2=[IS TRUE(>($0, 0))], b=[$1], $f4=[IS TRUE(>($1, 1))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $4], EXPR$2=[COUNT($1) FILTER $3], EXPR$3=[COUNT($2) FILTER $5])
++- FlinkLogicalCalc(select=[d, c, b, AND(=(CASE(=($e, 3), 3, =($e, 7), 7, 12), 3), IS TRUE($f2)) AS $g_3, =(CASE(=($e, 3), 3, =($e, 7), 7, 12), 7) AS $g_7, AND(=(CASE(=($e, 3), 3, =($e, 7), 7, 12), 12), IS TRUE($f4)) AS $g_12])
+   +- FlinkLogicalAggregate(group=[{0, 1, 2, 3, 4, 5}])
+      +- FlinkLogicalExpand(projects=[{d, c, $f2, null AS b, null AS $f4, 3 AS $e}, {d, c, null AS $f2, null AS b, null AS $f4, 7 AS $e}, {d, null AS c, null AS $f2, b, $f4, 12 AS $e}])
+         +- FlinkLogicalCalc(select=[d, c, IS TRUE(>(a, 0)) AS $f2, b, IS TRUE(>(b, 1)) AS $f4])
+            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="TestMultiDistinctWithFilterAndNonDistinctAgg">
+    <Resource name="sql">
+      <![CDATA[SELECT d, COUNT(DISTINCT c), COUNT(DISTINCT c) FILTER (WHERE a > 0),
+MAX(e), MIN(e) FROM MyTable2 GROUP BY d]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT(DISTINCT $1) FILTER $2], EXPR$3=[MAX($3)], EXPR$4=[MIN($3)])
++- LogicalProject(d=[$3], c=[$2], $f2=[IS TRUE(>($0, 0))], e=[$4])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $5], EXPR$2=[COUNT($1) FILTER $4], EXPR$3=[MIN($2) FILTER $6], EXPR$4=[MIN($3) FILTER $6])
++- FlinkLogicalCalc(select=[d, c, EXPR$3, EXPR$4, AND(=(CASE(=($e, 0), 0, =($e, 1), 1, 3), 0), IS TRUE($f2)) AS $g_0, =(CASE(=($e, 0), 0, =($e, 1), 1, 3), 1) AS $g_1, =(CASE(=($e, 0), 0, =($e, 1), 1, 3), 3) AS $g_3])
+   +- FlinkLogicalAggregate(group=[{0, 1, 2, 4}], EXPR$3=[MAX($3)], EXPR$4=[MIN($3)])
+      +- FlinkLogicalExpand(projects=[{d, c, $f2, e, 0 AS $e}, {d, c, null AS $f2, e, 1 AS $e}, {d, null AS c, null AS $f2, e, 3 AS $e}])
+         +- FlinkLogicalCalc(select=[d, c, IS TRUE(>(a, 0)) AS $f2, e])
+            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testDistinctAggWithDuplicateField">
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(a), SUM(b), SUM(DISTINCT b) FROM MyTable GROUP BY a]]>
@@ -297,29 +343,6 @@ FlinkLogicalAggregate(group=[{0}], EXPR$1=[MIN($3) FILTER $8], EXPR$2=[MIN($4) F
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="TestMultiDistinctOnDifferentColumnWithFilter">
-    <Resource name="sql">
-      <![CDATA[SELECT d, COUNT(DISTINCT c), COUNT(DISTINCT c) FILTER (WHERE a > 0),
-COUNT(DISTINCT b) FILTER (WHERE b > 1) FROM MyTable2 GROUP BY d]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT(DISTINCT $1) FILTER $2], EXPR$3=[COUNT(DISTINCT $3) FILTER $4])
-+- LogicalProject(d=[$3], c=[$2], $f2=[IS TRUE(>($0, 0))], b=[$1], $f4=[IS TRUE(>($1, 1))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $4], EXPR$2=[COUNT($1) FILTER $3], EXPR$3=[COUNT($2) FILTER $5])
-+- FlinkLogicalCalc(select=[d, c, b, AND(=(CASE(=($e, 3), 3, =($e, 7), 7, 12), 3), IS TRUE($f2)) AS $g_3, =(CASE(=($e, 3), 3, =($e, 7), 7, 12), 7) AS $g_7, AND(=(CASE(=($e, 3), 3, =($e, 7), 7, 12), 12), IS TRUE($f4)) AS $g_12])
-   +- FlinkLogicalAggregate(group=[{0, 1, 2, 3, 4, 5}])
-      +- FlinkLogicalExpand(projects=[{d, c, $f2, null AS b, null AS $f4, 3 AS $e}, {d, c, null AS $f2, null AS b, null AS $f4, 7 AS $e}, {d, null AS c, null AS $f2, b, $f4, 12 AS $e}])
-         +- FlinkLogicalCalc(select=[d, c, IS TRUE(>(a, 0)) AS $f2, b, IS TRUE(>(b, 1)) AS $f4])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testMultiDistinctOnSameColumnWithFilter">
     <Resource name="sql">
       <![CDATA[SELECT d, COUNT(DISTINCT c), COUNT(DISTINCT c) FILTER (WHERE a > 10),
@@ -339,29 +362,6 @@ FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $4], EXPR$2=[COUNT($
    +- FlinkLogicalAggregate(group=[{0, 1, 2, 3, 4}])
       +- FlinkLogicalExpand(projects=[{d, c, $f2, null AS $f3, 1 AS $e}, {d, c, null AS $f2, $f3, 2 AS $e}, {d, c, null AS $f2, null AS $f3, 3 AS $e}])
          +- FlinkLogicalCalc(select=[d, c, IS TRUE(>(a, 10)) AS $f2, IS TRUE(<(a, 10)) AS $f3])
-            +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="TestMultiDistinctWithFilterAndNonDistinctAgg">
-    <Resource name="sql">
-      <![CDATA[SELECT d, COUNT(DISTINCT c), COUNT(DISTINCT c) FILTER (WHERE a > 0),
-MAX(e), MIN(e) FROM MyTable2 GROUP BY d]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[COUNT(DISTINCT $1) FILTER $2], EXPR$3=[MAX($3)], EXPR$4=[MIN($3)])
-+- LogicalProject(d=[$3], c=[$2], $f2=[IS TRUE(>($0, 0))], e=[$4])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-FlinkLogicalAggregate(group=[{0}], EXPR$1=[COUNT($1) FILTER $5], EXPR$2=[COUNT($1) FILTER $4], EXPR$3=[MIN($2) FILTER $6], EXPR$4=[MIN($3) FILTER $6])
-+- FlinkLogicalCalc(select=[d, c, EXPR$3, EXPR$4, AND(=(CASE(=($e, 0), 0, =($e, 1), 1, 3), 0), IS TRUE($f2)) AS $g_0, =(CASE(=($e, 0), 0, =($e, 1), 1, 3), 1) AS $g_1, =(CASE(=($e, 0), 0, =($e, 1), 1, 3), 3) AS $g_3])
-   +- FlinkLogicalAggregate(group=[{0, 1, 2, 4}], EXPR$3=[MAX($3)], EXPR$4=[MIN($3)])
-      +- FlinkLogicalExpand(projects=[{d, c, $f2, e, 0 AS $e}, {d, c, null AS $f2, e, 1 AS $e}, {d, null AS c, null AS $f2, e, 3 AS $e}])
-         +- FlinkLogicalCalc(select=[d, c, IS TRUE(>(a, 0)) AS $f2, e])
             +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
@@ -524,29 +524,6 @@ FlinkLogicalCalc(select=[EXPR$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTwoDistinctAggWithGroupByAndCountStar">
-    <Resource name="sql">
-      <![CDATA[SELECT a, COUNT(*), SUM(DISTINCT b), COUNT(DISTINCT b) FROM MyTable GROUP BY a]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{0}], EXPR$1=[COUNT()], EXPR$2=[SUM(DISTINCT $1)], EXPR$3=[COUNT(DISTINCT $1)])
-+- LogicalProject(a=[$0], b=[$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-FlinkLogicalCalc(select=[a, CAST(EXPR$1 AS BIGINT) AS EXPR$1, EXPR$2, EXPR$3])
-+- FlinkLogicalAggregate(group=[{0}], EXPR$1=[MIN($2) FILTER $4], EXPR$2=[SUM($1) FILTER $3], EXPR$3=[COUNT($1) FILTER $3])
-   +- FlinkLogicalCalc(select=[a, b, EXPR$1, =(CASE(=($e, 0), 0, 1), 0) AS $g_0, =(CASE(=($e, 0), 0, 1), 1) AS $g_1])
-      +- FlinkLogicalAggregate(group=[{0, 1, 2}], EXPR$1=[COUNT()])
-         +- FlinkLogicalExpand(projects=[{a, b, 0 AS $e}, {a, null AS b, 1 AS $e}])
-            +- FlinkLogicalCalc(select=[a, b])
-               +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testSingleDistinctAggWithGroupBy">
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(a), SUM(DISTINCT b) FROM MyTable GROUP BY a]]>
@@ -631,6 +608,29 @@ FlinkLogicalCalc(select=[a, CAST(EXPR$1 AS BIGINT) AS EXPR$1, EXPR$2, EXPR$3])
       +- FlinkLogicalAggregate(group=[{0, 1, 2, 3}], EXPR$1=[COUNT()])
          +- FlinkLogicalExpand(projects=[{a, b, null AS c, 1 AS $e}, {a, null AS b, c, 2 AS $e}, {a, null AS b, null AS c, 3 AS $e}])
             +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTwoDistinctAggWithGroupByAndCountStar">
+    <Resource name="sql">
+      <![CDATA[SELECT a, COUNT(*), SUM(DISTINCT b), COUNT(DISTINCT b) FROM MyTable GROUP BY a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT()], EXPR$2=[SUM(DISTINCT $1)], EXPR$3=[COUNT(DISTINCT $1)])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, CAST(EXPR$1 AS BIGINT) AS EXPR$1, EXPR$2, EXPR$3])
++- FlinkLogicalAggregate(group=[{0}], EXPR$1=[MIN($2) FILTER $4], EXPR$2=[SUM($1) FILTER $3], EXPR$3=[COUNT($1) FILTER $3])
+   +- FlinkLogicalCalc(select=[a, b, EXPR$1, =(CASE(=($e, 0), 0, 1), 0) AS $g_0, =(CASE(=($e, 0), 0, 1), 1) AS $g_1])
+      +- FlinkLogicalAggregate(group=[{0, 1, 2}], EXPR$1=[COUNT()])
+         +- FlinkLogicalExpand(projects=[{a, b, 0 AS $e}, {a, null AS b, 1 AS $e}])
+            +- FlinkLogicalCalc(select=[a, b])
+               +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

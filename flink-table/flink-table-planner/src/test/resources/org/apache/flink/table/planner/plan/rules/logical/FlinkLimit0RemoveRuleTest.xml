@@ -38,30 +38,6 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testLimitZeroWithNotIn">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable WHERE a NOT IN (SELECT a FROM MyTable LIMIT 0)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[NOT(IN($0, {
-LogicalSort(fetch=[0])
-  LogicalProject(a=[$0])
-    LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-}))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($3), =($0, $3))], joinType=[anti])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalValues(tuples=[[]])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testLimitZeroWithIn">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable WHERE a IN (SELECT a FROM MyTable LIMIT 0)]]>
@@ -131,20 +107,27 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSimpleLimitZero">
+  <TestCase name="testLimitZeroWithNotIn">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable LIMIT 0]]>
+      <![CDATA[SELECT * FROM MyTable WHERE a NOT IN (SELECT a FROM MyTable LIMIT 0)]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[NOT(IN($0, {
 LogicalSort(fetch=[0])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
+  LogicalProject(a=[$0])
+    LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+}))])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalValues(tuples=[[]])
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[OR(IS NULL($0), IS NULL($3), =($0, $3))], joinType=[anti])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalValues(tuples=[[]])
 ]]>
     </Resource>
   </TestCase>
@@ -155,6 +138,23 @@ LogicalValues(tuples=[[]])
     <Resource name="ast">
       <![CDATA[
 LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], offset=[10], fetch=[0])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalValues(tuples=[[]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLimitZeroWithOrderBy">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable ORDER BY a LIMIT 0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[0])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
@@ -184,13 +184,13 @@ LogicalProject(a=[$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testLimitZeroWithOrderBy">
+  <TestCase name="testSimpleLimitZero">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable ORDER BY a LIMIT 0]]>
+      <![CDATA[SELECT * FROM MyTable LIMIT 0]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[0])
+LogicalSort(fetch=[0])
 +- LogicalProject(a=[$0], b=[$1], c=[$2])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
