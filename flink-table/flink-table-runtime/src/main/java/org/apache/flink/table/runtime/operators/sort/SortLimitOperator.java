@@ -29,6 +29,8 @@ import org.apache.flink.table.runtime.typeutils.AbstractRowDataSerializer;
 import org.apache.flink.table.runtime.util.StreamRecordCollector;
 import org.apache.flink.util.Collector;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.PriorityQueue;
 
 /** Operator for batch sort limit. */
@@ -90,12 +92,12 @@ public class SortLimitOperator extends TableStreamOperator<RowData>
     @Override
     public void endInput() throws Exception {
         if (isGlobal) {
-            // Global sort, we need sort the results and pick records in limitStart to limitEnd.
-            for (int i = 0; i < limitStart && !heap.isEmpty(); i++) {
-                heap.poll();
+            List<RowData> list = new ArrayList<>((int) (heap.size() - limitStart));
+            while (heap.size() > limitStart) {
+                list.add(heap.poll());
             }
-            while (!heap.isEmpty()) {
-                collector.collect(heap.poll());
+            for (int i = list.size() - 1; i >= 0; i--) {
+                collector.collect(list.get(i));
             }
         } else {
             for (RowData row : heap) {
