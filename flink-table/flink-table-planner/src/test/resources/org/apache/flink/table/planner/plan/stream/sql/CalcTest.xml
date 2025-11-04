@@ -706,13 +706,13 @@ SELECT my_row = ROW(1, 'str') from src
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[=(CAST($0):RecordType(INTEGER a, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" b), CAST(ROW(1, _UTF-16LE'str')):RecordType(INTEGER a, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" b) NOT NULL)])
+LogicalProject(EXPR$0=[=($0, CAST(ROW(1, _UTF-16LE'str')):RecordType:peek_no_expand(INTEGER a, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" b) NOT NULL)])
 +- LogicalTableScan(table=[[default_catalog, default_database, src]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[(CAST(my_row AS RecordType(INTEGER a, VARCHAR(2147483647) b)) = CAST(ROW(1, 'str') AS RecordType(INTEGER a, VARCHAR(2147483647) b))) AS EXPR$0])
+Calc(select=[(my_row = CAST(ROW(1, 'str') AS RecordType:peek_no_expand(INTEGER a, VARCHAR(2147483647) b))) AS EXPR$0])
 +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[my_row])
 ]]>
     </Resource>

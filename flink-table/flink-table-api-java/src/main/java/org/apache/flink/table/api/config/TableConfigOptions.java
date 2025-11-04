@@ -157,6 +157,19 @@ public class TableConfigOptions {
                                             + "By default, all top-level columns of the table's "
                                             + "schema are selected and nested fields are retained.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> LEGACY_NESTED_ROW_NULLABILITY =
+            key("table.legacy-nested-row-nullability")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Before Flink 2.2, row types defined in SQL "
+                                    + "e.g. `SELECT CAST(f AS ROW<i NOT NULL>)` did ignore the `NOT NULL` constraint. "
+                                    + "This was more aligned with the SQL standard but caused many type inconsistencies "
+                                    + "and cryptic error message when working on nested data. "
+                                    + "For example, it prevented using rows in computed columns or join keys. "
+                                    + "The new behavior takes the nullability into consideration.");
+
     // ------------------------------------------------------------------------------------------
     // Options for plan handling
     // ------------------------------------------------------------------------------------------

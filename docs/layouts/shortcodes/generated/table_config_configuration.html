@@ -57,6 +57,12 @@
             <td>Specifies a threshold where generated code will be split into sub-function calls. Java has a maximum method length of 64 KB. This setting allows for finer granularity if necessary. Default value is 4000 instead of 64KB as by default JIT refuses to work on methods with more than 8K byte code.</td>
         </tr>
         <tr>
+            <td><h5>table.legacy-nested-row-nullability</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Before Flink 2.2, row types defined in SQL e.g. `SELECT CAST(f AS ROW&lt;i NOT NULL&gt;)` did ignore the `NOT NULL` constraint. This was more aligned with the SQL standard but caused many type inconsistencies and cryptic error message when working on nested data. For example, it prevented using rows in computed columns or join keys. The new behavior takes the nullability into consideration.</td>
+        </tr>
+        <tr>
             <td><h5>table.local-time-zone</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">"default"</td>
             <td>String</td>
