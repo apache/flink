@@ -101,7 +101,7 @@ public class ExpressionConverter extends ResolvedExpressionVisitor<RexNode> {
         this.typeFactory = (FlinkTypeFactory) relBuilder.getRexBuilder().getTypeFactory();
         this.dataTypeFactory =
                 unwrapContext(relBuilder.getCluster()).getCatalogManager().getDataTypeFactory();
-        this.inputStack = new java.util.ArrayList<>();
+        this.inputStack = new ArrayList<>();
     }
 
     private List<CallExpressionConvertRule> getFunctionConvertChain(boolean isBatchMode) {

@@ -48,6 +48,9 @@ public final class ModelReferenceExpression implements ResolvedExpression {
 
     private final String name;
     private final ContextResolvedModel model;
+    // The environment is optional but serves validation purposes
+    // to ensure that all referenced tables belong to the same
+    // environment.
     private final TableEnvironment env;
 
     public ModelReferenceExpression(String name, ContextResolvedModel model, TableEnvironment env) {
