@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.types.ColumnList;
 
@@ -104,13 +105,7 @@ public interface Model {
      * runtime configuration options such as max-concurrent-operations, timeout, and execution mode
      * settings.
      *
-     * <p>Common runtime options include:
-     *
-     * <ul>
-     *   <li>"max-concurrent-operations" - Number of records to process in each batch
-     *   <li>"timeout" - Maximum time to wait for model inference
-     *   <li>"async" - Whether to enable asynchronous execution
-     * </ul>
+     * <p>For Common runtime options, see {@link MLPredictRuntimeConfigOptions}.
      *
      * <p>Example:
      *

@@ -32,6 +32,8 @@ public abstract class ResolvedExpressionVisitor<R> implements ExpressionVisitor<
     public final R visit(Expression other) {
         if (other instanceof TableReferenceExpression) {
             return visit((TableReferenceExpression) other);
+        } else if (other instanceof ModelReferenceExpression) {
+            return visit((ModelReferenceExpression) other);
         } else if (other instanceof LocalReferenceExpression) {
             return visit((LocalReferenceExpression) other);
         } else if (other instanceof ResolvedExpression) {
@@ -41,6 +43,8 @@ public abstract class ResolvedExpressionVisitor<R> implements ExpressionVisitor<
     }
 
     public abstract R visit(TableReferenceExpression tableReference);
+
+    public abstract R visit(ModelReferenceExpression modelReferenceExpression);
 
     public abstract R visit(LocalReferenceExpression localReference);
 

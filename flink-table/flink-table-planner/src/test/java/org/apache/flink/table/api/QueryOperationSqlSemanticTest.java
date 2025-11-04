@@ -20,6 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.SemanticTestBase;
+import org.apache.flink.table.test.program.FailingTableApiTestStep;
 import org.apache.flink.table.test.program.TableApiTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.table.test.program.TestStep;
@@ -60,7 +61,8 @@ public class QueryOperationSqlSemanticTest extends SemanticTestBase {
                 QueryOperationTestPrograms.SET_SEMANTIC_TABLE_PTF,
                 QueryOperationTestPrograms.ML_PREDICT_MODEL_API,
                 QueryOperationTestPrograms.ASYNC_ML_PREDICT_TABLE_API_MAP_EXPRESSION_CONFIG,
-                QueryOperationTestPrograms.ASYNC_ML_PREDICT_MODEL_API);
+                QueryOperationTestPrograms.ASYNC_ML_PREDICT_MODEL_API,
+                QueryOperationTestPrograms.ML_PREDICT_ANON_MODEL_API);
     }
 
     @Override
@@ -68,6 +70,9 @@ public class QueryOperationSqlSemanticTest extends SemanticTestBase {
         if (testStep instanceof TableApiTestStep) {
             final TableApiTestStep tableApiStep = (TableApiTestStep) testStep;
             tableApiStep.applyAsSql(env).await();
+        } else if (testStep instanceof FailingTableApiTestStep) {
+            final FailingTableApiTestStep failingTableApiStep = (FailingTableApiTestStep) testStep;
+            failingTableApiStep.applyAsSql(env);
         } else {
             super.runStep(testStep, env);
         }
@@ -75,6 +80,6 @@ public class QueryOperationSqlSemanticTest extends SemanticTestBase {
 
     @Override
     public EnumSet<TestKind> supportedRunSteps() {
-        return EnumSet.of(TestKind.TABLE_API, TestKind.SQL);
+        return EnumSet.of(TestKind.TABLE_API, TestKind.SQL, TestKind.FAILING_TABLE_API);
     }
 }

@@ -21,6 +21,7 @@ package org.apache.flink.table.expressions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.Model;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ContextResolvedModel;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -103,6 +104,10 @@ public final class ModelReferenceExpression implements ResolvedExpression {
 
     @Override
     public String asSerializableString(SqlFactory sqlFactory) {
+        if (model.isAnonymous()) {
+            throw new ValidationException("Anonymous models cannot be serialized.");
+        }
+
         return "MODEL " + model.getIdentifier().asSerializableString();
     }
 

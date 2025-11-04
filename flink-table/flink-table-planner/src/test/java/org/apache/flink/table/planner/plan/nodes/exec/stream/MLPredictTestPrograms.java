@@ -20,7 +20,10 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Expressions;
+import org.apache.flink.table.api.ModelDescriptor;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.planner.factories.TestValuesModelFactory;
 import org.apache.flink.table.test.program.ModelTestStep;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
@@ -267,6 +270,40 @@ public class MLPredictTestPrograms {
                                                             "true",
                                                             "max-concurrent-operations",
                                                             "10")),
+                            "sink")
+                    .build();
+
+    public static final TableTestProgram ML_PREDICT_ANON_MODEL_API =
+            TableTestProgram.of(
+                            "ml-predict-anonymous-model-api",
+                            "ml-predict using anonymous model API")
+                    .setupTableSource(SIMPLE_FEATURES_SOURCE)
+                    .setupTableSink(SIMPLE_SINK)
+                    .runTableApi(
+                            env ->
+                                    env.from(
+                                                    ModelDescriptor.forProvider("values")
+                                                            .inputSchema(
+                                                                    Schema.newBuilder()
+                                                                            .column(
+                                                                                    "feature",
+                                                                                    "STRING")
+                                                                            .build())
+                                                            .outputSchema(
+                                                                    Schema.newBuilder()
+                                                                            .column(
+                                                                                    "category",
+                                                                                    "STRING")
+                                                                            .build())
+                                                            .option(
+                                                                    "data-id",
+                                                                    TestValuesModelFactory
+                                                                            .registerData(
+                                                                                    SYNC_MODEL
+                                                                                            .data))
+                                                            .build())
+                                            .predict(
+                                                    env.from("features"), ColumnList.of("feature")),
                             "sink")
                     .build();
 }

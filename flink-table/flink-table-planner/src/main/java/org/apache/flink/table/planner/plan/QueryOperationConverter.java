@@ -23,11 +23,9 @@ import org.apache.flink.legacy.table.sources.StreamTableSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.calcite.bridge.PlannerExternalQueryOperation;
-import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
-import org.apache.flink.table.catalog.ContextResolvedModel;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -37,20 +35,14 @@ import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
-import org.apache.flink.table.expressions.ModelReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.factories.ModelProviderFactory;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.legacy.sources.LookupableTableSource;
 import org.apache.flink.table.legacy.sources.TableSource;
-import org.apache.flink.table.ml.ModelProvider;
-import org.apache.flink.table.module.Module;
 import org.apache.flink.table.operations.AggregateQueryOperation;
 import org.apache.flink.table.operations.CorrelatedFunctionQueryOperation;
 import org.apache.flink.table.operations.DataStreamQueryOperation;
@@ -75,8 +67,6 @@ import org.apache.flink.table.operations.utils.QueryOperationDefaultVisitor;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.calcite.RexModelCall;
-import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.expressions.SqlAggFunctionVisitor;
@@ -141,7 +131,6 @@ import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.TABLE_AGGREGATE;
 import static org.apache.flink.table.types.utils.TypeConversions.fromDataToLogicalType;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
-import static org.apache.flink.util.OptionalUtils.firstPresent;
 
 /**
  * Converter from Flink's specific relational representation: {@link QueryOperation} to Calcite's
@@ -311,104 +300,13 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             final RelDataType outputRelDataType =
                     typeFactory.buildRelNodeRowType((RowType) outputType);
 
-            final List<RelNode> inputStack = new ArrayList<>();
             final List<RexNode> rexNodeArgs =
                     resolvedArgs.stream()
-                            .map(
-                                    resolvedArg -> {
-                                        if (resolvedArg instanceof TableReferenceExpression) {
-                                            final TableReferenceExpression tableRef =
-                                                    (TableReferenceExpression) resolvedArg;
-                                            final LogicalType tableArgType =
-                                                    tableRef.getOutputDataType().getLogicalType();
-                                            final RelDataType rowType =
-                                                    typeFactory.buildRelNodeRowType(
-                                                            (RowType) tableArgType);
-                                            final int[] partitionKeys;
-                                            if (tableRef.getQueryOperation()
-                                                    instanceof PartitionQueryOperation) {
-                                                final PartitionQueryOperation partitionOperation =
-                                                        (PartitionQueryOperation)
-                                                                tableRef.getQueryOperation();
-                                                partitionKeys =
-                                                        partitionOperation.getPartitionKeys();
-                                            } else {
-                                                partitionKeys = new int[0];
-                                            }
-                                            final RexTableArgCall tableArgCall =
-                                                    new RexTableArgCall(
-                                                            rowType,
-                                                            inputStack.size(),
-                                                            partitionKeys,
-                                                            new int[0]);
-                                            inputStack.add(relBuilder.build());
-                                            return tableArgCall;
-                                        } else if (resolvedArg
-                                                instanceof ModelReferenceExpression) {
-                                            final ModelReferenceExpression modelRef =
-                                                    (ModelReferenceExpression) resolvedArg;
-                                            final ContextResolvedModel contextResolvedModel =
-                                                    modelRef.getModel();
-                                            final FlinkContext flinkContext =
-                                                    ShortcutUtils.unwrapContext(relBuilder);
-
-                                            final Optional<ModelProviderFactory>
-                                                    factoryFromCatalog =
-                                                            contextResolvedModel
-                                                                    .getCatalog()
-                                                                    .flatMap(Catalog::getFactory)
-                                                                    .map(
-                                                                            f ->
-                                                                                    f
-                                                                                                    instanceof
-                                                                                                    ModelProviderFactory
-                                                                                            ? (ModelProviderFactory)
-                                                                                                    f
-                                                                                            : null);
-
-                                            final Optional<ModelProviderFactory> factoryFromModule =
-                                                    flinkContext
-                                                            .getModuleManager()
-                                                            .getFactory(
-                                                                    Module
-                                                                            ::getModelProviderFactory);
-
-                                            // Since the catalog is more specific, we give it
-                                            // precedence over a factory provided by any
-                                            // modules.
-                                            final ModelProviderFactory factory =
-                                                    firstPresent(
-                                                                    factoryFromCatalog,
-                                                                    factoryFromModule)
-                                                            .orElse(null);
-
-                                            final ModelProvider modelProvider =
-                                                    FactoryUtil.createModelProvider(
-                                                            factory,
-                                                            contextResolvedModel.getIdentifier(),
-                                                            contextResolvedModel.getResolvedModel(),
-                                                            flinkContext.getTableConfig(),
-                                                            flinkContext.getClassLoader(),
-                                                            contextResolvedModel.isTemporary());
-                                            final LogicalType modelOutputType =
-                                                    DataTypeUtils
-                                                            .fromResolvedSchemaPreservingTimeAttributes(
-                                                                    contextResolvedModel
-                                                                            .getResolvedModel()
-                                                                            .getResolvedOutputSchema())
-                                                            .getLogicalType();
-                                            final RelDataType modelOutputRelDataType =
-                                                    typeFactory.buildRelNodeRowType(
-                                                            (RowType) modelOutputType);
-
-                                            return new RexModelCall(
-                                                    modelOutputRelDataType,
-                                                    contextResolvedModel,
-                                                    modelProvider);
-                                        }
-                                        return convertExprToRexNode(resolvedArg);
-                                    })
+                            .map(QueryOperationConverter.this::convertExprToRexNode)
                             .collect(Collectors.toList());
+
+            final List<RelNode> inputStack = expressionConverter.copyInputStack();
+            expressionConverter.clearInputStack();
 
             // relBuilder.build() works in LIFO fashion, this restores the original input order
             Collections.reverse(inputStack);

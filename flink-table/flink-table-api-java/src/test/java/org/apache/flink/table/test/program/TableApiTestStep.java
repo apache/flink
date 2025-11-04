@@ -19,6 +19,7 @@
 package org.apache.flink.table.test.program;
 
 import org.apache.flink.table.api.Model;
+import org.apache.flink.table.api.ModelDescriptor;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
@@ -81,6 +82,11 @@ public class TableApiTestStep implements TestStep {
                     public Model fromModel(String modelPath) {
                         return env.fromModelPath(modelPath);
                     }
+
+                    @Override
+                    public Model from(ModelDescriptor modelDescriptor) {
+                        return env.from(modelDescriptor);
+                    }
                 });
     }
 
@@ -120,5 +126,8 @@ public class TableApiTestStep implements TestStep {
 
         /** See {@link TableEnvironment#fromModelPath(String)}. */
         Model fromModel(String modelPath);
+
+        /** See {@link TableEnvironment#from(ModelDescriptor)}. */
+        Model from(ModelDescriptor modelDescriptor);
     }
 }

@@ -77,11 +77,11 @@ public class ModelImpl implements Model {
 
     @Override
     public Table predict(Table table, ColumnList inputColumns, Map<String, String> options) {
-        // Use Expressions.map() instead of Expression.lit() to create a MAP literal since
+        // Use Expressions.map() instead of Expressions.lit() to create a MAP literal since
         // lit() is not serializable to sql.
         if (options.isEmpty()) {
             return tableEnvironment.fromCall(
-                    "ML_PREDICT",
+                    BuiltInFunctionDefinitions.ML_PREDICT.getName(),
                     table.asArgument("INPUT"),
                     this.asArgument("MODEL"),
                     Expressions.descriptor(inputColumns).asArgument("ARGS"));
@@ -93,7 +93,7 @@ public class ModelImpl implements Model {
                     configKVs.add(v);
                 });
         return tableEnvironment.fromCall(
-                "ML_PREDICT",
+                BuiltInFunctionDefinitions.ML_PREDICT.getName(),
                 table.asArgument("INPUT"),
                 this.asArgument("MODEL"),
                 Expressions.descriptor(inputColumns).asArgument("ARGS"),

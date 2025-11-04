@@ -26,6 +26,7 @@ import java.util.List;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.ASYNC_ML_PREDICT_MODEL_API;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.ASYNC_ML_PREDICT_TABLE_API;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.ASYNC_ML_PREDICT_TABLE_API_MAP_EXPRESSION_CONFIG;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.ML_PREDICT_ANON_MODEL_API;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.ML_PREDICT_MODEL_API;
 import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.SYNC_ML_PREDICT_TABLE_API;
 
@@ -39,6 +40,7 @@ public class MLPredictSemanticTests extends SemanticTestBase {
                 ASYNC_ML_PREDICT_TABLE_API,
                 ASYNC_ML_PREDICT_TABLE_API_MAP_EXPRESSION_CONFIG,
                 ML_PREDICT_MODEL_API,
-                ASYNC_ML_PREDICT_MODEL_API);
+                ASYNC_ML_PREDICT_MODEL_API,
+                ML_PREDICT_ANON_MODEL_API);
     }
 }
