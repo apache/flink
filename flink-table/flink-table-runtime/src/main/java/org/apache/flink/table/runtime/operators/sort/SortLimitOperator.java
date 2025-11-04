@@ -93,7 +93,7 @@ public class SortLimitOperator extends TableStreamOperator<RowData>
     public void endInput() throws Exception {
         if (isGlobal) {
             // Global sort, we need sort the results and pick records in limitStart to limitEnd.
-            for(int i = 0; i < limitStart && !heap.isEmpty(); i++) {
+            for (int i = 0; i < limitStart && !heap.isEmpty(); i++) {
                 heap.poll();
             }
             while (!heap.isEmpty()) {
