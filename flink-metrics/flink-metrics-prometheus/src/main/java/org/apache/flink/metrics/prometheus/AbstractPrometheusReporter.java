@@ -196,6 +196,12 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
     }
 
     private void addMetric(Metric metric, List<String> dimensionValues, Collector collector) {
+        // CheckpointPathInfoCollector doesn't need addChild - it reads directly from the gauge
+        if (collector instanceof CheckpointPathInfoCollector) {
+            // No-op: CheckpointPathInfoCollector reads the value directly in collect()
+            return;
+        }
+
         switch (metric.getMetricType()) {
             case GAUGE:
                 ((io.prometheus.client.Gauge) collector)
@@ -220,6 +226,12 @@ public abstract class AbstractPrometheusReporter implements MetricReporter {
     }
 
     private void removeMetric(Metric metric, List<String> dimensionValues, Collector collector) {
+        // CheckpointPathInfoCollector doesn't need remove - it reads directly from the gauge
+        if (collector instanceof CheckpointPathInfoCollector) {
+            // No-op: CheckpointPathInfoCollector reads the value directly in collect()
+            return;
+        }
+
         switch (metric.getMetricType()) {
             case GAUGE:
                 ((io.prometheus.client.Gauge) collector).remove(toArray(dimensionValues));
