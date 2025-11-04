@@ -85,23 +85,37 @@ class ResultHandler(ResultFuture, Generic[IN, OUT]):
         if not self._completed.compare_and_set(False, True):
             return
 
+        self._complete_internal(result)
+
+    def _complete_internal(self, result: List[OUT]):
         if isinstance(result, Iterable):
             self._process_results(result)
         else:
+            if result is None:
+                self._exception_handler(
+                    RuntimeError("The result of AsyncFunction cannot be none, "
+                                 "please check the methods 'async_invoke' and "
+                                 "'timeout' of class '%s'." % self._classname))
+            else:
+                self._exception_handler(
+                    RuntimeError("The result of AsyncFunction should be of list type, "
+                                 "please check the methods 'async_invoke' and "
+                                 "'timeout' of class '%s'." % self._classname))
+
             # complete with empty result, so that we remove timer and move ahead processing
             self._process_results([])
-
-            raise RuntimeError("The 'result_future' of AsyncFunction should be completed with "
-                               "data of list type, please check the methods 'async_invoke' and "
-                               "'timeout' of class '%s'." % self._classname)
 
     def complete_exceptionally(self, error: Exception):
         # already completed, so ignore exception
         if not self._completed.compare_and_set(False, True):
             return
 
-        self._exception_handler(
-            Exception("Could not complete the element:" + str(self._record), error))
+        self._complete_exceptionally_internal(error)
+
+    def _complete_exceptionally_internal(self, error: Exception):
+        self._exception_handler(Exception(
+            "Error happens inside the class '%s' during handling input '%s'"
+            % (self._classname, str(self._record)), error))
 
         #  complete with empty result, so that we remove timer and move ahead processing
         self._process_results([])
@@ -114,12 +128,14 @@ class ResultHandler(ResultFuture, Generic[IN, OUT]):
         self._result_future.complete(result)
 
     def _timer_triggered(self):
-        if not self._completed.get():
-            try:
-                result = self._timeout_func(self._record)
-                self._result_future.complete(result)
-            except Exception as e:
-                self._result_future.complete_exceptionally(e)
+        if not self._completed.compare_and_set(False, True):
+            return
+
+        try:
+            result = self._timeout_func(self._record)
+            self._complete_internal(result)
+        except Exception as error:
+            self._complete_exceptionally_internal(error)
 
 
 class RetryableResultHandler(ResultFuture, Generic[IN, OUT]):
@@ -166,7 +182,7 @@ class RetryableResultHandler(ResultFuture, Generic[IN, OUT]):
             self._delayed_retry_timer = threading.Timer(next_backoff_time_sec, self._do_retry)
             self._delayed_retry_timer.start()
         else:
-            if result is not None:
+            if error is None:
                 self._result_handler.complete(result)
             else:
                 self._result_handler.complete_exceptionally(error)
@@ -189,18 +205,20 @@ class RetryableResultHandler(ResultFuture, Generic[IN, OUT]):
         """
         Rewrite the timeout process to deal with retry state.
         """
-        if not self._result_handler._completed.get():
-            # cancel delayed retry timer first
-            self._cancel_retry_timer()
+        if not self._result_handler._completed.compare_and_set(False, True):
+            return
 
-            # force reset _retry_awaiting to prevent the handler to trigger retry unnecessarily
-            self._retry_awaiting.set(False)
+        # cancel delayed retry timer first
+        self._cancel_retry_timer()
 
-            try:
-                result = self._result_handler._timeout_func(self._result_handler._record)
-                self._result_handler.complete(result)
-            except Exception as e:
-                self._result_handler.complete_exceptionally(e)
+        # force reset _retry_awaiting to prevent the handler to trigger retry unnecessarily
+        self._retry_awaiting.set(False)
+
+        try:
+            result = self._result_handler._timeout_func(self._result_handler._record)
+            self._result_handler._complete_internal(result)
+        except Exception as e:
+            self._result_handler._complete_exceptionally_internal(e)
 
 
 class Emitter(threading.Thread):
