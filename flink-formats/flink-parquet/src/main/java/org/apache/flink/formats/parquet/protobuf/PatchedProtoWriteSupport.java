@@ -79,6 +79,8 @@ import static org.apache.parquet.proto.ProtoConstants.METADATA_ENUM_PREFIX;
  *
  * <p>The original source can be found here:
  * https://github.com/apache/parquet-java/blob/apache-parquet-1.15.2/parquet-protobuf/src/main/java/org/apache/parquet/proto/ProtoWriteSupport.java
+ *
+ * <p>Patched code is marked with BEGIN PATCH / END PATCH comments in the source.
  */
 class PatchedProtoWriteSupport<T extends MessageOrBuilder> extends WriteSupport<T> {
 
@@ -469,7 +471,9 @@ class PatchedProtoWriteSupport<T extends MessageOrBuilder> extends WriteSupport<
 
         private void writeAllFields(MessageOrBuilder pb) {
             Descriptor messageDescriptor = pb.getDescriptorForType();
-            // PATCH: Use string-based syntax detection instead of enum (protobuf 4.x compatibility)
+            // ============================================================================
+            // BEGIN PATCH: Replace enum-based syntax detection with string-based approach
+            // ============================================================================
             String syntax = messageDescriptor.getFile().toProto().getSyntax();
 
             // Check for editions syntax (not supported)
@@ -482,6 +486,9 @@ class PatchedProtoWriteSupport<T extends MessageOrBuilder> extends WriteSupport<
             boolean isProto2 = syntax.isEmpty() || "proto2".equals(syntax);
 
             if (isProto2) {
+                // ============================================================================
+                // END PATCH
+                // ============================================================================
                 // Returns changed fields with values. Map is ordered by id.
                 Map<FieldDescriptor, Object> changedPbFields = pb.getAllFields();
 
