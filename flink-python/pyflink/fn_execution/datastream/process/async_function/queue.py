@@ -20,11 +20,39 @@ import threading
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, List
 
-from pyflink.datastream import ResultFuture
 from pyflink.fn_execution.datastream.process.async_function import LONG_MIN_VALUE
 from pyflink.fn_execution.datastream.process.input_handler import _emit_results
 
 OUT = TypeVar('OUT')
+
+
+class ResultFuture(Generic[OUT]):
+    """
+    Collects data / error in user codes while processing async i/o.
+    """
+
+    @abstractmethod
+    def complete(self, result: List[OUT]):
+        """
+        Completes the result future with a collection of result objects.
+
+        Note that it should be called for exactly one time in the user code. Calling this function
+        for multiple times will cause data lose.
+
+        Put all results in a collection and then emit output.
+
+        :param result: A list of results.
+        """
+        pass
+
+    @abstractmethod
+    def complete_exceptionally(self, error: Exception):
+        """
+        Completes the result future exceptionally with an exception.
+
+        :param error: An Exception object.
+        """
+        pass
 
 
 class StreamElementQueueEntry(ABC, ResultFuture, Generic[OUT]):

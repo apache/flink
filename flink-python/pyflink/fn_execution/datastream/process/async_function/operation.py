@@ -21,10 +21,10 @@ import threading
 from datetime import datetime
 from typing import TypeVar, Generic, List, Iterable, Callable, Optional
 
-from pyflink.datastream import RuntimeContext, ResultFuture
+from pyflink.datastream import RuntimeContext
 from pyflink.datastream.functions import AsyncFunctionDescriptor, AsyncRetryStrategy
 from pyflink.fn_execution.datastream.process.async_function.queue import \
-    UnorderedStreamElementQueue, StreamElementQueue, OrderedStreamElementQueue
+    UnorderedStreamElementQueue, StreamElementQueue, OrderedStreamElementQueue, ResultFuture
 from pyflink.fn_execution.datastream.process.operations import Operation
 from pyflink.fn_execution.datastream.process.runtime_context import StreamingRuntimeContext
 
@@ -63,7 +63,7 @@ class ResultHandler(ResultFuture, Generic[IN, OUT]):
 
     def __init__(self,
                  classname: str,
-                 timeout_func: Callable[[IN, ResultFuture[OUT]], None],
+                 timeout_func: Callable[[IN], List[OUT]],
                  exception_handler: Callable[[Exception], None],
                  record: IN,
                  result_future: ResultFuture[OUT]):
@@ -85,23 +85,37 @@ class ResultHandler(ResultFuture, Generic[IN, OUT]):
         if not self._completed.compare_and_set(False, True):
             return
 
+        self._complete_internal(result)
+
+    def _complete_internal(self, result: List[OUT]):
         if isinstance(result, Iterable):
             self._process_results(result)
         else:
+            if result is None:
+                self._exception_handler(
+                    RuntimeError("The result of AsyncFunction cannot be none, "
+                                 "please check the methods 'async_invoke' and "
+                                 "'timeout' of class '%s'." % self._classname))
+            else:
+                self._exception_handler(
+                    RuntimeError("The result of AsyncFunction should be of list type, "
+                                 "please check the methods 'async_invoke' and "
+                                 "'timeout' of class '%s'." % self._classname))
+
             # complete with empty result, so that we remove timer and move ahead processing
             self._process_results([])
-
-            raise RuntimeError("The 'result_future' of AsyncFunction should be completed with "
-                               "data of list type, please check the methods 'async_invoke' and "
-                               "'timeout' of class '%s'." % self._classname)
 
     def complete_exceptionally(self, error: Exception):
         # already completed, so ignore exception
         if not self._completed.compare_and_set(False, True):
             return
 
-        self._exception_handler(
-            Exception("Could not complete the element:" + str(self._record), error))
+        self._complete_exceptionally_internal(error)
+
+    def _complete_exceptionally_internal(self, error: Exception):
+        self._exception_handler(Exception(
+            "Error happens inside the class '%s' during handling input '%s'"
+            % (self._classname, str(self._record)), error))
 
         #  complete with empty result, so that we remove timer and move ahead processing
         self._process_results([])
@@ -114,8 +128,14 @@ class ResultHandler(ResultFuture, Generic[IN, OUT]):
         self._result_future.complete(result)
 
     def _timer_triggered(self):
-        if not self._completed.get():
-            self._timeout_func(self._record, self)
+        if not self._completed.compare_and_set(False, True):
+            return
+
+        try:
+            result = self._timeout_func(self._record)
+            self._complete_internal(result)
+        except Exception as error:
+            self._complete_exceptionally_internal(error)
 
 
 class RetryableResultHandler(ResultFuture, Generic[IN, OUT]):
@@ -162,7 +182,7 @@ class RetryableResultHandler(ResultFuture, Generic[IN, OUT]):
             self._delayed_retry_timer = threading.Timer(next_backoff_time_sec, self._do_retry)
             self._delayed_retry_timer.start()
         else:
-            if result is not None:
+            if error is None:
                 self._result_handler.complete(result)
             else:
                 self._result_handler.complete_exceptionally(error)
@@ -185,14 +205,20 @@ class RetryableResultHandler(ResultFuture, Generic[IN, OUT]):
         """
         Rewrite the timeout process to deal with retry state.
         """
-        if not self._result_handler._completed.get():
-            # cancel delayed retry timer first
-            self._cancel_retry_timer()
+        if not self._result_handler._completed.compare_and_set(False, True):
+            return
 
-            # force reset _retry_awaiting to prevent the handler to trigger retry unnecessarily
-            self._retry_awaiting.set(False)
+        # cancel delayed retry timer first
+        self._cancel_retry_timer()
 
-            self._result_handler._timeout_func(self._result_handler._record, self)
+        # force reset _retry_awaiting to prevent the handler to trigger retry unnecessarily
+        self._retry_awaiting.set(False)
+
+        try:
+            result = self._result_handler._timeout_func(self._result_handler._record)
+            self._result_handler._complete_internal(result)
+        except Exception as e:
+            self._result_handler._complete_exceptionally_internal(e)
 
 
 class Emitter(threading.Thread):
@@ -223,9 +249,8 @@ class Emitter(threading.Thread):
 
 
 class AsyncFunctionRunner(threading.Thread):
-    def __init__(self, exception_handler: Callable[[Exception], None]):
+    def __init__(self):
         super().__init__()
-        self._exception_handler = exception_handler
         self._loop = None
         self._ready = threading.Event()
 
@@ -251,14 +276,15 @@ class AsyncFunctionRunner(threading.Thread):
             self._loop.call_soon_threadsafe(self._loop.stop)
             self.join(timeout=1.0)
 
-    async def exception_handler_wrapper(self, async_function, *arg):
+    async def exception_handler_wrapper(self, async_function, record, result_handler):
         try:
-            await async_function(*arg)
+            result = await async_function(record)
+            result_handler.complete(result)
         except Exception as e:
-            self._exception_handler(e)
+            result_handler.complete_exceptionally(e)
 
-    def run_async(self, async_function, *arg):
-        wrapped_function = self.exception_handler_wrapper(async_function, *arg)
+    def run_async(self, async_function, record, result_handler):
+        wrapped_function = self.exception_handler_wrapper(async_function, record, result_handler)
         asyncio.run_coroutine_threadsafe(wrapped_function, self._loop)
 
 
@@ -306,7 +332,7 @@ class AsyncOperation(Operation):
         self._emitter.daemon = True
         self._emitter.start()
 
-        self._async_function_runner = AsyncFunctionRunner(self._mark_exception)
+        self._async_function_runner = AsyncFunctionRunner()
         self._async_function_runner.daemon = True
         self._async_function_runner.start()
         self._async_function_runner.wait_ready()

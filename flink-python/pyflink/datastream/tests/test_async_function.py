@@ -20,7 +20,7 @@ import random
 from typing import List
 
 from pyflink.common import Types, Row, Time, Configuration, WatermarkStrategy
-from pyflink.datastream import AsyncDataStream, AsyncFunction, ResultFuture, \
+from pyflink.datastream import AsyncDataStream, AsyncFunction, \
     StreamExecutionEnvironment, AsyncRetryStrategy
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction, \
     SecondColumnTimestampAssigner
@@ -54,12 +54,12 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
 
         class MyAsyncFunction(AsyncFunction):
 
-            async def async_invoke(self, value: Row, result_future: ResultFuture[int]):
+            async def async_invoke(self, value: Row):
                 await asyncio.sleep(2)
-                result_future.complete([value[0] + value[1]])
+                return [value[0] + value[1]]
 
-            def timeout(self, value: Row, result_future: ResultFuture[int]):
-                result_future.complete([value[0] + value[1]])
+            def timeout(self, value: Row):
+                return [value[0] + value[1]]
 
         ds = AsyncDataStream.unordered_wait(
             ds, MyAsyncFunction(), Time.seconds(5), 2, Types.INT())
@@ -78,12 +78,12 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
 
         class MyAsyncFunction(AsyncFunction):
 
-            async def async_invoke(self, value: Row, result_future: ResultFuture[int]):
+            async def async_invoke(self, value: Row):
                 await asyncio.sleep(random.randint(1, 2))
-                result_future.complete([value[0] + value[1]])
+                return [value[0] + value[1]]
 
-            def timeout(self, value: Row, result_future: ResultFuture[int]):
-                result_future.complete([value[0] + value[1]])
+            def timeout(self, value: Row):
+                return [value[0] + value[1]]
 
         ds = AsyncDataStream.ordered_wait(
             ds, MyAsyncFunction(), Time.seconds(5), 2, Types.INT())
@@ -110,12 +110,12 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
 
         class MyAsyncFunction(AsyncFunction):
 
-            async def async_invoke(self, value: Row, result_future: ResultFuture[int]):
+            async def async_invoke(self, value: Row):
                 await asyncio.sleep(random.randint(1, 3))
-                result_future.complete([value[0] + value[1]])
+                return [value[0] + value[1]]
 
-            def timeout(self, value: Row, result_future: ResultFuture[int]):
-                result_future.complete([value[0] + value[1]])
+            def timeout(self, value: Row):
+                return [value[0] + value[1]]
 
         ds = AsyncDataStream.unordered_wait(
             ds, MyAsyncFunction(), Time.seconds(5), 2, Types.INT())
@@ -126,7 +126,7 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
         # note that we use assert_equals instead of assert_equals_sorted
         self.assert_equals(expected, results)
 
-    def test_complete_async_function_with_non_iterable_result(self):
+    def test_non_iterable_result(self):
         self.env.set_parallelism(1)
         ds = self.env.from_collection(
             [(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)],
@@ -135,24 +135,24 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
 
         class MyAsyncFunction(AsyncFunction):
 
-            async def async_invoke(self, value: Row, result_future: ResultFuture[int]):
+            async def async_invoke(self, value: Row):
                 await asyncio.sleep(2)
-                result_future.complete(value[0] + value[1])
+                return value[0] + value[1]
 
-            def timeout(self, value: Row, result_future: ResultFuture[int]):
-                result_future.complete(value[0] + value[1])
+            def timeout(self, value: Row):
+                return value[0] + value[1]
 
         ds = AsyncDataStream.unordered_wait(
             ds, MyAsyncFunction(), Time.seconds(5), 2, Types.INT())
         ds.add_sink(self.test_sink)
         try:
             self.env.execute()
+            self.fail()
         except Exception as e:
             message = str(e)
-            self.assertTrue("The 'result_future' of AsyncFunction should be completed with data of "
-                            "list type" in message)
+            self.assertTrue("The result of AsyncFunction should be of list type" in message)
 
-    def test_complete_async_function_with_exception(self):
+    def test_none_result(self):
         self.env.set_parallelism(1)
         ds = self.env.from_collection(
             [(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)],
@@ -161,21 +161,22 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
 
         class MyAsyncFunction(AsyncFunction):
 
-            async def async_invoke(self, value: Row, result_future: ResultFuture[int]):
-                result_future.complete_exceptionally(Exception("encountered an exception"))
+            async def async_invoke(self, value: Row):
+                await asyncio.sleep(10)
+                return None
 
-            def timeout(self, value: Row, result_future: ResultFuture[int]):
-                # raise the same exception to make sure test case is stable in all cases
-                result_future.complete_exceptionally(Exception("encountered an exception"))
+            def timeout(self, value: Row):
+                return None
 
         ds = AsyncDataStream.unordered_wait(
-            ds, MyAsyncFunction(), Time.seconds(5), 2, Types.INT())
+            ds, MyAsyncFunction(), Time.seconds(1), 2, Types.INT())
         ds.add_sink(self.test_sink)
         try:
             self.env.execute()
+            self.fail()
         except Exception as e:
             message = str(e)
-            self.assertTrue("Could not complete the element" in message)
+            self.assertTrue("The result of AsyncFunction cannot be none" in message)
 
     def test_raise_exception_in_async_invoke(self):
         self.env.set_parallelism(1)
@@ -186,10 +187,10 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
 
         class MyAsyncFunction(AsyncFunction):
 
-            async def async_invoke(self, value: Row, result_future: ResultFuture[int]):
+            async def async_invoke(self, value: Row):
                 raise Exception("encountered an exception")
 
-            def timeout(self, value: Row, result_future: ResultFuture[int]):
+            def timeout(self, value: Row):
                 # raise the same exception to make sure test case is stable in all cases
                 raise Exception("encountered an exception")
 
@@ -198,6 +199,7 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
         ds.add_sink(self.test_sink)
         try:
             self.env.execute()
+            self.fail()
         except Exception as e:
             message = str(e)
             self.assertTrue("encountered an exception" in message)
@@ -211,11 +213,11 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
 
         class MyAsyncFunction(AsyncFunction):
 
-            async def async_invoke(self, value: Row, result_future: ResultFuture[int]):
+            async def async_invoke(self, value: Row):
                 await asyncio.sleep(10)
-                result_future.complete([value[0] + value[1]])
+                return [value[0] + value[1]]
 
-            def timeout(self, value: Row, result_future: ResultFuture[int]):
+            def timeout(self, value: Row):
                 raise Exception("encountered an exception")
 
         ds = AsyncDataStream.unordered_wait(
@@ -223,6 +225,7 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
         ds.add_sink(self.test_sink)
         try:
             self.env.execute()
+            self.fail()
         except Exception as e:
             message = str(e)
             self.assertTrue("encountered an exception" in message)
@@ -236,12 +239,12 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
 
         class MyAsyncFunction(AsyncFunction):
 
-            async def async_invoke(self, value: Row, result_future: ResultFuture[int]):
+            async def async_invoke(self, value: Row):
                 await asyncio.sleep(10)
-                result_future.complete([value[0] + value[1]])
+                return [value[0] + value[1]]
 
-            def timeout(self, value: Row, result_future: ResultFuture[int]):
-                result_future.complete([value[0] - value[1]])
+            def timeout(self, value: Row):
+                return [value[0] - value[1]]
 
         ds = AsyncDataStream.unordered_wait(
             ds, MyAsyncFunction(), Time.seconds(1), 2, Types.INT())
@@ -264,19 +267,19 @@ class AsyncFunctionTests(PyFlinkStreamingTestCase):
                 self.retries_1 = {}
                 self.retries_2 = {}
 
-            async def async_invoke(self, value: Row, result_future: ResultFuture[int]):
+            async def async_invoke(self, value: Row):
                 await asyncio.sleep(1)
                 if value in self.retries_2:
-                    result_future.complete([value[0] + value[1]])
+                    return [value[0] + value[1]]
                 elif value in self.retries_1:
                     self.retries_2[value] = True
-                    result_future.complete([value[0] + value[1] + 1])
+                    return [value[0] + value[1] + 1]
                 else:
                     self.retries_1[value] = True
-                    result_future.complete_exceptionally(ValueError("failed the first time"))
+                    raise ValueError("failed the first time")
 
-            def timeout(self, value: Row, result_future: ResultFuture[int]):
-                result_future.complete([value[0] + value[1]])
+            def timeout(self, value: Row):
+                return [value[0] + value[1]]
 
         def result_predicate(result: List[int]):
             return result[0] % 2 == 1
@@ -312,13 +315,14 @@ class EmbeddedThreadAsyncFunctionTests(PyFlinkStreamingTestCase):
 
         class MyAsyncFunction(AsyncFunction):
 
-            async def async_invoke(self, value: Row, result_future: ResultFuture[int]):
+            async def async_invoke(self, value: Row):
                 await asyncio.sleep(2)
-                result_future.complete([value[0] + value[1]])
+                return [value[0] + value[1]]
 
         try:
             AsyncDataStream.unordered_wait(
                 ds, MyAsyncFunction(), Time.seconds(5), 2, Types.INT())
+            self.fail()
         except Exception as e:
             message = str(e)
             self.assertTrue("AsyncFunction is still not supported for 'thread' mode" in message)

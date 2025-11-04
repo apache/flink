@@ -272,7 +272,7 @@ from pyflink.datastream.functions import (MapFunction, CoMapFunction, FlatMapFun
                                           KeyedCoProcessFunction, AggregateFunction, WindowFunction,
                                           ProcessWindowFunction, BroadcastProcessFunction,
                                           KeyedBroadcastProcessFunction, AsyncFunction,
-                                          ResultFuture, AsyncRetryPredicate, AsyncRetryStrategy)
+                                          AsyncRetryPredicate, AsyncRetryStrategy)
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup, MemorySize
 from pyflink.datastream.state_backend import (StateBackend, CustomStateBackend,
                                               PredefinedOptions, HashMapStateBackend,
@@ -345,7 +345,6 @@ __all__ = [
     'SlotSharingGroup',
     'MemorySize',
     'OutputTag',
-    'ResultFuture',
     'AsyncRetryPredicate',
     'AsyncRetryStrategy'
 ]
