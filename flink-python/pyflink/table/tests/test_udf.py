@@ -20,7 +20,8 @@ import os
 import unittest
 import uuid
 
-import pytz
+# ignore false positive imported but unused
+import pytz  # noqa: F401
 
 from pyflink.common import Row
 from pyflink.table import DataTypes, expressions as expr
