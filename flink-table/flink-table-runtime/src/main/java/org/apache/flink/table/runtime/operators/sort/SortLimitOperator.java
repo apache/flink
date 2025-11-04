@@ -93,12 +93,11 @@ public class SortLimitOperator extends TableStreamOperator<RowData>
     public void endInput() throws Exception {
         if (isGlobal) {
             // Global sort, we need sort the results and pick records in limitStart to limitEnd.
-            List<RowData> list = new ArrayList<>(heap);
-            list.sort((o1, o2) -> comparator.compare(o1, o2));
-
-            int maxIndex = (int) Math.min(limitEnd, list.size());
-            for (int i = (int) limitStart; i < maxIndex; i++) {
-                collector.collect(list.get(i));
+            for(int i = 0; i < limitStart && !heap.isEmpty(); i++) {
+                heap.poll();
+            }
+            while (!heap.isEmpty()) {
+                collector.collect(heap.poll());
             }
         } else {
             for (RowData row : heap) {
