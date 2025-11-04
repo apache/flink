@@ -48,7 +48,6 @@ import org.apache.calcite.sql.validate.SqlConformance;
 import org.apache.calcite.sql.validate.SqlConformanceEnum;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
-import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.test.MockSqlOperatorTable;
 import org.apache.calcite.test.catalog.MockCatalogReaderSimple;
 import org.apache.calcite.util.SourceStringReader;
@@ -588,7 +587,16 @@ class FlinkDDLDataTypeTest {
         private final SqlParser.Config parserConfig;
 
         TestFactory() {
-            this(DEFAULT_OPTIONS, MockCatalogReaderSimple::create, SqlValidatorUtil::newValidator);
+            this(
+                    DEFAULT_OPTIONS,
+                    MockCatalogReaderSimple::create,
+                    (sqlOperatorTable, sqlValidatorCatalogReader, relDataTypeFactory, config) ->
+                            new FlinkSqlParsingValidator(
+                                    sqlOperatorTable,
+                                    sqlValidatorCatalogReader,
+                                    relDataTypeFactory,
+                                    config,
+                                    StructKind.PEEK_FIELDS_NO_EXPAND));
         }
 
         TestFactory(

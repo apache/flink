@@ -855,4 +855,59 @@ class CalcITCase extends StreamingTestBase {
       .toList
     assertThat(actual).isEqualTo(expected)
   }
+
+  @Test
+  def testSelectForArrayWithNestedRows(): Unit = {
+    val result = tEnv
+      .executeSql(s"""
+                     |SELECT * FROM
+                     |(VALUES (
+                     |    ARRAY[
+                     |       ROW(
+                     |          ROW('Test1', TRUE)
+                     |       ),
+                     |       ROW(
+                     |          ROW('Test2', FALSE)
+                     |       )
+                     |    ]
+                     |))
+                     |""".stripMargin)
+      .collect()
+      .toList
+
+    val field = result.head.getField(0)
+    val arr = field.asInstanceOf[Array[Row]]
+    assertThat(arr.apply(0).getArity).isEqualTo(1)
+    assertThat(arr.apply(0).getField(0).asInstanceOf[Row].getArity).isEqualTo(2)
+    assertThat(arr.apply(0).getField(0)).isEqualTo(row("Test1", true))
+    assertThat(arr.apply(1).getField(0)).isEqualTo(row("Test2", false))
+  }
+
+  @Test
+  def testSelectForArrayWithMaps(): Unit = {
+    val result = tEnv
+      .executeSql(s"""
+                     |SELECT * FROM
+                     |(VALUES (
+                     |    ARRAY[
+                     |         MAP['nested1',
+                     |            ARRAY['Test1', 'True']
+                     |            ],
+                     |         MAP['nested2',
+                     |            ARRAY['Test2', 'False']
+                     |            ]
+                     |    ]
+                     |))
+                     |""".stripMargin)
+      .collect()
+      .toList
+
+    val field = result.head.getField(0)
+    assertThat(field.isInstanceOf[Array[util.Map[_, _]]]).isTrue
+    val arr = field.asInstanceOf[Array[util.Map[_, _]]]
+    assertThat(arr.apply(0).get("nested1").asInstanceOf[Array[String]])
+      .isEqualTo(Array("Test1", "True"))
+    assertThat(arr.apply(1).get("nested2").asInstanceOf[Array[String]])
+      .isEqualTo(Array("Test2", "False"))
+  }
 }

@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.calcite;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.sql.parser.FlinkSqlParsingValidator;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
@@ -39,6 +40,7 @@ import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.SchemaVersion;
@@ -72,7 +74,6 @@ import org.apache.calcite.sql.validate.SelectScope;
 import org.apache.calcite.sql.validate.SqlQualified;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
-import org.apache.calcite.sql.validate.SqlValidatorImpl;
 import org.apache.calcite.sql.validate.SqlValidatorNamespace;
 import org.apache.calcite.sql.validate.SqlValidatorScope;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
@@ -100,7 +101,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Extends Calcite's {@link SqlValidator} by Flink-specific behavior. */
 @Internal
-public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
+public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
 
     // Enables CallContext#getOutputDataType() when validating SQL expressions.
     private SqlNode sqlNodeForExpectedOutputType;
@@ -122,7 +123,16 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
             RelOptTable.ToRelContext toRelcontext,
             RelOptCluster relOptCluster,
             FrameworkConfig frameworkConfig) {
-        super(opTab, catalogReader, typeFactory, config);
+        super(
+                opTab,
+                catalogReader,
+                typeFactory,
+                config,
+                ShortcutUtils.unwrapTableConfig(relOptCluster)
+                                        .get(TableConfigOptions.LEGACY_EXTENDED_ROW_STRUCT_KIND)
+                                == Boolean.TRUE
+                        ? StructKind.FULLY_QUALIFIED
+                        : StructKind.PEEK_FIELDS_NO_EXPAND);
         this.relOptCluster = relOptCluster;
         this.toRelContext = toRelcontext;
         this.frameworkConfig = frameworkConfig;

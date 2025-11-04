@@ -92,10 +92,18 @@ public final class FlinkRexBuilder extends RexBuilder {
         }
     }
 
+    /**
+     * Adjust the nullability of the nested column based on the nullability of the enclosing type.
+     * However, if there is former nullability CAST present then it will be dropped and replaced
+     * with a new one (if needed).
+     */
     private RexNode makeFieldAccess(RexNode expr, RexNode field) {
         final RexNode fieldWithRemovedCast = removeCastNullableFromFieldAccess(field);
-        if (field.getType().isNullable() != fieldWithRemovedCast.getType().isNullable()
-                || expr.getType().isNullable() && !field.getType().isNullable()) {
+        final boolean nullabilityShouldChange =
+                field.getType().isNullable() != fieldWithRemovedCast.getType().isNullable()
+                        || expr.getType().isNullable() && !field.getType().isNullable();
+
+        if (nullabilityShouldChange) {
             return makeCast(
                     typeFactory.createTypeWithNullability(field.getType(), true),
                     fieldWithRemovedCast,
