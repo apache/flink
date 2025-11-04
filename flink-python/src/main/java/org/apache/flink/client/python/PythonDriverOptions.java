@@ -39,6 +39,7 @@ final class PythonDriverOptions {
 
     @Nonnull private final List<String> programArgs;
 
+    @Nonnull
     Configuration getPythonDependencyConfig() {
         return pythonDependencyConfig;
     }
@@ -58,11 +59,11 @@ final class PythonDriverOptions {
     }
 
     PythonDriverOptions(
-            Configuration pythonDependencyConfig,
+            @Nonnull Configuration pythonDependencyConfig,
             @Nullable String entryPointModule,
             @Nullable String entryPointScript,
             List<String> programArgs) {
-        this.pythonDependencyConfig = pythonDependencyConfig;
+        this.pythonDependencyConfig = requireNonNull(pythonDependencyConfig);
         this.entryPointModule = entryPointModule;
         this.entryPointScript = entryPointScript;
         this.programArgs = requireNonNull(programArgs, "programArgs");
