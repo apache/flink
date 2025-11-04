@@ -16,6 +16,158 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testCalcWithNonDeterministicFilterAfterJoin1">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a1
+FROM (
+  SELECT a1,
+         c1,
+         c2
+  FROM  MyTable1
+  JOIN  MyTable2
+  ON    b1 = b2
+)
+WHERE TO_TIMESTAMP(c1, 'yyyy-MM-dd HH:mm:ss') <
+      TIMESTAMPADD(HOUR, -2, NOW())
+  AND c2 > '2022-01-01 00:00:00'
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0])
++- LogicalFilter(condition=[AND(<(TO_TIMESTAMP($1, _UTF-16LE'yyyy-MM-dd HH:mm:ss'), +(NOW(), *(3600000:INTERVAL HOUR, -2))), >($2, _UTF-16LE'2022-01-01 00:00:00'))])
+   +- LogicalProject(a1=[$0], c1=[$2], c2=[$5])
+      +- LogicalJoin(condition=[=($1, $4)], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a1], where=[(TO_TIMESTAMP(c1, 'yyyy-MM-dd HH:mm:ss') < (NOW() + -7200000:INTERVAL HOUR))])
++- Join(joinType=[InnerJoin], where=[(b1 = b2)], select=[a1, b1, c1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[b1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a1, b1, c1])
+   +- Exchange(distribution=[hash[b2]])
+      +- Calc(select=[b2], where=[(c2 > '2022-01-01 00:00:00')])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a2, b2, c2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcWithNonDeterministicFilterAfterJoin2">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a1
+FROM (
+  SELECT a1,
+         c1,
+         c2
+  FROM  MyTable1
+  JOIN  MyTable2
+  ON    b1 = b2
+)
+WHERE TO_TIMESTAMP(c1, 'yyyy-MM-dd HH:mm:ss')
+      < TIMESTAMPADD(HOUR, -2, CAST(CURRENT_TIME AS TIMESTAMP(3)))
+  AND c2 > '2022-01-01 00:00:00'
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0])
++- LogicalFilter(condition=[AND(<(TO_TIMESTAMP($1, _UTF-16LE'yyyy-MM-dd HH:mm:ss'), +(CAST(CURRENT_TIME()):TIMESTAMP(3) NOT NULL, *(3600000:INTERVAL HOUR, -2))), >($2, _UTF-16LE'2022-01-01 00:00:00'))])
+   +- LogicalProject(a1=[$0], c1=[$2], c2=[$5])
+      +- LogicalJoin(condition=[=($1, $4)], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a1], where=[(TO_TIMESTAMP(c1, 'yyyy-MM-dd HH:mm:ss') < (CAST(CURRENT_TIME() AS TIMESTAMP(3)) + -7200000:INTERVAL HOUR))])
++- Join(joinType=[InnerJoin], where=[(b1 = b2)], select=[a1, b1, c1, b2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[b1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a1, b1, c1])
+   +- Exchange(distribution=[hash[b2]])
+      +- Calc(select=[b2], where=[(c2 > '2022-01-01 00:00:00')])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a2, b2, c2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcWithNonDeterministicFilterAfterJoin3">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a1
+FROM (
+  SELECT a1,
+         c1,
+         c2
+  FROM  MyTable1
+  JOIN  MyTable2
+  ON    b1 = b2
+  AND   c1 = c2
+)
+WHERE TO_TIMESTAMP(c1, 'yyyy-MM-dd HH:mm:ss') <
+      TIMESTAMPADD(HOUR, -2, NOW())
+  AND c2 > '2022-01-01 00:00:00'
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0])
++- LogicalFilter(condition=[AND(<(TO_TIMESTAMP($1, _UTF-16LE'yyyy-MM-dd HH:mm:ss'), +(NOW(), *(3600000:INTERVAL HOUR, -2))), >($2, _UTF-16LE'2022-01-01 00:00:00'))])
+   +- LogicalProject(a1=[$0], c1=[$2], c2=[$5])
+      +- LogicalJoin(condition=[AND(=($1, $4), =($2, $5))], joinType=[inner])
+         :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a1], where=[(TO_TIMESTAMP(c1, 'yyyy-MM-dd HH:mm:ss') < (NOW() + -7200000:INTERVAL HOUR))])
++- Join(joinType=[InnerJoin], where=[((b1 = b2) AND (c1 = c2))], select=[a1, b1, c1, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[b1, c1]])
+   :  +- Calc(select=[a1, b1, c1], where=[(c1 > '2022-01-01 00:00:00')])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a1, b1, c1])
+   +- Exchange(distribution=[hash[b2, c2]])
+      +- Calc(select=[b2, c2], where=[(c2 > '2022-01-01 00:00:00')])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a2, b2, c2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCalcWithNonDeterministicFilterAfterJoin4">
+    <Resource name="sql">
+      <![CDATA[
+  SELECT a1,
+         b1,
+         c2
+  FROM  MyTable1
+  JOIN  MyTable2
+  ON    b1 = b2
+  AND   c1 < TIMESTAMPADD(HOUR, -2, NOW())
+  AND   c2 > '2022-01-01 00:00:00'
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0], b1=[$1], c2=[$5])
++- LogicalJoin(condition=[AND(=($1, $4), <(CAST($2):TIMESTAMP_WITH_LOCAL_TIME_ZONE(3), +(NOW(), *(3600000:INTERVAL HOUR, -2))), >($5, _UTF-16LE'2022-01-01 00:00:00'))], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a1, b1, c2])
++- Join(joinType=[InnerJoin], where=[((b1 = b2) AND (CAST(c1 AS TIMESTAMP_WITH_LOCAL_TIME_ZONE(3)) < (NOW() + -7200000:INTERVAL HOUR)))], select=[a1, b1, c1, b2, c2], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[b1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, MyTable1]], fields=[a1, b1, c1])
+   +- Exchange(distribution=[hash[b2]])
+      +- Calc(select=[b2, c2], where=[(c2 > '2022-01-01 00:00:00')])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a2, b2, c2])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testDependentConditionDerivationInnerJoin">
     <Resource name="sql">
       <![CDATA[SELECT a1, b1 FROM A JOIN B ON (a1 = 1 AND b1 = 1) OR (a2 = 2 AND b2 = 2)]]>
@@ -555,30 +707,6 @@ Calc(select=[a1, a2, b1, b2], changelogMode=[I,UB,UA])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinAndSelectOnPartialCompositePrimaryKey">
-    <Resource name="sql">
-      <![CDATA[SELECT A.a1 FROM A LEFT JOIN tableWithCompositePk T ON A.a1 = T.pk1]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a1=[$0])
-+- LogicalJoin(condition=[=($0, $3)], joinType=[left])
-   :- LogicalTableScan(table=[[default_catalog, default_database, A]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, tableWithCompositePk]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a1])
-+- Join(joinType=[LeftOuterJoin], where=[(a1 = pk1)], select=[a1, pk1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-   :- Exchange(distribution=[hash[a1]])
-   :  +- Calc(select=[a1])
-   :     +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3])
-   +- Exchange(distribution=[hash[pk1]])
-      +- TableSourceScan(table=[[default_catalog, default_database, tableWithCompositePk, project=[pk1], metadata=[]]], fields=[pk1])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testJoinAccessSourcePkWithMiniBatchAssigner">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
@@ -609,6 +737,30 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b, d])
       +- Exchange(distribution=[hash[c]])
          +- MiniBatchAssigner(interval=[10000ms], mode=[ProcTime])
             +- TableSourceScan(table=[[default_catalog, default_database, right_table]], fields=[c, d])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinAndSelectOnPartialCompositePrimaryKey">
+    <Resource name="sql">
+      <![CDATA[SELECT A.a1 FROM A LEFT JOIN tableWithCompositePk T ON A.a1 = T.pk1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a1=[$0])
++- LogicalJoin(condition=[=($0, $3)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, tableWithCompositePk]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a1])
++- Join(joinType=[LeftOuterJoin], where=[(a1 = pk1)], select=[a1, pk1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[a1]])
+   :  +- Calc(select=[a1])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a1, a2, a3])
+   +- Exchange(distribution=[hash[pk1]])
+      +- TableSourceScan(table=[[default_catalog, default_database, tableWithCompositePk, project=[pk1], metadata=[]]], fields=[pk1])
 ]]>
     </Resource>
   </TestCase>
