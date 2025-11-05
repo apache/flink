@@ -16,25 +16,50 @@
     limitations under the License.
    ################################################################################
 
-==================
-PyFlink DataStream
-==================
 
-This page gives an overview of all public PyFlink DataStream API.
+====
+Time
+====
 
-.. toctree::
-    :maxdepth: 2
+Duration
+--------
 
-    stream_execution_environment
-    datastream
-    functions
-    state
-    timer
-    window
-    checkpoint
-    sideoutput
-    asyncio
-    connectors
-    formats
+.. currentmodule:: pyflink.common.time
+
+.. autosummary::
+    :toctree: api/
+
+    Duration.of_days
+    Duration.of_hours
+    Duration.of_minutes
+    Duration.of_millis
+    Duration.of_seconds
+    Duration.of_nanos
 
 
+Instant
+-------
+
+.. currentmodule:: pyflink.common.time
+
+.. autosummary::
+    :toctree: api/
+
+    Instant.of_epoch_milli
+    Instant.to_epoch_milli
+
+
+Time
+----
+
+.. currentmodule:: pyflink.common.time
+
+.. autosummary::
+    :toctree: api/
+
+    Time.milliseconds
+    Time.seconds
+    Time.minutes
+    Time.hours
+    Time.days
+    Time.to_milliseconds

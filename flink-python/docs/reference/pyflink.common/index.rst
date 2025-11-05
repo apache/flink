@@ -29,3 +29,4 @@ This page gives an overview of all public PyFlink Common API.
     typeinfo
     job_info
     serializer
+    time
