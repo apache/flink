@@ -54,6 +54,16 @@ The Data Source API supports both unbounded streaming sources and bounded batch 
 
 The difference between both cases is minimal: In the bounded/batch case, the enumerator generates a fixed set of splits, and each split is necessarily finite. In the unbounded streaming case, one of the two is not true (splits are not finite, or the enumerator keeps generating new splits).
 
+
+**Split Reassignment On Recovery**
+
+Under normal circumstances, once the *SplitEnumerator* assigns *Splits* to *SourceReaders*, these *splits* are not reassigned to other readers again. When the source is recovering from a failure, the *splits* from the saved state will be added back to the readers immediately.
+
+When a source implements the {{< gh_link file="flink-core/src/main/java/org/apache/flink/api/connector/source/SupportsSplitReassignmentOnRecovery.java" name="SupportsSplitReassignmentOnRecovery" >}} interface, the recovery process behaves differently.
+On Recovery, instead of immediately reassigning the *splits* back to the same *SourceReaders*, all *splits* are collected and added back to the *SplitEnumerator*.
+The *SplitEnumerator* then takes responsibility for redistributing these *splits* among the available *SourceReaders* in a balanced manner.
+This mechanism enables more flexible and efficient recovery by allowing the central *SplitEnumerator* to make informed decisions about split distribution.
+
 #### Examples
 
 Here are some simplified conceptual examples to illustrate how the data source components interact, in streaming and batch cases.
