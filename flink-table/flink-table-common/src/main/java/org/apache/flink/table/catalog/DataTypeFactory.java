@@ -41,6 +41,11 @@ import org.apache.flink.table.types.utils.TypeInfoDataTypeConverter;
 @PublicEvolving
 public interface DataTypeFactory {
 
+    /** Returns the class loader of the current session. */
+    default ClassLoader getClassLoader() {
+        return Thread.currentThread().getContextClassLoader();
+    }
+
     /**
      * Creates a type out of an {@link AbstractDataType}.
      *

@@ -20,20 +20,18 @@ import { Component, ChangeDetectionStrategy, Input, Output, EventEmitter } from 
 
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzSpaceModule } from 'ng-zorro-antd/space';
 
 @Component({
   selector: 'flink-addon-compact',
   templateUrl: './addon-compact.component.html',
   styleUrls: ['./addon-compact.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NzButtonModule, NzIconModule],
-  standalone: true
+  imports: [NzButtonModule, NzIconModule, NzSpaceModule]
 })
 export class AddonCompactComponent {
   @Input() downloadName: string;
   @Input() downloadHref: string;
   @Input() loading = false;
   @Output() reload = new EventEmitter<void>();
-
-  constructor() {}
 }

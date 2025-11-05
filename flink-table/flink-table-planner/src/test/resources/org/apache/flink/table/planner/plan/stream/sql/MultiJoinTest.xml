@@ -1,0 +1,1014 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testFourWayComplexJoinExecPlan">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) LEFT JOIN Shipments s ON p.user_id_2 = s.user_id_3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
++- LogicalJoin(condition=[=($8, $10)], joinType=[left])
+   :- LogicalJoin(condition=[AND(=($0, $8), OR(>=($2, $7), <($7, 0)))], joinType=[inner])
+   :  :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+   :  :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[user_id_0, name, order_id, payment_id, location])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[LEFT, INNER, LEFT], inputUniqueKeys=[(user_id_0), (order_id), (payment_id), noUniqueKey], joinConditions=[(user_id_0 = user_id_1), ((user_id_0 = user_id_2) AND ((cash >= price) OR (price < 0))), (user_id_2 = user_id_3)], select=[user_id_0,name,cash,order_id,user_id_1,payment_id,price,user_id_2,location,user_id_3], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2, VARCHAR(2147483647) location, VARCHAR(2147483647) user_id_3)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- ChangelogNormalize(key=[user_id_0])
+   :     +- Exchange(distribution=[hash[user_id_0]])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id_0, name, cash])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   :- Exchange(distribution=[hash[user_id_2]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])
+   +- Exchange(distribution=[hash[user_id_3]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Shipments]], fields=[location, user_id_3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFourWayComplexJoinExplain">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
++- LogicalJoin(condition=[=($8, $10)], joinType=[left])
+   :- LogicalJoin(condition=[AND(=($0, $8), OR(>=($2, $7), <($7, 0)))], joinType=[inner])
+   :  :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+   :  :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]])
+
+== Optimized Physical Plan ==
+Calc(select=[user_id_0, name, order_id, payment_id, location])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[LEFT, INNER, LEFT], inputUniqueKeys=[(user_id_0), (order_id), (payment_id), noUniqueKey], joinConditions=[=(user_id_0, user_id_1), AND(=(user_id_0, user_id_2), OR(>=(cash, price), <(price, 0))), =(user_id_2, user_id_3)], select=[user_id_0,name,cash,order_id,user_id_1,payment_id,price,user_id_2,location,user_id_3], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2, VARCHAR(2147483647) location, VARCHAR(2147483647) user_id_3)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- ChangelogNormalize(key=[user_id_0])
+   :     +- Exchange(distribution=[hash[user_id_0]])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id_0, name, cash])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   :- Exchange(distribution=[hash[user_id_2]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])
+   +- Exchange(distribution=[hash[user_id_3]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Shipments]], fields=[location, user_id_3])
+
+== Optimized Execution Plan ==
+Calc(select=[user_id_0, name, order_id, payment_id, location])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[LEFT, INNER, LEFT], inputUniqueKeys=[(user_id_0), (order_id), (payment_id), noUniqueKey], joinConditions=[(user_id_0 = user_id_1), ((user_id_0 = user_id_2) AND ((cash >= price) OR (price < 0))), (user_id_2 = user_id_3)], select=[user_id_0,name,cash,order_id,user_id_1,payment_id,price,user_id_2,location,user_id_3], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2, VARCHAR(2147483647) location, VARCHAR(2147483647) user_id_3)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- ChangelogNormalize(key=[user_id_0])
+   :     +- Exchange(distribution=[hash[user_id_0]])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id_0, name, cash])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   :- Exchange(distribution=[hash[user_id_2]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])
+   +- Exchange(distribution=[hash[user_id_3]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Shipments]], fields=[location, user_id_3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFourWayComplexJoinRelPlan">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 AND (u.cash >= p.price OR p.price < 0) LEFT JOIN Shipments s ON p.user_id_2 = s.user_id_3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
++- LogicalJoin(condition=[=($8, $10)], joinType=[left])
+   :- LogicalJoin(condition=[AND(=($0, $8), OR(>=($2, $7), <($7, 0)))], joinType=[inner])
+   :  :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+   :  :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id_0, name, order_id, payment_id, location])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[LEFT, INNER, LEFT], inputUniqueKeys=[(user_id_0), (order_id), (payment_id), noUniqueKey], joinConditions=[=(user_id_0, user_id_1), AND(=(user_id_0, user_id_2), OR(>=(cash, price), <(price, 0))), =(user_id_2, user_id_3)], select=[user_id_0,name,cash,order_id,user_id_1,payment_id,price,user_id_2,location,user_id_3], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, INTEGER price, VARCHAR(2147483647) user_id_2, VARCHAR(2147483647) location, VARCHAR(2147483647) user_id_3)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- ChangelogNormalize(key=[user_id_0])
+   :     +- Exchange(distribution=[hash[user_id_0]])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id_0, name, cash])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   :- Exchange(distribution=[hash[user_id_2]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Payments]], fields=[payment_id, price, user_id_2])
+   +- Exchange(distribution=[hash[user_id_3]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Shipments]], fields=[location, user_id_3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFourWayJoinNoCommonJoinKeyRelPlan">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.user_id_0 = p.user_id_2 LEFT JOIN Shipments s ON p.payment_id = s.user_id_3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
++- LogicalJoin(condition=[=($6, $10)], joinType=[left])
+   :- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
+   :  :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+   :  :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id_0, name, order_id, payment_id, location])
++- MultiJoin(commonJoinKey=[payment_id], joinTypes=[LEFT], inputUniqueKeys=[noUniqueKey, noUniqueKey], joinConditions=[=(payment_id, user_id_3)], select=[user_id_0,name,order_id,payment_id,location,user_id_3], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) location, VARCHAR(2147483647) user_id_3)])
+   :- Exchange(distribution=[hash[payment_id]])
+   :  +- Calc(select=[user_id_0, name, order_id, payment_id])
+   :     +- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[LEFT, INNER], inputUniqueKeys=[(user_id_0), (order_id), (payment_id)], joinConditions=[=(user_id_0, user_id_1), =(user_id_0, user_id_2)], select=[user_id_0,name,order_id,user_id_1,payment_id,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2)])
+   :        :- Exchange(distribution=[hash[user_id_0]])
+   :        :  +- ChangelogNormalize(key=[user_id_0])
+   :        :     +- Exchange(distribution=[hash[user_id_0]])
+   :        :        +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :        :- Exchange(distribution=[hash[user_id_1]])
+   :        :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   :        +- Exchange(distribution=[hash[user_id_2]])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id_2], metadata=[]]], fields=[payment_id, user_id_2])
+   +- Exchange(distribution=[hash[user_id_3]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Shipments]], fields=[location, user_id_3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFourWayJoinTransitiveCommonJoinKeyRelPlan">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 LEFT JOIN Payments p ON o.user_id_1 = p.user_id_2 LEFT JOIN Shipments s ON p.user_id_2 = s.user_id_3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
++- LogicalJoin(condition=[=($8, $10)], joinType=[left])
+   :- LogicalJoin(condition=[=($4, $8)], joinType=[left])
+   :  :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+   :  :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id_0, name, order_id, payment_id, location])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[LEFT, LEFT, LEFT], inputUniqueKeys=[(user_id_0), (order_id), (payment_id), noUniqueKey], joinConditions=[=(user_id_0, user_id_1), =(user_id_1, user_id_2), =(user_id_2, user_id_3)], select=[user_id_0,name,order_id,user_id_1,payment_id,user_id_2,location,user_id_3], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2, VARCHAR(2147483647) location, VARCHAR(2147483647) user_id_3)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- ChangelogNormalize(key=[user_id_0])
+   :     +- Exchange(distribution=[hash[user_id_0]])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   :- Exchange(distribution=[hash[user_id_2]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id_2], metadata=[]]], fields=[payment_id, user_id_2])
+   +- Exchange(distribution=[hash[user_id_3]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Shipments]], fields=[location, user_id_3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFullOuterNotSupported">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u FULL OUTER JOIN Orders o ON u.user_id_0 = o.user_id_1 FULL OUTER JOIN Payments p ON o.user_id_1 = p.user_id_2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($4, $8)], joinType=[full])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[full])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id_0, name, order_id, payment_id])
++- Join(joinType=[FullOuterJoin], where=[=(user_id_1, user_id_2)], select=[user_id_0, name, order_id, user_id_1, payment_id, user_id_2], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- Join(joinType=[FullOuterJoin], where=[=(user_id_0, user_id_1)], select=[user_id_0, name, order_id, user_id_1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])
+   :     :- Exchange(distribution=[hash[user_id_0]])
+   :     :  +- ChangelogNormalize(key=[user_id_0])
+   :     :     +- Exchange(distribution=[hash[user_id_0]])
+   :     :        +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :     +- Exchange(distribution=[hash[user_id_1]])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[user_id_2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id_2], metadata=[]]], fields=[payment_id, user_id_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIntervalJoinExcludedFromMultiJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT e1.id, e1.val, e2.price FROM EventTable1 e1 JOIN EventTable2 e2 ON e1.id = e2.id AND e1.rowtime BETWEEN e2.rowtime - INTERVAL '1' MINUTE AND e2.rowtime + INTERVAL '1' MINUTE]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], val=[$1], price=[$4])
++- LogicalJoin(condition=[AND(=($0, $3), >=($2, -($5, 60000:INTERVAL MINUTE)), <=($2, +($5, 60000:INTERVAL MINUTE)))], joinType=[inner])
+   :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 5000:INTERVAL SECOND)])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, EventTable1]])
+   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 5000:INTERVAL SECOND)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, EventTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[id, val, price])
++- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-60000, leftUpperBound=60000, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(id, id0), >=(rowtime, -(rowtime0, 60000:INTERVAL MINUTE)), <=(rowtime, +(rowtime0, 60000:INTERVAL MINUTE)))], select=[id, val, rowtime, id0, price, rowtime0])
+   :- Exchange(distribution=[hash[id]])
+   :  +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 5000:INTERVAL SECOND)])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, EventTable1]], fields=[id, val, rowtime])
+   +- Exchange(distribution=[hash[id]])
+      +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 5000:INTERVAL SECOND)])
+         +- TableSourceScan(table=[[default_catalog, default_database, EventTable2]], fields=[id, price, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiSinkOnMultiJoinedView">
+    <Resource name="optimized rel plan with advice">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink1], fields=[a, day, EXPR$2, EXPR$3])
++- GroupAggregate(advice=[1], groupBy=[a, day], select=[a, day, SUM_RETRACT(b) AS EXPR$2, COUNT_RETRACT(DISTINCT c) AS EXPR$3])
+   +- Exchange(distribution=[hash[a, day]])
+      +- Calc(select=[a, day, b0 AS b, c])
+         +- MultiJoin(commonJoinKey=[a], joinTypes=[INNER], inputUniqueKeys=[noUniqueKey, noUniqueKey], joinConditions=[=(a, d)], select=[a,day,b0,c,d], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) day, BIGINT b0, VARCHAR(2147483647) c, INTEGER d)])
+            :- Exchange(distribution=[hash[a]])
+            :  +- Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day])
+            :     +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a], metadata=[]]], fields=[a])
+            +- Exchange(distribution=[hash[d]])
+               +- TableSourceScan(table=[[default_catalog, default_database, src2, project=[b, c, d], metadata=[]]], fields=[b, c, d])
+
+Sink(table=[default_catalog.default_database.sink2], fields=[a, day, b, c])
++- Calc(select=[a, day, b0 AS b, c])
+   +- MultiJoin(commonJoinKey=[a], joinTypes=[INNER], inputUniqueKeys=[noUniqueKey, noUniqueKey], joinConditions=[=(a, d)], select=[a,day,b0,c,d], rowType=[RecordType(INTEGER a, VARCHAR(2147483647) day, BIGINT b0, VARCHAR(2147483647) c, INTEGER d)])
+      :- Exchange(distribution=[hash[a]])
+      :  +- Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day])
+      :     +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a], metadata=[]]], fields=[a])
+      +- Exchange(distribution=[hash[d]])
+         +- Calc(select=[b, c, d], where=[>(b, 100)])
+            +- TableSourceScan(table=[[default_catalog, default_database, src2, project=[b, c, d], metadata=[]]], fields=[b, c, d])
+
+advice[1]: [ADVICE] You might want to enable local-global two-phase optimization by configuring ('table.exec.mini-batch.enabled' to 'true', 'table.exec.mini-batch.allow-latency' to a positive long value, 'table.exec.mini-batch.size' to a positive long value).
+advice[2]: [WARNING] The column(s): day(generated by non-deterministic function: CURRENT_TIMESTAMP ) can not satisfy the determinism requirement for correctly processing update message('UB'/'UA'/'D' in changelogMode, not 'I' only), this usually happens when input node has no upsertKey(upsertKeys=[{}]) or current node outputs non-deterministic update messages. Please consider removing these non-deterministic columns or making them deterministic by using deterministic functions.
+
+related rel plan:
+Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), _UTF-16LE'yyMMdd') AS day], changelogMode=[I,UB,UA,D])
++- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a], metadata=[]]], fields=[a], changelogMode=[I,UB,UA,D])
+
+
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPreservesUpsertKeyFourWayComplex">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink_four_way SELECT    u.user_id,    o.order_id,    o.user_id,    p.payment_id,    p.user_id,    u.name,    a.location FROM UsersPK u JOIN OrdersPK o  ON  u.user_id = o.user_id AND o.product IS NOT NULL JOIN PaymentsPK p  ON  u.user_id = p.user_id AND p.price >= 0 JOIN AddressPK a  ON  u.user_id = a.user_id AND a.location IS NOT NULL]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_four_way], fields=[user_id, order_id, user_id0, payment_id, user_id1, name, location])
++- LogicalProject(user_id=[$0], order_id=[$4], user_id0=[$5], payment_id=[$7], user_id1=[$8], name=[$1], location=[$11])
+   +- LogicalJoin(condition=[AND(=($0, $10), IS NOT NULL($11))], joinType=[inner])
+      :- LogicalJoin(condition=[AND(=($0, $8), >=($9, 0))], joinType=[inner])
+      :  :- LogicalJoin(condition=[AND(=($0, $5), IS NOT NULL($6))], joinType=[inner])
+      :  :  :- LogicalTableScan(table=[[default_catalog, default_database, UsersPK]])
+      :  :  +- LogicalTableScan(table=[[default_catalog, default_database, OrdersPK]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, PaymentsPK]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, AddressPK]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_four_way], fields=[user_id, order_id, user_id0, payment_id, user_id1, name, location])
++- Calc(select=[user_id, order_id, user_id0, payment_id, user_id1, name, location])
+   +- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER, INNER], inputUniqueKeys=[(user_id), (order_id, user_id), (payment_id, user_id), (user_id)], joinConditions=[=(user_id, user_id0), =(user_id, user_id1), =(user_id, user_id2)], select=[user_id,name,order_id,user_id0,payment_id,user_id1,user_id2,location], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id1, VARCHAR(2147483647) user_id2, VARCHAR(2147483647) location)])
+      :- Exchange(distribution=[hash[user_id]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, UsersPK, project=[user_id, name], metadata=[]]], fields=[user_id, name])
+      :- Exchange(distribution=[hash[user_id]])
+      :  +- Calc(select=[order_id, user_id])
+      :     +- ChangelogNormalize(key=[order_id, user_id], condition=[IS NOT NULL(product)])
+      :        +- Exchange(distribution=[hash[order_id, user_id]])
+      :           +- TableSourceScan(table=[[default_catalog, default_database, OrdersPK, filter=[]]], fields=[order_id, user_id, product])
+      :- Exchange(distribution=[hash[user_id]])
+      :  +- Calc(select=[payment_id, user_id])
+      :     +- ChangelogNormalize(key=[payment_id, user_id], condition=[>=(price, 0)])
+      :        +- Exchange(distribution=[hash[payment_id, user_id]])
+      :           +- TableSourceScan(table=[[default_catalog, default_database, PaymentsPK, filter=[]]], fields=[payment_id, user_id, price])
+      +- Exchange(distribution=[hash[user_id]])
+         +- ChangelogNormalize(key=[user_id], condition=[IS NOT NULL(location)])
+            +- Exchange(distribution=[hash[user_id]])
+               +- TableSourceScan(table=[[default_catalog, default_database, AddressPK, filter=[]]], fields=[user_id, location])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPreservesUpsertKeyThreeWayJoin">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink_three_way SELECT    o.user_id,    o.order_id,    p.user_id,    p.payment_id,    u.user_id,    u.description FROM UsersPK u JOIN OrdersPK o  ON  o.user_id = u.user_id JOIN PaymentsPK p  ON  o.user_id = p.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_three_way], fields=[user_id, order_id, user_id0, payment_id, user_id1, description])
++- LogicalProject(user_id=[$5], order_id=[$4], user_id0=[$8], payment_id=[$7], user_id1=[$0], description=[$3])
+   +- LogicalJoin(condition=[=($5, $8)], joinType=[inner])
+      :- LogicalJoin(condition=[=($5, $0)], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, UsersPK]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, OrdersPK]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, PaymentsPK]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_three_way], fields=[user_id, order_id, user_id0, payment_id, user_id1, description])
++- Calc(select=[user_id0 AS user_id, order_id, user_id1 AS user_id0, payment_id, user_id AS user_id1, description])
+   +- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id), (order_id, user_id), (payment_id, user_id)], joinConditions=[=(user_id0, user_id), =(user_id0, user_id1)], select=[user_id,description,order_id,user_id0,payment_id,user_id1], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) description, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id1)])
+      :- Exchange(distribution=[hash[user_id]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, UsersPK, project=[user_id, description], metadata=[]]], fields=[user_id, description])
+      :- Exchange(distribution=[hash[user_id]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, OrdersPK, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
+      +- Exchange(distribution=[hash[user_id]])
+         +- TableSourceScan(table=[[default_catalog, default_database, PaymentsPK, project=[payment_id, user_id], metadata=[]]], fields=[payment_id, user_id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPreservesUpsertKeyTwoWayInnerJoinOrders">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink_two_way SELECT    o.user_id,    o.order_id,    o.product,    u.region_id FROM UsersPK u INNER JOIN OrdersPK o   ON  u.user_id = o.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_two_way], fields=[user_id, order_id, product, region_id])
++- LogicalProject(user_id=[$5], order_id=[$4], product=[$6], region_id=[$2])
+   +- LogicalJoin(condition=[=($0, $5)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, UsersPK]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, OrdersPK]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_two_way], fields=[user_id, order_id, product, region_id])
++- Calc(select=[user_id0 AS user_id, order_id, product, region_id])
+   +- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER], inputUniqueKeys=[(user_id), (order_id, user_id)], joinConditions=[=(user_id, user_id0)], select=[user_id,region_id,order_id,user_id0,product], rowType=[RecordType(VARCHAR(2147483647) user_id, INTEGER region_id, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) product)])
+      :- Exchange(distribution=[hash[user_id]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, UsersPK, project=[user_id, region_id], metadata=[]]], fields=[user_id, region_id])
+      +- Exchange(distribution=[hash[user_id]])
+         +- TableSourceScan(table=[[default_catalog, default_database, OrdersPK]], fields=[order_id, user_id, product])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPreservesUpsertKeyTwoWayInnerJoinOrdersDoesNot">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink_two_way SELECT    o.user_id,    o.order_id,    o.product,    u.region_id FROM UsersPK u INNER JOIN OrdersSimplePK o   ON  u.user_id = o.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_two_way], fields=[user_id, order_id, product, region_id])
++- LogicalProject(user_id=[$5], order_id=[$4], product=[$6], region_id=[$2])
+   +- LogicalJoin(condition=[=($0, $5)], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, UsersPK]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, OrdersSimplePK]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_two_way], fields=[user_id, order_id, product, region_id], upsertMaterialize=[true])
++- Calc(select=[user_id0 AS user_id, order_id, product, region_id])
+   +- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER], inputUniqueKeys=[(user_id), (order_id)], joinConditions=[=(user_id, user_id0)], select=[user_id,region_id,order_id,user_id0,product], rowType=[RecordType(VARCHAR(2147483647) user_id, INTEGER region_id, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) product)])
+      :- Exchange(distribution=[hash[user_id]])
+      :  +- ChangelogNormalize(key=[user_id])
+      :     +- Exchange(distribution=[hash[user_id]])
+      :        +- TableSourceScan(table=[[default_catalog, default_database, UsersPK, project=[user_id, region_id], metadata=[]]], fields=[user_id, region_id])
+      +- Exchange(distribution=[hash[user_id]])
+         +- ChangelogNormalize(key=[order_id])
+            +- Exchange(distribution=[hash[order_id]])
+               +- TableSourceScan(table=[[default_catalog, default_database, OrdersSimplePK]], fields=[order_id, user_id, product])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPreservesUpsertKeyTwoWayLeftJoinOrders">
+    <Resource name="sql">
+      <![CDATA[INSERT INTO sink_two_way SELECT    o.user_id,    o.order_id,    o.product,    u.region_id FROM OrdersPK o LEFT JOIN UsersPK u  ON  u.user_id = o.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink_two_way], fields=[user_id, order_id, product, region_id])
++- LogicalProject(user_id=[$1], order_id=[$0], product=[$2], region_id=[$5])
+   +- LogicalJoin(condition=[=($3, $1)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, OrdersPK]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, UsersPK]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.sink_two_way], fields=[user_id, order_id, product, region_id])
++- Calc(select=[user_id, order_id, product, region_id])
+   +- MultiJoin(commonJoinKey=[user_id], joinTypes=[LEFT], inputUniqueKeys=[(order_id, user_id), (user_id)], joinConditions=[=(user_id0, user_id)], select=[order_id,user_id,product,user_id0,region_id], rowType=[RecordType(VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id, VARCHAR(2147483647) product, VARCHAR(2147483647) user_id0, INTEGER region_id)])
+      :- Exchange(distribution=[hash[user_id]])
+      :  +- TableSourceScan(table=[[default_catalog, default_database, OrdersPK]], fields=[order_id, user_id, product])
+      +- Exchange(distribution=[hash[user_id]])
+         +- TableSourceScan(table=[[default_catalog, default_database, UsersPK, project=[user_id, region_id], metadata=[]]], fields=[user_id, region_id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRegularJoinsAreMergedApartFromTemporalJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, temporal.age FROM Users u INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN (  SELECT s.user_id, l.age   FROM StreamTable s   JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l   ON s.user_id = l.id) temporal ON u.user_id_0 = temporal.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], age=[$7])
++- LogicalJoin(condition=[=($0, $6)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalProject(user_id=[$0], age=[$5])
+      +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 2}])
+         :- LogicalProject(user_id=[$0], amount=[$1], proctime=[PROCTIME()])
+         :  +- LogicalTableScan(table=[[default_catalog, default_database, StreamTable]])
+         +- LogicalFilter(condition=[=($cor0.user_id, $0)])
+            +- LogicalSnapshot(period=[$cor0.proctime])
+               +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id_0, name, order_id, age])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id_0), (order_id), noUniqueKey], joinConditions=[=(user_id_0, user_id_1), =(user_id_0, user_id)], select=[user_id_0,name,order_id,user_id_1,user_id,age], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) user_id, INTEGER age)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[user_id]])
+      +- Calc(select=[user_id, age])
+         +- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=user_id], select=[user_id, id, age])
+            +- TableSourceScan(table=[[default_catalog, default_database, StreamTable, project=[user_id], metadata=[]]], fields=[user_id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRightJoinNotSupported">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u RIGHT JOIN Orders o ON u.user_id_0 = o.user_id_1 RIGHT JOIN Payments p ON o.user_id_1 = p.user_id_2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($4, $8)], joinType=[right])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[right])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id_0, name, order_id, payment_id])
++- Join(joinType=[RightOuterJoin], where=[=(user_id_1, user_id_2)], select=[user_id_0, name, order_id, user_id_1, payment_id, user_id_2], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- Join(joinType=[RightOuterJoin], where=[=(user_id_0, user_id_1)], select=[user_id_0, name, order_id, user_id_1], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[HasUniqueKey])
+   :     :- Exchange(distribution=[hash[user_id_0]])
+   :     :  +- ChangelogNormalize(key=[user_id_0])
+   :     :     +- Exchange(distribution=[hash[user_id_0]])
+   :     :        +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :     +- Exchange(distribution=[hash[user_id_1]])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[user_id_2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id_2], metadata=[]]], fields=[payment_id, user_id_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTemporalJoinExcludedFromMultiJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT s.user_id, s.amount, l.name, l.age FROM StreamTable s JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l ON s.user_id = l.id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id=[$0], amount=[$1], name=[$4], age=[$5])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 2}])
+   :- LogicalProject(user_id=[$0], amount=[$1], proctime=[PROCTIME()])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, StreamTable]])
+   +- LogicalFilter(condition=[=($cor0.user_id, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id, amount, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], lookup=[id=user_id], select=[user_id, amount, id, name, age])
+   +- TableSourceScan(table=[[default_catalog, default_database, StreamTable]], fields=[user_id, amount])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testThreeWayInnerJoinExecPlan">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.user_id_0 = p.user_id_2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[user_id_0, name, order_id, payment_id])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id_0), (order_id), (payment_id)], joinConditions=[(user_id_0 = user_id_1), (user_id_0 = user_id_2)], select=[user_id_0,name,order_id,user_id_1,payment_id,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[user_id_2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id_2], metadata=[]]], fields=[payment_id, user_id_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testThreeWayInnerJoinExplain">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+
+== Optimized Physical Plan ==
+Calc(select=[user_id_0, name, order_id, payment_id])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id_0), (order_id), (payment_id)], joinConditions=[=(user_id_0, user_id_1), =(user_id_0, user_id_2)], select=[user_id_0,name,order_id,user_id_1,payment_id,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[user_id_2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id_2], metadata=[]]], fields=[payment_id, user_id_2])
+
+== Optimized Execution Plan ==
+Calc(select=[user_id_0, name, order_id, payment_id])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id_0), (order_id), (payment_id)], joinConditions=[(user_id_0 = user_id_1), (user_id_0 = user_id_2)], select=[user_id_0,name,order_id,user_id_1,payment_id,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[user_id_2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id_2], metadata=[]]], fields=[payment_id, user_id_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testThreeWayInnerJoinNoCommonJoinKeyRelPlan">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.cash = p.price]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($2, $7)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id_0, name, order_id, payment_id])
++- MultiJoin(commonJoinKey=[cash], joinTypes=[INNER], inputUniqueKeys=[noUniqueKey, (payment_id)], joinConditions=[=(cash, price)], select=[user_id_0,name,cash,order_id,payment_id,price], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) payment_id, INTEGER price)])
+   :- Exchange(distribution=[hash[cash]])
+   :  +- Calc(select=[user_id_0, name, cash, order_id])
+   :     +- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[INNER], inputUniqueKeys=[(user_id_0), (order_id)], joinConditions=[=(user_id_0, user_id_1)], select=[user_id_0,name,cash,order_id,user_id_1], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1)])
+   :        :- Exchange(distribution=[hash[user_id_0]])
+   :        :  +- ChangelogNormalize(key=[user_id_0])
+   :        :     +- Exchange(distribution=[hash[user_id_0]])
+   :        :        +- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id_0, name, cash])
+   :        +- Exchange(distribution=[hash[user_id_1]])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[price]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, price], metadata=[]]], fields=[payment_id, price])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testThreeWayInnerJoinRelPlan">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.user_id_0 = p.user_id_2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id_0, name, order_id, payment_id])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id_0), (order_id), (payment_id)], joinConditions=[=(user_id_0, user_id_1), =(user_id_0, user_id_2)], select=[user_id_0,name,order_id,user_id_1,payment_id,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[user_id_2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id_2], metadata=[]]], fields=[payment_id, user_id_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testThreeWayInnerJoinWithSingleTttlHint">
+    <Resource name="sql">
+      <![CDATA[SELECT /*+ STaTE_tTL(o='2d') */u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.user_id_0 = p.user_id_2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($0, $8)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{o=2d}]]])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0] options:{o=2d}]]])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[u]]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]], hints=[[[ALIAS inheritPath:[] options:[o]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]], hints=[[[ALIAS inheritPath:[] options:[p]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id_0, name, order_id, payment_id])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id_0), (order_id), (payment_id)], stateTtlHints=[[[STATE_TTL options:[0s, 2d, 0s]]]], joinConditions=[=(user_id_0, user_id_1), =(user_id_0, user_id_2)], select=[user_id_0,name,order_id,user_id_1,payment_id,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[user_id_2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id_2], metadata=[]]], fields=[payment_id, user_id_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testThreeWayInnerJoinWithTttlHints">
+    <Resource name="sql">
+      <![CDATA[SELECT /*+ STATE_TTL(u='1d', o='2d', p='1h') */u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id_0 = o.user_id_1 INNER JOIN Payments p ON u.user_id_0 = p.user_id_2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($0, $8)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{p=1h, u=1d, o=2d}]]])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0] options:{p=1h, u=1d, o=2d}]]])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[u]]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]], hints=[[[ALIAS inheritPath:[] options:[o]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]], hints=[[[ALIAS inheritPath:[] options:[p]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id_0, name, order_id, payment_id])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id_0), (order_id), (payment_id)], stateTtlHints=[[[STATE_TTL options:[1d, 2d, 1h]]]], joinConditions=[=(user_id_0, user_id_1), =(user_id_0, user_id_2)], select=[user_id_0,name,order_id,user_id_1,payment_id,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[user_id_2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id_2], metadata=[]]], fields=[payment_id, user_id_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testThreeWayJoinNoJoinKeyExecPlan">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON TRUE INNER JOIN Payments p ON TRUE ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalJoin(condition=[true], joinType=[left])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+MultiJoin(commonJoinKey=[noCommonJoinKey], joinTypes=[INNER], inputUniqueKeys=[noUniqueKey, (payment_id)], joinConditions=[true], select=[user_id_0,name,order_id,payment_id], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) payment_id)])
+:- Exchange(distribution=[single])
+:  +- MultiJoin(commonJoinKey=[noCommonJoinKey], joinTypes=[LEFT], inputUniqueKeys=[(user_id_0), (order_id)], joinConditions=[true], select=[user_id_0,name,order_id], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id)])
+:     :- Exchange(distribution=[single])
+:     :  +- ChangelogNormalize(key=[user_id_0])
+:     :     +- Exchange(distribution=[hash[user_id_0]])
+:     :        +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+:     +- Exchange(distribution=[single])
+:        +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id], metadata=[]]], fields=[order_id])
++- Exchange(distribution=[single])
+   +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id], metadata=[]]], fields=[payment_id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testThreeWayJoinWithTimeAttributesMaterialization">
+    <Resource name="sql">
+      <![CDATA[SELECT u.name, u.proctime, o.rowtime, p.price FROM UsersWithProctime u JOIN OrdersWithRowtime o ON u.user_id_0 = o.user_id_1 JOIN Payments p ON u.user_id_0 = p.user_id_2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(name=[$1], proctime=[$2], rowtime=[$5], price=[$7])
++- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+   :  :- LogicalProject(user_id_0=[$0], name=[$1], proctime=[PROCTIME()])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, UsersWithProctime]])
+   :  +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$2])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, OrdersWithRowtime]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[name, proctime, rowtime, price])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id_0), noUniqueKey, noUniqueKey], joinConditions=[=(user_id_0, user_id_1), =(user_id_0, user_id_2)], select=[user_id_0,name,proctime,user_id_1,rowtime,price,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, TIMESTAMP_WITH_LOCAL_TIME_ZONE(3) proctime, VARCHAR(2147483647) user_id_1, TIMESTAMP(3) rowtime, INTEGER price, VARCHAR(2147483647) user_id_2)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- Calc(select=[user_id_0, name, PROCTIME_MATERIALIZE(PROCTIME()) AS proctime])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, UsersWithProctime]], fields=[user_id_0, name])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- Calc(select=[user_id_1, CAST(rowtime AS TIMESTAMP(3)) AS rowtime])
+   :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, OrdersWithRowtime, project=[user_id_1, rowtime], metadata=[]]], fields=[user_id_1, rowtime])
+   +- Exchange(distribution=[hash[user_id_2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[price, user_id_2], metadata=[]]], fields=[price, user_id_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testThreeWayLeftOuterJoinExecPlan">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 LEFT JOIN Payments p ON u.user_id_0 = p.user_id_2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($0, $8)], joinType=[left])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[user_id_0, name, order_id, payment_id])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[LEFT, LEFT], inputUniqueKeys=[(user_id_0), (order_id), (payment_id)], joinConditions=[(user_id_0 = user_id_1), (user_id_0 = user_id_2)], select=[user_id_0,name,order_id,user_id_1,payment_id,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[user_id_2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id_2], metadata=[]]], fields=[payment_id, user_id_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testThreeWayLeftOuterJoinExplain">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($0, $8)], joinType=[left])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+
+== Optimized Physical Plan ==
+Calc(select=[user_id_0, name, order_id, payment_id])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[LEFT, LEFT], inputUniqueKeys=[(user_id_0), (order_id), (payment_id)], joinConditions=[=(user_id_0, user_id_1), =(user_id_0, user_id_2)], select=[user_id_0,name,order_id,user_id_1,payment_id,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[user_id_2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id_2], metadata=[]]], fields=[payment_id, user_id_2])
+
+== Optimized Execution Plan ==
+Calc(select=[user_id_0, name, order_id, payment_id])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[LEFT, LEFT], inputUniqueKeys=[(user_id_0), (order_id), (payment_id)], joinConditions=[(user_id_0 = user_id_1), (user_id_0 = user_id_2)], select=[user_id_0,name,order_id,user_id_1,payment_id,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[user_id_2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id_2], metadata=[]]], fields=[payment_id, user_id_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testThreeWayLeftOuterJoinRelPlan">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 LEFT JOIN Payments p ON u.user_id_0 = p.user_id_2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($0, $8)], joinType=[left])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id_0, name, order_id, payment_id])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[LEFT, LEFT], inputUniqueKeys=[(user_id_0), (order_id), (payment_id)], joinConditions=[=(user_id_0, user_id_1), =(user_id_0, user_id_2)], select=[user_id_0,name,order_id,user_id_1,payment_id,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[user_id_2]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id_2], metadata=[]]], fields=[payment_id, user_id_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testThreeWayLeftOuterJoinWithWhereClauseExecPlan">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 LEFT JOIN Payments p ON u.user_id_0 = p.user_id_2 WHERE u.name = 'Gus' AND p.price > 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalFilter(condition=[AND(=($1, _UTF-16LE'Gus'), >($7, 10))])
+   +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
+      :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[user_id_0, CAST('Gus' AS VARCHAR(2147483647)) AS name, order_id, CAST(payment_id AS VARCHAR(2147483647)) AS payment_id])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[LEFT, INNER], inputUniqueKeys=[(user_id_0), (order_id), (payment_id)], joinConditions=[(user_id_0 = user_id_1), (user_id_0 = user_id_2)], select=[user_id_0,order_id,user_id_1,payment_id,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- Calc(select=[user_id_0])
+   :     +- ChangelogNormalize(key=[user_id_0], condition=[(name = 'Gus')])
+   :        +- Exchange(distribution=[hash[user_id_0]])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, Users, filter=[], project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[user_id_2]])
+      +- Calc(select=[payment_id, user_id_2], where=[(price > 10)])
+         +- TableSourceScan(table=[[default_catalog, default_database, Payments, filter=[]]], fields=[payment_id, price, user_id_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testThreeWayLeftOuterJoinWithWhereClauseExplain">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalFilter(condition=[AND(=($1, _UTF-16LE'Gus'), >($7, 10))])
+   +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
+      :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+
+== Optimized Physical Plan ==
+Calc(select=[user_id_0, CAST(_UTF-16LE'Gus':VARCHAR(2147483647) CHARACTER SET "UTF-16LE" AS VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS name, order_id, CAST(payment_id AS VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS payment_id])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[LEFT, INNER], inputUniqueKeys=[(user_id_0), (order_id), (payment_id)], joinConditions=[=(user_id_0, user_id_1), =(user_id_0, user_id_2)], select=[user_id_0,order_id,user_id_1,payment_id,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- Calc(select=[user_id_0])
+   :     +- ChangelogNormalize(key=[user_id_0], condition=[=(name, _UTF-16LE'Gus':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
+   :        +- Exchange(distribution=[hash[user_id_0]])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, Users, filter=[], project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[user_id_2]])
+      +- Calc(select=[payment_id, user_id_2], where=[>(price, 10)])
+         +- TableSourceScan(table=[[default_catalog, default_database, Payments, filter=[]]], fields=[payment_id, price, user_id_2])
+
+== Optimized Execution Plan ==
+Calc(select=[user_id_0, CAST('Gus' AS VARCHAR(2147483647)) AS name, order_id, CAST(payment_id AS VARCHAR(2147483647)) AS payment_id])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[LEFT, INNER], inputUniqueKeys=[(user_id_0), (order_id), (payment_id)], joinConditions=[(user_id_0 = user_id_1), (user_id_0 = user_id_2)], select=[user_id_0,order_id,user_id_1,payment_id,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- Calc(select=[user_id_0])
+   :     +- ChangelogNormalize(key=[user_id_0], condition=[(name = 'Gus')])
+   :        +- Exchange(distribution=[hash[user_id_0]])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, Users, filter=[], project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[user_id_2]])
+      +- Calc(select=[payment_id, user_id_2], where=[(price > 10)])
+         +- TableSourceScan(table=[[default_catalog, default_database, Payments, filter=[]]], fields=[payment_id, price, user_id_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testThreeWayLeftOuterJoinWithWhereClauseRelPlan">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id_0, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON u.user_id_0 = o.user_id_1 LEFT JOIN Payments p ON u.user_id_0 = p.user_id_2 WHERE u.name = 'Gus' AND p.price > 10]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id_0=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalFilter(condition=[AND(=($1, _UTF-16LE'Gus'), >($7, 10))])
+   +- LogicalJoin(condition=[=($0, $8)], joinType=[left])
+      :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id_0, CAST('Gus' AS VARCHAR(2147483647)) AS name, order_id, CAST(payment_id AS VARCHAR(2147483647)) AS payment_id])
++- MultiJoin(commonJoinKey=[user_id_0], joinTypes=[LEFT, INNER], inputUniqueKeys=[(user_id_0), (order_id), (payment_id)], joinConditions=[=(user_id_0, user_id_1), =(user_id_0, user_id_2)], select=[user_id_0,order_id,user_id_1,payment_id,user_id_2], rowType=[RecordType(VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id_2)])
+   :- Exchange(distribution=[hash[user_id_0]])
+   :  +- Calc(select=[user_id_0])
+   :     +- ChangelogNormalize(key=[user_id_0], condition=[=(name, 'Gus')])
+   :        +- Exchange(distribution=[hash[user_id_0]])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, Users, filter=[], project=[user_id_0, name], metadata=[]]], fields=[user_id_0, name])
+   :- Exchange(distribution=[hash[user_id_1]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id_1], metadata=[]]], fields=[order_id, user_id_1])
+   +- Exchange(distribution=[hash[user_id_2]])
+      +- Calc(select=[payment_id, user_id_2], where=[>(price, 10)])
+         +- TableSourceScan(table=[[default_catalog, default_database, Payments, filter=[]]], fields=[payment_id, price, user_id_2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTwoWayJoinWithRank">
+    <Resource name="sql">
+      <![CDATA[WITH JoinedEvents as (SELECT e1.id as id, e1.val, e1.rowtime as `rowtime`, e2.price FROM EventTable1 e1 JOIN EventTable2 e2 ON e1.id = e2.id) SELECT id, val, `rowtime` FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY `rowtime` DESC) as ts FROM JoinedEvents) WHERE ts = 1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(id=[$0], val=[$1], rowtime=[$2])
++- LogicalFilter(condition=[=($4, 1)])
+   +- LogicalProject(id=[$0], val=[$1], rowtime=[$2], price=[$3], ts=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+      +- LogicalProject(id=[$0], val=[$1], rowtime=[$2], price=[$4])
+         +- LogicalJoin(condition=[=($0, $3)], joinType=[inner])
+            :- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 5000:INTERVAL SECOND)])
+            :  +- LogicalTableScan(table=[[default_catalog, default_database, EventTable1]])
+            +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[-($2, 5000:INTERVAL SECOND)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, EventTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[id], orderBy=[rowtime DESC], select=[id, val, rowtime])
++- Exchange(distribution=[hash[id]])
+   +- Calc(select=[id, val, rowtime])
+      +- MultiJoin(commonJoinKey=[id], joinTypes=[INNER], inputUniqueKeys=[noUniqueKey, noUniqueKey], joinConditions=[=(id, id0)], select=[id,val,rowtime,id0,price,rowtime0], rowType=[RecordType(VARCHAR(2147483647) id, INTEGER val, TIMESTAMP(3) rowtime, VARCHAR(2147483647) id0, DOUBLE price, TIMESTAMP(3) rowtime0)])
+         :- Exchange(distribution=[hash[id]])
+         :  +- Calc(select=[id, val, CAST(rowtime AS TIMESTAMP(3)) AS rowtime])
+         :     +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 5000:INTERVAL SECOND)])
+         :        +- TableSourceScan(table=[[default_catalog, default_database, EventTable1]], fields=[id, val, rowtime])
+         +- Exchange(distribution=[hash[id]])
+            +- Calc(select=[id, price, CAST(rowtime AS TIMESTAMP(3)) AS rowtime])
+               +- WatermarkAssigner(rowtime=[rowtime], watermark=[-(rowtime, 5000:INTERVAL SECOND)])
+                  +- TableSourceScan(table=[[default_catalog, default_database, EventTable2]], fields=[id, price, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTwoWayJoinWithUnion">
+    <Resource name="sql">
+      <![CDATA[WITH OrdersUnion as (SELECT * FROM Orders UNION ALL SELECT * FROM Orders2) SELECT * FROM OrdersUnion o LEFT JOIN Users u ON o.user_id_1 = u.user_id_0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(order_id=[$0], user_id_1=[$1], product=[$2], user_id_0=[$3], name=[$4], cash=[$5])
++- LogicalJoin(condition=[=($1, $3)], joinType=[left])
+   :- LogicalUnion(all=[true])
+   :  :- LogicalProject(order_id=[$0], user_id_1=[$1], product=[$2])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   :  +- LogicalProject(order_id=[$0], user_id_1=[$1], product=[$2])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders2]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+MultiJoin(commonJoinKey=[user_id_1], joinTypes=[LEFT], inputUniqueKeys=[noUniqueKey, (user_id_0)], joinConditions=[=(user_id_1, user_id_0)], select=[order_id,user_id_1,product,user_id_0,name,cash], rowType=[RecordType(VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id_1, VARCHAR(2147483647) product, VARCHAR(2147483647) user_id_0, VARCHAR(2147483647) name, INTEGER cash)])
+:- Exchange(distribution=[hash[user_id_1]])
+:  +- Union(all=[true], union=[order_id, user_id_1, product])
+:     :- TableSourceScan(table=[[default_catalog, default_database, Orders]], fields=[order_id, user_id_1, product])
+:     +- TableSourceScan(table=[[default_catalog, default_database, Orders2]], fields=[order_id, user_id_1, product])
++- Exchange(distribution=[hash[user_id_0]])
+   +- TableSourceScan(table=[[default_catalog, default_database, Users]], fields=[user_id_0, name, cash])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

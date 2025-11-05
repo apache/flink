@@ -18,7 +18,8 @@
 
 package org.apache.flink.streaming.runtime.io.checkpointing;
 
-import org.apache.flink.core.execution.CheckpointingMode;
+import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
@@ -41,6 +42,7 @@ import org.apache.flink.streaming.util.MockStreamTaskBuilder;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -59,9 +61,10 @@ class InputProcessorUtilTest {
         try (CloseableRegistry registry = new CloseableRegistry()) {
             MockEnvironment environment = new MockEnvironmentBuilder().build();
             MockStreamTask streamTask = new MockStreamTaskBuilder(environment).build();
+            Configuration jobConf = streamTask.getJobConfiguration();
+            jobConf.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1));
+            jobConf.set(CheckpointingOptions.ENABLE_UNALIGNED, true);
             StreamConfig streamConfig = new StreamConfig(environment.getJobConfiguration());
-            streamConfig.setCheckpointMode(CheckpointingMode.EXACTLY_ONCE);
-            streamConfig.setUnalignedCheckpointsEnabled(true);
 
             // First input gate has index larger than the second
             List<IndexedInputGate>[] inputGates =
@@ -73,6 +76,7 @@ class InputProcessorUtilTest {
             CheckpointBarrierHandler barrierHandler =
                     InputProcessorUtil.createCheckpointBarrierHandler(
                             streamTask,
+                            jobConf,
                             streamConfig,
                             new TestSubtaskCheckpointCoordinator(new MockChannelStateWriter()),
                             streamTask.getName(),

@@ -22,11 +22,8 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.planner.codegen.calls.BuiltInMethods;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.utils.DateTimeUtils;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.cast;
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.operator;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
 
 /**
@@ -54,21 +51,20 @@ class TimestampToTimeCastRule
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
+        final int targetPrecision = LogicalTypeChecks.getPrecision(targetLogicalType);
 
         if (inputLogicalType.is(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
-            return cast(
-                    "int",
-                    operator(
-                            methodCall(inputTerm, "getMillisecond"),
-                            "%",
-                            DateTimeUtils.MILLIS_PER_DAY));
+            return staticCall(
+                    BuiltInMethods.TIMESTAMP_WITHOUT_LOCAL_TIME_ZONE_TO_TIME(),
+                    inputTerm,
+                    targetPrecision);
         } else if (inputLogicalType.is(LogicalTypeRoot.TIMESTAMP_WITH_LOCAL_TIME_ZONE)) {
             return staticCall(
                     BuiltInMethods.TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_TIME(),
                     inputTerm,
-                    context.getSessionTimeZoneTerm());
-        } else {
-            throw new IllegalArgumentException("This is a bug. Please file an issue.");
+                    context.getSessionTimeZoneTerm(),
+                    targetPrecision);
         }
+        throw new IllegalArgumentException("This is a bug. Please file an issue.");
     }
 }

@@ -68,6 +68,31 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4]), rowType=[RecordType(INTE
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testInToSemiJoinFloatEqualsDouble">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T1 WHERE T1.c IN (SELECT d FROM T2)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
++- LogicalFilter(condition=[IN($2, {
+LogicalProject(d=[$3])
+  LogicalTableScan(table=[[default_catalog, default_database, T2]])
+})]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
+   +- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
++- LogicalJoin(condition=[=($2, $6)], joinType=[semi]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
+   +- LogicalProject(d=[$0], d0=[CAST($0):FLOAT]), rowType=[RecordType(DOUBLE d, FLOAT d0)]
+      +- LogicalProject(d=[$3]), rowType=[RecordType(DOUBLE d)]
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testInToSemiJoinIntEqualsDecimal">
     <Resource name="sql">
       <![CDATA[SELECT * FROM T1 WHERE T1.a IN (SELECT e FROM T2)]]>
@@ -90,31 +115,6 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4]), rowType=[RecordType(INTE
       :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], a0=[CAST($0):DECIMAL(38, 18)]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e, DECIMAL(38, 18) a0)]
       :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
       +- LogicalProject(e=[$4]), rowType=[RecordType(DECIMAL(38, 18) e)]
-         +- LogicalTableScan(table=[[default_catalog, default_database, T2]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testInToSemiJoinFloatEqualsDouble">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM T1 WHERE T1.c IN (SELECT d FROM T2)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
-+- LogicalFilter(condition=[IN($2, {
-LogicalProject(d=[$3])
-  LogicalTableScan(table=[[default_catalog, default_database, T2]])
-})]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
-   +- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
-+- LogicalJoin(condition=[=($2, $6)], joinType=[semi]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
-   :- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
-   +- LogicalProject(d=[$0], d0=[CAST($0):FLOAT]), rowType=[RecordType(DOUBLE d, FLOAT d0)]
-      +- LogicalProject(d=[$3]), rowType=[RecordType(DOUBLE d)]
          +- LogicalTableScan(table=[[default_catalog, default_database, T2]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
 ]]>
     </Resource>
@@ -209,8 +209,7 @@ LogicalProject(a=[$0]), rowType=[RecordType(INTEGER a)]
       :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], a0=[CAST($0):BIGINT]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e, BIGINT a0)]
       :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
       +- LogicalAggregate(group=[{}], cnt=[COUNT()]), rowType=[RecordType(BIGINT cnt)]
-         +- LogicalProject($f0=[0]), rowType=[RecordType(INTEGER $f0)]
-            +- LogicalTableScan(table=[[default_catalog, default_database, T2]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
@@ -221,8 +220,7 @@ LogicalProject(a=[$0]), rowType=[RecordType(INTEGER a)]
       :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], a0=[CAST($0):BIGINT]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e, BIGINT a0)]
       :  +- LogicalTableScan(table=[[default_catalog, default_database, T1]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
       +- LogicalAggregate(group=[{}], cnt=[COUNT()]), rowType=[RecordType(BIGINT cnt)]
-         +- LogicalProject($f0=[0]), rowType=[RecordType(INTEGER $f0)]
-            +- LogicalTableScan(table=[[default_catalog, default_database, T2]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
+         +- LogicalTableScan(table=[[default_catalog, default_database, T2]]), rowType=[RecordType(INTEGER a, BIGINT b, FLOAT c, DOUBLE d, DECIMAL(38, 18) e)]
 ]]>
     </Resource>
   </TestCase>

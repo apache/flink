@@ -25,6 +25,9 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
 import org.apache.flink.util.AbstractID;
 
+import java.util.Collections;
+import java.util.Map;
+
 import static org.apache.flink.runtime.executiongraph.ExecutionAttemptID.randomId;
 
 /** A collection of safe drop-in replacements for existing {@link ComponentMetricGroup}s. */
@@ -190,7 +193,8 @@ public class UnregisteredMetricGroups {
         }
 
         @Override
-        public InternalOperatorMetricGroup getOrAddOperator(OperatorID operatorID, String name) {
+        public InternalOperatorMetricGroup getOrAddOperator(
+                OperatorID operatorID, String name, Map<String, String> additionalVariables) {
             return createUnregisteredOperatorMetricGroup(this);
         }
     }
@@ -205,7 +209,12 @@ public class UnregisteredMetricGroups {
         }
 
         UnregisteredOperatorMetricGroup(TaskMetricGroup parent) {
-            super(NoOpMetricRegistry.INSTANCE, parent, DEFAULT_OPERATOR_ID, DEFAULT_OPERATOR_NAME);
+            super(
+                    NoOpMetricRegistry.INSTANCE,
+                    parent,
+                    DEFAULT_OPERATOR_ID,
+                    DEFAULT_OPERATOR_NAME,
+                    Collections.emptyMap());
         }
     }
 

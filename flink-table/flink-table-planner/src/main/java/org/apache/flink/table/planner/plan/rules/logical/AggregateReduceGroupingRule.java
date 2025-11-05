@@ -114,6 +114,7 @@ public class AggregateReduceGroupingRule
                                             false,
                                             false,
                                             false,
+                                            ImmutableList.of(),
                                             ImmutableList.of(column),
                                             -1,
                                             null,

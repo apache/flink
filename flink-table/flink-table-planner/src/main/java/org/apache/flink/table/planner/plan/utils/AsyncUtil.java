@@ -18,26 +18,16 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
-import org.apache.flink.streaming.api.datastream.AsyncDataStream;
-import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
-import org.apache.flink.streaming.util.retryable.AsyncRetryStrategies;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.rules.logical.RemoteCallFinder;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
+import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
 
-import java.time.Duration;
-import java.util.Objects;
-
-import static org.apache.flink.table.runtime.operators.calc.async.RetryPredicates.ANY_EXCEPTION;
-import static org.apache.flink.table.runtime.operators.calc.async.RetryPredicates.EMPTY_RESPONSE;
-
-/** Contains utilities for {@link org.apache.flink.table.functions.AsyncScalarFunction}. */
+/** Utility class for working with async function calls in RexNodes. */
 public class AsyncUtil {
 
     /**
@@ -46,18 +36,34 @@ public class AsyncUtil {
      * @param node the RexNode to check
      * @return true if it contains an async function call in the specified node.
      */
+    public static boolean containsAsyncCall(RexNode node, FunctionKind functionKind) {
+        Preconditions.checkArgument(
+                functionKind == FunctionKind.ASYNC_SCALAR
+                        || functionKind == FunctionKind.ASYNC_TABLE);
+        return node.accept(new FunctionFinder(true, true, functionKind));
+    }
+
+    /** Variant that checks for any async call. */
     public static boolean containsAsyncCall(RexNode node) {
-        return node.accept(new FunctionFinder(true, true));
+        return node.accept(new FunctionFinder(true, true, null));
     }
 
     /**
-     * Checks whether it contains non-async function call in the specified node.
+     * Checks whether it contains a function call in the node that is not the async kind specified.
      *
      * @param node the RexNode to check
      * @return true if it contains a non-async function call in the specified node.
      */
+    public static boolean containsNonAsyncCall(RexNode node, FunctionKind functionKind) {
+        Preconditions.checkArgument(
+                functionKind == FunctionKind.ASYNC_SCALAR
+                        || functionKind == FunctionKind.ASYNC_TABLE);
+        return node.accept(new FunctionFinder(false, true, functionKind));
+    }
+
+    /** Variant that checks that it contains a function call not of any async type. */
     public static boolean containsNonAsyncCall(RexNode node) {
-        return node.accept(new FunctionFinder(false, true));
+        return node.accept(new FunctionFinder(false, true, null));
     }
 
     /**
@@ -66,105 +72,46 @@ public class AsyncUtil {
      * @param node the RexNode to check
      * @return true if the specified node is an async function call.
      */
+    public static boolean isAsyncCall(RexNode node, FunctionKind functionKind) {
+        Preconditions.checkArgument(
+                functionKind == FunctionKind.ASYNC_SCALAR
+                        || functionKind == FunctionKind.ASYNC_TABLE);
+        return node.accept(new FunctionFinder(true, false, functionKind));
+    }
+
+    /** Variant that checks for any async call. */
     public static boolean isAsyncCall(RexNode node) {
-        return node.accept(new FunctionFinder(true, false));
+        return node.accept(new FunctionFinder(true, false, null));
     }
 
     /**
-     * Checks whether the specified node is a non-async function call.
+     * Checks whether the node is a function call, not of the specified async type.
      *
      * @param node the RexNode to check
      * @return true if the specified node is a non-async function call.
      */
+    public static boolean isNonAsyncCall(RexNode node, FunctionKind functionKind) {
+        Preconditions.checkArgument(
+                functionKind == FunctionKind.ASYNC_SCALAR
+                        || functionKind == FunctionKind.ASYNC_TABLE);
+        return node.accept(new FunctionFinder(false, false, functionKind));
+    }
+
+    /** Variant that checks that it is a function call not of any async type. */
     public static boolean isNonAsyncCall(RexNode node) {
-        return node.accept(new FunctionFinder(false, false));
-    }
-
-    /**
-     * Gets the options required to run the operator.
-     *
-     * @param config The config from which to fetch the options
-     * @return Extracted options
-     */
-    public static AsyncUtil.Options getAsyncOptions(ExecNodeConfig config) {
-        return new AsyncUtil.Options(
-                config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_BUFFER_CAPACITY),
-                config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_TIMEOUT).toMillis(),
-                AsyncDataStream.OutputMode.ORDERED,
-                getResultRetryStrategy(
-                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_RETRY_STRATEGY),
-                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_RETRY_DELAY),
-                        config.get(ExecutionConfigOptions.TABLE_EXEC_ASYNC_SCALAR_MAX_ATTEMPTS)));
-    }
-
-    /** Options for configuring async behavior. */
-    public static class Options {
-
-        public final int asyncBufferCapacity;
-        public final long asyncTimeout;
-        public final AsyncDataStream.OutputMode asyncOutputMode;
-        public final AsyncRetryStrategy<RowData> asyncRetryStrategy;
-
-        public Options(
-                int asyncBufferCapacity,
-                long asyncTimeout,
-                AsyncDataStream.OutputMode asyncOutputMode,
-                AsyncRetryStrategy<RowData> asyncRetryStrategy) {
-            this.asyncBufferCapacity = asyncBufferCapacity;
-            this.asyncTimeout = asyncTimeout;
-            this.asyncOutputMode = asyncOutputMode;
-            this.asyncRetryStrategy = asyncRetryStrategy;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            Options that = (Options) o;
-            return asyncBufferCapacity == that.asyncBufferCapacity
-                    && asyncTimeout == that.asyncTimeout
-                    && asyncOutputMode == that.asyncOutputMode;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(asyncBufferCapacity, asyncTimeout, asyncOutputMode);
-        }
-
-        @Override
-        public String toString() {
-            return asyncOutputMode + ", " + asyncTimeout + "ms, " + asyncBufferCapacity;
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static AsyncRetryStrategy<RowData> getResultRetryStrategy(
-            ExecutionConfigOptions.RetryStrategy retryStrategy,
-            Duration retryDelay,
-            int retryMaxAttempts) {
-        // Only fixed delay is allowed at the moment, so just ignore the config.
-        if (retryStrategy == ExecutionConfigOptions.RetryStrategy.FIXED_DELAY) {
-            return new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder<RowData>(
-                            retryMaxAttempts, retryDelay.toMillis())
-                    .ifResult(EMPTY_RESPONSE)
-                    .ifException(ANY_EXCEPTION)
-                    .build();
-        }
-        return AsyncRetryStrategies.NO_RETRY_STRATEGY;
+        return node.accept(new FunctionFinder(false, false, null));
     }
 
     private static class FunctionFinder extends RexDefaultVisitor<Boolean> {
 
         private final boolean findAsyncCall;
         private final boolean recursive;
+        private final FunctionKind functionKind;
 
-        public FunctionFinder(boolean findAsyncCall, boolean recursive) {
+        public FunctionFinder(boolean findAsyncCall, boolean recursive, FunctionKind functionKind) {
             this.findAsyncCall = findAsyncCall;
             this.recursive = recursive;
+            this.functionKind = functionKind;
         }
 
         @Override
@@ -174,7 +121,11 @@ public class AsyncUtil {
 
         private boolean isImmediateAsyncCall(RexCall call) {
             FunctionDefinition definition = ShortcutUtils.unwrapFunctionDefinition(call);
-            return definition != null && definition.getKind() == FunctionKind.ASYNC_SCALAR;
+            return definition != null
+                    && ((functionKind != null && definition.getKind() == functionKind)
+                            || (functionKind == null
+                                    && (definition.getKind() == FunctionKind.ASYNC_SCALAR
+                                            || definition.getKind() == FunctionKind.ASYNC_TABLE)));
         }
 
         @Override
@@ -183,6 +134,57 @@ public class AsyncUtil {
             return findAsyncCall == isImmediateAsyncCall
                     || (recursive
                             && call.getOperands().stream().anyMatch(node -> node.accept(this)));
+        }
+    }
+
+    /**
+     * An Async implementation of {@link RemoteCallFinder} which finds uses of {@link
+     * org.apache.flink.table.functions.AsyncScalarFunction} and {@link
+     * org.apache.flink.table.functions.AsyncTableFunction}.
+     */
+    public static class AsyncRemoteCallFinder implements RemoteCallFinder {
+
+        private final FunctionKind functionKind;
+
+        public AsyncRemoteCallFinder(FunctionKind functionKind) {
+            this.functionKind = functionKind;
+        }
+
+        @Override
+        public boolean containsRemoteCall(RexNode node) {
+            return containsAsyncCall(node, functionKind);
+        }
+
+        @Override
+        public boolean containsNonRemoteCall(RexNode node) {
+            return containsNonAsyncCall(node, functionKind);
+        }
+
+        @Override
+        public boolean isRemoteCall(RexNode node) {
+            return isAsyncCall(node, functionKind);
+        }
+
+        @Override
+        public boolean isNonRemoteCall(RexNode node) {
+            return isNonAsyncCall(node, functionKind);
+        }
+
+        @Override
+        public String getName() {
+            return "Async";
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj != null
+                    && this.getClass() == obj.getClass()
+                    && functionKind == ((AsyncRemoteCallFinder) obj).functionKind;
+        }
+
+        @Override
+        public int hashCode() {
+            return this.getClass().hashCode();
         }
     }
 }

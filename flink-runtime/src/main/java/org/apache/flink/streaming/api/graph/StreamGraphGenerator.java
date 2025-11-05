@@ -63,6 +63,7 @@ import org.apache.flink.streaming.api.transformations.SideOutputTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.SourceTransformationWrapper;
+import org.apache.flink.streaming.api.transformations.StubTransformation;
 import org.apache.flink.streaming.api.transformations.TimestampsAndWatermarksTransformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
@@ -80,6 +81,7 @@ import org.apache.flink.streaming.runtime.translators.ReduceTransformationTransl
 import org.apache.flink.streaming.runtime.translators.SideOutputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.SinkTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.SourceTransformationTranslator;
+import org.apache.flink.streaming.runtime.translators.StubTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.TimestampsAndWatermarksTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.TwoInputTransformationTranslator;
 import org.apache.flink.streaming.runtime.translators.UnionTransformationTranslator;
@@ -177,6 +179,7 @@ public class StreamGraphGenerator {
         tmp.put(LegacySinkTransformation.class, new LegacySinkTransformationTranslator<>());
         tmp.put(LegacySourceTransformation.class, new LegacySourceTransformationTranslator<>());
         tmp.put(UnionTransformation.class, new UnionTransformationTranslator<>());
+        tmp.put(StubTransformation.class, new StubTransformationTranslator<>());
         tmp.put(PartitionTransformation.class, new PartitionTransformationTranslator<>());
         tmp.put(SideOutputTransformation.class, new SideOutputTransformationTranslator<>());
         tmp.put(ReduceTransformation.class, new ReduceTransformationTranslator<>());
@@ -543,6 +546,10 @@ public class StreamGraphGenerator {
         if (transform.getUid() != null) {
             streamGraph.setTransformationUID(transform.getId(), transform.getUid());
         }
+        if (transform.getAdditionalMetricVariables() != null) {
+            streamGraph.setAdditionalMetricVariables(
+                    transform.getId(), transform.getAdditionalMetricVariables());
+        }
         if (transform.getUserProvidedNodeHash() != null) {
             streamGraph.setTransformationUserHash(
                     transform.getId(), transform.getUserProvidedNodeHash());
@@ -603,7 +610,8 @@ public class StreamGraphGenerator {
                                 .collect(Collectors.toList()));
 
         final TransformationTranslator.Context context =
-                new ContextImpl(this, streamGraph, slotSharingGroup, configuration);
+                new ContextImpl(
+                        this, streamGraph, slotSharingGroup, configuration, transformations);
 
         return shouldExecuteInBatchMode
                 ? translator.translateForBatch(transform, context)
@@ -671,15 +679,20 @@ public class StreamGraphGenerator {
 
         private final ReadableConfig config;
 
+        private final Collection<Transformation<?>> transformations;
+
         public ContextImpl(
                 final StreamGraphGenerator streamGraphGenerator,
                 final StreamGraph streamGraph,
                 final String slotSharingGroup,
-                final ReadableConfig config) {
+                final ReadableConfig config,
+                Collection<Transformation<?>> transformations) {
             this.streamGraphGenerator = checkNotNull(streamGraphGenerator);
             this.streamGraph = checkNotNull(streamGraph);
             this.slotSharingGroup = checkNotNull(slotSharingGroup);
             this.config = checkNotNull(config);
+            this.transformations =
+                    checkNotNull(transformations, "transformations must not be null");
         }
 
         @Override
@@ -716,6 +729,11 @@ public class StreamGraphGenerator {
         @Override
         public Collection<Integer> transform(Transformation<?> transformation) {
             return streamGraphGenerator.transform(transformation);
+        }
+
+        @Override
+        public Collection<Transformation<?>> getSinkTransformations() {
+            return transformations;
         }
     }
 }

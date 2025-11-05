@@ -28,6 +28,7 @@ from pyflink.table.types import DataType, _to_java_data_type, _from_java_data_ty
 from pyflink.util.java_utils import to_jarray
 from typing import Dict, List, Optional, Union
 from abc import ABCMeta, abstractmethod
+from pyflink.util.api_stability_decorators import PublicEvolving
 
 __all__ = ['Catalog', 'CatalogDatabase', 'CatalogBaseTable', 'CatalogPartition', 'CatalogFunction',
            'Procedure', 'ObjectPath', 'CatalogPartitionSpec', 'CatalogTableStatistics',
@@ -36,6 +37,7 @@ __all__ = ['Catalog', 'CatalogDatabase', 'CatalogBaseTable', 'CatalogPartition',
            'Constraint', 'UniqueConstraint', 'ResolvedSchema']
 
 
+@PublicEvolving()
 class Catalog(object):
     """
     Catalog is responsible for reading and writing metadata such as database/table/views/UDFs
@@ -154,6 +156,18 @@ class Catalog(object):
                 DatabaseNotExistException if the database does not exist.
         """
         return list(self._j_catalog.listViews(database_name))
+
+    def list_materialized_tables(self, database_name: str) -> List[str]:
+        """
+        Get names of all materialized tables under this database.
+        An empty list is returned if none exists.
+
+        :param database_name: Name of the given database.
+        :return: A list of the names of all materialized tables in the given database.
+        :raise: CatalogException in case of any runtime exception.
+                DatabaseNotExistException if the database does not exist.
+        """
+        return list(self._j_catalog.listMaterializedTables(database_name))
 
     def get_table(self, table_path: 'ObjectPath') -> 'CatalogBaseTable':
         """
@@ -733,6 +747,7 @@ class Catalog(object):
             ignore_if_not_exists)
 
 
+@PublicEvolving()
 class CatalogDatabase(object):
     """
     Represents a database object in a catalog.
@@ -809,6 +824,7 @@ class CatalogDatabase(object):
             return None
 
 
+@PublicEvolving()
 class CatalogBaseTable(object):
     """
     CatalogBaseTable is the common parent of table and view. It has a map of
@@ -943,6 +959,7 @@ class CatalogBaseTable(object):
             return None
 
 
+@PublicEvolving()
 class CatalogPartition(object):
     """
     Represents a partition object in catalog.
@@ -1022,6 +1039,7 @@ class CatalogPartition(object):
         return self._j_catalog_partition.getComment()
 
 
+@PublicEvolving()
 class CatalogFunction(object):
     """
     Interface for a function in a catalog.
@@ -1112,7 +1130,18 @@ class CatalogFunction(object):
         """
         return self._j_catalog_function.getFunctionLanguage()
 
+    def get_options(self) -> Dict[str, str]:
+        """
+        Returns a map of string-based options.
 
+        :return: Property map of the function.
+
+        .. versionadded:: 2.2.0
+        """
+        return dict(self._j_catalog_function.getOptions())
+
+
+@PublicEvolving()
 class CatalogModel(object):
     """
     Interface for a model in a catalog.
@@ -1176,6 +1205,7 @@ class CatalogModel(object):
         return dict(self._j_catalog_model.getOptions())
 
 
+@PublicEvolving()
 class Procedure(object):
     """
     Interface for a procedure in a catalog.
@@ -1189,6 +1219,7 @@ class Procedure(object):
         return Procedure(j_procedure)
 
 
+@PublicEvolving()
 class ObjectPath(object):
     """
     A database name and object (table/view/function) name combo in a catalog.
@@ -1226,6 +1257,7 @@ class ObjectPath(object):
         return ObjectPath(j_object_path=gateway.jvm.ObjectPath.fromString(full_name))
 
 
+@PublicEvolving()
 class CatalogPartitionSpec(object):
     """
     Represents a partition spec object in catalog.
@@ -1259,6 +1291,7 @@ class CatalogPartitionSpec(object):
         return dict(self._j_catalog_partition_spec.getPartitionSpec())
 
 
+@PublicEvolving()
 class CatalogTableStatistics(object):
     """
     Statistics for a non-partitioned table or a partition of a partitioned table.
@@ -1313,6 +1346,7 @@ class CatalogTableStatistics(object):
             j_catalog_table_statistics=self._j_catalog_table_statistics.copy())
 
 
+@PublicEvolving()
 class CatalogColumnStatistics(object):
     """
     Column statistics of a table or partition.
@@ -1379,6 +1413,7 @@ class JdbcCatalog(Catalog):
         super(JdbcCatalog, self).__init__(j_jdbc_catalog)
 
 
+@PublicEvolving()
 class CatalogDescriptor:
     """
     Describes a catalog with the catalog name and configuration.
@@ -1401,6 +1436,7 @@ class CatalogDescriptor:
         return CatalogDescriptor(j_catalog_descriptor)
 
 
+@PublicEvolving()
 class ObjectIdentifier(object):
     """
     Identifies an object in a catalog, including tables, views, function, or types.
@@ -1483,6 +1519,7 @@ class ObjectIdentifier(object):
         return self._j_object_identifier.asSummaryString()
 
 
+@PublicEvolving()
 class Column(metaclass=ABCMeta):
     """
     Representation of a column in a :class:`ResolvedSchema`.
@@ -1642,6 +1679,7 @@ class Column(metaclass=ABCMeta):
         pass
 
 
+@PublicEvolving()
 class PhysicalColumn(Column):
     """
     Representation of a physical column.
@@ -1670,6 +1708,7 @@ class PhysicalColumn(Column):
         return self._j_physical_column.rename(new_name)
 
 
+@PublicEvolving()
 class ComputedColumn(Column):
     """
     Representation of a computed column.
@@ -1710,6 +1749,7 @@ class ComputedColumn(Column):
         return self._j_computed_column.rename(new_name)
 
 
+@PublicEvolving()
 class MetadataColumn(Column):
     """
     Representation of a metadata column.
@@ -1754,6 +1794,7 @@ class MetadataColumn(Column):
         return self._j_metadata_column.rename(new_name)
 
 
+@PublicEvolving()
 class WatermarkSpec:
     """
     Representation of a watermark specification in :class:`ResolvedSchema`.
@@ -1811,6 +1852,7 @@ class WatermarkSpec:
         return self._j_watermark_spec.asSummaryString()
 
 
+@PublicEvolving()
 class Constraint(metaclass=ABCMeta):
     """
     Integrity constraints, generally referred to simply as constraints, define the valid states of
@@ -1849,6 +1891,7 @@ class Constraint(metaclass=ABCMeta):
         """
         return self._j_constraint.asSummaryString()
 
+    @PublicEvolving()
     class ConstraintType(Enum):
         """
         Type of the constraint.
@@ -1866,6 +1909,7 @@ class Constraint(metaclass=ABCMeta):
         UNIQUE_KEY = 1
 
 
+@PublicEvolving()
 class UniqueConstraint(Constraint):
     """
     A unique key constraint. It can be declared also as a PRIMARY KEY.
@@ -1899,6 +1943,7 @@ class UniqueConstraint(Constraint):
         return self._j_unique_constraint.getTypeString()
 
 
+@PublicEvolving()
 class ResolvedSchema(object):
     """
     Schema of a table or view consisting of columns, constraints, and watermark specifications.

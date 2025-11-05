@@ -74,3 +74,4 @@ All user-defined functions.
     Partitioner
     BroadcastProcessFunction
     KeyedBroadcastProcessFunction
+    AsyncFunction

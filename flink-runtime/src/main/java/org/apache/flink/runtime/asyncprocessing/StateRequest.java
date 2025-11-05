@@ -19,9 +19,10 @@
 package org.apache.flink.runtime.asyncprocessing;
 
 import org.apache.flink.api.common.state.v2.State;
-import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.runtime.state.v2.internal.InternalPartitionedState;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
@@ -34,44 +35,31 @@ import java.io.Serializable;
  * @param <N> Type of namespace.
  * @param <OUT> Type of value that request will return.
  */
-public class StateRequest<K, N, IN, OUT> implements Serializable {
+public class StateRequest<K, N, IN, OUT> extends AsyncRequest<K> implements Serializable {
 
-    /**
-     * The underlying state to be accessed, can be empty for {@link StateRequestType#SYNC_POINT}.
-     */
-    @Nullable private final State state;
+    /** The underlying state to be accessed. */
+    @Nonnull private final State state;
 
     /** The type of this request. */
     private final StateRequestType type;
 
-    private final boolean sync;
-
     /** The payload(input) of this request. */
     @Nullable private final IN payload;
 
-    /** The future to collect the result of the request. */
-    private final InternalStateFuture<OUT> stateFuture;
-
-    /** The record context of this request. */
-    private final RecordContext<K> context;
-
-    @Nullable private final N namespace;
+    @Nonnull private final N namespace;
 
     public StateRequest(
-            @Nullable State state,
+            @Nonnull State state,
             StateRequestType type,
             boolean sync,
             @Nullable IN payload,
-            InternalStateFuture<OUT> stateFuture,
+            InternalAsyncFuture<OUT> stateFuture,
             RecordContext<K> context) {
+        super(context, sync, stateFuture);
         this.state = state;
         this.type = type;
-        this.sync = sync;
         this.payload = payload;
-        this.stateFuture = stateFuture;
-        this.context = context;
-        this.namespace =
-                state == null ? null : context.getNamespace((InternalPartitionedState<N>) state);
+        this.namespace = context.getNamespace((InternalPartitionedState<N>) state);
     }
 
     public StateRequestType getRequestType() {
@@ -83,24 +71,18 @@ public class StateRequest<K, N, IN, OUT> implements Serializable {
         return payload;
     }
 
-    public boolean isSync() {
-        return sync;
-    }
-
     @Nullable
     public State getState() {
         return state;
     }
 
-    public InternalStateFuture<OUT> getFuture() {
-        return stateFuture;
+    @Override
+    @SuppressWarnings("unchecked")
+    public InternalAsyncFuture<OUT> getFuture() {
+        return asyncFuture;
     }
 
-    public RecordContext<K> getRecordContext() {
-        return context;
-    }
-
-    public @Nullable N getNamespace() {
+    public @Nonnull N getNamespace() {
         return namespace;
     }
 }

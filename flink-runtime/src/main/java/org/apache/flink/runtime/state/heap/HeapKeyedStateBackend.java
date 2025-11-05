@@ -46,12 +46,15 @@ import org.apache.flink.runtime.state.SnapshotExecutionType;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategy;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.StateEntry;
 import org.apache.flink.runtime.state.StateSnapshotRestore;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StateSnapshotTransformers;
+import org.apache.flink.runtime.state.StateTransformationFunction;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -64,6 +67,7 @@ import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Spliterators;
@@ -146,6 +150,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
+            SizeTrackingStateConfig sizeTrackingStateConfig,
             CloseableRegistry cancelStreamRegistry,
             StreamCompressionDecorator keyGroupCompressionDecorator,
             Map<String, StateTable<K, ?, ?>> registeredKVStates,
@@ -163,6 +168,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 executionConfig,
                 ttlTimeProvider,
                 latencyTrackingStateConfig,
+                sizeTrackingStateConfig,
                 cancelStreamRegistry,
                 keyGroupCompressionDecorator,
                 keyContext);
@@ -209,7 +215,7 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             StateDescriptor<?, V> stateDesc,
             @Nonnull StateSnapshotTransformFactory<V> snapshotTransformFactory,
             boolean allowFutureMetadataUpdates)
-            throws StateMigrationException {
+            throws Exception {
 
         @SuppressWarnings("unchecked")
         StateTable<K, N, V> stateTable =
@@ -256,17 +262,12 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                                 + ") must not be incompatible with the old state serializer ("
                                 + previousStateSerializer
                                 + ").");
-            }
-
-            // HeapKeyedStateBackend doesn't support ttl state migration currently.
-            if (TtlAwareSerializer.needTtlStateMigration(
-                    previousStateSerializer, newStateSerializer)) {
-                throw new StateMigrationException(
-                        "For heap backends, the new state serializer ("
-                                + newStateSerializer
-                                + ") must not need ttl state migration with the old state serializer ("
-                                + previousStateSerializer
-                                + ").");
+            } else if (stateCompatibility.isCompatibleAfterMigration()
+                    && TtlAwareSerializer.needTtlStateMigration(
+                            previousStateSerializer, newStateSerializer)) {
+                // State migration without ttl change will be performed automatically during
+                // checkpoint, so we only preform state ttl migration here.
+                migrateTtlAwareStateValues(stateDesc, previousStateSerializer, newStateSerializer);
             }
 
             restoredKvMetaInfo =
@@ -294,6 +295,52 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         }
 
         return stateTable;
+    }
+
+    @SuppressWarnings("unchecked")
+    private <V, N> void migrateTtlAwareStateValues(
+            StateDescriptor<?, V> stateDesc,
+            TypeSerializer<V> previousSerializer,
+            TypeSerializer<V> currentSerializer)
+            throws Exception {
+        final StateTable<K, N, V> stateTable =
+                (StateTable<K, N, V>) registeredKVStates.get(stateDesc.getName());
+        final Iterator<StateEntry<K, N, V>> iterator = stateTable.iterator();
+
+        LOG.info(
+                "Performing state migration for state {} because the state serializer's ttl"
+                        + " config has been changed from {} to {}.",
+                stateDesc,
+                TtlAwareSerializer.isSerializerTtlEnabled(previousSerializer),
+                TtlAwareSerializer.isSerializerTtlEnabled(currentSerializer));
+
+        // we need to get an actual state instance because migration is different
+        // for different state types. For example, ListState needs to deal with
+        // individual elements
+        StateCreateFactory stateCreateFactory = STATE_CREATE_FACTORIES.get(stateDesc.getType());
+        if (stateCreateFactory == null) {
+            throw new FlinkRuntimeException(stateNotSupportedMessage(stateDesc));
+        }
+        State state =
+                stateCreateFactory.createState(stateDesc, stateTable, stateTable.keySerializer);
+        if (!(state instanceof AbstractHeapState)) {
+            throw new FlinkRuntimeException(
+                    "State should be an AbstractRocksDBState but is " + state);
+        }
+        AbstractHeapState<K, N, V> heapState = (AbstractHeapState<K, N, V>) state;
+        TtlAwareSerializer<V, ?> currentTtlAwareSerializer =
+                (TtlAwareSerializer<V, ?>)
+                        TtlAwareSerializer.wrapTtlAwareSerializer(currentSerializer);
+
+        stateTable.transformAll(
+                null,
+                new StateTransformationFunction<V, V>() {
+                    @Override
+                    public V apply(V previousState, V value) throws Exception {
+                        return heapState.migrateTtlValue(
+                                previousState, currentTtlAwareSerializer, ttlTimeProvider);
+                    }
+                });
     }
 
     @SuppressWarnings("unchecked")
@@ -358,6 +405,11 @@ public class HeapKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         final StateSnapshotRestore stateSnapshotRestore = registeredKVStates.get(state);
         StateTable<K, N, ?> table = (StateTable<K, N, ?>) stateSnapshotRestore;
         return table.getKeysAndNamespaces();
+    }
+
+    @Override
+    public String getBackendTypeIdentifier() {
+        return StateBackendLoader.HASHMAP_STATE_BACKEND_NAME;
     }
 
     @Override

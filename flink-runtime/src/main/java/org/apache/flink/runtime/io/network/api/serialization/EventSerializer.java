@@ -43,7 +43,8 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.FreeingBufferRecycler;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
-import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfInputChannelStateEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfOutputChannelStateEvent;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -70,7 +71,7 @@ public class EventSerializer {
 
     private static final int CANCEL_CHECKPOINT_MARKER_EVENT = 4;
 
-    private static final int END_OF_CHANNEL_STATE_EVENT = 5;
+    private static final int END_OF_OUTPUT_CHANNEL_STATE_EVENT = 5;
 
     private static final int ANNOUNCEMENT_EVENT = 6;
 
@@ -83,6 +84,8 @@ public class EventSerializer {
     private static final int RECOVERY_METADATA = 10;
 
     private static final int GENERALIZED_WATERMARK_EVENT = 11;
+
+    private static final int END_OF_INPUT_CHANNEL_STATE_EVENT = 12;
 
     private static final byte CHECKPOINT_TYPE_CHECKPOINT = 0;
 
@@ -109,8 +112,10 @@ public class EventSerializer {
             return serializeCheckpointBarrier((CheckpointBarrier) event);
         } else if (eventClass == EndOfSuperstepEvent.class) {
             return ByteBuffer.wrap(new byte[] {0, 0, 0, END_OF_SUPERSTEP_EVENT});
-        } else if (eventClass == EndOfChannelStateEvent.class) {
-            return ByteBuffer.wrap(new byte[] {0, 0, 0, END_OF_CHANNEL_STATE_EVENT});
+        } else if (eventClass == EndOfOutputChannelStateEvent.class) {
+            return ByteBuffer.wrap(new byte[] {0, 0, 0, END_OF_OUTPUT_CHANNEL_STATE_EVENT});
+        } else if (eventClass == EndOfInputChannelStateEvent.class) {
+            return ByteBuffer.wrap(new byte[] {0, 0, 0, END_OF_INPUT_CHANNEL_STATE_EVENT});
         } else if (eventClass == EndOfData.class) {
             return ByteBuffer.wrap(
                     new byte[] {
@@ -197,8 +202,10 @@ public class EventSerializer {
                 return deserializeCheckpointBarrier(buffer);
             } else if (type == END_OF_SUPERSTEP_EVENT) {
                 return EndOfSuperstepEvent.INSTANCE;
-            } else if (type == END_OF_CHANNEL_STATE_EVENT) {
-                return EndOfChannelStateEvent.INSTANCE;
+            } else if (type == END_OF_OUTPUT_CHANNEL_STATE_EVENT) {
+                return EndOfOutputChannelStateEvent.INSTANCE;
+            } else if (type == END_OF_INPUT_CHANNEL_STATE_EVENT) {
+                return EndOfInputChannelStateEvent.INSTANCE;
             } else if (type == END_OF_USER_RECORDS_EVENT) {
                 return new EndOfData(StopMode.values()[buffer.get()]);
             } else if (type == CANCEL_CHECKPOINT_MARKER_EVENT) {

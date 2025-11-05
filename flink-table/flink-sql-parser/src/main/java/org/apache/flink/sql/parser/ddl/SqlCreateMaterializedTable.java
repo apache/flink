@@ -51,9 +51,11 @@ public class SqlCreateMaterializedTable extends SqlCreate {
 
     private final SqlIdentifier tableName;
 
-    private final SqlCharStringLiteral comment;
+    private final @Nullable SqlTableConstraint tableConstraint;
 
-    private final SqlTableConstraint tableConstraint;
+    private final @Nullable SqlCharStringLiteral comment;
+
+    private final @Nullable SqlDistribution distribution;
 
     private final SqlNodeList partitionKeyList;
 
@@ -61,15 +63,16 @@ public class SqlCreateMaterializedTable extends SqlCreate {
 
     private final SqlIntervalLiteral freshness;
 
-    @Nullable private final SqlLiteral refreshMode;
+    private final @Nullable SqlLiteral refreshMode;
 
     private final SqlNode asQuery;
 
     public SqlCreateMaterializedTable(
             SqlParserPos pos,
             SqlIdentifier tableName,
-            @Nullable SqlCharStringLiteral comment,
             @Nullable SqlTableConstraint tableConstraint,
+            @Nullable SqlCharStringLiteral comment,
+            @Nullable SqlDistribution distribution,
             SqlNodeList partitionKeyList,
             SqlNodeList propertyList,
             SqlIntervalLiteral freshness,
@@ -77,8 +80,9 @@ public class SqlCreateMaterializedTable extends SqlCreate {
             SqlNode asQuery) {
         super(OPERATOR, pos, false, false);
         this.tableName = requireNonNull(tableName, "tableName should not be null");
-        this.comment = comment;
         this.tableConstraint = tableConstraint;
+        this.comment = comment;
+        this.distribution = distribution;
         this.partitionKeyList =
                 requireNonNull(partitionKeyList, "partitionKeyList should not be null");
         this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
@@ -118,6 +122,10 @@ public class SqlCreateMaterializedTable extends SqlCreate {
 
     public Optional<SqlTableConstraint> getTableConstraint() {
         return Optional.ofNullable(tableConstraint);
+    }
+
+    public @Nullable SqlDistribution getDistribution() {
+        return distribution;
     }
 
     public SqlNodeList getPartitionKeyList() {
@@ -162,16 +170,21 @@ public class SqlCreateMaterializedTable extends SqlCreate {
             comment.unparse(writer, leftPrec, rightPrec);
         }
 
-        if (partitionKeyList.size() > 0) {
+        if (distribution != null) {
+            writer.newlineAndIndent();
+            distribution.unparse(writer, leftPrec, rightPrec);
+        }
+
+        if (!partitionKeyList.isEmpty()) {
             writer.newlineAndIndent();
             writer.keyword("PARTITIONED BY");
             SqlWriter.Frame partitionedByFrame = writer.startList("(", ")");
             partitionKeyList.unparse(writer, leftPrec, rightPrec);
             writer.endList(partitionedByFrame);
-            writer.newlineAndIndent();
         }
 
-        if (propertyList.size() > 0) {
+        if (!propertyList.isEmpty()) {
+            writer.newlineAndIndent();
             writer.keyword("WITH");
             SqlWriter.Frame withFrame = writer.startList("(", ")");
             for (SqlNode property : propertyList) {

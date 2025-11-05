@@ -564,11 +564,17 @@ public class Account {
     }
 }
 
+@org.apache.avro.specific.AvroGenerated
+public class AvroRecord ... {
+    // Generated record which contains at least the following field: long longData
+}
+
 public class StatefulFunction extends KeyedProcessFunction<Integer, Integer, Void> {
   private ValueState<Integer> myValueState;
   private ValueState<Account> myAccountValueState;
   private ListState<Integer> myListState;
   private MapState<Integer, Integer> myMapState;
+  private ValueState<AvroRecord> myAvroState;
 
   @Override
   public void open(OpenContext openContext) {
@@ -576,8 +582,16 @@ public class StatefulFunction extends KeyedProcessFunction<Integer, Integer, Voi
     myAccountValueState = getRuntimeContext().getState(new ValueStateDescriptor<>("MyAccountValueState", Account.class));
     myValueState = getRuntimeContext().getListState(new ListStateDescriptor<>("MyListState", Integer.class));
     myMapState = getRuntimeContext().getMapState(new MapStateDescriptor<>("MyMapState", Integer.class, Integer.class));
+    myAvroState = getRuntimeContext().getMapState(new ValueStateDescriptor<>("MyAvroState", new AvroTypeInfo<>(AvroRecord.class)));
   }
   ...
+}
+
+public class AvroSavepointTypeInformationFactory implements SavepointTypeInformationFactory {
+    @Override
+    public TypeInformation<?> getTypeInformation() {
+        return new AvroTypeInfo<>(AvroRecord.class);
+    }
 }
 ```
 
@@ -589,12 +603,14 @@ CREATE TABLE state_table (
   MyAccountValueState ROW<id INTEGER, amount DOUBLE>,
   MyListState ARRAY<INTEGER>,
   MyMapState MAP<INTEGER, INTEGER>,
+  MyAvroState ROW<longData bigint>,
   PRIMARY KEY (k) NOT ENFORCED
 ) WITH (
   'connector' = 'savepoint',
   'state.backend.type' = 'rocksdb',
   'state.path' = '/root/dir/of/checkpoint-data/chk-1',
-  'operator.uid' = 'my-uid'
+  'operator.uid' = 'my-uid',
+  'fields.MyAvroState.value-type-factory' = 'org.apache.flink.state.table.AvroSavepointTypeInformationFactory'
 );
 ```
 
@@ -610,16 +626,18 @@ CREATE TABLE state_table (
 | operator.uid.hash  | optional | (none)  | String                                 | Defines the operator UID hash which must be used for state reading (can't be used together with `operator.uid`). Either `operator.uid` or `operator.uid.hash` must be specified.                                                     |
 
 #### Connector options for column ‘#’
-| Option                  | Required | Default | Type   | Description                                                                                                                                                                                          |
-|-------------------------|----------|---------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| fields.#.state-name     | optional | (none)  | String | Overrides the state name which must be used for state reading. This can be useful when the state name contains characters which are not compliant with SQL column names.                             |
-| fields.#.state-type     | optional | (none)  | Enum Possible values: list, map, value | Defines the state type which must be used for state reading, including value, list and map. When it's not provided then it tries to infer from the SQL type (ARRAY=list, MAP=map, all others=value). |
-| fields.#.map-key-format | optional | (none)  | String | Defines the format class scheme for decoding map value key data (for ex. java.lang.Long). When it's not provided then it tries to infer from the SQL type (only primitive types supported).          |
-| fields.#.value-format   | optional | (none)  | String | Defines the format class scheme for decoding value data (for ex. java.lang.Long). When it's not provided then it tries to infer from the SQL type (only primitive types supported).                  |
+| Option                           | Required | Default | Type                                   | Description                                                                                                                                                                                                                                                                      |
+|----------------------------------|----------|---------|----------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| fields.#.state-name              | optional | (none)  | String                                 | Overrides the state name which must be used for state reading. This can be useful when the state name contains characters which are not compliant with SQL column names.                                                                                                         |
+| fields.#.state-type              | optional | (none)  | Enum Possible values: list, map, value | Defines the state type which must be used for state reading, including value, list and map. When it's not provided then it tries to infer from the SQL type (ARRAY=list, MAP=map, all others=value).                                                                             |
+| fields.#.key-class               | optional | (none)  | String                                 | Defines the format class scheme for decoding map key data (for ex. java.lang.Long). Either key-class or key-type-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).        |
+| fields.#.key-type-factory        | optional | (none)  | String                                 | Defines the type information factory for decoding map key data. Either key-class or key-type-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).                            |
+| fields.#.value-class             | optional | (none)  | String                                 | Defines the format class scheme for decoding value data (for ex. java.lang.Long). Either value-class or value-info-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).      |
+| fields.#.value-type-factory      | optional | (none)  | String                                 | Defines the type information factory for decoding value data. Either value-class or value-type-factory can be specified. When none of them are provided then the format class scheme tries to infer from the SQL type (only primitive types supported).                          |
 
 ### Default Data Type Mapping
 
-The state SQL connector infers the data type for primitive types when `fields.#.value-format` and `fields.#.map-key-format`
+The state SQL connector infers the data type for primitive types when `fields.#.value-class` and `fields.#.key-class`
 are not defined. The following table shows the `Flink SQL type` -> `Java type` default mapping. If the mapping is not calculated properly
 then it can be overridden with the two mentioned config parameters on a per-column basis.
 

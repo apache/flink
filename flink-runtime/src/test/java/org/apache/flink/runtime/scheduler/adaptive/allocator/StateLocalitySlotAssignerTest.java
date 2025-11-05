@@ -23,6 +23,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.JobAllocationsInformation.VertexAllocationInformation;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.JobInformation.VertexInformation;
+import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -39,6 +41,7 @@ import java.util.stream.IntStream;
 
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
 
@@ -72,6 +75,56 @@ class StateLocalitySlotAssignerTest {
                         allocations);
 
         verifyAssignments(assignments, newParallelism, allocationWith200bytes);
+    }
+
+    @Test
+    // In case of local recovery, we want to preserve slot allocations even if there is no
+    // keyed managed state available.
+    public void testSlotsPreservationWithNoStateSameParallelism() {
+        final int parallelism = 2;
+        final VertexInformation vertex = createVertex(parallelism);
+        final AllocationID allocationID1 = new AllocationID();
+        final AllocationID allocationID2 = new AllocationID();
+
+        final List<VertexAllocationInformation> previousAllocations =
+                Arrays.asList(
+                        new VertexAllocationInformation(
+                                allocationID1, vertex.getJobVertexID(), KeyGroupRange.of(0, 63), 0),
+                        new VertexAllocationInformation(
+                                allocationID2,
+                                vertex.getJobVertexID(),
+                                KeyGroupRange.of(64, 127),
+                                0));
+
+        final Collection<SlotAssignment> assignments =
+                assign(
+                        vertex,
+                        // Providing allocation IDs in reverse order to check that assigner fixes
+                        // the order based on previous allocations.
+                        Arrays.asList(allocationID2, allocationID1),
+                        previousAllocations);
+
+        // Extract allocation IDs from assignments sorted by subtask index.
+        final List<AllocationID> subtaskOrderedNewAllocations =
+                assignments.stream()
+                        .sorted(
+                                Comparator.comparingInt(
+                                        assignment ->
+                                                assignment
+                                                        .getTargetAs(
+                                                                SlotSharingSlotAllocator
+                                                                        .ExecutionSlotSharingGroup
+                                                                        .class)
+                                                        .getContainedExecutionVertices()
+                                                        .stream()
+                                                        .mapToInt(
+                                                                ExecutionVertexID::getSubtaskIndex)
+                                                        .findAny()
+                                                        .orElseThrow()))
+                        .map(assignment -> assignment.getSlotInfo().getAllocationId())
+                        .collect(Collectors.toList());
+
+        assertThat(subtaskOrderedNewAllocations).containsExactly(allocationID1, allocationID2);
     }
 
     @Test
@@ -172,7 +225,7 @@ class StateLocalitySlotAssignerTest {
             VertexInformation vertexInformation,
             List<AllocationID> allocationIDs,
             List<VertexAllocationInformation> allocations) {
-        return new StateLocalitySlotAssigner()
+        return new StateLocalitySlotAssigner(DefaultSlotSharingResolver.INSTANCE)
                 .assignSlots(
                         new TestJobInformation(singletonList(vertexInformation)),
                         allocationIDs.stream().map(TestingSlot::new).collect(Collectors.toList()),

@@ -29,7 +29,7 @@ import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.EventAnnouncement;
 import org.apache.flink.runtime.io.network.partition.consumer.BufferOrEvent;
-import org.apache.flink.runtime.io.network.partition.consumer.EndOfChannelStateEvent;
+import org.apache.flink.runtime.io.network.partition.consumer.EndOfOutputChannelStateEvent;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.streaming.runtime.io.StreamTaskNetworkInput;
@@ -130,6 +130,7 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
                         () -> {
                             try {
                                 mailboxExecutor.execute(
+                                        MailboxExecutor.MailOptions.urgent(),
                                         this::processPriorityEvents,
                                         "process priority event @ gate %s",
                                         inputGate);
@@ -199,7 +200,7 @@ public class CheckpointedInputGate implements PullingAsyncDataInput<BufferOrEven
                     announcedBarrier,
                     eventAnnouncement.getSequenceNumber(),
                     bufferOrEvent.getChannelInfo());
-        } else if (bufferOrEvent.getEvent().getClass() == EndOfChannelStateEvent.class) {
+        } else if (bufferOrEvent.getEvent().getClass() == EndOfOutputChannelStateEvent.class) {
             upstreamRecoveryTracker.handleEndOfRecovery(bufferOrEvent.getChannelInfo());
         }
         return Optional.of(bufferOrEvent);

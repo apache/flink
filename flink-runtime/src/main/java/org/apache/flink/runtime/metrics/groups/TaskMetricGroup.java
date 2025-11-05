@@ -31,6 +31,7 @@ import org.apache.flink.util.AbstractID;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -144,11 +145,12 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
     // ------------------------------------------------------------------------
 
     public InternalOperatorMetricGroup getOrAddOperator(String operatorName) {
-        return getOrAddOperator(OperatorID.fromJobVertexID(vertexId), operatorName);
+        return getOrAddOperator(
+                OperatorID.fromJobVertexID(vertexId), operatorName, Collections.emptyMap());
     }
 
     public InternalOperatorMetricGroup getOrAddOperator(
-            OperatorID operatorID, String operatorName) {
+            OperatorID operatorID, String operatorName, Map<String, String> additionalVariables) {
         final String truncatedOperatorName = MetricUtils.truncateOperatorName(operatorName);
 
         // unique OperatorIDs only exist in streaming, so we have to rely on the name for batch
@@ -160,7 +162,11 @@ public class TaskMetricGroup extends ComponentMetricGroup<TaskManagerJobMetricGr
                     key,
                     operator ->
                             new InternalOperatorMetricGroup(
-                                    this.registry, this, operatorID, truncatedOperatorName));
+                                    this.registry,
+                                    this,
+                                    operatorID,
+                                    truncatedOperatorName,
+                                    additionalVariables));
         }
     }
 

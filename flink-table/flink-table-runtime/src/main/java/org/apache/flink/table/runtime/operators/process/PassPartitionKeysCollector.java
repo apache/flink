@@ -21,19 +21,35 @@ package org.apache.flink.table.runtime.operators.process;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.ProjectedRowData;
 
-/** Forwards partition keys of the given row. */
+import java.util.List;
+import java.util.stream.IntStream;
+
+/** Forwards partition keys of the given input's row. */
 @Internal
 public class PassPartitionKeysCollector extends PassThroughCollectorBase {
 
-    public PassPartitionKeysCollector(Output<StreamRecord<RowData>> output, int[] partitionKeys) {
-        super(output);
-        prefix = ProjectedRowData.from(partitionKeys);
+    private final ProjectedRowData[] partitionKeys;
+
+    public PassPartitionKeysCollector(
+            Output<StreamRecord<RowData>> output,
+            ChangelogMode changelogMode,
+            List<RuntimeTableSemantics> tableSemantics) {
+        super(output, changelogMode, tableSemantics.size());
+        partitionKeys = new ProjectedRowData[tableSemantics.size()];
+        IntStream.range(0, tableSemantics.size())
+                .forEach(
+                        pos ->
+                                partitionKeys[pos] =
+                                        ProjectedRowData.from(
+                                                tableSemantics.get(pos).partitionByColumns()));
     }
 
-    public void setPrefix(RowData input) {
-        ((ProjectedRowData) prefix).replaceRow(input);
+    @Override
+    public void setPrefix(int pos, RowData input) {
+        prefix = partitionKeys[pos].replaceRow(input);
     }
 }

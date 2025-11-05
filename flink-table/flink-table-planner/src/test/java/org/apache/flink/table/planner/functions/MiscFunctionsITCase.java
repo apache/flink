@@ -23,8 +23,10 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
+import org.apache.flink.table.utils.EncodingUtils;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
@@ -205,7 +207,62 @@ class MiscFunctionsITCase extends BuiltInFunctionTestBase {
                         .testTableApiResult(
                                 call(OptionalArgAtEndFunction.class, $("f0")),
                                 "i=12,optional=null",
-                                DataTypes.STRING()));
+                                DataTypes.STRING()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ENCODE)
+                        .onFieldsWithData(null, "Hello world", "utf-8")
+                        .andDataTypes(
+                                DataTypes.STRING().nullable(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING())
+                        .testResult(
+                                $("f0").encode($("f2")),
+                                "ENCODE(f0, f2)",
+                                null,
+                                DataTypes.BYTES().nullable())
+                        .testResult(
+                                $("f1").encode($("f2")),
+                                "ENCODE(f1, f2)",
+                                "Hello world".getBytes(StandardCharsets.UTF_8),
+                                DataTypes.BYTES().nullable())
+                        .testResult(
+                                // test for literal values
+                                lit("Hello world").encode($("f2")),
+                                "ENCODE('Hello world', f2)",
+                                "Hello world".getBytes(StandardCharsets.UTF_8),
+                                DataTypes.BYTES().nullable())
+                        .testResult(
+                                // test for nullability of return type
+                                lit("Hello world").encode("utf-8"),
+                                "ENCODE('Hello world', 'utf-8')",
+                                "Hello world".getBytes(StandardCharsets.UTF_8),
+                                DataTypes.BYTES().notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.DECODE)
+                        .onFieldsWithData(
+                                null, "Hello world".getBytes(StandardCharsets.UTF_8), "utf-8")
+                        .andDataTypes(
+                                DataTypes.BYTES().nullable(), DataTypes.BYTES(), DataTypes.STRING())
+                        .testResult(
+                                $("f0").decode($("f2")),
+                                "DECODE(f0, f2)",
+                                null,
+                                DataTypes.STRING().nullable())
+                        .testResult(
+                                $("f1").decode($("f2")),
+                                "DECODE(f1, f2)",
+                                "Hello world",
+                                DataTypes.STRING().nullable())
+                        .testResult(
+                                // test for literal values
+                                lit("Hello world".getBytes(StandardCharsets.UTF_8)).decode($("f2")),
+                                "DECODE(x'" + EncodingUtils.hex("Hello world") + "', f2)",
+                                "Hello world",
+                                DataTypes.STRING().nullable())
+                        .testResult(
+                                // test for nullability of return type
+                                lit("Hello world".getBytes(StandardCharsets.UTF_8)).decode("utf-8"),
+                                "DECODE(x'" + EncodingUtils.hex("Hello world") + "', 'utf-8')",
+                                "Hello world",
+                                DataTypes.STRING().notNull()));
     }
 
     // --------------------------------------------------------------------------------------------

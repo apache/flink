@@ -18,6 +18,7 @@
 
 import pickle
 
+from pyflink.common.watermark_strategy import TimestampAssigner
 from pyflink.datastream.functions import SinkFunction
 from pyflink.java_gateway import get_gateway
 
@@ -51,3 +52,9 @@ class DataStreamTestSinkFunction(SinkFunction):
         if self.j_data_stream_collect_sink is None:
             return
         self.j_data_stream_collect_sink.clear()
+
+
+class SecondColumnTimestampAssigner(TimestampAssigner):
+
+    def extract_timestamp(self, value, record_timestamp) -> int:
+        return int(value[1])

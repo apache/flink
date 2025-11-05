@@ -22,6 +22,7 @@ import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.STRING_DATA_TO_TIME;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.staticCall;
@@ -48,7 +49,8 @@ class StringToTimeCastRule extends AbstractExpressionCodeGeneratorCastRule<Strin
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        return staticCall(STRING_DATA_TO_TIME(), inputTerm);
+        final int targetPrecision = LogicalTypeChecks.getPrecision(targetLogicalType);
+        return staticCall(STRING_DATA_TO_TIME(), inputTerm, targetPrecision);
     }
 
     @Override

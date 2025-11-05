@@ -418,7 +418,7 @@ class StateDescriptor(ABC):
         """
         self.name = name
         self.type_info = type_info
-        self._ttl_config = None  # type: Optional[StateTtlConfig]
+        self._ttl_config: Optional[StateTtlConfig] = None
 
     def get_name(self) -> str:
         """
@@ -700,7 +700,7 @@ class StateTtlConfig(object):
             self._state_visibility = StateTtlConfig.StateVisibility.NeverReturnExpired
             self._ttl_time_characteristic = StateTtlConfig.TtlTimeCharacteristic.ProcessingTime
             self._is_cleanup_in_background = True
-            self._strategies = {}  # type: Dict
+            self._strategies: Dict = {}
 
         def set_update_type(self,
                             update_type: 'StateTtlConfig.UpdateType') -> 'StateTtlConfig.Builder':

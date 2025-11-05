@@ -106,7 +106,7 @@ public final class TypeInferenceExtractor {
                         null,
                         null,
                         createOutputFromGenericInMethod(0, 0, true),
-                        createParameterAndCompletableFutureVerification(function));
+                        createParameterAndCompletableFutureVerification(function, false));
         return extractTypeInference(mappingExtractor, false);
     }
 
@@ -172,7 +172,7 @@ public final class TypeInferenceExtractor {
                         null,
                         null,
                         createOutputFromGenericInClass(AsyncTableFunction.class, 0, true),
-                        createParameterAndCompletableFutureVerification(function));
+                        createParameterAndCompletableFutureVerification(function, true));
         return extractTypeInference(mappingExtractor, false);
     }
 

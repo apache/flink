@@ -19,6 +19,7 @@
 package org.apache.flink.api.connector.source.util.ratelimit;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.connector.source.SourceSplit;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -31,7 +32,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * external notifications.
  */
 @Internal
-public class GatedRateLimiter implements RateLimiter {
+public class GatedRateLimiter<Split extends SourceSplit> implements RateLimiter<Split> {
 
     private final int capacityPerCycle;
     private int capacityLeft;
@@ -50,14 +51,14 @@ public class GatedRateLimiter implements RateLimiter {
     transient CompletableFuture<Void> gatingFuture = null;
 
     @Override
-    public CompletionStage<Void> acquire() {
+    public CompletionStage<Void> acquire(int numberOfEvents) {
         if (gatingFuture == null) {
             gatingFuture = CompletableFuture.completedFuture(null);
         }
         if (capacityLeft <= 0) {
             gatingFuture = new CompletableFuture<>();
         }
-        return gatingFuture.thenRun(() -> capacityLeft -= 1);
+        return gatingFuture.thenRun(() -> capacityLeft -= numberOfEvents);
     }
 
     @Override

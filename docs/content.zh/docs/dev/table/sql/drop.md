@@ -37,6 +37,7 @@ Flink SQL 目前支持以下 DROP 语句：
 - DROP DATABASE
 - DROP VIEW
 - DROP FUNCTION
+- DROP MODEL
 
 ## 执行 DROP 语句
 
@@ -229,3 +230,19 @@ DROP [TEMPORARY|TEMPORARY SYSTEM] FUNCTION [IF EXISTS] [catalog_name.][db_name.]
 **IF EXISTS**
 
 若函数不存在，则不会进行任何操作。
+
+## DROP MODEL
+
+```sql
+DROP [TEMPORARY] MODEL [IF EXISTS] [catalog_name.][db_name.]model_name
+```
+
+删除一个有 catalog 和数据库命名空间的模型。若需要删除的模型不存在并且没有用 `IF EXISTS`，则会产生异常。
+
+**TEMPORARY**
+
+删除一个有 catalog 和数据库命名空间的临时模型。
+
+**IF EXISTS**
+
+若模型不存在，则不会进行任何操作。

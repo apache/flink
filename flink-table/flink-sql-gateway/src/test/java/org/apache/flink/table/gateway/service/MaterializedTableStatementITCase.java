@@ -41,6 +41,8 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.TableDistribution;
+import org.apache.flink.table.catalog.TableDistribution.Kind;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.gateway.AbstractMaterializedTableStatementITCase;
 import org.apache.flink.table.gateway.api.operation.OperationHandle;
@@ -92,7 +94,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * syntax related to Materialized table is relatively independent, and to try to avoid conflicts
  * with the code in {@link SqlGatewayServiceITCase}.
  */
-public class MaterializedTableStatementITCase extends AbstractMaterializedTableStatementITCase {
+class MaterializedTableStatementITCase extends AbstractMaterializedTableStatementITCase {
 
     @Test
     void testCreateMaterializedTableInContinuousMode() throws Exception {
@@ -1086,13 +1088,84 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                         String.format(
                                 "SELECT `tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`, COUNT(`tmp`.`order_id`) AS `order_cnt`, SUM(`tmp`.`order_amount`) AS `order_amount_sum`\n"
                                         + "FROM (SELECT `my_source`.`user_id`, `my_source`.`shop_id`, `my_source`.`order_created_at` AS `ds`, `my_source`.`order_id`, 1 AS `order_amount`\n"
-                                        + "FROM `%s`.`test_db`.`my_source`) AS `tmp`\n"
+                                        + "FROM `%s`.`test_db`.`my_source` AS `my_source`) AS `tmp`\n"
                                         + "GROUP BY ROW(`tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`)",
                                 fileSystemCatalogName));
         // the refresh handler in full mode should be the same as the old one
         assertThat(oldTable.getSerializedRefreshHandler())
                 .isEqualTo(newTable.getSerializedRefreshHandler());
         assertThat(oldTable.getDefinitionFreshness()).isEqualTo(newTable.getDefinitionFreshness());
+    }
+
+    @Test
+    void testCreateMaterializedTableWithDistribution() {
+        String materializedTableDDL =
+                "CREATE MATERIALIZED TABLE users_shops ("
+                        + " PRIMARY KEY (shop_id, user_id) not enforced)"
+                        + " DISTRIBUTED BY HASH (user_id) INTO 7 BUCKETS\n"
+                        + " WITH(\n"
+                        + "   'format' = 'debezium-json'\n"
+                        + " )\n"
+                        + " FRESHNESS = INTERVAL '30' SECOND\n"
+                        + " AS SELECT 1 as shop_id, 2 as user_id";
+        OperationHandle materializedTableHandle =
+                service.executeStatement(
+                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        assertThatThrownBy(
+                        () ->
+                                awaitOperationTermination(
+                                        service, sessionHandle, materializedTableHandle))
+                .isInstanceOf(SqlExecutionException.class)
+                .hasRootCauseMessage(
+                        String.format(
+                                "Table '%s.test_db.users_shops' is distributed into buckets,"
+                                        + " but the underlying DynamicTableSink doesn't implement the SupportsBucketing interface.",
+                                fileSystemCatalogName));
+    }
+
+    @Test
+    void testAlterMaterializedTableAddDistribution() throws Exception {
+        createAndVerifyCreateMaterializedTableWithData(
+                "users_shops", Collections.emptyList(), Collections.emptyMap(), RefreshMode.FULL);
+
+        ResolvedCatalogMaterializedTable oldTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        // Alter materialized table as query in full mode
+        String alterMaterializedTableAsQueryDDL =
+                "ALTER MATERIALIZED TABLE users_shops ADD DISTRIBUTION BY HASH (`order_id`) INTO 2 BUCKETS";
+
+        OperationHandle alterMaterializedTableAsQueryHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableAsQueryDDL, -1, new Configuration());
+
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableAsQueryHandle);
+
+        // verify the altered materialized table
+        ResolvedCatalogMaterializedTable newTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        assertThat(newTable.getDefinitionQuery()).isEqualTo(oldTable.getDefinitionQuery());
+
+        // the refresh handler in full mode should be the same as the old one
+        assertThat(oldTable.getSerializedRefreshHandler())
+                .isEqualTo(newTable.getSerializedRefreshHandler());
+        assertThat(oldTable.getDefinitionFreshness()).isEqualTo(newTable.getDefinitionFreshness());
+
+        assertThat(newTable.getDistribution().get())
+                .isEqualTo(TableDistribution.of(Kind.HASH, 2, List.of("order_id")));
     }
 
     @Test
@@ -1155,7 +1228,7 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                         String.format(
                                 "SELECT `tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`, COUNT(`tmp`.`order_id`) AS `order_cnt`, SUM(`tmp`.`order_amount`) AS `order_amount_sum`\n"
                                         + "FROM (SELECT `my_source`.`user_id`, `my_source`.`shop_id`, `my_source`.`order_created_at` AS `ds`, `my_source`.`order_id`, 1 AS `order_amount`\n"
-                                        + "FROM `%s`.`test_db`.`my_source`) AS `tmp`\n"
+                                        + "FROM `%s`.`test_db`.`my_source` AS `my_source`) AS `tmp`\n"
                                         + "GROUP BY ROW(`tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`)",
                                 fileSystemCatalogName));
 
@@ -1205,13 +1278,7 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         waitUntilAllTasksAreRunning(
                 restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
 
-        // setup savepoint dir
-        String savepointDir = "file://" + temporaryPath.toAbsolutePath();
-        String setupSavepointDDL =
-                "SET 'execution.checkpointing.savepoint-dir' = '" + savepointDir + "'";
-        OperationHandle setupSavepointHandle =
-                service.executeStatement(sessionHandle, setupSavepointDDL, -1, new Configuration());
-        awaitOperationTermination(service, sessionHandle, setupSavepointHandle);
+        setupSavepointDir(temporaryPath);
 
         String alterTableDDL =
                 "ALTER MATERIALIZED TABLE users_shops"
@@ -1246,11 +1313,11 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         assertThat(newTable.getDefinitionQuery())
                 .isEqualTo(
                         String.format(
-                                "SELECT COALESCE(`tmp`.`user_id`, 0) AS `user_id`, `tmp`.`shop_id`, COALESCE(`tmp`.`ds`, '') AS `ds`, SUM(`tmp`.`payment_amount_cents`) AS `payed_buy_fee_sum`, SUM(1) AS `pv`\n"
-                                        + "FROM (SELECT `datagenSource`.`user_id`, `datagenSource`.`shop_id`, `DATE_FORMAT`(`datagenSource`.`order_created_at`, 'yyyy-MM-dd') AS `ds`, `datagenSource`.`payment_amount_cents`\n"
-                                        + "FROM `%s`.`test_db`.`datagenSource`) AS `tmp`\n"
+                                "SELECT COALESCE(`tmp`.`user_id`, CAST(0 AS BIGINT)) AS `user_id`, `tmp`.`shop_id`, COALESCE(`tmp`.`ds`, '') AS `ds`, SUM(`tmp`.`payment_amount_cents`) AS `payed_buy_fee_sum`, SUM(1) AS `pv`\n"
+                                        + "FROM (SELECT `datagenSource`.`user_id`, `datagenSource`.`shop_id`, DATE_FORMAT(`datagenSource`.`order_created_at`, 'yyyy-MM-dd') AS `ds`, `datagenSource`.`payment_amount_cents`\n"
+                                        + "FROM `%s`.`%s`.`datagenSource` AS `datagenSource`) AS `tmp`\n"
                                         + "GROUP BY ROW(`tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`)",
-                                fileSystemCatalogName));
+                                fileSystemCatalogName, TEST_DEFAULT_DATABASE));
         assertThat(oldTable.getSerializedRefreshHandler())
                 .isNotEqualTo(newTable.getSerializedRefreshHandler());
 
@@ -1308,13 +1375,7 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         waitUntilAllTasksAreRunning(
                 restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
 
-        // setup savepoint dir
-        String savepointDir = "file://" + temporaryPath.toAbsolutePath();
-        String setupSavepointDDL =
-                "SET 'execution.checkpointing.savepoint-dir' = '" + savepointDir + "'";
-        OperationHandle setupSavepointHandle =
-                service.executeStatement(sessionHandle, setupSavepointDDL, -1, new Configuration());
-        awaitOperationTermination(service, sessionHandle, setupSavepointHandle);
+        setupSavepointDir(temporaryPath);
 
         // suspend materialized table
         String suspendTableDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
@@ -1352,8 +1413,8 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
                 .isEqualTo(
                         String.format(
                                 "SELECT `tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`, SUM(`tmp`.`payment_amount_cents`) AS `payed_buy_fee_sum`, SUM(1) AS `pv`\n"
-                                        + "FROM (SELECT `datagenSource`.`user_id`, `datagenSource`.`shop_id`, `DATE_FORMAT`(`datagenSource`.`order_created_at`, 'yyyy-MM-dd') AS `ds`, `datagenSource`.`payment_amount_cents`\n"
-                                        + "FROM `%s`.`test_db`.`datagenSource`) AS `tmp`\n"
+                                        + "FROM (SELECT `datagenSource`.`user_id`, `datagenSource`.`shop_id`, DATE_FORMAT(`datagenSource`.`order_created_at`, 'yyyy-MM-dd') AS `ds`, `datagenSource`.`payment_amount_cents`\n"
+                                        + "FROM `%s`.`test_db`.`datagenSource` AS `datagenSource`) AS `tmp`\n"
                                         + "GROUP BY ROW(`tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`)",
                                 fileSystemCatalogName));
         assertThat(oldTable.getSerializedRefreshHandler())
@@ -1915,6 +1976,15 @@ public class MaterializedTableStatementITCase extends AbstractMaterializedTableS
         dropMaterializedTable(
                 ObjectIdentifier.of(
                         fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table"));
+    }
+
+    private void setupSavepointDir(Path temporaryPath) throws Exception {
+        String savepointDir = "file://" + temporaryPath.toAbsolutePath();
+        String setupSavepointDDL =
+                "SET 'execution.checkpointing.savepoint-dir' = '" + savepointDir + "'";
+        OperationHandle setupSavepointHandle =
+                service.executeStatement(sessionHandle, setupSavepointDDL, -1, new Configuration());
+        awaitOperationTermination(service, sessionHandle, setupSavepointHandle);
     }
 
     private List<Column> getAddedColumns(ResolvedSchema newSchema, ResolvedSchema oldSchema) {

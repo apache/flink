@@ -27,6 +27,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
+import org.apache.flink.events.Events;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.blob.BlobWriter;
@@ -380,12 +381,23 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
 
         this.failureEnrichers = checkNotNull(failureEnrichers);
 
+        JobStatusListener schedulerListener =
+                JobStatusListener.combine(
+                        jobStatusListener,
+                        (jobId, newJobStatus, timestamp) ->
+                                jobManagerJobMetricGroup.addEvent(
+                                        Events.JobStatusChangeEvent.builder(JobMaster.class)
+                                                .setObservedTsMillis(timestamp)
+                                                .setSeverity("INFO")
+                                                .setAttribute(
+                                                        "newJobStatus", newJobStatus.name())));
+
         this.schedulerNG =
                 createScheduler(
                         slotPoolServiceSchedulerFactory,
                         executionDeploymentTracker,
                         jobManagerJobMetricGroup,
-                        jobStatusListener);
+                        schedulerListener);
 
         this.heartbeatServices = checkNotNull(heartbeatServices);
         this.taskManagerHeartbeatManager = NoOpHeartbeatManager.getInstance();

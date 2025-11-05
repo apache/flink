@@ -39,8 +39,10 @@ import javax.annotation.Nonnull;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.Spliterators;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -212,6 +214,29 @@ public abstract class StateTable<K, N, S>
         getMapForKeyGroup(keyGroup).transform(key, namespace, value, transformation);
     }
 
+    /**
+     * Applies the given {@link StateTransformationFunction} to all state (1st input argument),
+     * using the given value as second input argument. The result of {@link
+     * StateTransformationFunction#apply(Object, Object)} is then stored as the new state. This
+     * function is basically an optimization for get-update-put pattern.
+     *
+     * @param value the value to use in transforming the state. Can be null.
+     * @throws Exception if some exception happens in the transformation function.
+     */
+    public <T> void transformAll(T value, StateTransformationFunction<S, T> transformation)
+            throws Exception {
+        for (StateMap<K, N, S> stateMap : keyGroupedStateMaps) {
+            List<StateEntry<K, N, S>> entries =
+                    StreamSupport.stream(
+                                    Spliterators.spliteratorUnknownSize(stateMap.iterator(), 0),
+                                    false)
+                            .collect(Collectors.toList());
+            for (StateEntry<K, N, S> entry : entries) {
+                stateMap.transform(entry.getKey(), entry.getNamespace(), value, transformation);
+            }
+        }
+    }
+
     // For queryable state ------------------------------------------------------------------------
 
     /**
@@ -297,7 +322,6 @@ public abstract class StateTable<K, N, S>
         return keyGroupRange.getStartKeyGroup();
     }
 
-    @VisibleForTesting
     public StateMap<K, N, S> getMapForKeyGroup(int keyGroupIndex) {
         final int pos = indexToOffset(keyGroupIndex);
         if (pos >= 0 && pos < keyGroupedStateMaps.length) {

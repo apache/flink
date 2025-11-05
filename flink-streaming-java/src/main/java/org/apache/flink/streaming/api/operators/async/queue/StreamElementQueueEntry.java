@@ -32,7 +32,7 @@ import javax.annotation.Nonnull;
  * allows to set the result of a completed entry through {@link ResultFuture}.
  */
 @Internal
-interface StreamElementQueueEntry<OUT> extends ResultFuture<OUT> {
+public interface StreamElementQueueEntry<OUT> extends ResultFuture<OUT> {
 
     /**
      * True if the stream element queue entry has been completed; otherwise false.

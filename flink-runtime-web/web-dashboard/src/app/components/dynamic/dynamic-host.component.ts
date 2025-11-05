@@ -35,8 +35,7 @@ import { DynamicDirective } from '@flink-runtime-web/components/dynamic.directiv
   templateUrl: './dynamic-host.component.html',
   styleUrls: ['./dynamic-host.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DynamicDirective],
-  standalone: true
+  imports: [DynamicDirective]
 })
 export class DynamicHostComponent implements OnChanges {
   @Input() data: Record<string, unknown> = {};
@@ -45,7 +44,6 @@ export class DynamicHostComponent implements OnChanges {
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   componentRef?: ComponentRef<any>;
   @ViewChild(DynamicDirective, { static: true }) host!: DynamicDirective;
-  constructor() {}
 
   ngOnChanges(simpleChanges: SimpleChanges): void {
     if (simpleChanges.component) {

@@ -195,10 +195,11 @@ public class EmbeddedExecutor implements PipelineExecutor {
 
         return dispatcherGateway
                 .getBlobServerPort(rpcTimeout)
-                .thenApply(
-                        blobServerPort ->
+                .thenCombine(
+                        dispatcherGateway.getBlobServerAddress(rpcTimeout),
+                        (blobServerPort, blobServerAddress) ->
                                 new InetSocketAddress(
-                                        dispatcherGateway.getHostname(), blobServerPort))
+                                        blobServerAddress.getHostName(), blobServerPort))
                 .thenCompose(
                         blobServerAddress -> {
                             try {

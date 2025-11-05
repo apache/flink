@@ -39,7 +39,7 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 
 /**
- * TemporalTableSpec describes how the right tale of lookupJoin ser/des.
+ * TemporalTableSpec describes how the right table of lookupJoin ser/des.
  *
  * <p>This class corresponds to {@link org.apache.calcite.plan.RelOptTable} rel node.
  */

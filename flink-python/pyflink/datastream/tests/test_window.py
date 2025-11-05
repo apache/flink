@@ -30,7 +30,8 @@ from pyflink.datastream.window import (TumblingEventTimeWindows,
                                        CountSlidingWindowAssigner, SessionWindowTimeGapExtractor,
                                        CountWindow, PurgingTrigger, EventTimeTrigger, TimeWindow,
                                        GlobalWindows, CountTrigger)
-from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
+from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction, \
+    SecondColumnTimestampAssigner
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
 from pyflink.util.java_utils import get_j_env_configuration
@@ -51,10 +52,10 @@ class WindowTests(object):
         self.assertEqual(expected, actual)
 
     def test_event_time_tumbling_window(self):
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             ('hi', 1), ('hi', 2), ('hi', 3), ('hi', 4), ('hi', 5), ('hi', 8), ('hi', 9),
             ('hi', 15)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
         data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
@@ -70,10 +71,10 @@ class WindowTests(object):
         self.assert_equals_sorted(expected, results)
 
     def test_count_tumbling_window(self):
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             (1, 'hi'), (2, 'hello'), (3, 'hi'), (4, 'hello'), (5, 'hi'), (6, 'hello'),
             (6, 'hello')],
-            type_info=Types.TUPLE([Types.INT(), Types.STRING()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.INT(), Types.STRING()]))
         data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) \
             .count_window(3) \
             .apply(SumWindowFunction(), Types.TUPLE([Types.STRING(), Types.INT()])) \
@@ -85,10 +86,10 @@ class WindowTests(object):
         self.assert_equals_sorted(expected, results)
 
     def test_event_time_sliding_window(self):
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             ('hi', 1), ('hi', 2), ('hi', 3), ('hi', 4), ('hi', 5), ('hi', 8), ('hi', 9),
             ('hi', 15)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
 
@@ -106,9 +107,9 @@ class WindowTests(object):
         self.assert_equals_sorted(expected, results)
 
     def test_count_sliding_window(self):
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             (1, 'hi'), (2, 'hello'), (3, 'hi'), (4, 'hello'), (5, 'hi'), (6, 'hello')],
-            type_info=Types.TUPLE([Types.INT(), Types.STRING()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.INT(), Types.STRING()]))
         data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) \
             .window(CountSlidingWindowAssigner(2, 1)) \
             .apply(SumWindowFunction(), Types.TUPLE([Types.STRING(), Types.INT()])) \
@@ -120,9 +121,9 @@ class WindowTests(object):
         self.assert_equals_sorted(expected, results)
 
     def test_event_time_session_window(self):
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             ('hi', 1), ('hi', 2), ('hi', 3), ('hi', 4), ('hi', 8), ('hi', 9), ('hi', 15)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
 
@@ -140,9 +141,9 @@ class WindowTests(object):
 
     def test_event_time_dynamic_gap_session_window(self):
         self.env.set_parallelism(1)
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             ('hi', 1), ('hi', 2), ('hi', 3), ('hi', 4), ('hi', 9), ('hi', 9), ('hi', 15)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
 
@@ -159,9 +160,9 @@ class WindowTests(object):
         self.assert_equals_sorted(expected, results)
 
     def test_window_reduce_passthrough(self):
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
         data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
@@ -177,9 +178,9 @@ class WindowTests(object):
         self.assert_equals_sorted(expected, results)
 
     def test_window_reduce_process(self):
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
 
@@ -210,9 +211,9 @@ class WindowTests(object):
         self.assert_equals_sorted(expected, results)
 
     def test_window_aggregate_passthrough(self):
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
 
@@ -254,9 +255,9 @@ class WindowTests(object):
         self.assert_equals_sorted(expected, results)
 
     def test_window_aggregate_accumulator_type(self):
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
 
@@ -288,9 +289,9 @@ class WindowTests(object):
         self.assert_equals_sorted(expected, results)
 
     def test_window_aggregate_process(self):
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
 
@@ -334,9 +335,9 @@ class WindowTests(object):
         self.assert_equals_sorted(expected, results)
 
     def test_session_window_late_merge(self):
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             ('hi', 0), ('hi', 8), ('hi', 4)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
         data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
@@ -352,9 +353,9 @@ class WindowTests(object):
         self.assert_equals_sorted(expected, results)
 
     def test_event_time_session_window_with_purging_trigger(self):
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             ('hi', 1), ('hi', 2), ('hi', 3), ('hi', 4), ('hi', 8), ('hi', 9), ('hi', 15)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
 
@@ -373,9 +374,9 @@ class WindowTests(object):
 
     def test_global_window_with_purging_trigger(self):
         self.env.set_parallelism(1)
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             ('hi', 1), ('hi', 1), ('hi', 1), ('hi', 1), ('hi', 1), ('hi', 1), ('hi', 1)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
 
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
@@ -399,10 +400,10 @@ class WindowTests(object):
         self.assert_equals_sorted(expected, results)
 
     def test_event_time_tumbling_window_all(self):
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             ('hi', 1), ('hello', 2), ('hi', 3), ('hello', 4), ('hello', 5), ('hi', 8), ('hi', 9),
             ('hi', 15)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
 
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
@@ -420,9 +421,9 @@ class WindowTests(object):
 
     def test_window_all_reduce(self):
         self.env.set_parallelism(1)
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
         data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
@@ -438,9 +439,9 @@ class WindowTests(object):
 
     def test_window_all_reduce_process(self):
         self.env.set_parallelism(1)
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
 
@@ -469,9 +470,9 @@ class WindowTests(object):
 
     def test_window_all_aggregate(self):
         self.env.set_parallelism(1)
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
 
@@ -513,9 +514,9 @@ class WindowTests(object):
 
     def test_window_all_aggregate_process(self):
         self.env.set_parallelism(1)
-        data_stream = self.env.from_collection([
+        data_stream: DataStream = self.env.from_collection([
             ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
 
@@ -635,12 +636,6 @@ class EmbeddedWindowTests(WindowTests, PyFlinkStreamingTestCase):
                     '(1676461740000,a1,1)',
                     '(1676461740000,a2,1)']
         self.assert_equals_sorted(expected, results)
-
-
-class SecondColumnTimestampAssigner(TimestampAssigner):
-
-    def extract_timestamp(self, value, record_timestamp) -> int:
-        return int(value[1])
 
 
 class MySessionWindowTimeGapExtractor(SessionWindowTimeGapExtractor):

@@ -576,6 +576,11 @@ public class ExecutionVertex
         return currentExecution == execution;
     }
 
+    @VisibleForTesting
+    public CompletableFuture<Void> getTddCreationDuringDeployFuture() {
+        return currentExecution.getTddCreationDuringDeployFuture();
+    }
+
     // --------------------------------------------------------------------------------------------
     //  Utilities
     // --------------------------------------------------------------------------------------------

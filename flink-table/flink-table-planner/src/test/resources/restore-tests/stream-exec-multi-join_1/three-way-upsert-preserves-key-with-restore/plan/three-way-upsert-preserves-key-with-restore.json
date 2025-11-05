@@ -1,0 +1,436 @@
+{
+  "flinkVersion" : "2.2",
+  "nodes" : [ {
+    "id" : 89,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`Users`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "user_id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "shard_id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "description",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PRIMARY",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "user_id" ]
+            }
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ], [ 2 ] ],
+        "producedType" : "ROW<`user_id` INT NOT NULL, `description` VARCHAR(2147483647)> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`user_id` INT NOT NULL, `description` VARCHAR(2147483647)> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`user_id` INT NOT NULL, `description` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id, description], metadata=[]]], fields=[user_id, description])"
+  }, {
+    "id" : 90,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` INT NOT NULL, `description` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[user_id]])"
+  }, {
+    "id" : 91,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`Orders`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "user_id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "order_id",
+              "dataType" : "BIGINT NOT NULL"
+            }, {
+              "name" : "product",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PRIMARY",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "user_id", "order_id" ]
+            }
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ], [ 1 ] ],
+        "producedType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Orders, project=[user_id, order_id], metadata=[]]], fields=[user_id, order_id])"
+  }, {
+    "id" : 92,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL>",
+    "description" : "Exchange(distribution=[hash[user_id]])"
+  }, {
+    "id" : 93,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`Payments`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "user_id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "payment_id",
+              "dataType" : "BIGINT NOT NULL"
+            }, {
+              "name" : "product",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PRIMARY",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "user_id", "payment_id" ]
+            }
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "ProjectPushDown",
+        "projectedFields" : [ [ 0 ], [ 1 ] ],
+        "producedType" : "ROW<`user_id` INT NOT NULL, `payment_id` BIGINT NOT NULL> NOT NULL"
+      }, {
+        "type" : "ReadingMetadata",
+        "metadataKeys" : [ ],
+        "producedType" : "ROW<`user_id` INT NOT NULL, `payment_id` BIGINT NOT NULL> NOT NULL"
+      } ]
+    },
+    "outputType" : "ROW<`user_id` INT NOT NULL, `payment_id` BIGINT NOT NULL>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, Payments, project=[user_id, payment_id], metadata=[]]], fields=[user_id, payment_id])"
+  }, {
+    "id" : 94,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` INT NOT NULL, `payment_id` BIGINT NOT NULL>",
+    "description" : "Exchange(distribution=[hash[user_id]])"
+  }, {
+    "id" : 95,
+    "type" : "stream-exec-multi-join_1",
+    "joinTypes" : [ "INNER", "INNER", "INNER" ],
+    "joinConditions" : [ {
+      "kind" : "LITERAL",
+      "value" : true,
+      "type" : "BOOLEAN NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$=$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 2,
+        "type" : "INT NOT NULL"
+      }, {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "INT NOT NULL"
+      } ],
+      "type" : "BOOLEAN NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$=$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 2,
+        "type" : "INT NOT NULL"
+      }, {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 4,
+        "type" : "INT NOT NULL"
+      } ],
+      "type" : "BOOLEAN NOT NULL"
+    } ],
+    "multiJoinCondition" : {
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$AND$1",
+      "operands" : [ {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : "INT NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 0,
+          "type" : "INT NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$=$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : "INT NOT NULL"
+        }, {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 4,
+          "type" : "INT NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      } ],
+      "type" : "BOOLEAN NOT NULL"
+    },
+    "joinAttributeMap" : {
+      "0" : [ {
+        "leftInputId" : -1,
+        "leftFieldIndex" : -1,
+        "rightInputId" : 0,
+        "rightFieldIndex" : 0
+      } ],
+      "1" : [ {
+        "leftInputId" : 0,
+        "leftFieldIndex" : 0,
+        "rightInputId" : 1,
+        "rightFieldIndex" : 0
+      } ],
+      "2" : [ {
+        "leftInputId" : 1,
+        "leftFieldIndex" : 0,
+        "rightInputId" : 2,
+        "rightFieldIndex" : 0
+      } ]
+    },
+    "inputUniqueKeys" : [ [ [ 0 ] ], [ [ 0, 1 ] ], [ [ 0, 1 ] ] ],
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "input-state-0"
+    }, {
+      "index" : 1,
+      "ttl" : "0 ms",
+      "name" : "input-state-1"
+    }, {
+      "index" : 2,
+      "ttl" : "0 ms",
+      "name" : "input-state-2"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 1
+    }, {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 0 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 2
+    } ],
+    "outputType" : "ROW<`user_id` INT NOT NULL, `description` VARCHAR(2147483647), `user_id0` INT NOT NULL, `order_id` BIGINT NOT NULL, `user_id1` INT NOT NULL, `payment_id` BIGINT NOT NULL>",
+    "description" : "MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id), (user_id, order_id), (user_id, payment_id)], joinConditions=[(user_id0 = user_id), (user_id0 = user_id1)], select=[user_id,description,user_id0,order_id,user_id1,payment_id], rowType=[RecordType(INTEGER user_id, VARCHAR(2147483647) description, INTEGER user_id0, BIGINT order_id, INTEGER user_id1, BIGINT payment_id)])"
+  }, {
+    "id" : 96,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "BIGINT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 5,
+      "type" : "BIGINT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL, `user_id0` INT NOT NULL, `payment_id` BIGINT NOT NULL, `user_id1` INT NOT NULL, `description` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[user_id0 AS user_id, order_id, user_id1 AS user_id0, payment_id, user_id AS user_id1, description])"
+  }, {
+    "id" : 97,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "user_id",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "order_id",
+              "dataType" : "BIGINT NOT NULL"
+            }, {
+              "name" : "user_id2",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "payment_id",
+              "dataType" : "BIGINT NOT NULL"
+            }, {
+              "name" : "user_id3",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "description",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PRIMARY",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "user_id", "order_id", "user_id2", "payment_id", "user_id3" ]
+            }
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER", "~DELETE" ],
+    "inputUpsertKey" : [ 0, 1, 2, 3 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`user_id` INT NOT NULL, `order_id` BIGINT NOT NULL, `user_id0` INT NOT NULL, `payment_id` BIGINT NOT NULL, `user_id1` INT NOT NULL, `description` VARCHAR(2147483647)>",
+    "description" : "Sink(table=[default_catalog.default_database.sink], fields=[user_id, order_id, user_id0, payment_id, user_id1, description])"
+  } ],
+  "edges" : [ {
+    "source" : 89,
+    "target" : 90,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 91,
+    "target" : 92,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 93,
+    "target" : 94,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 90,
+    "target" : 95,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 92,
+    "target" : 95,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 94,
+    "target" : 95,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 95,
+    "target" : 96,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 96,
+    "target" : 97,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

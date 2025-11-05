@@ -30,7 +30,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
-import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncKeyOrderedProcessingOperator;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -156,7 +156,7 @@ public class AsyncStateFastTop1Function extends AbstractAsyncStateTopNFunction
 
         @Override
         public void flushBufferToState(RowData currentKey, RowData value) throws Exception {
-            ((AsyncStateProcessingOperator) keyContext)
+            ((AsyncKeyOrderedProcessingOperator) keyContext)
                     .asyncProcessWithKey(
                             currentKey,
                             () -> {

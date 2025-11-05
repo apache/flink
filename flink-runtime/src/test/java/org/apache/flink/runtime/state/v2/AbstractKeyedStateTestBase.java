@@ -21,11 +21,13 @@ package org.apache.flink.runtime.state.v2;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.core.state.InternalStateFuture;
-import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
+import org.apache.flink.runtime.asyncprocessing.AsyncRequestContainer;
+import org.apache.flink.runtime.asyncprocessing.EpochManager;
+import org.apache.flink.runtime.asyncprocessing.MockAsyncRequestContainer;
+import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
-import org.apache.flink.runtime.asyncprocessing.StateRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
@@ -52,7 +54,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -65,7 +66,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 public class AbstractKeyedStateTestBase {
 
     @SuppressWarnings({"rawtypes"})
-    AsyncExecutionController aec;
+    StateExecutionController aec;
 
     TestStateExecutor testStateExecutor;
 
@@ -75,13 +76,14 @@ public class AbstractKeyedStateTestBase {
     void setup() {
         testStateExecutor = (TestStateExecutor) createStateExecutor();
         aec =
-                new AsyncExecutionController<>(
+                new StateExecutionController<>(
                         new SyncMailboxExecutor(),
                         (a, b) -> {
                             exception.set(b);
                         },
                         testStateExecutor,
                         new DeclarationManager(),
+                        EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                         1,
                         1,
                         1000,
@@ -211,6 +213,11 @@ public class AbstractKeyedStateTestBase {
                 public void dispose() {
                     // do nothing
                 }
+
+                @Override
+                public String getBackendTypeIdentifier() {
+                    return "test";
+                }
             };
         }
     }
@@ -237,9 +244,10 @@ public class AbstractKeyedStateTestBase {
 
         @Override
         public CompletableFuture<Void> executeBatchRequests(
-                StateRequestContainer stateRequestContainer) {
-            for (StateRequest request :
-                    ((TestStateRequestContainer) stateRequestContainer).requests) {
+                AsyncRequestContainer<StateRequest<?, ?, ?, ?>> asyncRequestContainer) {
+            for (StateRequest<?, ?, ?, ?> request :
+                    ((MockAsyncRequestContainer<StateRequest<?, ?, ?, ?>>) asyncRequestContainer)
+                            .getStateRequestList()) {
                 executeRequestSync(request);
             }
             CompletableFuture<Void> future = new CompletableFuture<>();
@@ -248,8 +256,8 @@ public class AbstractKeyedStateTestBase {
         }
 
         @Override
-        public StateRequestContainer createStateRequestContainer() {
-            return new TestStateRequestContainer();
+        public AsyncRequestContainer<StateRequest<?, ?, ?, ?>> createRequestContainer() {
+            return new MockAsyncRequestContainer<>();
         }
 
         @Override
@@ -257,7 +265,7 @@ public class AbstractKeyedStateTestBase {
             receivedRequest.add(request);
             if (request.getRequestType() == StateRequestType.MAP_CONTAINS
                     || request.getRequestType() == StateRequestType.MAP_IS_EMPTY) {
-                ((InternalStateFuture<Boolean>) request.getFuture()).complete(true);
+                ((InternalAsyncFuture<Boolean>) request.getFuture()).complete(true);
             } else {
                 request.getFuture().complete(null);
             }
@@ -270,19 +278,5 @@ public class AbstractKeyedStateTestBase {
 
         @Override
         public void shutdown() {}
-
-        static class TestStateRequestContainer implements StateRequestContainer {
-            ArrayList<StateRequest<?, ?, ?, ?>> requests = new ArrayList<>();
-
-            @Override
-            public void offer(StateRequest<?, ?, ?, ?> stateRequest) {
-                requests.add(stateRequest);
-            }
-
-            @Override
-            public boolean isEmpty() {
-                return requests.isEmpty();
-            }
-        }
     }
 }

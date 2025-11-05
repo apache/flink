@@ -625,6 +625,72 @@ public final class Expressions {
     }
 
     /**
+     * Creates a structured object from a list of key-value pairs.
+     *
+     * <p>This function creates an instance of a structured type identified by the given class. The
+     * structured type is created by providing alternating key-value pairs where keys must be string
+     * literals and values can be arbitrary expressions.
+     *
+     * <p>Note: The class is only used for distinguishing two structured types with identical
+     * fields. Structured types are internally handled with suitable data structures. Thus,
+     * serialization and equality checks are managed by the system.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // Creates a User object with name="Alice" and age=30
+     * objectOf(User.class, "name", "Alice", "age", 30)
+     *
+     * }</pre>
+     *
+     * <p>This function corresponds to the SQL {@code OBJECT_OF} function.
+     *
+     * @param clazz The class representing the structured type
+     * @param fields Alternating key-value pairs: key1, value1, key2, value2, ...
+     * @return A structured object expression
+     * @see #objectOf(String, Object...)
+     */
+    public static ApiExpression objectOf(Class<?> clazz, Object... fields) {
+        return apiCallAtLeastOneArgument(
+                BuiltInFunctionDefinitions.OBJECT_OF, valueLiteral(clazz.getName()), fields);
+    }
+
+    /**
+     * Creates a structured object from a list of key-value pairs.
+     *
+     * <p>This function creates an instance of a structured type identified by the given class name.
+     * The structured type is created by providing alternating key-value pairs where keys must be
+     * string literals and values can be arbitrary expressions.
+     *
+     * <p>Note: The class name is only used for distinguishing two structured types with identical
+     * fields. Structured types are internally handled with suitable data structures. Thus,
+     * serialization and equality checks are managed by the system.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * // Creates a User object with name="Bob" and age=25
+     * objectOf("com.example.User", "name", "Bob", "age", 25)
+     *
+     * }</pre>
+     *
+     * <p>This function corresponds to the SQL {@code OBJECT_OF} function:
+     *
+     * <pre>{@code
+     * OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 25)
+     * }</pre>
+     *
+     * @param className The fully qualified class name representing the structured type
+     * @param fields Alternating key-value pairs: key1, value1, key2, value2, ...
+     * @return A structured object expression
+     * @see #objectOf(Class, Object...)
+     */
+    public static ApiExpression objectOf(String className, Object... fields) {
+        return apiCallAtLeastOneArgument(
+                BuiltInFunctionDefinitions.OBJECT_OF, valueLiteral(className), fields);
+    }
+
+    /**
      * Creates an interval of rows.
      *
      * @see Table#window(GroupWindow)

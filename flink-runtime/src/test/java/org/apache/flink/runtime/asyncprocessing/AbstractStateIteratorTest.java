@@ -20,7 +20,7 @@ package org.apache.flink.runtime.asyncprocessing;
 
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateIterator;
-import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
@@ -46,12 +46,13 @@ public class AbstractStateIteratorTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void testPartialLoading() {
         TestIteratorStateExecutor stateExecutor = new TestIteratorStateExecutor(100, 3);
-        AsyncExecutionController aec =
-                new AsyncExecutionController(
+        StateExecutionController aec =
+                new StateExecutionController(
                         new SyncMailboxExecutor(),
                         (a, b) -> {},
                         stateExecutor,
                         new DeclarationManager(),
+                        EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                         1,
                         100,
                         1000,
@@ -86,12 +87,13 @@ public class AbstractStateIteratorTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void testPartialLoadingWithReturnValue() {
         TestIteratorStateExecutor stateExecutor = new TestIteratorStateExecutor(100, 3);
-        AsyncExecutionController aec =
-                new AsyncExecutionController(
+        StateExecutionController aec =
+                new StateExecutionController(
                         new SyncMailboxExecutor(),
                         (a, b) -> {},
                         stateExecutor,
                         new DeclarationManager(),
+                        EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                         1,
                         100,
                         1000,
@@ -133,12 +135,13 @@ public class AbstractStateIteratorTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void testPartialLoadingWithConversionToIterable() {
         TestIteratorStateExecutor stateExecutor = new TestIteratorStateExecutor(100, 3);
-        AsyncExecutionController aec =
-                new AsyncExecutionController(
+        StateExecutionController aec =
+                new StateExecutionController(
                         new SyncMailboxExecutor(),
                         (a, b) -> {},
                         stateExecutor,
                         new DeclarationManager(),
+                        EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                         1,
                         100,
                         1000,
@@ -177,7 +180,7 @@ public class AbstractStateIteratorTest {
 
         final int step;
 
-        AsyncExecutionController aec;
+        StateExecutionController aec;
 
         int current = 0;
 
@@ -188,18 +191,19 @@ public class AbstractStateIteratorTest {
             this.step = step;
         }
 
-        public void bindAec(AsyncExecutionController aec) {
+        public void bindAec(StateExecutionController aec) {
             this.aec = aec;
         }
 
         @Override
         @SuppressWarnings({"unchecked", "rawtypes"})
         public CompletableFuture<Void> executeBatchRequests(
-                StateRequestContainer stateRequestContainer) {
-            Preconditions.checkArgument(stateRequestContainer instanceof MockStateRequestContainer);
+                AsyncRequestContainer<StateRequest<?, ?, ?, ?>> asyncRequestContainer) {
+            Preconditions.checkArgument(asyncRequestContainer instanceof MockAsyncRequestContainer);
             CompletableFuture<Void> future = new CompletableFuture<>();
-            for (StateRequest request :
-                    ((MockStateRequestContainer) stateRequestContainer).getStateRequestList()) {
+            for (StateRequest<?, ?, ?, ?> request :
+                    ((MockAsyncRequestContainer<StateRequest<?, ?, ?, ?>>) asyncRequestContainer)
+                            .getStateRequestList()) {
                 executeRequestSync(request);
             }
             future.complete(null);
@@ -207,8 +211,8 @@ public class AbstractStateIteratorTest {
         }
 
         @Override
-        public StateRequestContainer createStateRequestContainer() {
-            return new MockStateRequestContainer();
+        public AsyncRequestContainer<StateRequest<?, ?, ?, ?>> createRequestContainer() {
+            return new MockAsyncRequestContainer<>();
         }
 
         @Override
@@ -218,7 +222,7 @@ public class AbstractStateIteratorTest {
                 for (int i = 0; current < limit && i < step; i++) {
                     results.add(current++);
                 }
-                ((InternalStateFuture<StateIterator<Integer>>) request.getFuture())
+                ((InternalAsyncFuture<StateIterator<Integer>>) request.getFuture())
                         .complete(
                                 new TestIterator(
                                         request.getState(),
@@ -234,7 +238,7 @@ public class AbstractStateIteratorTest {
                 for (int i = 0; current < limit && i < step; i++) {
                     results.add(current++);
                 }
-                ((InternalStateFuture<StateIterator<Integer>>) request.getFuture())
+                ((InternalAsyncFuture<StateIterator<Integer>>) request.getFuture())
                         .complete(
                                 new TestIterator(
                                         request.getState(),
@@ -266,7 +270,7 @@ public class AbstractStateIteratorTest {
             public TestIterator(
                     State originalState,
                     StateRequestType requestType,
-                    AsyncExecutionController aec,
+                    StateExecutionController aec,
                     Collection<Integer> partialResult,
                     int current,
                     int limit) {

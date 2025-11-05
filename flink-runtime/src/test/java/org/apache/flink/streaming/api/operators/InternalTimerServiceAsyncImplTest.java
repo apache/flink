@@ -21,12 +21,13 @@ package org.apache.flink.streaming.api.operators;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.core.asyncprocessing.AsyncFutureImpl.AsyncFrameworkExceptionHandler;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
-import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
-import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.runtime.asyncprocessing.EpochManager;
 import org.apache.flink.runtime.asyncprocessing.MockStateExecutor;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
+import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
@@ -53,7 +54,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link InternalTimerServiceAsyncImpl}. */
 class InternalTimerServiceAsyncImplTest {
-    private AsyncExecutionController<String> asyncExecutionController;
+    private StateExecutionController<String> asyncExecutionController;
     private TestKeyContext keyContext;
     private TestProcessingTimeService processingTimeService;
     private InternalTimerServiceAsyncImpl<Integer, String> service;
@@ -70,11 +71,12 @@ class InternalTimerServiceAsyncImplTest {
     @BeforeEach
     void setup() throws Exception {
         asyncExecutionController =
-                new AsyncExecutionController<>(
+                new StateExecutionController<>(
                         new SyncMailboxExecutor(),
                         exceptionHandler,
                         new MockStateExecutor(),
                         new DeclarationManager(),
+                        EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                         128,
                         2,
                         1000L,
@@ -323,7 +325,7 @@ class InternalTimerServiceAsyncImplTest {
             TypeSerializer<K> keySerializer,
             TypeSerializer<N> namespaceSerializer,
             PriorityQueueSetFactory priorityQueueSetFactory,
-            AsyncExecutionController asyncExecutionController) {
+            StateExecutionController asyncExecutionController) {
 
         TimerSerializer<K, N> timerSerializer =
                 new TimerSerializer<>(keySerializer, namespaceSerializer);
@@ -353,11 +355,11 @@ class InternalTimerServiceAsyncImplTest {
 
     private static class SameTimerTriggerable implements Triggerable<Integer, String> {
 
-        private AsyncExecutionController aec;
+        private StateExecutionController aec;
 
         private static int eventTriggerCount = 0;
 
-        public SameTimerTriggerable(AsyncExecutionController aec) {
+        public SameTimerTriggerable(StateExecutionController aec) {
             this.aec = aec;
         }
 
@@ -365,7 +367,6 @@ class InternalTimerServiceAsyncImplTest {
         public void onEventTime(InternalTimer<Integer, String> timer) throws Exception {
             RecordContext<Integer> recordContext = aec.buildContext("record", "key");
             aec.setCurrentContext(recordContext);
-            aec.handleRequestSync(null, StateRequestType.SYNC_POINT, null);
             eventTriggerCount++;
         }
 

@@ -250,6 +250,11 @@ class ResolvedSchemaAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkT
     def java_class(cls):
         return "org.apache.flink.table.catalog.ResolvedSchema"
 
+    @classmethod
+    def excluded_methods(cls):
+        # getIndexes are not needed in Python API as they are used internally
+        return {'getIndexes'}
+
 
 if __name__ == '__main__':
     import unittest

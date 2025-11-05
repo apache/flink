@@ -32,9 +32,7 @@ import org.apache.flink.table.runtime.generated.FilterCondition;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
 import org.apache.flink.table.runtime.generated.GeneratedResultFuture;
 import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
-import org.apache.flink.util.Collector;
 
-import java.util.ArrayList;
 import java.util.Collection;
 
 /** The async join runner with an additional calculate function on the dimension table. */
@@ -94,7 +92,8 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
 
         private final FlatMapFunction<RowData, RowData> calc;
         private final TableFunctionResultFuture<RowData> joinConditionResultFuture;
-        private final CalcCollectionCollector calcCollector = new CalcCollectionCollector();
+        private final CalcCollectionCollector calcCollector =
+                new CalcCollectionCollector(rightRowSerializer);
 
         private TemporalTableCalcResultFuture(
                 FlatMapFunction<RowData, RowData> calc,
@@ -116,7 +115,7 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
 
         @Override
         public void complete(Collection<RowData> result) {
-            if (result == null || result.size() == 0) {
+            if (result == null || result.isEmpty()) {
                 joinConditionResultFuture.complete(result);
             } else {
                 for (RowData row : result) {
@@ -126,7 +125,7 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
                         joinConditionResultFuture.completeExceptionally(e);
                     }
                 }
-                joinConditionResultFuture.complete(calcCollector.collection);
+                joinConditionResultFuture.complete(calcCollector.getCollection());
             }
         }
 
@@ -136,22 +135,5 @@ public class AsyncLookupJoinWithCalcRunner extends AsyncLookupJoinRunner {
             joinConditionResultFuture.close();
             FunctionUtils.closeFunction(calc);
         }
-    }
-
-    private class CalcCollectionCollector implements Collector<RowData> {
-
-        Collection<RowData> collection;
-
-        public void reset() {
-            this.collection = new ArrayList<>();
-        }
-
-        @Override
-        public void collect(RowData record) {
-            this.collection.add(rightRowSerializer.copy(record));
-        }
-
-        @Override
-        public void close() {}
     }
 }

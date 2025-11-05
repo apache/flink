@@ -35,7 +35,7 @@ public class RateLimitedSourceReader<E, SplitT extends SourceSplit>
         implements SourceReader<E, SplitT> {
 
     private final SourceReader<E, SplitT> sourceReader;
-    private final RateLimiter rateLimiter;
+    private final RateLimiter<SplitT> rateLimiter;
     private CompletableFuture<Void> availabilityFuture = null;
 
     /**
@@ -44,7 +44,8 @@ public class RateLimitedSourceReader<E, SplitT extends SourceSplit>
      * @param sourceReader The actual source reader.
      * @param rateLimiter The rate limiter.
      */
-    public RateLimitedSourceReader(SourceReader<E, SplitT> sourceReader, RateLimiter rateLimiter) {
+    public RateLimitedSourceReader(
+            SourceReader<E, SplitT> sourceReader, RateLimiter<SplitT> rateLimiter) {
         checkNotNull(sourceReader);
         checkNotNull(rateLimiter);
         this.sourceReader = sourceReader;

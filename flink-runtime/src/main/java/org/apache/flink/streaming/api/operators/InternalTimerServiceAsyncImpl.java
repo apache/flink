@@ -46,7 +46,7 @@ import org.apache.flink.util.function.ThrowingRunnable;
 @Internal
 public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImpl<K, N> {
 
-    private AsyncExecutionController<K> asyncExecutionController;
+    private AsyncExecutionController<K, ?> asyncExecutionController;
 
     InternalTimerServiceAsyncImpl(
             TaskIOMetricGroup taskIOMetricGroup,
@@ -66,7 +66,7 @@ public class InternalTimerServiceAsyncImpl<K, N> extends InternalTimerServiceImp
                 cancellationContext);
     }
 
-    public void setup(AsyncExecutionController<K> asyncExecutionController) {
+    public void setup(AsyncExecutionController<K, ?> asyncExecutionController) {
         if (asyncExecutionController != null) {
             this.asyncExecutionController = asyncExecutionController;
         }

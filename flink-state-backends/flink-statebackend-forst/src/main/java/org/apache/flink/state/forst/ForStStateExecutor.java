@@ -18,9 +18,9 @@
 
 package org.apache.flink.state.forst;
 
+import org.apache.flink.runtime.asyncprocessing.AsyncRequestContainer;
 import org.apache.flink.runtime.asyncprocessing.StateExecutor;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
-import org.apache.flink.runtime.asyncprocessing.StateRequestContainer;
 import org.apache.flink.state.forst.fs.cache.FileBasedCache;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -147,11 +147,11 @@ public class ForStStateExecutor implements StateExecutor {
 
     @Override
     public CompletableFuture<Void> executeBatchRequests(
-            StateRequestContainer stateRequestContainer) {
+            AsyncRequestContainer asyncRequestContainer) {
         checkState();
-        Preconditions.checkArgument(stateRequestContainer instanceof ForStStateRequestClassifier);
+        Preconditions.checkArgument(asyncRequestContainer instanceof ForStStateRequestClassifier);
         ForStStateRequestClassifier stateRequestClassifier =
-                (ForStStateRequestClassifier) stateRequestContainer;
+                (ForStStateRequestClassifier) asyncRequestContainer;
         // Calculate ongoing sub-processes. Only count read ones.
         // The fully loaded only consider read requests for now, since the write ones are quick.
         final List<ForStDBGetRequest<?, ?, ?, ?>> getRequests =
@@ -233,7 +233,7 @@ public class ForStStateExecutor implements StateExecutor {
     }
 
     @Override
-    public StateRequestContainer createStateRequestContainer() {
+    public AsyncRequestContainer<StateRequest<?, ?, ?, ?>> createRequestContainer() {
         checkState();
         return new ForStStateRequestClassifier();
     }

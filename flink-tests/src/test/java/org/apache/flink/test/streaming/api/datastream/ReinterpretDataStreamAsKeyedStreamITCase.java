@@ -325,9 +325,8 @@ public class ReinterpretDataStreamAsKeyedStreamITCase {
         }
 
         @Override
-        public void close() throws Exception {
+        public void finish() {
             Assert.assertEquals(expectedSum, runningSum);
-            super.close();
         }
 
         @Override

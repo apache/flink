@@ -24,9 +24,14 @@ import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.state.api.runtime.SavepointLoader;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.types.Row;
+
+import static org.apache.flink.table.functions.FunctionKind.TABLE;
 
 @Internal
 @FunctionHint(
@@ -41,6 +46,40 @@ import org.apache.flink.types.Row;
                                 + "operator-coordinator-state-size-in-bytes BIGINT NOT NULL, "
                                 + "operator-total-size-in-bytes BIGINT NOT NULL>"))
 public class SavepointMetadataTableFunction extends TableFunction<Row> {
+
+    public static final BuiltInFunctionDefinition SAVEPOINT_METADATA =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("savepoint_metadata")
+                    .kind(TABLE)
+                    .runtimeClass(SavepointMetadataTableFunction.class.getName())
+                    .outputTypeStrategy(
+                            TypeStrategies.explicit(
+                                    DataTypes.ROW(
+                                            DataTypes.FIELD(
+                                                    "checkpoint-id", DataTypes.BIGINT().notNull()),
+                                            DataTypes.FIELD("operator-name", DataTypes.STRING()),
+                                            DataTypes.FIELD("operator-uid", DataTypes.STRING()),
+                                            DataTypes.FIELD(
+                                                    "operator-uid-hash",
+                                                    DataTypes.STRING().notNull()),
+                                            DataTypes.FIELD(
+                                                    "operator-parallelism",
+                                                    DataTypes.INT().notNull()),
+                                            DataTypes.FIELD(
+                                                    "operator-max-parallelism",
+                                                    DataTypes.INT().notNull()),
+                                            DataTypes.FIELD(
+                                                    "operator-subtask-state-count",
+                                                    DataTypes.INT().notNull()),
+                                            DataTypes.FIELD(
+                                                    "operator-coordinator-state-size-in-bytes",
+                                                    DataTypes.BIGINT().notNull()),
+                                            DataTypes.FIELD(
+                                                    "operator-total-size-in-bytes",
+                                                    DataTypes.BIGINT().notNull()))))
+                    .notDeterministic()
+                    .build();
+
     public SavepointMetadataTableFunction(SpecializedFunction.SpecializedContext context) {}
 
     public void eval(String savepointPath) {

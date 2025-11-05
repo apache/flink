@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.SemanticTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
@@ -26,28 +28,47 @@ import java.util.List;
 /** Semantic tests for {@link StreamExecProcessTableFunction}. */
 public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
 
+    // TODO [FLINK-38233]: Remove this override when PTF support in
+    //  StreamNonDeterministicUpdatePlanVisitor is added.
+    @Override
+    protected void applyDefaultEnvironmentOptions(TableConfig config) {
+        super.applyDefaultEnvironmentOptions(config);
+        config.set(
+                OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                OptimizerConfigOptions.NonDeterministicUpdateStrategy.IGNORE);
+    }
+
     @Override
     public List<TableTestProgram> programs() {
         return List.of(
                 ProcessTableFunctionTestPrograms.PROCESS_SCALAR_ARGS,
                 ProcessTableFunctionTestPrograms.PROCESS_SCALAR_ARGS_TABLE_API,
-                ProcessTableFunctionTestPrograms.PROCESS_TABLE_AS_ROW,
-                ProcessTableFunctionTestPrograms.PROCESS_TABLE_AS_ROW_TABLE_API,
-                ProcessTableFunctionTestPrograms.PROCESS_TABLE_AS_ROW_TABLE_API_INLINE,
-                ProcessTableFunctionTestPrograms.PROCESS_TABLE_AS_ROW_TABLE_API_INLINE_NAMED,
-                ProcessTableFunctionTestPrograms.PROCESS_TYPED_TABLE_AS_ROW,
-                ProcessTableFunctionTestPrograms.PROCESS_TYPED_TABLE_AS_ROW_TABLE_API,
-                ProcessTableFunctionTestPrograms.PROCESS_TABLE_AS_SET,
-                ProcessTableFunctionTestPrograms.PROCESS_TABLE_AS_SET_TABLE_API,
-                ProcessTableFunctionTestPrograms.PROCESS_TABLE_AS_SET_TABLE_API_INLINE,
-                ProcessTableFunctionTestPrograms.PROCESS_TABLE_AS_SET_TABLE_API_INLINE_NAMED,
-                ProcessTableFunctionTestPrograms.PROCESS_TYPED_TABLE_AS_SET,
-                ProcessTableFunctionTestPrograms.PROCESS_TYPED_TABLE_AS_SET_TABLE_API,
+                ProcessTableFunctionTestPrograms.PROCESS_ROW_SEMANTIC_TABLE,
+                ProcessTableFunctionTestPrograms.PROCESS_ROW_SEMANTIC_TABLE_TABLE_API,
+                ProcessTableFunctionTestPrograms.PROCESS_ROW_SEMANTIC_TABLE_TABLE_API_INLINE,
+                ProcessTableFunctionTestPrograms.PROCESS_ROW_SEMANTIC_TABLE_TABLE_API_INLINE_NAMED,
+                ProcessTableFunctionTestPrograms.PROCESS_TYPED_ROW_SEMANTIC_TABLE,
+                ProcessTableFunctionTestPrograms.PROCESS_TYPED_ROW_SEMANTIC_TABLE_TABLE_API,
+                ProcessTableFunctionTestPrograms.PROCESS_SET_SEMANTIC_TABLE,
+                ProcessTableFunctionTestPrograms.PROCESS_SET_SEMANTIC_TABLE_TABLE_API,
+                ProcessTableFunctionTestPrograms.PROCESS_SET_SEMANTIC_TABLE_TABLE_API_INLINE,
+                ProcessTableFunctionTestPrograms.PROCESS_SET_SEMANTIC_TABLE_TABLE_API_INLINE_NAMED,
+                ProcessTableFunctionTestPrograms.PROCESS_TYPED_SET_SEMANTIC_TABLE,
+                ProcessTableFunctionTestPrograms.PROCESS_TYPED_SET_SEMANTIC_TABLE_TABLE_API,
                 ProcessTableFunctionTestPrograms.PROCESS_POJO_ARGS,
                 ProcessTableFunctionTestPrograms.PROCESS_EMPTY_ARGS,
-                ProcessTableFunctionTestPrograms.PROCESS_TABLE_AS_ROW_PASS_THROUGH,
-                ProcessTableFunctionTestPrograms.PROCESS_TABLE_AS_SET_PASS_THROUGH,
-                ProcessTableFunctionTestPrograms.PROCESS_UPDATING_INPUT,
+                ProcessTableFunctionTestPrograms.PROCESS_ROW_SEMANTIC_TABLE_PASS_THROUGH,
+                ProcessTableFunctionTestPrograms.PROCESS_SET_SEMANTIC_TABLE_PASS_THROUGH,
+                ProcessTableFunctionTestPrograms.PROCESS_UPDATING_INPUT_RETRACT,
+                ProcessTableFunctionTestPrograms.PROCESS_UPDATING_INPUT_UPSERT,
+                ProcessTableFunctionTestPrograms.PROCESS_UPDATING_INPUT_ENFORCED_RETRACT,
+                ProcessTableFunctionTestPrograms.PROCESS_UPDATING_INPUT_PARTIAL_DELETES,
+                ProcessTableFunctionTestPrograms.PROCESS_UPDATING_INPUT_ENFORCED_FULL_DELETES,
+                ProcessTableFunctionTestPrograms.PROCESS_UPDATING_OUTPUT_RETRACT,
+                ProcessTableFunctionTestPrograms.PROCESS_UPDATING_OUTPUT_UPSERT,
+                ProcessTableFunctionTestPrograms.PROCESS_UPDATING_OUTPUT_PARTIAL_DELETES,
+                ProcessTableFunctionTestPrograms.PROCESS_UPDATING_OUTPUT_FULL_DELETES,
+                ProcessTableFunctionTestPrograms.PROCESS_INVALID_ROW_KIND,
                 ProcessTableFunctionTestPrograms.PROCESS_OPTIONAL_PARTITION_BY,
                 ProcessTableFunctionTestPrograms.PROCESS_OPTIONAL_PARTITION_BY_TABLE_API,
                 ProcessTableFunctionTestPrograms.PROCESS_ATOMIC_WRAPPING,
@@ -70,10 +91,12 @@ public class ProcessTableFunctionSemanticTests extends SemanticTestBase {
                 ProcessTableFunctionTestPrograms.PROCESS_POJO_STATE_TIME,
                 ProcessTableFunctionTestPrograms.PROCESS_CHAINED_TIME,
                 ProcessTableFunctionTestPrograms.PROCESS_CHAINED_TIME_TABLE_API,
-                ProcessTableFunctionTestPrograms.PROCESS_INVALID_TABLE_AS_ROW_TIMERS,
+                ProcessTableFunctionTestPrograms.PROCESS_INVALID_ROW_SEMANTIC_TABLE_TIMERS,
                 ProcessTableFunctionTestPrograms.PROCESS_INVALID_PASS_THROUGH_TIMERS,
-                ProcessTableFunctionTestPrograms.PROCESS_INVALID_UPDATING_TIMERS,
                 ProcessTableFunctionTestPrograms.PROCESS_LIST_STATE,
-                ProcessTableFunctionTestPrograms.PROCESS_MAP_STATE);
+                ProcessTableFunctionTestPrograms.PROCESS_MAP_STATE,
+                ProcessTableFunctionTestPrograms.PROCESS_MULTI_INPUT,
+                ProcessTableFunctionTestPrograms.PROCESS_STATEFUL_MULTI_INPUT_WITH_TIMEOUT,
+                ProcessTableFunctionTestPrograms.PROCESS_UPDATING_MULTI_INPUT);
     }
 }

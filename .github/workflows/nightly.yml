@@ -110,16 +110,14 @@ jobs:
           # Use manylinux2014 on Linux
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_BEFORE_ALL_LINUX: pip install patchelf
-          CIBW_BEFORE_BUILD_LINUX: pip install -r flink-python/dev/dev-requirements.txt
+          CIBW_BEFORE_BUILD_LINUX: pip install --upgrade pip && pip install --group flink-python/pyproject.toml:dev
           CIBW_ENVIRONMENT_LINUX: CFLAGS="-I. -include ./dev/glibc_version_fix.h"
           # Run auditwheel repair on Linux
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: "auditwheel repair -w {dest_dir} {wheel}"
           # Skip repair on MacOS
           CIBW_REPAIR_WHEEL_COMMAND_MACOS: ""
-      - name: "Tar python artifact"
-        run: tar -czvf python-wheel-${{ matrix.os_name }}.tar.gz -C flink-python/dist .
-      - name: "Upload python artifact"
+      - name: "Upload python wheels"
         uses: actions/upload-artifact@v4
         with:
           name: wheel_${{ matrix.os_name }}_${{ steps.stringify_workflow.outputs.stringified_value }}-${{ github.run_number }}
-          path: python-wheel-${{ matrix.os_name }}.tar.gz
+          path: flink-python/dist/**

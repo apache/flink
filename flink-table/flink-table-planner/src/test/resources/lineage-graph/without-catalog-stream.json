@@ -1,0 +1,56 @@
+{
+  "lineageEdges" : [ {
+    "sourceLineageVertex" : {
+      "datasets" : [ {
+        "name" : "default_catalog.default_database.Src",
+        "namespace" : "values://FromElementsFunction",
+        "objectPath" : {
+          "databaseName" : "default_database",
+          "objectName" : "Src",
+          "fullName" : "default_database.Src"
+        },
+        "facets" : { }
+      } ],
+      "boundedness" : "CONTINUOUS_UNBOUNDED"
+    },
+    "sinkVertex" : {
+      "datasets" : [ {
+        "name" : "default_catalog.default_database.Snk",
+        "namespace" : "values://AppendingSinkFunction",
+        "objectPath" : {
+          "databaseName" : "default_database",
+          "objectName" : "Snk",
+          "fullName" : "default_database.Snk"
+        },
+        "facets" : { }
+      } ],
+      "modifyType" : "INSERT"
+    }
+  } ],
+  "sources" : [ {
+    "datasets" : [ {
+      "name" : "default_catalog.default_database.Src",
+      "namespace" : "values://FromElementsFunction",
+      "objectPath" : {
+        "databaseName" : "default_database",
+        "objectName" : "Src",
+        "fullName" : "default_database.Src"
+      },
+      "facets" : { }
+    } ],
+    "boundedness" : "CONTINUOUS_UNBOUNDED"
+  } ],
+  "sinks" : [ {
+    "datasets" : [ {
+      "name" : "default_catalog.default_database.Snk",
+      "namespace" : "values://AppendingSinkFunction",
+      "objectPath" : {
+        "databaseName" : "default_database",
+        "objectName" : "Snk",
+        "fullName" : "default_database.Snk"
+      },
+      "facets" : { }
+    } ],
+    "modifyType" : "INSERT"
+  } ]
+}

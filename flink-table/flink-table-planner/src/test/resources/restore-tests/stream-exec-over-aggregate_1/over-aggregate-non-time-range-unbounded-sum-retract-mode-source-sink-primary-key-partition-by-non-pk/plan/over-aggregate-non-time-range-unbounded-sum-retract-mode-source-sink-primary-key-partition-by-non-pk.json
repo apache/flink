@@ -1,7 +1,7 @@
 {
   "flinkVersion" : "2.1",
   "nodes" : [ {
-    "id" : 44,
+    "id" : 51,
     "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
@@ -33,7 +33,7 @@
     "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t]], fields=[key, val, ts])",
     "inputProperties" : [ ]
   }, {
-    "id" : 45,
+    "id" : 52,
     "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
@@ -46,7 +46,7 @@
     "outputType" : "ROW<`key` VARCHAR(2147483647), `val` BIGINT NOT NULL, `ts` BIGINT>",
     "description" : "Exchange(distribution=[hash[key]])"
   }, {
-    "id" : 46,
+    "id" : 53,
     "type" : "stream-exec-over-aggregate_1",
     "overSpec" : {
       "partition" : {
@@ -99,10 +99,10 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`key` VARCHAR(2147483647), `val` BIGINT NOT NULL, `ts` BIGINT, `w0$o0` BIGINT NOT NULL, `w0$o1` BIGINT NOT NULL>",
-    "description" : "OverAggregate(partitionBy=[key], orderBy=[val ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[key, val, ts, COUNT(ts) AS w0$o0, $SUM0(ts) AS w0$o1])",
+    "description" : "OverAggregate(partitionBy=[key], orderBy=[val ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[key, val, ts, COUNT(ts) AS w0$o0, $SUM0(ts) AS w0$o1])",
     "unboundedOverVersion" : 2
   }, {
-    "id" : 47,
+    "id" : 54,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
@@ -156,7 +156,7 @@
     "outputType" : "ROW<`key` VARCHAR(2147483647), `val` BIGINT NOT NULL, `ts` BIGINT, `sum_ts` BIGINT>",
     "description" : "Calc(select=[key, val, ts, CASE((w0$o0 > 0), w0$o1, null:BIGINT) AS sum_ts])"
   }, {
-    "id" : 48,
+    "id" : 55,
     "type" : "stream-exec-sink_1",
     "configuration" : {
       "table.exec.sink.keyed-shuffle" : "AUTO",
@@ -212,29 +212,29 @@
     "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[key, val, ts, sum_ts], upsertMaterialize=[true])"
   } ],
   "edges" : [ {
-    "source" : 44,
-    "target" : 45,
+    "source" : 51,
+    "target" : 52,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 45,
-    "target" : 46,
+    "source" : 52,
+    "target" : 53,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 46,
-    "target" : 47,
+    "source" : 53,
+    "target" : 54,
     "shuffle" : {
       "type" : "FORWARD"
     },
     "shuffleMode" : "PIPELINED"
   }, {
-    "source" : 47,
-    "target" : 48,
+    "source" : 54,
+    "target" : 55,
     "shuffle" : {
       "type" : "FORWARD"
     },

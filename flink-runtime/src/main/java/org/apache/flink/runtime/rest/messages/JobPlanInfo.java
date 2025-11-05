@@ -23,6 +23,8 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude.Include;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -89,7 +91,7 @@ public class JobPlanInfo implements ResponseBody {
     /** Simple wrapper around a raw JSON string. */
     @JsonSerialize(using = RawJson.Serializer.class)
     @JsonDeserialize(using = RawJson.Deserializer.class)
-    public static final class RawJson {
+    public static final class RawJson implements Serializable {
         private final String json;
 
         public RawJson(String json) {
@@ -277,11 +279,14 @@ public class JobPlanInfo implements ResponseBody {
             private static final String FIELD_NAME_OPTIMIZER_PROPERTIES = "optimizer_properties";
 
             @JsonProperty(FIELD_NAME_OPTIMIZER_PROPERTIES)
-            private final String optimizerProperties;
+            @JsonSerialize(using = RawJson.Serializer.class)
+            private final RawJson optimizerProperties;
 
             private static final String FIELD_NAME_INPUTS = "inputs";
 
+            @Nullable
             @JsonProperty(FIELD_NAME_INPUTS)
+            @JsonInclude(Include.NON_EMPTY)
             private final Collection<Input> inputs;
 
             @Override
@@ -321,15 +326,17 @@ public class JobPlanInfo implements ResponseBody {
                     @JsonProperty(FIELD_NAME_PARALLELISM) long parallelism,
                     @JsonProperty(FIELD_NAME_OPERATOR_STRATEGY) String operatorStrategy,
                     @JsonProperty(FIELD_NAME_DESCRIPTION) String description,
-                    @JsonProperty(FIELD_NAME_OPTIMIZER_PROPERTIES) String optimizerProperties,
-                    @JsonProperty(FIELD_NAME_INPUTS) Collection<Input> inputs) {
+                    @JsonProperty(FIELD_NAME_OPTIMIZER_PROPERTIES)
+                            @JsonDeserialize(using = RawJson.Deserializer.class)
+                            RawJson optimizerProperties,
+                    @Nullable @JsonProperty(FIELD_NAME_INPUTS) Collection<Input> inputs) {
                 this.id = Preconditions.checkNotNull(id);
                 this.operator = Preconditions.checkNotNull(operator);
                 this.parallelism = Preconditions.checkNotNull(parallelism);
                 this.operatorStrategy = Preconditions.checkNotNull(operatorStrategy);
                 this.description = Preconditions.checkNotNull(description);
                 this.optimizerProperties = Preconditions.checkNotNull(optimizerProperties);
-                this.inputs = Preconditions.checkNotNull(inputs);
+                this.inputs = inputs;
             }
 
             @JsonIgnore
@@ -358,7 +365,7 @@ public class JobPlanInfo implements ResponseBody {
             }
 
             @JsonIgnore
-            public String getOptimizerProperties() {
+            public RawJson getOptimizerProperties() {
                 return optimizerProperties;
             }
 
@@ -392,12 +399,14 @@ public class JobPlanInfo implements ResponseBody {
                 private static final String FIELD_NAME_LOCAL_STRATEGY = "local_strategy";
 
                 @Nullable
+                @JsonInclude(Include.NON_NULL)
                 @JsonProperty(FIELD_NAME_LOCAL_STRATEGY)
                 private final String localStrategy;
 
                 private static final String FIELD_NAME_CACHING = "caching";
 
                 @Nullable
+                @JsonInclude(Include.NON_NULL)
                 @JsonProperty(FIELD_NAME_CACHING)
                 private final String caching;
 

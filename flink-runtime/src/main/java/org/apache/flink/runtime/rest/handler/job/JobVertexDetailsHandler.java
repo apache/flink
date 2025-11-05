@@ -28,6 +28,7 @@ import org.apache.flink.runtime.rest.NotFoundException;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricFetcher;
+import org.apache.flink.runtime.rest.handler.legacy.metrics.MetricStore;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobIDPathParameter;
 import org.apache.flink.runtime.rest.messages.JobVertexDetailsInfo;
@@ -89,7 +90,9 @@ public class JobVertexDetailsHandler
             throw new NotFoundException(String.format("JobVertex %s not found", jobVertexID));
         }
 
-        return createJobVertexDetailsInfo(jobVertex, jobID, metricFetcher);
+        metricFetcher.update();
+        return createJobVertexDetailsInfo(
+                jobVertex, jobID, metricFetcher.getMetricStore().getJobs());
     }
 
     @Override
@@ -114,7 +117,7 @@ public class JobVertexDetailsHandler
     private static JobVertexDetailsInfo createJobVertexDetailsInfo(
             AccessExecutionJobVertex jobVertex,
             JobID jobID,
-            @Nullable MetricFetcher metricFetcher) {
+            @Nullable MetricStore.JobMetricStoreSnapshot jobMetrics) {
         List<SubtaskExecutionAttemptDetailsInfo> subtasks = new ArrayList<>();
         final long now = System.currentTimeMillis();
         for (AccessExecutionVertex vertex : jobVertex.getTaskVertices()) {
@@ -130,14 +133,14 @@ public class JobVertexDetailsHandler
                     if (attempt.getAttemptNumber() != execution.getAttemptNumber()) {
                         otherConcurrentAttempts.add(
                                 SubtaskExecutionAttemptDetailsInfo.create(
-                                        attempt, metricFetcher, jobID, jobVertexID, null));
+                                        attempt, jobMetrics, jobID, jobVertexID, null));
                     }
                 }
             }
 
             subtasks.add(
                     SubtaskExecutionAttemptDetailsInfo.create(
-                            execution, metricFetcher, jobID, jobVertexID, otherConcurrentAttempts));
+                            execution, jobMetrics, jobID, jobVertexID, otherConcurrentAttempts));
         }
 
         return new JobVertexDetailsInfo(

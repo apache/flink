@@ -74,6 +74,7 @@ public final class SinkRuntimeProviderContext implements DynamicTableSink.Contex
     }
 
     @Override
+    @Deprecated(since = "2.2")
     public Optional<int[][]> getTargetColumns() {
         return Optional.ofNullable(targetColumns);
     }

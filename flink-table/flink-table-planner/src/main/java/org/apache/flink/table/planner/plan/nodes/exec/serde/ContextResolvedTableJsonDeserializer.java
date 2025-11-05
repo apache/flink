@@ -23,7 +23,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanCompilation;
 import org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanRestore;
 import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -36,12 +35,14 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS;
 import static org.apache.flink.table.api.config.TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.areColumnsEqual;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.isLookupForced;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.isPlanEnforced;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ContextResolvedTableJsonSerializer.FIELD_NAME_CATALOG_TABLE;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ContextResolvedTableJsonSerializer.FIELD_NAME_IDENTIFIER;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedCatalogTableJsonSerializer.OPTIONS;
@@ -152,33 +153,9 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
         //  * Columns size and order
         //  * For each column: name, kind (class) and type
         //  * Check partition keys set equality
-        final List<Column> columnsFromPlan = schemaFromPlan.getColumns();
-        final List<Column> columnsFromCatalog = schemaFromCatalog.getColumns();
-
-        if (columnsFromPlan.size() != columnsFromCatalog.size()) {
-            return false;
-        }
-
-        for (int i = 0; i < columnsFromPlan.size(); i++) {
-            final Column columnFromPlan = columnsFromPlan.get(i);
-            final Column columnFromCatalog = columnsFromCatalog.get(i);
-            if (!Objects.equals(columnFromPlan.getName(), columnFromCatalog.getName())
-                    || !Objects.equals(columnFromPlan.getClass(), columnFromCatalog.getClass())
-                    || !Objects.equals(
-                            columnFromPlan.getDataType(), columnFromCatalog.getDataType())) {
-                return false;
-            }
-        }
-
-        return Objects.equals(schemaFromPlan.getPrimaryKey(), schemaFromCatalog.getPrimaryKey());
-    }
-
-    private boolean isLookupForced(CatalogPlanRestore planRestoreOption) {
-        return planRestoreOption == CatalogPlanRestore.IDENTIFIER;
-    }
-
-    private boolean isPlanEnforced(CatalogPlanRestore planRestoreOption) {
-        return planRestoreOption == CatalogPlanRestore.ALL_ENFORCED;
+        return areColumnsEqual(schemaFromPlan, schemaFromCatalog)
+                && Objects.equals(
+                        schemaFromPlan.getPrimaryKey(), schemaFromCatalog.getPrimaryKey());
     }
 
     static TableException lookupDisabled(ObjectIdentifier objectIdentifier) {

@@ -115,7 +115,6 @@ public class RocksDBIncrementalCheckpointUtils {
         public int compareTo(@Nullable Score other) {
             return Comparator.nullsFirst(
                             Comparator.comparing(Score::getIntersectGroupRange)
-                                    .thenComparing(Score::getIntersectGroupRange)
                                     .thenComparing(Score::getOverlapFraction))
                     .compare(this, other);
         }

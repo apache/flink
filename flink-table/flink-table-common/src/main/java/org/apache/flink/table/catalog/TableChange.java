@@ -505,9 +505,15 @@ public interface TableChange {
      * <pre>
      *    ALTER TABLE &lt;table_name&gt; ADD DISTRIBUTION ...;
      * </pre>
+     *
+     * <p>or in case of materialized tables:
+     *
+     * <pre>
+     *   ALTER MATERIALIZED TABLE &lt;table_name&gt; ADD DISTRIBUTION ...;
+     * </pre>
      */
     @PublicEvolving
-    class AddDistribution implements CatalogTableChange {
+    class AddDistribution implements CatalogTableChange, MaterializedTableChange {
 
         private final TableDistribution distribution;
 
@@ -906,9 +912,15 @@ public interface TableChange {
      * <pre>
      *    ALTER TABLE &lt;table_name&gt; MODIFY DISTRIBUTION ...;
      * </pre>
+     *
+     * <p>or in case of materialized table:
+     *
+     * <pre>
+     *    ALTER MATERIALIZED TABLE &lt;table_name&gt; MODIFY DISTRIBUTION ...;
+     * </pre>
      */
     @PublicEvolving
-    class ModifyDistribution implements CatalogTableChange {
+    class ModifyDistribution implements CatalogTableChange, MaterializedTableChange {
 
         private final TableDistribution distribution;
 
@@ -1111,16 +1123,22 @@ public interface TableChange {
     }
 
     /**
-     * A table change to drop a table's distribution.
+     * A table change to drop distribution for table or materialized table.
      *
      * <p>It is equal to the following statement:
      *
      * <pre>
      *    ALTER TABLE &lt;table_name&gt; DROP DISTRIBUTION
      * </pre>
+     *
+     * <p>or in case of materialized table:
+     *
+     * <pre>
+     *    ALTER MATERIALIZED TABLE &lt;table_name&gt; DROP DISTRIBUTION
+     * </pre>
      */
     @PublicEvolving
-    class DropDistribution implements CatalogTableChange {
+    class DropDistribution implements CatalogTableChange, MaterializedTableChange {
         static final DropDistribution INSTANCE = new DropDistribution();
 
         @Override

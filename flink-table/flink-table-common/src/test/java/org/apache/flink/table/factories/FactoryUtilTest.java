@@ -22,17 +22,22 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.FlinkAssertions;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.CatalogModel;
 import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
+import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.TestDynamicTableFactory.DynamicTableSinkMock;
 import org.apache.flink.table.factories.TestDynamicTableFactory.DynamicTableSourceMock;
 import org.apache.flink.table.factories.TestFormatFactory.DecodingFormatMock;
 import org.apache.flink.table.factories.TestFormatFactory.EncodingFormatMock;
+import org.apache.flink.table.factories.TestModelProviderFactory.TestModelProviderMock;
 import org.apache.flink.table.factories.utils.FactoryMocks;
+import org.apache.flink.table.ml.ModelProvider;
 import org.apache.flink.testutils.ClassLoaderUtils;
 import org.apache.flink.util.FlinkUserCodeClassLoaders;
 import org.apache.flink.util.MutableURLClassLoader;
@@ -54,7 +59,9 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.table.factories.utils.FactoryMocks.OUTPUT_SCHEMA;
 import static org.apache.flink.table.factories.utils.FactoryMocks.SCHEMA;
+import static org.apache.flink.table.factories.utils.FactoryMocks.createModelProvider;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -737,6 +744,123 @@ class FactoryUtilTest {
                                         + "configuration 'classloader.check-leaked-classloader'"));
     }
 
+    @Test
+    public void testMissingModelProvider() {
+        assertCreateModelProviderWithOptionModifier(
+                options -> options.remove("provider"),
+                "Model options do not contain an option key 'provider' for discovering a provider.");
+    }
+
+    @Test
+    void testInvalidModelProvider() {
+        assertCreateModelProviderWithOptionModifier(
+                options -> options.put("provider", "FAIL"),
+                "Could not find any factory for identifier 'FAIL' that implements '"
+                        + ModelProviderFactory.class.getName()
+                        + "' in the classpath.\n\n"
+                        + "Available factory identifiers are:\n\n"
+                        + "conflicting-model\n"
+                        + "non-predict-model\n"
+                        + "test-model");
+    }
+
+    @Test
+    void testMissingModelProviderOption() {
+        assertCreateModelProviderWithOptionModifier(
+                options -> options.remove("endpoint"),
+                "One or more required options are missing.\n\n"
+                        + "Missing required options are:\n\n"
+                        + "endpoint");
+    }
+
+    @Test
+    void testInvalidModelProviderOption() {
+        assertCreateModelProviderWithOptionModifier(
+                options -> options.put("version", "FAIL"), "Invalid value for option 'version'.");
+    }
+
+    @Test
+    void testUnconsumedModelOption() {
+        assertCreateModelProviderWithOptionModifier(
+                options -> {
+                    options.put("this-is-not-consumed", "42");
+                    options.put("this-is-also-not-consumed", "true");
+                },
+                "Unsupported options found for 'test-model'.\n\n"
+                        + "Unsupported options:\n\n"
+                        + "this-is-also-not-consumed\n"
+                        + "this-is-not-consumed\n\n"
+                        + "Supported options:\n\n"
+                        + "endpoint\n"
+                        + "property-version\n"
+                        + "provider\n"
+                        + "task\n"
+                        + "version");
+    }
+
+    @Test
+    void testAllModelOptions() {
+        final Map<String, String> options = createAllModelOptions();
+        final ModelProvider actualProvider = createModelProvider(SCHEMA, OUTPUT_SCHEMA, options);
+        final ModelProvider expectedProvider =
+                new TestModelProviderMock(
+                        ResolvedCatalogModel.of(
+                                CatalogModel.of(
+                                        Schema.newBuilder().fromResolvedSchema(SCHEMA).build(),
+                                        Schema.newBuilder()
+                                                .fromResolvedSchema(OUTPUT_SCHEMA)
+                                                .build(),
+                                        options,
+                                        "mock model"),
+                                SCHEMA,
+                                OUTPUT_SCHEMA));
+        assertThat(actualProvider).isEqualTo(expectedProvider);
+    }
+
+    @Test
+    void testModelProviderFactoryHelper() {
+        final Map<String, String> options = new HashMap<>();
+        options.put("endpoint", "https://openai.com");
+        options.put("task", "text_generation");
+
+        final FactoryUtil.ModelProviderFactoryHelper helper =
+                FactoryUtil.createModelProviderFactoryHelper(
+                        new TestModelProviderFactory(),
+                        FactoryMocks.createModelContext(SCHEMA, OUTPUT_SCHEMA, options));
+
+        // No error
+        helper.validate();
+
+        final Map<String, String> invalidOptions = new HashMap<>(options);
+        invalidOptions.put("invalid-option", "value");
+
+        final FactoryUtil.ModelProviderFactoryHelper invalidHelper =
+                FactoryUtil.createModelProviderFactoryHelper(
+                        new TestModelProviderFactory(),
+                        FactoryMocks.createModelContext(SCHEMA, OUTPUT_SCHEMA, invalidOptions));
+
+        assertThatThrownBy(invalidHelper::validate)
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Unsupported options found for 'test-model'"));
+    }
+
+    @Test
+    void testConflictingModelProvider() {
+        assertCreateModelProviderWithOptionModifier(
+                options -> options.put("provider", TestConflictingModelProviderFactory1.IDENTIFIER),
+                "Multiple factories for identifier 'conflicting-model' that implement '"
+                        + ModelProviderFactory.class.getName()
+                        + "' found in the classpath.\n"
+                        + "\n"
+                        + "Ambiguous factory classes are:\n"
+                        + "\n"
+                        + TestConflictingModelProviderFactory1.class.getName()
+                        + "\n"
+                        + TestConflictingModelProviderFactory2.class.getName());
+    }
+
     // --------------------------------------------------------------------------------------------
     // Helper methods
     // --------------------------------------------------------------------------------------------
@@ -754,6 +878,30 @@ class FactoryUtilTest {
         for (String message : messages) {
             assertion.satisfies(anyCauseMatches(ValidationException.class, message));
         }
+    }
+
+    private static void assertCreateModelProviderWithOptionModifier(
+            Consumer<Map<String, String>> optionModifier, String... messages) {
+        AbstractThrowableAssert<?, ? extends Throwable> assertion =
+                assertThatThrownBy(
+                        () -> {
+                            final Map<String, String> options = createAllModelOptions();
+                            optionModifier.accept(options);
+                            createModelProvider(SCHEMA, OUTPUT_SCHEMA, options);
+                        });
+
+        for (String message : messages) {
+            assertion.satisfies(anyCauseMatches(ValidationException.class, message));
+        }
+    }
+
+    private static Map<String, String> createAllModelOptions() {
+        final Map<String, String> options = new HashMap<>();
+        options.put("provider", TestModelProviderFactory.IDENTIFIER);
+        options.put("endpoint", "https://openai.com");
+        options.put("task", "text_generation");
+        options.put("version", "1");
+        return options;
     }
 
     private static Map<String, String> createAllOptions() {

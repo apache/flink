@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalLegacySink;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMatch;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMinus;
+import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalMultiJoin;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalOverAggregate;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalScriptTransform;
@@ -162,6 +163,8 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
             return visitCorrelate((FlinkLogicalCorrelate) node);
         } else if (node instanceof FlinkLogicalJoin) {
             return visitJoin((FlinkLogicalJoin) node);
+        } else if (node instanceof FlinkLogicalMultiJoin) {
+            return visitMultiJoin((FlinkLogicalMultiJoin) node);
         } else if (node instanceof FlinkLogicalSink) {
             return visitSink((FlinkLogicalSink) node);
         } else if (node instanceof FlinkLogicalLegacySink) {
@@ -451,6 +454,7 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                                         call.isDistinct(),
                                         false,
                                         false,
+                                        call.rexList,
                                         call.getArgList(),
                                         call.filterArg,
                                         null,
@@ -515,6 +519,47 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                 convertedWindowAgg.getAggCallList(),
                 tableAgg.getWindow(),
                 tableAgg.getNamedProperties());
+    }
+
+    private RelNode visitMultiJoin(FlinkLogicalMultiJoin multiJoin) {
+        // visit and materialize children
+        final List<RelNode> newInputs =
+                multiJoin.getInputs().stream()
+                        .map(input -> input.accept(this))
+                        .map(this::materializeTimeIndicators)
+                        .collect(Collectors.toList());
+
+        final List<RelDataType> allFields =
+                newInputs.stream()
+                        .flatMap(input -> RelOptUtil.getFieldTypeList(input.getRowType()).stream())
+                        .collect(Collectors.toList());
+
+        RexTimeIndicatorMaterializer materializer = new RexTimeIndicatorMaterializer(allFields);
+
+        final RexNode newJoinFilter = multiJoin.getJoinFilter().accept(materializer);
+
+        final List<RexNode> newJoinConditions =
+                multiJoin.getJoinConditions().stream()
+                        .map(cond -> cond == null ? null : cond.accept(materializer))
+                        .collect(Collectors.toList());
+
+        final RexNode newPostJoinFilter =
+                multiJoin.getPostJoinFilter() == null
+                        ? null
+                        : multiJoin.getPostJoinFilter().accept(materializer);
+
+        // materialize all output types and remove special time indicator types
+        RelDataType newOutputType = getRowTypeWithoutTimeIndicator(multiJoin.getRowType());
+
+        return FlinkLogicalMultiJoin.create(
+                multiJoin.getCluster(),
+                newInputs,
+                newJoinFilter,
+                newOutputType,
+                newJoinConditions,
+                multiJoin.getJoinTypes(),
+                newPostJoinFilter,
+                multiJoin.getHints());
     }
 
     private RelNode visitInvalidRel(RelNode node) {
@@ -634,6 +679,10 @@ public final class RelTimeIndicatorConverter extends RelHomogeneousShuttle {
                             "Union fields with time attributes requires same types, but the types are %s and %s.",
                             l, r));
         }
+    }
+
+    private RelDataType getRowTypeWithoutTimeIndicator(RelDataType relType) {
+        return getRowTypeWithoutTimeIndicator(relType, s -> true);
     }
 
     private RelDataType getRowTypeWithoutTimeIndicator(

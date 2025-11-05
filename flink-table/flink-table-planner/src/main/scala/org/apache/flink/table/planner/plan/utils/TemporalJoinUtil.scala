@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.util.Preconditions.checkState
 
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.{JoinInfo, JoinRelType}
 import org.apache.calcite.rex._
@@ -414,7 +413,12 @@ object TemporalJoinUtil {
   def getTemporalTableJoinKeyPairs(
       joinInfo: JoinInfo,
       calcOnTemporalTable: Option[RexProgram]): Array[IntPair] = {
-    val joinPairs = joinInfo.pairs().asScala.toArray
+    getTemporalTableJoinKeyPairs(joinInfo.pairs().asScala.toArray, calcOnTemporalTable)
+  }
+
+  def getTemporalTableJoinKeyPairs(
+      joinPairs: Array[IntPair],
+      calcOnTemporalTable: Option[RexProgram]): Array[IntPair] = {
     calcOnTemporalTable match {
       case Some(program) =>
         // the target key of joinInfo is the calc output fields, we have to remapping to table here

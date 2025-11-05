@@ -20,28 +20,26 @@ package org.apache.flink.runtime.asyncprocessing;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
-import org.apache.flink.api.common.state.v2.State;
-import org.apache.flink.api.common.state.v2.StateFuture;
-import org.apache.flink.core.state.InternalStateFuture;
-import org.apache.flink.core.state.StateFutureImpl.AsyncFrameworkExceptionHandler;
+import org.apache.flink.core.asyncprocessing.AsyncFuture;
+import org.apache.flink.core.asyncprocessing.AsyncFutureImpl.AsyncFrameworkExceptionHandler;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.ParallelMode;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
-import org.apache.flink.runtime.state.v2.internal.InternalPartitionedState;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 /**
  * The Async Execution Controller (AEC) receives processing requests from operators, and put them
@@ -56,23 +54,23 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @param <K> the type of the key
  */
-public class AsyncExecutionController<K> implements StateRequestHandler, Closeable {
+public class AsyncExecutionController<K, REQUEST extends AsyncRequest<?>> implements Closeable {
 
     private static final Logger LOG = LoggerFactory.getLogger(AsyncExecutionController.class);
 
     private static final long DEFAULT_BUFFER_TIMEOUT_CHECK_INTERVAL = 100;
 
     /**
-     * The batch size. When the number of state requests in the active buffer exceeds the batch
-     * size, a batched state execution would be triggered.
+     * The batch size. When the number of async requests in the active buffer exceeds the batch
+     * size, a batched async execution would be triggered.
      */
     private final int batchSize;
 
     /** The runner for callbacks. Basically a wrapper of mailbox executor. */
-    private final CallbackRunnerWrapper callbackRunner;
+    final CallbackRunnerWrapper callbackRunner;
 
     /**
-     * The timeout of {@link StateRequestBuffer#activeQueue} triggering in milliseconds. If the
+     * The timeout of {@link AsyncRequestBuffer#activeQueue} triggering in milliseconds. If the
      * activeQueue has not reached the {@link #batchSize} within 'buffer-timeout' milliseconds, a
      * trigger will perform actively.
      */
@@ -95,31 +93,31 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      * in-flight records > {@link #maxInFlightRecordNum}, the newly entering records would be
      * blocked.
      */
-    private final MailboxExecutor mailboxExecutor;
+    final MailboxExecutor mailboxExecutor;
 
     /** Exception handler to handle the exception thrown by asynchronous framework. */
-    private final AsyncFrameworkExceptionHandler exceptionHandler;
+    final AsyncFrameworkExceptionHandler exceptionHandler;
 
     /** The key accounting unit which is used to detect the key conflict. */
     final KeyAccountingUnit<K> keyAccountingUnit;
 
     /**
-     * A factory to build {@link org.apache.flink.core.state.InternalStateFuture}, this will auto
-     * wire the created future with mailbox executor. Also conducting the context switch.
+     * A factory to build {@link InternalAsyncFuture}, this will auto wire the created future with
+     * mailbox executor. Also conducting the context switch.
      */
-    private final StateFutureFactory<K> stateFutureFactory;
+    final AsyncFutureFactory<K> asyncFutureFactory;
 
-    /** The state executor where the {@link StateRequest} is actually executed. */
-    private final StateExecutor stateExecutor;
+    /** The async executor where the {@link AsyncRequest} is actually executed. */
+    final AsyncExecutor<REQUEST> asyncExecutor;
 
     /** A manager that allows for declaring processing and variables. */
-    private final DeclarationManager declarationManager;
+    final DeclarationManager declarationManager;
 
     /** The corresponding context that currently runs in task thread. */
     RecordContext<K> currentContext;
 
-    /** The buffer to store the state requests to execute in batch. */
-    StateRequestBuffer<K> stateRequestsBuffer;
+    /** The buffer to store the async requests to execute in batch. */
+    AsyncRequestBuffer<K> asyncRequestsBuffer;
 
     /**
      * The number of in-flight records. Including the records in active buffer and blocking buffer.
@@ -127,7 +125,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
     final AtomicInteger inFlightRecordNum;
 
     /** Max parallelism of the job. */
-    private final int maxParallelism;
+    final int maxParallelism;
 
     /** The reference of epoch manager. */
     final EpochManager epochManager;
@@ -139,7 +137,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      * The parallel mode of epoch execution. Keep this field internal for now, until we could see
      * the concrete need for {@link ParallelMode#PARALLEL_BETWEEN_EPOCH} from average users.
      */
-    final ParallelMode epochParallelMode = ParallelMode.SERIAL_BETWEEN_EPOCH;
+    private final ParallelMode epochParallelMode;
 
     /** A guard for waiting new mail. */
     private final Object notifyLock = new Object();
@@ -153,8 +151,9 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
     public AsyncExecutionController(
             MailboxExecutor mailboxExecutor,
             AsyncFrameworkExceptionHandler exceptionHandler,
-            StateExecutor stateExecutor,
+            AsyncExecutor<REQUEST> asyncExecutor,
             DeclarationManager declarationManager,
+            ParallelMode epochParallelMode,
             int maxParallelism,
             int batchSize,
             long bufferTimeout,
@@ -165,23 +164,24 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         this.mailboxExecutor = mailboxExecutor;
         this.exceptionHandler = exceptionHandler;
         this.callbackRunner = new CallbackRunnerWrapper(mailboxExecutor, this::notifyNewMail);
-        this.stateFutureFactory = new StateFutureFactory<>(this, callbackRunner, exceptionHandler);
+        this.asyncFutureFactory = new AsyncFutureFactory<>(this, callbackRunner, exceptionHandler);
 
-        this.stateExecutor = stateExecutor;
+        this.asyncExecutor = asyncExecutor;
         this.declarationManager = declarationManager;
+        this.epochParallelMode = epochParallelMode;
         this.batchSize = batchSize;
         this.bufferTimeout = bufferTimeout;
         this.maxInFlightRecordNum = maxInFlightRecords;
         this.inFlightRecordNum = new AtomicInteger(0);
         this.maxParallelism = maxParallelism;
-        this.stateRequestsBuffer =
-                new StateRequestBuffer<>(
+        this.asyncRequestsBuffer =
+                new AsyncRequestBuffer<>(
                         bufferTimeout,
                         bufferTimeoutCheckInterval,
                         (scheduledSeq) ->
                                 mailboxExecutor.execute(
                                         () -> {
-                                            if (stateRequestsBuffer.checkCurrentSeq(scheduledSeq)) {
+                                            if (asyncRequestsBuffer.checkCurrentSeq(scheduledSeq)) {
                                                 triggerIfNeeded(true);
                                             }
                                         },
@@ -191,9 +191,9 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         this.switchContextListener = switchContextListener;
         if (metricGroup != null) {
             metricGroup.gauge("numInFlightRecords", this::getInFlightRecordNum);
-            metricGroup.gauge("activeBufferSize", () -> stateRequestsBuffer.activeQueueSize());
-            metricGroup.gauge("blockingBufferSize", () -> stateRequestsBuffer.blockingQueueSize());
-            metricGroup.gauge("numBlockingKeys", () -> stateRequestsBuffer.blockingKeyNum());
+            metricGroup.gauge("activeBufferSize", asyncRequestsBuffer::activeQueueSize);
+            metricGroup.gauge("blockingBufferSize", asyncRequestsBuffer::blockingQueueSize);
+            metricGroup.gauge("numBlockingKeys", asyncRequestsBuffer::blockingKeyNum);
         }
         LOG.info(
                 "Create AsyncExecutionController: batchSize {}, bufferTimeout {}, maxInFlightRecordNum {}, epochParallelMode {}",
@@ -277,8 +277,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         epochManager.completeOneRecord(toDispose.getEpoch());
         keyAccountingUnit.release(toDispose.getRecord(), toDispose.getKey());
         inFlightRecordNum.decrementAndGet();
-        StateRequest<K, ?, ?, ?> nextRequest =
-                stateRequestsBuffer.unblockOneByKey(toDispose.getKey());
+        AsyncRequest<K> nextRequest = asyncRequestsBuffer.unblockOneByKey(toDispose.getKey());
         if (nextRequest != null) {
             Preconditions.checkState(tryOccupyKey(nextRequest.getRecordContext()));
             insertActiveBuffer(nextRequest);
@@ -301,51 +300,11 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         return occupied;
     }
 
-    /**
-     * Submit a {@link StateRequest} to this AsyncExecutionController and trigger it if needed.
-     *
-     * @param state the state to request. Could be {@code null} if the type is {@link
-     *     StateRequestType#SYNC_POINT}.
-     * @param type the type of this request.
-     * @param payload the payload input for this request.
-     * @return the state future.
-     */
-    @Override
-    public <IN, OUT> InternalStateFuture<OUT> handleRequest(
-            @Nullable State state, StateRequestType type, @Nullable IN payload) {
-        return handleRequest(state, type, false, payload, false);
-    }
+    /** Submit a {@link AsyncRequest} to this AsyncExecutionController and trigger it if needed. */
+    public void handleRequest(AsyncRequest<K> request, boolean allowOverdraft) {
 
-    /**
-     * Submit a {@link StateRequest} to this AsyncExecutionController and trigger it if needed.
-     *
-     * @param state the state to request. Could be {@code null} if the type is {@link
-     *     StateRequestType#SYNC_POINT}.
-     * @param type the type of this request.
-     * @param sync whether to trigger the request synchronously once it's ready.
-     * @param payload the payload input for this request.
-     * @param allowOverdraft whether to allow overdraft.
-     * @return the state future.
-     */
-    public <IN, OUT> InternalStateFuture<OUT> handleRequest(
-            @Nullable State state,
-            StateRequestType type,
-            boolean sync,
-            @Nullable IN payload,
-            boolean allowOverdraft) {
-        // Step 1: build state future & assign context.
-        InternalStateFuture<OUT> stateFuture = stateFutureFactory.create(currentContext);
-        StateRequest<K, ?, IN, OUT> request =
-                new StateRequest<>(
-                        state,
-                        type,
-                        sync || type == StateRequestType.SYNC_POINT,
-                        payload,
-                        stateFuture,
-                        currentContext);
-
-        // Step 2: try to seize the capacity, if the current in-flight records exceeds the limit,
-        // block the current state request from entering until some buffered requests are processed.
+        // Step 1: try to seize the capacity, if the current in-flight records exceeds the limit,
+        // block the current async request from entering until some buffered requests are processed.
         seizeCapacity(allowOverdraft);
 
         // Step 3: try to occupy the key and place it into right buffer.
@@ -356,21 +315,17 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
         }
         // Step 4: trigger the (active) buffer if needed.
         triggerIfNeeded(false);
-        return stateFuture;
     }
 
-    @Override
-    public <IN, OUT> OUT handleRequestSync(
-            State state, StateRequestType type, @Nullable IN payload) {
-        InternalStateFuture<OUT> stateFuture = handleRequest(state, type, true, payload, false);
-        if (!stateFuture.isDone()) {
+    public void waitUntil(Supplier<Boolean> checker) {
+        if (!checker.get()) {
             // Trigger since we are waiting the result.
             triggerIfNeeded(true);
             try {
-                while (!stateFuture.isDone()) {
+                while (!checker.get()) {
                     if (!mailboxExecutor.tryYield()) {
                         // We force trigger the buffer if the executor is not fully loaded.
-                        if (!stateExecutor.fullyLoaded()) {
+                        if (!asyncExecutor.fullyLoaded()) {
                             triggerIfNeeded(true);
                         }
                         waitForNewMails();
@@ -382,29 +337,22 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
                 // or exit.
             }
         }
-        return stateFuture.get();
     }
 
-    @Override
-    public <N> void setCurrentNamespaceForState(
-            @Nonnull InternalPartitionedState<N> state, N namespace) {
-        currentContext.setNamespace(state, namespace);
-    }
-
-    <IN, OUT> void insertActiveBuffer(StateRequest<K, ?, IN, OUT> request) {
+    void insertActiveBuffer(AsyncRequest<K> request) {
         if (request.isSync()) {
-            if (request.getRequestType() == StateRequestType.SYNC_POINT) {
+            if (request instanceof SyncPointRequest) {
                 request.getFuture().complete(null);
             } else {
-                stateExecutor.executeRequestSync(request);
+                asyncExecutor.executeRequestSync((REQUEST) request);
             }
         } else {
-            stateRequestsBuffer.enqueueToActive(request);
+            asyncRequestsBuffer.enqueueToActive(request);
         }
     }
 
-    <IN, OUT> void insertBlockingBuffer(StateRequest<K, ?, IN, OUT> request) {
-        stateRequestsBuffer.enqueueToBlocking(request);
+    void insertBlockingBuffer(AsyncRequest<K> request) {
+        asyncRequestsBuffer.enqueueToBlocking(request);
     }
 
     /**
@@ -413,18 +361,17 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      * @param force whether to trigger requests in force.
      */
     public boolean triggerIfNeeded(boolean force) {
-        if (!force && stateRequestsBuffer.activeQueueSize() < batchSize) {
+        if (!force && asyncRequestsBuffer.activeQueueSize() < batchSize) {
             return false;
         }
 
-        Optional<StateRequestContainer> toRun =
-                stateRequestsBuffer.popActive(
-                        batchSize, () -> stateExecutor.createStateRequestContainer());
-        if (!toRun.isPresent() || toRun.get().isEmpty()) {
+        Optional<AsyncRequestContainer<REQUEST>> toRun =
+                asyncRequestsBuffer.popActive(batchSize, asyncExecutor::createRequestContainer);
+        if (toRun.isEmpty() || toRun.get().isEmpty()) {
             return false;
         }
-        stateExecutor.executeBatchRequests(toRun.get());
-        stateRequestsBuffer.advanceSeq();
+        asyncExecutor.executeBatchRequests(toRun.get());
+        asyncRequestsBuffer.advanceSeq();
         return true;
     }
 
@@ -435,15 +382,15 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
      *     requests even though it reaches the limit.
      */
     private void seizeCapacity(boolean allowOverdraft) {
-        // 1. Check if the record is already in buffer. If yes, this indicates that it is a state
-        // request resulting from a callback statement, otherwise, it signifies the initial state
+        // 1. Check if the record is already in buffer. If yes, this indicates that it is a async
+        // request resulting from a callback statement, otherwise, it signifies the initial async
         // request for a newly entered record.
         if (currentContext.isKeyOccupied()) {
             return;
         }
-        // 2. If the state request is for a newly entered record, the in-flight record number should
+        // 2. If the async request is for a newly entered record, the in-flight record number should
         // be less than the max in-flight record number.
-        // Note: the currentContext may be updated by {@code StateFutureFactory#build}.
+        // Note: the currentContext may be updated by {@code AsyncFutureFactory#build}.
 
         // We allow a derived request by another request (by initializing a process directly via
         // #asyncProcessWithKey, or timer triggering right after a record processing), meaning
@@ -460,16 +407,17 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
     }
 
     /**
-     * A helper to request a {@link StateRequestType#SYNC_POINT} and run a callback if it finishes
-     * (once the record is not blocked).
+     * A helper to request a sync point and run a callback if it finishes (once the record is not
+     * blocked).
      *
      * @param callback the callback to run if it finishes (once the record is not blocked).
      * @param allowOverdraft whether to overdraft the in-flight buffer.
      */
-    public StateFuture<Void> syncPointRequestWithCallback(
+    public AsyncFuture<Void> syncPointRequestWithCallback(
             ThrowingRunnable<Exception> callback, boolean allowOverdraft) {
-        return handleRequest(null, StateRequestType.SYNC_POINT, true, null, allowOverdraft)
-                .thenAccept(v -> callback.run());
+        InternalAsyncFuture<Void> asyncFuture = asyncFutureFactory.create(currentContext);
+        handleRequest(new SyncPointRequest<>(currentContext, asyncFuture), allowOverdraft);
+        return asyncFuture.thenAccept(v -> callback.run());
     }
 
     /**
@@ -505,20 +453,20 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
             while (shouldWait && inFlightRecordNum.get() > targetNum) {
                 if (!mailboxExecutor.tryYield()) {
                     boolean triggered = false;
-                    // We force trigger the buffer if targetNum == 0 (for draining) or the state
+                    // We force trigger the buffer if targetNum == 0 (for draining) or the async
                     // executor is not fully loaded.
-                    if (targetNum == 0 || !stateExecutor.fullyLoaded()) {
+                    if (targetNum == 0 || !asyncExecutor.fullyLoaded()) {
                         triggered = triggerIfNeeded(true);
                     }
                     if (!forceToWait
                             && !triggered
-                            && !stateExecutor.fullyLoaded()
+                            && !asyncExecutor.fullyLoaded()
                             && !callbackRunner.isHasMail()) {
-                        // Decision of waiting is based on whether we are making progress of state
+                        // Decision of waiting is based on whether we are making progress of async
                         // accessing (or if there is a deadlock). Based on the following factors:
-                        // 1. We failed triggered some state requests. AND
-                        // 2. The state executor is not fully loaded, meaning that state is not
-                        // being accessed. AND
+                        // 1. We failed triggered some async requests. AND
+                        // 2. The async executor is not fully loaded, meaning that request is not
+                        // being executed. AND
                         // 3. There is no new mail, meaning that the mailbox has no callbacks ready.
                         //
                         // We cannot make progress anywhere, then there probably is a deadlock. We'd
@@ -600,8 +548,8 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
     }
 
     @VisibleForTesting
-    public StateExecutor getStateExecutor() {
-        return stateExecutor;
+    public AsyncExecutor<REQUEST> getAsyncExecutor() {
+        return asyncExecutor;
     }
 
     @VisibleForTesting
@@ -616,7 +564,7 @@ public class AsyncExecutionController<K> implements StateRequestHandler, Closeab
 
     @Override
     public void close() throws IOException {
-        stateRequestsBuffer.close();
+        asyncRequestsBuffer.close();
     }
 
     /** A listener listens the key context switch. */

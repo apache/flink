@@ -37,6 +37,7 @@ import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
@@ -293,6 +294,8 @@ class MultipleInputStreamTaskTest {
         try (StreamTaskMailboxTestHarness<String> testHarness =
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofHours(1))
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 2)
                         .addInput(BasicTypeInfo.INT_TYPE_INFO, 2)
                         .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO, 2)
@@ -395,7 +398,7 @@ class MultipleInputStreamTaskTest {
 
     /**
      * With chained sources, task's and main operator's number of input records are two different
-     * things. The first one should take into account only records comming in from the network,
+     * things. The first one should take into account only records coming in from the network,
      * ignoring records produced inside the task itself (like via a chained source). Main operator
      * should on the other hand report all records from all of the inputs (regardless if it's a
      * network or chained input).
@@ -409,9 +412,11 @@ class MultipleInputStreamTaskTest {
                 new UnregisteredMetricGroups.UnregisteredTaskMetricGroup() {
                     @Override
                     public InternalOperatorMetricGroup getOrAddOperator(
-                            OperatorID operatorID, String name) {
+                            OperatorID operatorID,
+                            String name,
+                            Map<String, String> additionalVariables) {
                         InternalOperatorMetricGroup operatorMetricGroup =
-                                super.getOrAddOperator(operatorID, name);
+                                super.getOrAddOperator(operatorID, name, additionalVariables);
                         operatorMetrics.put(name, operatorMetricGroup);
                         return operatorMetricGroup;
                     }
@@ -744,13 +749,13 @@ class MultipleInputStreamTaskTest {
                 new InterceptingTaskMetricGroup() {
                     @Override
                     public InternalOperatorMetricGroup getOrAddOperator(
-                            OperatorID id, String name) {
+                            OperatorID id, String name, Map<String, String> additionalVariables) {
                         if (id.equals(mainOperatorId)) {
                             return mainOperatorMetricGroup;
                         } else if (id.equals(chainedOperatorId)) {
                             return chainedOperatorMetricGroup;
                         } else {
-                            return super.getOrAddOperator(id, name);
+                            return super.getOrAddOperator(id, name, additionalVariables);
                         }
                     }
                 };
@@ -1007,13 +1012,13 @@ class MultipleInputStreamTaskTest {
                             .addInput(BasicTypeInfo.DOUBLE_TYPE_INFO)
                             .addAdditionalOutput(partitionWriters)
                             .setCheckpointResponder(checkpointResponder)
-                            .modifyStreamConfig(
-                                    config -> {
-                                        config.setCheckpointingEnabled(true);
-                                        config.setUnalignedCheckpointsEnabled(
-                                                checkpointOptions.isUnalignedCheckpoint()
-                                                        || checkpointOptions.isTimeoutable());
-                                    })
+                            .addJobConfig(
+                                    CheckpointingOptions.CHECKPOINTING_INTERVAL,
+                                    Duration.ofSeconds(1))
+                            .addJobConfig(
+                                    CheckpointingOptions.ENABLE_UNALIGNED,
+                                    checkpointOptions.isUnalignedCheckpoint()
+                                            || checkpointOptions.isTimeoutable())
                             .setupOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
                             .build()) {
@@ -1084,7 +1089,8 @@ class MultipleInputStreamTaskTest {
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .setCollectNetworkEvents()
-                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .modifyExecutionConfig(applyObjectReuse(objectReuse))
                         .addInput(BasicTypeInfo.INT_TYPE_INFO)
                         .addInput(BasicTypeInfo.INT_TYPE_INFO)
@@ -1137,7 +1143,8 @@ class MultipleInputStreamTaskTest {
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .setCollectNetworkEvents()
-                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
+                        .addJobConfig(
+                                CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
                         .modifyExecutionConfig(applyObjectReuse(objectReuse))
                         .addInput(BasicTypeInfo.INT_TYPE_INFO)
                         .addInput(BasicTypeInfo.INT_TYPE_INFO)
@@ -1293,8 +1300,9 @@ class MultipleInputStreamTaskTest {
         return new StreamTaskMailboxTestHarnessBuilder<>(
                         MultipleInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                 .modifyExecutionConfig(applyObjectReuse(objectReuse))
-                .modifyStreamConfig(config -> config.setUnalignedCheckpointsEnabled(unaligned))
-                .modifyStreamConfig(config -> config.setAlignedCheckpointTimeout(Duration.ZERO))
+                .addJobConfig(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofSeconds(1))
+                .addJobConfig(CheckpointingOptions.ENABLE_UNALIGNED, unaligned)
+                .addJobConfig(CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT, Duration.ZERO)
                 .addInput(BasicTypeInfo.STRING_TYPE_INFO)
                 .addSourceInput(
                         new SourceOperatorFactory<>(

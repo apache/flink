@@ -31,6 +31,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.util.RowDataUtil;
 import org.apache.flink.table.runtime.collector.ListenableCollector;
+import org.apache.flink.table.runtime.generated.FilterCondition;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
@@ -96,10 +97,10 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
         } else {
             ValueStateDescriptor<List<RowData>> valueStateDescriptor =
                     new ValueStateDescriptor<>("values", new ListSerializer<>(serializer));
-            state = getRuntimeContext().getState(valueStateDescriptor);
             if (ttlConfig.isEnabled()) {
                 valueStateDescriptor.enableTimeToLive(ttlConfig);
             }
+            state = getRuntimeContext().getState(valueStateDescriptor);
         }
         emptyRow = initEmptyRow(lookupJoinRunner.tableFieldsCount);
         collectListener = new FetchedRecordListener();
@@ -129,7 +130,7 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
 
         // do lookup for acc msg
         if (RowDataUtil.isAccumulateMsg(in)) {
-            if (lookupJoinRunner.preFilter(in)) {
+            if (lookupJoinRunner.preFilter(FilterCondition.Context.of(ctx), in)) {
                 // clear local state first
                 deleteState();
 
@@ -144,7 +145,7 @@ public class KeyedLookupJoinWrapper extends KeyedProcessFunction<RowData, RowDat
             lookupJoinRunner.padNullForLeftJoin(in, out);
         } else {
             boolean collected = false;
-            if (lookupJoinRunner.preFilter(in)) {
+            if (lookupJoinRunner.preFilter(FilterCondition.Context.of(ctx), in)) {
                 // do state access for non-acc msg
                 if (lookupKeyContainsPrimaryKey) {
                     RowData rightRow = uniqueState.value();

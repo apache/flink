@@ -21,6 +21,7 @@ import org.apache.flink.table.planner.plan.nodes.logical._
 import org.apache.flink.table.planner.plan.rules.logical._
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule
 import org.apache.flink.table.planner.plan.rules.physical.batch._
+import org.apache.flink.table.planner.plan.rules.physical.common.PhysicalVectorSearchTableFunctionRule
 
 import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.logical.{LogicalIntersect, LogicalMinus, LogicalUnion}
@@ -121,6 +122,8 @@ object FlinkBatchRuleSets {
         // unnest rule
         LogicalUnnestRule.INSTANCE,
         UncollectToTableFunctionScanRule.INSTANCE,
+        // vector search rule.
+        ConstantVectorSearchCallToCorrelateRule.INSTANCE,
         // Wrap arguments for JSON aggregate functions
         WrapJsonAggFunctionArgumentsRule.INSTANCE
       )).asJava)
@@ -176,13 +179,15 @@ object FlinkBatchRuleSets {
 
   /** RuleSet to prune empty results rules */
   val PRUNE_EMPTY_RULES: RuleSet = RuleSets.ofList(
-    PruneEmptyRules.AGGREGATE_INSTANCE,
-    PruneEmptyRules.FILTER_INSTANCE,
-    PruneEmptyRules.JOIN_LEFT_INSTANCE,
-    PruneEmptyRules.JOIN_RIGHT_INSTANCE,
+    FlinkPruneEmptyRules.UNION_INSTANCE,
+    PruneEmptyRules.INTERSECT_INSTANCE,
+    FlinkPruneEmptyRules.MINUS_INSTANCE,
     PruneEmptyRules.PROJECT_INSTANCE,
+    PruneEmptyRules.FILTER_INSTANCE,
     PruneEmptyRules.SORT_INSTANCE,
-    PruneEmptyRules.UNION_INSTANCE
+    PruneEmptyRules.AGGREGATE_INSTANCE,
+    PruneEmptyRules.JOIN_LEFT_INSTANCE,
+    PruneEmptyRules.JOIN_RIGHT_INSTANCE
   )
 
   /** RuleSet about project */
@@ -217,7 +222,7 @@ object FlinkBatchRuleSets {
 
   val JOIN_REORDER_PREPARE_RULES: RuleSet = RuleSets.ofList(
     // merge join to MultiJoin
-    FlinkJoinToMultiJoinRule.INSTANCE,
+    JoinToMultiJoinForReorderRule.INSTANCE,
     // merge project to MultiJoin
     CoreRules.PROJECT_MULTI_JOIN_MERGE,
     // merge filter to MultiJoin
@@ -266,6 +271,10 @@ object FlinkBatchRuleSets {
     CoreRules.AGGREGATE_UNION_AGGREGATE,
     // expand distinct aggregate to normal aggregate with groupby
     FlinkAggregateExpandDistinctAggregatesRule.INSTANCE,
+    CoreRules.PROJECT_JOIN_JOIN_REMOVE,
+    CoreRules.PROJECT_JOIN_REMOVE,
+    CoreRules.AGGREGATE_JOIN_JOIN_REMOVE,
+    CoreRules.AGGREGATE_JOIN_REMOVE,
 
     // reduce aggregate functions like AVG, STDDEV_POP etc.
     CoreRules.AGGREGATE_REDUCE_FUNCTIONS,
@@ -419,6 +428,8 @@ object FlinkBatchRuleSets {
     BatchPhysicalLookupJoinRule.SNAPSHOT_ON_CALC_TABLESCAN,
     // CEP
     BatchPhysicalMatchRule.INSTANCE,
+    // ml
+    PhysicalVectorSearchTableFunctionRule.BATCH_INSTANCE,
     // correlate
     BatchPhysicalConstantTableFunctionScanRule.INSTANCE,
     BatchPhysicalCorrelateRule.INSTANCE,

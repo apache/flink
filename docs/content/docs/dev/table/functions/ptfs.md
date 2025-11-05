@@ -81,7 +81,7 @@ import static org.apache.flink.table.api.Expressions.*;
 // A PTF that takes a table argument, conceptually viewing the table as a row.
 // The result is never stateful and derived purely based on the current row.
 public static class Greeting extends ProcessTableFunction<String> {
-    public void eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row input) {
+    public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input) {
         collect("Hello " + input.getFieldAs("name") + "!");
     }
 }
@@ -140,7 +140,7 @@ public static class GreetingWithMemory extends ProcessTableFunction<String> {
     public long counter = 0L;
   }
 
-  public void eval(@StateHint CountState state, @ArgumentHint(ArgumentTrait.TABLE_AS_SET) Row input) {
+  public void eval(@StateHint CountState state, @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input) {
     state.counter++;
     collect("Hello " + input.getFieldAs("name") + ", your " + state.counter + " time?");
   }
@@ -204,7 +204,7 @@ public static class GreetingWithFollowUp extends ProcessTableFunction<String> {
   public void eval(
     Context ctx,
     @StateHint StayState state,
-    @ArgumentHint(ArgumentTrait.TABLE_AS_SET) Row input
+    @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row input
   ) {
     state.name = input.getFieldAs("name");
     state.counter++;
@@ -276,7 +276,7 @@ Table Semantics and Virtual Processors
 PTFs can produce a new table by consuming tables as arguments. For scalability, input tables are distributed across
 so-called "virtual processors". A virtual processor, as defined by the SQL standard, executes a PTF instance and has
 access only to a portion of the entire table. The argument declaration decides about the size of the portion and
-co-location of data. Conceptually, tables can be processed either "as row" (i.e. with row semantics) or "as set"
+co-location of data. Conceptually, tables can be processed either "per row" (i.e. with row semantics) or "per set"
 (i.e. with set semantics).
 
 {{<img alt="PTF Table Semantics" src="/fig/table-streaming/ptf_table_semantics.png" width="80%">}}
@@ -313,7 +313,7 @@ Given a PTF `TableFilter` that has been implemented as:
 ```java
 @DataTypeHint("ROW<threshold INT, score BIGINT>")
 public static class TableFilter extends ProcessTableFunction<Row> {
-  public void eval(@ArgumentHint(ArgumentTrait.TABLE_AS_ROW) Row input, int threshold) {
+  public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row input, int threshold) {
     long score = input.getFieldAs("score");
     if (score > threshold) {
       collect(Row.of(threshold, score));
@@ -326,7 +326,7 @@ public static class TableFilter extends ProcessTableFunction<Row> {
 
 The effective call signature is:
 ```text
-TableFilter(input => {TABLE, TABLE AS ROW}, threshold => INT NOT NULL, on_time => DESCRIPTOR, uid => STRING)
+TableFilter(input => {TABLE, ROW SEMANTIC TABLE}, threshold => INT NOT NULL, on_time => DESCRIPTOR, uid => STRING)
 ```
 
 Both `on_time` and `uid` are optional by default. The `on_time` is required if time semantics are needed. The `uid` must
@@ -472,7 +472,7 @@ The `@ArgumentHint` annotation enables declaring the name, data type, and traits
 
 In most cases, the system can automatically infer the name and data type reflectively, so they do not need to be
 specified. However, traits must be provided explicitly, particularly when defining the argument's kind. The argument
-of a PTF can be set to `ArgumentTrait.SCALAR`, `ArgumentTrait.TABLE_AS_SET`, or `ArgumentTrait.TABLE_AS_ROW`. By default,
+of a PTF can be set to `ArgumentTrait.SCALAR`, `ArgumentTrait.ROW_SEMANTIC_TABLE`, or `ArgumentTrait.SET_SEMANTIC_TABLE`. By default,
 arguments are treated as scalar values.
 
 The following examples show usages of the `@ArgumentHint` annotation:
@@ -485,7 +485,7 @@ The following examples show usages of the `@ArgumentHint` annotation:
 class ThresholdFunction extends ProcessTableFunction<Integer> {
   public void eval(
     // For table arguments, a data type for Row is optional (leading to polymorphic behavior)
-    @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET, name = "input_table") Row t,
+    @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE, name = "input_table") Row t,
     // Scalar arguments require a data type either explicit or via reflection
     @ArgumentHint(value = ArgumentTrait.SCALAR, name = "threshold") Integer threshold
   ) {
@@ -501,7 +501,7 @@ class ThresholdFunction extends ProcessTableFunction<Integer> {
 
 #### Table Arguments
 
-The traits `ArgumentTrait.TABLE_AS_SET` and `ArgumentTrait.TABLE_AS_ROW` define table arguments.
+The traits `ArgumentTrait.SET_SEMANTIC_TABLE` and `ArgumentTrait.ROW_SEMANTIC_TABLE` define table arguments.
 
 Table arguments can declare a concrete data type (of either row or structured type) or accept any type of row in a
 polymorphic fashion.
@@ -523,7 +523,7 @@ e.g. `f(my_table_arg => TABLE t)`.
 class MyPTF extends ProcessTableFunction<String> {
   public void eval(
     Context ctx,
-    @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET, type = @DataTypeHint("ROW<s STRING>")) Row t
+    @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE, type = @DataTypeHint("ROW<s STRING>")) Row t
   ) {
     TableSemantics semantics = ctx.tableSemanticsFor("t");
     // Always returns "ROW < s STRING >"
@@ -536,7 +536,7 @@ class MyPTF extends ProcessTableFunction<String> {
 class MyPTF extends ProcessTableFunction<String> {
   public void eval(
     Context ctx,
-    @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET) Customer c
+    @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE) Customer c
   ) {
     TableSemantics semantics = ctx.tableSemanticsFor("c");
     // Always returns structured type of "Customer"
@@ -549,7 +549,7 @@ class MyPTF extends ProcessTableFunction<String> {
 class MyPTF extends ProcessTableFunction<String> {
   public void eval(
     Context ctx,
-    @ArgumentHint(value = ArgumentTrait.TABLE_AS_SET) Row t
+    @ArgumentHint(value = ArgumentTrait.SET_SEMANTIC_TABLE) Row t
   ) {
     TableSemantics semantics = ctx.tableSemanticsFor("t");
     // Always returns "ROW" but content depends on the table that is passed into the call
@@ -572,7 +572,7 @@ information about the input tables and other services provided by the framework.
 // Function that accesses the Context for reading the PARTITION BY columns and
 // excluding them when building a result string
 class ConcatNonKeysFunction extends ProcessTableFunction<String> {
-  public void eval(Context ctx, @ArgumentHint(ArgumentTrait.TABLE_AS_SET) Row inputTable) {
+  public void eval(Context ctx, @ArgumentHint(ArgumentTrait.SET_SEMANTIC_TABLE) Row inputTable) {
     TableSemantics semantics = ctx.tableSemanticsFor("inputTable");
 
     List<Integer> keys = Arrays.asList(semantics.partitionByColumns());
@@ -626,7 +626,7 @@ class CountingFunction extends ProcessTableFunction<String> {
 
   public void eval(
     @StateHint CountState memory,
-    @ArgumentHint(TABLE_AS_SET) Row input
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
   ) {
     memory.count++;
     collect("Seen rows: " + memory.count);
@@ -641,7 +641,7 @@ class CountingFunction extends ProcessTableFunction<String> {
 
   public void eval(
     @StateHint SeenState memory,
-    @ArgumentHint(TABLE_AS_SET) Row input
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
   ) {
     if (memory.first == null) {
       memory.first = input.toString();
@@ -655,7 +655,7 @@ class CountingFunction extends ProcessTableFunction<String> {
 class CountingFunction extends ProcessTableFunction<String> {
   public void eval(
     @StateHint(type = @DataTypeHint("ROW<count BIGINT>")) Row memory,
-    @ArgumentHint(TABLE_AS_SET) Row input
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
   ) {
     Long newCount = 1L;
     if (memory.getField("count") != null) {
@@ -699,7 +699,7 @@ class CountingFunction extends ProcessTableFunction<String> {
     @StateHint(ttl = "1 hour") SomeState shortTermState,
     @StateHint(ttl = "1 day") SomeState longTermState,
     @StateHint SomeState infiniteState, // potentially influenced by table.exec.state.ttl
-    @ArgumentHint(TABLE_AS_SET) Row input
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
   ) {
     ...
   }
@@ -749,7 +749,7 @@ large state is stored as a map state.
 class LargeHistoryFunction extends ProcessTableFunction<String> {
   public void eval(
     @StateHint MapView<String, Integer> largeMemory,
-    @ArgumentHint(TABLE_AS_SET) Row input
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
   ) {
     String eventId = input.getFieldAs("eventId");
     Integer count = largeMemory.get(eventId);
@@ -778,7 +778,7 @@ and the `MAP` data type for map views.
 class LargeHistoryFunction extends ProcessTableFunction<String> {
   public void eval(
     @StateHint(type = @DataTypeHint("ARRAY<ROW<s STRING, i INT>>")) ListView<Row> largeMemory,
-    @ArgumentHint(TABLE_AS_SET) Row input
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
   ) {
     ...
   }
@@ -806,7 +806,7 @@ class CountingFunction extends ProcessTableFunction<String> {
   public void eval(
     Context ctx,
     @StateHint(ttl = "1 day") SeenState memory,
-    @ArgumentHint(TABLE_AS_SET) Row input
+    @ArgumentHint(SET_SEMANTIC_TABLE) Row input
   ) {
     if (memory.first == null) {
       memory.first = input.toString();
@@ -866,7 +866,7 @@ Once an `on_time` argument is provided, timers can be used. The following motiva
 public static class PingLaterFunction extends ProcessTableFunction<String> {
   public void eval(
     Context ctx,
-    @ArgumentHint({ArgumentTrait.TABLE_AS_SET, ArgumentTrait.REQUIRE_ON_TIME}) Row input
+    @ArgumentHint({ArgumentTrait.SET_SEMANTIC_TABLE, ArgumentTrait.REQUIRE_ON_TIME}) Row input
     ) {
       TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
       // Replaces an existing timer and thus potentially resets the minute if necessary
@@ -986,7 +986,7 @@ class TimerFunction extends ProcessTableFunction<String> {
   public void eval(
     Context ctx,
     @StateHint SeenState memory,
-    @ArgumentHint({TABLE_AS_SET, REQUIRE_ON_TIME}) Row input
+    @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row input
   ) {
     TimeContext<Instant> timeCtx = ctx.timeContext(Instant.class);
       if (memory.seen == null) {
@@ -1012,6 +1012,107 @@ Registering too many timers might affect performance. An ever-growing timer stat
 by an unlimited number of partitions (i.e. an open keyspace) or even within a partition. Thus,
 reduce the number of registered timers to a minimum and consider cleaning up timers if they are
 not needed anymore via `Context#clearAllTimers()` or `TimeContext#clearTimer(String)`.
+
+{{< top >}}
+
+Multiple Tables
+---------------
+
+A PTF can process multiple tables simultaneously. This enables a variety of use cases, including:
+
+- Implementing **custom joins** that efficiently manage state.
+- Enriching the main table with information from dimension tables as **side inputs**.
+- Sending **control events** to the keyed virtual processor during runtime.
+
+The `eval()` method can specify multiple table arguments to support multiple inputs. All table arguments must be declared
+with set semantics and use consistent partitioning. In other words, the number of columns and their data types in the
+`PARTITION BY` clause must match across all involved table arguments.
+
+Rows from either input are passed to the function one at a time. Thus, only one table argument is non-null at a time. Use
+null checks to determine which input is currently being processed.
+
+{{< hint warning >}}
+The system decides which input row is streamed through the virtual processor next. If not handled properly in the PTF,
+this can lead to race conditions between inputs and, consequently, to non-deterministic results. It is recommended to
+design the function in such a way that the join is either time-based (i.e., waiting for all rows to arrive up to a given
+watermark) or condition-based, where the PTF buffers one or more input rows until a specific condition is met.
+{{< /hint >}}
+
+### Example: Custom Join
+
+The following example illustrates how to implement a custom join between two tables:
+
+{{< tabs "2137eeed-3d13-455c-8e2f-5e164da9f844" >}}
+{{< tab "Java" >}}
+```java
+TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+
+env.executeSql("CREATE VIEW Visits(name) AS VALUES ('Bob'), ('Alice'), ('Bob')");
+env.executeSql("CREATE VIEW Purchases(customer, item) AS VALUES ('Alice', 'milk')");
+
+env.createFunction("Greeting", GreetingWithLastPurchase.class);
+
+env
+  .executeSql("SELECT * FROM Greeting(TABLE Visits PARTITION BY name, TABLE Purchases PARTITION BY customer)")
+  .print();
+
+// --------------------
+// Function declaration
+// --------------------
+
+// Function that greets a customer and suggests the last purchase made, if available.
+public static class GreetingWithLastPurchase extends ProcessTableFunction<String> {
+
+  // Keep the last purchased item in state
+  public static class LastItemState {
+    public String lastItem;
+  }
+
+  // The eval() method takes two @ArgumentHint(SET_SEMANTIC_TABLE) arguments
+  public void eval(
+      @StateHint LastItemState state,
+      @ArgumentHint(SET_SEMANTIC_TABLE) Row visit,
+      @ArgumentHint(SET_SEMANTIC_TABLE) Row purchase) {
+
+    // Process row from table Purchases
+    if (purchase != null) {
+      state.lastItem = purchase.getFieldAs("item");
+    }
+
+    // Process row from table Visits
+    else if (visit != null) {
+      if (state.lastItem == null) {
+        collect("Hello " + visit.getFieldAs("name") + ", let me know if I can help!");
+      } else {
+        collect("Hello " + visit.getFieldAs("name") + ", here to buy " + state.lastItem + " again?");
+      }
+    }
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+The result will look similar to:
+
+```text
++----+--------------------------------+--------------------------------+--------------------------------+
+| op |                           name |                       customer |                         EXPR$0 |
++----+--------------------------------+--------------------------------+--------------------------------+
+| +I |                            Bob |                            Bob | Hello Bob, let me know if I... |
+| +I |                          Alice |                          Alice | Hello Alice, here to buy Pr... |
+| +I |                            Bob |                            Bob | Hello Bob, let me know if I... |
++----+--------------------------------+--------------------------------+--------------------------------+
+```
+
+### Efficiency and Design Principles
+
+A high number of input tables can negatively impact a single TaskManager or subtask. Network buffers must be allocated
+for each input, resulting in increased memory consumption which is why the number of table arguments is limited to a
+maximum of 20 tables.
+
+Unevenly distributed keys may overload a single virtual processor, leading to backpressure. It is important to select
+appropriate partition keys.
 
 {{< top >}}
 
@@ -1061,7 +1162,8 @@ END;
 
 {{< top >}}
 
-## Pass-Through Columns
+Pass-Through Columns
+--------------------
 
 Depending on the table semantics and whether an `on_time` argument has been defined, the system adds addition columns for
 every function output.
@@ -1089,7 +1191,363 @@ With pass-through columns: | k | v | c1 | c2 |
 
 This allows the PTF to focus on the main aggregation without the need to manually forward input columns.
 
-*Note*: Timers are not available when pass-through columns are enabled.
+*Note*: Pass-through columns are only available for append-only PTFs taking a single table argument and don't use timers.
+
+{{< top >}}
+
+Updates and Changelogs
+----------------------
+
+By default, PTFs assume that table arguments are backed by append-only tables, where new records are inserted to the table
+without any updates to existing records. PTFs then produce new append-only tables as output.
+
+While append-only tables are ideal and work seamlessly with event-time and watermarks, there are scenarios that require
+working with updating tables. In these cases, records can be updated or deleted after their initial insertion.
+This impacts several aspects:
+
+- **State Management**: Operations must accommodate the possibility that any record can be updated again, potentially requiring
+  a larger state footprint.
+- **Pipeline Complexity**: Since records are not final and can be changed subsequently, the entire pipeline result remains
+  in-flight.
+- **Downstream Systems**: In-flight data can lead to issues, not only in Flink but also in downstream systems where consistency
+  and finality of data are critical.
+
+{{< hint info >}}
+For efficient and high-performance data processing, it is recommended to design pipelines using append-only tables whenever
+feasible to simplify state management and avoid complexities associated with updating tables.
+{{< /hint >}}
+
+A PTF can consume and/or produce updating tables if it is configured to do so. This section provides a brief overview of
+CDC (Change Data Capture) with PTFs.
+
+### Change Data Capture Basics
+
+Under the hood, tables in Flink's SQL engine are backed by changelogs. These changelogs encode CDC (Change Data Capture)
+information containing *INSERT* (`+I`), *UPDATE_BEFORE* (`-U`), *UPDATE_AFTER* (`+U`), or *DELETE* (`-D`) messages.
+
+The existence of these flags in the changelog constitutes the *Changelog Mode* of a consumer or producer:
+
+**Append Mode `{+I}`**
+- All messages are insert-only.
+- Every insertion message is an immutable fact.
+- Messages can be distributed in an arbitrary fashion across partitions and processors because they are unrelated.
+
+**Upsert Mode `{+I, +U, -D}`**
+- Messages can contain updates leading to an updating table.
+- Updates are related using a key (i.e. the *upsert key*).
+- Every message is either an upsert or delete message for a result under the upsert key.
+- Messages for the same upsert key should land at the same partition and processor.
+- Deletions can contain only values for upsert key columns (i.e. *partial deletes*) or values for
+  all columns (i.e. *full deletes*).
+- The mode is also known as *partial image* in the literature because `-U` messages are missing.
+
+**Retract Mode `{+I, -U, +U, -D}`**
+- Messages can contain updates leading to an updating table.
+- Every insertion or update event is a fact that can be "undone" (i.e. retracted).
+- Updates are related by all columns. In simplified words: The entire row is kind of the key but duplicates are supported.
+  For example: `+I['Bob', 42]` is related to `-D['Bob', 42]` and `+U['Alice', 13]` is related to `-U['Alice', 13]`.
+- Thus, every message is either an insertion (`+`) or its retraction (`-`).
+- The mode is known as *full image* in the literature.
+
+### Updating Input Tables
+
+The `ArgumentTrait.SUPPORTS_UPDATES` instructs the system that updates are allowed as input to the given table argument.
+By default, a table argument is insert-only and updates will be rejected.
+
+Input tables become updating when sub queries such as aggregations or outer joins force an incremental computation. For
+example, the following query only works if the function is able to digest retraction messages:
+
+```text
+// The change +I[1] followed by -U[1], +U[2], -U[2], +U[3] will enter the function
+// if `table_arg` is declared with SUPPORTS_UPDATES
+WITH UpdatingTable AS (
+  SELECT COUNT(*) FROM (VALUES 1, 2, 3)
+)
+SELECT * FROM f(table_arg => TABLE UpdatingTable)
+```
+
+If updates should be supported, ensure that the data type of the table argument is chosen in a way that it can encode
+changes. In other words: choose a `Row` type that exposes the `RowKind` change flag.
+
+The changelog of the backing input table decides which kinds of changes enter the function. The function receives `{+I}`
+when the input table is append-only. The function receives `{+I,+U,-D}` if the input table is upserting using the same
+upsert key as the partition key. Otherwise, retractions `{+I,-U,+U,-D}` (i.e. including `RowKind.UPDATE_BEFORE`) enter
+the function. Use `ArgumentTrait.REQUIRE_UPDATE_BEFORE` to enforce retractions for all updating cases.
+
+For upserting tables, if the changelog contains key-only deletions (also known as partial deletions), only upsert key
+fields are set when a row enters the function. Non-key fields are set to `null`, regardless of `NOT NULL` constraints.
+Use `ArgumentTrait.REQUIRE_FULL_DELETE` to enforce that only full deletes enter the function.
+
+The `SUPPORTS_UPDATES` trait is intended for advanced use cases. Please note that inputs are always insert-only in batch
+mode. Thus, if the PTF should produce the same results in both batch and streaming mode, results should be emitted based
+on watermarks and event-time.
+
+#### Enforcing Retract Mode
+
+The `ArgumentTrait.REQUIRE_UPDATE_BEFORE` instructs the system that a table argument which `SUPPORT_UPDATES` should include
+a `RowKind.UPDATE_BEFORE` message when encoding updates. In other words: it enforces presenting the updating table in
+retract changelog mode.
+
+By default, updates are encoded as emitted by the input operation. Thus, the updating table might be encoded in upsert
+changelog mode and deletes might only contain keys.
+
+The following example shows how the input changelog encodes updates differently:
+
+```text
+// Given a table UpdatingTable(name STRING PRIMARY KEY, score INT)
+// backed by upsert changelog with changes
+// +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100], -D[Bob, NULL].
+
+// Given a function `f` that declares `table_arg` with REQUIRE_UPDATE_BEFORE.
+SELECT * FROM f(table_arg => TABLE UpdatingTable PARTITION BY name)
+
+// The following changes will enter the function:
+// +I[Alice, 42], +I[Bob, 0], -U[Bob, 0], +U[Bob, 2], -U[Bob, 2], +U[Bob, 100], -U[Bob, 100]
+
+// In both encodings, a materialized table would only contain a row for Alice.
+```
+
+#### Enforcing Upserts with Full Deletes
+
+The `ArgumentTrait.REQUIRE_FULL_DELETE` instructs the system that a table argument which `SUPPORT_UPDATES` should include
+all fields in the `RowKind.DELETE` message if the updating table is backed by an upsert changelog.
+
+For upserting tables, if the changelog contains key-only deletes (also known as partial deletes), only upsert key fields
+are set when a row enters the function. Non-key fields are set to null, regardless of NOT NULL constraints.
+
+The following example shows how the input changelog encodes updates differently:
+
+```text
+// Given a table UpdatingTable(name STRING PRIMARY KEY, score INT)
+// backed by upsert changelog with changes
+// +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100], -D[Bob, NULL].
+
+// Given a function `f` that declares `table_arg` with REQUIRE_FULL_DELETE.
+SELECT * FROM f(table_arg => TABLE UpdatingTable PARTITION BY name)
+
+// The following changes will enter the function:
+// +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100], -D[Bob, 100].
+
+// In both encodings, a materialized table would only contain a row for Alice.
+```
+
+#### Example: Changelog Filtering
+
+The following function demonstrates how a PTF can transform an updating table into an append-only table. Instead of
+applying updates encoded in each `Row`, it incorporates the changelog flag into the payload. The rows emitted by the PTF
+are guaranteed to be of `RowKind.INSERT`. By preserving the original changelog flag in the payload, it permits filtering
+of specific update types. In this example, it filters out all deletions.
+
+{{< tabs "1937eeed-3d13-455c-8e2f-5e164da9f844" >}}
+{{< tab "Java" >}}
+```java
+TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+
+Table data = env
+  .fromValues(
+    Row.of("Bob", 23),
+    Row.of("Alice", 42),
+    Row.of("Alice", 2))
+  .as("name", "score");
+
+// Since the aggregation is not windowed and potentially unbounded,
+// the result is an updating table. Usually, this means that all following
+// operations and sinks need to support updates.
+Table aggregated = data
+  .groupBy($("name"))
+  .select($("name"), $("score").sum().as("sum"));
+
+// However, the PTF will convert the updating table into an insert-only result.
+// Subsequent operations and sinks can easily digest the resulting table.
+Table changelog = aggregated
+  .partitionBy($("name"))
+  .process(ToChangelogFunction.class);
+
+// For event-driven applications, filtering on certain CDC events is possible.
+Table upsertsOnly = changelog.filter($("flag").in("INSERT", "UPDATE_AFTER"));
+
+upsertsOnly.execute().print();
+
+// --------------------
+// Function declaration
+// --------------------
+
+@DataTypeHint("ROW<flag STRING, sum INT>")
+public static class ToChangelogFunction extends ProcessTableFunction<Row> {
+  public void eval(@ArgumentHint({SET_SEMANTIC_TABLE, SUPPORT_UPDATES}) Row input) {
+    // Forwards the sum column and includes the row's kind as a string column.
+    Row changelogRow =
+      Row.of(
+        input.getKind().toString(),
+        input.getField("sum"));
+
+    collect(changelogRow);
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+The PTF produces the following output when debugging in a console. The `op` section indicates that the result is append-only. The
+original flag is encoded in the `flag` column.
+
+```text
++----+--------------------------------+--------------------------------+-------------+
+| op |                           name |                           flag |         sum |
++----+--------------------------------+--------------------------------+-------------+
+| +I |                            Bob |                         INSERT |          23 |
+| +I |                          Alice |                         INSERT |          42 |
+| +I |                          Alice |                   UPDATE_AFTER |          44 |
++----+--------------------------------+--------------------------------+-------------+
+```
+
+#### Limitations
+- The `ArgumentTrait.PASS_COLUMNS_THROUGH` is not supported if `ArgumentTrait.SUPPORTS_UPDATES` is declared.
+- The `on_time` argument is not supported if the PTF receives updates.
+
+### Updating Function Output
+
+The `ChangelogFunction` interface makes it possible for a function to declare the types of changes (e.g., inserts, updates,
+deletes) that it may emit, allowing the planner to make informed decisions during query planning.
+
+{{< hint info >}}
+The interface is intended for advanced use cases and should be implemented with care. Emitting an incorrect changelog
+from the PTF may lead to undefined behavior in the overall query.
+{{< /hint >}}
+
+The resulting changelog mode can be influenced by:
+- The changelog mode of the input table arguments, accessible via `ChangelogContext.getTableChangelogMode(int)`.
+- The changelog mode required by downstream operators, accessible via `ChangelogContext.getRequiredChangelogMode()`.
+
+Changelog mode inference in the planner involves several steps. The `getChangelogMode(ChangelogContext)` method is
+called for each step:
+
+1. The planner checks whether the PTF emits updates or inserts-only.
+2. If updates are emitted, the planner determines whether the updates include {@link
+   RowKind#UPDATE_BEFORE} messages (retract mode), or whether {@link RowKind#UPDATE_AFTER}
+   messages are sufficient (upsert mode). For this, {@link #getChangelogMode} might be called
+   twice to query both retract mode and upsert mode capabilities as indicated by {@link
+   ChangelogContext#getRequiredChangelogMode()}.
+3. If in upsert mode, the planner checks whether {@link RowKind#DELETE} messages contain all
+   fields (full deletes) or only key fields (partial deletes). In the case of partial deletes,
+   only the upsert key fields are set when a row is removed; all non-key fields are null,
+   regardless of nullability constraints. {@link ChangelogContext#getRequiredChangelogMode()}
+   indicates whether a downstream operator requires full deletes.
+
+Emitting changelogs is only valid for PTFs that take table arguments with set semantics (see `ArgumentTrait.SET_SEMANTIC_TABLE`).
+In case of upserts, the upsert key must be equal to the PARTITION BY key.
+
+It is perfectly valid for a `ChangelogFunction` implementation to return a fixed `ChangelogMode`, regardless of the
+`ChangelogContext`. This approach may be appropriate when the PTF is designed for a specific scenario or pipeline setup,
+and does not need to adapt dynamically to different input modes. Note that in such cases, the PTFs applicability is limited,
+as it may only function correctly within the predefined context for which it was designed.
+
+In some cases, this interface should be used in combination with `SpecializedFunction`
+to reconfigure the PTF after the final changelog mode for the specific call location has been
+determined. The final changelog mode is also available during runtime via
+`ProcessTableFunction.Context.getChangelogMode()`.
+
+#### Example: Custom Aggregation
+
+The following function demonstrates how a PTF can implement an aggregation function that is able to emit updates based
+on custom conditional logic. The function takes a table of score results partitioned by `name` and maintains a sum per
+partition. Scores that are lower than `0` are treated as incorrect and invalidate the entire aggregation for this key.
+
+{{< tabs "2037eeed-3d13-455c-8e2f-5e164da9f844" >}}
+{{< tab "Java" >}}
+```java
+TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+
+Table data = env
+  .fromValues(
+    Row.of("Bob", 23),
+    Row.of("Alice", 42),
+    Row.of("Alice", 2),
+    Row.of("Bob", -1),
+    Row.of("Bob", 45))
+  .as("name", "score");
+
+// Call the PTF on an append-only table
+Table aggregated = data
+  .partitionBy($("name"))
+  .process(CustomAggregation.class);
+
+aggregated.execute().print();
+
+// --------------------
+// Function declaration
+// --------------------
+
+@DataTypeHint("ROW<sum INT>")
+public static class CustomAggregation
+  extends ProcessTableFunction<Row>
+  implements ChangelogFunction {
+
+  @Override
+  public ChangelogMode getChangelogMode(ChangelogContext changelogContext) {
+    // Tells the system that the PTF produces updates encoded as retractions
+    return ChangelogMode.all();
+  }
+
+  public static class Accumulator {
+    public Integer sum = 0;
+  }
+
+  public void eval(@StateHint Accumulator state, @ArgumentHint(SET_SEMANTIC_TABLE) Row input) {
+    int score = input.getFieldAs("score");
+
+    // A negative state indicates that the partition
+    // key has been marked as invalid before
+    if (state.sum == -1) {
+      return;
+    }
+
+    // A negative score marks the entire aggregation result as invalid.
+    if (score < 0) {
+      // Send out a -D for the affected partition key and
+      // mark the invalidation in state. All subsequent operations
+      // and sinks will remove the aggregation result.
+      collect(Row.ofKind(RowKind.DELETE, state.sum));
+      state.sum = -1;
+    } else {
+      if (state.sum == 0) {
+        // Emit +I for the first valid aggregation result.
+        state.sum += score;
+        collect(Row.ofKind(RowKind.INSERT, state.sum));
+      } else {
+        // Emit -U (with old aggregation result) and +U (with new aggregation result)
+        // for encoding the update.
+        collect(Row.ofKind(RowKind.UPDATE_BEFORE, state.sum));
+        state.sum += score;
+        collect(Row.ofKind(RowKind.UPDATE_AFTER, state.sum));
+      }
+    }
+  }
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+The PTF produces the following output when debugging in a console. The `op` section indicates that the result is updating. However,
+no updates to `Bob` are forwarded after the invalid `-1` is received, causing the PTF to ignore the update with value `45`.
+The aggregation results for `Alice` contain only valid scores and are preserved in a materialized table.
+
+```text
++----+--------------------------------+-------------+
+| op |                           name |         sum |
++----+--------------------------------+-------------+
+| +I |                            Bob |          23 |
+| +I |                          Alice |          42 |
+| -U |                          Alice |          42 |
+| +U |                          Alice |          44 |
+| -D |                            Bob |          23 |
++----+--------------------------------+-------------+
+```
+
+#### Limitations
+- The `on_time` argument is not supported if the PTF emits updates.
+- Currently, it is difficult to test upsert PTFs because debugging sinks such as `collect()` operate in retract mode and
+  will request retract support from any PTF. Upserting PTFs have to be tested with upserting sinks (e.g. `kafka-upsert` connector).
 
 {{< top >}}
 
@@ -1156,7 +1614,7 @@ public static class CheckoutProcessor extends ProcessTableFunction<Row> {
   public void eval(
     Context ctx,
     @StateHint ShoppingCart cart,
-    @ArgumentHint({TABLE_AS_SET, REQUIRE_ON_TIME}) Row events,
+    @ArgumentHint({SET_SEMANTIC_TABLE, REQUIRE_ON_TIME}) Row events,
     Duration reminderInterval,
     Duration timeoutInterval
   ) {
@@ -1254,9 +1712,6 @@ while the PTF exists once in the pipeline.
 The following example shows how a PTF can be used for joining. Additionally, it also showcases how a PTF can be used as
 a data generator for creating bounded tables with dummy data.
 
-Because PTFs don't support multiple table arguments yet, we use `unionAll` to for passing multiple partitioned tables
-into the PTF. Because a union requires a unified schema, the data generators transform the data into a `UnifiedEvent`.
-
 {{< tabs "1637eeed-3d13-455c-8e2f-5e164da9f844" >}}
 {{< tab "Java" >}}
 ```java
@@ -1269,11 +1724,11 @@ TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMo
 Table orders = env.fromCall(OrderGenerator.class);
 Table payments = env.fromCall(PaymentGenerator.class);
 
-// Union orders and payments before
-// partitioning and passing them into the Joiner function
-Table joined = orders.unionAll(payments)
-  .partitionBy($("orderId"))
-  .process(Joiner.class);
+// Partition orders and payments and pass them into the Joiner function
+Table joined = env.fromCall(
+  Joiner.class,
+  orders.partitionBy($("id")).asArgument("order"),
+  payments.partitionBy($("orderId")).asArgument("payment"));
 
 joined.execute().print();
 
@@ -1281,24 +1736,8 @@ joined.execute().print();
 // Data Generation
 // ---------------------------
 
-// A unified event for all input tables.
-// One of the sides is al empty.
-public static class UnifiedEvent {
-  public int orderId;
-  public Order order;
-  public Payment payment;
-
-  public static UnifiedEvent of(int orderId, Order order, Payment payment) {
-    UnifiedEvent unifiedEvent = new UnifiedEvent();
-    unifiedEvent.orderId = orderId;
-    unifiedEvent.order = order;
-    unifiedEvent.payment = payment;
-    return unifiedEvent;
-  }
-}
-
 // A PTF that generates Orders
-public static class OrderGenerator extends ProcessTableFunction<UnifiedEvent> {
+public static class OrderGenerator extends ProcessTableFunction<Order> {
   public void eval() {
     Stream.of(
       Order.of("Bob", 1000001, 23.46, "USD"),
@@ -1306,13 +1745,12 @@ public static class OrderGenerator extends ProcessTableFunction<UnifiedEvent> {
       Order.of("Alice", 1000601, 0.79, "EUR"),
       Order.of("Charly", 1000703, 100.60, "EUR")
     )
-    .map(order -> UnifiedEvent.of(order.id, order, null))
     .forEach(this::collect);
   }
 }
 
 // A PTF that generates Payments
-public static class PaymentGenerator extends ProcessTableFunction<UnifiedEvent> {
+public static class PaymentGenerator extends ProcessTableFunction<Payment> {
   public void eval() {
     Stream.of(
       Payment.of(999997870, 1000001),
@@ -1320,7 +1758,6 @@ public static class PaymentGenerator extends ProcessTableFunction<UnifiedEvent> 
       Payment.of(999993331, 1000021),
       Payment.of(999994111, 1000601)
     )
-    .map(payment -> UnifiedEvent.of(payment.orderId, null, payment))
     .forEach(this::collect);
   }
 }
@@ -1358,8 +1795,8 @@ public static class Payment {
 {{< /tab >}}
 {{< /tabs >}}
 
-After generating the data and performing the union, the stateful Joiner buffers events until a matching pair is
-found. Any duplicates in either of the input tables are ignored.
+After generating the data, the stateful Joiner buffers events until a matching pair is found. Any duplicates in either
+of the input tables are ignored.
 
 {{< tabs "1737eeed-3d13-455c-8e2f-5e164da9f844" >}}
 {{< tab "Java" >}}
@@ -1371,23 +1808,24 @@ public static class Joiner extends ProcessTableFunction<JoinResult> {
   public void eval(
     Context ctx,
     @StateHint(ttl = "1 hour") JoinResult seen,
-    @ArgumentHint(TABLE_AS_SET) UnifiedEvent input
+    @ArgumentHint(SET_SEMANTIC_TABLE) Order order,
+    @ArgumentHint(SET_SEMANTIC_TABLE) Payment payment
   ) {
-    if (input.order != null) {
+    if (order != null) {
       if (seen.order != null) {
         // skip duplicates
         return;
       } else {
         // wait for matching payment
-        seen.order = input.order;
+        seen.order = order;
       }
-    } else if (input.payment != null) {
+    } else if (payment != null) {
       if (seen.payment != null) {
         // skip duplicates
         return;
       } else {
         // wait for matching order
-        seen.payment = input.payment;
+        seen.payment = payment;
       }
     }
 
@@ -1411,19 +1849,18 @@ The output could look similar to the following. Duplicate events for payment `99
 for `Charly` could not be found.
 
 ```text
-+----+-------------+--------------------------------+--------------------------------+
-| op |     orderId |                          order |                        payment |
-+----+-------------+--------------------------------+--------------------------------+
-| +I |     1000021 | (amount=6.99, currency=USD,... | (id=999993331, orderId=1000... |
-| +I |     1000601 | (amount=0.79, currency=EUR,... | (id=999994111, orderId=1000... |
-| +I |     1000001 | (amount=23.46, currency=USD... | (id=999997870, orderId=1000... |
-+----+-------------+--------------------------------+--------------------------------+
++----+-------------+-------------+--------------------------------+--------------------------------+
+| op |          id |     orderId |                          order |                        payment |
++----+-------------+-------------+--------------------------------+--------------------------------+
+| +I |     1000021 |     1000021 | (amount=6.99, currency=USD,... | (id=999993331, orderId=1000... |
+| +I |     1000601 |     1000601 | (amount=0.79, currency=EUR,... | (id=999994111, orderId=1000... |
+| +I |     1000001 |     1000001 | (amount=23.46, currency=USD... | (id=999997870, orderId=1000... |
++----+-------------+-------------+--------------------------------+--------------------------------+
 ```
 
 Limitations
 -----------
 
 PTFs are in an early stage. The following limitations apply:
-- Multiple table arguments are not supported.
 - PTFs cannot run in batch mode.
-- List, map, broadcast state
+- Broadcast state

@@ -16,27 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testInUncorrelated">
-    <Resource name="ast">
-      <![CDATA[
-LogicalFilter(condition=[IN($0, {
-LogicalProject(x=[$0])
-  LogicalTableScan(table=[[default_catalog, default_database, Table2]])
-})])
-+- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Join(joinType=[LeftSemiJoin], where=[(a = x)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
-:- Exchange(distribution=[hash[a]])
-:  +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c])
-+- Exchange(distribution=[hash[x]])
-   +- Calc(select=[x])
-      +- TableSourceScan(table=[[default_catalog, default_database, Table2]], fields=[x, y])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testFilterUnionTranspose">
     <Resource name="ast">
       <![CDATA[
@@ -58,6 +37,27 @@ Calc(select=[EXPR$0 AS a, b, EXPR$1 AS c])
          :  +- TableSourceScan(table=[[default_catalog, default_database, left]], fields=[a, b, c])
          +- Calc(select=[a, b, c], where=[(a > 0)])
             +- TableSourceScan(table=[[default_catalog, default_database, right]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInUncorrelated">
+    <Resource name="ast">
+      <![CDATA[
+LogicalFilter(condition=[IN($0, {
+LogicalProject(x=[$0])
+  LogicalTableScan(table=[[default_catalog, default_database, Table2]])
+})])
++- LogicalTableScan(table=[[default_catalog, default_database, Table1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Join(joinType=[LeftSemiJoin], where=[(a = x)], select=[a, b, c], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+:- Exchange(distribution=[hash[a]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, Table1]], fields=[a, b, c])
++- Exchange(distribution=[hash[x]])
+   +- Calc(select=[x])
+      +- TableSourceScan(table=[[default_catalog, default_database, Table2]], fields=[x, y])
 ]]>
     </Resource>
   </TestCase>
@@ -87,27 +87,6 @@ Join(joinType=[LeftSemiJoin], where=[(a = EXPR$0)], select=[a, b, c], leftInputS
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testProjectUnionTranspose">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(b=[$1], c=[$2])
-+- LogicalUnion(all=[true])
-   :- LogicalProject(a=[$0], b=[$1], c=[$2])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, left]])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, right]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Union(all=[true], union=[b, c])
-:- Calc(select=[b, c])
-:  +- TableSourceScan(table=[[default_catalog, default_database, left]], fields=[a, b, c])
-+- Calc(select=[b, c])
-   +- TableSourceScan(table=[[default_catalog, default_database, right]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testInWithMultiUncorrelatedCondition">
     <Resource name="ast">
       <![CDATA[
@@ -134,6 +113,27 @@ Join(joinType=[LeftSemiJoin], where=[(b = w)], select=[a, b, c], leftInputSpec=[
 +- Exchange(distribution=[hash[w]])
    +- Calc(select=[w])
       +- TableSourceScan(table=[[default_catalog, default_database, tableC]], fields=[w, z])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectUnionTranspose">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$1], c=[$2])
++- LogicalUnion(all=[true])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, left]])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, right]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Union(all=[true], union=[b, c])
+:- Calc(select=[b, c])
+:  +- TableSourceScan(table=[[default_catalog, default_database, left]], fields=[a, b, c])
++- Calc(select=[b, c])
+   +- TableSourceScan(table=[[default_catalog, default_database, right]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

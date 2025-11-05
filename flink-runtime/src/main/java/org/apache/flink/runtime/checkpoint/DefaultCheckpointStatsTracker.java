@@ -18,7 +18,11 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.AttributeBuilder;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.TraceOptions;
+import org.apache.flink.events.EventBuilder;
+import org.apache.flink.events.Events;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -26,6 +30,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatistics;
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
+import org.apache.flink.runtime.util.LongArrayList;
+import org.apache.flink.runtime.util.stats.StatsSummary;
 import org.apache.flink.traces.Span;
 import org.apache.flink.traces.SpanBuilder;
 
@@ -37,6 +43,10 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -49,6 +59,84 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
 
     private static final Logger LOG = LoggerFactory.getLogger(DefaultCheckpointStatsTracker.class);
     private static final ObjectMapper MAPPER = RestMapperUtils.getStrictObjectMapper();
+
+    /**
+     * Function that extracts a {@link StatsSummary} from a {@link
+     * org.apache.flink.runtime.checkpoint.TaskStateStats.TaskStateStatsSummary}.
+     */
+    @FunctionalInterface
+    interface TaskStatsSummaryExtractor {
+        StatsSummary extract(TaskStateStats.TaskStateStatsSummary taskStateStatsSummary);
+    }
+
+    /** Function that extracts a (long) metric value from {@link SubtaskStateStats}. */
+    @FunctionalInterface
+    interface SubtaskMetricExtractor {
+        long extract(SubtaskStateStats subtaskStateStats);
+    }
+
+    /**
+     * Helper class that defines a checkpoint span metric and how to extract the required values.
+     */
+    static final class CheckpointSpanMetric {
+        final String metricName;
+        final TaskStatsSummaryExtractor taskStatsSummaryExtractor;
+        final SubtaskMetricExtractor subtaskMetricExtractor;
+
+        private CheckpointSpanMetric(
+                String metricName,
+                TaskStatsSummaryExtractor taskStatsSummaryExtractor,
+                SubtaskMetricExtractor subtaskMetricExtractor) {
+            this.metricName = metricName;
+            this.taskStatsSummaryExtractor = taskStatsSummaryExtractor;
+            this.subtaskMetricExtractor = subtaskMetricExtractor;
+        }
+
+        static CheckpointSpanMetric of(
+                String metricName,
+                TaskStatsSummaryExtractor taskStatsSummaryExtractor,
+                SubtaskMetricExtractor subtaskMetricExtractor) {
+            return new CheckpointSpanMetric(
+                    metricName, taskStatsSummaryExtractor, subtaskMetricExtractor);
+        }
+    }
+
+    private static final List<CheckpointSpanMetric> CHECKPOINT_SPAN_METRICS =
+            Arrays.asList(
+                    CheckpointSpanMetric.of(
+                            "StateSizeBytes",
+                            TaskStateStats.TaskStateStatsSummary::getStateSizeStats,
+                            SubtaskStateStats::getStateSize),
+                    CheckpointSpanMetric.of(
+                            "CheckpointedSizeBytes",
+                            TaskStateStats.TaskStateStatsSummary::getCheckpointedSize,
+                            SubtaskStateStats::getCheckpointedSize),
+                    CheckpointSpanMetric.of(
+                            "CheckpointStartDelayMs",
+                            TaskStateStats.TaskStateStatsSummary::getCheckpointStartDelayStats,
+                            SubtaskStateStats::getCheckpointStartDelay),
+                    CheckpointSpanMetric.of(
+                            "AlignmentDurationMs",
+                            TaskStateStats.TaskStateStatsSummary::getAlignmentDurationStats,
+                            SubtaskStateStats::getAlignmentDuration),
+                    CheckpointSpanMetric.of(
+                            "SyncCheckpointDurationMs",
+                            TaskStateStats.TaskStateStatsSummary::getSyncCheckpointDurationStats,
+                            SubtaskStateStats::getSyncCheckpointDuration),
+                    CheckpointSpanMetric.of(
+                            "AsyncCheckpointDurationMs",
+                            TaskStateStats.TaskStateStatsSummary::getAsyncCheckpointDurationStats,
+                            SubtaskStateStats::getAsyncCheckpointDuration),
+                    CheckpointSpanMetric.of(
+                            "ProcessedDataBytes",
+                            TaskStateStats.TaskStateStatsSummary::getProcessedDataStats,
+                            SubtaskStateStats::getProcessedData),
+                    CheckpointSpanMetric.of(
+                            "PersistedDataBytes",
+                            TaskStateStats.TaskStateStatsSummary::getPersistedDataStats,
+                            SubtaskStateStats::getPersistedData));
+
+    private final TraceOptions.CheckpointSpanDetailLevel checkpointSpanDetailLevel;
 
     /**
      * Lock used to update stats and creating snapshots. Updates always happen from a single Thread
@@ -96,7 +184,11 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
      */
     public DefaultCheckpointStatsTracker(
             int numRememberedCheckpoints, JobManagerJobMetricGroup metricGroup) {
-        this(numRememberedCheckpoints, metricGroup, null);
+        this(
+                numRememberedCheckpoints,
+                metricGroup,
+                TraceOptions.CheckpointSpanDetailLevel.SPAN_PER_CHECKPOINT,
+                null);
     }
 
     /**
@@ -110,10 +202,12 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
     public DefaultCheckpointStatsTracker(
             int numRememberedCheckpoints,
             JobManagerJobMetricGroup metricGroup,
+            TraceOptions.CheckpointSpanDetailLevel checkpointSpanDetailLevel,
             @Nullable CheckpointStatsListener checkpointStatsListener) {
         checkArgument(numRememberedCheckpoints >= 0, "Negative number of remembered checkpoints");
         this.history = new CheckpointStatsHistory(numRememberedCheckpoints);
         this.metricGroup = metricGroup;
+        this.checkpointSpanDetailLevel = checkpointSpanDetailLevel;
         this.checkpointStatsListener = checkpointStatsListener;
 
         // Latest snapshot is empty
@@ -249,20 +343,22 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
 
     private void logCheckpointStatistics(AbstractCheckpointStats checkpointStats) {
         try {
-            metricGroup.addSpan(
+            EventBuilder eventBuilder =
+                    Events.CheckpointEvent.builder(CheckpointStatsTracker.class)
+                            .setObservedTsMillis(checkpointStats.getLatestAckTimestamp())
+                            .setSeverity("INFO");
+            addCommonCheckpointStatsAttributes(eventBuilder, checkpointStats);
+            metricGroup.addEvent(eventBuilder);
+
+            SpanBuilder spanBuilder =
                     Span.builder(CheckpointStatsTracker.class, "Checkpoint")
                             .setStartTsMillis(checkpointStats.getTriggerTimestamp())
-                            .setEndTsMillis(checkpointStats.getLatestAckTimestamp())
-                            .setAttribute("checkpointId", checkpointStats.getCheckpointId())
-                            .setAttribute("fullSize", checkpointStats.getStateSize())
-                            .setAttribute("checkpointedSize", checkpointStats.getCheckpointedSize())
-                            .setAttribute("checkpointStatus", checkpointStats.getStatus().name())
-                            .setAttribute(
-                                    "isUnaligned",
-                                    Boolean.toString(checkpointStats.isUnalignedCheckpoint()))
-                            .setAttribute(
-                                    "checkpointType",
-                                    checkpointStats.getProperties().getCheckpointType().getName()));
+                            .setEndTsMillis(checkpointStats.getLatestAckTimestamp());
+            addCommonCheckpointStatsAttributes(spanBuilder, checkpointStats);
+            // Add max/sum aggregations for breakdown metrics
+            addCheckpointAggregationStats(checkpointStats, spanBuilder);
+            metricGroup.addSpan(spanBuilder);
+
             if (LOG.isDebugEnabled()) {
                 StringWriter sw = new StringWriter();
                 MAPPER.writeValue(
@@ -278,6 +374,148 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
         } catch (Exception ex) {
             LOG.warn("Fail to log CheckpointStatistics", ex);
         }
+    }
+
+    private AttributeBuilder addCommonCheckpointStatsAttributes(
+            AttributeBuilder attributeBuilder, AbstractCheckpointStats checkpointStats) {
+        attributeBuilder
+                .setAttribute("checkpointId", checkpointStats.getCheckpointId())
+                .setAttribute("fullSize", checkpointStats.getStateSize())
+                .setAttribute("checkpointedSize", checkpointStats.getCheckpointedSize())
+                .setAttribute("metadataSize", checkpointStats.getMetadataSize())
+                .setAttribute("checkpointStatus", checkpointStats.getStatus().name())
+                .setAttribute(
+                        "isUnaligned", Boolean.toString(checkpointStats.isUnalignedCheckpoint()))
+                .setAttribute(
+                        "checkpointType",
+                        checkpointStats.getProperties().getCheckpointType().getName());
+
+        return attributeBuilder;
+    }
+
+    private void addCheckpointAggregationStats(
+            AbstractCheckpointStats checkpointStats, SpanBuilder checkpointSpanBuilder) {
+
+        final List<TaskStateStats> sortedTaskStateStats =
+                new ArrayList<>(checkpointStats.getAllTaskStateStats());
+        sortedTaskStateStats.sort(
+                (x, y) ->
+                        Long.signum(
+                                x.getSummaryStats().getCheckpointStartDelayStats().getMinimum()
+                                        - y.getSummaryStats()
+                                                .getCheckpointStartDelayStats()
+                                                .getMinimum()));
+
+        CHECKPOINT_SPAN_METRICS.stream()
+                .map(metric -> TaskStatsAggregator.aggregate(sortedTaskStateStats, metric))
+                .forEach(
+                        aggregator -> {
+                            final String metricName = aggregator.getMetricName();
+                            checkpointSpanBuilder.setAttribute(
+                                    "max" + metricName, aggregator.getTotalMax());
+
+                            if (!shouldSkipSumMetricNameInCheckpointSpanForCompatibility(
+                                    metricName)) {
+                                checkpointSpanBuilder.setAttribute(
+                                        "sum" + metricName, aggregator.getTotalSum());
+                            }
+
+                            if (checkpointSpanDetailLevel
+                                    == TraceOptions.CheckpointSpanDetailLevel
+                                            .SPAN_PER_CHECKPOINT_WITH_TASKS) {
+                                checkpointSpanBuilder.setAttribute(
+                                        "perTaskMax" + metricName,
+                                        Arrays.toString(
+                                                aggregator.getValuesMax().getInternalArray()));
+                                checkpointSpanBuilder.setAttribute(
+                                        "perTaskSum" + metricName,
+                                        Arrays.toString(
+                                                aggregator.getValuesSum().getInternalArray()));
+                            }
+                        });
+
+        if (checkpointSpanDetailLevel
+                        == TraceOptions.CheckpointSpanDetailLevel.CHILDREN_SPANS_PER_TASK
+                || checkpointSpanDetailLevel
+                        == TraceOptions.CheckpointSpanDetailLevel.CHILDREN_SPANS_PER_SUBTASK) {
+            for (TaskStateStats taskStats : sortedTaskStateStats) {
+                checkpointSpanBuilder.addChild(
+                        createTaskSpan(
+                                checkpointStats,
+                                taskStats,
+                                checkpointSpanDetailLevel
+                                        == TraceOptions.CheckpointSpanDetailLevel
+                                                .CHILDREN_SPANS_PER_SUBTASK));
+            }
+        }
+    }
+
+    private SpanBuilder createTaskSpan(
+            AbstractCheckpointStats checkpointStats,
+            TaskStateStats taskStats,
+            boolean addSubtaskSpans) {
+
+        // start = trigger ts + minimum delay.
+        long taskStartTs =
+                checkpointStats.getTriggerTimestamp()
+                        + taskStats.getSummaryStats().getCheckpointStartDelayStats().getMinimum();
+        SpanBuilder taskSpanBuilder =
+                Span.builder(CheckpointStatsTracker.class, "Checkpoint_Task")
+                        .setStartTsMillis(taskStartTs)
+                        .setEndTsMillis(taskStats.getLatestAckTimestamp())
+                        .setAttribute("checkpointId", checkpointStats.getCheckpointId())
+                        .setAttribute("jobVertexId", taskStats.getJobVertexId().toString());
+
+        for (CheckpointSpanMetric spanMetric : CHECKPOINT_SPAN_METRICS) {
+            String metricName = spanMetric.metricName;
+            StatsSummary statsSummary =
+                    spanMetric.taskStatsSummaryExtractor.extract(taskStats.getSummaryStats());
+            taskSpanBuilder.setAttribute("max" + metricName, statsSummary.getMaximum());
+            taskSpanBuilder.setAttribute("sum" + metricName, statsSummary.getSum());
+        }
+
+        if (addSubtaskSpans) {
+            addSubtaskSpans(checkpointStats, taskStats, taskSpanBuilder);
+        }
+
+        return taskSpanBuilder;
+    }
+
+    private void addSubtaskSpans(
+            AbstractCheckpointStats checkpointStats,
+            TaskStateStats taskStats,
+            SpanBuilder taskSpanBuilder) {
+        for (SubtaskStateStats subtaskStat : taskStats.getSubtaskStats()) {
+            if (subtaskStat == null) {
+                continue;
+            }
+
+            // start = trigger ts + minimum delay.
+            long subTaskStartTs =
+                    checkpointStats.getTriggerTimestamp() + subtaskStat.getCheckpointStartDelay();
+
+            SpanBuilder subTaskSpanBuilder =
+                    Span.builder(CheckpointStatsTracker.class, "Checkpoint_Subtask")
+                            .setStartTsMillis(subTaskStartTs)
+                            .setEndTsMillis(subtaskStat.getAckTimestamp())
+                            .setAttribute("checkpointId", checkpointStats.getCheckpointId())
+                            .setAttribute("jobVertexId", taskStats.getJobVertexId().toString())
+                            .setAttribute("subtaskId", subtaskStat.getSubtaskIndex());
+
+            for (CheckpointSpanMetric spanMetric : CHECKPOINT_SPAN_METRICS) {
+                String metricName = spanMetric.metricName;
+                long metricValue = spanMetric.subtaskMetricExtractor.extract(subtaskStat);
+                subTaskSpanBuilder.setAttribute(metricName, metricValue);
+            }
+
+            taskSpanBuilder.addChild(subTaskSpanBuilder);
+        }
+    }
+
+    private boolean shouldSkipSumMetricNameInCheckpointSpanForCompatibility(String metricName) {
+        // Those two metrics already exists under different names that we want to preserve
+        // (fullSize, checkpointedSize).
+        return metricName.equals("StateSizeBytes") || metricName.equals("CheckpointedSizeBytes");
     }
 
     @Override
@@ -423,6 +661,10 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
     static final String LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC = "lastCheckpointFullSize";
 
     @VisibleForTesting
+    static final String LATEST_COMPLETED_CHECKPOINT_METADATA_SIZE_METRIC =
+            "lastCheckpointMetadataSize";
+
+    @VisibleForTesting
     static final String LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC = "lastCheckpointDuration";
 
     @VisibleForTesting
@@ -463,6 +705,9 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
         metricGroup.gauge(
                 LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC,
                 new LatestCompletedCheckpointFullSizeGauge());
+        metricGroup.gauge(
+                LATEST_COMPLETED_CHECKPOINT_METADATA_SIZE_METRIC,
+                new LatestCompletedCheckpointMetadataSizeGauge());
         metricGroup.gauge(
                 LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC,
                 new LatestCompletedCheckpointDurationGauge());
@@ -543,6 +788,14 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
         }
     }
 
+    private class LatestCompletedCheckpointMetadataSizeGauge implements Gauge<Long> {
+        @Override
+        public Long getValue() {
+            CompletedCheckpointStats completed = latestCompletedCheckpoint;
+            return completed != null ? completed.getMetadataSize() : -1L;
+        }
+    }
+
     private class LatestCompletedCheckpointDurationGauge implements Gauge<Long> {
         @Override
         public Long getValue() {
@@ -612,6 +865,57 @@ public class DefaultCheckpointStatsTracker implements CheckpointStatsTracker {
             } else {
                 return -1L;
             }
+        }
+    }
+
+    static class TaskStatsAggregator {
+        final String metricName;
+        final LongArrayList valuesMax;
+        final LongArrayList valuesSum;
+
+        TaskStatsAggregator(String metric, LongArrayList valuesMax, LongArrayList valuesSum) {
+            this.metricName = metric;
+            this.valuesMax = valuesMax;
+            this.valuesSum = valuesSum;
+        }
+
+        public static TaskStatsAggregator aggregate(
+                Collection<TaskStateStats> allTaskStateStats,
+                CheckpointSpanMetric metricDescriptor) {
+
+            final LongArrayList valuesMax = new LongArrayList(allTaskStateStats.size());
+            final LongArrayList valuesSum = new LongArrayList(allTaskStateStats.size());
+            for (TaskStateStats taskStats : allTaskStateStats) {
+                StatsSummary statsSummary =
+                        metricDescriptor.taskStatsSummaryExtractor.extract(
+                                taskStats.getSummaryStats());
+                valuesMax.add(statsSummary.getMaximum());
+                valuesSum.add(statsSummary.getSum());
+            }
+            return new TaskStatsAggregator(metricDescriptor.metricName, valuesMax, valuesSum);
+        }
+
+        public LongArrayList getValuesMax() {
+            return valuesMax;
+        }
+
+        public LongArrayList getValuesSum() {
+            return valuesSum;
+        }
+
+        public String getMetricName() {
+            return metricName;
+        }
+
+        public long getTotalMax() {
+            return Arrays.stream(valuesMax.getInternalArray())
+                    .filter(val -> val > 0L)
+                    .max()
+                    .orElse(0L);
+        }
+
+        public long getTotalSum() {
+            return Arrays.stream(valuesSum.getInternalArray()).filter(val -> val >= 0L).sum();
         }
     }
 }

@@ -1222,7 +1222,7 @@ class OverAggregateITCase extends BatchTestBase {
           3.14,
           "EFG",
           localDate("2017-05-20"),
-          localTime("09:46:18"),
+          localTime("09:45:58"),
           localDateTime("2015-11-19 10:00:01"),
           3,
           2,

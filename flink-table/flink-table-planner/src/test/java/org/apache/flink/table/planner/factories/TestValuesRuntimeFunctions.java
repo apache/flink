@@ -29,6 +29,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.source.TerminatingLogic;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
@@ -46,24 +47,35 @@ import org.apache.flink.streaming.api.lineage.SourceLineageVertex;
 import org.apache.flink.table.connector.RuntimeConverter;
 import org.apache.flink.table.connector.sink.DynamicTableSink.DataStructureConverter;
 import org.apache.flink.table.connector.source.LookupTableSource;
+import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
+import org.apache.flink.table.data.conversion.RowRowConverter;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.AsyncLookupFunction;
+import org.apache.flink.table.functions.AsyncVectorSearchFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.functions.LookupFunction;
+import org.apache.flink.table.functions.VectorSearchFunction;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.ArrayType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.test.util.SuccessException;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.types.RowUtils;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.clock.RelativeClock;
 import org.apache.flink.util.clock.SystemClock;
+
+import javax.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -73,14 +85,18 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.Random;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
@@ -90,7 +106,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Runtime function implementations for {@link TestValuesTableFactory}. */
-final class TestValuesRuntimeFunctions {
+public final class TestValuesRuntimeFunctions {
 
     static final Object LOCK = TestValuesTableFactory.class;
 
@@ -214,6 +230,7 @@ final class TestValuesRuntimeFunctions {
     // Source Function implementations
     // ------------------------------------------------------------------------------------------
 
+    /** A source function used for test. */
     public static class FromElementSourceFunctionWithWatermark
             implements SourceFunction<RowData>, LineageVertexProvider {
         private static final String LINEAGE_NAMESPACE =
@@ -238,13 +255,17 @@ final class TestValuesRuntimeFunctions {
 
         private final String tableName;
 
+        private final TerminatingLogic terminating;
+
         public FromElementSourceFunctionWithWatermark(
                 String tableName,
                 TypeSerializer<RowData> serializer,
                 Iterable<RowData> elements,
-                WatermarkStrategy<RowData> watermarkStrategy)
+                WatermarkStrategy<RowData> watermarkStrategy,
+                TerminatingLogic terminating)
                 throws IOException {
             this.tableName = tableName;
+            this.terminating = terminating;
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(baos);
 
@@ -303,6 +324,13 @@ final class TestValuesRuntimeFunctions {
                     numElementsEmitted++;
                     generator.onEvent(next, Long.MIN_VALUE, output);
                     generator.onPeriodicEmit(output);
+                }
+            }
+
+            if (terminating == TerminatingLogic.INFINITE) {
+                // wait until being canceled
+                while (isRunning) {
+                    Thread.sleep(100);
                 }
             }
         }
@@ -863,6 +891,8 @@ final class TestValuesRuntimeFunctions {
         private transient Projection<RowData, GenericRowData> projection;
         private transient TypeSerializer<RowData> rowSerializer;
 
+        public static AtomicInteger invokeCount = new AtomicInteger(0);
+
         protected AsyncTestValueLookupFunction(
                 List<Row> data,
                 int[] lookupIndices,
@@ -896,6 +926,7 @@ final class TestValuesRuntimeFunctions {
         @Override
         public CompletableFuture<Collection<RowData>> asyncLookup(RowData keyRow) {
             checkArgument(isOpenCalled, "open() is not called.");
+            invokeCount.incrementAndGet();
             for (int i = 0; i < keyRow.getArity(); i++) {
                 checkNotNull(
                         ((GenericRowData) keyRow).getField(i),
@@ -1048,6 +1079,146 @@ final class TestValuesRuntimeFunctions {
                 return CompletableFuture.supplyAsync(() -> emptyResult);
             }
             return super.asyncLookup(keyRow);
+        }
+    }
+
+    public static class TestValueVectorSearchFunction extends VectorSearchFunction {
+
+        private final List<Row> data;
+        private final int vectorFieldIndice;
+        private final DataType physicalRowType;
+        private transient RowRowConverter converter;
+        private transient Map<double[], RowData> normalizedData;
+
+        public TestValueVectorSearchFunction(
+                List<Row> data, int[] searchIndices, DataType physicalRowType) {
+            this.data = data;
+            this.vectorFieldIndice = searchIndices[0];
+            this.physicalRowType = physicalRowType;
+            LogicalType vectorColumnType =
+                    physicalRowType.getChildren().get(vectorFieldIndice).getLogicalType();
+            Preconditions.checkArgument(
+                    vectorColumnType.is(LogicalTypeRoot.ARRAY)
+                            && ((ArrayType) vectorColumnType)
+                                    .getElementType()
+                                    .is(LogicalTypeRoot.FLOAT),
+                    "Only support ARRAY<FLOAT> as the search column.");
+        }
+
+        @Override
+        public void open(FunctionContext context) throws Exception {
+            super.open(context);
+            converter = RowRowConverter.create(physicalRowType);
+            converter.open(context.getUserCodeClassLoader());
+            normalizedData = new HashMap<>();
+            for (Row row : data) {
+                Object field = row.getField(vectorFieldIndice);
+                normalizedData.put(
+                        normalizeFloatVector((Float[]) field), converter.toInternal(row));
+            }
+        }
+
+        @Override
+        public Collection<RowData> vectorSearch(int topK, RowData queryData) {
+            ArrayData inputData = queryData.getArray(0);
+            float[] query = inputData.toFloatArray();
+            List<RowData> output = new ArrayList<>();
+            TreeMap<Double, RowData> topKResults = new TreeMap<>();
+            for (Map.Entry<double[], RowData> entry : normalizedData.entrySet()) {
+                topKResults.put(
+                        cosineDistance(normalizeFloatVector(query), entry.getKey()),
+                        entry.getValue());
+            }
+            NavigableMap<Double, RowData> sorted = topKResults.descendingMap();
+            Iterator<Double> iterator = sorted.keySet().iterator();
+            while (output.size() < topK) {
+                if (!iterator.hasNext()) {
+                    break;
+                }
+                Double score = iterator.next();
+                output.add(new JoinedRowData(sorted.get(score), GenericRowData.of(score)));
+            }
+            return output;
+        }
+
+        private double[] normalizeFloatVector(float[] vector) {
+            double norm = 0.0;
+            double[] normalizedVector = new double[vector.length];
+            for (double v : vector) {
+                norm += v * v;
+            }
+            for (int i = 0; i < vector.length; i++) {
+                normalizedVector[i] = vector[i] / Math.sqrt(norm);
+            }
+            return normalizedVector;
+        }
+
+        private double[] normalizeFloatVector(Float[] vector) {
+            double norm = 0.0;
+            double[] normalizedVector = new double[vector.length];
+            for (double v : vector) {
+                norm += v * v;
+            }
+            for (int i = 0; i < vector.length; i++) {
+                normalizedVector[i] = vector[i] / Math.sqrt(norm);
+            }
+            return normalizedVector;
+        }
+
+        private double cosineDistance(double[] left, double[] right) {
+            int length = left.length;
+            double sum = 0;
+            for (int i = 0; i < length; i++) {
+                sum += left[i] * right[i];
+            }
+            return sum;
+        }
+    }
+
+    public static class TestValueAsyncVectorSearchFunction extends AsyncVectorSearchFunction {
+
+        private final TestValueVectorSearchFunction impl;
+        private final @Nullable Integer latency;
+        private transient ExecutorService executors;
+        private transient Random random;
+
+        public TestValueAsyncVectorSearchFunction(
+                List<Row> data,
+                int[] searchIndices,
+                DataType physicalRowType,
+                @Nullable Integer latency) {
+            this.impl = new TestValueVectorSearchFunction(data, searchIndices, physicalRowType);
+            this.latency = latency;
+        }
+
+        @Override
+        public void open(FunctionContext context) throws Exception {
+            super.open(context);
+            impl.open(context);
+            executors = Executors.newCachedThreadPool();
+            random = new Random();
+        }
+
+        @Override
+        public CompletableFuture<Collection<RowData>> asyncVectorSearch(
+                int topK, RowData queryData) {
+            return CompletableFuture.supplyAsync(
+                    () -> {
+                        try {
+                            Thread.sleep(latency == null ? random.nextInt(1000) : latency);
+                            return impl.vectorSearch(topK, queryData);
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    },
+                    executors);
+        }
+
+        @Override
+        public void close() throws Exception {
+            super.close();
+            impl.close();
+            executors.shutdown();
         }
     }
 }

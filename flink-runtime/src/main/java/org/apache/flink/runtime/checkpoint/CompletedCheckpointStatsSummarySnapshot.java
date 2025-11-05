@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.runtime.util.stats.StatsSummarySnapshot;
 
 import java.io.Serializable;
 

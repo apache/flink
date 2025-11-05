@@ -64,23 +64,6 @@ Calc(select=[a, 2 AS $1])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], rank_num=[$1])
-+- LogicalFilter(condition=[=($1, 2)])
-   +- LogicalProject(a=[$0], rank_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $3 DESC NULLS LAST)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, 2 AS $1])
-+- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=2, rankEnd=2], partitionBy=[b], orderBy=[proctime DESC], select=[a, b, proctime])
-   +- Exchange(distribution=[hash[b]])
-      +- Calc(select=[a, b, proctime])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
   </TestCase>
   <TestCase name="testInvalidRowNumberConditionOnRowtime">
     <Resource name="explain">
@@ -244,33 +227,9 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1 AS 
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSimpleLastRowOnBuiltinProctime">
+  <TestCase name="testSimpleFirstRowOnProctime">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rowNum=[$5])
-+- LogicalFilter(condition=[=($5, 1)])
-   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rowNum=[ROW_NUMBER() OVER (ORDER BY PROCTIME() DESC NULLS LAST)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-
-== Optimized Physical Plan ==
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1:BIGINT AS $5], changelogMode=[I,UA,D])
-+- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[], orderBy=[$5 DESC], select=[a, b, c, proctime, rowtime, $5], changelogMode=[I,UA,D])
-   +- Exchange(distribution=[single], changelogMode=[I])
-      +- Calc(select=[a, b, c, proctime, rowtime, PROCTIME() AS $5], changelogMode=[I])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
-
-== Optimized Execution Plan ==
-Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1 AS $5])
-+- Deduplicate(keep=[LastRow], key=[], order=[PROCTIME], outputInsertOnly=[false])
-   +- Exchange(distribution=[single])
-      +- Calc(select=[a, b, c, proctime, rowtime, PROCTIME() AS $5])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSimpleFirstRowOnProctime">
-	  <Resource name="explain">
-		  <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(EXPR$0=[$1], b=[$0], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)], EXPR$2=[SUM($2)])
    +- LogicalProject(b=[$1], a=[$0], c=[$2])
@@ -299,45 +258,11 @@ Calc(select=[EXPR$0, b, EXPR$2])
                +- Calc(select=[a, b, c, proctime])
                   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
-	  </Resource>
-  </TestCase>
-  <TestCase name="testSimpleLastRowOnRowtime">
-    <Resource name="explain">
-      <![CDATA[== Abstract Syntax Tree ==
-LogicalProject(EXPR$0=[$1], b=[$0], EXPR$2=[$2])
-+- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)], EXPR$2=[SUM($2)])
-   +- LogicalProject(b=[$1], a=[$0], c=[$2])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2])
-         +- LogicalFilter(condition=[=($5, 1)])
-            +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 DESC NULLS LAST)])
-               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-
-== Optimized Physical Plan ==
-Calc(select=[EXPR$0, b, EXPR$2], changelogMode=[I,UA,D])
-+- GroupAggregate(groupBy=[b], select=[b, SUM_RETRACT(a) AS EXPR$0, SUM_RETRACT(c) AS EXPR$2], changelogMode=[I,UA,D])
-   +- Exchange(distribution=[hash[b]], changelogMode=[I,UB,UA,D])
-      +- Calc(select=[b, a, c], changelogMode=[I,UB,UA,D])
-         +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[ROWTIME rowtime DESC], select=[a, b, c, rowtime], changelogMode=[I,UB,UA,D])
-            +- Exchange(distribution=[hash[a]], changelogMode=[I])
-               +- Calc(select=[a, b, c, rowtime], changelogMode=[I])
-                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
-
-== Optimized Execution Plan ==
-Calc(select=[EXPR$0, b, EXPR$2])
-+- GroupAggregate(groupBy=[b], select=[b, SUM_RETRACT(a) AS EXPR$0, SUM_RETRACT(c) AS EXPR$2])
-   +- Exchange(distribution=[hash[b]])
-      +- Calc(select=[b, a, c])
-         +- Deduplicate(keep=[LastRow], key=[a], order=[ROWTIME], outputInsertOnly=[false])
-            +- Exchange(distribution=[hash[a]])
-               +- Calc(select=[a, b, c, rowtime])
-                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
     </Resource>
   </TestCase>
   <TestCase name="testSimpleFirstRowOnRowtime">
-
-	  <Resource name="explain">
-		  <![CDATA[== Abstract Syntax Tree ==
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
 LogicalProject(EXPR$0=[$1], b=[$0], EXPR$2=[$2])
 +- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)], EXPR$2=[SUM($2)])
    +- LogicalProject(b=[$1], a=[$0], c=[$2])
@@ -366,7 +291,31 @@ Calc(select=[EXPR$0, b, EXPR$2])
                +- Calc(select=[a, b, c, rowtime])
                   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
-	  </Resource>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleLastRowOnBuiltinProctime">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rowNum=[$5])
++- LogicalFilter(condition=[=($5, 1)])
+   +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rowNum=[ROW_NUMBER() OVER (ORDER BY PROCTIME() DESC NULLS LAST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1:BIGINT AS $5], changelogMode=[I,UA,D])
++- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[], orderBy=[$5 DESC], select=[a, b, c, proctime, rowtime, $5], changelogMode=[I,UA,D])
+   +- Exchange(distribution=[single], changelogMode=[I])
+      +- Calc(select=[a, b, c, proctime, rowtime, PROCTIME() AS $5], changelogMode=[I])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
+
+== Optimized Execution Plan ==
+Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, 1 AS $5])
++- Deduplicate(keep=[LastRow], key=[], order=[PROCTIME], outputInsertOnly=[false])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[a, b, c, proctime, rowtime, PROCTIME() AS $5])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
   </TestCase>
   <TestCase name="testSimpleLastRowOnProctime">
     <Resource name="explain">
@@ -397,6 +346,39 @@ Calc(select=[EXPR$0, b, EXPR$2])
          +- Deduplicate(keep=[LastRow], key=[a], order=[PROCTIME], outputInsertOnly=[false])
             +- Exchange(distribution=[hash[a]])
                +- Calc(select=[a, b, c, proctime])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleLastRowOnRowtime">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(EXPR$0=[$1], b=[$0], EXPR$2=[$2])
++- LogicalAggregate(group=[{0}], EXPR$0=[SUM($1)], EXPR$2=[SUM($2)])
+   +- LogicalProject(b=[$1], a=[$0], c=[$2])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2])
+         +- LogicalFilter(condition=[=($5, 1)])
+            +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[$3], rowtime=[$4], rank_num=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $4 DESC NULLS LAST)])
+               +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Calc(select=[EXPR$0, b, EXPR$2], changelogMode=[I,UA,D])
++- GroupAggregate(groupBy=[b], select=[b, SUM_RETRACT(a) AS EXPR$0, SUM_RETRACT(c) AS EXPR$2], changelogMode=[I,UA,D])
+   +- Exchange(distribution=[hash[b]], changelogMode=[I,UB,UA,D])
+      +- Calc(select=[b, a, c], changelogMode=[I,UB,UA,D])
+         +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[ROWTIME rowtime DESC], select=[a, b, c, rowtime], changelogMode=[I,UB,UA,D])
+            +- Exchange(distribution=[hash[a]], changelogMode=[I])
+               +- Calc(select=[a, b, c, rowtime], changelogMode=[I])
+                  +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime], changelogMode=[I])
+
+== Optimized Execution Plan ==
+Calc(select=[EXPR$0, b, EXPR$2])
++- GroupAggregate(groupBy=[b], select=[b, SUM_RETRACT(a) AS EXPR$0, SUM_RETRACT(c) AS EXPR$2])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[b, a, c])
+         +- Deduplicate(keep=[LastRow], key=[a], order=[ROWTIME], outputInsertOnly=[false])
+            +- Exchange(distribution=[hash[a]])
+               +- Calc(select=[a, b, c, rowtime])
                   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>

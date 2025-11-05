@@ -363,8 +363,8 @@ final class FunctionTemplate {
                 }
             }
             throw extractionError("Data type missing for scalar argument at position %s.", pos);
-        } else if (rootTrait.contains(ArgumentTrait.TABLE_AS_ROW)
-                || rootTrait.contains(ArgumentTrait.TABLE_AS_SET)) {
+        } else if (rootTrait.contains(ArgumentTrait.ROW_SEMANTIC_TABLE)
+                || rootTrait.contains(ArgumentTrait.SET_SEMANTIC_TABLE)) {
             try {
                 final DataTypeTemplate template =
                         DataTypeTemplate.fromAnnotation(typeFactory, hint);

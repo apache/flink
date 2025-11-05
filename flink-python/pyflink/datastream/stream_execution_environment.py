@@ -38,6 +38,7 @@ from pyflink.datastream.functions import SourceFunction
 from pyflink.datastream.utils import ResultTypeQueryable
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import PickleSerializer
+from pyflink.util.api_stability_decorators import Public
 from pyflink.util.java_utils import add_jars_to_context_class_loader, \
     invoke_method, get_field_value, is_local_deployment, get_j_env_configuration
 
@@ -45,6 +46,7 @@ from pyflink.util.java_utils import add_jars_to_context_class_loader, \
 __all__ = ['StreamExecutionEnvironment']
 
 
+@Public()
 class StreamExecutionEnvironment(object):
     """
     The StreamExecutionEnvironment is the context in which a streaming program is executed. A
@@ -802,7 +804,7 @@ class StreamExecutionEnvironment(object):
             # list.
             if type_info is None:
                 j_objs = gateway.jvm.PythonBridgeUtils.readPickledBytes(temp_file.name)
-                out_put_type_info = Types.PICKLED_BYTE_ARRAY()  # type: TypeInformation
+                out_put_type_info: TypeInformation = Types.PICKLED_BYTE_ARRAY()
             else:
                 j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name)
                 out_put_type_info = type_info

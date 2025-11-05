@@ -32,6 +32,8 @@ import org.apache.flink.metrics.reporter.AbstractReporter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 
+import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
+import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporterBuilder;
 import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter;
 import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporterBuilder;
 import io.opentelemetry.sdk.common.CompletableResultCode;
@@ -92,17 +94,41 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
     public void open(MetricConfig metricConfig) {
         LOG.info("Starting OpenTelemetryMetricReporter");
         super.open(metricConfig);
-        OtlpGrpcMetricExporterBuilder builder = OtlpGrpcMetricExporter.builder();
-        tryConfigureEndpoint(metricConfig, builder::setEndpoint);
-        tryConfigureTimeout(metricConfig, builder::setTimeout);
-        exporter = builder.build();
+
+        final String protocol =
+                Optional.ofNullable(
+                                metricConfig.getProperty(
+                                        OpenTelemetryReporterOptions.EXPORTER_PROTOCOL.key()))
+                        .orElse("");
+
+        switch (protocol.toLowerCase()) {
+            case "http":
+                OtlpHttpMetricExporterBuilder httpBuilder = OtlpHttpMetricExporter.builder();
+                tryConfigureEndpoint(metricConfig, httpBuilder::setEndpoint);
+                tryConfigureTimeout(metricConfig, httpBuilder::setTimeout);
+                exporter = httpBuilder.build();
+                break;
+            default:
+                LOG.warn(
+                        "Unknown protocol '{}' for OpenTelemetryMetricReporter, defaulting to gRPC",
+                        protocol);
+            // Fall through to the "gRPC" case
+            case "grpc":
+                OtlpGrpcMetricExporterBuilder grpcBuilder = OtlpGrpcMetricExporter.builder();
+                tryConfigureEndpoint(metricConfig, grpcBuilder::setEndpoint);
+                tryConfigureTimeout(metricConfig, grpcBuilder::setTimeout);
+                exporter = grpcBuilder.build();
+                break;
+        }
     }
 
     @Override
     public void close() {
-        exporter.flush();
-        lastResult.join(1, TimeUnit.MINUTES);
-        exporter.close();
+        if (exporter != null) {
+            exporter.flush();
+            waitForLastReportToComplete();
+            exporter.close();
+        }
     }
 
     @Override
@@ -266,6 +292,13 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
                     "Failed to call export for {} metrics using {}",
                     metricData.size(),
                     exporter.getClass().getName());
+        }
+    }
+
+    @VisibleForTesting
+    void waitForLastReportToComplete() {
+        if (lastResult != null) {
+            lastResult.join(1, TimeUnit.MINUTES);
         }
     }
 }

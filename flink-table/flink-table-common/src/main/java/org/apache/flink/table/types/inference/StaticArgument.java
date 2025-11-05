@@ -73,6 +73,7 @@ public class StaticArgument {
         checkTraits(traits);
         checkOptionalType();
         checkTableType();
+        checkModelType();
     }
 
     /**
@@ -92,8 +93,8 @@ public class StaticArgument {
     /**
      * Declares a table argument such as {@code f(t => myTable)} or {@code f(t => TABLE myTable))}.
      *
-     * <p>The argument can have {@link StaticArgumentTrait#TABLE_AS_ROW} (default) or {@link
-     * StaticArgumentTrait#TABLE_AS_SET} semantics.
+     * <p>The argument can have {@link StaticArgumentTrait#ROW_SEMANTIC_TABLE} (default) or {@link
+     * StaticArgumentTrait#SET_SEMANTIC_TABLE} semantics.
      *
      * <p>By only providing a conversion class, the argument supports a "polymorphic" behavior. In
      * other words: it accepts tables with an arbitrary number of columns with arbitrary data types.
@@ -113,8 +114,8 @@ public class StaticArgument {
         Preconditions.checkNotNull(conversionClass, "Conversion class must not be null.");
         final EnumSet<StaticArgumentTrait> enrichedTraits = EnumSet.copyOf(traits);
         enrichedTraits.add(StaticArgumentTrait.TABLE);
-        if (!enrichedTraits.contains(StaticArgumentTrait.TABLE_AS_SET)) {
-            enrichedTraits.add(StaticArgumentTrait.TABLE_AS_ROW);
+        if (!enrichedTraits.contains(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
+            enrichedTraits.add(StaticArgumentTrait.ROW_SEMANTIC_TABLE);
         }
         return new StaticArgument(name, null, conversionClass, isOptional, enrichedTraits);
     }
@@ -122,8 +123,8 @@ public class StaticArgument {
     /**
      * Declares a table argument such as {@code f(t => myTable)} or {@code f(t => TABLE myTable))}.
      *
-     * <p>The argument can have {@link StaticArgumentTrait#TABLE_AS_ROW} (default) or {@link
-     * StaticArgumentTrait#TABLE_AS_SET} semantics.
+     * <p>The argument can have {@link StaticArgumentTrait#ROW_SEMANTIC_TABLE} (default) or {@link
+     * StaticArgumentTrait#SET_SEMANTIC_TABLE} semantics.
      *
      * <p>By providing a concrete data type, the argument only accepts tables with corresponding
      * number of columns and data types. The data type must be a {@link RowType} or {@link
@@ -144,12 +145,29 @@ public class StaticArgument {
         return new StaticArgument(name, dataType, null, isOptional, enrichTableTraits(traits));
     }
 
+    /**
+     * Declares a model argument such as {@code f(m => myModel)} or {@code f(m => MODEL myModel))}.
+     *
+     * <p>By using this method, the argument supports a "polymorphic" behavior. In other words: it
+     * accepts models with arbitrary schemas or types.
+     *
+     * @param name name for the assignment operator e.g. {@code f(myArg => myModel)}
+     * @param isOptional whether the argument is optional
+     * @param traits set of {@link StaticArgumentTrait} requiring {@link StaticArgumentTrait#MODEL}
+     */
+    public static StaticArgument model(
+            String name, boolean isOptional, EnumSet<StaticArgumentTrait> traits) {
+        final EnumSet<StaticArgumentTrait> enrichedTraits = EnumSet.copyOf(traits);
+        enrichedTraits.add(StaticArgumentTrait.MODEL);
+        return new StaticArgument(name, null, null, isOptional, enrichedTraits);
+    }
+
     private static EnumSet<StaticArgumentTrait> enrichTableTraits(
             EnumSet<StaticArgumentTrait> traits) {
         final EnumSet<StaticArgumentTrait> enrichedTraits = EnumSet.copyOf(traits);
         enrichedTraits.add(StaticArgumentTrait.TABLE);
-        if (!enrichedTraits.contains(StaticArgumentTrait.TABLE_AS_SET)) {
-            enrichedTraits.add(StaticArgumentTrait.TABLE_AS_ROW);
+        if (!enrichedTraits.contains(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
+            enrichedTraits.add(StaticArgumentTrait.ROW_SEMANTIC_TABLE);
         }
         return enrichedTraits;
     }
@@ -261,7 +279,7 @@ public class StaticArgument {
         }
         // e.g. for untyped table arguments
         if (dataType == null) {
-            throw new ValidationException("Untyped table arguments must not be optional.");
+            return;
         }
 
         final LogicalType type = dataType.getLogicalType();
@@ -278,8 +296,22 @@ public class StaticArgument {
         if (!traits.contains(StaticArgumentTrait.TABLE)) {
             return;
         }
+        checkTableNotOptional();
         checkPolymorphicTableType();
         checkTypedTableType();
+    }
+
+    private void checkModelType() {
+        if (!traits.contains(StaticArgumentTrait.MODEL)) {
+            return;
+        }
+        checkModelNotOptional();
+    }
+
+    private void checkTableNotOptional() {
+        if (isOptional) {
+            throw new ValidationException("Table arguments must not be optional.");
+        }
     }
 
     private void checkPolymorphicTableType() {
@@ -314,6 +346,12 @@ public class StaticArgument {
                             "Invalid data type '%s' for table argument '%s'. "
                                     + "Table arguments that support updates must use a row type.",
                             type, name));
+        }
+    }
+
+    private void checkModelNotOptional() {
+        if (isOptional) {
+            throw new ValidationException("Model arguments must not be optional.");
         }
     }
 }

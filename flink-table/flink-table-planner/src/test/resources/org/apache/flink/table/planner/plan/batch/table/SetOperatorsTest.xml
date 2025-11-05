@@ -137,26 +137,6 @@ Calc(select=[b0 AS b, c0 AS c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testUnionNullableTypes">
-    <Resource name="ast">
-      <![CDATA[
-LogicalUnion(all=[true])
-:- LogicalProject(a=[$0])
-:  +- LogicalTableScan(table=[[default_catalog, default_database, A]])
-+- LogicalProject(_c0=[CASE(>($2, 0), $1, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, A]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Union(all=[true], union=[a])
-:- Calc(select=[a])
-:  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c])(reuse_id=[1])
-+- Calc(select=[CASE((c > 0), b, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)) AS _c0])
-   +- Reused(reference_id=[1])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testProjectUnionTranspose">
     <Resource name="ast">
       <![CDATA[
@@ -194,6 +174,26 @@ Union(all=[true], union=[a])
 :- Calc(select=[a])
 :  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b])(reuse_id=[1])
 +- Calc(select=[b])
+   +- Reused(reference_id=[1])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnionNullableTypes">
+    <Resource name="ast">
+      <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0])
+:  +- LogicalTableScan(table=[[default_catalog, default_database, A]])
++- LogicalProject(_c0=[CASE(>($2, 0), $1, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, A]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Union(all=[true], union=[a])
+:- Calc(select=[a])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c])(reuse_id=[1])
++- Calc(select=[CASE((c > 0), b, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)) AS _c0])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>

@@ -121,6 +121,9 @@ public class StreamExecWatermarkAssigner extends ExecNodeBase<RowData>
                         planner.getFlinkContext().getClassLoader(),
                         (RowType) inputEdge.getOutputType(),
                         watermarkExpr,
+                        // No external access to rowtime is required, since
+                        // the watermark assigner is self-contained.
+                        JavaScalaConversionUtil.toScala(Optional.empty()),
                         JavaScalaConversionUtil.toScala(Optional.empty()));
 
         final long idleTimeout =

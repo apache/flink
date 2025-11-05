@@ -75,7 +75,7 @@ testing. For these cases, Flink provides the `BoundedOutOfOrdernessWatermarks`
 generator which takes as an argument the `maxOutOfOrderness`, i.e. the maximum
 amount of time an element is allowed to be late before being ignored when
 computing the final result for the given window. Lateness corresponds to the
-result of `t - t_w`, where `t` is the (event-time) timestamp of an element, and
+result of `t_w - t`, where `t` is the (event-time) timestamp of an element, and
 `t_w` that of the previous watermark.  If `lateness > 0` then the element is
 considered late and is, by default, ignored when computing the result of the
 job for its corresponding window. See the documentation about [allowed

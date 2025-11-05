@@ -17,18 +17,25 @@
  */
 package org.apache.flink.table.planner.codegen
 
+import org.apache.flink.api.common.typeutils.base.VoidSerializer
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.table.catalog.ObjectIdentifier
+import org.apache.flink.table.types.logical._
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.{Arguments, MethodSource}
+
+import java.util.stream
 
 import scala.collection.mutable.ArrayBuffer
 
 class CodeGenUtilsTest {
-  private val classLoader = Thread.currentThread().getContextClassLoader
 
   @Test
   def testNewName(): Unit = {
+    val classLoader = Thread.currentThread().getContextClassLoader
     // Use name counter in CodeGenUtils.
     assertEquals("name$i0", CodeGenUtils.newName(null, "name"))
     assertEquals("name$i1", CodeGenUtils.newName(null, "name"))
@@ -57,5 +64,99 @@ class CodeGenUtilsTest {
     assertEquals("name$6", CodeGenUtils.newName(context4, "name"))
     assertEquals(ArrayBuffer("name$7", "id$7"), CodeGenUtils.newNames(context4, "name", "id"))
     assertEquals(ArrayBuffer("name$8", "id$8"), CodeGenUtils.newNames(context4, "name", "id"))
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("basicTypesTestData"))
+  def testPrimitiveDefaultValueForBasicTypes(
+      logicalType: LogicalType,
+      expectedDefault: String): Unit = {
+    assertEquals(expectedDefault, CodeGenUtils.primitiveDefaultValue(logicalType))
+  }
+
+  @ParameterizedTest
+  @MethodSource(Array("distinctTypeTestData"))
+  def testPrimitiveDefaultValueForDistinctType(
+      distinctType: DistinctType,
+      expectedDefault: String): Unit = {
+    assertEquals(expectedDefault, CodeGenUtils.primitiveDefaultValue(distinctType))
+  }
+
+}
+
+object CodeGenUtilsTest {
+
+  @MethodSource
+  def basicTypesTestData(): stream.Stream[Arguments] = {
+    java.util.stream.Stream.of(
+      // Basic primitive types
+      Arguments.of(new BooleanType(), "false"),
+      Arguments.of(new TinyIntType(), "-1"),
+      Arguments.of(new SmallIntType(), "-1"),
+      Arguments.of(new IntType(), "-1"),
+      Arguments.of(new BigIntType(), "-1L"),
+      Arguments.of(new FloatType(), "-1.0f"),
+      Arguments.of(new DoubleType(), "-1.0d"),
+
+      // Date/time types that map to int/long
+      Arguments.of(new DateType(), "-1"),
+      Arguments.of(new TimeType(), "-1"),
+      Arguments.of(new LocalZonedTimestampType(3), "null"),
+      Arguments.of(new TimestampType(3), "null"),
+
+      // Interval types
+      Arguments.of(
+        new YearMonthIntervalType(YearMonthIntervalType.YearMonthResolution.YEAR_TO_MONTH),
+        "-1"),
+      Arguments.of(
+        new DayTimeIntervalType(DayTimeIntervalType.DayTimeResolution.DAY_TO_SECOND),
+        "-1L"),
+
+      // String types
+      Arguments.of(new VarCharType(100), s"${CodeGenUtils.BINARY_STRING}.EMPTY_UTF8"),
+      Arguments.of(new CharType(10), s"${CodeGenUtils.BINARY_STRING}.EMPTY_UTF8"),
+
+      // Complex types that should return "null"
+      Arguments.of(new ArrayType(new IntType()), "null"),
+      Arguments.of(new MapType(new IntType(), new VarCharType()), "null"),
+      Arguments.of(RowType.of(new IntType(), new VarCharType()), "null"),
+      Arguments.of(new DecimalType(10, 2), "null"),
+      Arguments.of(new BinaryType(10), "null"),
+      Arguments.of(new VarBinaryType(100), "null"),
+      Arguments.of(new RawType(classOf[Void], VoidSerializer.INSTANCE), "null")
+    )
+  }
+
+  @MethodSource
+  def distinctTypeTestData(): stream.Stream[Arguments] = {
+    val objectIdentifier = ObjectIdentifier.of("catalog", "database", "distinct_type")
+    java.util.stream.Stream.of(
+      // Distinct types based on basic types
+      Arguments.of(
+        DistinctType
+          .newBuilder(objectIdentifier, new IntType())
+          .build(),
+        "-1"),
+      Arguments.of(
+        DistinctType
+          .newBuilder(objectIdentifier, new SmallIntType())
+          .build(),
+        "-1"),
+      Arguments.of(
+        DistinctType
+          .newBuilder(objectIdentifier, new TinyIntType())
+          .build(),
+        "-1"),
+      Arguments.of(
+        DistinctType
+          .newBuilder(objectIdentifier, new BigIntType())
+          .build(),
+        "-1L"),
+      Arguments.of(
+        DistinctType
+          .newBuilder(objectIdentifier, new BooleanType())
+          .build(),
+        "false")
+    )
   }
 }

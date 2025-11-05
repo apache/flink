@@ -15,6 +15,12 @@
             <td>The max number of async i/o operation that the async lookup join can trigger.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.async-lookup.key-ordered-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>When true, async lookup joins would follow the upsert key order in cdc streams. If there is no defined upsert key, then the total record is considered as the upsert key. Setting this for insert-only streams has no effect because record in insert-only streams is independent and does not affect the state of previous records. Besides, since records in insert-only streams typically do not involve a primary key then no upsertKey can be derived. This makes them be unordered processed even if key ordered enabled.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.async-lookup.output-mode</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">ORDERED</td>
             <td><p>Enum</p></td>
@@ -27,16 +33,35 @@
             <td>The async timeout for the asynchronous operation to complete.</td>
         </tr>
         <tr>
-            <td><h5>table.exec.async-scalar.buffer-capacity</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td><h5>table.exec.async-ml-predict.max-concurrent-operations</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">10</td>
             <td>Integer</td>
-            <td>The max number of async i/o operation that the async lookup join can trigger.</td>
+            <td>The max number of async i/o operation that the async ml predict can trigger.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-ml-predict.output-mode</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">ORDERED</td>
+            <td><p>Enum</p></td>
+            <td>Output mode for async ML predict, which describes whether or not the the output should attempt to be ordered or not. The supported options are: ALLOW_UNORDERED means the operator emit the result when execution finishes. The planner will attempt use ALLOW_UNORDERED whn it doesn't affect the correctness of the results.
+ORDERED ensures that the operator emits the result in the same order as the data enters it. This is the default.<br /><br />Possible values:<ul><li>"ORDERED"</li><li>"ALLOW_UNORDERED"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-ml-predict.timeout</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">3 min</td>
+            <td>Duration</td>
+            <td>The async timeout for the asynchronous operation to complete. If the deadline fails, a timeout exception will be thrown to indicate the error.</td>
         </tr>
         <tr>
             <td><h5>table.exec.async-scalar.max-attempts</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">3</td>
             <td>Integer</td>
             <td>The max number of async retry attempts to make before task execution is failed.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-scalar.max-concurrent-operations</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">10</td>
+            <td>Integer</td>
+            <td>The max number of async i/o operation that the async scalar function can trigger.</td>
         </tr>
         <tr>
             <td><h5>table.exec.async-scalar.retry-delay</h5><br> <span class="label label-primary">Streaming</span></td>
@@ -63,6 +88,57 @@
             <td>Set whether to use the SQL/Table operators based on the asynchronous state api. Default value is false.</td>
         </tr>
         <tr>
+            <td><h5>table.exec.async-table.max-concurrent-operations</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">10</td>
+            <td>Integer</td>
+            <td>The max number of concurrent async i/o operations that the async table function can trigger.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-table.max-retries</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">3</td>
+            <td>Integer</td>
+            <td>The max number of async retry attempts to make before task execution is failed.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-table.retry-delay</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">100 ms</td>
+            <td>Duration</td>
+            <td>The delay to wait before trying again.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-table.retry-strategy</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">FIXED_DELAY</td>
+            <td><p>Enum</p></td>
+            <td>Restart strategy which will be used, FIXED_DELAY by default.<br /><br />Possible values:<ul><li>"NO_RETRY"</li><li>"FIXED_DELAY"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-table.timeout</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">3 min</td>
+            <td>Duration</td>
+            <td>The async timeout for the asynchronous operation to complete, including any retries which may occur.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-vector-search.max-concurrent-operations</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">10</td>
+            <td>Integer</td>
+            <td>The max number of async i/o operation that the async vector search can trigger.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-vector-search.output-mode</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">ORDERED</td>
+            <td><p>Enum</p></td>
+            <td>Output mode for async vector search, which describes whether or not the output should attempt to be ordered or not.
+The supported options are:
+ALLOW_UNORDERED means the operator emits the result when execution finishes. The planner will attempt to use ALLOW_UNORDERED when it doesn't affect the correctness of the results.
+ORDERED means that the operator emits the result in the same order as the data enters it. This is the default.<br /><br />Possible values:<ul><li>"ORDERED"</li><li>"ALLOW_UNORDERED"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.async-vector-search.timeout</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">3 min</td>
+            <td>Duration</td>
+            <td>The total time which can pass before the invocation (including retries) is considered timed out and task execution is failed.</td>
+        </tr>
+        <tr>
             <td><h5>table.exec.deduplicate.insert-update-after-sensitive-enabled</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
@@ -73,6 +149,24 @@
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>Set whether to compact the changes sent downstream in row-time mini-batch. If true, Flink will compact changes and send only the latest change downstream. Note that if the downstream needs the details of versioned data, this optimization cannot be applied. If false, Flink will send all changes to downstream just like when the mini-batch is not enabled.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.delta-join.cache-enabled</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Whether to enable the cache of delta join. If enabled, the delta join caches the records from remote dim table. Default is true.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.delta-join.left.cache-size</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">10000</td>
+            <td>Long</td>
+            <td>The cache size used to cache the lookup results of the left table in delta join. This value must be positive when enabling cache. Default is 10000.</td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.delta-join.right.cache-size</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">10000</td>
+            <td>Long</td>
+            <td>The cache size used to cache the lookup results of the right table in delta join. This value must be positive when enabling cache. Default is 10000.</td>
         </tr>
         <tr>
             <td><h5>table.exec.disabled-operators</h5><br> <span class="label label-primary">Batch</span></td>
@@ -161,6 +255,12 @@ By default no operator is disabled.</td>
             <td>In order to minimize the distributed disorder problem when writing data into table with primary keys that many users suffers. FLINK will auto add a keyed shuffle by default when the sink parallelism differs from upstream operator and sink parallelism is not 1. This works only when the upstream ensures the multi-records' order on the primary key, if not, the added shuffle can not solve the problem (In this situation, a more proper way is to consider the deduplicate operation for the source firstly or use an upsert source with primary key definition which truly reflect the records evolution).<br />By default, the keyed shuffle will be added when the sink's parallelism differs from upstream operator. You can set to no shuffle(NONE) or force shuffle(FORCE).<br /><br />Possible values:<ul><li>"NONE"</li><li>"AUTO"</li><li>"FORCE"</li></ul></td>
         </tr>
         <tr>
+            <td><h5>table.exec.sink.nested-constraint-enforcer</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">IGNORE</td>
+            <td><p>Enum</p></td>
+            <td>Determines if constraints should be enforced for nested fields. Beware that enforcing constraints for nested fields adds computational overhead especially when iterating through collections<br /><br />Possible values:<ul><li>"IGNORE": Don't perform check on nested types in ROWS/ARRAYS/MAPS</li><li>"ROWS": Perform checks on nested types in ROWS.</li><li>"ROWS_AND_COLLECTIONS": Perform checks on nested types in ROWS/ARRAYS/MAPS. Be aware that the more checks the more performance impact. Especially checking types in ARRAYS/MAPS can be expensive.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>table.exec.sink.not-null-enforcer</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">ERROR</td>
             <td><p>Enum</p></td>
@@ -176,13 +276,31 @@ By default no operator is disabled.</td>
             <td><h5>table.exec.sink.type-length-enforcer</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">IGNORE</td>
             <td><p>Enum</p></td>
-            <td>Determines whether values for columns with CHAR(&lt;length&gt;)/VARCHAR(&lt;length&gt;)/BINARY(&lt;length&gt;)/VARBINARY(&lt;length&gt;) types will be trimmed or padded (only for CHAR(&lt;length&gt;)/BINARY(&lt;length&gt;)), so that their length will match the one defined by the length of their respective CHAR/VARCHAR/BINARY/VARBINARY column type.<br /><br />Possible values:<ul><li>"IGNORE": Don't apply any trimming and padding, and instead ignore the CHAR/VARCHAR/BINARY/VARBINARY length directive.</li><li>"TRIM_PAD": Trim and pad string and binary values to match the length defined by the CHAR/VARCHAR/BINARY/VARBINARY length.</li></ul></td>
+            <td>Determines whether values for columns with CHAR(&lt;length&gt;)/VARCHAR(&lt;length&gt;)/BINARY(&lt;length&gt;)/VARBINARY(&lt;length&gt;) types will be trimmed or padded (only for CHAR(&lt;length&gt;)/BINARY(&lt;length&gt;)), so that their length will match the one defined by the length of their respective CHAR/VARCHAR/BINARY/VARBINARY column type.<br /><br />Possible values:<ul><li>"IGNORE": Don't apply any trimming and padding, and instead ignore the CHAR/VARCHAR/BINARY/VARBINARY length directive.</li><li>"TRIM_PAD": Trim and pad string and binary values to match the length defined by the CHAR/VARCHAR/BINARY/VARBINARY length.</li><li>"ERROR": Throw a runtime exception when writing data into a CHAR/VARCHAR/BINARY/VARBINARY column which does not match the length constraint</li></ul></td>
         </tr>
         <tr>
             <td><h5>table.exec.sink.upsert-materialize</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">AUTO</td>
             <td><p>Enum</p></td>
             <td>Because of the disorder of ChangeLog data caused by Shuffle in distributed system, the data received by Sink may not be the order of global upsert. So add upsert materialize operator before upsert sink. It receives the upstream changelog records and generate an upsert view for the downstream.<br />By default, the materialize operator will be added when a distributed disorder occurs on unique keys. You can also choose no materialization(NONE) or force materialization(FORCE).<br /><br />Possible values:<ul><li>"NONE"</li><li>"AUTO"</li><li>"FORCE"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.sink.upsert-materialize-strategy.adaptive.threshold.high</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Long</td>
+            <td>When using strategy=ADAPTIVE, defines the number of entries per key when the implementation is changed from VALUE to MAP. If not specified, Flink uses state-backend specific defaults (400 for hashmap state backend and 50 for RocksDB and the rest).<br /></td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.sink.upsert-materialize-strategy.adaptive.threshold.low</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Long</td>
+            <td>When using strategy=ADAPTIVE, defines the number of entries per key when the implementation is changed from MAP to VALUE. If not specified, Flink uses state-backend specific defaults (300 for hashmap state backend and 40 for RocksDB and the rest).<br /></td>
+        </tr>
+        <tr>
+            <td><h5>table.exec.sink.upsert-materialize-strategy.type</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">LEGACY</td>
+            <td><p>Enum</p></td>
+            <td>Which strategy of SinkUpsertMaterializer to use. Supported strategies:<br />LEGACY: Simple implementation based on ValueState&lt;List&gt; (the original implementation).<br />MAP: SequencedMultiSetState implementation based on a combination of several MapState maintaining ordering and fast lookup properties.<br />VALUE: Similar to LEGACY, but compatible with MAP and therefore allows to switch to ADAPTIVE.<br />ADAPTIVE: Alternate between MAP and VALUE depending on the number of entries for the given key starting with VALUE and switching to MAP upon reaching threshold.high value (and back to VALUE, when reaching low).<br /><br />Possible values:<ul><li>"LEGACY"</li><li>"MAP"</li><li>"VALUE"</li><li>"ADAPTIVE"</li></ul></td>
         </tr>
         <tr>
             <td><h5>table.exec.sort.async-merge-enabled</h5><br> <span class="label label-primary">Batch</span></td>

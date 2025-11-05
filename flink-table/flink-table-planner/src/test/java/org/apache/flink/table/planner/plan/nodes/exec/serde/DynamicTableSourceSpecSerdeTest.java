@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
+import org.apache.flink.table.catalog.DefaultIndex;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -104,7 +105,9 @@ public class DynamicTableSourceSpecSerdeTest {
                 new ResolvedSchema(
                         Collections.singletonList(Column.physical("a", DataTypes.BIGINT())),
                         Collections.emptyList(),
-                        null);
+                        null,
+                        Collections.singletonList(
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
 
         final CatalogTable catalogTable1 =
                 CatalogTable.newBuilder()
@@ -141,7 +144,9 @@ public class DynamicTableSourceSpecSerdeTest {
                                 Column.metadata("m2", DataTypes.STRING(), null, false),
                                 Column.physical("ts", DataTypes.TIMESTAMP(3))),
                         Collections.emptyList(),
-                        null);
+                        null,
+                        Collections.singletonList(
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
 
         final CatalogTable catalogTable2 =
                 CatalogTable.newBuilder()
@@ -208,6 +213,7 @@ public class DynamicTableSourceSpecSerdeTest {
                                                                 TimeUnit.SECOND,
                                                                 6,
                                                                 SqlParserPos.ZERO))),
+                                        null,
                                         5000,
                                         RowType.of(
                                                 new BigIntType(),
@@ -221,6 +227,30 @@ public class DynamicTableSourceSpecSerdeTest {
                                                 .alignUpdateInterval(Duration.ofSeconds(1))
                                                 .sourceIdleTimeout(60000)
                                                 .build()),
+                                new WatermarkPushDownSpec(
+                                        rexBuilder.makeCall(
+                                                SqlStdOperatorTable.MINUS,
+                                                rexBuilder.makeInputRef(
+                                                        factory.createSqlType(
+                                                                SqlTypeName.TIMESTAMP, 3),
+                                                        3),
+                                                rexBuilder.makeIntervalLiteral(
+                                                        BigDecimal.valueOf(1000),
+                                                        new SqlIntervalQualifier(
+                                                                TimeUnit.SECOND,
+                                                                2,
+                                                                TimeUnit.SECOND,
+                                                                6,
+                                                                SqlParserPos.ZERO))),
+                                        rexBuilder.makeInputRef(
+                                                factory.createSqlType(SqlTypeName.TIMESTAMP, 3), 3),
+                                        5000,
+                                        RowType.of(
+                                                new BigIntType(),
+                                                new IntType(),
+                                                new IntType(),
+                                                new TimestampType(false, TimestampKind.ROWTIME, 3)),
+                                        null),
                                 new SourceWatermarkSpec(
                                         true,
                                         RowType.of(
@@ -361,7 +391,9 @@ public class DynamicTableSourceSpecSerdeTest {
                                 Column.physical("b", DataTypes.INT()),
                                 Column.physical("c", DataTypes.BOOLEAN())),
                         Collections.emptyList(),
-                        null);
+                        null,
+                        Collections.singletonList(
+                                DefaultIndex.newIndex("idx", Collections.singletonList("a"))));
 
         return new ResolvedCatalogTable(
                 CatalogTable.newBuilder()

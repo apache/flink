@@ -33,6 +33,7 @@ This page gives an overview of all public PyFlink DataStream API.
     window
     checkpoint
     sideoutput
+    asyncio
     connectors
     formats
 

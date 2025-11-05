@@ -19,13 +19,14 @@
 package org.apache.flink.runtime.asyncprocessing;
 
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.core.asyncprocessing.AsyncFutureImpl;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A {@link org.apache.flink.core.state.StateFutureImpl.CallbackRunner} that gives info of {@link
- * #isHasMail()} to the AEC and notifies new mail if needed.
+ * A {@link AsyncFutureImpl.CallbackRunner} that gives info of {@link #isHasMail()} to the AEC and
+ * notifies new mail if needed.
  */
 public class CallbackRunnerWrapper {
 

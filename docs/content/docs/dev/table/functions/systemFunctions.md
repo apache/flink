@@ -88,6 +88,10 @@ Known Limitations:
 
 {{< sql_functions "json" >}}
 
+### Variant Functions
+
+{{< sql_functions "variant" >}}
+
 ### Value Construction Functions
 
 {{< sql_functions "valueconstruction" >}}

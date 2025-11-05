@@ -1148,6 +1148,26 @@ json:
       JSON_ARRAY(JSON('{"nested_json": {"value": 42}}'))
       ```
 
+variant:
+  - sql: PARSE_JSON(json_string[, allow_duplicate_keys])
+    description: |
+      Parse a JSON string into a Variant. If the JSON string is invalid, an error will be thrown. 
+      To return NULL instead of an error, use the `TRY_PARSE_JSON` function.
+      
+      If there are duplicate keys in the input JSON string, when `allowDuplicateKeys` is true, the 
+      parser will keep the last occurrence of all fields with the same key, otherwise when 
+      `allowDuplicateKeys` is false it will throw an error. The default value of 
+      `allowDuplicateKeys` is false.
+  - sql: TRY_PARSE_JSON(json_string[, allow_duplicate_keys])
+    description: |
+      Try to parse a JSON string into a Variant if possible. If the JSON string is invalid, return 
+      NULL. To throw an error instead of returning NULL, use the `PARSE_JSON` function.
+
+      If there are duplicate keys in the input JSON string, when `allowDuplicateKeys` is true, the 
+      parser will keep the last occurrence of all fields with the same key, otherwise when 
+      `allowDuplicateKeys` is false it will throw an error. The default value of 
+      `allowDuplicateKeys` is false.
+
 valueconstruction:
   - sql: |
       **implicit** constructor with parenthesis 
@@ -1178,8 +1198,53 @@ valueconstruction:
       ```sql
       f(columns => DESCRIPTOR(`col1`, `col2`), on_time => DESCRIPTOR(`ts`))
       ```
+  - sql: OBJECT_OF(className, [key, value [, key, value , ...]])
+    table: objectOf(STRING, Object...)
+    description: |
+      Creates a structured object from a list of key-value pairs.
+      
+      This function creates an instance of a structured type identified by the given class name.
+      The structured type is created by providing alternating key-value pairs where keys must be
+      string literals and values can be arbitrary expressions.
+      
+      Note: The class name is only used for distinguishing two structured types with identical fields.
+      Structured types are internally handled with suitable data structures. Thus, serialization and equality checks are managed by the system.
+      In Table API and UDF calls, the system will attempt to resolve the class name to an actual implementation class.
+      In this case the class name needs to be present in the user classpath. If resolution fails, Row is used as a fallback.
+
+      ```sql
+      -- Creates a User object with complex fields "name", "age", and "address"
+      OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 21, 'address', OBJECT_OF('com.example.Address', 'street', 'primary', 'city', 'Berlin'))
+      ```
   - table: NUMERIC.rows
     description: Creates a NUMERIC interval of rows (commonly used in window creation).
+
+valuemodification:
+  - sql: OBJECT_UPDATE(object, key, value [, key, value , ...])
+    table: OBJECT.objectUpdate(key, value [, key, value , ...])
+    description: |
+      Updates existing fields in a structured object by providing key-value pairs.
+      
+      This function takes a structured object and updates specified fields with new values.
+      The keys must be string literals that correspond to existing fields in the structured type.
+      If a key does not exist in the input object, an exception will be thrown.
+      
+      The function expects alternating key-value pairs where keys are field names (non-null strings) 
+      and values are the new values for those fields. At least one key-value pair must be provided.
+      The total number of arguments must be odd (object + pairs of key-value arguments).
+      
+      The result type is the same structured type class, with the specified fields
+      updated to their new values.
+      
+      ```sql
+      -- Update the 'name' field of a user object
+      OBJECT_UPDATE(OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 14), 'name', 'Alice')
+      -- Returns: User{name='Alice', age=14}
+      
+      -- Update multiple fields
+      OBJECT_UPDATE(OBJECT_OF('com.example.User', 'name', 'Bob', 'age', 14), 'name', 'Alice', 'age', 30)
+      -- Returns: User{name='Alice', age=30}
+      ```
 
 valueaccess:
   - sql: tableName.compositeType.field

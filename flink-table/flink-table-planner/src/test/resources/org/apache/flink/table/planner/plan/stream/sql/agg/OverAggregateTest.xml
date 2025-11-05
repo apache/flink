@@ -42,70 +42,12 @@ LogicalProject(a=[$0], b=[$1], ts=[$2], c1=[$3], c2=[$4])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-OverAggregate(partitionBy=[a], orderBy=[ts ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, ts, w0$o0, COUNT(*) AS w0$o0_0])
+OverAggregate(partitionBy=[a], orderBy=[ts ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, ts, w0$o0, COUNT(*) AS w0$o0_0])
 +- Exchange(distribution=[hash[a]])
-   +- OverAggregate(partitionBy=[a, b], orderBy=[ts ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, ts, COUNT(*) AS w0$o0])
+   +- OverAggregate(partitionBy=[a, b], orderBy=[ts ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, ts, COUNT(*) AS w0$o0])
       +- Exchange(distribution=[hash[a, b]])
          +- WatermarkAssigner(rowtime=[ts], watermark=[ts])
             +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b, ts])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testProctimeBoundedDistinctPartitionedRowOver">
-    <Resource name="sql">
-      <![CDATA[
-SELECT c,
-    COUNT(DISTINCT a) OVER (PARTITION BY c ORDER BY proctime
-        ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS cnt1,
-    SUM(DISTINCT a) OVER (PARTITION BY c ORDER BY proctime
-        ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS sum1
-FROM MyTable
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], sum1=[CASE(>(COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), 0), $SUM0(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), null:INTEGER)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS sum1])
-+- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(DISTINCT a) AS w0$o0, $SUM0(DISTINCT a) AS w0$o1])
-   +- Exchange(distribution=[hash[c]])
-      +- Calc(select=[a, c, proctime])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testProctimeBoundedDistinctWithNonDistinctPartitionedRowOver">
-    <Resource name="sql">
-      <![CDATA[
-SELECT b,
-    COUNT(a) OVER (PARTITION BY b ORDER BY proctime
-        ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS cnt1,
-    SUM(a) OVER (PARTITION BY b ORDER BY proctime
-        ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS sum1,
-    COUNT(DISTINCT a) OVER (PARTITION BY b ORDER BY proctime
-        ROWS BETWEEN 2 preceding AND CURRENT ROW) AS cnt2,
-    sum(DISTINCT c) OVER (PARTITION BY b ORDER BY proctime
-        ROWS BETWEEN 2 preceding AND CURRENT ROW) AS sum2
-FROM MyTable
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], sum1=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), null:INTEGER)], cnt2=[COUNT(DISTINCT $0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], sum2=[CASE(>(COUNT(DISTINCT $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), 0), $SUM0(DISTINCT $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), null:BIGINT)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[b, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS sum1, w0$o2 AS cnt2, CASE((w0$o3 > 0), w0$o4, null:BIGINT) AS sum2])
-+- OverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1, COUNT(DISTINCT a) AS w0$o2, COUNT(DISTINCT c) AS w0$o3, $SUM0(DISTINCT c) AS w0$o4])
-   +- Exchange(distribution=[hash[b]])
-      +- Calc(select=[a, b, c, proctime])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -127,7 +69,7 @@ LogicalProject(a=[$0], EXPR$1=[COUNT($2) OVER (ORDER BY $3 NULLS FIRST RANGE 100
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, w0$o0 AS $1])
-+- OverAggregate(orderBy=[proctime ASC], window=[ RANG BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(c) AS w0$o0])
++- OverAggregate(orderBy=[proctime ASC], window=[ RANGE BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(c) AS w0$o0])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -176,7 +118,7 @@ LogicalProject(a=[$0], avgA=[/(CASE(>(COUNT($2) OVER (PARTITION BY $0 ORDER BY $
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, (CASE((w0$o0 > 0), w0$o1, null:BIGINT) / w0$o0) AS avgA])
-+- OverAggregate(partitionBy=[a], orderBy=[proctime ASC], window=[ RANG BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(c) AS w0$o0, $SUM0(c) AS w0$o1])
++- OverAggregate(partitionBy=[a], orderBy=[proctime ASC], window=[ RANGE BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(c) AS w0$o0, $SUM0(c) AS w0$o1])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -248,7 +190,7 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $3 NULLS FIRST)], cnt2=[CA
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
-+- OverAggregate(orderBy=[proctime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
++- OverAggregate(orderBy=[proctime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -296,7 +238,7 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $3 NULLS F
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
-+- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
++- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -327,6 +269,64 @@ Calc(select=[c, w0$o0 AS $1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testProctimeBoundedDistinctPartitionedRowOver">
+    <Resource name="sql">
+      <![CDATA[
+SELECT c,
+    COUNT(DISTINCT a) OVER (PARTITION BY c ORDER BY proctime
+        ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS cnt1,
+    SUM(DISTINCT a) OVER (PARTITION BY c ORDER BY proctime
+        ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS sum1
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$2], cnt1=[COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], sum1=[CASE(>(COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), 0), $SUM0(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), null:INTEGER)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS sum1])
++- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(DISTINCT a) AS w0$o0, $SUM0(DISTINCT a) AS w0$o1])
+   +- Exchange(distribution=[hash[c]])
+      +- Calc(select=[a, c, proctime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProctimeBoundedDistinctWithNonDistinctPartitionedRowOver">
+    <Resource name="sql">
+      <![CDATA[
+SELECT b,
+    COUNT(a) OVER (PARTITION BY b ORDER BY proctime
+        ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS cnt1,
+    SUM(a) OVER (PARTITION BY b ORDER BY proctime
+        ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) AS sum1,
+    COUNT(DISTINCT a) OVER (PARTITION BY b ORDER BY proctime
+        ROWS BETWEEN 2 preceding AND CURRENT ROW) AS cnt2,
+    sum(DISTINCT c) OVER (PARTITION BY b ORDER BY proctime
+        ROWS BETWEEN 2 preceding AND CURRENT ROW) AS sum2
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], sum1=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), 0), $SUM0($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), null:INTEGER)], cnt2=[COUNT(DISTINCT $0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING)], sum2=[CASE(>(COUNT(DISTINCT $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), 0), $SUM0(DISTINCT $2) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS 2 PRECEDING), null:BIGINT)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[b, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS sum1, w0$o2 AS cnt2, CASE((w0$o3 > 0), w0$o4, null:BIGINT) AS sum2])
++- OverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1, COUNT(DISTINCT a) AS w0$o2, COUNT(DISTINCT c) AS w0$o3, $SUM0(DISTINCT c) AS w0$o4])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[a, b, c, proctime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRowTimeBoundedNonPartitionedRangeOver">
     <Resource name="sql">
       <![CDATA[
@@ -345,33 +345,8 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST RANGE 1000:
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w0$o0 AS $1])
-+- OverAggregate(orderBy=[rowtime ASC], window=[ RANG BETWEEN 1000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
++- OverAggregate(orderBy=[rowtime ASC], window=[ RANGE BETWEEN 1000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
    +- Exchange(distribution=[single])
-      +- Calc(select=[a, c, rowtime])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRowTimeBoundedPartitionedRangeOver">
-    <Resource name="sql">
-      <![CDATA[
-SELECT c,
-    COUNT(a) OVER (PARTITION BY c ORDER BY rowtime
-        RANGE BETWEEN INTERVAL '1' SECOND  PRECEDING AND CURRENT ROW)
-    FROM MyTable
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE 1000:INTERVAL SECOND PRECEDING)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[c, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANG BETWEEN 1000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
-   +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -396,6 +371,31 @@ LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST ROWS 5 PR
 Calc(select=[c, w0$o0 AS $1])
 +- OverAggregate(orderBy=[rowtime ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
    +- Exchange(distribution=[single])
+      +- Calc(select=[a, c, rowtime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeBoundedPartitionedRangeOver">
+    <Resource name="sql">
+      <![CDATA[
+SELECT c,
+    COUNT(a) OVER (PARTITION BY c ORDER BY rowtime
+        RANGE BETWEEN INTERVAL '1' SECOND  PRECEDING AND CURRENT ROW)
+    FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$2], EXPR$1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST RANGE 1000:INTERVAL SECOND PRECEDING)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c, w0$o0 AS $1])
++- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANGE BETWEEN 1000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
+   +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
@@ -444,7 +444,7 @@ LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (ORDER BY $4 NULLS FIRST)], cnt2=[CA
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
-+- OverAggregate(orderBy=[rowtime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
++- OverAggregate(orderBy=[rowtime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -476,6 +476,31 @@ Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRowTimeUnboundedPartitionedRangeOver">
+    <Resource name="sql">
+      <![CDATA[
+SELECT c,
+    COUNT(a) OVER (PARTITION BY c ORDER BY rowtime RANGE UNBOUNDED PRECEDING) AS cnt1,
+    SUM(a) OVER (PARTITION BY c ORDER BY rowtime RANGE UNBOUNDED PRECEDING) AS cnt2
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST)], cnt2=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), null:INTEGER)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
++- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
+   +- Exchange(distribution=[hash[c]])
+      +- Calc(select=[a, c, rowtime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRowTimeUnboundedPartitionedRowsOver">
     <Resource name="sql">
       <![CDATA[
@@ -501,52 +526,77 @@ Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRowTimeUnboundedPartitionedRangeOver">
+  <TestCase name="testWindowBoundaryWithSimplifiableExpressions[[1] expr=2 + 3]">
     <Resource name="sql">
       <![CDATA[
 SELECT c,
-    COUNT(a) OVER (PARTITION BY c ORDER BY rowtime RANGE UNBOUNDED PRECEDING) AS cnt1,
-    SUM(a) OVER (PARTITION BY c ORDER BY rowtime RANGE UNBOUNDED PRECEDING) AS cnt2
+    COUNT(a) OVER (PARTITION BY b ORDER BY proctime
+        ROWS BETWEEN 2 + 3 PRECEDING AND CURRENT ROW) AS cnt1
 FROM MyTable
       ]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST)], cnt2=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), 0), $SUM0($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), null:INTEGER)])
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS +(2, 3) PRECEDING)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c, w0$o0 AS cnt1, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS cnt2])
-+- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1])
-   +- Exchange(distribution=[hash[c]])
-      +- Calc(select=[a, c, rowtime])
+Calc(select=[c, w0$o0 AS $1])
++- OverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ ROWS BETWEEN 5 PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, COUNT(a) AS w0$o0])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[a, b, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
   </TestCase>
-	<TestCase name="testWithoutOrderByClause">
-		<Resource name="sql">
-			<![CDATA[
+  <TestCase name="testWindowBoundaryWithSimplifiableExpressions[[2] expr=power(2, 4)]">
+    <Resource name="sql">
+      <![CDATA[
+SELECT c,
+    COUNT(a) OVER (PARTITION BY b ORDER BY proctime
+        ROWS BETWEEN power(2, 4) PRECEDING AND CURRENT ROW) AS cnt1
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $3 NULLS FIRST ROWS POWER(2, 4) PRECEDING)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c, w0$o0 AS $1])
++- OverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ ROWS BETWEEN 16 PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, COUNT(a) AS w0$o0])
+   +- Exchange(distribution=[hash[b]])
+      +- Calc(select=[a, b, c, proctime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithoutOrderByClause">
+    <Resource name="sql">
+      <![CDATA[
 SELECT c,
     COUNT(a) OVER (PARTITION BY c) AS cnt1
 FROM MyTable
       ]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
 LogicalProject(c=[$2], cnt1=[COUNT($0) OVER (PARTITION BY $2)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
-		</Resource>
-		<Resource name="optimized exec plan">
-			<![CDATA[
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
 Calc(select=[c, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[c], orderBy=[], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[a, b, c, proctime, rowtime, COUNT(a) AS w0$o0])
++- OverAggregate(partitionBy=[c], orderBy=[], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[a, b, c, proctime, rowtime, COUNT(a) AS w0$o0])
    +- Exchange(distribution=[hash[c]])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
-		</Resource>
-	</TestCase>
+    </Resource>
+  </TestCase>
 </Root>

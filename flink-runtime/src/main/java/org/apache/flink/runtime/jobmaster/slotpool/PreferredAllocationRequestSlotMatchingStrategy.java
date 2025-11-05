@@ -19,7 +19,12 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -27,20 +32,33 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
  * {@link RequestSlotMatchingStrategy} that takes the preferred allocations into account. The
  * strategy will try to fulfill the preferred allocations and if this is not possible, then it will
- * fall back to {@link SimpleRequestSlotMatchingStrategy}.
+ * fall back to {@link #rollbackStrategy}.
  */
-public enum PreferredAllocationRequestSlotMatchingStrategy implements RequestSlotMatchingStrategy {
-    INSTANCE;
+public class PreferredAllocationRequestSlotMatchingStrategy implements RequestSlotMatchingStrategy {
+
+    @Nonnull private final RequestSlotMatchingStrategy rollbackStrategy;
+
+    private PreferredAllocationRequestSlotMatchingStrategy(
+            RequestSlotMatchingStrategy rollbackStrategy) {
+        this.rollbackStrategy = Preconditions.checkNotNull(rollbackStrategy);
+    }
+
+    public static RequestSlotMatchingStrategy create(RequestSlotMatchingStrategy rollbackStrategy) {
+        return new PreferredAllocationRequestSlotMatchingStrategy(rollbackStrategy);
+    }
 
     @Override
     public Collection<RequestSlotMatch> matchRequestsAndSlots(
-            Collection<? extends PhysicalSlot> slots, Collection<PendingRequest> pendingRequests) {
+            Collection<? extends PhysicalSlot> slots,
+            Collection<PendingRequest> pendingRequests,
+            Map<ResourceID, LoadingWeight> taskExecutorsLoadingWeight) {
         final Collection<RequestSlotMatch> requestSlotMatches = new ArrayList<>();
 
         final Map<AllocationID, PhysicalSlot> freeSlots =
@@ -79,6 +97,11 @@ public enum PreferredAllocationRequestSlotMatchingStrategy implements RequestSlo
                                 .getPreferredAllocations()
                                 .contains(freeSlot.getAllocationId())) {
                     requestSlotMatches.add(RequestSlotMatch.createFor(pendingRequest, freeSlot));
+                    LoadingWeight deltaLoading = pendingRequest.getLoading();
+                    taskExecutorsLoadingWeight.compute(
+                            freeSlot.getTaskManagerLocation().getResourceID(),
+                            (ignoredId, oldLoad) ->
+                                    oldLoad == null ? deltaLoading : deltaLoading.merge(oldLoad));
                     pendingRequestIterator.remove();
                     freeSlotsIterator.remove();
                     break;
@@ -89,11 +112,26 @@ public enum PreferredAllocationRequestSlotMatchingStrategy implements RequestSlo
         unmatchedRequests.addAll(pendingRequestsWithPreferredAllocations.values());
         if (!freeSlots.isEmpty() && !unmatchedRequests.isEmpty()) {
             requestSlotMatches.addAll(
-                    SimpleRequestSlotMatchingStrategy.INSTANCE.matchRequestsAndSlots(
-                            freeSlots.values(), unmatchedRequests));
+                    rollbackStrategy.matchRequestsAndSlots(
+                            freeSlots.values(), unmatchedRequests, taskExecutorsLoadingWeight));
         }
 
         return requestSlotMatches;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        PreferredAllocationRequestSlotMatchingStrategy that =
+                (PreferredAllocationRequestSlotMatchingStrategy) o;
+        return Objects.equals(rollbackStrategy, that.rollbackStrategy);
     }
 
     @Override

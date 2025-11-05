@@ -214,13 +214,13 @@ public interface Catalog {
     void alterDatabase(String name, CatalogDatabase newDatabase, boolean ignoreIfNotExists)
             throws DatabaseNotExistException, CatalogException;
 
-    // ------ tables and views ------
+    // ------ tables, views and materialized tables ------
 
     /**
-     * Get names of all tables and views under this database. An empty list is returned if none
-     * exists.
+     * Get names of all tables, views and materialized tables under this database. An empty list is
+     * returned if none exists.
      *
-     * @return a list of the names of all tables and views in this database
+     * @return a list of the names of all tables, views and materialized tables in this database
      * @throws DatabaseNotExistException if the database does not exist
      * @throws CatalogException in case of any runtime exception
      */
@@ -235,6 +235,23 @@ public interface Catalog {
      * @throws CatalogException in case of any runtime exception
      */
     List<String> listViews(String databaseName) throws DatabaseNotExistException, CatalogException;
+
+    /**
+     * Get names of all materialized tables under this database. An empty list is returned if none
+     * exists.
+     *
+     * @param databaseName the name of the given database
+     * @return a list of the names of all materialized tables in the given database
+     * @throws DatabaseNotExistException if the database does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default List<String> listMaterializedTables(String databaseName)
+            throws DatabaseNotExistException, CatalogException {
+        throw new UnsupportedOperationException(
+                String.format(
+                        "listMaterializedTables(String) is not implemented for %s.",
+                        this.getClass()));
+    }
 
     /**
      * Returns a {@link CatalogTable} or {@link CatalogView} identified by the given {@link
@@ -889,5 +906,30 @@ public interface Catalog {
                 String.format(
                         "alterModel(ObjectPath, CatalogModel, boolean) is not implemented for %s.",
                         this.getClass()));
+    }
+
+    /**
+     * Modifies an existing model.
+     *
+     * <p>The framework will make sure to call this method with fully validated {@link
+     * ResolvedCatalogModel}. Those instances are easy to serialize for a durable catalog
+     * implementation.
+     *
+     * @param modelPath path of the model to be modified
+     * @param newModel the new model definition
+     * @param modelChanges changes to describe the modification between the newModel and the
+     *     original model
+     * @param ignoreIfNotExists flag to specify behavior when the model does not exist: if set to
+     *     false, throw an exception, if set to true, do nothing.
+     * @throws ModelNotExistException if the model does not exist
+     * @throws CatalogException in case of any runtime exception
+     */
+    default void alterModel(
+            ObjectPath modelPath,
+            CatalogModel newModel,
+            List<ModelChange> modelChanges,
+            boolean ignoreIfNotExists)
+            throws ModelNotExistException, CatalogException {
+        alterModel(modelPath, newModel, ignoreIfNotExists);
     }
 }

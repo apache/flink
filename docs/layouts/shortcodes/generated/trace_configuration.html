@@ -9,6 +9,13 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>traces.checkpoint.span-detail-level</h5></td>
+            <td style="word-wrap: break-word;">SPAN_PER_CHECKPOINT</td>
+            <td><p>Enum</p></td>
+            <td>Detail level for reporting checkpoint spans. Possible values:
+<ul><li>'<code class="highlighter-rouge">SPAN_PER_CHECKPOINT</code>' (default): Single span per checkpoint. Aggregated sum/max for sub-metrics from all tasks and subtasks per checkpoint.</li><li>'<code class="highlighter-rouge">SPAN_PER_CHECKPOINT_WITH_TASKS</code>': Single span per checkpoint. Same as '<code class="highlighter-rouge">SPAN_PER_CHECKPOINT</code>', plus arrays of aggregated values per task.</li><li>'<code class="highlighter-rouge">CHILDREN_SPANS_PER_TASK</code>': Same as '<code class="highlighter-rouge">SPAN_PER_CHECKPOINT</code>' plus children spans per each task. Each task span with aggregated sum/max sub-metrics from subtasks.</li><li>'<code class="highlighter-rouge">CHILDREN_SPANS_PER_SUBTASK</code>': Same as '<code class="highlighter-rouge">CHILDREN_SPANS_PER_TASK</code>' plus children spans per each subtask. Child spans for tasks and grand-child spans for subtasks.</li></ul><br /><br />Possible values:<ul><li>"SPAN_PER_CHECKPOINT"</li><li>"SPAN_PER_CHECKPOINT_WITH_TASKS"</li><li>"CHILDREN_SPANS_PER_TASK"</li><li>"CHILDREN_SPANS_PER_SUBTASK"</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>traces.reporter.&lt;name&gt;.&lt;parameter&gt;</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>

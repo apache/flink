@@ -24,6 +24,7 @@ import org.apache.flink.table.connector.source.abilities.SupportsSourceWatermark
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -34,6 +35,7 @@ import java.util.Objects;
  * whether a source watermark should be used to/from JSON, but can also apply it to {@link
  * SupportsSourceWatermark}.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("SourceWatermark")
 public final class SourceWatermarkSpec extends SourceAbilitySpecBase {
     public static final String FIELD_NAME_SOURCE_WATERMARK_ENABLED = "sourceWatermarkEnabled";

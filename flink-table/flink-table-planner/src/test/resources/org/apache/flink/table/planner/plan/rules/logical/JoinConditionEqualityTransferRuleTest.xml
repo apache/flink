@@ -146,113 +146,6 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], f=[$5])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSemiJoin_Exist1">
-    <Resource name="sql">
-      <![CDATA[
-SELECT * FROM MyTable1 WHERE EXISTS (SELECT * FROM MyTable2 WHERE a = d AND a = e)
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[EXISTS({
-LogicalFilter(condition=[AND(=($cor0.a, $0), =($cor0.a, $1))])
-  LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-})], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[AND(=($3, $4), =($0, $3))], joinType=[semi])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalProject(d=[$0], e=[$1])
-      +- LogicalFilter(condition=[true])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSemiJoin_Exist2">
-    <Resource name="sql">
-      <![CDATA[
-SELECT * FROM MyTable1 WHERE EXISTS
-    (SELECT * FROM MyTable2 WHERE a = d AND a = e AND b = d)
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[EXISTS({
-LogicalFilter(condition=[AND(=($cor0.a, $0), =($cor0.a, $1), =($cor0.b, $0))])
-  LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-})], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[AND(=($0, $1), =($3, $4), =($0, $3))], joinType=[semi])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalProject(d=[$0], e=[$1])
-      +- LogicalFilter(condition=[true])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSemiJoin_In1">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2 WHERE a = e)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[IN($0, {
-LogicalProject(d=[$0])
-  LogicalFilter(condition=[=($cor0.a, $1)])
-    LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-})], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[AND(=($3, $4), =($0, $3))], joinType=[semi])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalProject(d=[$0], e=[$1])
-      +- LogicalFilter(condition=[true])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSemiJoin_In2">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2 WHERE a = e AND b = d)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[IN($0, {
-LogicalProject(d=[$0])
-  LogicalFilter(condition=[AND(=($cor0.a, $1), =($cor0.b, $0))])
-    LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-})], variablesSet=[[$cor0]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalJoin(condition=[AND(=($0, $1), =($3, $4), =($0, $3))], joinType=[semi])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
-   +- LogicalProject(d=[$0], e=[$1])
-      +- LogicalFilter(condition=[true])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testSemiJoinWithNonEquiCondition_Exist1">
     <Resource name="sql">
       <![CDATA[
@@ -353,6 +246,113 @@ LogicalProject(d=[$0])
       <![CDATA[
 LogicalProject(a=[$0], b=[$1], c=[$2])
 +- LogicalJoin(condition=[AND(>($0, $4), =($0, $1), =($0, $3))], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+   +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSemiJoin_Exist1">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM MyTable1 WHERE EXISTS (SELECT * FROM MyTable2 WHERE a = d AND a = e)
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[AND(=($cor0.a, $0), =($cor0.a, $1))])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[AND(=($3, $4), =($0, $3))], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+   +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSemiJoin_Exist2">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM MyTable1 WHERE EXISTS
+    (SELECT * FROM MyTable2 WHERE a = d AND a = e AND b = d)
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[EXISTS({
+LogicalFilter(condition=[AND(=($cor0.a, $0), =($cor0.a, $1), =($cor0.b, $0))])
+  LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[AND(=($0, $1), =($3, $4), =($0, $3))], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+   +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSemiJoin_In1">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2 WHERE a = e)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[=($cor0.a, $1)])
+    LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[AND(=($3, $4), =($0, $3))], joinType=[semi])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+   +- LogicalProject(d=[$0], e=[$1])
+      +- LogicalFilter(condition=[true])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSemiJoin_In2">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable1 WHERE a IN (SELECT d FROM MyTable2 WHERE a = e AND b = d)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[IN($0, {
+LogicalProject(d=[$0])
+  LogicalFilter(condition=[AND(=($cor0.a, $1), =($cor0.b, $0))])
+    LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalJoin(condition=[AND(=($0, $1), =($3, $4), =($0, $3))], joinType=[semi])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable1]])
    +- LogicalProject(d=[$0], e=[$1])
       +- LogicalFilter(condition=[true])

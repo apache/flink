@@ -112,18 +112,18 @@ import static org.junit.Assert.assertEquals;
  * </ul>
  */
 @Timeout(value = 100, unit = TimeUnit.SECONDS)
-class AsyncWaitOperatorTest {
+public class AsyncWaitOperatorTest {
     private static final long TIMEOUT = 1000L;
 
     @RegisterExtension
     private final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
 
-    private static AsyncRetryStrategy emptyResultFixedDelayRetryStrategy =
+    private static final AsyncRetryStrategy emptyResultFixedDelayRetryStrategy =
             new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(2, 10L)
                     .ifResult(RetryPredicates.EMPTY_RESULT_PREDICATE)
                     .build();
 
-    private static AsyncRetryStrategy exceptionRetryStrategy =
+    private static final AsyncRetryStrategy exceptionRetryStrategy =
             new AsyncRetryStrategies.FixedDelayRetryStrategyBuilder(2, 10L)
                     .ifException(RetryPredicates.HAS_EXCEPTION_PREDICATE)
                     .build();
@@ -180,7 +180,7 @@ class AsyncWaitOperatorTest {
         }
     }
 
-    private static class MyAsyncFunction extends MyAbstractAsyncFunction<Integer> {
+    public static class MyAsyncFunction extends MyAbstractAsyncFunction<Integer> {
         private static final long serialVersionUID = -1504699677704123889L;
 
         @Override
@@ -202,10 +202,10 @@ class AsyncWaitOperatorTest {
      * is used in the testStateSnapshotAndRestore, ensuring that {@link StreamElement} can stay in
      * the {@link StreamElementQueue} to be snapshotted while checkpointing.
      */
-    private static class LazyAsyncFunction extends MyAsyncFunction {
+    public static class LazyAsyncFunction extends MyAsyncFunction {
         private static final long serialVersionUID = 3537791752703154670L;
 
-        private static CountDownLatch latch;
+        private final transient CountDownLatch latch;
 
         public LazyAsyncFunction() {
             latch = new CountDownLatch(1);
@@ -215,21 +215,22 @@ class AsyncWaitOperatorTest {
         public void asyncInvoke(final Integer input, final ResultFuture<Integer> resultFuture)
                 throws Exception {
             executorService.submit(
-                    new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                latch.await();
-                            } catch (InterruptedException e) {
-                                // do nothing
-                            }
-
-                            resultFuture.complete(Collections.singletonList(input));
+                    () -> {
+                        try {
+                            waitLatch();
+                        } catch (InterruptedException e) {
+                            // do nothing
                         }
+
+                        resultFuture.complete(Collections.singletonList(input));
                     });
         }
 
-        public static void countDown() {
+        protected void waitLatch() throws InterruptedException {
+            latch.await();
+        }
+
+        public void countDown() {
             latch.countDown();
         }
     }
@@ -255,7 +256,7 @@ class AsyncWaitOperatorTest {
      * A special {@link LazyAsyncFunction} for timeout handling. Complete the result future with 3
      * times the input when the timeout occurred.
      */
-    private static class IgnoreTimeoutLazyAsyncFunction extends LazyAsyncFunction {
+    public static class IgnoreTimeoutLazyAsyncFunction extends LazyAsyncFunction {
         private static final long serialVersionUID = 1428714561365346128L;
 
         @Override
@@ -616,9 +617,11 @@ class AsyncWaitOperatorTest {
 
         testHarness.setupOutputForSingletonOperatorChain();
 
+        LazyAsyncFunction lazyAsyncFunction = new LazyAsyncFunction();
+
         AsyncWaitOperatorFactory<Integer, Integer> factory =
                 new AsyncWaitOperatorFactory<>(
-                        new LazyAsyncFunction(), TIMEOUT, 4, AsyncDataStream.OutputMode.ORDERED);
+                        lazyAsyncFunction, TIMEOUT, 4, AsyncDataStream.OutputMode.ORDERED);
 
         final StreamConfig streamConfig = testHarness.getStreamConfig();
         OperatorID operatorID = new OperatorID(42L, 4711L);
@@ -654,7 +657,7 @@ class AsyncWaitOperatorTest {
 
         assertThat(taskStateManagerMock.getReportedCheckpointId()).isEqualTo(checkpointId);
 
-        LazyAsyncFunction.countDown();
+        lazyAsyncFunction.countDown();
 
         testHarness.endInput();
         testHarness.waitForTaskCompletion();
@@ -1331,6 +1334,49 @@ class AsyncWaitOperatorTest {
     }
 
     @Test
+    void testProcessingTimeWithAlwaysTimeoutFunctionUnorderedWithRetry() throws Exception {
+        testProcessingTimeAlwaysTimeoutFunction(AsyncDataStream.OutputMode.UNORDERED);
+    }
+
+    @Test
+    void testProcessingTimeWithAlwaysTimeoutFunctionOrderedWithRetry() throws Exception {
+        testProcessingTimeAlwaysTimeoutFunction(AsyncDataStream.OutputMode.ORDERED);
+    }
+
+    private void testProcessingTimeAlwaysTimeoutFunction(AsyncDataStream.OutputMode mode)
+            throws Exception {
+        StreamTaskMailboxTestHarnessBuilder<Integer> builder =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO);
+
+        AlwaysTimeoutAsyncFunction asyncFunction = new AlwaysTimeoutAsyncFunction();
+        try (StreamTaskMailboxTestHarness<Integer> testHarness =
+                builder.setupOutputForSingletonOperatorChain(
+                                new AsyncWaitOperatorFactory<Integer, Integer>(
+                                        asyncFunction, TIMEOUT, 10, mode, exceptionRetryStrategy))
+                        .build()) {
+
+            final long initialTime = 0L;
+            AtomicReference<Throwable> error = new AtomicReference<>();
+            testHarness.getStreamMockEnvironment().setExternalExceptionHandler(error::set);
+
+            try {
+                testHarness.processElement(new StreamRecord<>(1, initialTime + 1));
+                testHarness.processElement(new StreamRecord<>(2, initialTime + 2));
+                while (error.get() == null) {
+                    testHarness.processAll();
+                }
+            } catch (Exception e) {
+                error.set(e);
+            }
+            ExceptionUtils.assertThrowableWithMessage(error.get(), "Dummy timeout error");
+            // verify the 1st element's try count is exactly 1
+            assertThat(asyncFunction.getTryCount(1)).isEqualTo(1);
+        }
+    }
+
+    @Test
     public void testProcessingTimeWithMailboxThreadOrdered() throws Exception {
         testProcessingTimeWithCollectFromMailboxThread(
                 AsyncDataStream.OutputMode.ORDERED, NO_RETRY_STRATEGY);
@@ -1522,7 +1568,7 @@ class AsyncWaitOperatorTest {
 
         private static final long serialVersionUID = 1L;
 
-        private static Map<Integer, Integer> tryCounts = new HashMap<>();
+        protected static Map<Integer, Integer> tryCounts = new HashMap<>();
 
         @VisibleForTesting
         public int getTryCount(Integer item) {
@@ -1554,6 +1600,31 @@ class AsyncWaitOperatorTest {
         public void timeout(Integer input, ResultFuture<Integer> resultFuture) {
             // collect a default value -1 when timeout
             resultFuture.complete(Collections.singletonList(-1));
+        }
+    }
+
+    private static class AlwaysTimeoutAsyncFunction
+            extends AlwaysTimeoutWithDefaultValueAsyncFunction {
+
+        private final transient CountDownLatch latch = new CountDownLatch(1);
+
+        @Override
+        public void asyncInvoke(Integer input, ResultFuture<Integer> resultFuture) {
+            tryCounts.merge(input, 1, Integer::sum);
+            CompletableFuture.runAsync(
+                    () -> {
+                        try {
+                            latch.await();
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+        }
+
+        @Override
+        public void timeout(Integer input, ResultFuture<Integer> resultFuture) {
+            // simulate the case reported in https://issues.apache.org/jira/browse/FLINK-38082
+            resultFuture.completeExceptionally(new TimeoutException("Dummy timeout error"));
         }
     }
 

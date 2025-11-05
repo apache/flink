@@ -18,37 +18,23 @@
 
 package org.apache.flink.table.runtime.operators.calc.async;
 
-import org.apache.flink.api.common.functions.OpenContext;
-import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
-import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedFunction;
+import org.apache.flink.table.runtime.operators.AbstractAsyncFunctionRunner;
 
 /**
  * Async function runner for {@link org.apache.flink.table.functions.AsyncScalarFunction}, which
  * takes the generated function, instantiates it, and then calls its lifecycle methods.
  */
-public class AsyncFunctionRunner extends RichAsyncFunction<RowData, RowData> {
+public class AsyncFunctionRunner extends AbstractAsyncFunctionRunner<RowData> {
 
-    private static final long serialVersionUID = -6664660022391632123L;
-
-    private final GeneratedFunction<AsyncFunction<RowData, RowData>> generatedFetcher;
-
-    private transient AsyncFunction<RowData, RowData> fetcher;
+    private static final long serialVersionUID = -7198305381139008806L;
 
     public AsyncFunctionRunner(
             GeneratedFunction<AsyncFunction<RowData, RowData>> generatedFetcher) {
-        this.generatedFetcher = generatedFetcher;
-    }
-
-    @Override
-    public void open(OpenContext openContext) throws Exception {
-        super.open(openContext);
-        fetcher = generatedFetcher.newInstance(getRuntimeContext().getUserCodeClassLoader());
-        FunctionUtils.setFunctionRuntimeContext(fetcher, getRuntimeContext());
-        FunctionUtils.openFunction(fetcher, openContext);
+        super(generatedFetcher);
     }
 
     @Override
@@ -58,11 +44,5 @@ public class AsyncFunctionRunner extends RichAsyncFunction<RowData, RowData> {
         } catch (Throwable t) {
             resultFuture.completeExceptionally(t);
         }
-    }
-
-    @Override
-    public void close() throws Exception {
-        super.close();
-        FunctionUtils.closeFunction(fetcher);
     }
 }

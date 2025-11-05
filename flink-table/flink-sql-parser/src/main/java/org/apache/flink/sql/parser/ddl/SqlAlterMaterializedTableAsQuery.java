@@ -27,7 +27,7 @@ import org.apache.calcite.util.ImmutableNullableList;
 import java.util.List;
 
 /**
- * SqlNode to describe the ALTER TABLE [catalogName.] [dataBasesName.]tableName AS &lt;query&gt;
+ * SqlNode to describe the ALTER TABLE [catalogName.][dataBasesName.]tableName AS &lt;query&gt;
  * statement.
  */
 public class SqlAlterMaterializedTableAsQuery extends SqlAlterMaterializedTable {

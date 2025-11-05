@@ -172,6 +172,11 @@ public class StateBackendTestUtils {
         }
 
         @Override
+        public String getBackendTypeIdentifier() {
+            return "test";
+        }
+
+        @Override
         public void close() {
             // do nothing
         }
@@ -243,6 +248,7 @@ public class StateBackendTestUtils {
                     parameters.getEnv().getExecutionConfig(),
                     parameters.getTtlTimeProvider(),
                     delegatedKeyedStateBackend.getLatencyTrackingStateConfig(),
+                    delegatedKeyedStateBackend.getSizeTrackingStateConfig(),
                     parameters.getCancelStreamRegistry(),
                     delegatedKeyedStateBackend.getKeyContext()) {
                 @Override
@@ -325,6 +331,11 @@ public class StateBackendTestUtils {
                 public void dispose() {
                     super.dispose();
                     delegatedKeyedStateBackend.dispose();
+                }
+
+                @Override
+                public String getBackendTypeIdentifier() {
+                    return "test";
                 }
 
                 @Override

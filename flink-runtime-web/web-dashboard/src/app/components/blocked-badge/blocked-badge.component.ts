@@ -24,11 +24,8 @@ import { NzSizeDSType } from 'ng-zorro-antd/core/types';
   selector: 'flink-blocked-badge',
   templateUrl: './blocked-badge.component.html',
   styleUrls: ['./blocked-badge.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BlockedBadgeComponent {
   @Input() size: NzSizeDSType = 'default';
-
-  constructor() {}
 }

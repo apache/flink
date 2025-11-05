@@ -477,6 +477,32 @@ GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT(count$0) AS EXPR$1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRedundantWatermarkDefinition">
+    <Resource name="sql">
+      <![CDATA[SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM wmTable1 GROUP BY b]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[MAX($0)], EXPR$3=[SUM($2)])
++- LogicalProject(b=[$1], a=[$0], c=[$2])
+   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
+         +- LogicalTableScan(table=[[default_catalog, default_database, wmTable1]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1, MAX(max$1) AS EXPR$2, SUM(sum$2) AS EXPR$3])
++- Exchange(distribution=[hash[b]])
+   +- LocalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 a) AS count$0, MAX(b) AS max$1, SUM(c) AS sum$2, DISTINCT(a) AS distinct$0])
+      +- Calc(select=[b, a, c])
+         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+            +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
+               +- Calc(select=[b, a, c, rowtime])
+                  +- TableSourceScan(table=[[default_catalog, default_database, wmTable1]], fields=[a, b, c, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRowtimeRowsOverWithMiniBatch">
     <Resource name="sql">
       <![CDATA[
@@ -510,32 +536,6 @@ GlobalGroupAggregate(groupBy=[cnt], select=[cnt, COUNT(count$0) AS EXPR$1])
                +- MiniBatchAssigner(interval=[1000ms], mode=[RowTime])
                   +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
                      +- TableSourceScan(table=[[default_catalog, default_database, wmTable1, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRedundantWatermarkDefinition">
-    <Resource name="sql">
-      <![CDATA[SELECT b, COUNT(DISTINCT a), MAX(b), SUM(c) FROM wmTable1 GROUP BY b]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[MAX($0)], EXPR$3=[SUM($2)])
-+- LogicalProject(b=[$1], a=[$0], c=[$2])
-   +- LogicalWatermarkAssigner(rowtime=[rowtime], watermark=[$4])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], proctime=[PROCTIME()], rowtime=[$3])
-         +- LogicalTableScan(table=[[default_catalog, default_database, wmTable1]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-GlobalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 count$0) AS EXPR$1, MAX(max$1) AS EXPR$2, SUM(sum$2) AS EXPR$3])
-+- Exchange(distribution=[hash[b]])
-   +- LocalGroupAggregate(groupBy=[b], select=[b, COUNT(distinct$0 a) AS count$0, MAX(b) AS max$1, SUM(c) AS sum$2, DISTINCT(a) AS distinct$0])
-      +- Calc(select=[b, a, c])
-         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-            +- WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])
-               +- Calc(select=[b, a, c, rowtime])
-                  +- TableSourceScan(table=[[default_catalog, default_database, wmTable1]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
   </TestCase>

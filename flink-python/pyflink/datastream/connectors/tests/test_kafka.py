@@ -568,7 +568,7 @@ class KafkaRecordSerializationSchemaTests(PyFlinkTestCase):
             ds = MockDataStream(Types.ROW([Types.STRING()]))
             ds.sink_to(sink)
             row = Row(data)
-            topic_row = ds.feed(row)  # type: Row
+            topic_row: Row = ds.feed(row)
             j_record = serialization_schema._j_serialization_schema.serialize(
                 to_java_data_structure(topic_row), None, None
             )

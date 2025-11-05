@@ -21,8 +21,10 @@ from decimal import Decimal
 
 from pyflink.common.constants import MAX_LONG_VALUE, MIN_LONG_VALUE
 from pyflink.table import AggregateFunction, MapView, ListView
+from pyflink.util.api_stability_decorators import Internal
 
 
+@Internal()
 class AvgAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
@@ -53,6 +55,7 @@ class AvgAggFunction(AggregateFunction):
                 accumulator[1] += acc[1]
 
 
+@Internal()
 class Count1AggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
@@ -72,6 +75,7 @@ class Count1AggFunction(AggregateFunction):
             accumulator[0] += acc[0]
 
 
+@Internal()
 class CountAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
@@ -93,6 +97,7 @@ class CountAggFunction(AggregateFunction):
             accumulator[0] += acc[0]
 
 
+@Internal()
 class FirstValueAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
@@ -113,6 +118,7 @@ class FirstValueAggFunction(AggregateFunction):
         raise NotImplementedError("This function does not support merge.")
 
 
+@Internal()
 class FirstValueWithRetractAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
@@ -200,6 +206,7 @@ class FirstValueWithRetractAggFunction(AggregateFunction):
         raise NotImplementedError("This function does not support merge.")
 
 
+@Internal()
 class LastValueAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
@@ -220,6 +227,7 @@ class LastValueAggFunction(AggregateFunction):
         raise NotImplementedError("This function does not support merge.")
 
 
+@Internal()
 class LastValueWithRetractAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
@@ -308,6 +316,7 @@ class LastValueWithRetractAggFunction(AggregateFunction):
         raise NotImplementedError("This function does not support merge.")
 
 
+@Internal()
 class ListAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
@@ -330,6 +339,7 @@ class ListAggFunction(AggregateFunction):
         raise NotImplementedError("This function does not support retraction.")
 
 
+@Internal()
 class ListAggWithRetractAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
@@ -382,6 +392,7 @@ class ListAggWithRetractAggFunction(AggregateFunction):
                 accumulator[1].add_all(new_retract_buffer)
 
 
+@Internal()
 class ListAggWsWithRetractAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
@@ -437,6 +448,7 @@ class ListAggWsWithRetractAggFunction(AggregateFunction):
                 accumulator[1].add_all(retract_buffer)
 
 
+@Internal()
 class MaxAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
@@ -460,6 +472,7 @@ class MaxAggFunction(AggregateFunction):
                     accumulator[0] = acc[0]
 
 
+@Internal()
 class MaxWithRetractAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
@@ -566,6 +579,7 @@ class MaxWithRetractAggFunction(AggregateFunction):
             self.update_max(acc)
 
 
+@Internal()
 class MinAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
@@ -590,6 +604,7 @@ class MinAggFunction(AggregateFunction):
                     accumulator[0] = acc[0]
 
 
+@Internal()
 class MinWithRetractAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
@@ -696,6 +711,7 @@ class MinWithRetractAggFunction(AggregateFunction):
             self.update_min(acc)
 
 
+@Internal()
 class Sum0AggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
@@ -718,6 +734,7 @@ class Sum0AggFunction(AggregateFunction):
             accumulator[0] += acc[0]
 
 
+@Internal()
 class IntSum0AggFunction(Sum0AggFunction):
 
     def create_accumulator(self):
@@ -725,6 +742,7 @@ class IntSum0AggFunction(Sum0AggFunction):
         return [0]
 
 
+@Internal()
 class FloatSum0AggFunction(Sum0AggFunction):
 
     def create_accumulator(self):
@@ -732,6 +750,7 @@ class FloatSum0AggFunction(Sum0AggFunction):
         return [0.0]
 
 
+@Internal()
 class DecimalSum0AggFunction(Sum0AggFunction):
 
     def create_accumulator(self):
@@ -739,6 +758,7 @@ class DecimalSum0AggFunction(Sum0AggFunction):
         return [Decimal('0')]
 
 
+@Internal()
 class SumAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):
@@ -767,6 +787,7 @@ class SumAggFunction(AggregateFunction):
                     accumulator[0] += acc[0]
 
 
+@Internal()
 class SumWithRetractAggFunction(AggregateFunction):
 
     def get_value(self, accumulator):

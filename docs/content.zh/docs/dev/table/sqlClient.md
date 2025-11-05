@@ -69,6 +69,12 @@ The `<gateway address>` can be provided in two formats: as a `host:port` combina
 
 If you need to pass custom HTTP headers, you can do so by setting the FLINK_REST_CLIENT_HEADERS environment variable. For example:
 
+You can also override the default job manager configuration in SQL client by explicitly providing the cluster address while initialising the client as below:
+
+```bash
+./bin/sql-client.sh gateway --endpoint <gateway address> -Drest.address=<flink cluster host> -Drest.port=<port>
+```
+
 ```bash
 export FLINK_REST_CLIENT_HEADERS="Cookie:myauthcookie=foobar;othercookie=baz"
 ./bin/sql-client.sh gateway --endpoint https://your-sql-gateway.endpoint.com/authenticated/sql
@@ -321,7 +327,7 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
                                                 --pyExecutable
                                                 /usr/local/bin/python3). The
                                                 python UDF worker depends on
-                                                Python 3.8+, Apache Beam
+                                                Python 3.9+, Apache Beam
                                                 (version >= 2.54.0, <= 2.61.0), Pip
                                                 (version >= 20.3) and SetupTools
                                                 (version >= 37.0.0). Please

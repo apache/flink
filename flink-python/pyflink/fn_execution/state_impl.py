@@ -968,7 +968,7 @@ class RemoteKeyedStateBackend(object):
             self._namespace_coder_impl = None
         self._state_cache_size = state_cache_size
         self._map_state_write_cache_size = map_state_write_cache_size
-        self._all_states = {}  # type: Dict[str, SynchronousKvRuntimeState]
+        self._all_states: Dict[str, SynchronousKvRuntimeState] = {}
         self._internal_state_cache = LRUCache(self._state_cache_size, None)
         self._internal_state_cache.set_on_evict(
             lambda key, value: self.commit_internal_state(value))
@@ -1292,7 +1292,7 @@ class RemoteOperatorStateBackend(OperatorStateBackend):
         self, state_descriptor: MapStateDescriptor
     ) -> 'SynchronousBroadcastRuntimeState':
         state_name = state_descriptor.name
-        map_coder = cast(MapCoder, from_type_info(state_descriptor.type_info))  # type: MapCoder
+        map_coder: MapCoder = cast(MapCoder, from_type_info(state_descriptor.type_info))
         key_coder = map_coder._key_coder
         value_coder = map_coder._value_coder
 

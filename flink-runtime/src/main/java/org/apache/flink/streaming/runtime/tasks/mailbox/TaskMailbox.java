@@ -33,11 +33,11 @@ import java.util.Optional;
  * <h3>Threading model</h3>
  *
  * <p>The mailbox is bound to a mailbox thread passed during creation. Most operations may only
- * occur through that thread. Write operations ({@link #put(Mail)}, {@link #putFirst(Mail)}) can be
- * executed by any thread. All other methods can only be invoked by the mailbox thread, which is
- * passed upon construction. To verify that the current thread is allowed to take any mail, use
- * {@link #isMailboxThread()}, but all methods will perform the check themselves and fail
- * accordingly if called from another thread.
+ * occur through that thread. Write operations ({@link #put(Mail)} can be executed by any thread.
+ * All other methods can only be invoked by the mailbox thread, which is passed upon construction.
+ * To verify that the current thread is allowed to take any mail, use {@link #isMailboxThread()},
+ * but all methods will perform the check themselves and fail accordingly if called from another
+ * thread.
  *
  * <h3>Life cycle</h3>
  *
@@ -54,9 +54,9 @@ import java.util.Optional;
  * smaller logical chunks, such that the task threads cannot be blocked by a mail that enqueues
  * itself and thus provides input starvation.
  *
- * <p>A batch is created with {@link #createBatch()} and consumed with {@link #tryTakeFromBatch()}.
- * Note that there is no blocking {@code takeFromBatch} as batches can only be created and consumed
- * from the mailbox thread.
+ * <p>A batch is consumed with {@link #tryTakeFromBatch()}, and batch will be created during taking
+ * mail. Note that there is no blocking {@code takeFromBatch} as batches can only be created and
+ * consumed from the mailbox thread.
  *
  * <p>Also note that a batch can only be created in the {@link MailboxProcessor#runMailboxLoop()}. A
  * batch must not be extended in any of the consuming methods as we may run into task input
@@ -160,7 +160,7 @@ public interface TaskMailbox {
 
     /**
      * Enqueues the given mail to the mailbox and blocks until there is capacity for a successful
-     * put.
+     * put. The Mail with ({@link MailboxExecutor.MailOptions#isUrgent} will be put in the head.
      *
      * <p>Mails can be added from any thread.
      *
@@ -168,16 +168,6 @@ public interface TaskMailbox {
      * @throws MailboxClosedException if the mailbox is quiesced or closed.
      */
     void put(Mail mail);
-
-    /**
-     * Adds the given action to the head of the mailbox.
-     *
-     * <p>Mails can be added from any thread.
-     *
-     * @param mail the mail to enqueue.
-     * @throws MailboxClosedException if the mailbox is quiesced or closed.
-     */
-    void putFirst(Mail mail);
 
     // --- Lifecycle methods
 

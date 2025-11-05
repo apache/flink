@@ -49,6 +49,7 @@ import org.apache.flink.runtime.state.SnapshotStrategyRunner;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 
 import javax.annotation.Nonnull;
@@ -74,6 +75,7 @@ public class TestStateBackend extends AbstractStateBackend {
                 parameters.getEnv().getExecutionConfig(),
                 parameters.getTtlTimeProvider(),
                 LatencyTrackingStateConfig.newBuilder().build(),
+                SizeTrackingStateConfig.newBuilder().build(),
                 parameters.getCancelStreamRegistry(),
                 new InternalKeyContextImpl<>(
                         parameters.getKeyGroupRange(), parameters.getNumberOfKeyGroups()));
@@ -126,6 +128,7 @@ public class TestStateBackend extends AbstractStateBackend {
                 ExecutionConfig executionConfig,
                 TtlTimeProvider ttlTimeProvider,
                 LatencyTrackingStateConfig latencyTrackingStateConfig,
+                SizeTrackingStateConfig sizeTrackingStateConfig,
                 CloseableRegistry cancelStreamRegistry,
                 InternalKeyContext<K> keyContext) {
             super(
@@ -135,6 +138,7 @@ public class TestStateBackend extends AbstractStateBackend {
                     executionConfig,
                     ttlTimeProvider,
                     latencyTrackingStateConfig,
+                    sizeTrackingStateConfig,
                     cancelStreamRegistry,
                     keyContext);
         }
@@ -170,6 +174,11 @@ public class TestStateBackend extends AbstractStateBackend {
         @Override
         public <N> Stream<Tuple2<K, N>> getKeysAndNamespaces(String state) {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public String getBackendTypeIdentifier() {
+            return "test";
         }
 
         @Nonnull

@@ -24,6 +24,8 @@ import org.apache.flink.api.common.accumulators.Accumulator;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
+import org.apache.flink.runtime.blob.BlobWriter;
+import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -43,6 +45,7 @@ import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
+import org.apache.flink.runtime.scheduler.ClusterDatasetCorruptedException;
 import org.apache.flink.runtime.scheduler.strategy.ConsumerVertexGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
@@ -51,17 +54,20 @@ import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.types.Either;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OptionalFailure;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -74,7 +80,9 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.getConsumedPartitionShuffleDescriptor;
@@ -164,6 +172,13 @@ public class Execution
 
     private Optional<ErrorInfo> failureCause =
             Optional.empty(); // once an ErrorInfo is set, never changes
+
+    /**
+     * Future that indicates {@link TaskDeploymentDescriptor} being created after the most recent
+     * deploy. This is only used for testing purposes to handle race conditions caused by thread
+     * switching between main and async pool in #deploy().
+     */
+    @Nullable private volatile CompletableFuture<Void> tddCreatedDuringDeployFuture;
 
     /**
      * Information to restore the task on recovery, such as checkpoint id and task state snapshot.
@@ -595,14 +610,8 @@ public class Execution
         try {
 
             // race double check, did we fail/cancel and do we need to release the slot?
-            if (this.state != DEPLOYING) {
-                slot.releaseSlot(
-                        new FlinkException(
-                                "Actual state of execution "
-                                        + this
-                                        + " ("
-                                        + state
-                                        + ") does not match expected state DEPLOYING."));
+            if (state != DEPLOYING) {
+                releaseSlotWhenNotInDeployingState(slot);
                 return;
             }
 
@@ -615,18 +624,6 @@ public class Execution
                     getAssignedResourceLocation(),
                     slot.getAllocationId());
 
-            final TaskDeploymentDescriptor deployment =
-                    vertex.getExecutionGraphAccessor()
-                            .getTaskDeploymentDescriptorFactory()
-                            .createDeploymentDescriptor(
-                                    this,
-                                    slot.getAllocationId(),
-                                    taskRestore,
-                                    producedPartitions.values());
-
-            // null taskRestore to let it be GC'ed
-            taskRestore = null;
-
             final TaskManagerGateway taskManagerGateway = slot.getTaskManagerGateway();
 
             final ComponentMainThreadExecutor jobMasterMainThreadExecutor =
@@ -636,43 +633,217 @@ public class Execution
             // We run the submission in the future executor so that the serialization of large TDDs
             // does not block
             // the main thread and sync back to the main thread once submission is completed.
-            CompletableFuture.supplyAsync(
-                            () -> taskManagerGateway.submitTask(deployment, rpcTimeout), executor)
-                    .thenCompose(Function.identity())
+            AtomicReference<Either<SerializedValue<JobManagerTaskRestore>, PermanentBlobKey>>
+                    maybeOffloadedTaskRestoreCleanupRef = new AtomicReference<>();
+            final CompletableFuture<TaskDeploymentDescriptor> taskDeploymentDescriptorFuture =
+                    CompletableFuture.supplyAsync(
+                                    initOffloadedTaskRestoreRef(
+                                            // Passing a copy of the task restore from the
+                                            // main thread to the I/O executor in order to
+                                            // avoid synchronization issues
+                                            taskRestore, maybeOffloadedTaskRestoreCleanupRef),
+                                    executor)
+                            // back to main thread because this accesses execution graph
+                            // internals
+                            .thenComposeAsync(
+                                    tryGetTaskDeploymentDescriptorForSlot(slot),
+                                    jobMasterMainThreadExecutor);
+            this.tddCreatedDuringDeployFuture = taskDeploymentDescriptorFuture.thenRun(() -> {});
+            // back to io executor for TDD serialization
+            taskDeploymentDescriptorFuture
+                    .thenComposeAsync(
+                            deploymentDescriptor ->
+                                    taskManagerGateway.submitTask(deploymentDescriptor, rpcTimeout),
+                            executor)
                     .whenCompleteAsync(
-                            (ack, failure) -> {
-                                if (failure == null) {
-                                    vertex.notifyCompletedDeployment(this);
-                                } else {
-                                    final Throwable actualFailure =
-                                            ExceptionUtils.stripCompletionException(failure);
-
-                                    if (actualFailure instanceof TimeoutException) {
-                                        String taskname =
-                                                vertex.getTaskNameWithSubtaskIndex()
-                                                        + " ("
-                                                        + attemptId
-                                                        + ')';
-
-                                        markFailed(
-                                                new Exception(
-                                                        "Cannot deploy task "
-                                                                + taskname
-                                                                + " - TaskManager ("
-                                                                + getAssignedResourceLocation()
-                                                                + ") not responding after a rpcTimeout of "
-                                                                + rpcTimeout,
-                                                        actualFailure));
-                                    } else {
-                                        markFailed(actualFailure);
-                                    }
-                                }
-                            },
+                            (ack, failure) ->
+                                    handleDeploymentCompletionAndCleanup(
+                                            maybeOffloadedTaskRestoreCleanupRef, ack, failure),
                             jobMasterMainThreadExecutor);
 
         } catch (Throwable t) {
+            ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
             markFailed(t);
         }
+    }
+
+    private void handleDeploymentCompletionAndCleanup(
+            AtomicReference<Either<SerializedValue<JobManagerTaskRestore>, PermanentBlobKey>>
+                    cleanupRef,
+            @Nullable final Acknowledge ack,
+            @Nullable final Throwable failure) {
+
+        // Running in async thread to avoid blocking the main thread on cleanup.
+        CompletableFuture.runAsync(() -> cleanUpOffloadedTaskRestore(cleanupRef), executor)
+                .exceptionally(
+                        cleanupError -> {
+                            LOG.warn(
+                                    "Failed to cleanup offloaded task restore for "
+                                            + "{} (attempt #{}) with attempt "
+                                            + "id {} and vertex id {} to {}",
+                                    vertex.getTaskNameWithSubtaskIndex(),
+                                    getAttemptNumber(),
+                                    attemptId,
+                                    vertex.getID(),
+                                    getAssignedResourceLocation(),
+                                    cleanupError);
+                            return null;
+                        });
+
+        finalizeDeploymentAndCleanUpInMainThread(ack, failure);
+    }
+
+    private Supplier<Either<SerializedValue<JobManagerTaskRestore>, PermanentBlobKey>>
+            initOffloadedTaskRestoreRef(
+                    final JobManagerTaskRestore taskRestoreSnapshot,
+                    final AtomicReference<
+                                    Either<
+                                            SerializedValue<JobManagerTaskRestore>,
+                                            PermanentBlobKey>>
+                            maybeOffloadedTaskRestoreCleanupRef) {
+        return FunctionUtils.uncheckedSupplier(
+                () -> {
+                    maybeOffloadedTaskRestoreCleanupRef.set(
+                            getMaybeOffloadedTaskRestore(taskRestoreSnapshot));
+                    return maybeOffloadedTaskRestoreCleanupRef.get();
+                });
+    }
+
+    private void finalizeDeploymentAndCleanUpInMainThread(
+            @Nullable final Acknowledge ack, @Nullable final Throwable failure) {
+        // Verify that we are back in the job master main thread
+        assertRunningInJobMasterMainThread();
+        // null taskRestore to let it be GC'ed
+        taskRestore = null;
+
+        if (failure == null) {
+            vertex.notifyCompletedDeployment(this);
+        } else {
+            final Throwable actualFailure = ExceptionUtils.stripCompletionException(failure);
+
+            if (actualFailure instanceof TimeoutException) {
+                String taskname = vertex.getTaskNameWithSubtaskIndex() + " (" + attemptId + ')';
+
+                markFailed(
+                        new Exception(
+                                "Cannot deploy task "
+                                        + taskname
+                                        + " - TaskManager ("
+                                        + getAssignedResourceLocation()
+                                        + ") not responding after a rpcTimeout of "
+                                        + rpcTimeout,
+                                actualFailure));
+            } else {
+                markFailed(actualFailure);
+            }
+        }
+    }
+
+    private Function<
+                    Either<SerializedValue<JobManagerTaskRestore>, PermanentBlobKey>,
+                    CompletableFuture<TaskDeploymentDescriptor>>
+            tryGetTaskDeploymentDescriptorForSlot(final LogicalSlot slot) {
+        return FunctionUtils.uncheckedFunction(
+                (maybeOffloadedTaskRestore) -> {
+                    // Check that we are in jm main thread while creating
+                    // task deployment descriptor.
+                    assertRunningInJobMasterMainThread();
+                    if (state != DEPLOYING) {
+                        return FutureUtils.completedExceptionally(
+                                new IllegalStateException(
+                                        String.format(
+                                                "Cannot deploy %s (attempt #%s) with attempt "
+                                                        + "id %s and vertex id %s to %s "
+                                                        + "with allocation id %s "
+                                                        + "because execution state has switched to %s "
+                                                        + "during task restore offload",
+                                                vertex.getTaskNameWithSubtaskIndex(),
+                                                getAttemptNumber(),
+                                                attemptId,
+                                                vertex.getID(),
+                                                getAssignedResourceLocation(),
+                                                slot.getAllocationId(),
+                                                state)));
+                    }
+                    return CompletableFuture.completedFuture(
+                            getDeploymentDescriptor(maybeOffloadedTaskRestore, slot));
+                });
+    }
+
+    /**
+     * Helper method to release the slot when Execution is not in DEPLOYING state.
+     *
+     * @param slot The slot to release.
+     */
+    private void releaseSlotWhenNotInDeployingState(final LogicalSlot slot) {
+        slot.releaseSlot(
+                new FlinkException(
+                        "Actual state of execution "
+                                + this
+                                + " ("
+                                + state
+                                + ") does not match expected state DEPLOYING."));
+    }
+
+    /**
+     * Cleans up the offloaded task restore if it was offloaded to the blob store.
+     *
+     * @param maybeOffloadedTaskRestoreCleanupRef The reference to the offloaded task restore
+     */
+    private void cleanUpOffloadedTaskRestore(
+            final AtomicReference<Either<SerializedValue<JobManagerTaskRestore>, PermanentBlobKey>>
+                    maybeOffloadedTaskRestoreCleanupRef) {
+        if (maybeOffloadedTaskRestoreCleanupRef.get() != null
+                && maybeOffloadedTaskRestoreCleanupRef.get().isRight()) {
+            vertex.getExecutionGraphAccessor()
+                    .deleteBlobs(
+                            Collections.singletonList(
+                                    maybeOffloadedTaskRestoreCleanupRef.get().right()));
+            maybeOffloadedTaskRestoreCleanupRef.set(null);
+        }
+    }
+
+    /**
+     * Creates the task deployment descriptor for the task.
+     *
+     * @param maybeOffloadedTaskRestore The serialized task restore information or the blob key if
+     *     it was offloaded
+     * @param slot The slot to which the task is deployed
+     * @return The task deployment descriptor
+     * @throws IOException If an I/O error occurs
+     * @throws ClusterDatasetCorruptedException If the cluster dataset is corrupted
+     */
+    private TaskDeploymentDescriptor getDeploymentDescriptor(
+            final Either<SerializedValue<JobManagerTaskRestore>, PermanentBlobKey>
+                    maybeOffloadedTaskRestore,
+            final LogicalSlot slot)
+            throws IOException, ClusterDatasetCorruptedException {
+        return vertex.getExecutionGraphAccessor()
+                .getTaskDeploymentDescriptorFactory()
+                .createDeploymentDescriptor(
+                        this,
+                        slot.getAllocationId(),
+                        maybeOffloadedTaskRestore,
+                        producedPartitions.values());
+    }
+
+    /**
+     * Returns the serialized task restore information or the blob key if it was offloaded.
+     *
+     * @param taskRestoreSnapshot Task restore snapshot value at the time of deployment.
+     * @return The serialized task restore information or the blob key if it was offloaded
+     * @throws IOException If an I/O error occurs
+     */
+    @VisibleForTesting
+    protected Either<SerializedValue<JobManagerTaskRestore>, PermanentBlobKey>
+            getMaybeOffloadedTaskRestore(final JobManagerTaskRestore taskRestoreSnapshot)
+                    throws IOException {
+        return taskRestoreSnapshot == null
+                ? null
+                : BlobWriter.serializeAndTryOffload(
+                        taskRestoreSnapshot,
+                        vertex.getJobId(),
+                        vertex.getExecutionGraphAccessor().getBlobWriter());
     }
 
     public void cancel() {
@@ -1634,6 +1805,18 @@ public class Execution
     @Override
     public ArchivedExecution archive() {
         return new ArchivedExecution(this);
+    }
+
+    @VisibleForTesting
+    public CompletableFuture<Void> getTddCreationDuringDeployFuture() {
+        // Defensive copy in case future is set to null between check and join.
+        final CompletableFuture<Void> future = tddCreatedDuringDeployFuture;
+        if (future == null) {
+            throw new IllegalStateException(
+                    "Task deployment descriptor creation future is null, "
+                            + "please ensure that this method is called after `Execution.deploy()`.");
+        }
+        return future;
     }
 
     private void assertRunningInJobMasterMainThread() {

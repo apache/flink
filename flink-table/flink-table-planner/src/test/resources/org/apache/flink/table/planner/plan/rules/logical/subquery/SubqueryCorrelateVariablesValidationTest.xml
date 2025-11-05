@@ -16,41 +16,65 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testWithProjectProjectCorrelate">
+  <TestCase name="testWithFilterJoinCorrelate">
     <Resource name="sql">
       <![CDATA[
-SELECT (SELECT min(t1.t1d) FROM t3 WHERE t3.t3a = 'test') min_t1d
+SELECT t1a
 FROM   t1
-WHERE  t1a = 'test'
+WHERE  EXISTS (SELECT max(t2h) FROM t2
+               LEFT OUTER JOIN t1 ttt
+               ON t2.t2a=t1.t1a)
       ]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(variablesSet=[[$cor0]], min_t1d=[$SCALAR_QUERY({
+LogicalProject(t1a=[$0])
++- LogicalFilter(condition=[EXISTS({
+LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
+  LogicalProject(t2h=[$7])
+    LogicalJoin(condition=[=($0, $cor0.t1a)], joinType=[left])
+      LogicalTableScan(table=[[default_catalog, default_database, t2]])
+      LogicalTableScan(table=[[default_catalog, default_database, t1]])
+})], variablesSet=[[$cor0]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(t1a=[$0])
++- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithProjectCaseWhenCorrelate">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+    (CASE WHEN EXISTS (SELECT min(t3d)
+                       FROM t3
+                       WHERE t3.t3a = t1.t1a)
+     THEN 1 ELSE 2 END)
+FROM   t1
+    WHERE  t1a = 'test'
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(variablesSet=[[$cor0]], EXPR$0=[CASE(EXISTS({
 LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
-  LogicalProject($f0=[$cor0.t1d])
-    LogicalFilter(condition=[=($0, _UTF-16LE'test')])
+  LogicalProject(t3d=[$3])
+    LogicalFilter(condition=[=($0, $cor0.t1a)])
       LogicalTableScan(table=[[default_catalog, default_database, t3]])
-})])
+}), 1, 2)])
 +- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
    +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalProject(min_t1d=[$10])
-+- LogicalJoin(condition=[=($3, $9)], joinType=[left])
-   :- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
-   +- LogicalAggregate(group=[{0}], EXPR$0=[MIN($1)])
-      +- LogicalProject(t1d=[$9], $f0=[$9])
-         +- LogicalJoin(condition=[true], joinType=[inner])
-            :- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
-            :  +- LogicalTableScan(table=[[default_catalog, default_database, t3]])
-            +- LogicalAggregate(group=[{0}])
-               +- LogicalProject(t1d=[$3])
-                  +- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
-                     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+LogicalProject(EXPR$0=[1])
++- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
     </Resource>
   </TestCase>
@@ -99,34 +123,42 @@ LogicalProject(min_t3d=[$9], max_t2h=[$11])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testWithFilterJoinCorrelate">
-	<Resource name="sql">
-			<![CDATA[
-SELECT t1a
+  <TestCase name="testWithProjectProjectCorrelate">
+    <Resource name="sql">
+      <![CDATA[
+SELECT (SELECT min(t1.t1d) FROM t3 WHERE t3.t3a = 'test') min_t1d
 FROM   t1
-WHERE  EXISTS (SELECT max(t2h) FROM t2
-               LEFT OUTER JOIN t1 ttt
-               ON t2.t2a=t1.t1a)
+WHERE  t1a = 'test'
       ]]>
-	</Resource>
-	<Resource name="ast">
-			<![CDATA[
-LogicalProject(t1a=[$0])
-+- LogicalFilter(condition=[EXISTS({
-LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
-  LogicalProject(t2h=[$7])
-    LogicalJoin(condition=[=($0, $cor0.t1a)], joinType=[left])
-      LogicalTableScan(table=[[default_catalog, default_database, t2]])
-      LogicalTableScan(table=[[default_catalog, default_database, t1]])
-})], variablesSet=[[$cor0]])
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(variablesSet=[[$cor0]], min_t1d=[$SCALAR_QUERY({
+LogicalAggregate(group=[{}], EXPR$0=[MIN($0)])
+  LogicalProject($f0=[$cor0.t1d])
+    LogicalFilter(condition=[=($0, _UTF-16LE'test')])
+      LogicalTableScan(table=[[default_catalog, default_database, t3]])
+})])
++- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
    +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
-	</Resource>
-	<Resource name="optimized rel plan">
-			<![CDATA[
-LogicalProject(t1a=[$0])
-+- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(min_t1d=[$10])
++- LogicalJoin(condition=[=($3, $9)], joinType=[left])
+   :- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
+   +- LogicalAggregate(group=[{0}], EXPR$0=[MIN($1)])
+      +- LogicalProject(t1d=[$9], $f0=[$9])
+         +- LogicalJoin(condition=[true], joinType=[inner])
+            :- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
+            :  +- LogicalTableScan(table=[[default_catalog, default_database, t3]])
+            +- LogicalAggregate(group=[{0}])
+               +- LogicalProject(t1d=[$3])
+                  +- LogicalFilter(condition=[=($0, _UTF-16LE'test')])
+                     +- LogicalTableScan(table=[[default_catalog, default_database, t1]])
 ]]>
-	</Resource>
+    </Resource>
   </TestCase>
 </Root>

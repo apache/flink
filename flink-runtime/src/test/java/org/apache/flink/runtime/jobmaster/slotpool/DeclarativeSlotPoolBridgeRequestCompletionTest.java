@@ -56,10 +56,10 @@ class DeclarativeSlotPoolBridgeRequestCompletionTest {
 
     private TestingResourceManagerGateway resourceManagerGateway;
 
-    @Parameter private boolean slotBatchAllocatable;
+    @Parameter private boolean deferSlotAllocation;
 
-    @Parameters(name = "slotBatchAllocatable: {0}")
-    public static List<Boolean> getSlotBatchAllocatableParams() {
+    @Parameters(name = "deferSlotAllocation: {0}")
+    public static List<Boolean> getDeferSlotAllocationParams() {
         return Lists.newArrayList(false, true);
     }
 
@@ -72,7 +72,7 @@ class DeclarativeSlotPoolBridgeRequestCompletionTest {
     @TestTemplate
     void testRequestsAreCompletedInRequestOrder() {
         runSlotRequestCompletionTest(
-                CheckedSupplier.unchecked(() -> createAndSetUpSlotPool(slotBatchAllocatable)),
+                CheckedSupplier.unchecked(() -> createAndSetUpSlotPool(deferSlotAllocation)),
                 slotPool -> {});
     }
 
@@ -103,8 +103,8 @@ class DeclarativeSlotPoolBridgeRequestCompletionTest {
                             .map(
                                     slotRequestId ->
                                             slotPool.requestNewAllocatedSlot(
-                                                    slotRequestId,
-                                                    ResourceProfile.UNKNOWN,
+                                                    PhysicalSlotRequestUtils.normalRequest(
+                                                            slotRequestId, ResourceProfile.UNKNOWN),
                                                     TIMEOUT))
                             .collect(Collectors.toList());
 
@@ -131,7 +131,7 @@ class DeclarativeSlotPoolBridgeRequestCompletionTest {
             // check that the slot requests get completed in sequential order
             for (int i = 0; i < slotRequestIds.size(); i++) {
                 final CompletableFuture<PhysicalSlot> slotRequestFuture = slotRequests.get(i);
-                if (slotBatchAllocatable) {
+                if (deferSlotAllocation) {
                     assertThat(slotRequestFuture.getNow(null)).isNull();
                     assertThat(slotPoolBridge.getFreeSlotsInformation()).hasSize(1);
                 } else {
@@ -142,9 +142,9 @@ class DeclarativeSlotPoolBridgeRequestCompletionTest {
         }
     }
 
-    private SlotPool createAndSetUpSlotPool(boolean slotBatchAllocatable) throws Exception {
+    private SlotPool createAndSetUpSlotPool(boolean deferSlotAllocation) throws Exception {
         return new DeclarativeSlotPoolBridgeBuilder()
-                .setSlotBatchAllocatable(slotBatchAllocatable)
+                .setDeferSlotAllocation(deferSlotAllocation)
                 .setResourceManagerGateway(resourceManagerGateway)
                 .buildAndStart();
     }
@@ -155,7 +155,7 @@ class DeclarativeSlotPoolBridgeRequestCompletionTest {
 
     private SlotPool createAndSetUpSlotPoolWithoutResourceManager() throws Exception {
         return new DeclarativeSlotPoolBridgeBuilder()
-                .setSlotBatchAllocatable(slotBatchAllocatable)
+                .setDeferSlotAllocation(deferSlotAllocation)
                 .setResourceManagerGateway(null)
                 .buildAndStart();
     }

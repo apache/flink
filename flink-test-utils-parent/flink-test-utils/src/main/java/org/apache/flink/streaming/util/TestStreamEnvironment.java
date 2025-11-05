@@ -30,6 +30,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironmentFactory;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.test.util.MiniClusterPipelineExecutorServiceLoader;
 
 import java.net.URL;
@@ -40,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.testutils.PseudoRandomValueSelector.randomize;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY;
 
 /** A {@link StreamExecutionEnvironment} that executes its jobs on {@link MiniCluster}. */
 public class TestStreamEnvironment extends StreamExecutionEnvironment {
@@ -206,6 +208,13 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                 ConfigOptions.key("table.exec.unbounded-over.version").intType().noDefaultValue(),
                 1,
                 2);
+        randomize(
+                conf,
+                TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY,
+                ExecutionConfigOptions.SinkUpsertMaterializeStrategy.LEGACY,
+                ExecutionConfigOptions.SinkUpsertMaterializeStrategy.VALUE,
+                ExecutionConfigOptions.SinkUpsertMaterializeStrategy.MAP,
+                ExecutionConfigOptions.SinkUpsertMaterializeStrategy.ADAPTIVE);
     }
 
     /**

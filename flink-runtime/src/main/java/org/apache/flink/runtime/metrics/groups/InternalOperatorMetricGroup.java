@@ -38,14 +38,15 @@ public class InternalOperatorMetricGroup extends ComponentMetricGroup<TaskMetric
         implements OperatorMetricGroup {
     private final String operatorName;
     private final OperatorID operatorID;
-
     private final InternalOperatorIOMetricGroup ioMetrics;
+    private final Map<String, String> additionalVariables;
 
     InternalOperatorMetricGroup(
             MetricRegistry registry,
             TaskMetricGroup parent,
             OperatorID operatorID,
-            String operatorName) {
+            String operatorName,
+            Map<String, String> additionalVariables) {
         super(
                 registry,
                 registry.getScopeFormats()
@@ -54,6 +55,7 @@ public class InternalOperatorMetricGroup extends ComponentMetricGroup<TaskMetric
                 parent);
         this.operatorID = operatorID;
         this.operatorName = operatorName;
+        this.additionalVariables = additionalVariables;
 
         ioMetrics = new InternalOperatorIOMetricGroup(this);
     }
@@ -97,6 +99,7 @@ public class InternalOperatorMetricGroup extends ComponentMetricGroup<TaskMetric
     protected void putVariables(Map<String, String> variables) {
         variables.put(ScopeFormat.SCOPE_OPERATOR_ID, String.valueOf(operatorID));
         variables.put(ScopeFormat.SCOPE_OPERATOR_NAME, operatorName);
+        variables.putAll(additionalVariables);
         // we don't enter the subtask_index as the task group does that already
     }
 

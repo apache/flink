@@ -19,12 +19,12 @@ set -e -x
 dev/lint-python.sh -s py_env
 
 PY_ENV_DIR=`pwd`/dev/.uv/envs
-py_env=("3.8" "3.9" "3.10" "3.11")
+py_env=("3.9" "3.10" "3.11" "3.12")
 ## 2. install dependency
 for ((i=0;i<${#py_env[@]};i++)) do
     source `pwd`/dev/.uv/envs/${py_env[i]}/bin/activate
     echo "Installing dependencies for environment: ${py_env[i]}"
-    uv pip install -r dev/dev-requirements.txt
+    uv pip install --group dev
     deactivate
 done
 

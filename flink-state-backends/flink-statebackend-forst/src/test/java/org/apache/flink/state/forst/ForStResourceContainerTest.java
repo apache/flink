@@ -308,15 +308,19 @@ public class ForStResourceContainerTest {
 
     @Test
     public void testDirectoryResources() throws Exception {
-        Path localBasePath = new Path(TMP_FOLDER.newFolder().getPath());
-        Path remoteBasePath = new Path(TMP_FOLDER.newFolder().getPath());
+        Path localJobPath = new Path(TMP_FOLDER.newFolder().getPath());
+        Path localBasePath = new Path(localJobPath, "base");
+        localBasePath.getFileSystem().mkdirs(localBasePath);
+        Path remoteJobPath = new Path(TMP_FOLDER.newFolder().getPath());
+        Path remoteBasePath = new Path(remoteJobPath, "base");
+        remoteBasePath.getFileSystem().mkdirs(remoteBasePath);
         try (final ForStResourceContainer optionsContainer =
                 new ForStResourceContainer(
                         new Configuration(),
                         null,
                         null,
-                        localBasePath,
-                        remoteBasePath,
+                        ForStPathContainer.of(
+                                localJobPath, localBasePath, remoteJobPath, remoteBasePath),
                         null,
                         new FsCheckpointStorageAccess(
                                 new Path(TMP_FOLDER.newFolder().getPath()),
@@ -336,7 +340,9 @@ public class ForStResourceContainerTest {
 
             assertTrue(new File(remoteBasePath.getPath()).exists());
             optionsContainer.forceClearRemoteDirectories();
-            assertFalse(new File(remoteBasePath.getPath()).exists());
+
+            // Do not delete remote directory because it is not created by ForStResourceContainer
+            assertTrue(new File(remoteBasePath.getPath()).exists());
         }
     }
 

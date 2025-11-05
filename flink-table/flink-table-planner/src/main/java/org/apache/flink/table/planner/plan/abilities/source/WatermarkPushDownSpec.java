@@ -34,6 +34,7 @@ import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.apache.flink.table.watermark.WatermarkParams;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -43,6 +44,7 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Optional;
 
 import scala.Option;
 
@@ -52,14 +54,20 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A sub-class of {@link SourceAbilitySpec} that can not only serialize/deserialize the watermark
  * to/from JSON, but also can push the watermark into a {@link SupportsWatermarkPushDown}.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("WatermarkPushDown")
 public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
     public static final String FIELD_NAME_WATERMARK_EXPR = "watermarkExpr";
+    public static final String FIELD_NAME_ROWTIME_EXPR = "rowtimeExpr";
     public static final String FIELD_NAME_GLOBAL_IDLE_TIMEOUT_MILLIS = "idleTimeoutMillis";
     public static final String FIELD_NAME_WATERMARK_PARAMS = "watermarkParams";
 
     @JsonProperty(FIELD_NAME_WATERMARK_EXPR)
     private final RexNode watermarkExpr;
+
+    @Nullable
+    @JsonProperty(FIELD_NAME_ROWTIME_EXPR)
+    private final RexNode rowtimeExpr;
 
     @JsonProperty(FIELD_NAME_GLOBAL_IDLE_TIMEOUT_MILLIS)
     private final long globalIdleTimeoutMillis;
@@ -71,11 +79,13 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
     @JsonCreator
     public WatermarkPushDownSpec(
             @JsonProperty(FIELD_NAME_WATERMARK_EXPR) RexNode watermarkExpr,
+            @Nullable @JsonProperty(FIELD_NAME_ROWTIME_EXPR) RexNode rowtimeExpr,
             @JsonProperty(FIELD_NAME_GLOBAL_IDLE_TIMEOUT_MILLIS) long globalIdleTimeoutMillis,
             @JsonProperty(FIELD_NAME_PRODUCED_TYPE) RowType producedType,
             @JsonProperty(FIELD_NAME_WATERMARK_PARAMS) WatermarkParams watermarkParams) {
         super(producedType);
         this.watermarkExpr = checkNotNull(watermarkExpr);
+        this.rowtimeExpr = rowtimeExpr;
         this.globalIdleTimeoutMillis = globalIdleTimeoutMillis;
         this.watermarkParams = watermarkParams;
     }
@@ -89,6 +99,7 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
                             context.getClassLoader(),
                             context.getSourceRowType(),
                             watermarkExpr,
+                            rowtimeExpr != null ? Option.apply(rowtimeExpr) : Option.empty(),
                             Option.apply("context"));
 
             WatermarkGeneratorSupplier<RowData> supplier =
@@ -122,13 +133,18 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
         return true;
     }
 
-    public WatermarkPushDownSpec copy(RexNode watermarkExpr, RowType producedType) {
+    public WatermarkPushDownSpec copy(
+            RexNode watermarkExpr, @Nullable RexNode rowtimeExpr, RowType producedType) {
         return new WatermarkPushDownSpec(
-                watermarkExpr, globalIdleTimeoutMillis, producedType, watermarkParams);
+                watermarkExpr, rowtimeExpr, globalIdleTimeoutMillis, producedType, watermarkParams);
     }
 
     public RexNode getWatermarkExpr() {
         return watermarkExpr;
+    }
+
+    public Optional<RexNode> getRowtimeExpr() {
+        return Optional.ofNullable(rowtimeExpr);
     }
 
     @Override

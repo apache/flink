@@ -142,6 +142,7 @@ public class MultipleInputStreamTask<OUT>
         checkpointBarrierHandler =
                 InputProcessorUtil.createCheckpointBarrierHandler(
                         this,
+                        getJobConfiguration(),
                         getConfiguration(),
                         getCheckpointCoordinator(),
                         getTaskNameWithSubtaskAndId(),

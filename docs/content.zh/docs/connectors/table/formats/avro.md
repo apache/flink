@@ -87,7 +87,7 @@ Format 参数
       <td>仅用于 <a href="{{< ref "docs/connectors/table/filesystem" >}}">filesystem</a>，avro 压缩编解码器。默认 snappy 压缩。目前支持：null, deflate、snappy、bzip2、xz。</td>
     </tr>
     <tr>
-      <td><h5>timestamp_mapping.legacy</h5></td>
+      <td><h5>avro.timestamp_mapping.legacy</h5></td>
       <td>可选</td>
       <td style="word-wrap: break-word;">true</td>
       <td>Boolean</td>
@@ -204,4 +204,4 @@ Format 参数
 
 除了上面列出的类型，Flink 支持读取/写入 nullable 的类型。Flink 将 nullable 的类型映射到 Avro `union(something, null)`，其中 `something` 是从 Flink 类型转换的 Avro 类型。
 
-您可以参考 [Avro 规范](https://avro.apache.org/docs/current/spec.html) 获取更多有关 Avro 类型的信息。
+您可以参考 [Avro 规范](https://avro.apache.org/docs/++version++/specification/) 获取更多有关 Avro 类型的信息。

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.asyncprocessing;
 import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateFuture;
 import org.apache.flink.api.common.state.v2.StateIterator;
-import org.apache.flink.core.state.InternalStateFuture;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.core.state.InternalStateIterator;
 import org.apache.flink.core.state.StateFutureUtils;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -88,7 +88,7 @@ public abstract class AbstractStateIterator<T> implements InternalStateIterator<
         return requestType;
     }
 
-    private InternalStateFuture<StateIterator<T>> asyncNextLoad() {
+    private InternalAsyncFuture<StateIterator<T>> asyncNextLoad() {
         return stateHandler.handleRequest(
                 originalState,
                 StateRequestType.ITERATOR_LOADING,

@@ -33,6 +33,8 @@ import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.ConstantArgumentCount;
 import org.apache.flink.table.types.inference.InputTypeStrategies;
+import org.apache.flink.table.types.inference.StaticArgument;
+import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.strategies.ArrayOfStringArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
@@ -46,12 +48,14 @@ import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.utils.EncodingUtils;
+import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -68,6 +72,7 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
+import static org.apache.flink.table.functions.FunctionKind.PROCESS_TABLE;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
 import static org.apache.flink.table.functions.FunctionKind.TABLE;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.ANY;
@@ -103,11 +108,13 @@ import static org.apache.flink.table.types.inference.strategies.SpecificInputTyp
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ARRAY_FULLY_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.INDEX;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.JSON_ARGUMENT;
+import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.ML_PREDICT_INPUT_TYPE_STRATEGY;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_EQUALS_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.TWO_FULLY_COMPARABLE;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentage;
 import static org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies.percentageArray;
 import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.ARRAY_APPEND_PREPEND;
+import static org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies.ML_PREDICT_OUTPUT_TYPE_STRATEGY;
 
 /** Dictionary of function definitions for all built-in functions. */
 @PublicEvolving
@@ -723,6 +730,29 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(
                             comparable(ConstantArgumentCount.of(3), StructuredComparison.FULL))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.BOOLEAN())))
+                    .build();
+
+    public static final BuiltInFunctionDefinition ML_PREDICT =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("ML_PREDICT")
+                    .kind(PROCESS_TABLE)
+                    .disableSystemArguments(true)
+                    .staticArguments(
+                            StaticArgument.table(
+                                    "INPUT",
+                                    Row.class,
+                                    false,
+                                    EnumSet.of(StaticArgumentTrait.TABLE)),
+                            StaticArgument.model(
+                                    "MODEL", false, EnumSet.of(StaticArgumentTrait.MODEL)),
+                            StaticArgument.scalar("ARGS", DataTypes.DESCRIPTOR(), false),
+                            StaticArgument.scalar(
+                                    "CONFIG",
+                                    DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()),
+                                    true))
+                    .inputTypeStrategy(ML_PREDICT_INPUT_TYPE_STRATEGY)
+                    .outputTypeStrategy(ML_PREDICT_OUTPUT_TYPE_STRATEGY)
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition GREATEST =
@@ -1616,6 +1646,26 @@ public final class BuiltInFunctionDefinitions {
                                                                                     .BINARY_STRING))))))
                     .outputTypeStrategy(forceNullable(commonRange(ConstantArgumentCount.from(1))))
                     .runtimeClass("org.apache.flink.table.runtime.functions.scalar.EltFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition OBJECT_OF =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("OBJECT_OF")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.OBJECT_OF)
+                    .outputTypeStrategy(SpecificTypeStrategies.OBJECT_OF)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ObjectOfFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition OBJECT_UPDATE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("OBJECT_UPDATE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.OBJECT_UPDATE)
+                    .outputTypeStrategy(SpecificTypeStrategies.OBJECT_UPDATE)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ObjectUpdateFunction")
                     .build();
 
     // --------------------------------------------------------------------------------------------
@@ -2847,6 +2897,40 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(sequence(logical(LogicalTypeFamily.CHARACTER_STRING)))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING())))
                     .runtimeProvided()
+                    .build();
+
+    // --------------------------------------------------------------------------------------------
+    // Variant functions
+    // --------------------------------------------------------------------------------------------
+
+    public static final BuiltInFunctionDefinition PARSE_JSON =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("PARSE_JSON")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    sequence(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            logical(LogicalTypeRoot.BOOLEAN))))
+                    .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.VARIANT())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.ParseJsonFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition TRY_PARSE_JSON =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("TRY_PARSE_JSON")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(logical(LogicalTypeFamily.CHARACTER_STRING)),
+                                    sequence(
+                                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                                            logical(LogicalTypeRoot.BOOLEAN))))
+                    .outputTypeStrategy(forceNullable(explicit(DataTypes.VARIANT())))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.TryParseJsonFunction")
                     .build();
 
     // --------------------------------------------------------------------------------------------

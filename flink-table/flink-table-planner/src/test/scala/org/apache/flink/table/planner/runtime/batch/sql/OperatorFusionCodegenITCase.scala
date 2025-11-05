@@ -315,7 +315,7 @@ class OperatorFusionCodegenITCase extends BatchTestBase {
   }
 
   @TestTemplate
-  def testLocalAndGlobalHashAggInTwoSeperatedFusionOperator(): Unit = {
+  def testLocalAndGlobalHashAggInTwoSeparatedFusionOperator(): Unit = {
     tEnv.getConfig
       .set(
         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,

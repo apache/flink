@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobmanager.scheduler;
 
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -49,10 +50,12 @@ import org.junit.Test;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.executiongraph.utils.ExecutionUtils.waitForTaskDeploymentDescriptorsCreation;
 import static org.apache.flink.runtime.util.JobVertexConnectionUtils.connectNewDataSetAsInput;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
@@ -132,10 +135,17 @@ public class UpdatePartitionConsumersTest extends TestLogger {
         final SimpleAckingTaskManagerGateway taskManagerGateway =
                 new SimpleAckingTaskManagerGateway();
 
+        final ScheduledExecutorService mainThreadExecutorService =
+                Executors.newSingleThreadScheduledExecutor();
+
+        final ComponentMainThreadExecutor singleThreadMainThreadExecutor =
+                ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
+                        mainThreadExecutorService);
+
         final SchedulerBase scheduler =
                 new DefaultSchedulerBuilder(
                                 jobGraph,
-                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                singleThreadMainThreadExecutor,
                                 EXECUTOR_RESOURCE.getExecutor())
                         .setExecutionSlotAllocatorFactory(
                                 new TestExecutionSlotAllocatorFactory(taskManagerGateway))
@@ -159,21 +169,27 @@ public class UpdatePartitionConsumersTest extends TestLogger {
                     }
                 });
 
-        scheduler.startScheduling();
+        CompletableFuture.runAsync(scheduler::startScheduling, singleThreadMainThreadExecutor)
+                .join();
+
+        waitForTaskDeploymentDescriptorsCreation(ev1, ev2, ev3, ev4);
 
         assertThat(ev1.getExecutionState(), is(ExecutionState.DEPLOYING));
         assertThat(ev2.getExecutionState(), is(ExecutionState.DEPLOYING));
         assertThat(ev3.getExecutionState(), is(ExecutionState.DEPLOYING));
         assertThat(ev4.getExecutionState(), is(ExecutionState.DEPLOYING));
 
-        updateState(scheduler, ev1, ExecutionState.INITIALIZING);
-        updateState(scheduler, ev1, ExecutionState.RUNNING);
-        updateState(scheduler, ev2, ExecutionState.INITIALIZING);
-        updateState(scheduler, ev2, ExecutionState.RUNNING);
-        updateState(scheduler, ev3, ExecutionState.INITIALIZING);
-        updateState(scheduler, ev3, ExecutionState.RUNNING);
-        updateState(scheduler, ev4, ExecutionState.INITIALIZING);
-        updateState(scheduler, ev4, ExecutionState.RUNNING);
+        mainThreadExecutorService.execute(
+                () -> {
+                    updateState(scheduler, ev1, ExecutionState.INITIALIZING);
+                    updateState(scheduler, ev1, ExecutionState.RUNNING);
+                    updateState(scheduler, ev2, ExecutionState.INITIALIZING);
+                    updateState(scheduler, ev2, ExecutionState.RUNNING);
+                    updateState(scheduler, ev3, ExecutionState.INITIALIZING);
+                    updateState(scheduler, ev3, ExecutionState.RUNNING);
+                    updateState(scheduler, ev4, ExecutionState.INITIALIZING);
+                    updateState(scheduler, ev4, ExecutionState.RUNNING);
+                });
 
         final InputGateDeploymentDescriptor ev4Igdd2 =
                 ev4TddFuture.get(TIMEOUT, TimeUnit.MILLISECONDS).getInputGates().get(1);
@@ -196,8 +212,11 @@ public class UpdatePartitionConsumersTest extends TestLogger {
                     updatePartitionFuture.complete(null);
                 });
 
-        updateState(scheduler, ev1, ExecutionState.FINISHED);
-        updateState(scheduler, ev3, ExecutionState.FINISHED);
+        mainThreadExecutorService.execute(
+                () -> {
+                    updateState(scheduler, ev1, ExecutionState.FINISHED);
+                    updateState(scheduler, ev3, ExecutionState.FINISHED);
+                });
 
         updatePartitionFuture.get(TIMEOUT, TimeUnit.MILLISECONDS);
     }

@@ -20,14 +20,12 @@ package org.apache.flink.traces;
 
 import org.apache.flink.annotation.Experimental;
 
+import java.util.List;
 import java.util.Map;
 
 /**
  * Span represents something that happened in Flink at certain point of time, that will be reported
  * to a {@link org.apache.flink.traces.reporter.TraceReporter}.
- *
- * <p>Currently we don't support traces with multiple spans. Each span is self-contained and
- * represents things like a checkpoint or recovery.
  */
 @Experimental
 public interface Span {
@@ -49,4 +47,7 @@ public interface Span {
      * added in the future.
      */
     Map<String, Object> getAttributes();
+
+    /** Returns the child spans (= nested). */
+    List<Span> getChildren();
 }

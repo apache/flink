@@ -52,6 +52,7 @@ public final class GlobalConfiguration {
                 "secret",
                 "fs.azure.account.key",
                 "apikey",
+                "api-key",
                 "auth-params",
                 "service-key",
                 "token",
@@ -223,7 +224,7 @@ public final class GlobalConfiguration {
     /**
      * Loads a YAML-file of key-value pairs.
      *
-     * <p>Keys can be expressed either as nested keys or as {@literal KEY_SEPARATOR} seperated keys.
+     * <p>Keys can be expressed either as nested keys or as {@literal KEY_SEPARATOR} separated keys.
      * For example, the following configurations are equivalent:
      *
      * <pre>

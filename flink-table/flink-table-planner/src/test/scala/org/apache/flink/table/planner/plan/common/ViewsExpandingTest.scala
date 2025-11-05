@@ -150,7 +150,7 @@ class ViewsExpandingTest(tableTestUtil: TableTestBase => TableTestUtil) extends 
       .getTable(objectID.toObjectPath)
     assertThat(
       view.asInstanceOf[CatalogView].getExpandedQuery
-    ).isEqualTo("SELECT `CONCAT`('a', 'bc', 'def')")
+    ).isEqualTo("SELECT CONCAT('a', 'bc', 'def')")
   }
 
   @TestTemplate
@@ -172,7 +172,7 @@ class ViewsExpandingTest(tableTestUtil: TableTestBase => TableTestUtil) extends 
       .getTable(objectID.toObjectPath)
     assertThat(
       view.asInstanceOf[CatalogView].getExpandedQuery
-    ).isEqualTo("SELECT `default_catalog`.`default_database`.`func`(1, 2, 'abc')")
+    ).isEqualTo("SELECT `default_catalog`.`default_database`.`func`(1, CAST(2 AS BIGINT), 'abc')")
   }
 
   @TestTemplate
@@ -201,12 +201,12 @@ class ViewsExpandingTest(tableTestUtil: TableTestBase => TableTestUtil) extends 
     assertThat(
       view.asInstanceOf[CatalogView].getExpandedQuery
     ).isEqualTo(
-      "SELECT *\n"
+      "SELECT `EXPR$0`.`f0`, `EXPR$0`.`rowNum`\n"
         + "FROM (SELECT `source`.`f0`, "
         + "ROW_NUMBER() "
         + "OVER (PARTITION BY `source`.`f0` ORDER BY `source`.`f0` DESC) AS `rowNum`\n"
-        + "FROM `default_catalog`.`default_database`.`source`)\n"
-        + "WHERE `rowNum` = 1")
+        + "FROM `default_catalog`.`default_database`.`source` AS `source`) AS `EXPR$0`\n"
+        + "WHERE `EXPR$0`.`rowNum` = 1")
   }
 
   private def createSqlView(originTable: String): CatalogView = {

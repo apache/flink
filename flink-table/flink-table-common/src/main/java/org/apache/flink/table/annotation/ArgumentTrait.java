@@ -28,7 +28,8 @@ import org.apache.flink.types.RowKind;
  * Declares traits for {@link ArgumentHint}. They enable basic validation by the framework.
  *
  * <p>Some traits have dependencies to other traits, which is why this enum reflects a hierarchy in
- * which {@link #SCALAR}, {@link #TABLE_AS_ROW}, and {@link #TABLE_AS_SET} are the top-level roots.
+ * which {@link #SCALAR}, {@link #ROW_SEMANTIC_TABLE}, and {@link #SET_SEMANTIC_TABLE} are the
+ * top-level roots.
  */
 @PublicEvolving
 public enum ArgumentTrait {
@@ -41,30 +42,30 @@ public enum ArgumentTrait {
     SCALAR(true, StaticArgumentTrait.SCALAR),
 
     /**
-     * An argument that accepts a table "as row" (i.e. with row semantics). This trait only applies
-     * to {@link ProcessTableFunction} (PTF).
+     * An argument that accepts a table with row semantics. This trait only applies to {@link
+     * ProcessTableFunction} (PTF).
      *
      * <p>For scalability, input tables are distributed across so-called "virtual processors". A
      * virtual processor, as defined by the SQL standard, executes a PTF instance and has access
      * only to a portion of the entire table. The argument declaration decides about the size of the
-     * portion and co-location of data. Conceptually, tables can be processed either "as row" (i.e.
-     * with row semantics) or "as set" (i.e. with set semantics).
+     * portion and co-location of data. Conceptually, tables can be processed either "per row" (i.e.
+     * with row semantics) or "per set" (i.e. with set semantics).
      *
      * <p>A table with row semantics assumes that there is no correlation between rows and each row
      * can be processed independently. The framework is free in how to distribute rows across
      * virtual processors and each virtual processor has access only to the currently processed row.
      */
-    TABLE_AS_ROW(true, StaticArgumentTrait.TABLE_AS_ROW),
+    ROW_SEMANTIC_TABLE(true, StaticArgumentTrait.ROW_SEMANTIC_TABLE),
 
     /**
-     * An argument that accepts a table "as set" (i.e. with set semantics). This trait only applies
-     * to {@link ProcessTableFunction} (PTF).
+     * An argument that accepts a table with set semantics. This trait only applies to {@link
+     * ProcessTableFunction} (PTF).
      *
      * <p>For scalability, input tables are distributed across so-called "virtual processors". A
      * virtual processor, as defined by the SQL standard, executes a PTF instance and has access
      * only to a portion of the entire table. The argument declaration decides about the size of the
-     * portion and co-location of data. Conceptually, tables can be processed either "as row" (i.e.
-     * with row semantics) or "as set" (i.e. with set semantics).
+     * portion and co-location of data. Conceptually, tables can be processed either "per row" (i.e.
+     * with row semantics) or "per set" (i.e. with set semantics).
      *
      * <p>A table with set semantics assumes that there is a correlation between rows. When calling
      * the function, the PARTITION BY clause defines the columns for correlation. The framework
@@ -75,19 +76,19 @@ public enum ArgumentTrait {
      * <p>It is also possible not to provide a key ({@link #OPTIONAL_PARTITION_BY}), in which case
      * only one virtual processor handles the entire table, thereby losing scalability benefits.
      */
-    TABLE_AS_SET(true, StaticArgumentTrait.TABLE_AS_SET),
+    SET_SEMANTIC_TABLE(true, StaticArgumentTrait.SET_SEMANTIC_TABLE),
 
     /**
-     * Defines that a PARTITION BY clause is optional for {@link #TABLE_AS_SET}. By default, it is
-     * mandatory for improving the parallel execution by distributing the table by key.
+     * Defines that a PARTITION BY clause is optional for {@link #SET_SEMANTIC_TABLE}. By default,
+     * it is mandatory for improving the parallel execution by distributing the table by key.
      *
-     * <p>Note: This trait is only valid for {@link #TABLE_AS_SET} arguments.
+     * <p>Note: This trait is only valid for {@link #SET_SEMANTIC_TABLE} arguments.
      */
     OPTIONAL_PARTITION_BY(false, StaticArgumentTrait.OPTIONAL_PARTITION_BY),
 
     /**
-     * Defines that all columns of a table argument (i.e. {@link #TABLE_AS_ROW} or {@link
-     * #TABLE_AS_SET}) are included in the output of the PTF. By default, only columns of the
+     * Defines that all columns of a table argument (i.e. {@link #ROW_SEMANTIC_TABLE} or {@link
+     * #SET_SEMANTIC_TABLE}) are included in the output of the PTF. By default, only columns of the
      * PARTITION BY clause are passed through.
      *
      * <p>Given a table t (containing columns k and v), and a PTF f() (producing columns c1 and c2),
@@ -95,16 +96,15 @@ public enum ArgumentTrait {
      * following order:
      *
      * <pre>
-     *     Default: | k | c1 | c2 |
-     *     With pass-through columns: | k | v | c1 | c2 |
+     * Default: | k | c1 | c2 |
+     * With pass-through columns: | k | v | c1 | c2 |
      * </pre>
      *
-     * <p>In case of multiple table arguments, pass-through columns are added according to the
-     * declaration order in the PTF signature.
+     * <p>Pass-through columns are only available for append-only PTFs taking a single table
+     * argument and don't use timers.
      *
-     * <p>Timers are not available when pass-through columns are enabled.
-     *
-     * <p>Note: This trait is valid for {@link #TABLE_AS_ROW} and {@link #TABLE_AS_SET} arguments.
+     * <p>Note: This trait is valid for {@link #ROW_SEMANTIC_TABLE} and {@link #SET_SEMANTIC_TABLE}
+     * arguments.
      */
     PASS_COLUMNS_THROUGH(false, StaticArgumentTrait.PASS_COLUMNS_THROUGH),
 
@@ -117,27 +117,109 @@ public enum ArgumentTrait {
      * to digest retraction messages:
      *
      * <pre>
-     *     // Changes +[1] followed by -U[1], +U[2], -U[2], +U[3] will enter the function
-     *     WITH UpdatingTable AS (
-     *       SELECT COUNT(*) FROM (VALUES 1, 2, 3)
-     *     )
-     *     SELECT * FROM f(table_arg => TABLE UpdatingTable)
+     * // The change +I[1] followed by -U[1], +U[2], -U[2], +U[3] will enter the function
+     * // if `table_arg` is declared with SUPPORTS_UPDATES
+     * WITH UpdatingTable AS (
+     *   SELECT COUNT(*) FROM (VALUES 1, 2, 3)
+     * )
+     * SELECT * FROM f(table_arg => TABLE UpdatingTable)
      * </pre>
      *
      * <p>If updates should be supported, ensure that the data type of the table argument is chosen
      * in a way that it can encode changes. In other words: choose a row type that exposes the
      * {@link RowKind} change flag.
      *
+     * <p>The changelog of the backing input table decides which kinds of changes enter the
+     * function. The function receives {+I} when the input table is append-only. The function
+     * receives {+I,+U,-D} if the input table is upserting using the same upsert key as the
+     * partition key. Otherwise, retractions {+I,-U,+U,-D} (i.e. including {@link
+     * RowKind#UPDATE_BEFORE}) enter the function. Use {@link #REQUIRE_UPDATE_BEFORE} to enforce
+     * retractions for all updating cases.
+     *
+     * <p>For upserting tables, if the changelog contains key-only deletions (also known as partial
+     * deletions), only upsert key fields are set when a row enters the function. Non-key fields are
+     * set to null, regardless of NOT NULL constraints. Use {@link #REQUIRE_FULL_DELETE} to enforce
+     * that only full deletes enter the function.
+     *
      * <p>This trait is intended for advanced use cases. Please note that inputs are always
      * insert-only in batch mode. Thus, if the PTF should produce the same results in both batch and
-     * streaming mode, results should be emitted based on watermarks and event-time. The trait
-     * {@link #PASS_COLUMNS_THROUGH} is not supported if this trait is declared.
+     * streaming mode, results should be emitted based on watermarks and event-time.
      *
-     * <p>Timers are not available when updates are enabled.
+     * <p>The trait {@link #PASS_COLUMNS_THROUGH} is not supported if this trait is declared.
      *
-     * <p>Note: This trait is valid for {@link #TABLE_AS_ROW} and {@link #TABLE_AS_SET} arguments.
+     * <p>The `on_time` argument is not supported if the PTF receives updates.
+     *
+     * <p>Note: This trait is valid for {@link #ROW_SEMANTIC_TABLE} and {@link #SET_SEMANTIC_TABLE}
+     * arguments.
+     *
+     * @see #REQUIRE_UPDATE_BEFORE
+     * @see #REQUIRE_FULL_DELETE
      */
     SUPPORT_UPDATES(false, StaticArgumentTrait.SUPPORT_UPDATES),
+
+    /**
+     * Defines that a table argument which {@link #SUPPORT_UPDATES} should include a {@link
+     * RowKind#UPDATE_BEFORE} message when encoding updates. In other words: it enforces presenting
+     * the updating table in retract changelog mode.
+     *
+     * <p>This trait is intended for advanced use cases. By default, updates are encoded as emitted
+     * by the input operation. Thus, the updating table might be encoded in upsert changelog mode
+     * and deletes might only contain keys.
+     *
+     * <p>The following example shows how the input changelog encodes updates differently:
+     *
+     * <pre>
+     * // Given a table UpdatingTable(name STRING PRIMARY KEY, score INT)
+     * // backed by upsert changelog with changes
+     * // +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100], -D[Bob, NULL].
+     *
+     * // Given a function `f` that declares `table_arg` with REQUIRE_UPDATE_BEFORE.
+     * SELECT * FROM f(table_arg => TABLE UpdatingTable PARTITION BY name)
+     *
+     * // The following changes will enter the function:
+     * // +I[Alice, 42], +I[Bob, 0], -U[Bob, 0], +U[Bob, 2], -U[Bob, 2], +U[Bob, 100], -U[Bob, 100]
+     *
+     * // In both encodings, a materialized table would only contain a row for Alice.
+     * </pre>
+     *
+     * <p>Note: This trait is valid for {@link #SET_SEMANTIC_TABLE} arguments that {@link
+     * #SUPPORT_UPDATES}.
+     *
+     * @see #SUPPORT_UPDATES
+     */
+    REQUIRE_UPDATE_BEFORE(false, StaticArgumentTrait.REQUIRE_UPDATE_BEFORE),
+
+    /**
+     * Defines that a table argument which {@link #SUPPORT_UPDATES} should include all fields in the
+     * {@link RowKind#DELETE} message if the updating table is backed by an upsert changelog.
+     *
+     * <p>This trait is intended for advanced use cases. For upserting tables, if the changelog
+     * contains key-only deletes (also known as partial deletes), only upsert key fields are set
+     * when a row enters the function. Non-key fields are set to null, regardless of NOT NULL
+     * constraints.
+     *
+     * <p>The following example shows how the input changelog encodes updates differently:
+     *
+     * <pre>
+     * // Given a table UpdatingTable(name STRING PRIMARY KEY, score INT)
+     * // backed by upsert changelog with changes
+     * // +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100], -D[Bob, NULL].
+     *
+     * // Given a function `f` that declares `table_arg` with REQUIRE_FULL_DELETE.
+     * SELECT * FROM f(table_arg => TABLE UpdatingTable PARTITION BY name)
+     *
+     * // The following changes will enter the function:
+     * // +I[Alice, 42], +I[Bob, 0], +U[Bob, 2], +U[Bob, 100], -D[Bob, 100].
+     *
+     * // In both encodings, a materialized table would only contain a row for Alice.
+     * </pre>
+     *
+     * <p>Note: This trait is valid for {@link #SET_SEMANTIC_TABLE} arguments that {@link
+     * #SUPPORT_UPDATES}.
+     *
+     * @see #SUPPORT_UPDATES
+     */
+    REQUIRE_FULL_DELETE(false, StaticArgumentTrait.REQUIRE_FULL_DELETE),
 
     /**
      * Defines that an {@code on_time} argument must be provided, referencing a watermarked
@@ -162,7 +244,8 @@ public enum ArgumentTrait {
      *     SELECT v, rowtime FROM f(table_arg => TABLE t, on_time => DESCRIPTOR(ts));
      * </pre>
      *
-     * <p>Note: This trait is valid for {@link #TABLE_AS_ROW} and {@link #TABLE_AS_SET} arguments.
+     * <p>Note: This trait is valid for {@link #ROW_SEMANTIC_TABLE} and {@link #SET_SEMANTIC_TABLE}
+     * arguments.
      */
     REQUIRE_ON_TIME(false, StaticArgumentTrait.REQUIRE_ON_TIME);
 

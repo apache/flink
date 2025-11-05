@@ -16,26 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-	<TestCase name="testUnnestWithValues">
-		<Resource name="sql">
-			<![CDATA[SELECT * FROM UNNEST(ARRAY[1,2,3])]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
-LogicalProject(EXPR$0=[$0])
-+- Uncollect
-   +- LogicalProject(EXPR$0=[ARRAY(1, 2, 3)])
-      +- LogicalValues(tuples=[[{ 0 }]])
-]]>
-		</Resource>
-		<Resource name="optimized exec plan">
-			<![CDATA[
-Correlate(invocation=[$UNNEST_ROWS$1(ARRAY(1, 2, 3))], correlate=[table($UNNEST_ROWS$1(ARRAY(1, 2, 3)))], select=[f0], rowType=[RecordType:peek_no_expand(INTEGER f0)], joinType=[INNER])
-+- Values(tuples=[[{  }]], values=[])
-]]>
-		</Resource>
-	</TestCase>
-	<TestCase name="testCrossWithUnnest">
+  <TestCase name="testCrossWithUnnest">
     <Resource name="sql">
       <![CDATA[SELECT a, s FROM MyTable, UNNEST(MyTable.c) as A (s)]]>
     </Resource>
@@ -55,47 +36,6 @@ LogicalProject(a=[$0], s=[$3])
 Calc(select=[a, f0 AS s])
 +- Correlate(invocation=[$UNNEST_ROWS$1($cor0.c)], correlate=[table($UNNEST_ROWS$1($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) ARRAY c, VARCHAR(2147483647) f0)], joinType=[INNER])
    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testTumbleWindowAggregateWithCollectUnnest">
-    <Resource name="sql">
-      <![CDATA[
-WITH T AS (SELECT b, COLLECT(b) as `set`
-    FROM MyTable
-    GROUP BY b, TUMBLE(rowtime, INTERVAL '3' SECOND)
-)
-SELECT b, s FROM T, UNNEST(T.`set`) AS A(s) where b < 3
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(b=[$0], s=[$2])
-+- LogicalFilter(condition=[<($0, 3)])
-   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
-      :- LogicalProject(b=[$0], set=[$2])
-      :  +- LogicalAggregate(group=[{0, 1}], set=[COLLECT($0)])
-      :     +- LogicalProject(b=[$1], $f1=[$TUMBLE($3, 3000:INTERVAL SECOND)])
-      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-      +- LogicalProject(s=[$0])
-         +- Uncollect
-            +- LogicalProject(set=[$cor0.set])
-               +- LogicalValues(tuples=[[{ 0 }]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[b, f0 AS s])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor0.set)], correlate=[table($UNNEST_ROWS$1($cor0.set))], select=[b,set,f0], rowType=[RecordType(BIGINT b, BIGINT MULTISET set, BIGINT f0)], joinType=[INNER])
-   +- SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 3000)], select=[b, Final_COLLECT(set) AS set])
-      +- Exchange(distribution=[forward])
-         +- Sort(orderBy=[b ASC, assignedWindow$ ASC])
-            +- Exchange(distribution=[hash[b]])
-               +- LocalSortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 3000)], select=[b, Partial_COLLECT(b) AS set])
-                  +- Exchange(distribution=[forward])
-                     +- Sort(orderBy=[b ASC, rowtime ASC])
-                        +- Calc(select=[b, rowtime], where=[(b < 3)])
-                           +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
 ]]>
     </Resource>
   </TestCase>
@@ -191,6 +131,47 @@ Calc(select=[a, f0 AS s])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testTumbleWindowAggregateWithCollectUnnest">
+    <Resource name="sql">
+      <![CDATA[
+WITH T AS (SELECT b, COLLECT(b) as `set`
+    FROM MyTable
+    GROUP BY b, TUMBLE(rowtime, INTERVAL '3' SECOND)
+)
+SELECT b, s FROM T, UNNEST(T.`set`) AS A(s) where b < 3
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$0], s=[$2])
++- LogicalFilter(condition=[<($0, 3)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
+      :- LogicalProject(b=[$0], set=[$2])
+      :  +- LogicalAggregate(group=[{0, 1}], set=[COLLECT($0)])
+      :     +- LogicalProject(b=[$1], $f1=[$TUMBLE($3, 3000:INTERVAL SECOND)])
+      :        +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+      +- LogicalProject(s=[$0])
+         +- Uncollect
+            +- LogicalProject(set=[$cor0.set])
+               +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[b, f0 AS s])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.set)], correlate=[table($UNNEST_ROWS$1($cor0.set))], select=[b,set,f0], rowType=[RecordType(BIGINT b, BIGINT MULTISET set, BIGINT f0)], joinType=[INNER])
+   +- SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 3000)], select=[b, Final_COLLECT(set) AS set])
+      +- Exchange(distribution=[forward])
+         +- Sort(orderBy=[b ASC, assignedWindow$ ASC])
+            +- Exchange(distribution=[hash[b]])
+               +- LocalSortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 3000)], select=[b, Partial_COLLECT(b) AS set])
+                  +- Exchange(distribution=[forward])
+                     +- Sort(orderBy=[b ASC, rowtime ASC])
+                        +- Calc(select=[b, rowtime], where=[(b < 3)])
+                           +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testUnnestArrayOfArrayFromTable">
     <Resource name="sql">
       <![CDATA[SELECT a, s FROM MyTable, UNNEST(MyTable.c) AS A (s)]]>
@@ -251,29 +232,6 @@ Calc(select=[b, _1 AS id, _2 AS point])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testUnnestPrimitiveArrayFromTable">
-    <Resource name="sql">
-      <![CDATA[SELECT a, b, s FROM MyTable, UNNEST(MyTable.b) AS A (s)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], s=[$3])
-+- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
-   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-   +- LogicalProject(s=[$0])
-      +- Uncollect
-         +- LogicalProject(b=[$cor0.b])
-            +- LogicalValues(tuples=[[{ 0 }]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, b, f0 AS s])
-+- Correlate(invocation=[$UNNEST_ROWS$1($cor0.b)], correlate=[table($UNNEST_ROWS$1($cor0.b))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER ARRAY ARRAY c, INTEGER f0)], joinType=[INNER])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testUnnestObjectArrayFromTableWithFilter">
     <Resource name="sql">
       <![CDATA[SELECT a, b, s, t FROM MyTable, UNNEST(MyTable.b) AS A (s, t) WHERE s > 13]]>
@@ -316,6 +274,29 @@ LogicalProject(a=[$0], b=[$1], _1=[$2], _2=[$3])
       <![CDATA[
 Correlate(invocation=[$UNNEST_ROWS$1($cor0.b)], correlate=[table($UNNEST_ROWS$1($cor0.b))], select=[a,b,_1,_2], rowType=[RecordType(INTEGER a, RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2) ARRAY b, INTEGER _1, VARCHAR(2147483647) _2)], joinType=[INNER], condition=[>($0, 1)])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnnestPrimitiveArrayFromTable">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, s FROM MyTable, UNNEST(MyTable.b) AS A (s)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], s=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalProject(s=[$0])
+      +- Uncollect
+         +- LogicalProject(b=[$cor0.b])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, f0 AS s])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.b)], correlate=[table($UNNEST_ROWS$1($cor0.b))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER ARRAY ARRAY c, INTEGER f0)], joinType=[INNER])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -477,6 +458,38 @@ Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testUnnestWithOrdinalityInSubquery">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+  SELECT a, number, ordinality
+  FROM MyTable
+  CROSS JOIN UNNEST(b) WITH ORDINALITY AS t(number, ordinality)
+) subquery
+WHERE ordinality = 1
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], number=[$1], ordinality=[$2])
++- LogicalFilter(condition=[=($2, 1)])
+   +- LogicalProject(a=[$0], number=[$2], ordinality=[$3])
+      +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
+         :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+         +- LogicalProject(number=[$0], ordinality=[$1])
+            +- Uncollect(withOrdinality=[true])
+               +- LogicalProject(b=[$cor0.b])
+                  +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, number, ordinality])
++- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,number,ordinality], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER number, INTEGER ordinality)], joinType=[INNER], condition=[=($1, 1)])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testUnnestWithOrdinalityMap">
     <Resource name="sql">
       <![CDATA[SELECT id, k, v, pos FROM MyTable CROSS JOIN UNNEST(map_data) WITH ORDINALITY AS f(k, v, pos)]]>
@@ -540,8 +553,8 @@ Calc(select=[a, EXPR$0 AS word, ORDINALITY AS pos])
   <TestCase name="testUnnestWithOrdinalityWithFilter">
     <Resource name="sql">
       <![CDATA[
-SELECT a, number, ordinality 
-FROM MyTable 
+SELECT a, number, ordinality
+FROM MyTable
 CROSS JOIN UNNEST(b) WITH ORDINALITY AS t(number, ordinality)
 WHERE number > 10 AND ordinality < 3
 ]]>
@@ -566,35 +579,22 @@ Calc(select=[a, EXPR$0 AS number, ORDINALITY AS ordinality])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testUnnestWithOrdinalityInSubquery">
+  <TestCase name="testUnnestWithValues">
     <Resource name="sql">
-      <![CDATA[
-SELECT * FROM (
-  SELECT a, number, ordinality 
-  FROM MyTable 
-  CROSS JOIN UNNEST(b) WITH ORDINALITY AS t(number, ordinality)
-) subquery 
-WHERE ordinality = 1
-]]>
+      <![CDATA[SELECT * FROM UNNEST(ARRAY[1,2,3])]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], number=[$1], ordinality=[$2])
-+- LogicalFilter(condition=[=($2, 1)])
-   +- LogicalProject(a=[$0], number=[$2], ordinality=[$3])
-      +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
-         :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-         +- LogicalProject(number=[$0], ordinality=[$1])
-            +- Uncollect(withOrdinality=[true])
-               +- LogicalProject(b=[$cor0.b])
-                  +- LogicalValues(tuples=[[{ 0 }]])
+LogicalProject(EXPR$0=[$0])
++- Uncollect
+   +- LogicalProject(EXPR$0=[ARRAY(1, 2, 3)])
+      +- LogicalValues(tuples=[[{ 0 }]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, number, ordinality])
-+- Correlate(invocation=[$UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b)], correlate=[table($UNNEST_ROWS_WITH_ORDINALITY$1($cor0.b))], select=[a,b,number,ordinality], rowType=[RecordType(INTEGER a, INTEGER ARRAY b, INTEGER number, INTEGER ordinality)], joinType=[INNER], condition=[=($1, 1)])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b])
+Correlate(invocation=[$UNNEST_ROWS$1(ARRAY(1, 2, 3))], correlate=[table($UNNEST_ROWS$1(ARRAY(1, 2, 3)))], select=[f0], rowType=[RecordType:peek_no_expand(INTEGER f0)], joinType=[INNER])
++- Values(tuples=[[{  }]], values=[])
 ]]>
     </Resource>
   </TestCase>

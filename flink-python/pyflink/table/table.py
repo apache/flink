@@ -17,7 +17,10 @@
 ################################################################################
 
 from py4j.java_gateway import get_method
-from typing import Union
+from typing import Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import pandas
 
 from pyflink.java_gateway import get_gateway
 from pyflink.table import ExplainDetail
@@ -35,12 +38,15 @@ from pyflink.table.udf import UserDefinedScalarFunctionWrapper, \
 from pyflink.table.utils import tz_convert_from_internal, to_expression_jarray
 from pyflink.table.window import OverWindow, GroupWindow
 
+from pyflink.util.api_stability_decorators import Deprecated, PublicEvolving
+
 from pyflink.util.java_utils import to_jarray
 from pyflink.util.java_utils import to_j_explain_detail_arr
 
 __all__ = ['Table', 'GroupedTable', 'GroupWindowedTable', 'OverWindowedTable', 'WindowGroupedTable']
 
 
+@PublicEvolving()
 class Table(object):
     """
     A :class:`~pyflink.table.Table` object is the core abstraction of the Table API.
@@ -914,7 +920,7 @@ class Table(object):
                 func = func(with_columns(col("*")))
             return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
 
-    def to_pandas(self):
+    def to_pandas(self) -> 'pandas.DataFrame':
         """
         Converts the table to a pandas DataFrame. It will collect the content of the table to
         the client side and so please make sure that the content of the table could fit in memory
@@ -959,14 +965,12 @@ class Table(object):
             import pandas as pd
             return pd.DataFrame.from_records([], columns=self.get_schema().get_field_names())
 
+    @Deprecated(since="2.1.0", detail="Use :func:`Table.get_resolved_schema` instead.")
     def get_schema(self) -> TableSchema:
         """
         Returns the :class:`~pyflink.table.TableSchema` of this table.
 
         :return: The schema of this table.
-
-        .. deprecated:: 2.1.0
-           Use :func:`Table.get_resolved_schema` instead.
         """
         return TableSchema(j_table_schema=self._j_table.getSchema())
 
@@ -1184,6 +1188,7 @@ class Table(object):
             )
 
 
+@PublicEvolving()
 class GroupedTable(object):
     """
     A table that has been grouped on a set of grouping keys.
@@ -1308,6 +1313,7 @@ class GroupedTable(object):
             return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
 
 
+@PublicEvolving()
 class GroupWindowedTable(object):
     """
     A table that has been windowed for :class:`~pyflink.table.GroupWindow`.
@@ -1347,6 +1353,7 @@ class GroupWindowedTable(object):
             self._j_table.groupBy(to_expression_jarray(fields)), self._t_env)
 
 
+@PublicEvolving()
 class WindowGroupedTable(object):
     """
     A table that has been windowed and grouped for :class:`~pyflink.table.window.GroupWindow`.
@@ -1432,6 +1439,7 @@ class WindowGroupedTable(object):
         return func_expression
 
 
+@PublicEvolving()
 class OverWindowedTable(object):
     """
     A table that has been windowed for :class:`~pyflink.table.window.OverWindow`.
@@ -1464,6 +1472,7 @@ class OverWindowedTable(object):
         return Table(self._j_table.select(to_expression_jarray(fields)), self._t_env)
 
 
+@PublicEvolving()
 class AggregatedTable(object):
     """
     A table that has been performed on the aggregate function.
@@ -1502,6 +1511,7 @@ class AggregatedTable(object):
         return Table(self._j_table.select(to_expression_jarray(fields)), self._t_env)
 
 
+@PublicEvolving()
 class FlatAggregateTable(object):
     """
     A table that performs flatAggregate on a :class:`~pyflink.table.Table`, a

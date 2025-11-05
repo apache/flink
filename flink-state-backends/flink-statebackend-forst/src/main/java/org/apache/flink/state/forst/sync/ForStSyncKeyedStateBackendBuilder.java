@@ -44,6 +44,7 @@ import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
 import org.apache.flink.state.forst.ForStConfigurableOptions;
@@ -157,6 +158,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
             ForStPriorityQueueConfig priorityQueueConfig,
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
+            SizeTrackingStateConfig sizeTrackingStateConfig,
             MetricGroup metricGroup,
             StateBackend.CustomInitializationMetrics customInitializationMetrics,
             @Nonnull Collection<KeyedStateHandle> stateHandles,
@@ -171,6 +173,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                 executionConfig,
                 ttlTimeProvider,
                 latencyTrackingStateConfig,
+                sizeTrackingStateConfig,
                 stateHandles,
                 keyGroupCompressionDecorator,
                 cancelStreamRegistry);
@@ -203,6 +206,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
             ForStPriorityQueueConfig forStPriorityQueueConfig,
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
+            SizeTrackingStateConfig sizeTrackingStateConfig,
             MetricGroup metricGroup,
             @Nonnull Collection<KeyedStateHandle> stateHandles,
             StreamCompressionDecorator keyGroupCompressionDecorator,
@@ -223,6 +227,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                 forStPriorityQueueConfig,
                 ttlTimeProvider,
                 latencyTrackingStateConfig,
+                sizeTrackingStateConfig,
                 metricGroup,
                 (key, value) -> {},
                 stateHandles,
@@ -400,6 +405,7 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                 this.executionConfig,
                 this.ttlTimeProvider,
                 latencyTrackingStateConfig,
+                sizeTrackingStateConfig,
                 db,
                 kvStateInformation,
                 registeredPQStates,
@@ -500,8 +506,8 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
         // working dir. We will implement this in ForStDB later, but before that, we achieved this
         // by setting the dbPath to "/" when the dfs directory existed.
         Path instanceForStPath =
-                optionsContainer.getRemoteForStPath() == null
-                        ? optionsContainer.getLocalForStPath()
+                optionsContainer.getPathContainer().getRemoteForStPath() == null
+                        ? optionsContainer.getPathContainer().getLocalForStPath()
                         : new Path("/db");
 
         if (CollectionUtil.isEmptyOrAllElementsNull(restoreStateHandles)) {
@@ -542,7 +548,9 @@ public class ForStSyncKeyedStateBackendBuilder<K> extends AbstractKeyedStateBack
                     overlapFractionThreshold,
                     useIngestDbRestoreMode,
                     rescalingUseDeleteFilesInRange,
-                    recoveryClaimMode);
+                    recoveryClaimMode,
+                    org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo
+                            ::fromMetaInfoSnapshot);
         } else if (priorityQueueConfig.getPriorityQueueStateType()
                 == ForStStateBackend.PriorityQueueStateType.HEAP) {
             // Note: This branch can be touched after ForSt Support canonical savepoint,

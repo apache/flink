@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
@@ -46,6 +45,7 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.state.forst.ForStMemoryControllerUtils.ForStMemoryFactory;
 import org.apache.flink.state.forst.sync.ForStPriorityQueueConfig;
 import org.apache.flink.state.forst.sync.ForStSyncKeyedStateBackendBuilder;
@@ -289,6 +289,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
         // configure latency tracking
         latencyTrackingConfigBuilder = original.latencyTrackingConfigBuilder.configure(config);
+        sizeTrackingConfigBuilder = original.sizeTrackingConfigBuilder.configure(config);
 
         this.forStMemoryFactory = original.forStMemoryFactory;
 
@@ -416,7 +417,8 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
         lazyInitializeForJob(env, fileCompatibleIdentifier);
 
-        Tuple2<Path, Path> localAndRemoteBasePath = getForStBasePath(fileCompatibleIdentifier, env);
+        ForStPathContainer pathContainer =
+                createForStPathContainer(fileCompatibleIdentifier, env, false);
 
         final OpaqueMemoryResource<ForStSharedResources> sharedResources =
                 ForStOperationUtils.allocateSharedCachesIfConfigured(
@@ -431,8 +433,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         final ForStResourceContainer resourceContainer =
                 createOptionsAndResourceContainer(
                         sharedResources,
-                        localAndRemoteBasePath.f0,
-                        localAndRemoteBasePath.f1,
+                        pathContainer,
                         env.getCheckpointStorageAccess(),
                         parameters.getMetricGroup(),
                         nativeMetricOptions.isStatisticsEnabled());
@@ -488,7 +489,8 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
         lazyInitializeForJob(env, fileCompatibleIdentifier);
 
-        Tuple2<Path, Path> localAndRemoteBasePath = getForStBasePath(fileCompatibleIdentifier, env);
+        ForStPathContainer pathContainer =
+                createForStPathContainer(fileCompatibleIdentifier, env, forceSyncLocal);
 
         LocalRecoveryConfig localRecoveryConfig =
                 env.getTaskStateManager().createLocalRecoveryConfig();
@@ -506,8 +508,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         final ForStResourceContainer resourceContainer =
                 createOptionsAndResourceContainer(
                         sharedResources,
-                        localAndRemoteBasePath.f0,
-                        forceSyncLocal ? null : localAndRemoteBasePath.f1,
+                        pathContainer,
                         env.getCheckpointStorageAccess(),
                         parameters.getMetricGroup(),
                         nativeMetricOptions.isStatisticsEnabled());
@@ -518,6 +519,8 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
 
         LatencyTrackingStateConfig latencyTrackingStateConfig =
                 latencyTrackingConfigBuilder.setMetricGroup(parameters.getMetricGroup()).build();
+        SizeTrackingStateConfig sizeTrackingStateConfig =
+                sizeTrackingConfigBuilder.setMetricGroup(parameters.getMetricGroup()).build();
         ForStSyncKeyedStateBackendBuilder<K> builder =
                 new ForStSyncKeyedStateBackendBuilder<>(
                                 parameters.getOperatorIdentifier(),
@@ -533,6 +536,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                                 priorityQueueConfig,
                                 parameters.getTtlTimeProvider(),
                                 latencyTrackingStateConfig,
+                                sizeTrackingStateConfig,
                                 parameters.getMetricGroup(),
                                 parameters.getCustomInitializationMetrics(),
                                 parameters.getStateHandles(),
@@ -790,25 +794,32 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
         return configuration;
     }
 
-    Tuple2<Path, Path> getForStBasePath(String operatorIdentifier, Environment env) {
+    ForStPathContainer createForStPathContainer(
+            String operatorIdentifier, Environment env, boolean forceLocal) {
         String opChildPath =
                 String.format(
                         "op_%s_attempt_%s",
                         operatorIdentifier, env.getTaskInfo().getAttemptNumber());
 
-        Path localBasePath =
-                new Path(
-                        new File(new File(getNextStoragePath(), jobId.toHexString()), opChildPath)
-                                .getAbsolutePath());
+        File localJobFile = new File(getNextStoragePath(), jobId.toHexString());
+        Path localJobPath = new Path(localJobFile.getPath());
+        Path localBasePath = new Path(new File(localJobFile, opChildPath).getAbsolutePath());
+
+        if (forceLocal) {
+            return ForStPathContainer.ofLocal(localJobPath, localBasePath);
+        }
+
+        Path remoteJobPath = null;
         Path remoteBasePath = null;
         if (remoteForStDirectory != null) {
-            remoteBasePath =
-                    new Path(new Path(remoteForStDirectory, jobId.toHexString()), opChildPath);
+            remoteJobPath = new Path(remoteForStDirectory, jobId.toHexString());
+            remoteBasePath = new Path(remoteJobPath, opChildPath);
         } else if (remoteShareWithCheckpoint) {
             if (env.getCheckpointStorageAccess() instanceof FsCheckpointStorageAccess) {
-                Path sharedStateDirectory =
-                        ((FsCheckpointStorageAccess) env.getCheckpointStorageAccess())
-                                .getSharedStateDirectory();
+                FsCheckpointStorageAccess fsCheckpointStorageAccess =
+                        (FsCheckpointStorageAccess) env.getCheckpointStorageAccess();
+                remoteJobPath = fsCheckpointStorageAccess.getCheckpointsDirectory();
+                Path sharedStateDirectory = fsCheckpointStorageAccess.getSharedStateDirectory();
                 remoteBasePath = new Path(sharedStateDirectory, opChildPath);
                 LOG.info("Set remote ForSt directory to checkpoint directory {}", remoteBasePath);
             } else {
@@ -816,19 +827,20 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                         "Remote ForSt directory can't be set, because checkpoint directory isn't on file system.");
             }
         }
-        return Tuple2.of(localBasePath, remoteBasePath);
+
+        return ForStPathContainer.of(localJobPath, localBasePath, remoteJobPath, remoteBasePath);
     }
 
     @VisibleForTesting
     ForStResourceContainer createOptionsAndResourceContainer(@Nullable Path localBasePath) {
-        return createOptionsAndResourceContainer(null, localBasePath, null, null, null, false);
+        return createOptionsAndResourceContainer(
+                null, ForStPathContainer.ofLocal(null, localBasePath), null, null, false);
     }
 
     @VisibleForTesting
     private ForStResourceContainer createOptionsAndResourceContainer(
             @Nullable OpaqueMemoryResource<ForStSharedResources> sharedResources,
-            @Nullable Path localBasePath,
-            @Nullable Path remoteBasePath,
+            ForStPathContainer pathContainer,
             @Nullable CheckpointStorageAccess checkpointStorageAccess,
             @Nullable MetricGroup metricGroup,
             boolean enableStatistics) {
@@ -837,8 +849,7 @@ public class ForStStateBackend extends AbstractManagedMemoryStateBackend
                 configurableOptions != null ? configurableOptions : new Configuration(),
                 forStOptionsFactory,
                 sharedResources,
-                localBasePath,
-                remoteBasePath,
+                pathContainer,
                 recoveryClaimMode,
                 checkpointStorageAccess,
                 metricGroup,

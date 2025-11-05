@@ -757,97 +757,6 @@ GlobalGroupAggregate(groupBy=[c], partialFinalType=[FINAL], select=[c, MIN_RETRA
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSingleDistinctAgg[splitDistinctAggEnabled=false, aggPhaseEnforcer=ONE_PHASE]">
-    <Resource name="sql">
-      <![CDATA[SELECT COUNT(DISTINCT c) FROM MyTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
-+- LogicalProject(c=[$2])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-GroupAggregate(select=[COUNT(DISTINCT c) AS EXPR$0])
-+- Exchange(distribution=[single])
-   +- Calc(select=[c])
-      +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSingleDistinctAgg[splitDistinctAggEnabled=false, aggPhaseEnforcer=TWO_PHASE]">
-    <Resource name="sql">
-      <![CDATA[SELECT COUNT(DISTINCT c) FROM MyTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
-+- LogicalProject(c=[$2])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-GlobalGroupAggregate(select=[COUNT(distinct$0 count$0) AS EXPR$0])
-+- Exchange(distribution=[single])
-   +- LocalGroupAggregate(select=[COUNT(distinct$0 c) AS count$0, DISTINCT(c) AS distinct$0])
-      +- Calc(select=[c])
-         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSingleDistinctAgg[splitDistinctAggEnabled=true, aggPhaseEnforcer=ONE_PHASE]">
-    <Resource name="sql">
-      <![CDATA[SELECT COUNT(DISTINCT c) FROM MyTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
-+- LogicalProject(c=[$2])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-GroupAggregate(partialFinalType=[FINAL], select=[$SUM0_RETRACT($f1_0) AS $f0])
-+- Exchange(distribution=[single])
-   +- GroupAggregate(groupBy=[$f1], partialFinalType=[PARTIAL], select=[$f1, COUNT(DISTINCT c) AS $f1_0])
-      +- Exchange(distribution=[hash[$f1]])
-         +- Calc(select=[c, MOD(HASH_CODE(c), 1024) AS $f1])
-            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSingleDistinctAgg[splitDistinctAggEnabled=true, aggPhaseEnforcer=TWO_PHASE]">
-    <Resource name="sql">
-      <![CDATA[SELECT COUNT(DISTINCT c) FROM MyTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
-+- LogicalProject(c=[$2])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-GlobalGroupAggregate(partialFinalType=[FINAL], select=[$SUM0_RETRACT(sum$0) AS $f0])
-+- Exchange(distribution=[single])
-   +- LocalGroupAggregate(partialFinalType=[FINAL], select=[$SUM0_RETRACT($f1_0) AS sum$0, COUNT_RETRACT(*) AS count1$1])
-      +- GlobalGroupAggregate(groupBy=[$f1], partialFinalType=[PARTIAL], select=[$f1, COUNT(distinct$0 count$0) AS $f1_0])
-         +- Exchange(distribution=[hash[$f1]])
-            +- LocalGroupAggregate(groupBy=[$f1], partialFinalType=[PARTIAL], select=[$f1, COUNT(distinct$0 c) AS count$0, DISTINCT(c) AS distinct$0])
-               +- Calc(select=[c, MOD(HASH_CODE(c), 1024) AS $f1])
-                  +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testSingleDistinctAggWithAllNonDistinctAgg[splitDistinctAggEnabled=false, aggPhaseEnforcer=ONE_PHASE]">
     <Resource name="sql">
       <![CDATA[
@@ -1004,29 +913,6 @@ GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(distinct$0 count$0) AS EXPR$1
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSingleDistinctAggWithGroupBy[splitDistinctAggEnabled=true, aggPhaseEnforcer=ONE_PHASE]">
-    <Resource name="sql">
-      <![CDATA[SELECT a, COUNT(DISTINCT c) FROM MyTable GROUP BY a]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
-+- LogicalProject(a=[$0], c=[$2])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($f2_0) AS $f1])
-+- Exchange(distribution=[hash[a]])
-   +- GroupAggregate(groupBy=[a, $f2], partialFinalType=[PARTIAL], select=[a, $f2, COUNT(DISTINCT c) AS $f2_0])
-      +- Exchange(distribution=[hash[a, $f2]])
-         +- Calc(select=[a, c, MOD(HASH_CODE(c), 1024) AS $f2])
-            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testSingleDistinctAggWithAndNonDistinctAggOnSameColumn[splitDistinctAggEnabled=true, aggPhaseEnforcer=ONE_PHASE]">
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(DISTINCT b), SUM(b), AVG(b) FROM MyTable GROUP BY a]]>
@@ -1120,6 +1006,29 @@ GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(distinct$0 count$0) AS EXPR$1
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSingleDistinctAggWithGroupBy[splitDistinctAggEnabled=true, aggPhaseEnforcer=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT a, COUNT(DISTINCT c) FROM MyTable GROUP BY a]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
++- LogicalProject(a=[$0], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($f2_0) AS $f1])
++- Exchange(distribution=[hash[a]])
+   +- GroupAggregate(groupBy=[a, $f2], partialFinalType=[PARTIAL], select=[a, $f2, COUNT(DISTINCT c) AS $f2_0])
+      +- Exchange(distribution=[hash[a, $f2]])
+         +- Calc(select=[a, c, MOD(HASH_CODE(c), 1024) AS $f2])
+            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testSingleDistinctAggWithGroupBy[splitDistinctAggEnabled=true, aggPhaseEnforcer=TWO_PHASE]">
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(DISTINCT c) FROM MyTable GROUP BY a]]>
@@ -1140,6 +1049,97 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RET
          +- Exchange(distribution=[hash[a, $f2]])
             +- LocalGroupAggregate(groupBy=[a, $f2], partialFinalType=[PARTIAL], select=[a, $f2, COUNT(distinct$0 c) AS count$0, DISTINCT(c) AS distinct$0])
                +- Calc(select=[a, c, MOD(HASH_CODE(c), 1024) AS $f2])
+                  +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleDistinctAgg[splitDistinctAggEnabled=false, aggPhaseEnforcer=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(DISTINCT c) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
++- LogicalProject(c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(select=[COUNT(DISTINCT c) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- Calc(select=[c])
+      +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleDistinctAgg[splitDistinctAggEnabled=false, aggPhaseEnforcer=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(DISTINCT c) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
++- LogicalProject(c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GlobalGroupAggregate(select=[COUNT(distinct$0 count$0) AS EXPR$0])
++- Exchange(distribution=[single])
+   +- LocalGroupAggregate(select=[COUNT(distinct$0 c) AS count$0, DISTINCT(c) AS distinct$0])
+      +- Calc(select=[c])
+         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleDistinctAgg[splitDistinctAggEnabled=true, aggPhaseEnforcer=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(DISTINCT c) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
++- LogicalProject(c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(partialFinalType=[FINAL], select=[$SUM0_RETRACT($f1_0) AS $f0])
++- Exchange(distribution=[single])
+   +- GroupAggregate(groupBy=[$f1], partialFinalType=[PARTIAL], select=[$f1, COUNT(DISTINCT c) AS $f1_0])
+      +- Exchange(distribution=[hash[$f1]])
+         +- Calc(select=[c, MOD(HASH_CODE(c), 1024) AS $f1])
+            +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleDistinctAgg[splitDistinctAggEnabled=true, aggPhaseEnforcer=TWO_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT COUNT(DISTINCT c) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[COUNT(DISTINCT $0)])
++- LogicalProject(c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GlobalGroupAggregate(partialFinalType=[FINAL], select=[$SUM0_RETRACT(sum$0) AS $f0])
++- Exchange(distribution=[single])
+   +- LocalGroupAggregate(partialFinalType=[FINAL], select=[$SUM0_RETRACT($f1_0) AS sum$0, COUNT_RETRACT(*) AS count1$1])
+      +- GlobalGroupAggregate(groupBy=[$f1], partialFinalType=[PARTIAL], select=[$f1, COUNT(distinct$0 count$0) AS $f1_0])
+         +- Exchange(distribution=[hash[$f1]])
+            +- LocalGroupAggregate(groupBy=[$f1], partialFinalType=[PARTIAL], select=[$f1, COUNT(distinct$0 c) AS count$0, DISTINCT(c) AS distinct$0])
+               +- Calc(select=[c, MOD(HASH_CODE(c), 1024) AS $f1])
                   +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
                      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
@@ -1699,43 +1699,6 @@ GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(distinct$0 count$0) AS EXPR$1
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSumCountWithSingleDistinctAndRetraction[splitDistinctAggEnabled=true, aggPhaseEnforcer=ONE_PHASE]">
-    <Resource name="sql">
-      <![CDATA[
-SELECT
-  b, SUM(b1), COUNT(DISTINCT b1), COUNT(1)
-FROM(
-   SELECT
-     a, COUNT(b) as b, MAX(b) as b1
-   FROM MyTable
-   GROUP BY a
-) GROUP BY b
-       ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT(DISTINCT $1)], EXPR$3=[COUNT()])
-+- LogicalProject(b=[$1], b1=[$2])
-   +- LogicalAggregate(group=[{0}], b=[COUNT($1)], b1=[MAX($1)])
-      +- LogicalProject(a=[$0], b=[$1])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-GroupAggregate(groupBy=[b], partialFinalType=[FINAL], select=[b, SUM_RETRACT($f2_0) AS $f1, $SUM0_RETRACT($f3) AS $f2, $SUM0_RETRACT($f4) AS $f3], changelogMode=[I,UA,D])
-+- Exchange(distribution=[hash[b]], changelogMode=[I,UB,UA,D])
-   +- GroupAggregate(groupBy=[b, $f2], partialFinalType=[PARTIAL], select=[b, $f2, SUM_RETRACT(b1) AS $f2_0, COUNT_RETRACT(DISTINCT b1) AS $f3, COUNT_RETRACT(*) AS $f4], changelogMode=[I,UB,UA,D])
-      +- Exchange(distribution=[hash[b, $f2]], changelogMode=[I,UB,UA])
-         +- Calc(select=[b, b1, MOD(HASH_CODE(b1), 1024) AS $f2], changelogMode=[I,UB,UA])
-            +- GroupAggregate(groupBy=[a], select=[a, COUNT(b) AS b, MAX(b) AS b1], changelogMode=[I,UB,UA])
-               +- Exchange(distribution=[hash[a]], changelogMode=[I])
-                  +- Calc(select=[a, b], changelogMode=[I])
-                     +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testSomeColumnsBothInDistinctAggAndGroupBy[splitDistinctAggEnabled=true, aggPhaseEnforcer=ONE_PHASE]">
     <Resource name="sql">
       <![CDATA[SELECT a, COUNT(DISTINCT a), COUNT(b) FROM MyTable GROUP BY a]]>
@@ -1856,28 +1819,40 @@ GlobalGroupAggregate(groupBy=[b], select=[b, SUM_RETRACT((sum$0, count$1)) AS EX
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testTwoDistinctAggregateWithNonDistinctAgg[splitDistinctAggEnabled=true, aggPhaseEnforcer=ONE_PHASE]">
+  <TestCase name="testSumCountWithSingleDistinctAndRetraction[splitDistinctAggEnabled=true, aggPhaseEnforcer=ONE_PHASE]">
     <Resource name="sql">
-      <![CDATA[SELECT c, SUM(DISTINCT a), SUM(a), COUNT(DISTINCT b) FROM MyTable GROUP BY c]]>
+      <![CDATA[
+SELECT
+  b, SUM(b1), COUNT(DISTINCT b1), COUNT(1)
+FROM(
+   SELECT
+     a, COUNT(b) as b, MAX(b) as b1
+   FROM MyTable
+   GROUP BY a
+) GROUP BY b
+       ]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalAggregate(group=[{0}], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[SUM($1)], EXPR$3=[COUNT(DISTINCT $2)])
-+- LogicalProject(c=[$2], a=[$0], b=[$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+LogicalAggregate(group=[{0}], EXPR$1=[SUM($1)], EXPR$2=[COUNT(DISTINCT $1)], EXPR$3=[COUNT()])
++- LogicalProject(b=[$1], b1=[$2])
+   +- LogicalAggregate(group=[{0}], b=[COUNT($1)], b1=[MAX($1)])
+      +- LogicalProject(a=[$0], b=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
-    <Resource name="optimized exec plan">
+    <Resource name="optimized rel plan">
       <![CDATA[
-GroupAggregate(groupBy=[c], partialFinalType=[FINAL], select=[c, SUM_RETRACT($f3_0) AS $f1, SUM_RETRACT($f4_0) AS $f2, $SUM0_RETRACT($f5) AS $f3])
-+- Exchange(distribution=[hash[c]])
-   +- GroupAggregate(groupBy=[c, $f3, $f4], partialFinalType=[PARTIAL], select=[c, $f3, $f4, SUM(DISTINCT a) FILTER $g_1 AS $f3_0, SUM(a) FILTER $g_3 AS $f4_0, COUNT(DISTINCT b) FILTER $g_2 AS $f5])
-      +- Exchange(distribution=[hash[c, $f3, $f4]])
-         +- Calc(select=[a, b, c, $f3, $f4, ($e = 1) AS $g_1, ($e = 3) AS $g_3, ($e = 2) AS $g_2])
-            +- Expand(projects=[{a, b, c, $f3, null AS $f4, 1 AS $e}, {a, b, c, null AS $f3, $f4, 2 AS $e}, {a, b, c, null AS $f3, null AS $f4, 3 AS $e}])
-               +- Calc(select=[a, b, c, MOD(HASH_CODE(a), 1024) AS $f3, MOD(HASH_CODE(b), 1024) AS $f4])
-                  +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+GroupAggregate(groupBy=[b], partialFinalType=[FINAL], select=[b, SUM_RETRACT($f2_0) AS $f1, $SUM0_RETRACT($f3) AS $f2, $SUM0_RETRACT($f4) AS $f3], changelogMode=[I,UA,D])
++- Exchange(distribution=[hash[b]], changelogMode=[I,UB,UA,D])
+   +- GroupAggregate(groupBy=[b, $f2], partialFinalType=[PARTIAL], select=[b, $f2, SUM_RETRACT(b1) AS $f2_0, COUNT_RETRACT(DISTINCT b1) AS $f3, COUNT_RETRACT(*) AS $f4], changelogMode=[I,UB,UA,D])
+      +- Exchange(distribution=[hash[b, $f2]], changelogMode=[I,UB,UA])
+         +- Calc(select=[b, b1, MOD(HASH_CODE(b1), 1024) AS $f2], changelogMode=[I,UB,UA])
+            +- GroupAggregate(groupBy=[a], select=[a, COUNT(b) AS b, MAX(b) AS b1], changelogMode=[I,UB,UA])
+               +- Exchange(distribution=[hash[a]], changelogMode=[I])
+                  +- Calc(select=[a, b], changelogMode=[I])
+                     +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime], changelogMode=[I])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
   </TestCase>
@@ -1921,6 +1896,26 @@ GlobalGroupAggregate(groupBy=[b], partialFinalType=[FINAL], select=[b, SUM_RETRA
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testTwoDistinctAggregateWithNonDistinctAgg[splitDistinctAggEnabled=false, aggPhaseEnforcer=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT c, SUM(DISTINCT a), SUM(a), COUNT(DISTINCT b) FROM MyTable GROUP BY c]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[SUM($1)], EXPR$3=[COUNT(DISTINCT $2)])
++- LogicalProject(c=[$2], a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(groupBy=[c], select=[c, SUM(DISTINCT a) AS EXPR$1, SUM(a) AS EXPR$2, COUNT(DISTINCT b) AS EXPR$3])
++- Exchange(distribution=[hash[c]])
+   +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testTwoDistinctAggregateWithNonDistinctAgg[splitDistinctAggEnabled=false, aggPhaseEnforcer=TWO_PHASE]">
     <Resource name="sql">
       <![CDATA[SELECT c, SUM(DISTINCT a), SUM(a), COUNT(DISTINCT b) FROM MyTable GROUP BY c]]>
@@ -1939,6 +1934,31 @@ GlobalGroupAggregate(groupBy=[c], select=[c, SUM(distinct$0 sum$0) AS EXPR$1, SU
    +- LocalGroupAggregate(groupBy=[c], select=[c, SUM(distinct$0 a) AS sum$0, SUM(a) AS sum$1, COUNT(distinct$1 b) AS count$2, DISTINCT(a) AS distinct$0, DISTINCT(b) AS distinct$1])
       +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testTwoDistinctAggregateWithNonDistinctAgg[splitDistinctAggEnabled=true, aggPhaseEnforcer=ONE_PHASE]">
+    <Resource name="sql">
+      <![CDATA[SELECT c, SUM(DISTINCT a), SUM(a), COUNT(DISTINCT b) FROM MyTable GROUP BY c]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[SUM($1)], EXPR$3=[COUNT(DISTINCT $2)])
++- LogicalProject(c=[$2], a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(groupBy=[c], partialFinalType=[FINAL], select=[c, SUM_RETRACT($f3_0) AS $f1, SUM_RETRACT($f4_0) AS $f2, $SUM0_RETRACT($f5) AS $f3])
++- Exchange(distribution=[hash[c]])
+   +- GroupAggregate(groupBy=[c, $f3, $f4], partialFinalType=[PARTIAL], select=[c, $f3, $f4, SUM(DISTINCT a) FILTER $g_1 AS $f3_0, SUM(a) FILTER $g_3 AS $f4_0, COUNT(DISTINCT b) FILTER $g_2 AS $f5])
+      +- Exchange(distribution=[hash[c, $f3, $f4]])
+         +- Calc(select=[a, b, c, $f3, $f4, ($e = 1) AS $g_1, ($e = 3) AS $g_3, ($e = 2) AS $g_2])
+            +- Expand(projects=[{a, b, c, $f3, null AS $f4, 1 AS $e}, {a, b, c, null AS $f3, $f4, 2 AS $e}, {a, b, c, null AS $f3, null AS $f4, 3 AS $e}])
+               +- Calc(select=[a, b, c, MOD(HASH_CODE(a), 1024) AS $f3, MOD(HASH_CODE(b), 1024) AS $f4])
+                  +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
+                     +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -1966,26 +1986,6 @@ GlobalGroupAggregate(groupBy=[c], partialFinalType=[FINAL], select=[c, SUM_RETRA
                      +- Calc(select=[a, b, c, MOD(HASH_CODE(a), 1024) AS $f3, MOD(HASH_CODE(b), 1024) AS $f4])
                         +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
                            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testTwoDistinctAggregateWithNonDistinctAgg[splitDistinctAggEnabled=false, aggPhaseEnforcer=ONE_PHASE]">
-    <Resource name="sql">
-      <![CDATA[SELECT c, SUM(DISTINCT a), SUM(a), COUNT(DISTINCT b) FROM MyTable GROUP BY c]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{0}], EXPR$1=[SUM(DISTINCT $1)], EXPR$2=[SUM($1)], EXPR$3=[COUNT(DISTINCT $2)])
-+- LogicalProject(c=[$2], a=[$0], b=[$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-GroupAggregate(groupBy=[c], select=[c, SUM(DISTINCT a) AS EXPR$1, SUM(a) AS EXPR$2, COUNT(DISTINCT b) AS EXPR$3])
-+- Exchange(distribution=[hash[c]])
-   +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

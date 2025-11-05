@@ -20,10 +20,16 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
+import org.apache.flink.api.connector.source.SplitEnumerator;
+import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
@@ -35,6 +41,7 @@ import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -67,11 +74,14 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
-import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.StateBackendUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.source.AbstractTestSource;
+import org.apache.flink.test.util.source.SingleSplitEnumerator;
+import org.apache.flink.test.util.source.TestSourceReader;
+import org.apache.flink.test.util.source.TestSplit;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -87,7 +97,9 @@ import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -168,7 +180,7 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
                 env,
                 "org.apache.flink.test.checkpointing.NotifyCheckpointAbortedITCase$DeclineSinkFailingStateBackendFactory");
 
-        env.addSource(new NormalSource())
+        env.fromSource(new NormalSource(), WatermarkStrategy.noWatermarks(), "NormalSource")
                 .name("NormalSource")
                 .keyBy((KeySelector<Tuple2<Integer, Integer>, Integer>) value -> value.f0)
                 .transform("NormalMap", TypeInformation.of(Integer.class), new NormalMap())
@@ -215,46 +227,50 @@ public class NotifyCheckpointAbortedITCase extends TestLogger {
         assertEquals(expectedTimes, DeclineSink.notifiedAbortedTimes.get());
     }
 
-    /** Normal source function. */
-    private static class NormalSource
-            implements SourceFunction<Tuple2<Integer, Integer>>, CheckpointedFunction {
-        private static final long serialVersionUID = 1L;
-        protected volatile boolean running;
+    /** Source V2 implementation using AbstractTestSource that replaces the legacy NormalSource. */
+    private static final class NormalSource extends AbstractTestSource<Tuple2<Integer, Integer>> {
 
-        NormalSource() {
-            this.running = true;
-        }
-
-        @Override
-        public void run(SourceContext<Tuple2<Integer, Integer>> ctx) throws Exception {
-            while (running) {
-                synchronized (ctx.getCheckpointLock()) {
-                    ctx.collect(
-                            Tuple2.of(
-                                    ThreadLocalRandom.current().nextInt(),
-                                    ThreadLocalRandom.current().nextInt()));
-                }
-                Thread.sleep(10);
-            }
-        }
-
-        @Override
-        public void cancel() {
-            this.running = false;
-        }
-
-        @Override
-        public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            if (context.getCheckpointId() == DECLINE_CHECKPOINT_ID) {
-                DECLINE_CHECKPOINT_WAIT_LATCH.await();
-            }
-        }
-
-        @Override
-        public void initializeState(FunctionInitializationContext context) throws Exception {}
-
+        // let the test reset the latch just like before
         static void reset() {
             DECLINE_CHECKPOINT_WAIT_LATCH.reset();
+        }
+
+        @Override
+        public SourceReader<Tuple2<Integer, Integer>, TestSplit> createReader(
+                SourceReaderContext ctx) {
+            return new TestSourceReader<Tuple2<Integer, Integer>>(ctx) {
+
+                private final ThreadLocalRandom rnd = ThreadLocalRandom.current();
+
+                @Override
+                public InputStatus pollNext(ReaderOutput<Tuple2<Integer, Integer>> out) {
+                    out.collect(Tuple2.of(rnd.nextInt(), rnd.nextInt()));
+
+                    try {
+                        Thread.sleep(10);
+                    } catch (InterruptedException ignored) {
+                    }
+                    return InputStatus.MORE_AVAILABLE;
+                }
+
+                @Override
+                public List<TestSplit> snapshotState(long checkpointId) {
+                    if (checkpointId == DECLINE_CHECKPOINT_ID) {
+                        try {
+                            DECLINE_CHECKPOINT_WAIT_LATCH.await();
+                        } catch (InterruptedException ignored) {
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+                    return Collections.emptyList();
+                }
+            };
+        }
+
+        @Override
+        public SplitEnumerator<TestSplit, Void> createEnumerator(
+                SplitEnumeratorContext<TestSplit> ctx) {
+            return new SingleSplitEnumerator(ctx);
         }
     }
 

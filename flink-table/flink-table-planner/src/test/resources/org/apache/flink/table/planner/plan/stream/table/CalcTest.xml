@@ -59,20 +59,6 @@ Calc(select=[a, b, CAST('xx' AS VARCHAR(2147483647)) AS c], where=[(SEARCH(b, Sa
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSimpleMap">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(f0=[AS(*org.apache.flink.table.planner.expressions.utils.Func23$$79c21fb5a52b78edece166661f30bbd0*($0, $1, $2).f0, _UTF-16LE'f0')], f1=[AS(*org.apache.flink.table.planner.expressions.utils.Func23$$79c21fb5a52b78edece166661f30bbd0*($0, $1, $2).f1, _UTF-16LE'f1')], f2=[AS(*org.apache.flink.table.planner.expressions.utils.Func23$$79c21fb5a52b78edece166661f30bbd0*($0, $1, $2).f2, _UTF-16LE'f2')], f3=[AS(*org.apache.flink.table.planner.expressions.utils.Func23$$79c21fb5a52b78edece166661f30bbd0*($0, $1, $2).f3, _UTF-16LE'f3')])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[*org.apache.flink.table.planner.expressions.utils.Func23$$79c21fb5a52b78edece166661f30bbd0*(a, b, c).f0 AS f0, *org.apache.flink.table.planner.expressions.utils.Func23$$79c21fb5a52b78edece166661f30bbd0*(a, b, c).f1 AS f1, *org.apache.flink.table.planner.expressions.utils.Func23$$79c21fb5a52b78edece166661f30bbd0*(a, b, c).f2 AS f2, *org.apache.flink.table.planner.expressions.utils.Func23$$79c21fb5a52b78edece166661f30bbd0*(a, b, c).f3 AS f3])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testMultiFilter">
     <Resource name="ast">
       <![CDATA[
@@ -119,6 +105,20 @@ Calc(select=[a, b, c], where=[(SEARCH(b, Sarg[(-∞..1), (1..2), (2..3), (3..4),
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRenameColumns">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a2=[$0], b2=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a AS a2, b AS b2])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRowTypeEquality">
     <Resource name="ast">
       <![CDATA[
@@ -143,20 +143,6 @@ LogicalProject(f0=[AS(*org.apache.flink.table.planner.expressions.utils.Func1$$8
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[*org.apache.flink.table.planner.expressions.utils.Func1$$879c8537562dbe74f3349fa0e6502755*(a) AS f0])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRenameColumns">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a2=[$0], b2=[$1])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a AS a2, b AS b2])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -195,6 +181,20 @@ GroupWindowAggregate(window=[TumblingGroupWindow('w, rowtime, 5)], select=[COUNT
 +- Exchange(distribution=[single])
    +- Calc(select=[a, b, c, d, rowtime, UPPER(c) AS $f5])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleMap">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[AS(*org.apache.flink.table.planner.expressions.utils.Func23$$79c21fb5a52b78edece166661f30bbd0*($0, $1, $2).f0, _UTF-16LE'f0')], f1=[AS(*org.apache.flink.table.planner.expressions.utils.Func23$$79c21fb5a52b78edece166661f30bbd0*($0, $1, $2).f1, _UTF-16LE'f1')], f2=[AS(*org.apache.flink.table.planner.expressions.utils.Func23$$79c21fb5a52b78edece166661f30bbd0*($0, $1, $2).f2, _UTF-16LE'f2')], f3=[AS(*org.apache.flink.table.planner.expressions.utils.Func23$$79c21fb5a52b78edece166661f30bbd0*($0, $1, $2).f3, _UTF-16LE'f3')])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[*org.apache.flink.table.planner.expressions.utils.Func23$$79c21fb5a52b78edece166661f30bbd0*(a, b, c).f0 AS f0, *org.apache.flink.table.planner.expressions.utils.Func23$$79c21fb5a52b78edece166661f30bbd0*(a, b, c).f1 AS f1, *org.apache.flink.table.planner.expressions.utils.Func23$$79c21fb5a52b78edece166661f30bbd0*(a, b, c).f2 AS f2, *org.apache.flink.table.planner.expressions.utils.Func23$$79c21fb5a52b78edece166661f30bbd0*(a, b, c).f3 AS f3])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

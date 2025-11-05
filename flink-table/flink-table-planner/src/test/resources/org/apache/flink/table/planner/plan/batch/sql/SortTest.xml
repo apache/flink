@@ -35,26 +35,6 @@ Sort(orderBy=[a DESC, b ASC])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRangeSortWithForceLimit">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable ORDER BY a DESC]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalSort(sort0=[$0], dir0=[DESC-nulls-last])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-SortLimit(orderBy=[a DESC], offset=[0], fetch=[200], global=[true])
-+- Exchange(distribution=[single])
-   +- SortLimit(orderBy=[a DESC], offset=[0], fetch=[200], global=[false])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testNonRangeSortOnSingleFieldWithoutForceLimit">
     <Resource name="sql">
       <![CDATA[SELECT * FROM MyTable ORDER BY a DESC]]>
@@ -67,25 +47,6 @@ LogicalSort(sort0=[$0], dir0=[DESC-nulls-last])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
-      <![CDATA[
-Sort(orderBy=[a DESC])
-+- Exchange(distribution=[single])
-   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRangeSortWithoutForceLimit">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable ORDER BY a DESC]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalSort(sort0=[$0], dir0=[DESC-nulls-last])
-+- LogicalProject(a=[$0], b=[$1], c=[$2])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
       <![CDATA[
 Sort(orderBy=[a DESC])
 +- Exchange(distribution=[single])
@@ -110,6 +71,45 @@ SortLimit(orderBy=[a DESC], offset=[0], fetch=[200], global=[true])
 +- Exchange(distribution=[single])
    +- SortLimit(orderBy=[a DESC], offset=[0], fetch=[200], global=[false])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRangeSortWithForceLimit">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable ORDER BY a DESC]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(sort0=[$0], dir0=[DESC-nulls-last])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+SortLimit(orderBy=[a DESC], offset=[0], fetch=[200], global=[true])
++- Exchange(distribution=[single])
+   +- SortLimit(orderBy=[a DESC], offset=[0], fetch=[200], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRangeSortWithoutForceLimit">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable ORDER BY a DESC]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalSort(sort0=[$0], dir0=[DESC-nulls-last])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sort(orderBy=[a DESC])
++- Exchange(distribution=[single])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

@@ -46,8 +46,16 @@ class FlinkLogicalSink(
     tableSink: DynamicTableSink,
     targetColumns: Array[Array[Int]],
     val staticPartitions: Map[String, String],
-    val abilitySpecs: Array[SinkAbilitySpec])
-  extends Sink(cluster, traitSet, input, hints, targetColumns, contextResolvedTable, tableSink)
+    abilitySpecs: Array[SinkAbilitySpec])
+  extends Sink(
+    cluster,
+    traitSet,
+    input,
+    hints,
+    targetColumns,
+    contextResolvedTable,
+    tableSink,
+    abilitySpecs)
   with FlinkLogicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {

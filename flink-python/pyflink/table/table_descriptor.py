@@ -20,11 +20,13 @@ from typing import Dict, Union, List, Optional
 from pyflink.common.config_options import ConfigOption
 from pyflink.java_gateway import get_gateway
 from pyflink.table.schema import Schema
+from pyflink.util.api_stability_decorators import PublicEvolving
 from pyflink.util.java_utils import to_jarray
 
 __all__ = ['TableDescriptor', 'FormatDescriptor']
 
 
+@PublicEvolving()
 class TableDescriptor(object):
     """
     Describes a CatalogTable representing a source or sink.
@@ -83,6 +85,7 @@ class TableDescriptor(object):
     def __hash__(self):
         return self._j_table_descriptor.hashCode()
 
+    @PublicEvolving()
     class Builder(object):
         """
         Builder for TableDescriptor.

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalCalc;
 import org.apache.flink.table.planner.plan.utils.AsyncUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -41,7 +42,8 @@ import scala.Option;
  */
 public class AsyncCalcSplitRule {
 
-    private static final RemoteCalcCallFinder ASYNC_CALL_FINDER = new AsyncRemoteCalcCallFinder();
+    private static final RemoteCallFinder ASYNC_CALL_FINDER =
+            new AsyncUtil.AsyncRemoteCallFinder(FunctionKind.ASYNC_SCALAR);
     public static final RelOptRule SPLIT_CONDITION =
             new RemoteCalcSplitConditionRule(ASYNC_CALL_FINDER);
     public static final RelOptRule SPLIT_PROJECT =
@@ -66,32 +68,6 @@ public class AsyncCalcSplitRule {
                             Optional.of(
                                     "AsyncScalarFunction not supported for non inner join condition")));
 
-    /**
-     * An Async implementation of {@link RemoteCalcCallFinder} which finds uses of {@link
-     * org.apache.flink.table.functions.AsyncScalarFunction}.
-     */
-    public static class AsyncRemoteCalcCallFinder implements RemoteCalcCallFinder {
-        @Override
-        public boolean containsRemoteCall(RexNode node) {
-            return AsyncUtil.containsAsyncCall(node);
-        }
-
-        @Override
-        public boolean containsNonRemoteCall(RexNode node) {
-            return AsyncUtil.containsNonAsyncCall(node);
-        }
-
-        @Override
-        public boolean isRemoteCall(RexNode node) {
-            return AsyncUtil.isAsyncCall(node);
-        }
-
-        @Override
-        public boolean isNonRemoteCall(RexNode node) {
-            return AsyncUtil.isNonAsyncCall(node);
-        }
-    }
-
     private static boolean hasNestedCalls(List<RexNode> projects) {
         return projects.stream()
                 .filter(AsyncUtil::containsAsyncCall)
@@ -115,7 +91,7 @@ public class AsyncCalcSplitRule {
      */
     public static class AsyncCalcSplitNestedRule extends RemoteCalcSplitRuleBase<Void> {
 
-        public AsyncCalcSplitNestedRule(RemoteCalcCallFinder callFinder) {
+        public AsyncCalcSplitNestedRule(RemoteCallFinder callFinder) {
             super("AsyncCalcSplitNestedRule", callFinder);
         }
 
@@ -167,7 +143,7 @@ public class AsyncCalcSplitRule {
     public static class AsyncCalcSplitOnePerCalcRule
             extends RemoteCalcSplitProjectionRuleBase<AsyncCalcSplitOnePerCalcRule.State> {
 
-        public AsyncCalcSplitOnePerCalcRule(RemoteCalcCallFinder callFinder) {
+        public AsyncCalcSplitOnePerCalcRule(RemoteCallFinder callFinder) {
             super("AsyncCalcSplitOnePerCalcRule", callFinder);
         }
 

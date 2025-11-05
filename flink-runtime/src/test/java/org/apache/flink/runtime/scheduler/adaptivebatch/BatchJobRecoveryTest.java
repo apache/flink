@@ -54,6 +54,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobmaster.TestingExecutionDeploymentTrackerWrapper;
 import org.apache.flink.runtime.jobmaster.event.ExecutionVertexFinishedEvent;
 import org.apache.flink.runtime.jobmaster.event.FileSystemJobEventStore;
 import org.apache.flink.runtime.jobmaster.event.JobEvent;
@@ -159,6 +160,9 @@ public class BatchJobRecoveryTest {
     private ScheduledExecutor delayedExecutor =
             new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor());
 
+    private TestingExecutionDeploymentTrackerWrapper executionDeploymentTracker =
+            new TestingExecutionDeploymentTrackerWrapper();
+
     private static final OperatorID OPERATOR_ID = new OperatorID(1234L, 5678L);
     private static final int NUM_SPLITS = 10;
     private static final int SOURCE_PARALLELISM = 5;
@@ -216,6 +220,7 @@ public class BatchJobRecoveryTest {
 
         this.serializedJobGraph = serializeJobGraph(createDefaultJobGraph());
         allPartitionWithMetrics.clear();
+        executionDeploymentTracker = new TestingExecutionDeploymentTrackerWrapper();
     }
 
     @AfterEach
@@ -238,11 +243,14 @@ public class BatchJobRecoveryTest {
 
         runInMainThread(scheduler::startScheduling);
 
+        waitUntilAllExecutionsDeployed(SOURCE_ID, scheduler);
         runInMainThread(
                 () -> {
                     // transition all sources to finished.
                     transitionExecutionsState(scheduler, ExecutionState.FINISHED, SOURCE_ID);
                 });
+
+        waitUntilAllExecutionsDeployed(MIDDLE_ID, scheduler);
         runInMainThread(
                 () -> {
                     // transition all middle tasks to RUNNING state
@@ -338,11 +346,14 @@ public class BatchJobRecoveryTest {
 
         runInMainThread(scheduler::startScheduling);
 
+        waitUntilAllExecutionsDeployed(SOURCE_ID, scheduler);
         runInMainThread(
                 () -> {
                     // transition all sources to finished.
                     transitionExecutionsState(scheduler, ExecutionState.FINISHED, SOURCE_ID);
                 });
+
+        waitUntilAllExecutionsDeployed(MIDDLE_ID, scheduler);
         runInMainThread(
                 () -> {
                     // transition first middle task to finished.
@@ -413,9 +424,12 @@ public class BatchJobRecoveryTest {
 
             // check middle task0 is CREATED because it's waiting source task0 finished.
             if (vertex.getParallelSubtaskIndex() == subtaskIndex) {
-                ExecutionState expectedState =
-                        isBlockingShuffle ? ExecutionState.CREATED : ExecutionState.DEPLOYING;
-                assertThat(vertex.getExecutionState()).isEqualTo(expectedState);
+                if (isBlockingShuffle) {
+                    assertThat(vertex.getExecutionState()).isEqualTo(ExecutionState.CREATED);
+                } else {
+                    assertThat(vertex.getExecutionState().ordinal())
+                            .isLessThanOrEqualTo(ExecutionState.DEPLOYING.ordinal());
+                }
                 continue;
             }
 
@@ -448,6 +462,7 @@ public class BatchJobRecoveryTest {
 
         runInMainThread(scheduler::startScheduling);
 
+        waitUntilAllExecutionsDeployed(SOURCE_ID, scheduler);
         runInMainThread(
                 () -> {
                     // transition all sources to finished.
@@ -492,14 +507,13 @@ public class BatchJobRecoveryTest {
             }
         }
 
-        for (ExecutionVertex taskVertex :
-                getExecutionVertices(MIDDLE_ID, newScheduler.getExecutionGraph())) {
-            waitUntilExecutionVertexState(taskVertex, ExecutionState.DEPLOYING, 15000L);
-        }
+        waitUntilAllExecutionsDeployed(MIDDLE_ID, newScheduler);
 
+        waitUntilAllExecutionsDeployed(MIDDLE_ID, scheduler);
         runInMainThread(
                 () -> {
                     // transition all middle tasks to running
+                    transitionExecutionsState(scheduler, ExecutionState.INITIALIZING, MIDDLE_ID);
                     transitionExecutionsState(scheduler, ExecutionState.RUNNING, MIDDLE_ID);
                 });
 
@@ -536,6 +550,7 @@ public class BatchJobRecoveryTest {
 
         runInMainThread(scheduler::startScheduling);
 
+        waitUntilAllExecutionsDeployed(SOURCE_ID, scheduler);
         runInMainThread(
                 () -> {
                     // transition all sources to finished.
@@ -593,15 +608,20 @@ public class BatchJobRecoveryTest {
 
         runInMainThread(scheduler::startScheduling);
 
+        waitUntilAllExecutionsDeployed(SOURCE_ID, scheduler);
         runInMainThread(
                 () -> {
                     // transition all sources to finished.
                     transitionExecutionsState(scheduler, ExecutionState.FINISHED, SOURCE_ID);
                 });
+
+        waitUntilAllExecutionsDeployed(MIDDLE_ID, scheduler);
         runInMainThread(
                 () -> { // transition all middle tasks to finished.
                     transitionExecutionsState(scheduler, ExecutionState.FINISHED, MIDDLE_ID);
                 });
+
+        waitUntilAllExecutionsDeployed(SINK_ID, scheduler);
         runInMainThread(
                 () -> {
                     // transition all sinks to finished.
@@ -673,6 +693,7 @@ public class BatchJobRecoveryTest {
                 });
 
         // transition all sources to finished.
+        waitUntilAllExecutionsDeployed(SOURCE_ID, scheduler);
         runInMainThread(
                 () -> transitionExecutionsState(scheduler, ExecutionState.FINISHED, SOURCE_ID));
 
@@ -1121,6 +1142,7 @@ public class BatchJobRecoveryTest {
                                 jobGraph,
                                 mainThreadExecutor.getMainThreadExecutor(),
                                 EXECUTOR_RESOURCE.getExecutor())
+                        .setExecutionDeploymentTracker(executionDeploymentTracker)
                         .setRestartBackoffTimeStrategy(
                                 new FixedDelayRestartBackoffTimeStrategy
                                                 .FixedDelayRestartBackoffTimeStrategyFactory(10, 0)
@@ -1207,6 +1229,32 @@ public class BatchJobRecoveryTest {
                     return Optional.empty();
                 }
             };
+        }
+    }
+
+    private void waitUntilAllExecutionsDeployed(
+            JobVertexID vertexId, AdaptiveBatchScheduler scheduler) throws Exception {
+        AtomicBoolean isAllExecutionDeployed = new AtomicBoolean(false);
+
+        while (!isAllExecutionDeployed.get()) {
+            runInMainThread(
+                    () -> {
+                        List<ExecutionAttemptID> attemptIds =
+                                Arrays.stream(
+                                                scheduler
+                                                        .getExecutionJobVertex(vertexId)
+                                                        .getTaskVertices())
+                                        .map(ExecutionVertex::getCurrentExecutionAttempt)
+                                        .map(Execution::getAttemptId)
+                                        .collect(Collectors.toList());
+                        if (!attemptIds.isEmpty()
+                                && executionDeploymentTracker
+                                        .getDeployedExecutions()
+                                        .containsAll(attemptIds)) {
+                            isAllExecutionDeployed.set(true);
+                        }
+                    });
+            Thread.sleep(2);
         }
     }
 }

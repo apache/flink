@@ -568,23 +568,9 @@ class AggFunctionFactory(
       index: Int): UserDefinedFunction = {
     val valueType = argTypes(0)
     if (aggCallNeedRetractions(index)) {
-      valueType.getTypeRoot match {
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL =>
-          new FirstValueWithRetractAggFunction(valueType)
-        case t =>
-          throw new TableException(
-            s"FIRST_VALUE with retract aggregate function does not " +
-              s"support type: ''$t''.\nPlease re-check the data type.")
-      }
+      new FirstValueWithRetractAggFunction(valueType)
     } else {
-      valueType.getTypeRoot match {
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL =>
-          new FirstValueAggFunction(valueType)
-        case t =>
-          throw new TableException(
-            s"FIRST_VALUE aggregate function does not support " +
-              s"type: ''$t''.\nPlease re-check the data type.")
-      }
+      new FirstValueAggFunction(valueType)
     }
   }
 
@@ -593,23 +579,9 @@ class AggFunctionFactory(
       index: Int): UserDefinedFunction = {
     val valueType = argTypes(0)
     if (aggCallNeedRetractions(index)) {
-      valueType.getTypeRoot match {
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL =>
-          new LastValueWithRetractAggFunction(valueType)
-        case t =>
-          throw new TableException(
-            s"LAST_VALUE with retract aggregate function does not " +
-              s"support type: ''$t''.\nPlease re-check the data type.")
-      }
+      new LastValueWithRetractAggFunction(valueType)
     } else {
-      valueType.getTypeRoot match {
-        case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | BOOLEAN | VARCHAR | DECIMAL =>
-          new LastValueAggFunction(valueType)
-        case t =>
-          throw new TableException(
-            s"LAST_VALUE aggregate function does not support " +
-              s"type: ''$t''.\nPlease re-check the data type.")
-      }
+      new LastValueAggFunction(valueType)
     }
   }
 

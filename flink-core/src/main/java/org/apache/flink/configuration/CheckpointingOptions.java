@@ -19,8 +19,10 @@
 package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 import org.apache.flink.core.execution.CheckpointingMode;
@@ -390,6 +392,14 @@ public class CheckpointingOptions {
                                     + "above which a re-uploading for physical files will be triggered to reclaim space. Any value below 1f "
                                     + "means disabling the space control.");
 
+    /**
+     * The checkpointing mode (exactly-once vs. at-least-once).
+     *
+     * <p><strong>Note:</strong> Instead of accessing this configuration option directly with {@code
+     * config.get(CHECKPOINTING_CONSISTENCY_MODE)}, use {@link #getCheckpointingMode(Configuration)}
+     * which handles the case when checkpointing is disabled and provides the appropriate default
+     * behavior.
+     */
     public static final ConfigOption<CheckpointingMode> CHECKPOINTING_CONSISTENCY_MODE =
             ConfigOptions.key("execution.checkpointing.mode")
                     .enumType(CheckpointingMode.class)
@@ -517,6 +527,14 @@ public class CheckpointingOptions {
                                                     CHECKPOINTING_INTERVAL_DURING_BACKLOG.key()))
                                     .build());
 
+    /**
+     * Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.
+     *
+     * <p><strong>Note:</strong> Instead of accessing this configuration option directly with {@code
+     * config.get(ENABLE_UNALIGNED)}, use {@link #isUnalignedCheckpointEnabled(Configuration)} which
+     * validates that the checkpointing mode is EXACTLY_ONCE before checking this setting. Unaligned
+     * checkpoints are only supported with exactly-once semantics.
+     */
     public static final ConfigOption<Boolean> ENABLE_UNALIGNED =
             ConfigOptions.key("execution.checkpointing.unaligned.enabled")
                     .booleanType()
@@ -575,6 +593,14 @@ public class CheckpointingOptions {
                                             "Forces unaligned checkpoints, particularly allowing them for iterative jobs.")
                                     .build());
 
+    /**
+     * Allows unaligned checkpoints to skip timers that are currently being fired.
+     *
+     * <p><strong>Note:</strong> Instead of accessing this configuration option directly with {@code
+     * config.get(ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS)}, use {@link
+     * #isUnalignedCheckpointInterruptibleTimersEnabled(Configuration)} which validates that
+     * unaligned checkpoints are enabled before checking this setting.
+     */
     @Experimental
     public static final ConfigOption<Boolean> ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS =
             ConfigOptions.key("execution.checkpointing.unaligned.interruptible-timers.enabled")
@@ -619,4 +645,100 @@ public class CheckpointingOptions {
                             "Defines the maximum number of subtasks that share the same channel state file. "
                                     + "It can reduce the number of small files when enable unaligned checkpoint. "
                                     + "Each subtask will create a new channel state file when this is configured to 1.");
+
+    /**
+     * Determines whether checkpointing is enabled based on the configuration.
+     *
+     * <p>Checkpointing is considered enabled if a valid checkpointing interval is configured (i.e.,
+     * the interval value is greater than 0 milliseconds). If no checkpointing interval is specified
+     * or if the interval is 0 or negative, checkpointing is considered disabled.
+     *
+     * @param config the configuration to check
+     * @return {@code true} if checkpointing is enabled, {@code false} otherwise
+     */
+    @Internal
+    public static boolean isCheckpointingEnabled(Configuration config) {
+        if (config.get(ExecutionOptions.RUNTIME_MODE) == RuntimeExecutionMode.BATCH) {
+            return false;
+        }
+        return config.getOptional(CheckpointingOptions.CHECKPOINTING_INTERVAL)
+                .map(Duration::toMillis)
+                .map(interval -> interval > 0)
+                .orElse(false);
+    }
+
+    /**
+     * Gets the checkpointing mode from the configuration.
+     *
+     * <p>If checkpointing is enabled, this method returns the configured consistency mode ({@link
+     * CheckpointingMode#EXACTLY_ONCE} or {@link CheckpointingMode#AT_LEAST_ONCE}). If checkpointing
+     * is disabled, it returns {@link CheckpointingMode#AT_LEAST_ONCE} as the default mode since the
+     * "at-least-once" input handler is slightly more efficient when checkpoints are not being
+     * performed.
+     *
+     * @param config the configuration to check
+     * @return the checkpointing mode based on the configuration
+     * @see #isCheckpointingEnabled(Configuration)
+     */
+    @Internal
+    public static CheckpointingMode getCheckpointingMode(Configuration config) {
+        if (isCheckpointingEnabled(config)) {
+            return config.get(CHECKPOINTING_CONSISTENCY_MODE);
+        } else {
+            // the "at-least-once" input handler is slightly cheaper (in the absence of
+            // checkpoints), so we use that one if checkpointing is not enabled
+            return CheckpointingMode.AT_LEAST_ONCE;
+        }
+    }
+
+    /**
+     * Determines whether unaligned checkpoints are enabled based on the configuration.
+     *
+     * <p>Unaligned checkpoints can only be enabled when the checkpointing mode is set to {@link
+     * CheckpointingMode#EXACTLY_ONCE}. If the mode is {@link CheckpointingMode#AT_LEAST_ONCE},
+     * unaligned checkpoints are not supported and this method will return {@code false}.
+     *
+     * <p>When the checkpointing mode is exactly-once, this method returns the value of the {@link
+     * #ENABLE_UNALIGNED} configuration option.
+     *
+     * @param config the configuration to check
+     * @return {@code true} if unaligned checkpoints are enabled and supported, {@code false}
+     *     otherwise
+     * @see #getCheckpointingMode(Configuration)
+     */
+    @Internal
+    public static boolean isUnalignedCheckpointEnabled(Configuration config) {
+        if (getCheckpointingMode(config) != CheckpointingMode.EXACTLY_ONCE) {
+            return false;
+        }
+        return config.get(ENABLE_UNALIGNED);
+    }
+
+    /**
+     * Determines whether unaligned checkpoints with interruptible timers are enabled based on the
+     * configuration.
+     *
+     * <p>Unaligned checkpoints with interruptible timers can only be enabled when:
+     *
+     * <ol>
+     *   <li>Unaligned checkpoints are enabled (see {@link
+     *       #isUnalignedCheckpointEnabled(Configuration)})
+     *   <li>The {@link #ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS} option is set to {@code true}
+     * </ol>
+     *
+     * <p>If unaligned checkpoints are not enabled, this method will return {@code false} regardless
+     * of the interruptible timers setting.
+     *
+     * @param config the configuration to check
+     * @return {@code true} if unaligned checkpoints with interruptible timers are enabled, {@code
+     *     false} otherwise
+     * @see #isUnalignedCheckpointEnabled(Configuration)
+     */
+    @Internal
+    public static boolean isUnalignedCheckpointInterruptibleTimersEnabled(Configuration config) {
+        if (!isUnalignedCheckpointEnabled(config)) {
+            return false;
+        }
+        return config.get(ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS);
+    }
 }

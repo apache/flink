@@ -156,6 +156,11 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
     }
 
     @Override
+    public long getMetadataSize() {
+        return -1;
+    }
+
+    @Override
     public long getCheckpointedSize() {
         return currentCheckpointedSize;
     }
@@ -221,7 +226,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
         }
     }
 
-    CompletedCheckpointStats toCompletedCheckpointStats(String externalPointer) {
+    CompletedCheckpointStats toCompletedCheckpointStats(String externalPointer, long metadataSize) {
         return new CompletedCheckpointStats(
                 checkpointId,
                 triggerTimestamp,
@@ -231,6 +236,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
                 currentNumAcknowledgedSubtasks,
                 currentCheckpointedSize,
                 currentStateSize,
+                metadataSize,
                 currentProcessedData,
                 currentPersistedData,
                 unalignedCheckpoint,

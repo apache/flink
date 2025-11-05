@@ -16,30 +16,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testSimpleJoin">
-    <Resource name="sql">
-      <![CDATA[SELECT o_amount * rate as rate FROM Orders AS o, LATERAL TABLE (Rates(o.o_rowtime)) AS r WHERE currency = o_currency]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(rate=[*($0, $4)])
-+- LogicalFilter(condition=[=($3, $1)])
-   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
-      :- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-      +- LogicalTableFunctionScan(invocation=[Rates($cor0.o_rowtime)], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIMESTAMP(3) *ROWTIME* rowtime)])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[(o_amount * rate) AS rate])
-+- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND (currency = o_currency))], select=[o_amount, o_currency, o_rowtime, currency, rate, rowtime])
-   :- Exchange(distribution=[hash[o_currency]])
-   :  +- DataStreamScan(table=[[default_catalog, default_database, Orders]], fields=[o_amount, o_currency, o_rowtime])
-   +- Exchange(distribution=[hash[currency]])
-      +- DataStreamScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testComplexJoin">
     <Resource name="sql">
       <![CDATA[SELECT * FROM (SELECT o_amount * rate as rate, secondary_key as secondary_key FROM Orders AS o, LATERAL TABLE (Rates(o_rowtime)) AS r WHERE currency = o_currency AND (rate > 120 OR secondary_key = o_secondary_key)), Table3 WHERE t3_secondary_key = secondary_key]]>
@@ -96,6 +72,30 @@ Calc(select=[(o_amount * rate) AS rate])
    :- Exchange(distribution=[hash[o_currency]])
    :  +- Calc(select=[o_amount, o_currency, o_rowtime], where=[(o_amount > 1000)])
    :     +- DataStreamScan(table=[[default_catalog, default_database, Orders]], fields=[o_amount, o_currency, o_rowtime])
+   +- Exchange(distribution=[hash[currency]])
+      +- DataStreamScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSimpleJoin">
+    <Resource name="sql">
+      <![CDATA[SELECT o_amount * rate as rate FROM Orders AS o, LATERAL TABLE (Rates(o.o_rowtime)) AS r WHERE currency = o_currency]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(rate=[*($0, $4)])
++- LogicalFilter(condition=[=($3, $1)])
+   +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+      :- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+      +- LogicalTableFunctionScan(invocation=[Rates($cor0.o_rowtime)], rowType=[RecordType(VARCHAR(2147483647) currency, INTEGER rate, TIMESTAMP(3) *ROWTIME* rowtime)])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[(o_amount * rate) AS rate])
++- TemporalJoin(joinType=[InnerJoin], where=[(__TEMPORAL_JOIN_CONDITION(o_rowtime, rowtime, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(currency)) AND (currency = o_currency))], select=[o_amount, o_currency, o_rowtime, currency, rate, rowtime])
+   :- Exchange(distribution=[hash[o_currency]])
+   :  +- DataStreamScan(table=[[default_catalog, default_database, Orders]], fields=[o_amount, o_currency, o_rowtime])
    +- Exchange(distribution=[hash[currency]])
       +- DataStreamScan(table=[[default_catalog, default_database, RatesHistory]], fields=[currency, rate, rowtime])
 ]]>

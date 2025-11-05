@@ -1,0 +1,563 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAggregateJoinRemove1">
+    <Resource name="sql">
+      <![CDATA[
+select distinct e.deptno from emp e
+left outer join dept d on e.deptno = d.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}])
++- LogicalProject(deptno=[$7])
+   +- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalAggregate(group=[{7}])
++- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateJoinRemove10">
+    <Resource name="sql">
+      <![CDATA[
+SELECT e.deptno, COUNT(DISTINCT d1.name, d2.name)
+FROM emp e
+LEFT JOIN dept d1 ON e.deptno = d1.deptno
+LEFT JOIN dept d2 ON e.deptno = d2.deptno
+GROUP BY e.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1, $2)])
++- LogicalProject(deptno=[$7], name=[$10], name0=[$12])
+   +- LogicalJoin(condition=[=($7, $11)], joinType=[left])
+      :- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalAggregate(group=[{7}], EXPR$1=[COUNT(DISTINCT $10, $12)])
++- LogicalJoin(condition=[=($7, $11)], joinType=[left])
+   :- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateJoinRemove11">
+    <Resource name="sql">
+      <![CDATA[
+select e.deptno, count(distinct e.slacker)
+from emp e
+left outer join dept d on e.deptno = d.deptno
+group by e.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
++- LogicalProject(deptno=[$7], slacker=[$8])
+   +- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalAggregate(group=[{7}], EXPR$1=[COUNT(DISTINCT $8)])
++- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateJoinRemove2">
+    <Resource name="sql">
+      <![CDATA[
+select e.deptno, count(distinct e.job) from emp e
+left outer join dept d on e.deptno = d.deptno
+group by e.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
++- LogicalProject(deptno=[$7], job=[$2])
+   +- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalAggregate(group=[{7}], EXPR$1=[COUNT(DISTINCT $2)])
++- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateJoinRemove3">
+    <Resource name="sql">
+      <![CDATA[
+select e.deptno, count(distinct d.name) from emp e
+left outer join dept d on e.deptno = d.deptno
+group by e.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
++- LogicalProject(deptno=[$7], name=[$10])
+   +- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+      :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalAggregate(group=[{7}], EXPR$1=[COUNT(DISTINCT $10)])
++- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateJoinRemove4">
+    <Resource name="sql">
+      <![CDATA[
+select distinct d.deptno from emp e
+right outer join dept d on e.deptno = d.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}])
++- LogicalProject(deptno=[$9])
+   +- LogicalJoin(condition=[=($7, $9)], joinType=[right])
+      :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(deptno=[$0])
++- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateJoinRemove5">
+    <Resource name="sql">
+      <![CDATA[
+select d.deptno, count(distinct d.name) from emp e
+right outer join dept d on e.deptno = d.deptno
+group by d.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
++- LogicalProject(deptno=[$9], name=[$10])
+   +- LogicalJoin(condition=[=($7, $9)], joinType=[right])
+      :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
++- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateJoinRemove6">
+    <Resource name="sql">
+      <![CDATA[
+select d.deptno, count(distinct e.job) from emp e
+right outer join dept d on e.deptno = d.deptno
+group by d.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
++- LogicalProject(deptno=[$9], job=[$2])
+   +- LogicalJoin(condition=[=($7, $9)], joinType=[right])
+      :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalAggregate(group=[{9}], EXPR$1=[COUNT(DISTINCT $2)])
++- LogicalJoin(condition=[=($7, $9)], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateJoinRemove7">
+    <Resource name="sql">
+      <![CDATA[
+SELECT distinct e.deptno
+FROM emp e
+LEFT JOIN dept d1 ON e.deptno = d1.deptno
+LEFT JOIN dept d2 ON e.deptno = d2.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}])
++- LogicalProject(deptno=[$7])
+   +- LogicalJoin(condition=[=($7, $11)], joinType=[left])
+      :- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalAggregate(group=[{7}])
++- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateJoinRemove8">
+    <Resource name="sql">
+      <![CDATA[
+SELECT e.deptno, COUNT(DISTINCT d2.name)
+FROM emp e
+LEFT JOIN dept d1 ON e.deptno = d1.deptno
+LEFT JOIN dept d2 ON e.deptno = d2.deptno
+GROUP BY e.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)])
++- LogicalProject(deptno=[$7], name0=[$12])
+   +- LogicalJoin(condition=[=($7, $11)], joinType=[left])
+      :- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalAggregate(group=[{7}], EXPR$1=[COUNT(DISTINCT $10)])
++- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateJoinRemove9">
+    <Resource name="sql">
+      <![CDATA[
+SELECT distinct e.deptno, d2.name
+FROM emp e
+LEFT JOIN dept d1 ON e.deptno = d1.deptno
+LEFT JOIN dept d2 ON e.deptno = d2.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}])
++- LogicalProject(deptno=[$7], name=[$12])
+   +- LogicalJoin(condition=[=($7, $11)], joinType=[left])
+      :- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalAggregate(group=[{7, 10}])
++- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectJoinRemove1">
+    <Resource name="sql">
+      <![CDATA[
+SELECT e.deptno, d2.deptno
+FROM emp e
+LEFT JOIN dept d1 ON e.deptno = d1.deptno
+LEFT JOIN dept d2 ON e.deptno = d2.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(deptno=[$7], deptno0=[$11])
++- LogicalJoin(condition=[=($7, $11)], joinType=[left])
+   :- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(deptno=[$7], deptno0=[$9])
++- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectJoinRemove10">
+    <Resource name="sql">
+      <![CDATA[
+SELECT e.deptno, e.slacker
+FROM emp e
+LEFT JOIN dept d ON e.deptno = d.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(deptno=[$7], slacker=[$8])
++- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(deptno=[$7], slacker=[$8])
++- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectJoinRemove2">
+    <Resource name="sql">
+      <![CDATA[
+SELECT e.deptno, d1.deptno
+FROM emp e
+LEFT JOIN dept d1 ON e.deptno = d1.deptno
+LEFT JOIN dept d2 ON e.deptno = d2.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(deptno=[$7], deptno0=[$9])
++- LogicalJoin(condition=[=($7, $11)], joinType=[left])
+   :- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(deptno=[$7], deptno0=[$9])
++- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectJoinRemove3">
+    <Resource name="sql">
+      <![CDATA[
+SELECT e1.deptno, d.deptno
+FROM emp e1
+LEFT JOIN emp e2 ON e1.deptno = e2.deptno
+LEFT JOIN dept d ON e1.deptno = d.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(deptno=[$7], deptno0=[$18])
++- LogicalJoin(condition=[=($7, $18)], joinType=[left])
+   :- LogicalJoin(condition=[=($7, $16)], joinType=[left])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(deptno=[$7], deptno0=[$18])
++- LogicalJoin(condition=[=($7, $18)], joinType=[left])
+   :- LogicalJoin(condition=[=($7, $16)], joinType=[left])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectJoinRemove4">
+    <Resource name="sql">
+      <![CDATA[
+SELECT e.deptno
+FROM emp e
+LEFT JOIN dept d ON e.deptno = d.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(deptno=[$7])
++- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(deptno=[$7])
++- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectJoinRemove5">
+    <Resource name="sql">
+      <![CDATA[
+SELECT e1.deptno
+FROM emp e1
+LEFT JOIN emp e2 ON e1.deptno = e2.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(deptno=[$7])
++- LogicalJoin(condition=[=($7, $16)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(deptno=[$7])
++- LogicalJoin(condition=[=($7, $16)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectJoinRemove6">
+    <Resource name="sql">
+      <![CDATA[
+SELECT e.deptno, d.name
+FROM emp e
+LEFT JOIN dept d ON e.deptno = d.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(deptno=[$7], name=[$10])
++- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(deptno=[$7], name=[$10])
++- LogicalJoin(condition=[=($7, $9)], joinType=[left])
+   :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectJoinRemove7">
+    <Resource name="sql">
+      <![CDATA[
+SELECT e.deptno
+FROM dept d
+RIGHT JOIN emp e ON e.deptno = d.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(deptno=[$9])
++- LogicalJoin(condition=[=($9, $0)], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(deptno=[$7])
++- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectJoinRemove8">
+    <Resource name="sql">
+      <![CDATA[
+SELECT e2.deptno
+FROM emp e1
+RIGHT JOIN emp e2 ON e1.deptno = e2.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(deptno=[$16])
++- LogicalJoin(condition=[=($7, $16)], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(deptno=[$16])
++- LogicalJoin(condition=[=($7, $16)], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectJoinRemove9">
+    <Resource name="sql">
+      <![CDATA[
+SELECT e.deptno, d.name
+FROM dept d
+RIGHT JOIN emp e ON e.deptno = d.deptno
+       ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(deptno=[$9], name=[$1])
++- LogicalJoin(condition=[=($9, $0)], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+LogicalProject(deptno=[$9], name=[$1])
++- LogicalJoin(condition=[=($9, $0)], joinType=[right])
+   :- LogicalTableScan(table=[[default_catalog, default_database, dept]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

@@ -154,7 +154,8 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     public void finishReadRecoveredState() throws IOException {
-        onRecoveredStateBuffer(EventSerializer.toBuffer(EndOfChannelStateEvent.INSTANCE, false));
+        onRecoveredStateBuffer(
+                EventSerializer.toBuffer(EndOfInputChannelStateEvent.INSTANCE, false));
         bufferManager.releaseFloatingBuffers();
         LOG.debug("{}/{} finished recovering input.", inputGate.getOwningTaskName(), channelInfo);
     }
@@ -172,7 +173,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
 
         if (next == null) {
             return null;
-        } else if (isEndOfChannelStateEvent(next)) {
+        } else if (isEndOfInputChannelStateEvent(next)) {
             stateConsumedFuture.complete(null);
             return null;
         } else {
@@ -180,14 +181,14 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
         }
     }
 
-    private boolean isEndOfChannelStateEvent(Buffer buffer) throws IOException {
+    private boolean isEndOfInputChannelStateEvent(Buffer buffer) throws IOException {
         if (buffer.isBuffer()) {
             return false;
         }
 
         AbstractEvent event = EventSerializer.fromBuffer(buffer, getClass().getClassLoader());
         buffer.setReaderIndex(0);
-        return event.getClass() == EndOfChannelStateEvent.class;
+        return event.getClass() == EndOfInputChannelStateEvent.class;
     }
 
     @Override

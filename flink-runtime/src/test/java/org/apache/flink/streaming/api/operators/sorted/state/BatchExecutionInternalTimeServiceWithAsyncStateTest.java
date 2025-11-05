@@ -20,8 +20,9 @@ package org.apache.flink.streaming.api.operators.sorted.state;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
-import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.runtime.asyncprocessing.EpochManager;
 import org.apache.flink.runtime.asyncprocessing.MockStateExecutor;
+import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -61,7 +62,7 @@ class BatchExecutionInternalTimeServiceWithAsyncStateTest {
     BatchExecutionKeyedStateBackend<Integer> keyedStatedBackend;
     InternalTimeServiceManager<Integer> timeServiceManager;
     TestProcessingTimeService processingTimeService;
-    AsyncExecutionController<Integer> aec;
+    StateExecutionController<Integer> aec;
 
     @BeforeEach
     public void setup() {
@@ -70,11 +71,12 @@ class BatchExecutionInternalTimeServiceWithAsyncStateTest {
                         KEY_SERIALIZER, new KeyGroupRange(0, 1), new ExecutionConfig());
         processingTimeService = new TestProcessingTimeService();
         aec =
-                new AsyncExecutionController<>(
+                new StateExecutionController<>(
                         new SyncMailboxExecutor(),
                         (a, b) -> {},
                         new MockStateExecutor(),
                         new DeclarationManager(),
+                        EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                         1,
                         100,
                         1000,

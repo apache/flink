@@ -20,6 +20,7 @@ package org.apache.flink.state.api.output;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -48,7 +49,7 @@ public final class SnapshotUtils {
             OP operator,
             int index,
             long timestamp,
-            boolean isExactlyOnceMode,
+            CheckpointingMode checkpointingMode,
             boolean isUnalignedCheckpoint,
             Configuration configuration,
             Path savepointPath,
@@ -59,7 +60,7 @@ public final class SnapshotUtils {
                 CheckpointOptions.forConfig(
                         SavepointType.savepoint(savepointFormatType),
                         AbstractFsCheckpointStorageAccess.encodePathAsReference(savepointPath),
-                        isExactlyOnceMode,
+                        checkpointingMode == CheckpointingMode.EXACTLY_ONCE,
                         isUnalignedCheckpoint,
                         CheckpointOptions.NO_ALIGNED_CHECKPOINT_TIME_OUT);
 
@@ -71,7 +72,7 @@ public final class SnapshotUtils {
                 operator.snapshotState(checkpointId, timestamp, options, storage);
 
         OperatorSubtaskState state =
-                new OperatorSnapshotFinalizer(snapshotInProgress).getJobManagerOwnedState();
+                OperatorSnapshotFinalizer.create(snapshotInProgress).getJobManagerOwnedState();
 
         operator.notifyCheckpointComplete(checkpointId);
         return new TaggedOperatorSubtaskState(index, state);
@@ -82,7 +83,7 @@ public final class SnapshotUtils {
             OP operator,
             int index,
             long timestamp,
-            boolean isExactlyOnceMode,
+            CheckpointingMode checkpointingMode,
             boolean isUnalignedCheckpoint,
             Configuration configuration,
             Path savepointPath)
@@ -93,7 +94,7 @@ public final class SnapshotUtils {
                 operator,
                 index,
                 timestamp,
-                isExactlyOnceMode,
+                checkpointingMode,
                 isUnalignedCheckpoint,
                 configuration,
                 savepointPath,

@@ -166,9 +166,13 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                 new EqualiserCodeGenerator(inputType, classLoader)
                         .generateRecordEqualiser("DeduplicateRowEqualiser");
 
+        // Depending on whether filterCondition is null or not, there is different logic
+        // at ProcTimeMiniBatchDeduplicateKeepLastRowFunction#finishBundle
         final GeneratedFilterCondition generatedFilterCondition =
-                FilterCodeGenerator.generateFilterCondition(
-                        config, classLoader, filterCondition, inputType);
+                filterCondition == null
+                        ? null
+                        : FilterCodeGenerator.generateFilterCondition(
+                                config, classLoader, filterCondition, inputType);
 
         if (isMiniBatchEnabled) {
             TypeSerializer<RowData> rowSerializer =

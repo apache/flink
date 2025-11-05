@@ -17,6 +17,7 @@
 ################################################################################
 import uuid
 
+from pyflink.common import Row
 from pyflink.table.expressions import col, call, lit, row_interval
 from pyflink.table.types import DataTypes
 from pyflink.table.udf import udaf, udf, AggregateFunction
@@ -38,6 +39,17 @@ class BatchPandasUDAFITTests(PyFlinkBatchTableTestCase):
                                                                    result_type=DataTypes.INT(),
                                                                    func_type="pandas"))
         cls.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
+
+    def test_pandas_udaf_in_sql(self):
+        sql = f"""
+             CREATE TEMPORARY FUNCTION pymean AS
+             '{BatchPandasUDAFITTests.__module__}.mean_str_udaf'
+             LANGUAGE PYTHON
+            """
+        self.t_env.execute_sql(sql)
+        self.assert_equals(
+            list(self.t_env.execute_sql("SELECT pymean(1)").collect()),
+            [Row(1)])
 
     def test_check_result_type(self):
         def pandas_udaf():
@@ -858,6 +870,11 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
 
 @udaf(result_type=DataTypes.FLOAT(), func_type="pandas")
 def mean_udaf(v):
+    return v.mean()
+
+
+@udaf(input_types=['FLOAT'], result_type='FLOAT', func_type="pandas")
+def mean_str_udaf(v):
     return v.mean()
 
 

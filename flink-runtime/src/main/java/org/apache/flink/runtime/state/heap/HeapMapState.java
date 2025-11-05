@@ -26,6 +26,9 @@ import org.apache.flink.api.common.typeutils.base.MapSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.queryablestate.client.state.serialization.KvStateSerializer;
 import org.apache.flink.runtime.state.internal.InternalMapState;
+import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
+import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
+import org.apache.flink.runtime.state.ttl.TtlValue;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
@@ -198,6 +201,28 @@ class HeapMapState<K, N, UK, UV> extends AbstractHeapState<K, N, Map<UK, UV>>
 
         return KvStateSerializer.serializeMap(
                 result.entrySet(), dupUserKeySerializer, dupUserValueSerializer);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<UK, UV> migrateTtlValue(
+            Map<UK, UV> stateValue,
+            TtlAwareSerializer<Map<UK, UV>, ?> currentTtlAwareSerializer,
+            TtlTimeProvider ttlTimeProvider) {
+
+        if (currentTtlAwareSerializer.isTtlEnabled()) {
+            for (Map.Entry<UK, UV> entry : stateValue.entrySet()) {
+                UV value =
+                        (UV) new TtlValue<>(entry.getValue(), ttlTimeProvider.currentTimestamp());
+                stateValue.put(entry.getKey(), value);
+            }
+        } else {
+            for (Map.Entry<UK, UV> entry : stateValue.entrySet()) {
+                UV value = (UV) ((TtlValue<?>) entry.getValue()).getUserValue();
+                stateValue.put(entry.getKey(), value);
+            }
+        }
+
+        return stateValue;
     }
 
     @SuppressWarnings("unchecked")

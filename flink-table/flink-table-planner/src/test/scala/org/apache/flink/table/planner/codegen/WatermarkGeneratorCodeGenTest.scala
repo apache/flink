@@ -43,11 +43,9 @@ import java.util
 /** Tests the generated [[WatermarkGenerator]] from [[WatermarkGeneratorCodeGenerator]]. */
 @ExtendWith(Array(classOf[ParameterizedTestExtension]))
 class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
-  val plannerMocks = PlannerMocks.create()
+  private val plannerMocks = PlannerMocks.create()
 
-  def getPlanner: FlinkPlannerImpl = plannerMocks.getPlanner
-
-  val data = List(
+  private val data = List(
     GenericRowData.of(TimestampData.fromEpochMillis(1000L), JInt.valueOf(5)),
     GenericRowData.of(null, JInt.valueOf(4)),
     GenericRowData.of(TimestampData.fromEpochMillis(3000L), null),
@@ -59,7 +57,7 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
   @TestTemplate
   def testAscendingWatermark(): Unit = {
     val generator =
-      generateWatermarkGenerator("ts - INTERVAL '0.001' SECOND", useDefinedConstructor)
+      generateWatermarkGenerator("ts - INTERVAL '0.001' SECOND", "ts", useDefinedConstructor)
     val results = data.map(d => generator.currentWatermark(d))
     val expected = List(
       JLong.valueOf(999L),
@@ -73,7 +71,8 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
 
   @TestTemplate
   def testBoundedOutOfOrderWatermark(): Unit = {
-    val generator = generateWatermarkGenerator("ts - INTERVAL '5' SECOND", useDefinedConstructor)
+    val generator =
+      generateWatermarkGenerator("ts - INTERVAL '5' SECOND", "ts", useDefinedConstructor)
     val results = data.map(d => generator.currentWatermark(d))
     val expected = List(
       JLong.valueOf(-4000L),
@@ -93,6 +92,23 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
   @TestTemplate
   def testCustomizedWatermark(): Unit = {
     testCustomizedWatermark(false)
+  }
+
+  @TestTemplate
+  def testExtractTimestamp(): Unit = {
+    val generator = generateWatermarkGenerator(
+      "ts + INTERVAL '0.001' SECOND - INTERVAL '5' SECOND",
+      "ts + INTERVAL '0.001' SECOND",
+      useDefinedConstructor)
+    val results = data.map(d => generator.extractTimestamp(d))
+    val expected = List(
+      JLong.valueOf(1001L),
+      JLong.MIN_VALUE,
+      JLong.valueOf(3001L),
+      JLong.valueOf(5001L),
+      JLong.valueOf(4001L),
+      JLong.valueOf(6001L))
+    assertEquals(expected, results)
   }
 
   private def testCustomizedWatermark(isLegacy: Boolean): Unit = {
@@ -117,10 +133,10 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
       )
     }
 
-    val generator = generateWatermarkGenerator("myFunc(ts, `offset`)", useDefinedConstructor)
+    val generator = generateWatermarkGenerator("myFunc(ts, `offset`)", "ts", useDefinedConstructor)
     if (!useDefinedConstructor) {
       // mock open and close invoking
-      generator.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0))
+      generator.setRuntimeContext(new MockStreamingRuntimeContext(1, 0))
     }
     generator.open(DefaultOpenContext.INSTANCE)
     val results = data.map(d => generator.currentWatermark(d))
@@ -138,7 +154,8 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
   }
 
   private def generateWatermarkGenerator(
-      expr: String,
+      watermarkExpr: String,
+      rowtimeExpr: String,
       useDefinedConstructor: Boolean): WatermarkGenerator = {
     val tableRowType = plannerMocks.getPlannerContext.getTypeFactory.buildRelNodeRowType(
       Seq("ts", "offset"),
@@ -155,7 +172,6 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
       .unwrap(classOf[FlinkContext])
       .getRexFactory
       .createSqlToRexConverter(tableRowType, null)
-    val rexNode = converter.convertToRexNode(expr)
 
     if (useDefinedConstructor) {
       val generated = WatermarkGeneratorCodeGenerator
@@ -163,8 +179,10 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
           new Configuration,
           Thread.currentThread().getContextClassLoader,
           rowType,
-          rexNode,
-          Option.apply("context"))
+          converter.convertToRexNode(watermarkExpr),
+          Some(converter.convertToRexNode(rowtimeExpr)),
+          Option.apply("context")
+        )
       val newReferences = generated.getReferences :+
         new WatermarkGeneratorSupplier.Context {
           override def getMetricGroup: MetricGroup = null
@@ -178,7 +196,9 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
           new Configuration,
           Thread.currentThread().getContextClassLoader,
           rowType,
-          rexNode)
+          converter.convertToRexNode(watermarkExpr),
+          Some(converter.convertToRexNode(rowtimeExpr))
+        )
       generated.newInstance(Thread.currentThread().getContextClassLoader)
     }
   }

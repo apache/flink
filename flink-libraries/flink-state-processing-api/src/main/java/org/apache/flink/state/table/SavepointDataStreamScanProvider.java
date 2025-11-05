@@ -44,11 +44,12 @@ import javax.naming.ConfigurationException;
 import java.util.List;
 
 /** Savepoint data stream scan provider. */
+@SuppressWarnings("rawtypes")
 public class SavepointDataStreamScanProvider implements DataStreamScanProvider {
     @Nullable private final String stateBackendType;
     private final String statePath;
     private final OperatorIdentifier operatorIdentifier;
-    private final String keyFormat;
+    private final TypeInformation keyTypeInfo;
     private final Tuple2<Integer, List<StateValueColumnConfiguration>> keyValueProjections;
     private final RowType rowType;
 
@@ -56,13 +57,13 @@ public class SavepointDataStreamScanProvider implements DataStreamScanProvider {
             @Nullable final String stateBackendType,
             final String statePath,
             final OperatorIdentifier operatorIdentifier,
-            final String keyFormat,
+            final TypeInformation keyTypeInfo,
             final Tuple2<Integer, List<StateValueColumnConfiguration>> keyValueProjections,
             RowType rowType) {
         this.stateBackendType = stateBackendType;
         this.statePath = statePath;
         this.operatorIdentifier = operatorIdentifier;
-        this.keyFormat = keyFormat;
+        this.keyTypeInfo = keyTypeInfo;
         this.keyValueProjections = keyValueProjections;
         this.rowType = rowType;
     }
@@ -88,13 +89,9 @@ public class SavepointDataStreamScanProvider implements DataStreamScanProvider {
             SavepointReader savepointReader =
                     SavepointReader.read(execEnv, statePath, stateBackend);
 
-            // Get key type information
-            TypeInformation keyTypeInfo = TypeInformation.of(Class.forName(keyFormat));
-
             // Get value state descriptors
             for (StateValueColumnConfiguration columnConfig : keyValueProjections.f1) {
-                TypeInformation valueTypeInfo =
-                        TypeInformation.of(Class.forName(columnConfig.getValueFormat()));
+                TypeInformation valueTypeInfo = columnConfig.getValueTypeInfo();
 
                 switch (columnConfig.getStateType()) {
                     case VALUE:
@@ -110,12 +107,11 @@ public class SavepointDataStreamScanProvider implements DataStreamScanProvider {
                         break;
 
                     case MAP:
-                        if (columnConfig.getMapKeyFormat() == null) {
+                        TypeInformation<?> mapKeyTypeInfo = columnConfig.getMapKeyTypeInfo();
+                        if (mapKeyTypeInfo == null) {
                             throw new ConfigurationException(
-                                    "Map key format is required for map state");
+                                    "Map key type information is required for map state");
                         }
-                        TypeInformation<?> mapKeyTypeInfo =
-                                TypeInformation.of(Class.forName(columnConfig.getMapKeyFormat()));
                         columnConfig.setStateDescriptor(
                                 new MapStateDescriptor<>(
                                         columnConfig.getStateName(),

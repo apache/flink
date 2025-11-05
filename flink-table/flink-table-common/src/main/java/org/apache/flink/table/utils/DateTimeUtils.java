@@ -568,7 +568,26 @@ public class DateTimeUtils {
         return ymdToUnixDate(y, m, d);
     }
 
-    public static Integer parseTime(String v) {
+    /**
+     * Parses a time string into milliseconds since midnight.
+     *
+     * <p>Supports various time formats:
+     *
+     * <ul>
+     *   <li>HH - hour only (e.g., "14")
+     *   <li>HH:mm - hour and minute (e.g., "14:30")
+     *   <li>HH:mm:ss - hour, minute, and second (e.g., "14:30:45")
+     *   <li>HH:mm:ss.fff - with fractional seconds (e.g., "14:30:45.123")
+     *   <li>Any of the above with timezone offset: [+|-]HH:mm (e.g., "14:30:45+02:00")
+     * </ul>
+     *
+     * <p>Follows W3C datetime format specification.
+     *
+     * @param v the time string to parse
+     * @return milliseconds since midnight (0-86399999), or {@code null} if parsing fails
+     * @see <a href="https://www.w3.org/TR/NOTE-datetime">W3C Date and Time Formats</a>
+     */
+    public static Integer parseTime(final String v) {
         final int start = 0;
         final int colon1 = v.indexOf(':', start);
         // timezone hh:mm:ss[.ssssss][[+|-]hh:mm:ss]
@@ -651,12 +670,34 @@ public class DateTimeUtils {
                 }
             }
         }
+
+        if (!isValidTime(hour, minute, second)) {
+            return null;
+        }
+
         hour += operator * timezoneHour;
         minute += operator * timezoneMinute;
         return hour * (int) MILLIS_PER_HOUR
                 + minute * (int) MILLIS_PER_MINUTE
                 + second * (int) MILLIS_PER_SECOND
                 + milli;
+    }
+
+    /**
+     * Validates time components are within valid ranges.
+     *
+     * @param hour hour component (0-23)
+     * @param minute minute component (0-59)
+     * @param second second component (0-59)
+     * @return true if all components are valid, false otherwise
+     */
+    private static boolean isValidTime(int hour, int minute, int second) {
+        return hour >= 0
+                && hour <= 23
+                && minute >= 0
+                && minute <= 59
+                && second >= 0
+                && second <= 59;
     }
 
     /**
@@ -759,7 +800,7 @@ public class DateTimeUtils {
 
             return toFormatter.format(date);
         } catch (ParseException e) {
-            LOG.error(
+            LOG.debug(
                     "Exception when formatting: '"
                             + dateStr
                             + "' from: '"
@@ -768,8 +809,7 @@ public class DateTimeUtils {
                             + toFormat
                             + "' with offsetMills: '"
                             + offsetMills
-                            + "'",
-                    e);
+                            + "'");
             return null;
         }
     }
@@ -970,11 +1010,10 @@ public class DateTimeUtils {
             Date date = formatter.parse(dateStr);
             return date.getTime();
         } catch (ParseException e) {
-            LOG.error(
+            LOG.debug(
                     String.format(
                             "Exception when parsing datetime string '%s' in format '%s'",
-                            dateStr, format),
-                    e);
+                            dateStr, format));
             return Long.MIN_VALUE;
         }
     }
@@ -1442,7 +1481,9 @@ public class DateTimeUtils {
         try {
             return formatter.format(date);
         } catch (Exception e) {
-            LOG.error("Exception when formatting.", e);
+            LOG.debug(
+                    String.format(
+                            "Exception when formatting date '%s' to format '%s'.", date, format));
             return null;
         }
     }
@@ -1500,10 +1541,53 @@ public class DateTimeUtils {
                         .toLocalDate());
     }
 
-    public static int timestampWithLocalZoneToTime(TimestampData ts, TimeZone tz) {
-        return toInternal(
-                LocalDateTime.ofInstant(Instant.ofEpochMilli(ts.getMillisecond()), tz.toZoneId())
-                        .toLocalTime());
+    public static int timestampWithoutLocalZoneToTime(TimestampData ts, int precision) {
+        final int millisecond = (int) (ts.getMillisecond() % DateTimeUtils.MILLIS_PER_DAY);
+        return applyTimePrecisionTruncation(millisecond, precision);
+    }
+
+    public static int timestampWithLocalZoneToTime(TimestampData ts, TimeZone tz, int precision) {
+        final int internal =
+                toInternal(
+                        LocalDateTime.ofInstant(
+                                        Instant.ofEpochMilli(ts.getMillisecond()), tz.toZoneId())
+                                .toLocalTime());
+        return applyTimePrecisionTruncation(internal, precision);
+    }
+
+    /**
+     * Applies precision truncation to time milliseconds.
+     *
+     * <p>This method truncates (not rounds) the time value to the specified precision. For
+     * precision 3 or higher, no truncation is needed since the input is already in millisecond
+     * resolution.
+     *
+     * <p>Examples with timeMillis = 12345 (representing 00:00:12.345):
+     *
+     * <table border="1">
+     *   <tr><th>Target Precision</th><th>Factor</th><th>Result</th><th>Time String</th></tr>
+     *   <tr><td>0</td><td>1000</td><td>12000</td><td>00:00:12.000</td></tr>
+     *   <tr><td>1</td><td>100</td><td>12300</td><td>00:00:12.300</td></tr>
+     *   <tr><td>2</td><td>10</td><td>12340</td><td>00:00:12.340</td></tr>
+     *   <tr><td>3</td><td>-</td><td>12345</td><td>00:00:12.345</td></tr>
+     * </table>
+     *
+     * @param timeMillis time value as milliseconds since midnight (0-86399999)
+     * @param precision the target precision for fractional seconds (0-9)
+     * @return the truncated time value in milliseconds
+     */
+    public static int applyTimePrecisionTruncation(int timeMillis, int precision) {
+        switch (precision) {
+            case 0:
+                return (timeMillis / 1000) * 1000;
+            case 1:
+                return (timeMillis / 100) * 100;
+            case 2:
+                return (timeMillis / 10) * 10;
+            default:
+                // precision 3 or higher, no truncation needed
+                return timeMillis;
+        }
     }
 
     public static TimestampData dateToTimestampWithLocalZone(int date, TimeZone tz) {

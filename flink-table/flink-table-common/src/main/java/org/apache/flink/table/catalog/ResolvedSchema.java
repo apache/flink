@@ -63,20 +63,32 @@ public final class ResolvedSchema {
     private final List<Column> columns;
     private final List<WatermarkSpec> watermarkSpecs;
     private final @Nullable UniqueConstraint primaryKey;
+    private final List<Index> indexes;
 
+    /** Please use {@link #ResolvedSchema(List, List, UniqueConstraint, List)} instead. */
+    @Deprecated
     public ResolvedSchema(
             List<Column> columns,
             List<WatermarkSpec> watermarkSpecs,
             @Nullable UniqueConstraint primaryKey) {
+        this(columns, watermarkSpecs, primaryKey, Collections.emptyList());
+    }
+
+    public ResolvedSchema(
+            List<Column> columns,
+            List<WatermarkSpec> watermarkSpecs,
+            @Nullable UniqueConstraint primaryKey,
+            List<Index> indexes) {
         this.columns = Preconditions.checkNotNull(columns, "Columns must not be null.");
         this.watermarkSpecs =
                 Preconditions.checkNotNull(watermarkSpecs, "Watermark specs must not be null.");
         this.primaryKey = primaryKey;
+        this.indexes = Preconditions.checkNotNull(indexes, "Indexes must not be null.");
     }
 
     /** Shortcut for a resolved schema of only columns. */
     public static ResolvedSchema of(List<Column> columns) {
-        return new ResolvedSchema(columns, Collections.emptyList(), null);
+        return new ResolvedSchema(columns, Collections.emptyList(), null, Collections.emptyList());
     }
 
     /** Shortcut for a resolved schema of only columns. */
@@ -94,7 +106,7 @@ public final class ResolvedSchema {
                 IntStream.range(0, columnNames.size())
                         .mapToObj(i -> Column.physical(columnNames.get(i), columnDataTypes.get(i)))
                         .collect(Collectors.toList());
-        return new ResolvedSchema(columns, Collections.emptyList(), null);
+        return new ResolvedSchema(columns, Collections.emptyList(), null, Collections.emptyList());
     }
 
     /** Shortcut for a resolved schema of only physical columns. */
@@ -161,6 +173,11 @@ public final class ResolvedSchema {
     /** Returns the primary key if it has been defined. */
     public Optional<UniqueConstraint> getPrimaryKey() {
         return Optional.ofNullable(primaryKey);
+    }
+
+    /** Returns all table indexes. */
+    public List<Index> getIndexes() {
+        return indexes;
     }
 
     /**
@@ -235,6 +252,7 @@ public final class ResolvedSchema {
         if (primaryKey != null) {
             components.add(primaryKey);
         }
+        components.addAll(indexes);
         return components.stream()
                 .map(Objects::toString)
                 .map(s -> "  " + s)
@@ -252,12 +270,13 @@ public final class ResolvedSchema {
         final ResolvedSchema that = (ResolvedSchema) o;
         return Objects.equals(columns, that.columns)
                 && Objects.equals(watermarkSpecs, that.watermarkSpecs)
-                && Objects.equals(primaryKey, that.primaryKey);
+                && Objects.equals(primaryKey, that.primaryKey)
+                && Objects.equals(indexes, that.indexes);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(columns, watermarkSpecs, primaryKey);
+        return Objects.hash(columns, watermarkSpecs, primaryKey, indexes);
     }
 
     // --------------------------------------------------------------------------------------------

@@ -20,12 +20,16 @@ package org.apache.flink.streaming.util;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.heap.HeapKeyedStateBackend;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
+import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
+
+import javax.annotation.Nullable;
 
 /**
  * Extension of {@link TwoInputStreamOperatorTestHarness} that allows the operator to get a {@link
@@ -43,6 +47,29 @@ public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
             int numSubtasks,
             int subtaskIndex)
             throws Exception {
+        this(
+                operator,
+                keySelector1,
+                keySelector2,
+                keyType,
+                maxParallelism,
+                numSubtasks,
+                subtaskIndex,
+                null,
+                null);
+    }
+
+    public KeyedTwoInputStreamOperatorTestHarness(
+            TwoInputStreamOperator<IN1, IN2, OUT> operator,
+            KeySelector<IN1, K> keySelector1,
+            KeySelector<IN2, K> keySelector2,
+            TypeInformation<K> keyType,
+            int maxParallelism,
+            int numSubtasks,
+            int subtaskIndex,
+            @Nullable TypeSerializer<?> leftSerializer,
+            @Nullable TypeSerializer<?> rightSerializer)
+            throws Exception {
         super(operator, maxParallelism, numSubtasks, subtaskIndex);
 
         ClosureCleaner.clean(keySelector1, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
@@ -51,6 +78,9 @@ public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
         config.setStatePartitioner(1, keySelector2);
         config.setStateKeySerializer(
                 keyType.createSerializer(executionConfig.getSerializerConfig()));
+        if (leftSerializer != null && rightSerializer != null) {
+            config.setupNetworkInputs(leftSerializer, rightSerializer);
+        }
         config.serializeAllConfigs();
     }
 
@@ -73,6 +103,14 @@ public class KeyedTwoInputStreamOperatorTestHarness<K, IN1, IN2, OUT>
                     String.format(
                             "Unsupported keyed state backend: %s",
                             keyedStateBackend.getClass().getCanonicalName()));
+        }
+    }
+
+    public void endAllInputs() throws Exception {
+        TwoInputStreamOperator<IN1, IN2, OUT> op = (TwoInputStreamOperator<IN1, IN2, OUT>) operator;
+        if (op instanceof BoundedMultiInput) {
+            ((BoundedMultiInput) op).endInput(1);
+            ((BoundedMultiInput) op).endInput(2);
         }
     }
 }

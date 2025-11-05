@@ -23,8 +23,9 @@ import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.runtime.asyncprocessing.EpochManager;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
+import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.declare.DeclarationManager;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
@@ -51,7 +52,7 @@ public class ForStStateTestBase {
 
     protected ForStKeyedStateBackend<String> keyedBackend;
 
-    protected AsyncExecutionController<String> aec;
+    protected StateExecutionController<String> aec;
 
     protected MailboxExecutor mailboxExecutor;
 
@@ -76,11 +77,12 @@ public class ForStStateTestBase {
                         new TaskMailboxImpl(), 0, StreamTaskActionExecutor.IMMEDIATE);
 
         aec =
-                new AsyncExecutionController<>(
+                new StateExecutionController<>(
                         mailboxExecutor,
                         (a, b) -> {},
                         keyedBackend.createStateExecutor(),
                         new DeclarationManager(),
+                        EpochManager.ParallelMode.SERIAL_BETWEEN_EPOCH,
                         1,
                         100,
                         0,

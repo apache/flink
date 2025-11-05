@@ -37,7 +37,7 @@ public class DeclarativeSlotPoolBridgeServiceFactory extends AbstractSlotPoolSer
             @Nonnull Duration slotIdleTimeout,
             @Nonnull Duration batchSlotTimeout,
             @Nonnull Duration slotRequestMaxInterval,
-            boolean slotBatchAllocatable,
+            boolean deferSlotAllocation,
             @Nonnull RequestSlotMatchingStrategy requestSlotMatchingStrategy) {
         super(
                 clock,
@@ -45,7 +45,7 @@ public class DeclarativeSlotPoolBridgeServiceFactory extends AbstractSlotPoolSer
                 slotIdleTimeout,
                 batchSlotTimeout,
                 slotRequestMaxInterval,
-                slotBatchAllocatable);
+                deferSlotAllocation);
         this.requestSlotMatchingStrategy = requestSlotMatchingStrategy;
     }
 
@@ -64,7 +64,7 @@ public class DeclarativeSlotPoolBridgeServiceFactory extends AbstractSlotPoolSer
                 batchSlotTimeout,
                 requestSlotMatchingStrategy,
                 slotRequestMaxInterval,
-                slotBatchAllocatable,
+                deferSlotAllocation,
                 componentMainThreadExecutor);
     }
 }

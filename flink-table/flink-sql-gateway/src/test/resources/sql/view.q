@@ -91,8 +91,8 @@ CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`v1` (
   `ts`,
   `ptime`
 )
-AS SELECT *
-FROM `default_catalog`.`default_database`.`orders`
+AS SELECT `orders`.`user`, `orders`.`product`, `orders`.`amount`, `orders`.`ts`, `orders`.`ptime`
+FROM `default_catalog`.`default_database`.`orders` AS `orders`
 !ok
 
 # test show create a temporary view reference another view
@@ -105,8 +105,8 @@ CREATE TEMPORARY VIEW `default_catalog`.`default_database`.`v2` (
   `ts`,
   `ptime`
 )
-AS SELECT *
-FROM `default_catalog`.`default_database`.`v1`
+AS SELECT `v1`.`user`, `v1`.`product`, `v1`.`amount`, `v1`.`ts`, `v1`.`ptime`
+FROM `default_catalog`.`default_database`.`v1` AS `v1`
 !ok
 
 show tables;
@@ -178,8 +178,8 @@ CREATE VIEW `default_catalog`.`default_database`.`permanent_v1` (
   `ts`,
   `ptime`
 )
-AS SELECT *
-FROM `default_catalog`.`default_database`.`orders`
+AS SELECT `orders`.`user`, `orders`.`product`, `orders`.`amount`, `orders`.`ts`, `orders`.`ptime`
+FROM `default_catalog`.`default_database`.`orders` AS `orders`
 !ok
 
 # remove permanent_v1 view

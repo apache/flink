@@ -37,6 +37,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.apache.flink.state.forst.fs.ForStFileSystemUtils.isParentDir;
+
 /**
  * A manager to manage file mapping of forst file system, including misc file mapping (remote file
  * -> local file) and linked mapping (remote file -> remote file). Note, the key/value of mapping
@@ -307,24 +309,6 @@ public class FileMappingManager {
     @VisibleForTesting
     public @Nullable MappingEntry mappingEntry(String path) {
         return mappingTable.getOrDefault(path, null);
-    }
-
-    private boolean isParentDir(@Nullable Path path, String dir) {
-        if (path == null) {
-            return false;
-        }
-        return isParentDir(path.toString(), dir);
-    }
-
-    private boolean isParentDir(String path, String dir) {
-        if (dir.isEmpty()) {
-            return false;
-        }
-        if (dir.charAt(dir.length() - 1) == '/') {
-            return path.startsWith(dir);
-        } else {
-            return (path.startsWith(dir + "/"));
-        }
     }
 
     public void giveUpOwnership(Path path, StreamStateHandle stateHandle) {

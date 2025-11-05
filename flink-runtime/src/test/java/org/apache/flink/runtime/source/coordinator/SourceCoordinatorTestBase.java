@@ -39,6 +39,7 @@ import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -139,6 +140,22 @@ abstract class SourceCoordinatorTestBase {
                 subtask,
                 attemptNumber,
                 new ReaderRegistrationEvent(subtask, createLocationFor(subtask, attemptNumber)));
+    }
+
+    protected void registerReader(
+            SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>> coordinator,
+            int subtask,
+            int attemptNumber,
+            List<MockSourceSplit> splits)
+            throws IOException {
+        coordinator.handleEventFromOperator(
+                subtask,
+                attemptNumber,
+                ReaderRegistrationEvent.createReaderRegistrationEvent(
+                        subtask,
+                        createLocationFor(subtask, attemptNumber),
+                        splits,
+                        new MockSourceSplitSerializer()));
     }
 
     static String createLocationFor(int subtask, int attemptNumber) {

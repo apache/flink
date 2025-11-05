@@ -113,6 +113,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         self.assertEqual(interval, 30000)
 
     def test_get_set_checkpointing_mode(self):
+        self.env.enable_checkpointing(1000)
         mode = self.env.get_checkpointing_mode()
         self.assertEqual(mode, CheckpointingMode.EXACTLY_ONCE)
 
@@ -388,26 +389,37 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
 
         requirements_dir_path = os.path.join(tmp_dir, "requirements_dir_" + str(uuid.uuid4()))
         os.mkdir(requirements_dir_path)
-        package_file_name = "python-package1-0.0.0.tar.gz"
+        package_file_name = "python_package1-0.0.0-py2.py3-none-any.whl"
         with open(os.path.join(requirements_dir_path, package_file_name), 'wb') as f:
             import base64
             # This base64 data is encoded from a python package file which includes a
             # "python_package1" module. The module contains a "plus(a, b)" function.
             # The base64 can be recomputed by following code:
-            # base64.b64encode(open("python-package1-0.0.0.tar.gz", "rb").read()).decode("utf-8")
+            # base64.b64encode(open("python_package1-0.0.0-py2.py3-none-any.whl", "rb").read())
+            # .decode("utf-8")
             f.write(base64.b64decode(
-                "H4sICNefrV0C/2Rpc3QvcHl0aG9uLXBhY2thZ2UxLTAuMC4wLnRhcgDtmVtv2jAYhnPtX2H1CrRCY+ckI"
-                "XEx7axuUA11u5imyICTRc1JiVnHfv1MKKWjYxwKEdPehws7xkmUfH5f+3PyqfqWpa1cjG5EKFnLbOvfhX"
-                "FQTI3nOPPSdavS5Pa8nGMwy3Esi3ke9wyTObbnGNQxamBSKlFQavzUryG8ldG6frpbEGx4yNmDLMp/hPy"
-                "P8b+6fNN613vdP1z8XdteG3+ug/17/F3Hcw1qIv5H54NUYiyUaH2SRRllaYeytkl6IpEdujI2yH2XapCQ"
-                "wSRJRDHt0OveZa//uUfeZonUvUO5bHo+0ZcoVo9bMhFRvGx9H41kWj447aUsR0WUq+pui8arWKggK5Jli"
-                "wGOo/95q79ovXi6/nfyf246Dof/n078fT9KI+X77Xx6BP83bX4Xf5NxT7dz7toO/L8OxjKgeTwpG+KcDp"
-                "sdQjWFVJMipYI+o0MCk4X/t2UYtqI0yPabCHb3f861XcD/Ty/+Y5nLdCzT0dSPo/SmbKsf6un+b7KV+Ls"
-                "W4/D/OoC9w/930P9eGwM75//csrD+Q/6P/P/k9D/oX3988Wqw1bS/tf6tR+s/m3EG/ddBqXO9XKf15C8p"
-                "P9k4HZBtBgzZaVW5vrfKcj+W32W82ygEB9D/Xu9+4/qfP9L/rBv0X1v87yONKRX61/qfzwqjIDzIPTbv/"
-                "7or3/88i0H/tfBFW7s/s/avRInQH06ieEy7tDrQeYHUdRN7wP+n/vf62LOH/pld7f9xz7a5Pfufedy0oP"
-                "86iJI8KxStAq6yLC4JWdbbVbWRikR2z1ZGytk5vauW3QdnBFE6XqwmykazCesAAAAAAAAAAAAAAAAAAAA"
-                "AAAAAAAAAAAAAAOBw/AJw5CHBAFAAAA=="))
+                "UEsDBBQAAAAIAOZ4XVtBFc0kIQAAACEAAAAbAAAAcHl0aG9uX3BhY2thZ2UxL19faW5pdF9fLnB5S0lN"
+                "UyjIKS3WSNRRSNK04lIAgqLUktKiPIVEBW2FJC4AUEsDBBQAAAAIAKF6XVukEBq3VwAAAGsAAAAoAAAA"
+                "cHl0aG9uX3BhY2thZ2UxLTAuMC4wLmRpc3QtaW5mby9NRVRBREFUQfNNLUlMSSxJ1A1LLSrOzM+zUjDS"
+                "M+HyS8xNtVIoqCzJyM+LL0hMzk5MTzXkgisx0ANCrqDUwtLMotRi3QCwOisFO1tjPXMul8q8xNzMZCuF"
+                "Ipg8xBwuAFBLAwQUAAAACAChel1bdH4ECGAAAABtAAAAJQAAAHB5dGhvbl9wYWNrYWdlMS0wLjAuMC5k"
+                "aXN0LWluZm8vV0hFRUwLz0hNzdENSy0qzszPs1Iw1DPgck/NSy1KLMkvslIoTi0pLSjJz88pVtCwMNCz"
+                "1DPQ5ArKzy/R9SzWDSgtSs3JTLJSKCkqTeUKSUy3UiioNNLNy89L1U3Mq4SJGCNEuABQSwMEFAAAAAgA"
+                "oXpdW1EvA6oSAAAAEAAAAC0AAABweXRob25fcGFja2FnZTEtMC4wLjAuZGlzdC1pbmZvL3RvcF9sZXZl"
+                "bC50eHQrqCzJyM+LL0hMzk5MTzXkAgBQSwMEFAAAAAgAoXpdW/BQKAgDAQAAnAEAACYAAABweXRob25f"
+                "cGFja2FnZTEtMC4wLjAuZGlzdC1pbmZvL1JFQ09SRIXNvXaCMABA4d1nIRqUnzp0iDEewYKECmiXnFjA"
+                "oAihBJE+fdvBoZPn7t+VgxJ1xST/vPBTpk8YK6pCMTaWg9YKPjWt11uSu8fvpCNiAJ591gPf7sMNWoF9"
+                "R9fGfoXaKSeCU9/stdlsJP+LAI7/SotWgaLK64lHdmiJdujBq7hz7DxWQHHAaex/oMXMuMAdpRXxOG2u"
+                "wrQTeA/wgmg6tJ/6yZqQtwfu+onQV1c9SnuHxtA2TyWuDC/ucNjCtlau0wDX+jrecfSLz5/iqpaszG5Z"
+                "OVZ39Zgc/Jdz4LbbOXKtgxM1JTa2rMrOMsVyA8W7pBBsTrQJlKHp1tNHSPA2XGra6AdQSwECFAMUAAAA"
+                "CADmeF1bQRXNJCEAAAAhAAAAGwAAAAAAAAAAAAAApIEAAAAAcHl0aG9uX3BhY2thZ2UxL19faW5pdF9f"
+                "LnB5UEsBAhQDFAAAAAgAoXpdW6QQGrdXAAAAawAAACgAAAAAAAAAAAAAAKSBWgAAAHB5dGhvbl9wYWNr"
+                "YWdlMS0wLjAuMC5kaXN0LWluZm8vTUVUQURBVEFQSwECFAMUAAAACAChel1bdH4ECGAAAABtAAAAJQAA"
+                "AAAAAAAAAAAApIH3AAAAcHl0aG9uX3BhY2thZ2UxLTAuMC4wLmRpc3QtaW5mby9XSEVFTFBLAQIUAxQA"
+                "AAAIAKF6XVtRLwOqEgAAABAAAAAtAAAAAAAAAAAAAACkgZoBAABweXRob25fcGFja2FnZTEtMC4wLjAu"
+                "ZGlzdC1pbmZvL3RvcF9sZXZlbC50eHRQSwECFAMUAAAACAChel1b8FAoCAMBAACcAQAAJgAAAAAAAAAA"
+                "AAAAtIH3AQAAcHl0aG9uX3BhY2thZ2UxLTAuMC4wLmRpc3QtaW5mby9SRUNPUkRQSwUGAAAAAAUABQCh"
+                "AQAAPgMAAAAA"))
         env.set_python_requirements(requirements_txt_path, requirements_dir_path)
 
         def add_one(i):

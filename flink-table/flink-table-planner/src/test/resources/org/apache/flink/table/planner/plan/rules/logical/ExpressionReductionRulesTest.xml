@@ -16,6 +16,40 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testExpressionReductionWithNonReducibleMultipleUDF">
+    <Resource name="sql">
+      <![CDATA[SELECT MyUdf2(MyUdf1(1)), MyUdf1(MyUdf2(1)) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[MyUdf2(MyUdf1(1))], EXPR$1=[MyUdf1(MyUdf2(1))])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[MyUdf2(MyUdf1(1)) AS EXPR$0, MyUdf1(MyUdf2(1)) AS EXPR$1])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testExpressionReductionWithNonReducibleUDF">
+    <Resource name="sql">
+      <![CDATA[SELECT MyUdf(1) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[MyUdf(1)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[MyUdf(1) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testExpressionReductionWithPythonUDF">
     <Resource name="sql">
       <![CDATA[SELECT PyUdf(), MyUdf(1) FROM MyTable]]>
@@ -47,23 +81,6 @@ LogicalProject(EXPR$0=[RAND()], EXPR$1=[RAND()], EXPR$2=[RAND(1)], EXPR$3=[RAND(
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[RAND() AS EXPR$0, RAND() AS EXPR$1, RAND(1) AS EXPR$2, RAND(1) AS EXPR$3, RAND_INTEGER(3) AS EXPR$4, RAND_INTEGER(3) AS EXPR$5])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testExpressionReductionWithUDF">
-    <Resource name="sql">
-      <![CDATA[SELECT MyUdf(1) FROM MyTable]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[MyUdf(1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[CAST(2 AS INTEGER) AS EXPR$0])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -102,38 +119,21 @@ Calc(select=[myUdf(+(1, 1)) AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testExpressionReductionWithNonReducibleUDF">
-	<Resource name="sql">
-		<![CDATA[SELECT MyUdf(1) FROM MyTable]]>
-	</Resource>
-	<Resource name="ast">
-		<![CDATA[
+  <TestCase name="testExpressionReductionWithUDF">
+    <Resource name="sql">
+      <![CDATA[SELECT MyUdf(1) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
 LogicalProject(EXPR$0=[MyUdf(1)])
 +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
-	</Resource>
-	<Resource name="optimized rel plan">
-		<![CDATA[
-Calc(select=[MyUdf(1) AS EXPR$0])
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[CAST(2 AS INTEGER) AS EXPR$0])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
-	</Resource>
-  </TestCase>
-  <TestCase name="testExpressionReductionWithNonReducibleMultipleUDF">
-	<Resource name="sql">
-		<![CDATA[SELECT MyUdf2(MyUdf1(1)), MyUdf1(MyUdf2(1)) FROM MyTable]]>
-	</Resource>
-	<Resource name="ast">
-		<![CDATA[
-LogicalProject(EXPR$0=[MyUdf2(MyUdf1(1))], EXPR$1=[MyUdf1(MyUdf2(1))])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-	</Resource>
-	<Resource name="optimized rel plan">
-		<![CDATA[
-Calc(select=[MyUdf2(MyUdf1(1)) AS EXPR$0, MyUdf1(MyUdf2(1)) AS EXPR$1])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-	</Resource>
+    </Resource>
   </TestCase>
 </Root>

@@ -18,10 +18,14 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
+import org.apache.flink.types.RowKind;
+
+import java.util.stream.IntStream;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecJoin}. */
 public class JoinTestPrograms {
@@ -39,6 +43,64 @@ public class JoinTestPrograms {
     public static final TableTestProgram SEMI_JOIN;
     public static final TableTestProgram ANTI_JOIN;
     public static final TableTestProgram JOIN_WITH_STATE_TTL_HINT;
+    public static final TableTestProgram SEMI_ANTI_JOIN_WITH_LITERAL_AGG;
+
+    public static final TableTestProgram OUTER_JOIN_CHANGELOG_TEST =
+            TableTestProgram.of("join-duplicate-emission-bug", "bug with CTE and left join")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("upsert_table_with_duplicates")
+                                    .addSchema(
+                                            "`execution_plan_id` VARCHAR(2147483647) NOT NULL",
+                                            "`workflow_id` VARCHAR(2147483647) NOT NULL",
+                                            "`event_section_id` VARCHAR(2147483647) NOT NULL",
+                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`execution_plan_id`, `event_section_id`) NOT ENFORCED")
+                                    .addOption("changelog-mode", "I, UA,D")
+                                    .producedValues(
+                                            IntStream.range(0, 13)
+                                                    .mapToObj(
+                                                            i ->
+                                                                    Row.ofKind(
+                                                                            RowKind.UPDATE_AFTER,
+                                                                            "section_id_1",
+                                                                            "section_id_2",
+                                                                            "section_id_3"))
+                                                    .toArray(Row[]::new))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema("event_element_id STRING", "cnt BIGINT")
+                                    .testMaterializedData()
+                                    .consumedValues(Row.of("pk-1", 1), Row.of("pk-2", 1))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink WITH\n"
+                                    + "    section_detail as (\n"
+                                    + "        SELECT s.event_section_id\n"
+                                    + "        \n"
+                                    + "        FROM upsert_table_with_duplicates s\n"
+                                    + "    ),\n"
+                                    + "\n"
+                                    + "    event_element as (\n"
+                                    + "        SELECT\n"
+                                    + "            ed.id as event_element_id\n"
+                                    + "        FROM (\n"
+                                    + "          SELECT\n"
+                                    + "                 'pk-2' id,\n"
+                                    + "                 'section_id_3' section_id\n"
+                                    + "           UNION ALL\n"
+                                    + "          SELECT\n"
+                                    + "                 'pk-1' id,\n"
+                                    + "                 'section_id_3' section_id\n"
+                                    + "        ) ed  \n"
+                                    + "        LEFT JOIN\n"
+                                    + "            section_detail as s\n"
+                                    + "            ON s.event_section_id = ed.section_id\n"
+                                    + "    )\n"
+                                    + "\n"
+                                    + "SELECT  event_element_id, COUNT(*) cnt\n"
+                                    + "FROM event_element\n"
+                                    + "GROUP BY event_element_id")
+                    .build();
 
     static final SourceTestStep EMPLOYEE =
             SourceTestStep.newBuilder("EMPLOYEE")
@@ -464,6 +526,40 @@ public class JoinTestPrograms {
                                 String.format(
                                         "INSERT INTO MySink SELECT /*+ STATE_TTL('v1' = '1d', 'v2' = '4d'), STATE_TTL('v2' = '8d') */deptno, department_num FROM (%s) v1 JOIN (%s) v2 ON deptno = department_num",
                                         query1, query2))
+                        .build();
+
+        SEMI_ANTI_JOIN_WITH_LITERAL_AGG =
+                TableTestProgram.of("semi-anti-join-with-literal-agg", "join with literal agg")
+                        .setupTableSource(
+                                SourceTestStep.newBuilder("source_t1")
+                                        .addSchema("a INTEGER", "b BIGINT", "c STRING")
+                                        .producedBeforeRestore(
+                                                Row.of(1, 2L, "3"), Row.of(12, 34L, "56"))
+                                        .build())
+                        .setupTableSource(
+                                SourceTestStep.newBuilder("source_t2")
+                                        .addSchema("d INTEGER", "e BIGINT", "f STRING")
+                                        .producedBeforeRestore(
+                                                Row.of(1, 2L, "3"), Row.of(11, 22L, "33"))
+                                        .build())
+                        .setupTableSource(
+                                SourceTestStep.newBuilder("source_t3")
+                                        .addSchema("i INTEGER", "j BIGINT", "k STRING")
+                                        .producedBeforeRestore(
+                                                Row.of(1, 2L, "3"), Row.of(111, 222L, "333"))
+                                        .build())
+                        .setupTableSink(
+                                SinkTestStep.newBuilder("sink_t")
+                                        .addSchema("b BIGINT")
+                                        .consumedBeforeRestore(
+                                                "+I[2]", "+I[34]", "-D[2]", "-D[34]", "+I[2]",
+                                                "+I[34]")
+                                        .build())
+                        .runSql(
+                                "INSERT INTO sink_t SELECT b FROM source_t1 WHERE"
+                                        + " (CASE WHEN a NOT IN (SELECT i FROM source_t3) THEN 1"
+                                        + " WHEN a NOT IN (SELECT CAST(j AS INTEGER) FROM source_t3) THEN 2 ELSE 3 END)"
+                                        + " NOT IN (SELECT d FROM source_t2 WHERE source_t1.c = source_t2.f)")
                         .build();
     }
 }

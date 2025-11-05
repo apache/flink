@@ -20,6 +20,7 @@ package org.apache.flink.runtime.checkpoint;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 
@@ -31,6 +32,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @see InflightDataGateOrPartitionRescalingDescriptor
  */
 public class InflightDataRescalingDescriptor implements Serializable {
+
+    private static final int[] EMPTY_INT_ARRAY = new int[0];
 
     public static final InflightDataRescalingDescriptor NO_RESCALE = new NoRescalingDescriptor();
 
@@ -45,11 +48,11 @@ public class InflightDataRescalingDescriptor implements Serializable {
     }
 
     public int[] getOldSubtaskIndexes(int gateOrPartitionIndex) {
-        return gateOrPartitionDescriptors[gateOrPartitionIndex].oldSubtaskIndexes;
+        return gateOrPartitionDescriptors[gateOrPartitionIndex].getOldSubtaskInstances();
     }
 
     public RescaleMappings getChannelMapping(int gateOrPartitionIndex) {
-        return gateOrPartitionDescriptors[gateOrPartitionIndex].rescaledChannelsMappings;
+        return gateOrPartitionDescriptors[gateOrPartitionIndex].getRescaleMappings();
     }
 
     public boolean isAmbiguous(int gateOrPartitionIndex, int oldSubtaskIndex) {
@@ -112,6 +115,26 @@ public class InflightDataRescalingDescriptor implements Serializable {
      */
     public static class InflightDataGateOrPartitionRescalingDescriptor implements Serializable {
 
+        public static final InflightDataGateOrPartitionRescalingDescriptor NO_STATE =
+                new InflightDataGateOrPartitionRescalingDescriptor(
+                        EMPTY_INT_ARRAY,
+                        RescaleMappings.SYMMETRIC_IDENTITY,
+                        Collections.emptySet(),
+                        MappingType.IDENTITY) {
+
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public int[] getOldSubtaskInstances() {
+                        return EMPTY_INT_ARRAY;
+                    }
+
+                    @Override
+                    public RescaleMappings getRescaleMappings() {
+                        return RescaleMappings.SYMMETRIC_IDENTITY;
+                    }
+                };
+
         private static final long serialVersionUID = 1L;
 
         /** Set when several operator instances are merged into one. */
@@ -143,6 +166,14 @@ public class InflightDataRescalingDescriptor implements Serializable {
             this.rescaledChannelsMappings = rescaledChannelsMappings;
             this.ambiguousSubtaskIndexes = ambiguousSubtaskIndexes;
             this.mappingType = mappingType;
+        }
+
+        public int[] getOldSubtaskInstances() {
+            return oldSubtaskIndexes;
+        }
+
+        public RescaleMappings getRescaleMappings() {
+            return rescaledChannelsMappings;
         }
 
         public boolean isIdentity() {
@@ -197,7 +228,7 @@ public class InflightDataRescalingDescriptor implements Serializable {
 
         @Override
         public int[] getOldSubtaskIndexes(int gateOrPartitionIndex) {
-            return new int[0];
+            return EMPTY_INT_ARRAY;
         }
 
         @Override

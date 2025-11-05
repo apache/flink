@@ -401,9 +401,9 @@ def extract_stateful_function(
                 return user_defined_func.process_broadcast_element(normal_data[2], ctx)
 
     elif func_type == UserDefinedDataStreamFunction.WINDOW:
-        window_operation_descriptor = (
+        window_operation_descriptor: WindowOperationDescriptor = (
             user_defined_func
-        )  # type: WindowOperationDescriptor
+        )
         window_assigner = window_operation_descriptor.assigner
         window_trigger = window_operation_descriptor.trigger
         allowed_lateness = window_operation_descriptor.allowed_lateness

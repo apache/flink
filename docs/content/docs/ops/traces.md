@@ -33,15 +33,16 @@ Flink exposes a tracing system that allows gathering and exposing traces to exte
 ## Reporting traces
 
 You can access the tracing system from any user function that extends [RichFunction]({{< ref "docs/dev/datastream/user_defined_functions" >}}#rich-functions) by calling `getRuntimeContext().getMetricGroup()`.
-This method returns a `MetricGroup` object via which you can report a new single span trace.
+This method returns a `MetricGroup` object via which you can report a new single trace with tree of spans.
 
 ### Reporting single Span
 
 
-A `Span` represents something that happened in Flink at certain point of time, that will be reported to a `TraceReporter`.
+A `Span` represents some process that happened in Flink at certain point of time for a certain duration, that will be reported to a `TraceReporter`.
 To report a `Span` you can use the `MetricGroup#addSpan(SpanBuilder)` method.
 
-Currently we don't support traces with multiple spans. Each `Span` is self-contained and represents things like a checkpoint or recovery.
+Currently, we support traces with a single tree of spans, but all the children spans have to be reported all at once in one `MetricGroup#addSpan` call.
+You can not report child or parent spans independently.
 {{< tabs "9612d275-bdda-4322-a01f-ae6da805e917" >}}
 {{< tab "Java" >}}
 ```java
@@ -49,10 +50,13 @@ public class MyClass {
     void doSomething() {
         // (...)
         metricGroup.addSpan(
-                Span.builder(MyClass.class, "SomeAction")
-                        .setStartTsMillis(startTs) // Optional
-                        .setEndTsMillis(endTs) // Optional
-                        .setAttribute("foo", "bar");
+            Span.builder(MyClass.class, "SomeAction")
+                .setStartTsMillis(startTs) // Optional
+                .setEndTsMillis(endTs) // Optional
+                .setAttribute("foo", "bar") // Optional
+                .addChild(Span.builder(MyClass.class, "ChildAction") // Optional
+                .addChildren(List.of(
+                    Span.builder(MyClass.class, "AnotherChildAction")); // Optional
     }
 }
 ```

@@ -109,7 +109,7 @@ public class BaseKeyedTwoOutputProcessOperator<KEY, IN, OUT_MAIN, OUT_SIDE>
     }
 
     @Override
-    public boolean isAsyncStateProcessingEnabled() {
+    public boolean isAsyncKeyOrderedProcessingEnabled() {
         return true;
     }
 }

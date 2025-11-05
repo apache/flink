@@ -37,6 +37,7 @@ Flink SQL supports the following ALTER statements for now:
 - ALTER DATABASE
 - ALTER FUNCTION
 - ALTER CATALOG
+- ALTER MODEL
 
 ## Run an ALTER statement
 
@@ -410,13 +411,13 @@ ALTER TABLE MyTable ADD PARTITION (p1=1,p2='a') with ('k1'='v1') PARTITION (p1=1
 ALTER TABLE MyTable ADD DISTRIBUTION BY HASH(uid) INTO 4 BUCKETS;
 
 -- add new distribution on uid into 4 buckets
-CREATE TABLE MyTable ADD DISTRIBUTION BY (uid) INTO 4 BUCKETS;
+ALTER TABLE MyTable ADD DISTRIBUTION BY (uid) INTO 4 BUCKETS;
 
 -- add new distribution on uid.
-CREATE TABLE MyTable ADD DISTRIBUTION BY (uid);
+ALTER TABLE MyTable ADD DISTRIBUTION BY (uid);
 
 -- add new distribution into 4 buckets
-CREATE TABLE MyTable ADD DISTRIBUTION INTO 4 BUCKETS;
+ALTER TABLE MyTable ADD DISTRIBUTION INTO 4 BUCKETS;
 ```
 <span class="label label-danger">Note</span> Add a column to be primary key will change the column's nullability to false implicitly.
 
@@ -603,6 +604,55 @@ The following examples illustrate the usage of the `COMMENT` statements.
 
 ```sql
 ALTER CATALOG cat2 COMMENT 'comment for catalog ''cat2''';
+```
+
+{{< top >}}
+
+## ALTER MODEL
+
+```sql
+ALTER MODEL [IF EXISTS] [catalog_name.][db_name.]model_name 
+    SET (key1=val1, ...)
+  | RESET (key1, ...)
+  | RENAME TO new_model_name
+```
+
+
+### SET
+
+Set one or more properties in the specified model. If a particular property is already set in the model, override the old value with the new one.
+
+The following examples illustrate the usage of the `SET` statements.
+
+```sql
+-- set model properties
+ALTER MODEL MyModel SET ('model-version'='2.0', 'batch-size'='32');
+```
+
+**IF EXISTS**
+
+If the model does not exist, nothing happens.
+
+### RESET
+
+Reset one or more properties to its default value in the specified model.
+
+The following examples illustrate the usage of the `RESET` statements.
+
+```sql
+-- reset model properties
+ALTER MODEL MyModel RESET ('model-version', 'batch-size');
+```
+
+### RENAME TO
+
+Renames a given model to a new name within the same catalog and database.
+
+The following examples illustrate the usage of the `RENAME TO` statements.
+
+```sql
+-- rename model
+ALTER MODEL MyModel RENAME TO NewModel;
 ```
 
 {{< top >}}

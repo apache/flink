@@ -19,11 +19,12 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedReceivingFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ChainedSendingFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.TableAsRowFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.RowSemanticTableFunction;
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions;
 import org.apache.flink.table.test.program.SinkTestStep;
@@ -35,6 +36,7 @@ import org.apache.flink.types.RowKind;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Collections;
 
@@ -81,15 +83,38 @@ public class QueryOperationTestPrograms {
             TableTestProgram.of("values-query-operation", "verifies sql serialization")
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
-                                    .addSchema("a bigint", "b string")
-                                    .consumedValues(Row.of(1L, "abc"), Row.of(2L, "cde"))
+                                    .addSchema("a bigint", "b string", "c time", "d timestamp")
+                                    .consumedValues(
+                                            Row.of(
+                                                    1L,
+                                                    "abc",
+                                                    LocalTime.of(12, 30, 0),
+                                                    LocalDateTime.of(1970, 1, 1, 12, 30, 0)),
+                                            Row.of(
+                                                    2L,
+                                                    "cde",
+                                                    LocalTime.of(18, 0, 0),
+                                                    LocalDateTime.of(1970, 1, 1, 18, 0, 0)))
                                     .build())
-                    .runTableApi(t -> t.fromValues(row(1L, "abc"), row(2L, "cde")), "sink")
+                    .runTableApi(
+                            t ->
+                                    t.fromValues(
+                                            row(
+                                                    1L,
+                                                    "abc",
+                                                    LocalTime.of(12, 30, 0),
+                                                    LocalDateTime.of(1970, 1, 1, 12, 30, 0)),
+                                            row(
+                                                    2L,
+                                                    "cde",
+                                                    LocalTime.of(18, 0, 0),
+                                                    LocalDateTime.of(1970, 1, 1, 18, 0, 0))),
+                            "sink")
                     .runSql(
-                            "SELECT `$$T_VAL`.`f0`, `$$T_VAL`.`f1` FROM (VALUES \n"
-                                    + "    (CAST(1 AS BIGINT), 'abc'),\n"
-                                    + "    (CAST(2 AS BIGINT), 'cde')\n"
-                                    + ") $$T_VAL(`f0`, `f1`)")
+                            "SELECT `$$T_VAL`.`f0`, `$$T_VAL`.`f1`, `$$T_VAL`.`f2`, `$$T_VAL`.`f3` FROM (VALUES \n"
+                                    + "    (CAST(1 AS BIGINT), 'abc', TIME '12:30:00', TIMESTAMP '1970-01-01 12:30:00'),\n"
+                                    + "    (CAST(2 AS BIGINT), 'cde', TIME '18:00:00', TIMESTAMP '1970-01-01 18:00:00')\n"
+                                    + ") $$T_VAL(`f0`, `f1`, `f2`, `f3`)")
                     .build();
 
     static final TableTestProgram FILTER_QUERY_OPERATION =
@@ -1000,9 +1025,14 @@ public class QueryOperationTestPrograms {
                             "sink")
                     .build();
 
-    public static final TableTestProgram TABLE_AS_ROW_PTF =
+    public static final TableTestProgram ROW_SEMANTIC_TABLE_PTF =
             TableTestProgram.of("process-row-table-api", "table with row semantics")
-                    .setupTemporarySystemFunction("f", TableAsRowFunction.class)
+                    // TODO [FLINK-38233]: Remove this config when PTF support in
+                    //  StreamNonDeterministicUpdatePlanVisitor is added.
+                    .setupConfig(
+                            OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                            OptimizerConfigOptions.NonDeterministicUpdateStrategy.IGNORE)
+                    .setupTemporarySystemFunction("f", RowSemanticTableFunction.class)
                     .setupSql(BASIC_VALUES)
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink")
@@ -1025,8 +1055,13 @@ public class QueryOperationTestPrograms {
                             "sink")
                     .build();
 
-    static final TableTestProgram TABLE_AS_SET_PTF =
+    static final TableTestProgram SET_SEMANTIC_TABLE_PTF =
             TableTestProgram.of("partitioned-ptf", "verifies SQL serialization")
+                    // TODO [FLINK-38233]: Remove this config when PTF support in
+                    //  StreamNonDeterministicUpdatePlanVisitor is added.
+                    .setupConfig(
+                            OptimizerConfigOptions.TABLE_OPTIMIZER_NONDETERMINISTIC_UPDATE_STRATEGY,
+                            OptimizerConfigOptions.NonDeterministicUpdateStrategy.IGNORE)
                     .setupTemporarySystemFunction("f1", ChainedSendingFunction.class)
                     .setupTemporarySystemFunction("f2", ChainedReceivingFunction.class)
                     .setupTableSource(TIMED_SOURCE)

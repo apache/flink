@@ -69,6 +69,12 @@ In the gateway mode, the CLI submits the SQL to the specified remote gateway to 
 
 The `<gateway address>` can be provided in two formats: as a `host:port` combination or as a full URL.
 
+You can also override the default job manager configuration in SQL client by explicitly providing the cluster address while initialising the client as below:
+
+```bash
+./bin/sql-client.sh gateway --endpoint <gateway address> -Drest.address=<flink cluster host> -Drest.port=<port>
+```
+
 If you need to pass custom HTTP headers, you can do so by setting the FLINK_REST_CLIENT_HEADERS environment variable. For example:
 
 ```bash
@@ -259,7 +265,7 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
                                                 --pyExecutable
                                                 /usr/local/bin/python3). The
                                                 python UDF worker depends on
-                                                Python 3.8+, Apache Beam
+                                                Python 3.9+, Apache Beam
                                                 (version >= 2.54.0, <= 2.61.0), Pip
                                                 (version >= 20.3) and SetupTools
                                                 (version >= 37.0.0). Please

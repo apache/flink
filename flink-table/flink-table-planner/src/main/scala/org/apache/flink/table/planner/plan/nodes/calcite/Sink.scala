@@ -19,6 +19,8 @@ package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.catalog.ContextResolvedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
+import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec
+import org.apache.flink.table.planner.plan.abilities.sink.TargetColumnWritingSpec
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -42,20 +44,25 @@ import scala.collection.JavaConversions._
  * @param hints
  *   the hints
  * @param targetColumns
- *   the specified target columns.
+ *   the specified target columns. @Deprecated(since = "2.2"), use [[TargetColumnWritingSpec]]
+ *   instead.
  * @param contextResolvedTable
  *   the table definition.
  * @param tableSink
  *   the [[DynamicTableSink]] for which to write into
+ * @param abilitySpecs
+ *   the [[SinkAbilitySpec]]s of this sink
  */
 abstract class Sink(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
     input: RelNode,
     val hints: util.List[RelHint],
+    @deprecated(since = "2.2")
     val targetColumns: Array[Array[Int]],
     val contextResolvedTable: ContextResolvedTable,
-    val tableSink: DynamicTableSink)
+    val tableSink: DynamicTableSink,
+    val abilitySpecs: Array[SinkAbilitySpec])
   extends SingleRel(cluster, traitSet, input) {
 
   override def deriveRowType(): RelDataType = {

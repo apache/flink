@@ -20,9 +20,9 @@ package org.apache.flink.state.forst;
 
 import org.apache.flink.api.common.state.v2.ValueState;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
@@ -130,7 +130,7 @@ public class ForStValueState<K, N, V> extends AbstractValueState<K, N, V>
                         (RecordContext<K>) stateRequest.getRecordContext(),
                         (N) stateRequest.getNamespace());
         return new ForStDBSingleGetRequest<>(
-                contextKey, this, (InternalStateFuture<V>) stateRequest.getFuture());
+                contextKey, this, (InternalAsyncFuture<V>) stateRequest.getFuture());
     }
 
     @SuppressWarnings("unchecked")
@@ -148,6 +148,6 @@ public class ForStValueState<K, N, V> extends AbstractValueState<K, N, V>
                         ? null // "Delete(key)" is equivalent to "Put(key, null)"
                         : (V) stateRequest.getPayload();
         return ForStDBPutRequest.of(
-                contextKey, value, this, (InternalStateFuture<Void>) stateRequest.getFuture());
+                contextKey, value, this, (InternalAsyncFuture<Void>) stateRequest.getFuture());
     }
 }

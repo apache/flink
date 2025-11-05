@@ -72,15 +72,6 @@ public class WatermarkAssignerTestPrograms {
                 DateTimeUtils.toLocalDateTime(1586937628000L))
     };
 
-    static final String[] SOURCE_SCHEMA = {
-        "a INT",
-        "b BIGINT",
-        "c VARCHAR",
-        "ts_string STRING",
-        "ts TIMESTAMP(3)", // row_time
-        "WATERMARK for ts AS ts - INTERVAL '1' SECOND"
-    };
-
     static final String[] SINK_SCHEMA = {"a INT", "b BIGINT", "ts TIMESTAMP(3)"};
 
     static final TableTestProgram WATERMARK_ASSIGNER_BASIC_FILTER =
@@ -89,7 +80,13 @@ public class WatermarkAssignerTestPrograms {
                             "validates watermark assigner with basic filtering")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
-                                    .addSchema(SOURCE_SCHEMA)
+                                    .addSchema(
+                                            "a INT",
+                                            "b BIGINT",
+                                            "c VARCHAR",
+                                            "ts_string STRING",
+                                            "ts TIMESTAMP(3)",
+                                            "WATERMARK for ts AS ts - INTERVAL '1' SECOND")
                                     .producedBeforeRestore(BEFORE_DATA)
                                     .producedAfterRestore(AFTER_DATA)
                                     .build())
@@ -115,7 +112,13 @@ public class WatermarkAssignerTestPrograms {
                                     .addOption("enable-watermark-push-down", "true")
                                     .addOption("readable-metadata", "ts:timestamp(3)")
                                     .addOption("disable-lookup", "true")
-                                    .addSchema(SOURCE_SCHEMA)
+                                    .addSchema(
+                                            "a INT",
+                                            "b BIGINT",
+                                            "c VARCHAR",
+                                            "ts_string STRING",
+                                            "ts TIMESTAMP(3) METADATA",
+                                            "WATERMARK for ts AS ts - INTERVAL '1' SECOND")
                                     .producedBeforeRestore(BEFORE_DATA)
                                     .producedAfterRestore(AFTER_DATA)
                                     .build())
@@ -130,5 +133,49 @@ public class WatermarkAssignerTestPrograms {
                                             "+I[10, 3, 2020-04-15T08:00:28]")
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT a, b, ts FROM source_t WHERE b = 3")
+                    .build();
+
+    static final TableTestProgram WATERMARK_ASSIGNER_PUSHDOWN_COMPUTED =
+            TableTestProgram.of(
+                            "watermark-assigner-pushdown-computed",
+                            "validates watermark assigner with computed column pushdown")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addOption("enable-watermark-push-down", "true")
+                                    .addOption("disable-lookup", "true")
+                                    .addOption("scan.watermark.emit.strategy", "on-event")
+                                    .addSchema(
+                                            "i INT",
+                                            "b BIGINT",
+                                            "s STRING",
+                                            "ts AS TO_TIMESTAMP_LTZ(b, 3)",
+                                            "WATERMARK for ts AS ts - INTERVAL '1' SECOND")
+                                    .producedBeforeRestore(
+                                            Row.of(1, 1L, "a"),
+                                            Row.of(2, 2L, "b"),
+                                            Row.of(3, 3L, "c"))
+                                    .producedAfterRestore(
+                                            Row.of(4, 4L, "d"),
+                                            Row.of(5, 5L, "e"),
+                                            Row.of(6, 6L, "f"))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "i INT",
+                                            "s STRING",
+                                            "ts TIMESTAMP_LTZ(3)",
+                                            "w TIMESTAMP_LTZ(3)")
+                                    .consumedBeforeRestore(
+                                            "+I[1, a, 1970-01-01T00:00:00.001Z, null]",
+                                            "+I[2, b, 1970-01-01T00:00:00.002Z, 1969-12-31T23:59:59.001Z]",
+                                            "+I[3, c, 1970-01-01T00:00:00.003Z, 1969-12-31T23:59:59.002Z]")
+                                    .consumedAfterRestore(
+                                            "+I[4, d, 1970-01-01T00:00:00.004Z, null]",
+                                            "+I[5, e, 1970-01-01T00:00:00.005Z, 1969-12-31T23:59:59.004Z]",
+                                            "+I[6, f, 1970-01-01T00:00:00.006Z, 1969-12-31T23:59:59.005Z]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT i, s, ts, CURRENT_WATERMARK(ts) as w FROM source_t")
                     .build();
 }

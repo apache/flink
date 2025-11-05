@@ -87,7 +87,7 @@ public class BaseKeyedProcessOperator<KEY, IN, OUT> extends ProcessOperator<IN, 
     }
 
     @Override
-    public boolean isAsyncStateProcessingEnabled() {
+    public boolean isAsyncKeyOrderedProcessingEnabled() {
         return true;
     }
 }

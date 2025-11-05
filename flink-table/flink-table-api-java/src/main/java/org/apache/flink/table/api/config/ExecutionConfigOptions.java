@@ -130,6 +130,16 @@ public class ExecutionConfigOptions {
                                     + "will match the one defined by the length of their respective "
                                     + "CHAR/VARCHAR/BINARY/VARBINARY column type.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<NestedEnforcer> TABLE_EXEC_SINK_NESTED_CONSTRAINT_ENFORCER =
+            key("table.exec.sink.nested-constraint-enforcer")
+                    .enumType(NestedEnforcer.class)
+                    .defaultValue(NestedEnforcer.IGNORE)
+                    .withDescription(
+                            "Determines if constraints should be enforced for nested fields. Beware that"
+                                    + " enforcing constraints for nested fields adds computational"
+                                    + " overhead especially when iterating through collections");
+
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<UpsertMaterialize> TABLE_EXEC_SINK_UPSERT_MATERIALIZE =
             key("table.exec.sink.upsert-materialize")
@@ -148,6 +158,74 @@ public class ExecutionConfigOptions {
                                                     + "occurs on unique keys. You can also choose no materialization(NONE) "
                                                     + "or force materialization(FORCE).")
                                     .build());
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Long>
+            TABLE_EXEC_SINK_UPSERT_MATERIALIZE_ADAPTIVE_THRESHOLD_LOW =
+                    key("table.exec.sink.upsert-materialize-strategy.adaptive.threshold.low")
+                            .longType()
+                            .noDefaultValue()
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "When using strategy="
+                                                            + SinkUpsertMaterializeStrategy.ADAPTIVE
+                                                            + ", defines the number of entries per key when the implementation is changed from "
+                                                            + SinkUpsertMaterializeStrategy.MAP
+                                                            + " to "
+                                                            + SinkUpsertMaterializeStrategy.VALUE
+                                                            + ". "
+                                                            + "If not specified, Flink uses state-backend specific defaults (300 for hashmap state backend and 40 for RocksDB and the rest).")
+                                            .linebreak()
+                                            .build());
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Long>
+            TABLE_EXEC_SINK_UPSERT_MATERIALIZE_ADAPTIVE_THRESHOLD_HIGH =
+                    key("table.exec.sink.upsert-materialize-strategy.adaptive.threshold.high")
+                            .longType()
+                            .noDefaultValue()
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "When using strategy="
+                                                            + SinkUpsertMaterializeStrategy.ADAPTIVE
+                                                            + ", defines the number of entries per key when the implementation is changed from "
+                                                            + SinkUpsertMaterializeStrategy.VALUE
+                                                            + " to "
+                                                            + SinkUpsertMaterializeStrategy.MAP
+                                                            + ". "
+                                                            + "If not specified, Flink uses state-backend specific defaults (400 for hashmap state backend and 50 for RocksDB and the rest).")
+                                            .linebreak()
+                                            .build());
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<SinkUpsertMaterializeStrategy>
+            TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY =
+                    key("table.exec.sink.upsert-materialize-strategy.type")
+                            .enumType(SinkUpsertMaterializeStrategy.class)
+                            .defaultValue(SinkUpsertMaterializeStrategy.LEGACY)
+                            .withDescription(
+                                    Description.builder()
+                                            .text(
+                                                    "Which strategy of SinkUpsertMaterializer to use. Supported strategies:")
+                                            .linebreak()
+                                            .text(
+                                                    SinkUpsertMaterializeStrategy.LEGACY
+                                                            + ": Simple implementation based on ValueState<List> (the original implementation).")
+                                            .linebreak()
+                                            .text(
+                                                    SinkUpsertMaterializeStrategy.MAP
+                                                            + ": SequencedMultiSetState implementation based on a combination of several MapState maintaining ordering and fast lookup properties.")
+                                            .linebreak()
+                                            .text(
+                                                    SinkUpsertMaterializeStrategy.VALUE
+                                                            + ": Similar to LEGACY, but compatible with MAP and therefore allows to switch to ADAPTIVE.")
+                                            .linebreak()
+                                            .text(
+                                                    SinkUpsertMaterializeStrategy.ADAPTIVE
+                                                            + ": Alternate between MAP and VALUE depending on the number of entries for the given key starting with VALUE and switching to MAP upon reaching threshold.high value (and back to VALUE, when reaching low).")
+                                            .build());
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<SinkKeyedShuffle> TABLE_EXEC_SINK_KEYED_SHUFFLE =
@@ -365,6 +443,19 @@ public class ExecutionConfigOptions {
     //  Async Lookup Options
     // ------------------------------------------------------------------------
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED =
+            key("table.exec.async-lookup.key-ordered-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "When true, async lookup joins would follow the upsert key order in cdc streams. "
+                                    + "If there is no defined upsert key, then the total record is considered as the upsert key. "
+                                    + "Setting this for insert-only streams has no effect because record in insert-only streams is "
+                                    + "independent and does not affect the state of previous records. "
+                                    + "Besides, since records in insert-only streams typically do not involve a primary key then "
+                                    + "no upsertKey can be derived. This makes them be unordered processed even if key ordered enabled.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_LOOKUP_BUFFER_CAPACITY =
             key("table.exec.async-lookup.buffer-capacity")
                     .intType()
@@ -394,12 +485,13 @@ public class ExecutionConfigOptions {
     //  Async Scalar Function
     // ------------------------------------------------------------------------
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
-    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_SCALAR_BUFFER_CAPACITY =
-            key("table.exec.async-scalar.buffer-capacity")
+    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_SCALAR_MAX_CONCURRENT_OPERATIONS =
+            key("table.exec.async-scalar.max-concurrent-operations")
                     .intType()
                     .defaultValue(10)
+                    .withDeprecatedKeys("table.exec.async-scalar.buffer-capacity")
                     .withDescription(
-                            "The max number of async i/o operation that the async lookup join can trigger.");
+                            "The max number of async i/o operation that the async scalar function can trigger.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_SCALAR_TIMEOUT =
@@ -432,6 +524,119 @@ public class ExecutionConfigOptions {
                     .withDescription(
                             "The max number of async retry attempts to make before task "
                                     + "execution is failed.");
+
+    // ------------------------------------------------------------------------
+    //  Async Table Function
+    // ------------------------------------------------------------------------
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_TABLE_MAX_CONCURRENT_OPERATIONS =
+            key("table.exec.async-table.max-concurrent-operations")
+                    .intType()
+                    .defaultValue(10)
+                    .withDescription(
+                            "The max number of concurrent async i/o operations that the async table function can trigger.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_TABLE_TIMEOUT =
+            key("table.exec.async-table.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(3))
+                    .withDescription(
+                            "The async timeout for the asynchronous operation to complete, including any retries which may occur.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<RetryStrategy> TABLE_EXEC_ASYNC_TABLE_RETRY_STRATEGY =
+            key("table.exec.async-table.retry-strategy")
+                    .enumType(RetryStrategy.class)
+                    .defaultValue(RetryStrategy.FIXED_DELAY)
+                    .withDescription(
+                            "Restart strategy which will be used, FIXED_DELAY by default.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_TABLE_RETRY_DELAY =
+            key("table.exec.async-table.retry-delay")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(100))
+                    .withDescription("The delay to wait before trying again.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Integer> TABLE_EXEC_ASYNC_TABLE_MAX_RETRIES =
+            key("table.exec.async-table.max-retries")
+                    .intType()
+                    .defaultValue(3)
+                    .withDescription(
+                            "The max number of async retry attempts to make before task "
+                                    + "execution is failed.");
+
+    // ------------------------------------------------------------------------
+    //  Async ML_PREDICT Options
+    // ------------------------------------------------------------------------
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Integer>
+            TABLE_EXEC_ASYNC_ML_PREDICT_MAX_CONCURRENT_OPERATIONS =
+                    key("table.exec.async-ml-predict.max-concurrent-operations")
+                            .intType()
+                            .defaultValue(10)
+                            .withDescription(
+                                    "The max number of async i/o operation that the async ml predict can trigger.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_ML_PREDICT_TIMEOUT =
+            key("table.exec.async-ml-predict.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(3))
+                    .withDescription(
+                            "The async timeout for the asynchronous operation to complete. If the deadline fails, a timeout exception will be thrown to indicate the error.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<AsyncOutputMode> TABLE_EXEC_ASYNC_ML_PREDICT_OUTPUT_MODE =
+            key("table.exec.async-ml-predict.output-mode")
+                    .enumType(AsyncOutputMode.class)
+                    .defaultValue(AsyncOutputMode.ORDERED)
+                    .withDescription(
+                            "Output mode for async ML predict, which describes whether or not the the output should attempt to be ordered or not. The supported options are: "
+                                    + "ALLOW_UNORDERED means the operator emit the result when execution finishes. The planner will attempt use ALLOW_UNORDERED whn it doesn't affect "
+                                    + "the correctness of the results.\n"
+                                    + "ORDERED ensures that the operator emits the result in the same order as the data enters it. This is the default.");
+
+    // ------------------------------------------------------------------------
+    //  Async VECTOR_SEARCH Options
+    // ------------------------------------------------------------------------
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Integer>
+            TABLE_EXEC_ASYNC_VECTOR_SEARCH_MAX_CONCURRENT_OPERATIONS =
+                    key("table.exec.async-vector-search.max-concurrent-operations")
+                            .intType()
+                            .defaultValue(10)
+                            .withDescription(
+                                    "The max number of async i/o operation that the async vector search can trigger.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Duration> TABLE_EXEC_ASYNC_VECTOR_SEARCH_TIMEOUT =
+            key("table.exec.async-vector-search.timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(3))
+                    .withDescription(
+                            "The total time which can pass before the invocation (including "
+                                    + "retries) is considered timed out and task execution is failed.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<AsyncOutputMode> TABLE_EXEC_ASYNC_VECTOR_SEARCH_OUTPUT_MODE =
+            key("table.exec.async-vector-search.output-mode")
+                    .enumType(AsyncOutputMode.class)
+                    .defaultValue(AsyncOutputMode.ORDERED)
+                    .withDescription(
+                            "Output mode for async vector search, which describes whether or not "
+                                    + "the output should attempt to be ordered or not.\n"
+                                    + "The supported options are:\n"
+                                    + "ALLOW_UNORDERED means the operator emits the result when "
+                                    + "execution finishes. The planner will attempt to use "
+                                    + "ALLOW_UNORDERED when it doesn't affect the correctness of "
+                                    + "the results.\n"
+                                    + "ORDERED means that the operator emits the result in the "
+                                    + "same order as the data enters it. This is the default.");
 
     // ------------------------------------------------------------------------
     //  MiniBatch Options
@@ -626,6 +831,33 @@ public class ExecutionConfigOptions {
                             "Set whether to use the SQL/Table operators based on the asynchronous state api. "
                                     + "Default value is false.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_DELTA_JOIN_CACHE_ENABLED =
+            key("table.exec.delta-join.cache-enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Whether to enable the cache of delta join. If enabled, the delta join caches the "
+                                    + "records from remote dim table. Default is true.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Long> TABLE_EXEC_DELTA_JOIN_LEFT_CACHE_SIZE =
+            key("table.exec.delta-join.left.cache-size")
+                    .longType()
+                    .defaultValue(10000L)
+                    .withDescription(
+                            "The cache size used to cache the lookup results of the left table in delta join. "
+                                    + "This value must be positive when enabling cache. Default is 10000.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Long> TABLE_EXEC_DELTA_JOIN_RIGHT_CACHE_SIZE =
+            key("table.exec.delta-join.right.cache-size")
+                    .longType()
+                    .defaultValue(10000L)
+                    .withDescription(
+                            "The cache size used to cache the lookup results of the right table in delta join. "
+                                    + "This value must be positive when enabling cache. Default is 10000.");
+
     // ------------------------------------------------------------------------------------------
     // Enum option types
     // ------------------------------------------------------------------------------------------
@@ -665,11 +897,40 @@ public class ExecutionConfigOptions {
         TRIM_PAD(
                 text(
                         "Trim and pad string and binary values to match the length "
-                                + "defined by the CHAR/VARCHAR/BINARY/VARBINARY length."));
+                                + "defined by the CHAR/VARCHAR/BINARY/VARBINARY length.")),
+        ERROR(
+                text(
+                        "Throw a runtime exception when writing data into a "
+                                + "CHAR/VARCHAR/BINARY/VARBINARY column which does not match the length"
+                                + " constraint"));
 
         private final InlineElement description;
 
         TypeLengthEnforcer(InlineElement description) {
+            this.description = description;
+        }
+
+        @Internal
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /** The enforcer to check the constraints on nested types. */
+    @PublicEvolving
+    public enum NestedEnforcer implements DescribedEnum {
+        IGNORE(text("Don't perform check on nested types in ROWS/ARRAYS/MAPS")),
+        ROWS(text("Perform checks on nested types in ROWS.")),
+        ROWS_AND_COLLECTIONS(
+                text(
+                        "Perform checks on nested types in ROWS/ARRAYS/MAPS. Be aware that the"
+                                + " more checks the more performance impact. Especially checking"
+                                + " types in ARRAYS/MAPS can be expensive."));
+
+        private final InlineElement description;
+
+        NestedEnforcer(InlineElement description) {
             this.description = description;
         }
 
@@ -753,6 +1014,43 @@ public class ExecutionConfigOptions {
 
         /** A fixed delay before retrying again. */
         FIXED_DELAY
+    }
+
+    /** SinkUpsertMaterializer strategy. */
+    @PublicEvolving
+    public enum SinkUpsertMaterializeStrategy {
+        /**
+         * Simple implementation based on {@code ValueState<List>} (the original implementation).
+         *
+         * <ul>
+         *   <li>optimal for cases with history under approx. 100 elements
+         *   <li>limited TTL support (per key granularity, i.e. no expiration for old history
+         *       elements)
+         * </ul>
+         */
+        LEGACY,
+        /**
+         * OrderedMultiSetState-based implementation based on a combination of several MapState
+         * maintaining ordering and fast lookup properties.
+         *
+         * <ul>
+         *   <li>faster and more memory-efficient on long histories
+         *   <li>slower on short histories
+         *   <li>currently, no TTL support (to be added in the future)
+         *   <li>requires more space
+         * </ul>
+         */
+        MAP,
+        /**
+         * Similar to LEGACY, but compatible with MAP and therefore allows to switch to ADAPTIVE.
+         */
+        VALUE,
+        /**
+         * Alternate between MAP and VALUE depending on the number of entries for the given key
+         * starting with VALUE and switching to MAP upon reaching threshold.high value (and back to
+         * VALUE, when reaching low).
+         */
+        ADAPTIVE
     }
 
     /** Determine if CAST operates using the legacy behaviour or the new one. */

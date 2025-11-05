@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.planner.{JInt, JMap}
+import org.apache.flink.table.planner.{JInt, JList, JMap}
 import org.apache.flink.table.planner.functions.sql.SqlTryCastFunction
 import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlock
@@ -364,7 +364,7 @@ object FlinkRexUtil {
   })
 
   /** Expands the RexProgram to projection list and condition. */
-  def expandRexProgram(program: RexProgram): (Seq[RexNode], Option[RexNode]) = {
+  def expandRexProgram(program: RexProgram): (JList[RexNode], Option[RexNode]) = {
     val projection = program.getProjectList.map(program.expandLocalRef)
     val filter = if (program.getCondition != null) {
       Some(program.expandLocalRef(program.getCondition))
@@ -650,6 +650,18 @@ object FlinkRexUtil {
         Some(rel.getRowType));
 
     RexNodeExtractor.extractConjunctiveConditions(filterExpression, rexBuilder, converter);
+  }
+
+  def extractConjunctiveConditions(
+      rexBuilder: RexBuilder,
+      program: RexProgram): util.List[RexNode] = {
+    if (program.getCondition == null) {
+      return util.List.of[RexNode]
+    }
+    val condition = RexUtil.toCnf(
+      rexBuilder,
+      RexUtil.expandSearch(rexBuilder, program, program.expandLocalRef(program.getCondition)))
+    RelOptUtil.conjunctions(condition)
   }
 }
 

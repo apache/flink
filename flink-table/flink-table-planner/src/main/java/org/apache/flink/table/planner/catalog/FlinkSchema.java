@@ -55,6 +55,12 @@ public abstract class FlinkSchema implements Schema {
         return Collections.emptySet();
     }
 
+    public abstract CatalogSchemaModel getModel(String name);
+
+    public Set<String> getModelNames() {
+        return Collections.emptySet();
+    }
+
     @Override
     public Schema snapshot(SchemaVersion version) {
         FlinkSchema schema = this.copy();

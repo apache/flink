@@ -99,7 +99,8 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                         new MockOperatorEventGateway(),
                         1,
                         5,
-                        true);
+                        true,
+                        false);
         operator.initializeState(
                 new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));
 
@@ -145,13 +146,13 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                 createAndOpenSourceOperatorWithIdleness(
                         sourceReader, processingTimeService, idleTimeout);
 
-        /**
-         * Intention behind this setup is that split0 emits a couple of records, while we keep
+        /*
+         * The intention behind this setup is that split0 emits a couple of records, while we keep
          * advancing processing time and keep firing timers. Normally split1 would switch to idle
          * first (it hasn't emitted any records), which would cause a watermark from split0 to be
          * emitted and then WatermarkStatus.IDLE should be emitted after split0 also switches to
-         * idle. However we assert that neither watermark no idle status this doesn't happen due to
-         * the back pressure status.
+         * idle. However, we assert neither watermark nor idle status have been emitted; this
+         * doesn't happen due to the back pressure status.
          */
         MockSourceSplit split0 = new MockSourceSplit(0, 0, 10).addRecord(42).addRecord(44);
         MockSourceSplit split1 = new MockSourceSplit(1, 10, 20);
@@ -191,7 +192,7 @@ class SourceOperatorSplitWatermarkAlignmentTest {
         }
 
         assertThat(dataOutput.getEvents()).contains(WatermarkStatus.IDLE);
-        assertThat(dataOutput.getEvents()).doNotHave(new AnyWatermark());
+        assertThat(dataOutput.getEvents()).haveAtLeastOne(new WatermarkAt(44));
     }
 
     @ParameterizedTest
@@ -547,7 +548,8 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                         new MockOperatorEventGateway(),
                         1,
                         5,
-                        true);
+                        true,
+                        false);
         operator.initializeState(
                 new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));
         operator.open();
@@ -598,6 +600,24 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                     },
                     "watermark value of greater than %d",
                     maxEmittedWatermark);
+        }
+    }
+
+    /** Condition checking if there is a watermark matching a certain value among StreamElements. */
+    public static class WatermarkAt extends Condition<Object> {
+        public WatermarkAt(int emittedWatermark) {
+            super(
+                    event -> {
+                        if (!(event
+                                instanceof org.apache.flink.streaming.api.watermark.Watermark)) {
+                            return false;
+                        }
+                        org.apache.flink.streaming.api.watermark.Watermark w =
+                                (org.apache.flink.streaming.api.watermark.Watermark) event;
+                        return w.getTimestamp() == emittedWatermark;
+                    },
+                    "watermark value of %d",
+                    emittedWatermark);
         }
     }
 

@@ -41,6 +41,7 @@ import org.apache.flink.table.data.columnar.vector.MapColumnVector;
 import org.apache.flink.table.data.columnar.vector.RowColumnVector;
 import org.apache.flink.table.data.columnar.vector.ShortColumnVector;
 import org.apache.flink.table.data.columnar.vector.TimestampColumnVector;
+import org.apache.flink.types.variant.Variant;
 
 import java.util.Arrays;
 
@@ -130,12 +131,18 @@ public final class ColumnarArrayData implements ArrayData, TypedSetters {
     }
 
     @Override
+    public Variant getVariant(int i) {
+        throw new UnsupportedOperationException("Variant is not supported yet.");
+    }
+
+    @Override
     public byte[] getBinary(int pos) {
         BytesColumnVector.Bytes byteArray = getByteArray(pos);
         if (byteArray.len == byteArray.data.length) {
             return byteArray.data;
         } else {
-            return Arrays.copyOfRange(byteArray.data, byteArray.offset, byteArray.len);
+            return Arrays.copyOfRange(
+                    byteArray.data, byteArray.offset, byteArray.offset + byteArray.len);
         }
     }
 

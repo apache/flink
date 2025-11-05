@@ -101,8 +101,9 @@ public class SubtaskExecutionAttemptDetailsHandler
         final JobID jobID = request.getPathParameter(JobIDPathParameter.class);
         final JobVertexID jobVertexID = request.getPathParameter(JobVertexIdPathParameter.class);
 
+        metricFetcher.update();
         return SubtaskExecutionAttemptDetailsInfo.create(
-                execution, metricFetcher, jobID, jobVertexID, null);
+                execution, metricFetcher.getMetricStore().getJobs(), jobID, jobVertexID, null);
     }
 
     @Override

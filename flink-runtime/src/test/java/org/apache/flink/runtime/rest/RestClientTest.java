@@ -31,6 +31,7 @@ import org.apache.flink.runtime.rest.versioning.RuntimeRestAPIVersion;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.CheckedSupplier;
 
@@ -38,8 +39,10 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
 import org.apache.flink.shaded.netty4.io.netty.channel.DefaultSelectStrategyFactory;
+import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.SelectStrategy;
 import org.apache.flink.shaded.netty4.io.netty.channel.SelectStrategyFactory;
+import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -74,7 +77,8 @@ class RestClientTest {
     private static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
             TestingUtils.defaultExecutorExtension();
 
-    private static final String unroutableIp = "240.0.0.0";
+    // Part of TEST-NET-1 block described in RFC 5737 that should never be routed.
+    private static final String unroutableIp = "192.0.2.1";
 
     private static final long TIMEOUT = 10L;
 
@@ -113,6 +117,20 @@ class RestClientTest {
                     .extracting(Throwable::getCause, as(InstanceOfAssertFactories.THROWABLE))
                     .hasMessageContaining(unroutableIp);
         }
+    }
+
+    @Test
+    void testExternalEventGroup() throws Exception {
+        EventLoopGroup externalGroup =
+                new NioEventLoopGroup(
+                        1, new ExecutorThreadFactory("flink-rest-client-netty-external"));
+
+        final RestClient restClient =
+                new RestClient(
+                        new Configuration(), Executors.directExecutor(), null, -1, externalGroup);
+        restClient.closeAsync();
+
+        assertThat(externalGroup.isShuttingDown() || externalGroup.isShutdown()).isFalse();
     }
 
     @Test

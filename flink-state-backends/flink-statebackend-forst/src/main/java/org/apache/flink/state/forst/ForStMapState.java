@@ -22,9 +22,9 @@ import org.apache.flink.api.common.state.v2.State;
 import org.apache.flink.api.common.state.v2.StateIterator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateRequest;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
@@ -164,12 +164,12 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
 
         if (stateRequest.getRequestType() == StateRequestType.MAP_GET) {
             return new ForStDBSingleGetRequest<>(
-                    contextKey, this, (InternalStateFuture<UV>) stateRequest.getFuture());
+                    contextKey, this, (InternalAsyncFuture<UV>) stateRequest.getFuture());
         }
         return new ForStDBMapCheckRequest<>(
                 contextKey,
                 this,
-                (InternalStateFuture<Boolean>) stateRequest.getFuture(),
+                (InternalAsyncFuture<Boolean>) stateRequest.getFuture(),
                 stateRequest.getRequestType() == StateRequestType.MAP_IS_EMPTY);
     }
 
@@ -202,7 +202,7 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
         }
 
         return ForStDBPutRequest.of(
-                contextKey, value, this, (InternalStateFuture<Void>) stateRequest.getFuture());
+                contextKey, value, this, (InternalAsyncFuture<Void>) stateRequest.getFuture());
     }
 
     /**
@@ -271,7 +271,7 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
                         this,
                         stateRequestHandler,
                         rocksIterator,
-                        (InternalStateFuture<StateIterator<Map.Entry<UK, UV>>>)
+                        (InternalAsyncFuture<StateIterator<Map.Entry<UK, UV>>>)
                                 stateRequest.getFuture());
             case MAP_ITER_KEY:
                 return new ForStDBMapKeyIterRequest<>(
@@ -279,14 +279,14 @@ public class ForStMapState<K, N, UK, UV> extends AbstractMapState<K, N, UK, UV>
                         this,
                         stateRequestHandler,
                         rocksIterator,
-                        (InternalStateFuture<StateIterator<UK>>) stateRequest.getFuture());
+                        (InternalAsyncFuture<StateIterator<UK>>) stateRequest.getFuture());
             case MAP_ITER_VALUE:
                 return new ForStDBMapValueIterRequest<>(
                         contextKey,
                         this,
                         stateRequestHandler,
                         rocksIterator,
-                        (InternalStateFuture<StateIterator<UV>>) stateRequest.getFuture());
+                        (InternalAsyncFuture<StateIterator<UV>>) stateRequest.getFuture());
             default:
                 throw new IllegalArgumentException(
                         "Unknown request type: "

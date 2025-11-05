@@ -18,6 +18,8 @@
 from typing import Union
 
 from pyflink.java_gateway import get_gateway
+from pyflink.util.api_stability_decorators import Experimental
+
 from pathlib import Path
 
 __all__ = [
@@ -28,6 +30,7 @@ __all__ = [
 ]
 
 
+@Experimental()
 class PlanReference(object):
     """
     Unresolved pointer to a persisted plan.

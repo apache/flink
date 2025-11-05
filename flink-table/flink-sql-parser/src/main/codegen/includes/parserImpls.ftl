@@ -396,6 +396,7 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
     boolean ifNotExists = false;
     boolean isSystemFunction = false;
     SqlNodeList resourceInfos = SqlNodeList.EMPTY;
+    SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlParserPos functionLanguagePos = null;
 }
 {
@@ -466,6 +467,10 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
         )*
         {  resourceInfos = new SqlNodeList(resourceList, s.pos()); }
     ]
+    [
+        <WITH>
+        propertyList = Properties()
+    ]
     {
         return new SqlCreateFunction(
                     s.pos(),
@@ -475,7 +480,8 @@ SqlCreate SqlCreateFunction(Span s, boolean replace, boolean isTemporary) :
                     ifNotExists,
                     isTemporary,
                     isSystemFunction,
-                    resourceInfos);
+                    resourceInfos,
+                    propertyList);
     }
 }
 
@@ -655,45 +661,8 @@ SqlShowProcedures SqlShowProcedures() :
 }
 
 /**
- * SHOW VIEWS FROM [catalog.] database sql call.
- */
-SqlShowViews SqlShowViews() :
-{
-    SqlIdentifier databaseName = null;
-    SqlCharStringLiteral likeLiteral = null;
-    String prep = null;
-    boolean notLike = false;
-    SqlParserPos pos;
-}
-{
-    <SHOW> <VIEWS>
-    { pos = getPos(); }
-    [
-        ( <FROM> { prep = "FROM"; } | <IN> { prep = "IN"; } )
-        { pos = getPos(); }
-        databaseName = CompoundIdentifier()
-    ]
-    [
-        [
-            <NOT>
-            {
-                notLike = true;
-            }
-        ]
-        <LIKE> <QUOTED_STRING>
-        {
-            String likeCondition = SqlParserUtil.parseString(token.image);
-            likeLiteral = SqlLiteral.createCharString(likeCondition, getPos());
-        }
-    ]
-    {
-        return new SqlShowViews(pos, prep, databaseName, notLike, likeLiteral);
-    }
-}
-
-/**
 * Parses a show tables statement.
-* SHOW TABLES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE pattern ];
+* SHOW ( VIEWS | [ MATERIALIZED ]TABLES ) [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE pattern ];
 */
 SqlShowTables SqlShowTables() :
 {
@@ -702,9 +671,17 @@ SqlShowTables SqlShowTables() :
     String prep = null;
     boolean notLike = false;
     SqlParserPos pos;
+    SqlTableKind kind;
 }
 {
-    <SHOW> <TABLES>
+    <SHOW>
+    (
+           <TABLES> { kind = SqlTableKind.TABLE; }
+       |
+           <VIEWS> { kind = SqlTableKind.VIEW; }
+       |
+           <MATERIALIZED> <TABLES> { kind = SqlTableKind.MATERIALIZED_TABLE; }
+    )
     { pos = getPos(); }
     [
         ( <FROM> { prep = "FROM"; } | <IN> { prep = "IN"; } )
@@ -725,7 +702,7 @@ SqlShowTables SqlShowTables() :
         }
     ]
     {
-        return new SqlShowTables(pos, prep, databaseName, notLike, likeLiteral);
+        return new SqlShowTables(pos, kind, prep, databaseName, notLike, likeLiteral);
     }
 }
 
@@ -799,6 +776,13 @@ SqlShowCreate SqlShowCreate() :
         sqlIdentifier = CompoundIdentifier()
         {
             return new SqlShowCreateModel(pos, sqlIdentifier);
+        }
+    |
+        <MATERIALIZED> <TABLE>
+        { pos = getPos(); }
+        sqlIdentifier = CompoundIdentifier()
+        {
+            return new SqlShowCreateMaterializedTable(pos, sqlIdentifier);
         }
     )
 }
@@ -1876,6 +1860,7 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
     SqlIdentifier tableName;
     SqlCharStringLiteral comment = null;
     SqlTableConstraint constraint = null;
+    SqlDistribution distribution = null;
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNode freshness = null;
@@ -1909,6 +1894,10 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
             String p = SqlParserUtil.parseString(token.image);
             comment = SqlLiteral.createCharString(p, getPos());
         }
+    ]
+    [
+        <DISTRIBUTED>
+        distribution = SqlDistribution(getPos())
     ]
     [
         <PARTITIONED> <BY>
@@ -1948,8 +1937,9 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
         return new SqlCreateMaterializedTable(
             startPos.plus(getPos()),
             tableName,
-            comment,
             constraint,
+            comment,
+            distribution,
             partitionColumns,
             propertyList,
             (SqlIntervalLiteral) freshness,
@@ -2086,6 +2076,25 @@ SqlAlterMaterializedTable SqlAlterMaterializedTable() :
                     startPos.plus(getPos()),
                     tableIdentifier,
                     asQuery);
+            }
+        |
+        <MODIFY> <DISTRIBUTION> {
+                return new SqlAlterMaterializedTableModifyDistribution(
+                startPos.plus(getPos()),
+                tableIdentifier,
+                SqlDistribution(getPos()));
+            }
+        |
+        <DROP> <DISTRIBUTION> {
+                return new SqlAlterMaterializedTableDropDistribution(
+                startPos.plus(getPos()),
+                tableIdentifier);
+            }
+        |
+        <ADD> <DISTRIBUTION> {
+                return new SqlAlterMaterializedTableAddDistribution(
+                startPos.plus(getPos()),
+                tableIdentifier, SqlDistribution(getPos()));
             }
     )
 }
@@ -2490,6 +2499,34 @@ SqlTypeNameSpec ExtendedSqlRowTypeName() :
 }
 
 /**
+ * Parse inline structured type such as STRUCTURED&lt;'className', name1 type1 'comment', name2 type2&gt;.
+ */
+SqlTypeNameSpec SqlStructuredTypeName() :
+{
+    final SqlNode className;
+    final List<SqlIdentifier> fieldNames = new ArrayList<SqlIdentifier>();
+    final List<SqlDataTypeSpec> fieldTypes = new ArrayList<SqlDataTypeSpec>();
+    final List<SqlCharStringLiteral> comments = new ArrayList<SqlCharStringLiteral>();
+}
+{
+    <STRUCTURED>
+    <LT>
+        className = StringLiteral()
+        [
+            <COMMA>ExtendedFieldNameTypeCommaList(fieldNames, fieldTypes, comments)
+        ]
+    <GT>
+    {
+        return new SqlStructuredTypeNameSpec(
+            getPos(),
+            className,
+            fieldNames,
+            fieldTypes,
+            comments);
+    }
+}
+
+/**
  * Those methods should not be used in SQL. They are good for parsing identifiers
  * in Table API. The difference between those identifiers and CompoundIdentifer is
  * that the Table API identifiers ignore any keywords. They are also strictly limited
@@ -2826,6 +2863,8 @@ SqlNode SqlRichExplain() :
         |
         stmt = SqlStatementSet()
         |
+        stmt = SqlExecute()
+        |
         stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
         |
         stmt = RichSqlInsert()
@@ -3061,31 +3100,19 @@ SqlNode SqlReset() :
     }
 }
 
-
-/** Parses a TRY_CAST invocation. */
-SqlNode TryCastFunctionCall() :
+/**
+ * Parses an explicit Model m reference.
+ */
+SqlNode ExplicitModel() :
 {
+    SqlNode modelRef;
     final Span s;
-    final SqlOperator operator;
-    List<SqlNode> args = null;
-    SqlNode e = null;
 }
 {
-    <TRY_CAST> {
-        s = span();
-        operator = new SqlUnresolvedTryCastFunction(s.pos());
-    }
-    <LPAREN>
-        e = Expression(ExprContext.ACCEPT_SUB_QUERY) { args = startList(e); }
-    <AS>
-    (
-        e = DataType() { args.add(e); }
-    |
-        <INTERVAL> e = IntervalQualifier() { args.add(e); }
-    )
-    <RPAREN>
+    <MODEL> modelRef = CompoundIdentifier()
     {
-        return operator.createCall(s.end(this), args);
+        s = span();
+        return new SqlExplicitModelOperator(2).createCall(s.pos(), modelRef);
     }
 }
 
@@ -3274,7 +3301,7 @@ SqlTruncateTable SqlTruncateTable() :
 }
 
 /**
-* SHOW MODELS [FROM [catalog.] database] sql call.
+* SHOW MODELS [FROM [catalog.] database] [[NOT] LIKE pattern]; sql call.
 */
 SqlShowModels SqlShowModels() :
 {
@@ -3313,6 +3340,7 @@ SqlShowModels SqlShowModels() :
 /**
 * ALTER MODEL [IF EXISTS] modelName SET (property_key = property_val, ...)
 * ALTER MODEL [IF EXISTS] modelName RENAME TO newModelName
+* ALTER MODEL [IF EXISTS] modelName RESET (property_key, ...)
 */
 SqlAlterModel SqlAlterModel() :
 {
@@ -3321,6 +3349,7 @@ SqlAlterModel SqlAlterModel() :
     SqlIdentifier modelIdentifier;
     SqlIdentifier newModelIdentifier = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
+    SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
 }
 {
     <ALTER> <MODEL> { startPos = getPos(); }
@@ -3331,7 +3360,7 @@ SqlAlterModel SqlAlterModel() :
         <RENAME> <TO>
         newModelIdentifier = CompoundIdentifier()
         {
-            return new SqlAlterModel(
+            return new SqlAlterModelRename(
                         startPos.plus(getPos()),
                         modelIdentifier,
                         newModelIdentifier,
@@ -3341,11 +3370,21 @@ SqlAlterModel SqlAlterModel() :
         <SET>
         propertyList = Properties()
         {
-            return new SqlAlterModel(
+            return new SqlAlterModelSet(
                         startPos.plus(getPos()),
                         modelIdentifier,
-                        propertyList,
-                        ifExists);
+                        ifExists,
+                        propertyList);
+        }
+    |
+        <RESET>
+        propertyKeyList = PropertyKeys()
+        {
+            return new SqlAlterModelReset(
+                        startPos.plus(getPos()),
+                        modelIdentifier,
+                        ifExists,
+                        propertyKeyList);
         }
     )
 }

@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.runtime.asyncprocessing.AsyncExecutionController;
+import org.apache.flink.runtime.asyncprocessing.StateExecutionController;
 import org.apache.flink.runtime.asyncprocessing.StateRequestType;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperatorTest.TestKeySelector;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperatorV2;
@@ -84,20 +84,20 @@ class AbstractAsyncStateStreamOperatorV2Test {
             testHarness.open();
             assertThat(testHarness.getBaseOperator())
                     .isInstanceOf(AbstractAsyncStateStreamOperatorV2.class);
-            AsyncExecutionController<?> aec =
+            StateExecutionController<?> aec =
                     ((AbstractAsyncStateStreamOperatorV2) testHarness.getBaseOperator())
-                            .getAsyncExecutionController();
+                            .getStateExecutionController();
             assertThat(aec).isNotNull();
             assertThat(((MailboxExecutorImpl) aec.getMailboxExecutor()).getPriority())
                     .isGreaterThan(MIN_PRIORITY);
-            assertThat(aec.getStateExecutor()).isNotNull();
+            assertThat(aec.getAsyncExecutor()).isNotNull();
         }
     }
 
     @Test
-    void testRecordProcessorWithFirstStateOrder() throws Exception {
+    void testRecordProcessorWithFirstRequestOrder() throws Exception {
         try (KeyedOneInputStreamOperatorV2TestHarness<Integer, Tuple2<Integer, String>, String>
-                testHarness = createTestHarness(128, 1, 0, ElementOrder.FIRST_STATE_ORDER)) {
+                testHarness = createTestHarness(128, 1, 0, ElementOrder.FIRST_REQUEST_ORDER)) {
             testHarness.open();
             SingleInputTestOperator testOperator =
                     (SingleInputTestOperator) testHarness.getBaseOperator();
@@ -111,6 +111,7 @@ class AbstractAsyncStateStreamOperatorV2Test {
             // Proceed processing
             testOperator.proceed();
             future.get();
+            testHarness.drainStateRequests();
             assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
         }
     }
@@ -134,6 +135,7 @@ class AbstractAsyncStateStreamOperatorV2Test {
             // Proceed processing
             testOperator.proceed();
             future.get();
+            testHarness.drainStateRequests();
             assertThat(testOperator.getCurrentProcessingContext().getReferenceCount()).isEqualTo(0);
         }
     }
@@ -184,8 +186,8 @@ class AbstractAsyncStateStreamOperatorV2Test {
             testHarness.open();
             SingleInputTestOperator testOperator =
                     (SingleInputTestOperator) testHarness.getBaseOperator();
-            AsyncExecutionController asyncExecutionController =
-                    testOperator.getAsyncExecutionController();
+            StateExecutionController asyncExecutionController =
+                    testOperator.getStateExecutionController();
             testOperator.setAsyncKeyedContextElement(
                     new StreamRecord<>(Tuple2.of(5, "5")), new TestKeySelector());
             asyncExecutionController.handleRequest(null, StateRequestType.VALUE_GET, null);

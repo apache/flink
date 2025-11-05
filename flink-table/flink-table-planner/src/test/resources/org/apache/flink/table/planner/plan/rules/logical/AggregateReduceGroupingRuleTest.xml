@@ -520,6 +520,25 @@ FlinkLogicalCalc(select=[a1, b1, c1, EXPR$3])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testAggWithRollup">
+    <Resource name="sql">
+      <![CDATA[SELECT a1, b1, c1, COUNT(d1) FROM T1 GROUP BY ROLLUP (a1, b1, c1)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1, 2}, {0, 1}, {0}, {}]], EXPR$3=[COUNT($3)])
++- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a1, b1, c1, EXPR$3])
++- FlinkLogicalAggregate(group=[{0, 1, 2, 4}], EXPR$3=[COUNT($3)])
+   +- FlinkLogicalExpand(projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}, {a1, null AS b1, null AS c1, d1, 3 AS $e}, {null AS a1, null AS b1, null AS c1, d1, 7 AS $e}])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testAggWithoutAggCall">
     <Resource name="sql">
       <![CDATA[SELECT a1, b1, c1 FROM T1 GROUP BY a1, b1, c1]]>
@@ -553,25 +572,6 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
 FlinkLogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
 +- FlinkLogicalCalc(select=[a3, b3, c3])
    +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]], fields=[a3, b3, c3, d3])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testAggWithRollup">
-    <Resource name="sql">
-      <![CDATA[SELECT a1, b1, c1, COUNT(d1) FROM T1 GROUP BY ROLLUP (a1, b1, c1)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{0, 1, 2}], groups=[[{0, 1, 2}, {0, 1}, {0}, {}]], EXPR$3=[COUNT($3)])
-+- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-FlinkLogicalCalc(select=[a1, b1, c1, EXPR$3])
-+- FlinkLogicalAggregate(group=[{0, 1, 2, 4}], EXPR$3=[COUNT($3)])
-   +- FlinkLogicalExpand(projects=[{a1, b1, c1, d1, 0 AS $e}, {a1, b1, null AS c1, d1, 1 AS $e}, {a1, null AS b1, null AS c1, d1, 3 AS $e}, {null AS a1, null AS b1, null AS c1, d1, 7 AS $e}])
-      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
   </TestCase>
@@ -696,46 +696,6 @@ FlinkLogicalAggregate(group=[{0}], d1=[AUXILIARY_GROUP($2)], EXPR$2=[COUNT($1) F
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSingleAggOnlyConstantGroupKey">
-    <Resource name="sql">
-      <![CDATA[SELECT count(c1) FROM T1 GROUP BY 1, true]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[$2])
-+- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
-   +- LogicalProject($f0=[1], $f1=[true], c1=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-FlinkLogicalCalc(select=[EXPR$0])
-+- FlinkLogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
-   +- FlinkLogicalCalc(select=[1 AS $f0, c1])
-      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSingleAggOnTableWithoutUniqueKey">
-    <Resource name="sql">
-      <![CDATA[SELECT a3, b3, count(c3) FROM T3 GROUP BY a3, b3]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
-+- LogicalProject(a3=[$0], b3=[$1], c3=[$2])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-FlinkLogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
-+- FlinkLogicalCalc(select=[a3, b3, c3])
-   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]], fields=[a3, b3, c3, d3])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testSingleAggOnTableWithUniqueKey">
     <Resource name="sql">
       <![CDATA[SELECT a1, b1, count(c1) FROM T1 GROUP BY a1, b1]]>
@@ -770,6 +730,46 @@ LogicalAggregate(group=[{0, 1}], EXPR$2=[AVG($2)])
       <![CDATA[
 FlinkLogicalAggregate(group=[{1}], c2=[AUXILIARY_GROUP($2)], EXPR$2=[AVG($0)])
 +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(a2, b2, c2)]]], fields=[a2, b2, c2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleAggOnTableWithoutUniqueKey">
+    <Resource name="sql">
+      <![CDATA[SELECT a3, b3, count(c3) FROM T3 GROUP BY a3, b3]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
++- LogicalProject(a3=[$0], b3=[$1], c3=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
++- FlinkLogicalCalc(select=[a3, b3, c3])
+   +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T3, source: [TestTableSource(a3, b3, c3, d3)]]], fields=[a3, b3, c3, d3])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSingleAggOnlyConstantGroupKey">
+    <Resource name="sql">
+      <![CDATA[SELECT count(c1) FROM T1 GROUP BY 1, true]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$0=[COUNT($2)])
+   +- LogicalProject($f0=[1], $f1=[true], c1=[$2])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[EXPR$0])
++- FlinkLogicalAggregate(group=[{0}], EXPR$0=[COUNT($1)])
+   +- FlinkLogicalCalc(select=[1 AS $f0, c1])
+      +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a1, b1, c1, d1)]]], fields=[a1, b1, c1, d1])
 ]]>
     </Resource>
   </TestCase>

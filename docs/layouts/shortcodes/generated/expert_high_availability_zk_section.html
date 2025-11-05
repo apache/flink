@@ -33,6 +33,12 @@
             <td>Defines the number of connection retries before the client gives up.</td>
         </tr>
         <tr>
+            <td><h5>high-availability.zookeeper.client.max-retry-wait</h5></td>
+            <td style="word-wrap: break-word;">1 min</td>
+            <td>Duration</td>
+            <td>Defines the maximum retry wait time in milliseconds for each attempt. This caps the exponential backoff to prevent excessively long waits between retries.</td>
+        </tr>
+        <tr>
             <td><h5>high-availability.zookeeper.client.retry-wait</h5></td>
             <td style="word-wrap: break-word;">5 s</td>
             <td>Duration</td>

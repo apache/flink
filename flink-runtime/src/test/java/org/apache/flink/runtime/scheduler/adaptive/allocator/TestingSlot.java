@@ -24,14 +24,19 @@ import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 
+import java.util.Collection;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
 /** An implementation of {@link PhysicalSlot}for testing. */
 public class TestingSlot implements PhysicalSlot {
 
     private final AllocationID allocationId;
     private final ResourceProfile resourceProfile;
+    private final TaskManagerLocation taskManagerLocation;
 
     public TestingSlot() {
-        this(new AllocationID(), ResourceProfile.ANY);
+        this(new AllocationID());
     }
 
     public TestingSlot(AllocationID allocationId) {
@@ -42,9 +47,21 @@ public class TestingSlot implements PhysicalSlot {
         this(new AllocationID(), resourceProfile);
     }
 
+    public TestingSlot(TaskManagerLocation tml) {
+        this(new AllocationID(), ResourceProfile.ANY, tml);
+    }
+
     public TestingSlot(AllocationID allocationId, ResourceProfile resourceProfile) {
+        this(allocationId, resourceProfile, new LocalTaskManagerLocation());
+    }
+
+    public TestingSlot(
+            AllocationID allocationId,
+            ResourceProfile resourceProfile,
+            TaskManagerLocation taskManagerLocation) {
         this.allocationId = allocationId;
         this.resourceProfile = resourceProfile;
+        this.taskManagerLocation = taskManagerLocation;
     }
 
     @Override
@@ -54,7 +71,7 @@ public class TestingSlot implements PhysicalSlot {
 
     @Override
     public TaskManagerLocation getTaskManagerLocation() {
-        return new LocalTaskManagerLocation();
+        return taskManagerLocation;
     }
 
     @Override
@@ -80,5 +97,11 @@ public class TestingSlot implements PhysicalSlot {
     @Override
     public boolean tryAssignPayload(Payload payload) {
         throw new UnsupportedOperationException();
+    }
+
+    public static Collection<PhysicalSlot> getSlots(int count) {
+        return IntStream.range(0, count)
+                .mapToObj(v -> new TestingSlot())
+                .collect(Collectors.toList());
     }
 }

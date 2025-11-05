@@ -633,7 +633,7 @@ object GenerateUtils {
     case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | DATE | TIME_WITHOUT_TIME_ZONE |
         INTERVAL_YEAR_MONTH | INTERVAL_DAY_TIME =>
       s"($leftTerm > $rightTerm ? 1 : $leftTerm < $rightTerm ? -1 : 0)"
-    case TIMESTAMP_WITH_TIME_ZONE | MULTISET | MAP =>
+    case TIMESTAMP_WITH_TIME_ZONE | MULTISET | MAP | VARIANT =>
       throw new UnsupportedOperationException(
         s"Type($t) is not an orderable data type, " +
           s"it is not supported as a ORDER_BY/GROUP_BY/JOIN_EQUAL field.")
@@ -800,6 +800,21 @@ object GenerateUtils {
         compares += code
     }
     compares.mkString
+  }
+
+  /**
+   * Groups the input sequence by the key function, and keeps the order of the first appearance of
+   * each key.
+   */
+  def groupByOrdered[A, K](xs: collection.Seq[A])(
+      f: A => K): collection.Seq[(K, collection.Seq[A])] = {
+    val m = collection.mutable.LinkedHashMap.empty[K, collection.mutable.ArrayBuffer[A]]
+    xs.foreach {
+      x =>
+        val k = f(x)
+        m.getOrElseUpdate(k, collection.mutable.ArrayBuffer.empty[A]) += x
+    }
+    m.toSeq.map { case (k, buffer) => (k, buffer) }
   }
 
 }

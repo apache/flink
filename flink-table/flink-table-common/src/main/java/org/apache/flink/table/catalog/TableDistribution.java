@@ -120,7 +120,7 @@ public class TableDistribution {
         if (getBucketKeys().isEmpty()
                 && getBucketCount().isPresent()
                 && getBucketCount().get() != 0) {
-            return "DISTRIBUTED INTO " + getBucketCount().get() + " BUCKETS\n";
+            return "DISTRIBUTED INTO " + getBucketCount().get() + " BUCKETS";
         }
 
         StringBuilder sb = new StringBuilder();
@@ -139,7 +139,6 @@ public class TableDistribution {
             sb.append(getBucketCount().get());
             sb.append(" BUCKETS");
         }
-        sb.append("\n");
         return sb.toString();
     }
 

@@ -27,6 +27,8 @@ import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.test.TableAssertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for {@link ProjectedRowData}. */
 class ProjectedRowDataTest {
@@ -66,5 +68,15 @@ class ProjectedRowDataTest {
                                             new int[] {4}
                                         }))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void testIsNullAtNonProjected() {
+        RowData initialRow = GenericRowData.of(-1L, -1L, 3L, -1L, 5L);
+        RowData projected = ProjectedRowData.from(new int[] {2, 4}, true).replaceRow(initialRow);
+        assertFalse(projected.isNullAt(0)); // 3L, projected
+        assertFalse(projected.isNullAt(1)); // 5L, projected
+        assertTrue(projected.isNullAt(2)); // not projected
+        assertTrue(projected.isNullAt(3)); // not projected and doesn't exist in the original
     }
 }

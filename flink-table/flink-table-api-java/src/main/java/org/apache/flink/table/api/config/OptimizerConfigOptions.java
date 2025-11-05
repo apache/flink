@@ -106,6 +106,17 @@ public class OptimizerConfigOptions {
                                     + " is true.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_REUSE_SINK_ENABLED =
+            key("table.optimizer.reuse-sink-enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "When it is true, the optimizer will try to find out duplicated table sinks and "
+                                    + "reuse them. This works only when "
+                                    + TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED.key()
+                                    + " is true.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_SOURCE_REPORT_STATISTICS_ENABLED =
             key("table.optimizer.source.report-statistics-enabled")
                     .booleanType()
@@ -339,6 +350,25 @@ public class OptimizerConfigOptions {
                                             + "Each optimize block will be optimized independently.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_MULTI_JOIN_ENABLED =
+            key("table.optimizer.multi-join.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Enables a multi-way join operator for a chain of streaming joins. "
+                                                    + "This operator processes multiple inputs at once, reducing the state size considerably by avoiding intermediate results. "
+                                                    + "It supports regular INNER and LEFT joins.")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "Note: This is an experimental feature and not recommended for production just yet. "
+                                                    + "The operator's internal implementation and state layout is subject to changes due to ongoing relevant optimizations. "
+                                                    + "These might break savepoint compatibility across Flink versions and the goal is to have a stable version in the next release.")
+                                    .build());
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED =
             key("table.optimizer.incremental-agg-enabled")
                     .booleanType()
@@ -350,6 +380,25 @@ public class OptimizerConfigOptions {
                                     + "and local-agg2 into a single operator (we call it incremental agg because "
                                     + "it receives incremental accumulators and outputs incremental results). "
                                     + "In this way, we can reduce some state overhead and resources. Default is enabled.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Integer> TABLE_OPTIMIZER_PTF_MAX_TABLES =
+            key("table.optimizer.ptf.max-tables")
+                    .intType()
+                    .defaultValue(20)
+                    .withDescription(
+                            "The maximum number of table arguments for a Process Table Function (PTF). In theory, a PTF "
+                                    + "can accept an arbitrary number of input tables. In practice, however, each input "
+                                    + "requires reserving network buffers, which impacts memory usage. For this reason, "
+                                    + "the number of input tables is limited to 20.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<DeltaJoinStrategy> TABLE_OPTIMIZER_DELTA_JOIN_STRATEGY =
+            key("table.optimizer.delta-join.strategy")
+                    .enumType(DeltaJoinStrategy.class)
+                    .defaultValue(DeltaJoinStrategy.AUTO)
+                    .withDescription(
+                            "Strategy for optimizing the delta-join. Only AUTO, FORCE or NONE can be set. Default it AUTO.");
 
     /** Strategy for handling non-deterministic updates. */
     @PublicEvolving
@@ -418,6 +467,28 @@ public class OptimizerConfigOptions {
         @Override
         public String toString() {
             return value;
+        }
+
+        @Override
+        public InlineElement getDescription() {
+            return description;
+        }
+    }
+
+    /** Strategy for delta join. */
+    @PublicEvolving
+    public enum DeltaJoinStrategy implements DescribedEnum {
+        AUTO(
+                text(
+                        "Optimizer will try to use delta join first. "
+                                + "If it fails, it will fallback to the regular join.")),
+        FORCE(text("Use the delta join. If it fails, an exception will be thrown.")),
+        NONE(text("Don't try to use delta join."));
+
+        private final InlineElement description;
+
+        DeltaJoinStrategy(InlineElement description) {
+            this.description = description;
         }
 
         @Override

@@ -126,7 +126,8 @@ public class TableSchemaUtils {
                         .map(col -> col.copy(DataTypeUtils.removeTimeAttribute(col.getDataType())))
                         .collect(Collectors.toList()),
                 resolvedSchema.getWatermarkSpecs(),
-                resolvedSchema.getPrimaryKey().orElse(null));
+                resolvedSchema.getPrimaryKey().orElse(null),
+                resolvedSchema.getIndexes());
     }
 
     /**

@@ -80,6 +80,41 @@ class RowFunctionITCase extends BuiltInFunctionTestBase {
                                 DataTypes.ROW(
                                                 DataTypes.FIELD("i", DataTypes.INT()),
                                                 DataTypes.FIELD("s", DataTypes.STRING()))
+                                        .notNull()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.ROW, "cast row inputs")
+                        .onFieldsWithData(1, 2, 3, "true")
+                        .andDataTypes(
+                                DataTypes.INT(),
+                                DataTypes.INT(),
+                                DataTypes.INT(),
+                                DataTypes.STRING())
+                        .testResult(
+                                row(
+                                                $("f0").cast(DataTypes.SMALLINT().notNull()),
+                                                $("f1").cast(DataTypes.TINYINT().notNull()),
+                                                $("f2").cast(DataTypes.BIGINT().notNull()),
+                                                $("f3").cast(DataTypes.BOOLEAN().notNull()))
+                                        .cast(
+                                                DataTypes.ROW(
+                                                                DataTypes.FIELD(
+                                                                        "a", DataTypes.SMALLINT()),
+                                                                DataTypes.FIELD(
+                                                                        "b", DataTypes.TINYINT()),
+                                                                DataTypes.FIELD(
+                                                                        "c", DataTypes.BIGINT()),
+                                                                DataTypes.FIELD(
+                                                                        "d", DataTypes.BOOLEAN()))
+                                                        .notNull()),
+                                "CAST("
+                                        + "ROW("
+                                        + "CAST(f0 AS SMALLINT), CAST(f1 AS TINYINT), CAST(f2 AS BIGINT), CAST(f3 AS BOOLEAN)"
+                                        + ") AS ROW<a SMALLINT, b TINYINT, c BIGINT, d BOOLEAN>)",
+                                Row.of((short) 1, (byte) 2, 3L, true),
+                                DataTypes.ROW(
+                                                DataTypes.FIELD("a", DataTypes.SMALLINT()),
+                                                DataTypes.FIELD("b", DataTypes.TINYINT()),
+                                                DataTypes.FIELD("c", DataTypes.BIGINT()),
+                                                DataTypes.FIELD("d", DataTypes.BOOLEAN()))
                                         .notNull()));
     }
 

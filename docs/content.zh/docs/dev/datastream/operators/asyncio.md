@@ -61,10 +61,13 @@ Flink 的异步 I/O API 允许用户在流处理中使用异步请求客户端�
 在具备异步数据库客户端的基础上，实现数据流转换操作与数据库的异步 I/O 交互需要以下三部分：
 
 - 实现分发请求的 `AsyncFunction`
-- 获取数据库交互的结果并发送给 `ResultFuture` 的 *回调* 函数
+- 如果使用的 Java API，获取数据库交互的结果并发送给 `ResultFuture` 的 *回调* 函数；如果使用的 Python API，可以通过 await 获取数据库交互的结果
 - 将异步 I/O 操作应用于 `DataStream` 作为 `DataStream` 的一次转换操作, 启用或者不启用重试。
 
 下面是基本的代码模板：
+
+{{< tabs "6c8c009c-4c12-4338-9eeb-3be83cfa9e36" >}}
+{{< tab "Java" >}}
 
 ```java
 // 这个例子使用 Java 8 的 Future 接口（与 Flink 的 Future 相同）实现了异步请求和回调。
@@ -132,12 +135,80 @@ DataStream<Tuple2<String, String>> resultStream =
 	AsyncDataStream.unorderedWaitWithRetry(stream, new AsyncDatabaseRequest(), 1000, TimeUnit.MILLISECONDS, 100, asyncRetryStrategy);
 ```
 
-**重要提示**： 第一次调用 `ResultFuture.complete` 后 `ResultFuture` 就完成了。
+{{< /tab >}}
+{{< tab "Python" >}}
+
+```python
+from typing import List
+
+from pyflink.common import Time, Types
+from pyflink.datastream import AsyncFunction, AsyncDataStream, async_retry_predicates
+from pyflink.datastream.functions import RuntimeContext, AsyncRetryStrategy
+
+
+class AsyncDatabaseRequest(AsyncFunction[str, (str, str)]):
+
+    def __init__(self, host, port, credentials):
+        self._host = host
+        self._port = port
+        self._credentials = credentials
+
+    def open(self, runtime_context: RuntimeContext):
+        # The database specific client that can issue concurrent requests with callbacks
+        self._client = DatabaseClient(self._host, self._port, self._credentials)
+
+    def close(self):
+        if self._client:
+            self._client.close()
+
+    async def async_invoke(self, value: str) -> List[(str, str)]:
+        try:
+            # issue the asynchronous request
+            result = await self._client.query(value)
+            return [(value, str(result))]
+        except Exception:
+            return [(value, None)]
+
+
+# 创建初始 DataStream
+stream = ...
+
+# 应用异步 I/O 转换操作，不启用重试
+result_stream = AsyncDataStream.unordered_wait(
+    data_stream=stream,
+    async_function=AsyncDatabaseRequest("127.0.0.1", "1234", None),
+    timeout=Time.seconds(10),
+    capacity=100,
+    output_type=Types.TUPLE([Types.STRING(), Types.STRING()]))
+
+# 或应用异步 I/O 转换操作并启用重试
+# 通过工具类创建一个异步重试策略, 或用户实现自定义的策略
+async_retry_strategy = AsyncRetryStrategy.fixed_delay(
+    max_attempts=3,
+    backoff_time_millis=100,
+    result_predicate=async_retry_predicates.empty_result_predicate,
+    exception_predicate=async_retry_predicates.has_exception_predicate)
+
+# 应用异步 I/O 转换操作并启用重试
+result_stream_with_retry = AsyncDataStream.unordered_wait_with_retry(
+    data_stream=stream,
+    async_function=AsyncDatabaseRequest("127.0.0.1", "1234", None),
+    timeout=Time.seconds(10),
+    async_retry_strategy=async_retry_strategy,
+    capacity=1000,
+    output_type=Types.TUPLE([Types.STRING(), Types.STRING()]))
+```
+
+{{< /tab >}}
+{{< /tabs >}}
+
+**重要提示**： 在 Java API 中，第一次调用 `ResultFuture.complete` 后 `ResultFuture` 就完成了。
 后续的 `complete` 调用都将被忽略。
 
 下面两个参数控制异步操作：
 
-  - **Timeout**： 超时参数定义了异步操作执行多久未完成、最终认定为失败的时长，如果启用重试，则可能包括多个重试请求。 它可以防止一直等待得不到响应的请求。
+  - **Timeout**： 超时定义了从首次调用到异步操作最终完成的最大持续时间。
+    此持续时间可能包括多次重试尝试（如果启用了重试）并确定操作最终被视为失败的时间点。 它可以防止一直等待得不到响应的请求。
 
   - **Capacity**： 容量参数定义了可以同时进行的异步请求数。
     即使异步 I/O 通常带来更高的吞吐量，执行异步 I/O 操作的算子仍然可能成为流处理的瓶颈。 限制并发请求的数量可以确保算子不会持续累积待处理的请求进而造成积压，而是在容量耗尽时触发反压。
@@ -148,8 +219,12 @@ DataStream<Tuple2<String, String>> resultStream =
 
 当异步 I/O 请求超时的时候，默认会抛出异常并重启作业。
 如果你想处理超时，可以重写 `AsyncFunction#timeout` 方法。
-重写 `AsyncFunction#timeout` 时别忘了调用 `ResultFuture.complete()` 或者 `ResultFuture.completeExceptionally()`
+
+在 Java API 中，重写 `AsyncFunction#timeout` 时别忘了调用 `ResultFuture.complete()` 或者 `ResultFuture.completeExceptionally()`
 以便告诉Flink这条记录的处理已经完成。如果超时发生时你不想发出任何记录，你可以调用 `ResultFuture.complete(Collections.emptyList())` 。
+
+在 Python API 中，可以返回一个 List 或者抛异常以便告诉Flink这条记录的处理已经完成。如果超时发生时你不想发出任何记录，
+你可以调用 `return []` 以返回一个空列表。
 
 ### 结果的顺序
 
@@ -159,9 +234,9 @@ Flink 提供两种模式控制结果记录以何种顺序发出。
   - **无序模式**： 异步请求一结束就立刻发出结果记录。
     流中记录的顺序在经过异步 I/O 算子之后发生了改变。
     当使用 *处理时间* 作为基本时间特征时，这个模式具有最低的延迟和最少的开销。
-    此模式使用 `AsyncDataStream.unorderedWait(...)` 方法。
+    此模式使用 `AsyncDataStream.unorderedWait(...)` 或者 `AsyncDataStream.unordered_wait(...)` 方法。
 
-  - **有序模式**: 这种模式保持了流的顺序。发出结果记录的顺序与触发异步请求的顺序（记录输入算子的顺序）相同。为了实现这一点，算子将缓冲一个结果记录直到这条记录前面的所有记录都发出（或超时）。由于记录或者结果要在 checkpoint 的状态中保存更长的时间，所以与无序模式相比，有序模式通常会带来一些额外的延迟和 checkpoint 开销。此模式使用 `AsyncDataStream.orderedWait(...)` 方法。
+  - **有序模式**: 这种模式保持了流的顺序。发出结果记录的顺序与触发异步请求的顺序（记录输入算子的顺序）相同。为了实现这一点，算子将缓冲一个结果记录直到这条记录前面的所有记录都发出（或超时）。由于记录或者结果要在 checkpoint 的状态中保存更长的时间，所以与无序模式相比，有序模式通常会带来一些额外的延迟和 checkpoint 开销。此模式使用 `AsyncDataStream.orderedWait(...)` 或者 `AsyncDataStream.ordered_wait(...)` 方法。
 
 
 ### 事件时间
@@ -202,6 +277,7 @@ Flink 提供两种模式控制结果记录以何种顺序发出。
 `DirectExecutor` 可以通过 `org.apache.flink.util.concurrent.Executors.directExecutor()` 或
 `com.google.common.util.concurrent.MoreExecutors.directExecutor()` 获得。
 
+**注意:** 这仅适用于 Java API，在 Python API 中，您可以使用 await 等待异步执行的结果。
 
 ### 警告
 

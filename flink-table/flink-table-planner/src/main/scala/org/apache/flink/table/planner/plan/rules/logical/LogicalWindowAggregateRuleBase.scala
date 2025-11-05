@@ -132,7 +132,7 @@ abstract class LogicalWindowAggregateRuleBase(description: String)
         case (aggCall, index) =>
           val aggCallIndex = index - agg.getGroupCount
           if (indexAndTypes.containsKey(aggCallIndex)) {
-            rexBuilder.makeCast(agg.getAggCallList.get(aggCallIndex).`type`, aggCall, true)
+            rexBuilder.makeCast(agg.getAggCallList.get(aggCallIndex).`type`, aggCall, true, false)
           } else {
             aggCall
           }

@@ -30,7 +30,7 @@ import { NzGridModule } from 'ng-zorro-antd/grid';
 import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzProgressModule } from 'ng-zorro-antd/progress';
 import { NzTableModule } from 'ng-zorro-antd/table';
-import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 
 @Component({
   selector: 'flink-job-manager-metrics',
@@ -42,15 +42,14 @@ import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
     NgIf,
     ParseIntPipe,
     HumanizeBytesPipe,
-    NzToolTipModule,
+    NzTooltipModule,
     NzProgressModule,
     DecimalPipe,
     NzIconModule,
     NzCardModule,
     NzGridModule,
     NgForOf
-  ],
-  standalone: true
+  ]
 })
 export class JobManagerMetricsComponent implements OnInit, OnDestroy {
   public metrics: { [id: string]: number } = {};

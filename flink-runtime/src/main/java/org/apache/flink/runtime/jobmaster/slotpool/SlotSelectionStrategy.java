@@ -69,4 +69,15 @@ public interface SlotSelectionStrategy {
             return new SlotInfoAndLocality(slotInfo, locality);
         }
     }
+
+    /** The no actions implementation of {@link SlotSelectionStrategy}. */
+    enum NoOpSlotSelectionStrategy implements SlotSelectionStrategy {
+        INSTANCE;
+
+        @Override
+        public Optional<SlotInfoAndLocality> selectBestSlotForProfile(
+                @Nonnull FreeSlotTracker freeSlotTracker, @Nonnull SlotProfile slotProfile) {
+            return Optional.empty();
+        }
+    }
 }

@@ -151,7 +151,7 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
     public void endInput() throws Exception {
         if (!isCheckpointingEnabled || isBatchMode) {
             // There will be no final checkpoint, all committables should be committed here
-            commitAndEmitCheckpoints(lastCompletedCheckpointId + 1);
+            commitAndEmitCheckpoints(Long.MAX_VALUE);
         }
     }
 
@@ -183,7 +183,12 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
 
     private void emit(CheckpointCommittableManager<CommT> committableManager) {
         int subtaskId = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
-        int numberOfSubtasks = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+        // Ensure that numberOfSubtasks is in sync with the number of actually emitted
+        // CommittableSummaries during upscaling recovery (see FLINK-37747).
+        int numberOfSubtasks =
+                Math.min(
+                        getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks(),
+                        committableManager.getNumberOfSubtasks());
         long checkpointId = committableManager.getCheckpointId();
         Collection<CommT> committables = committableManager.getSuccessfulCommittables();
         output.collect(

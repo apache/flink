@@ -237,7 +237,9 @@ public abstract class HashJoinOperator extends TableStreamOperator<RowData>
     public void close() throws Exception {
         super.close();
         closeHashTable();
-        condition.close();
+        if (condition != null) {
+            condition.close();
+        }
 
         // If fallback to sort merge join during hash join, also need to close the operator
         if (fallbackSMJ) {

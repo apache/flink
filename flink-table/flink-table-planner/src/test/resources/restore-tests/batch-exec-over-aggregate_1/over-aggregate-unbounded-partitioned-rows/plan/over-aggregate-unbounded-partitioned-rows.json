@@ -257,7 +257,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`ts` BIGINT, `a` BIGINT, `b` INT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3), `$5` BIGINT NOT NULL, `w0$o0` BIGINT, `w0$o1` BIGINT NOT NULL, `w0$o2` BIGINT NOT NULL>",
-    "description" : "OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window#0=[LTCNT(a, $5) AS w0$o0, COUNT(a) AS w0$o1, $SUM0(a) AS w0$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[ts, a, b, c, rowtime, $5, w0$o0, w0$o1, w0$o2])"
+    "description" : "OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window#0=[LTCNT(a, $5) AS w0$o0, COUNT(a) AS w0$o1, $SUM0(a) AS w0$o2 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[ts, a, b, c, rowtime, $5, w0$o0, w0$o1, w0$o2])"
   }, {
     "id" : 6,
     "type" : "batch-exec-calc_1",

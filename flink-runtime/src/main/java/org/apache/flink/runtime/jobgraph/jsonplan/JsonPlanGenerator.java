@@ -140,7 +140,7 @@ public class JsonPlanGenerator {
                                 parallelism,
                                 operatorDescr,
                                 description,
-                                optimizerProps,
+                                new JobPlanInfo.RawJson(optimizerProps),
                                 inputs));
             }
 

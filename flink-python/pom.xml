@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>2.1-SNAPSHOT</version>
+		<version>2.2-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>flink-python</artifactId>
@@ -133,7 +133,7 @@ under the License.
 		<dependency>
 			<groupId>com.alibaba</groupId>
 			<artifactId>pemja</artifactId>
-			<version>0.4.1</version>
+			<version>0.5.5</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 

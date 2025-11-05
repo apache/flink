@@ -44,10 +44,8 @@ def is_launch_gateway_disabled():
         return False
 
 
-def get_gateway():
-    # type: () -> JavaGateway
+def get_gateway() -> JavaGateway:
     global _gateway
-    global _lock
     with _lock:
         if _gateway is None:
             # Set the level to WARN to mute the noisy INFO level logs
@@ -79,8 +77,7 @@ def get_gateway():
     return _gateway
 
 
-def launch_gateway():
-    # type: () -> JavaGateway
+def launch_gateway() -> JavaGateway:
     """
     launch jvm gateway
     """

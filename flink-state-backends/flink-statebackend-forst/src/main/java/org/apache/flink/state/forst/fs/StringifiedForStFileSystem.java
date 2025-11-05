@@ -33,7 +33,7 @@ public class StringifiedForStFileSystem {
     private ForStFlinkFileSystem fileSystem;
 
     public StringifiedForStFileSystem(ForStFlinkFileSystem fileSystem) {
-        this.fileSystem = fileSystem;
+        this.fileSystem = ForStFileSystemUtils.tryDecorate(fileSystem);
     }
 
     public static StringifiedForStFileSystem get(String uri) throws IOException {

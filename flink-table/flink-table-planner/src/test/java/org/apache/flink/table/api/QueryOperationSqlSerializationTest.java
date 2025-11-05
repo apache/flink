@@ -68,8 +68,8 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                 QueryOperationTestPrograms.OVER_WINDOW_ROWS_UNBOUNDED_NO_PARTITION,
                 QueryOperationTestPrograms.OVER_WINDOW_LAG,
                 QueryOperationTestPrograms.ACCESSING_NESTED_COLUMN,
-                QueryOperationTestPrograms.TABLE_AS_ROW_PTF,
-                QueryOperationTestPrograms.TABLE_AS_SET_PTF,
+                QueryOperationTestPrograms.ROW_SEMANTIC_TABLE_PTF,
+                QueryOperationTestPrograms.SET_SEMANTIC_TABLE_PTF,
                 QueryOperationTestPrograms.INLINE_FUNCTION_SERIALIZATION);
     }
 
@@ -148,6 +148,7 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
     @Override
     public EnumSet<TestKind> supportedSetupSteps() {
         return EnumSet.of(
+                TestKind.CONFIG,
                 TestKind.SQL,
                 TestKind.FUNCTION,
                 TestKind.SOURCE_WITH_DATA,

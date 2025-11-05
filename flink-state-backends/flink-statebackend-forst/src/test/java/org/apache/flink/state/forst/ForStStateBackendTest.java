@@ -51,6 +51,7 @@ import java.util.List;
 
 import static org.apache.flink.state.forst.ForStConfigurableOptions.USE_INGEST_DB_RESTORE_MODE;
 import static org.apache.flink.state.forst.ForStOptions.LOCAL_DIRECTORIES;
+import static org.apache.flink.state.forst.ForStOptions.TIMER_SERVICE_FACTORY;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the partitioned state part of {@link ForStStateBackendTest}. */
@@ -64,7 +65,8 @@ class ForStStateBackendTest extends StateBackendTestBase<ForStStateBackend> {
                 new Object[][] {
                     {
                         (SupplierWithException<CheckpointStorage, IOException>)
-                                JobManagerCheckpointStorage::new
+                                JobManagerCheckpointStorage::new,
+                        false
                     },
                     {
                         (SupplierWithException<CheckpointStorage, IOException>)
@@ -73,12 +75,17 @@ class ForStStateBackendTest extends StateBackendTestBase<ForStStateBackend> {
                                             TempDirUtils.newFolder(tempFolder).toURI().toString();
                                     return new FileSystemCheckpointStorage(
                                             new Path(checkpointPath), 0, -1);
-                                }
+                                },
+                        true
                     }
                 });
     }
 
-    @Parameter public SupplierWithException<CheckpointStorage, IOException> storageSupplier;
+    @Parameter(value = 0)
+    public SupplierWithException<CheckpointStorage, IOException> storageSupplier;
+
+    @Parameter(value = 1)
+    public boolean useHeapTimer;
 
     @Override
     protected CheckpointStorage getCheckpointStorage() throws Exception {
@@ -91,6 +98,11 @@ class ForStStateBackendTest extends StateBackendTestBase<ForStStateBackend> {
         Configuration config = new Configuration();
         config.set(LOCAL_DIRECTORIES, tempFolder.toString());
         config.set(USE_INGEST_DB_RESTORE_MODE, true);
+        config.set(
+                TIMER_SERVICE_FACTORY,
+                useHeapTimer
+                        ? ForStStateBackend.PriorityQueueStateType.HEAP
+                        : ForStStateBackend.PriorityQueueStateType.ForStDB);
         return backend.configure(config, Thread.currentThread().getContextClassLoader());
     }
 
@@ -109,7 +121,7 @@ class ForStStateBackendTest extends StateBackendTestBase<ForStStateBackend> {
      */
     @Override
     protected boolean isSafeToReuseKVState() {
-        return true;
+        return !useHeapTimer;
     }
 
     @TestTemplate
@@ -130,7 +142,8 @@ class ForStStateBackendTest extends StateBackendTestBase<ForStStateBackend> {
         ForStStateBackend backend = new ForStStateBackend();
         ForStSyncKeyedStateBackend keyedStateBackend1 =
                 (ForStSyncKeyedStateBackend) createKeyedBackend(IntSerializer.INSTANCE);
-        assertThat(keyedStateBackend1.getOptionsContainer().getRemoteBasePath()).isNull();
+        assertThat(keyedStateBackend1.getOptionsContainer().getPathContainer().getRemoteBasePath())
+                .isNull();
         Configuration config = new Configuration();
         config.set(ForStOptions.SYNC_ENFORCE_LOCAL, false);
         backend = backend.configure(config, Thread.currentThread().getContextClassLoader());
@@ -151,6 +164,7 @@ class ForStStateBackendTest extends StateBackendTestBase<ForStStateBackend> {
                                         Collections.emptyList(),
                                         new CloseableRegistry(),
                                         1.0d));
-        assertThat(keyedStateBackend2.getOptionsContainer().getRemoteBasePath()).isNotNull();
+        assertThat(keyedStateBackend2.getOptionsContainer().getPathContainer().getRemoteBasePath())
+                .isNotNull();
     }
 }

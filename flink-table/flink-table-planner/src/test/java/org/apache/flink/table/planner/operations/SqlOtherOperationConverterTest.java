@@ -30,6 +30,7 @@ import org.apache.flink.table.operations.ShowCreateCatalogOperation;
 import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
+import org.apache.flink.table.operations.ShowMaterializedTablesOperation;
 import org.apache.flink.table.operations.ShowModulesOperation;
 import org.apache.flink.table.operations.ShowPartitionsOperation;
 import org.apache.flink.table.operations.ShowProceduresOperation;
@@ -73,7 +74,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Test cases for the statements that neither belong to DDL nor DML for {@link
  * SqlNodeToOperationConversion}.
  */
-public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversionTestBase {
+class SqlOtherOperationConverterTest extends SqlNodeToOperationConversionTestBase {
 
     @Test
     void testUseCatalog() {
@@ -305,6 +306,37 @@ public class SqlOtherOperationConverterTest extends SqlNodeToOperationConversion
                         "SHOW VIEWS",
                         new ShowViewsOperation("builtin", "default", null, null),
                         "SHOW VIEWS"));
+    }
+
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("inputForShowMaterializedTablesTest")
+    void testShowMaterializedTables(
+            String sql, ShowMaterializedTablesOperation expected, String expectedSummary) {
+        Operation operation = parse(sql);
+        assertThat(operation)
+                .isInstanceOf(ShowMaterializedTablesOperation.class)
+                .isEqualTo(expected);
+        assertThat(operation.asSummaryString()).isEqualTo(expectedSummary);
+    }
+
+    private static Stream<Arguments> inputForShowMaterializedTablesTest() {
+        return Stream.of(
+                Arguments.of(
+                        "SHOW MATERIALIZED TABLES from cat1.db1 not like 't%'",
+                        new ShowMaterializedTablesOperation(
+                                "cat1",
+                                "db1",
+                                "FROM",
+                                ShowLikeOperator.of(LikeType.NOT_LIKE, "t%")),
+                        "SHOW MATERIALIZED TABLES FROM cat1.db1 NOT LIKE 't%'"),
+                Arguments.of(
+                        "SHOW MATERIALIZED TABLES in db2",
+                        new ShowMaterializedTablesOperation("builtin", "db2", "IN", null),
+                        "SHOW MATERIALIZED TABLES IN builtin.db2"),
+                Arguments.of(
+                        "SHOW MATERIALIZED TABLES",
+                        new ShowMaterializedTablesOperation("builtin", "default", null, null),
+                        "SHOW MATERIALIZED TABLES"));
     }
 
     @Test

@@ -24,6 +24,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<a name="user-defined-sources-and-sinks"></a>
+
 # 用户自定义 Sources & Sinks
 
 *动态表*是 Flink Table & SQL API的核心概念，用于统一有界和无界数据的处理。
@@ -40,6 +42,8 @@ Flink 为 Kafka、Hive 和不同的文件系统提供了预定义的连接器。
  在用户自定义连接器中，应该将 `Thread.currentThread().getContextClassLoader()` 替换成该用户类加载器去加载类。否则，可能会发生 `ClassNotFoundException` 的异常。该用户类加载器可以通过 `DynamicTableFactory.Context` 获得。
 {{< /hint >}}
 
+<a name="overview"></a>
+
 概述
 --------
 
@@ -51,6 +55,8 @@ Flink 为 Kafka、Hive 和不同的文件系统提供了预定义的连接器。
 
 {{< img width="90%" src="/fig/table_connectors.svg" alt="Translation of table connectors" >}}
 
+<a name="metadata"></a>
+
 ### 元数据
 
 Table API 和 SQL 都是声明式 API。这包括表的声明。因此，执行 `CREATE TABLE` 语句会导致目标 catalog 中的元数据更新。
@@ -58,6 +64,8 @@ Table API 和 SQL 都是声明式 API。这包括表的声明。因此，执行 
 对于大多数 catalog 实现，外部系统中的物理数据不会针对此类操作进行修改。特定于连接器的依赖项不必存在于类路径中。在 `WITH` 子句中声明的选项既不被验证也不被解释。
 
 动态表的元数据（ 通过 DDL 创建或由 catalog 提供 ）表示为 `CatalogTable` 的实例。必要时，表名将在内部解析为 `CatalogTable`。
+
+<a name="planning"></a>
 
 ### 解析器
 
@@ -71,6 +79,8 @@ Table API 和 SQL 都是声明式 API。这包括表的声明。因此，执行 
 尽管在类命名中可能不明显，但 `DynamicTableSource` 和 `DynamicTableSink` 也可以被视为有状态的工厂，它们最终会产生具体的运行时实现来读写实际数据。
 
 规划器使用 source 和 sink 实例来执行连接器特定的双向通信，直到找到最佳逻辑规划。取决于声明可选的接口（ 例如 `SupportsProjectionPushDown` 或 `SupportsOverwrite`），规划器可能会将更改应用于实例并且改变产生的运行时实现。
+
+<a name="runtime"></a>
 
 ### 运行时的实现
 
@@ -271,8 +281,8 @@ Flink 会对工厂类逐个进行检查，确保其“标识符”是全局唯�
         <td>支持 <code>DynamicTableSink</code> 写入分区数据。</td>
     </tr>
     <tr>
-        <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/source/abilities/SupportsBucketing.java" name="SupportsBucketing" >}}</td>
-        <td>Enables bucketing for a <code>DynamicTableSink</code>.</td>
+        <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsBucketing.java" name="SupportsBucketing" >}}</td>
+        <td>支持 <code>DynamicTableSink</code> 写入分桶数据。</td>
     </tr>
     <tr>
         <td>{{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/connector/sink/abilities/SupportsWritingMetadata.java" name="SupportsWritingMetadata" >}}</td>

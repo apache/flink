@@ -19,6 +19,7 @@
 package org.apache.flink.table.catalog;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.FunctionDescriptor;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -115,15 +116,14 @@ class FunctionCatalogTest {
         assertThat(functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER)).isEmpty();
 
         // test catalog function is found
-        catalog.createFunction(
-                IDENTIFIER.toObjectPath(),
-                new CatalogFunctionImpl(FUNCTION_1.getClass().getName()),
-                false);
+        final CatalogFunctionImpl catalogFunction =
+                new CatalogFunctionImpl(FUNCTION_1.getClass().getName());
+        catalog.createFunction(IDENTIFIER.toObjectPath(), catalogFunction, false);
 
         assertThat(functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.permanent(
-                                FunctionIdentifier.of(IDENTIFIER), FUNCTION_1));
+                                FunctionIdentifier.of(IDENTIFIER), FUNCTION_1, catalogFunction));
 
         // test temp catalog function is found
         functionCatalog.registerTemporaryCatalogFunction(
@@ -132,7 +132,9 @@ class FunctionCatalogTest {
         assertThat(functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.temporary(
-                                FunctionIdentifier.of(IDENTIFIER), FUNCTION_2));
+                                FunctionIdentifier.of(IDENTIFIER),
+                                FUNCTION_2,
+                                new FunctionCatalog.InlineCatalogFunction(FUNCTION_2)));
     }
 
     @Test
@@ -141,15 +143,14 @@ class FunctionCatalogTest {
         assertThat(functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER)).isEmpty();
 
         // test catalog function is found
-        catalog.createFunction(
-                IDENTIFIER.toObjectPath(),
-                new CatalogFunctionImpl(FUNCTION_1.getClass().getName()),
-                false);
+        final CatalogFunctionImpl function =
+                new CatalogFunctionImpl(FUNCTION_1.getClass().getName());
+        catalog.createFunction(IDENTIFIER.toObjectPath(), function, false);
 
         assertThat(functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.permanent(
-                                FunctionIdentifier.of(IDENTIFIER), FUNCTION_1));
+                                FunctionIdentifier.of(IDENTIFIER), FUNCTION_1, function));
 
         // test temporary catalog function is found
         functionCatalog.registerTemporaryCatalogFunction(
@@ -158,7 +159,9 @@ class FunctionCatalogTest {
         assertThat(functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.temporary(
-                                FunctionIdentifier.of(IDENTIFIER), FUNCTION_2));
+                                FunctionIdentifier.of(IDENTIFIER),
+                                FUNCTION_2,
+                                new FunctionCatalog.InlineCatalogFunction(FUNCTION_2)));
 
         // test system function is found
         moduleManager.loadModule("test_module", new TestModule());
@@ -230,14 +233,22 @@ class FunctionCatalogTest {
     void testUninstantiatedTemporarySystemFunction() {
         // register first time
         functionCatalog.registerTemporarySystemFunction(
-                NAME, FUNCTION_1.getClass().getName(), FunctionLanguage.JAVA, false);
+                NAME,
+                FunctionDescriptor.forClassName(FUNCTION_1.getClass().getName())
+                        .language(FunctionLanguage.JAVA)
+                        .build(),
+                false);
         assertThat(functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.temporary(FunctionIdentifier.of(NAME), FUNCTION_1));
 
         // register second time lenient
         functionCatalog.registerTemporarySystemFunction(
-                NAME, FUNCTION_2.getClass().getName(), FunctionLanguage.JAVA, true);
+                NAME,
+                FunctionDescriptor.forClassName(FUNCTION_2.getClass().getName())
+                        .language(FunctionLanguage.JAVA)
+                        .build(),
+                true);
         assertThat(functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.temporary(FunctionIdentifier.of(NAME), FUNCTION_1));
@@ -247,8 +258,10 @@ class FunctionCatalogTest {
                         () ->
                                 functionCatalog.registerTemporarySystemFunction(
                                         NAME,
-                                        FUNCTION_2.getClass().getName(),
-                                        FunctionLanguage.JAVA,
+                                        FunctionDescriptor.forClassName(
+                                                        FUNCTION_2.getClass().getName())
+                                                .language(FunctionLanguage.JAVA)
+                                                .build(),
                                         false))
                 .satisfies(
                         anyCauseMatches(
@@ -260,8 +273,10 @@ class FunctionCatalogTest {
                         () ->
                                 functionCatalog.registerTemporarySystemFunction(
                                         NAME,
-                                        FUNCTION_INVALID.getClass().getName(),
-                                        FunctionLanguage.JAVA,
+                                        FunctionDescriptor.forClassName(
+                                                        FUNCTION_INVALID.getClass().getName())
+                                                .language(FunctionLanguage.JAVA)
+                                                .build(),
                                         false))
                 .satisfies(
                         anyCauseMatches(
@@ -274,7 +289,11 @@ class FunctionCatalogTest {
 
         // test register uninstantiated table function
         functionCatalog.registerTemporarySystemFunction(
-                NAME, TABLE_FUNCTION.getClass().getName(), FunctionLanguage.JAVA, false);
+                NAME,
+                FunctionDescriptor.forClassName(TABLE_FUNCTION.getClass().getName())
+                        .language(FunctionLanguage.JAVA)
+                        .build(),
+                false);
         assertThat(functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.temporary(
@@ -284,7 +303,11 @@ class FunctionCatalogTest {
 
         // test register uninstantiated aggregate function
         functionCatalog.registerTemporarySystemFunction(
-                NAME, AGGREGATE_FUNCTION.getClass().getName(), FunctionLanguage.JAVA, false);
+                NAME,
+                FunctionDescriptor.forClassName(AGGREGATE_FUNCTION.getClass().getName())
+                        .language(FunctionLanguage.JAVA)
+                        .build(),
+                false);
         assertThat(functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.temporary(
@@ -295,26 +318,37 @@ class FunctionCatalogTest {
     void testCatalogFunction() {
         // register first time
         functionCatalog.registerCatalogFunction(
-                PARTIAL_UNRESOLVED_IDENTIFIER, FUNCTION_1.getClass(), false);
+                PARTIAL_UNRESOLVED_IDENTIFIER,
+                FunctionDescriptor.forFunctionClass(FUNCTION_1.getClass()).build(),
+                false);
+        final CatalogFunctionImpl catalogFunction =
+                new CatalogFunctionImpl(
+                        FUNCTION_1.getClass().getName(),
+                        FunctionLanguage.JAVA,
+                        Collections.emptyList(),
+                        Collections.emptyMap());
         assertThat(functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.permanent(
-                                FunctionIdentifier.of(IDENTIFIER), FUNCTION_1));
+                                FunctionIdentifier.of(IDENTIFIER), FUNCTION_1, catalogFunction));
 
         // register second time lenient
         functionCatalog.registerCatalogFunction(
-                PARTIAL_UNRESOLVED_IDENTIFIER, FUNCTION_2.getClass(), true);
+                PARTIAL_UNRESOLVED_IDENTIFIER,
+                FunctionDescriptor.forFunctionClass(FUNCTION_2.getClass()).build(),
+                true);
         assertThat(functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.permanent(
-                                FunctionIdentifier.of(IDENTIFIER), FUNCTION_1));
+                                FunctionIdentifier.of(IDENTIFIER), FUNCTION_1, catalogFunction));
 
         // register second time not lenient
         assertThatThrownBy(
                         () ->
                                 functionCatalog.registerCatalogFunction(
                                         PARTIAL_UNRESOLVED_IDENTIFIER,
-                                        FUNCTION_2.getClass(),
+                                        FunctionDescriptor.forFunctionClass(FUNCTION_2.getClass())
+                                                .build(),
                                         false))
                 .satisfies(
                         anyCauseMatches(
@@ -349,25 +383,56 @@ class FunctionCatalogTest {
                         () ->
                                 functionCatalog.registerCatalogFunction(
                                         PARTIAL_UNRESOLVED_IDENTIFIER,
-                                        FUNCTION_INVALID.getClass(),
+                                        FunctionDescriptor.forFunctionClass(
+                                                        FUNCTION_INVALID.getClass())
+                                                .build(),
                                         false))
                 .satisfies(
                         anyCauseMatches(
                                 ValidationException.class,
-                                "Could not register catalog function '"
-                                        + IDENTIFIER.asSummaryString()
+                                "Can not create a function '"
+                                        + FUNCTION_INVALID.getClass().getName()
                                         + "' due to implementation errors."));
+    }
+
+    @Test
+    void testCatalogFunctionWithOptions() {
+        // register permanent function
+        functionCatalog.registerCatalogFunction(
+                PARTIAL_UNRESOLVED_IDENTIFIER,
+                FunctionDescriptor.forFunctionClass(FUNCTION_2.getClass())
+                        .option("key1", "option1")
+                        .build(),
+                false);
+        assertThat(functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER))
+                .hasValue(
+                        ContextResolvedFunction.permanent(
+                                FunctionIdentifier.of(IDENTIFIER),
+                                FUNCTION_2,
+                                new CatalogFunctionImpl(
+                                        FUNCTION_2.getClass().getName(),
+                                        FunctionLanguage.JAVA,
+                                        Collections.emptyList(),
+                                        Collections.singletonMap("key1", "option1"))));
     }
 
     @Test
     void testTemporaryCatalogFunction() {
         // register permanent function
         functionCatalog.registerCatalogFunction(
-                PARTIAL_UNRESOLVED_IDENTIFIER, FUNCTION_2.getClass(), false);
+                PARTIAL_UNRESOLVED_IDENTIFIER,
+                FunctionDescriptor.forFunctionClass(FUNCTION_2.getClass()).build(),
+                false);
+        final CatalogFunctionImpl catalogFunction =
+                new CatalogFunctionImpl(
+                        FUNCTION_2.getClass().getName(),
+                        FunctionLanguage.JAVA,
+                        Collections.emptyList(),
+                        Collections.emptyMap());
         assertThat(functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.permanent(
-                                FunctionIdentifier.of(IDENTIFIER), FUNCTION_2));
+                                FunctionIdentifier.of(IDENTIFIER), FUNCTION_2, catalogFunction));
 
         // register temporary first time
         functionCatalog.registerTemporaryCatalogFunction(
@@ -375,8 +440,10 @@ class FunctionCatalogTest {
         assertThat(functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.temporary(
-                                FunctionIdentifier.of(IDENTIFIER),
-                                FUNCTION_1)); // temporary function hides catalog function
+                                FunctionIdentifier.of(
+                                        IDENTIFIER), // temporary function hides catalog function
+                                FUNCTION_1,
+                                new FunctionCatalog.InlineCatalogFunction(FUNCTION_1)));
 
         // dropping catalog functions is not possible in this state
         assertThatThrownBy(
@@ -396,7 +463,8 @@ class FunctionCatalogTest {
                         () ->
                                 functionCatalog.registerCatalogFunction(
                                         PARTIAL_UNRESOLVED_IDENTIFIER,
-                                        FUNCTION_2.getClass(),
+                                        FunctionDescriptor.forFunctionClass(FUNCTION_2.getClass())
+                                                .build(),
                                         false))
                 .satisfies(
                         anyCauseMatches(
@@ -412,7 +480,9 @@ class FunctionCatalogTest {
         assertThat(functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.temporary(
-                                FunctionIdentifier.of(IDENTIFIER), FUNCTION_1));
+                                FunctionIdentifier.of(IDENTIFIER),
+                                FUNCTION_1,
+                                new FunctionCatalog.InlineCatalogFunction(FUNCTION_1)));
 
         // register temporary second time not lenient
         assertThatThrownBy(
@@ -435,7 +505,8 @@ class FunctionCatalogTest {
                 .hasValue(
                         ContextResolvedFunction.permanent(
                                 FunctionIdentifier.of(IDENTIFIER),
-                                FUNCTION_2)); // permanent function is visible again
+                                FUNCTION_2,
+                                catalogFunction)); // permanent function is visible again
 
         // drop temporary second time lenient
         assertThat(
@@ -472,32 +543,42 @@ class FunctionCatalogTest {
     void testUninstantiatedTemporaryCatalogFunction() {
         // register permanent function
         functionCatalog.registerCatalogFunction(
-                PARTIAL_UNRESOLVED_IDENTIFIER, FUNCTION_2.getClass(), false);
+                PARTIAL_UNRESOLVED_IDENTIFIER,
+                FunctionDescriptor.forFunctionClass(FUNCTION_2.getClass()).build(),
+                false);
         assertThat(functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.permanent(
-                                FunctionIdentifier.of(IDENTIFIER), FUNCTION_2));
+                                FunctionIdentifier.of(IDENTIFIER),
+                                FUNCTION_2,
+                                new CatalogFunctionImpl(
+                                        FUNCTION_2.getClass().getName(),
+                                        FunctionLanguage.JAVA,
+                                        Collections.emptyList(),
+                                        Collections.emptyMap())));
 
         // register temporary first time
+        final CatalogFunctionImpl temporaryCatalogFunction =
+                new CatalogFunctionImpl(FUNCTION_1.getClass().getName());
         functionCatalog.registerTemporaryCatalogFunction(
-                PARTIAL_UNRESOLVED_IDENTIFIER,
-                new CatalogFunctionImpl(FUNCTION_1.getClass().getName()),
-                false);
+                PARTIAL_UNRESOLVED_IDENTIFIER, temporaryCatalogFunction, false);
         // temporary function hides catalog function
         assertThat(functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.temporary(
-                                FunctionIdentifier.of(IDENTIFIER), FUNCTION_1));
+                                FunctionIdentifier.of(IDENTIFIER),
+                                FUNCTION_1,
+                                temporaryCatalogFunction));
 
         // register temporary second time lenient
         functionCatalog.registerTemporaryCatalogFunction(
-                PARTIAL_UNRESOLVED_IDENTIFIER,
-                new CatalogFunctionImpl(FUNCTION_1.getClass().getName()),
-                true);
+                PARTIAL_UNRESOLVED_IDENTIFIER, temporaryCatalogFunction, true);
         assertThat(functionCatalog.lookupFunction(FULL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.temporary(
-                                FunctionIdentifier.of(IDENTIFIER), FUNCTION_1));
+                                FunctionIdentifier.of(IDENTIFIER),
+                                FUNCTION_1,
+                                temporaryCatalogFunction));
 
         // register temporary second time not lenient
         assertThatThrownBy(
@@ -534,26 +615,30 @@ class FunctionCatalogTest {
         functionCatalog.dropTemporaryCatalogFunction(PARTIAL_UNRESOLVED_IDENTIFIER, true);
 
         // test register uninstantiated table function
+        final CatalogFunctionImpl temporaryTableCatalogFunction =
+                new CatalogFunctionImpl(TABLE_FUNCTION.getClass().getName());
         functionCatalog.registerTemporaryCatalogFunction(
-                PARTIAL_UNRESOLVED_IDENTIFIER,
-                new CatalogFunctionImpl(TABLE_FUNCTION.getClass().getName()),
-                false);
+                PARTIAL_UNRESOLVED_IDENTIFIER, temporaryTableCatalogFunction, false);
         assertThat(functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.temporary(
-                                FunctionIdentifier.of(IDENTIFIER), TABLE_FUNCTION));
+                                FunctionIdentifier.of(IDENTIFIER),
+                                TABLE_FUNCTION,
+                                temporaryTableCatalogFunction));
 
         functionCatalog.dropTemporaryCatalogFunction(PARTIAL_UNRESOLVED_IDENTIFIER, true);
 
         // test register uninstantiated aggregate function
+        final CatalogFunctionImpl temporaryAggregateCatalogFunction =
+                new CatalogFunctionImpl(AGGREGATE_FUNCTION.getClass().getName());
         functionCatalog.registerTemporaryCatalogFunction(
-                PARTIAL_UNRESOLVED_IDENTIFIER,
-                new CatalogFunctionImpl(AGGREGATE_FUNCTION.getClass().getName()),
-                false);
+                PARTIAL_UNRESOLVED_IDENTIFIER, temporaryAggregateCatalogFunction, false);
         assertThat(functionCatalog.lookupFunction(PARTIAL_UNRESOLVED_IDENTIFIER))
                 .hasValue(
                         ContextResolvedFunction.temporary(
-                                FunctionIdentifier.of(IDENTIFIER), AGGREGATE_FUNCTION));
+                                FunctionIdentifier.of(IDENTIFIER),
+                                AGGREGATE_FUNCTION,
+                                temporaryAggregateCatalogFunction));
     }
 
     // --------------------------------------------------------------------------------------------

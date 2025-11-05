@@ -97,7 +97,7 @@ cd "${FLINK_PYTHON_DIR}"
 
 rm -rf dist
 
-uv pip install -r dev/dev-requirements.txt
+uv pip install --group dev
 
 python setup.py sdist
 
@@ -126,7 +126,7 @@ echo "Test PyFlink Table job:"
 FLINK_PYTHON_TEST_DIR=`cd "${CURRENT_DIR}/../flink-python-test" && pwd -P`
 REQUIREMENTS_PATH="${TEST_DATA_DIR}/requirements.txt"
 
-echo "pytest==4.4.1" > "${REQUIREMENTS_PATH}"
+echo "pytest==8.3.5" > "${REQUIREMENTS_PATH}"
 
 echo "Test submitting python job with 'pipeline.jars':\n"
 PYFLINK_CLIENT_EXECUTABLE=${PYTHON_EXEC} "${FLINK_DIR}/bin/flink" run \

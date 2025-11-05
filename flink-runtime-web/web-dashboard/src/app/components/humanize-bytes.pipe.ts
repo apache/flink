@@ -21,8 +21,7 @@ import { Pipe, PipeTransform } from '@angular/core';
 import { isNil } from '@flink-runtime-web/utils';
 
 @Pipe({
-  name: 'humanizeBytes',
-  standalone: true
+  name: 'humanizeBytes'
 })
 export class HumanizeBytesPipe implements PipeTransform {
   public transform(value: number): string {

@@ -78,7 +78,7 @@ public class CollectSinkFunctionTestWrapper<IN> {
                         .setManagedMemorySize(4 * MemoryManager.DEFAULT_PAGE_SIZE)
                         .setIOManager(ioManager)
                         .build();
-        this.runtimeContext = new MockStreamingRuntimeContext(false, 1, 0, environment);
+        this.runtimeContext = new MockStreamingRuntimeContext(1, 0, environment);
         this.gateway = new MockOperatorEventGateway();
 
         this.coordinator = new CollectSinkOperatorCoordinator(SOCKET_TIMEOUT_MILLIS);

@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobmaster.JobMasterConfiguration;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SlotPoolServiceSchedulerFactory;
 import org.apache.flink.runtime.jobmaster.TestingJobManagerSharedServicesBuilder;
+import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.jobmaster.factories.UnregisteredJobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
@@ -95,6 +96,9 @@ public class JobMasterBuilder {
             DefaultExecutionDeploymentReconciler::new;
 
     private BlocklistHandler.Factory blocklistHandlerFactory = new NoOpBlocklistHandler.Factory();
+
+    private JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory =
+            UnregisteredJobManagerJobMetricGroupFactory.INSTANCE;
 
     public JobMasterBuilder(JobGraph jobGraph, RpcService rpcService) {
         TestingHighAvailabilityServices testingHighAvailabilityServices =
@@ -183,6 +187,12 @@ public class JobMasterBuilder {
         return this;
     }
 
+    public JobMasterBuilder withMetricsGroupFactory(
+            JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory) {
+        this.jobManagerJobMetricGroupFactory = jobManagerJobMetricGroupFactory;
+        return this;
+    }
+
     public JobMasterBuilder withJobMasterId(JobMasterId jobMasterId) {
         this.jobMasterId = jobMasterId;
         return this;
@@ -207,7 +217,7 @@ public class JobMasterBuilder {
                         ? jobManagerSharedServices
                         : new TestingJobManagerSharedServicesBuilder().build(),
                 heartbeatServices,
-                UnregisteredJobManagerJobMetricGroupFactory.INSTANCE,
+                jobManagerJobMetricGroupFactory,
                 onCompletionActions,
                 fatalErrorHandler,
                 JobMasterBuilder.class.getClassLoader(),

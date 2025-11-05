@@ -50,12 +50,14 @@ import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.state.forst.ForStDBTtlCompactFiltersManager;
 import org.apache.flink.state.forst.ForStDBWriteBatchWrapper;
@@ -73,6 +75,7 @@ import org.forstdb.ColumnFamilyHandle;
 import org.forstdb.ColumnFamilyOptions;
 import org.forstdb.ReadOptions;
 import org.forstdb.RocksDB;
+import org.forstdb.RocksDBException;
 import org.forstdb.Snapshot;
 import org.forstdb.WriteOptions;
 import org.slf4j.Logger;
@@ -264,6 +267,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
+            SizeTrackingStateConfig sizeTrackingStateConfig,
             RocksDB db,
             LinkedHashMap<String, ForStOperationUtils.ForStKvStateInfo> kvStateInformation,
             Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
@@ -289,6 +293,7 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
                 executionConfig,
                 ttlTimeProvider,
                 latencyTrackingStateConfig,
+                sizeTrackingStateConfig,
                 cancelStreamRegistry,
                 keyGroupCompressionDecorator,
                 keyContext);
@@ -485,18 +490,13 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
             columnFamilyOptions.forEach(IOUtils::closeQuietly);
 
             LOG.info(
-                    "Closed ForSt State Backend. Cleaning up ForSt local working directory {}, remote working directory {}.",
-                    optionsContainer.getLocalBasePath(),
-                    optionsContainer.getRemoteBasePath());
+                    "Closed ForSt State Backend. Cleaning up ForSt: {}.",
+                    optionsContainer.getPathContainer());
 
             try {
                 optionsContainer.clearDirectories();
             } catch (Exception ex) {
-                LOG.warn(
-                        "Could not delete ForSt local working directory {}, remote working directory {}.",
-                        optionsContainer.getLocalBasePath(),
-                        optionsContainer.getRemoteBasePath(),
-                        ex);
+                LOG.warn("Could not delete ForSt: {}.", optionsContainer.getPathContainer(), ex);
             }
 
             IOUtils.closeQuietly(optionsContainer);
@@ -938,7 +938,19 @@ public class ForStSyncKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> 
 
     @Override
     public boolean isSafeToReuseKVState() {
-        return true;
+        return !(priorityQueueFactory instanceof HeapPriorityQueueSetFactory);
+    }
+
+    @VisibleForTesting
+    public void compactState(StateDescriptor<?, ?> stateDesc) throws RocksDBException {
+        ForStOperationUtils.ForStKvStateInfo kvStateInfo =
+                kvStateInformation.get(stateDesc.getName());
+        db.compactRange(kvStateInfo.columnFamilyHandle);
+    }
+
+    @Override
+    public String getBackendTypeIdentifier() {
+        return StateBackendLoader.FORST_STATE_BACKEND_NAME;
     }
 
     @Nonnegative

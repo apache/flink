@@ -76,9 +76,9 @@ tEnv.executeSql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256)) WITH 
 String explanation =
                 tEnv.explainSql(
                         "SELECT `count`, COUNT(word) FROM ("
-                                + "MyTable1 WHERE word LIKE 'F%' "
+                                + "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "
                                 + "UNION ALL "
-                                + "SELECT `count`, word FROM MyTable2) tmp"
+                                + "SELECT `count`, word FROM MyTable2) tmp "
                                 + "GROUP BY `count`");
 System.out.println(explanation);
 
@@ -87,7 +87,7 @@ TableResult tableResult =
                 tEnv.executeSql(
                         "EXPLAIN PLAN FOR "
                                 + "SELECT `count`, COUNT(word) FROM ("
-                                + "MyTable1 WHERE word LIKE 'F%' "
+                                + "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "
                                 + "UNION ALL "
                                 + "SELECT `count`, word FROM MyTable2) tmp GROUP BY `count`");
 tableResult.print();
@@ -95,8 +95,8 @@ tableResult.print();
 TableResult tableResult2 =
                 tEnv.executeSql(
                         "EXPLAIN ESTIMATED_COST, CHANGELOG_MODE, PLAN_ADVICE, JSON_EXECUTION_PLAN "
-                                + "SELECT `count`, COUNT(word) FROM ("
-                                + "MyTable1 WHERE word LIKE 'F%' "
+                                + "SELECT `count`, COUNT(word) FROM ( "
+                                + "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "
                                 + "UNION ALL "
                                 + "SELECT `count`, word FROM MyTable2) tmp GROUP BY `count`");
 tableResult2.print();
@@ -164,7 +164,7 @@ t_env.execute_sql("CREATE TABLE MyTable2 (`count` bigint, word VARCHAR(256)) WIT
 # explain SELECT statement through TableEnvironment.explain_sql()
 explanation1 = t_env.explain_sql(
     "SELECT `count`, COUNT(word) FROM (" 
-    "MyTable1 WHERE word LIKE 'F%' "
+    "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "
     "UNION ALL "
     "SELECT `count`, word FROM MyTable2) tmp GROUP BY `count`")
 print(explanation1)
@@ -173,7 +173,7 @@ print(explanation1)
 table_result = t_env.execute_sql(
     "EXPLAIN PLAN FOR "
     "SELECT `count`, COUNT(word) FROM (" 
-    "MyTable1 WHERE word LIKE 'F%' "
+    "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "
     "UNION ALL "
     "SELECT `count`, word FROM MyTable2) tmp GROUP BY `count`")
 table_result.print()
@@ -181,7 +181,7 @@ table_result.print()
 table_result2 = t_env.execute_sql(
     "EXPLAIN ESTIMATED_COST, CHANGELOG_MODE, PLAN_ADVICE, JSON_EXECUTION_PLAN "
     "SELECT `count`, COUNT(word) FROM (" 
-    "MyTable1 WHERE word LIKE 'F%' "
+    "SELECT `count`, word FROM MyTable1 WHERE word LIKE 'F%' "
     "UNION ALL "
     "SELECT `count`, word FROM MyTable2) tmp GROUP BY `count`")
 table_result2.print()

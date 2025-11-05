@@ -81,7 +81,7 @@ cdef class NamespaceAggsHandleFunctionBase:
         """
         pass
 
-    cdef list get_accumulators(self):
+    cpdef list get_accumulators(self):
         """
         Gets the current accumulators (saved in a list) which contains the current
         aggregated results.
@@ -287,7 +287,7 @@ cdef class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction):
                     accumulators[i][index] = data_view
         self._accumulators = accumulators
 
-    cdef list get_accumulators(self):
+    cpdef list get_accumulators(self):
         return self._accumulators
 
     cpdef list create_accumulators(self):

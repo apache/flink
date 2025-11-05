@@ -15,10 +15,11 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-
 from abc import ABC, abstractmethod
+from enum import Enum
+
 from py4j.java_gateway import JavaObject
-from typing import Union, Any, Generic, TypeVar, Iterable
+from typing import Union, Any, Generic, TypeVar, Iterable, List, Callable, Optional
 
 from pyflink.datastream.state import ValueState, ValueStateDescriptor, ListStateDescriptor, \
     ListState, MapStateDescriptor, MapState, ReducingStateDescriptor, ReducingState, \
@@ -53,6 +54,10 @@ __all__ = [
     'BaseBroadcastProcessFunction',
     'BroadcastProcessFunction',
     'KeyedBroadcastProcessFunction',
+    'AsyncFunction',
+    'AsyncFunctionDescriptor',
+    'AsyncRetryPredicate',
+    'AsyncRetryStrategy',
 ]
 
 
@@ -897,6 +902,129 @@ register a timer that will trigger an action in the future.
         pass
 
 
+class AsyncRetryPredicate(ABC, Generic[OUT]):
+    """
+    Interface encapsulates an asynchronous retry predicate.
+    """
+
+    @abstractmethod
+    def result_predicate(self) -> Optional[Callable[[List[OUT]], bool]]:
+        """
+        An optional Python predicate function that defines a condition on asyncFunction's future
+        result which will trigger a later reattempt operation, will be called before user's
+        ResultFuture#complete.
+        """
+        pass
+
+    @abstractmethod
+    def exception_predicate(self) -> Optional[Callable[[Exception], bool]]:
+        """
+        An optional Python predicate function that defines a condition on asyncFunction's exception
+        which will trigger a later reattempt operation, will be called before user's
+        ResultFuture#complete_exceptionally.
+        """
+        pass
+
+
+class AsyncRetryStrategy(ABC, Generic[OUT]):
+    """
+    Interface encapsulates an asynchronous retry strategy.
+    """
+
+    @abstractmethod
+    def can_retry(self, current_attempts: int) -> bool:
+        """
+        Whether the next attempt can happen.
+        """
+        pass
+
+    @abstractmethod
+    def get_backoff_time_millis(self, current_attempts: int) -> int:
+        """
+        The delay time of next attempt.
+        """
+        pass
+
+    @abstractmethod
+    def get_retry_predicate(self) -> AsyncRetryPredicate[OUT]:
+        """
+        Returns the defined retry predicate.
+        """
+        pass
+
+    @staticmethod
+    def no_restart():
+        from pyflink.datastream import async_retry_strategies
+        return async_retry_strategies.NO_RETRY_STRATEGY
+
+    @staticmethod
+    def fixed_delay(
+        max_attempts: int,
+        backoff_time_millis: int,
+        result_predicate: Optional[Callable[[List[OUT]], bool]],
+        exception_predicate: Optional[Callable[[Exception], bool]]
+    ):
+        from pyflink.datastream.async_retry_strategies import FixedDelayRetryStrategy
+        return FixedDelayRetryStrategy(
+            max_attempts, backoff_time_millis, result_predicate, exception_predicate)
+
+    @staticmethod
+    def exponential_backoff(
+        max_attempts: int,
+        initial_delay: int,
+        max_retry_delay: int,
+        multiplier: float,
+        result_predicate: Optional[Callable[[List[OUT]], bool]],
+        exception_predicate: Optional[Callable[[Exception], bool]]
+    ):
+        from pyflink.datastream.async_retry_strategies import ExponentialBackoffDelayRetryStrategy
+        return ExponentialBackoffDelayRetryStrategy(
+            max_attempts, initial_delay, max_retry_delay, multiplier,
+            result_predicate, exception_predicate)
+
+
+class AsyncFunction(Function, Generic[IN, OUT]):
+    """
+    A function to trigger Async I/O operation.
+
+    For each #async_invoke, an async io operation can be triggered. For each async operation, its
+    context is stored in the operator immediately after invoking #async_invoke, avoiding blocking
+    for each stream input as long as the internal buffer is not full.
+    """
+
+    @abstractmethod
+    async def async_invoke(self, value: IN) -> List[OUT]:
+        """
+        Trigger async operation for each stream input.
+        In case of a user code error. You can raise an exception to make the task fail and
+        trigger fail-over process.
+
+        :param value: Input element coming from an upstream task.
+        """
+        pass
+
+    def timeout(self, value: IN) -> List[OUT]:
+        """
+        In case :func:`~ResultFuture.async_invoke` timeout occurred. By default, it raises
+        a timeout exception.
+        """
+        raise TimeoutError("Async function call has timed out for input: " + str(value))
+
+
+class AsyncFunctionDescriptor(object):
+
+    class OutputMode(Enum):
+        ORDERED = 0
+        UNORDERED = 1
+
+    def __init__(self, async_function, timeout, capacity, async_retry_strategy, output_mode):
+        self.async_function = async_function
+        self.timeout = timeout
+        self.capacity = capacity
+        self.async_retry_strategy = async_retry_strategy
+        self.output_mode = output_mode
+
+
 class WindowFunction(Function, Generic[IN, OUT, KEY, W]):
     """
     Base interface for functions that are evaluated over keyed (grouped) windows.
@@ -1247,8 +1375,8 @@ class InternalSingleValueProcessWindowFunction(InternalWindowFunction[IN, OUT, K
 
     def __init__(self, wrapped_function: ProcessWindowFunction):
         self._wrapped_function = wrapped_function
-        self._internal_context = \
-            InternalProcessWindowContext()  # type: InternalProcessWindowContext
+        self._internal_context: InternalProcessWindowContext = \
+            InternalProcessWindowContext()
 
     def open(self, runtime_context: RuntimeContext):
         self._wrapped_function.open(runtime_context)
@@ -1275,8 +1403,8 @@ class InternalSingleValueProcessAllWindowFunction(InternalWindowFunction[IN, OUT
 
     def __init__(self, wrapped_function: ProcessAllWindowFunction):
         self._wrapped_function = wrapped_function
-        self._internal_context = \
-            InternalProcessAllWindowContext()  # type: InternalProcessAllWindowContext
+        self._internal_context: InternalProcessAllWindowContext = \
+            InternalProcessAllWindowContext()
 
     def open(self, runtime_context: RuntimeContext):
         self._wrapped_function.open(runtime_context)
@@ -1303,8 +1431,8 @@ class InternalIterableProcessWindowFunction(InternalWindowFunction[Iterable[IN],
 
     def __init__(self, wrapped_function: ProcessWindowFunction):
         self._wrapped_function = wrapped_function
-        self._internal_context = \
-            InternalProcessWindowContext()  # type: InternalProcessWindowContext
+        self._internal_context: InternalProcessWindowContext = \
+            InternalProcessWindowContext()
 
     def open(self, runtime_context: RuntimeContext):
         self._wrapped_function.open(runtime_context)
@@ -1600,8 +1728,8 @@ class InternalIterableProcessAllWindowFunction(InternalWindowFunction[Iterable[I
 
     def __init__(self, wrapped_function: ProcessAllWindowFunction):
         self._wrapped_function = wrapped_function
-        self._internal_context = \
-            InternalProcessAllWindowContext()  # type: InternalProcessAllWindowContext
+        self._internal_context: InternalProcessAllWindowContext = \
+            InternalProcessAllWindowContext()
 
     def open(self, runtime_context: RuntimeContext):
         self._wrapped_function.open(runtime_context)

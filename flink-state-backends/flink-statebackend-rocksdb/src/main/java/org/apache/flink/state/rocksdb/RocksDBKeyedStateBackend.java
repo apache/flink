@@ -50,12 +50,14 @@ import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
 import org.apache.flink.runtime.state.metrics.LatencyTrackingStateConfig;
+import org.apache.flink.runtime.state.metrics.SizeTrackingStateConfig;
 import org.apache.flink.runtime.state.ttl.TtlAwareSerializer;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.state.rocksdb.iterator.RocksMultiStateKeysIterator;
@@ -282,6 +284,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             ExecutionConfig executionConfig,
             TtlTimeProvider ttlTimeProvider,
             LatencyTrackingStateConfig latencyTrackingStateConfig,
+            SizeTrackingStateConfig sizeTrackingStateConfig,
             RocksDB db,
             LinkedHashMap<String, RocksDbKvStateInfo> kvStateInformation,
             Map<String, HeapPriorityQueueSnapshotRestoreWrapper<?>> registeredPQStates,
@@ -308,6 +311,7 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 executionConfig,
                 ttlTimeProvider,
                 latencyTrackingStateConfig,
+                sizeTrackingStateConfig,
                 cancelStreamRegistry,
                 keyGroupCompressionDecorator,
                 keyContext);
@@ -523,6 +527,11 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
     public void setCurrentKeyAndKeyGroup(K newKey, int newKeyGroupIndex) {
         super.setCurrentKeyAndKeyGroup(newKey, newKeyGroupIndex);
         sharedRocksKeyBuilder.setKeyAndKeyGroup(getCurrentKey(), getCurrentKeyGroupIndex());
+    }
+
+    @VisibleForTesting
+    LinkedHashMap<String, RocksDbKvStateInfo> getKvStateInformation() {
+        return kvStateInformation;
     }
 
     /** Should only be called by one thread, and only after all accesses to the DB happened. */
@@ -1099,7 +1108,12 @@ public class RocksDBKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     @Override
     public boolean isSafeToReuseKVState() {
-        return true;
+        return !(priorityQueueFactory instanceof HeapPriorityQueueSetFactory);
+    }
+
+    @Override
+    public String getBackendTypeIdentifier() {
+        return StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME;
     }
 
     /** Rocks DB specific information about the k/v states. */

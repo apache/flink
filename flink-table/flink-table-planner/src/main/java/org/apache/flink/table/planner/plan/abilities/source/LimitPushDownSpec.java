@@ -23,6 +23,7 @@ import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsLimitPushDown;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -32,6 +33,7 @@ import java.util.Objects;
  * A sub-class of {@link SourceAbilitySpec} that can not only serialize/deserialize the limit value
  * to/from JSON, but also can push the limit value into a {@link LimitPushDownSpec}.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("LimitPushDown")
 public final class LimitPushDownSpec extends SourceAbilitySpecBase {
     public static final String FIELD_NAME_LIMIT = "limit";

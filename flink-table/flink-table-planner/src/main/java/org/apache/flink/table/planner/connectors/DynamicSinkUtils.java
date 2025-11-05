@@ -43,6 +43,7 @@ import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.connector.RowLevelModificationScanContext;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
+import org.apache.flink.table.connector.sink.DynamicTableSink.DataStructureConverter;
 import org.apache.flink.table.connector.sink.abilities.SupportsBucketing;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
@@ -107,6 +108,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.planner.hint.FlinkHints.mergeTableOptions;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsAvoidingCast;
@@ -138,7 +140,7 @@ public final class DynamicSinkUtils {
         final ContextResolvedTable contextResolvedTable =
                 ContextResolvedTable.anonymous("collect", catalogTable);
 
-        final DataType consumedDataType = fixCollectDataType(dataTypeFactory, schema);
+        final DataType consumedDataType = deriveCollectDataType(dataTypeFactory, schema);
 
         final String zone = configuration.get(TableConfigOptions.LOCAL_TIME_ZONE);
         final ZoneId zoneId =
@@ -258,6 +260,14 @@ public final class DynamicSinkUtils {
             int[][] targetColumns,
             boolean isOverwrite,
             DynamicTableSink sink) {
+        if (!dynamicOptions.isEmpty()) {
+            contextResolvedTable =
+                    contextResolvedTable.copy(
+                            mergeTableOptions(
+                                    dynamicOptions,
+                                    contextResolvedTable.getResolvedTable().getOptions()));
+        }
+
         final DataTypeFactory dataTypeFactory =
                 unwrapContext(relBuilder).getCatalogManager().getDataTypeFactory();
         final FlinkTypeFactory typeFactory = unwrapTypeFactory(relBuilder);
@@ -888,17 +898,23 @@ public final class DynamicSinkUtils {
 
     // --------------------------------------------------------------------------------------------
 
-    /** Temporary solution until we drop legacy types. */
-    private static DataType fixCollectDataType(
+    /**
+     * Prepares a {@link DataType} for {@link DataStructureConverter} from {@link ResolvedSchema}.
+     */
+    private static DataType deriveCollectDataType(
             DataTypeFactory dataTypeFactory, ResolvedSchema schema) {
+        // TODO erase the conversion class earlier when dropping legacy code, esp. FLINK-22321
         final DataType fixedDataType =
                 DataTypeUtils.transform(
                         dataTypeFactory,
                         schema.toSourceRowDataType(),
                         TypeTransformations.legacyRawToTypeInfoRaw(),
                         TypeTransformations.legacyToNonLegacy());
-        // TODO erase the conversion class earlier when dropping legacy code, esp. FLINK-22321
-        return TypeConversions.fromLogicalToDataType(fixedDataType.getLogicalType());
+        final DataType defaultDataType =
+                TypeConversions.fromLogicalToDataType(fixedDataType.getLogicalType());
+
+        // Structured types might not use default conversion classes.
+        return DataTypeUtils.alignStructuredTypes(dataTypeFactory, defaultDataType);
     }
 
     /**

@@ -166,6 +166,64 @@ class TableDescriptorTest {
     }
 
     @Test
+    void testToStringWithoutDistributionAndPartition() {
+        final Schema schema = Schema.newBuilder().column("f0", DataTypes.STRING()).build();
+
+        final FormatDescriptor formatDescriptor =
+                FormatDescriptor.forFormat("test-format").option(OPTION_A, false).build();
+
+        final TableDescriptor tableDescriptor =
+                TableDescriptor.forConnector("test-connector")
+                        .schema(schema)
+                        .option(OPTION_A, true)
+                        .format(formatDescriptor)
+                        .comment("Test Comment")
+                        .build();
+
+        assertThat(formatDescriptor.toString()).isEqualTo("test-format[{a=false}]");
+        assertThat(tableDescriptor.toString())
+                .isEqualTo(
+                        "(\n"
+                                + "  `f0` STRING\n"
+                                + ")\n"
+                                + "COMMENT 'Test Comment'\n"
+                                + "WITH (\n"
+                                + "  'a' = 'true',\n"
+                                + "  'connector' = 'test-connector',\n"
+                                + "  'test-format.a' = 'false',\n"
+                                + "  'format' = 'test-format'\n"
+                                + ")");
+    }
+
+    @Test
+    void testToStringWithoutNoComment() {
+        final Schema schema = Schema.newBuilder().column("f0", DataTypes.STRING()).build();
+
+        final FormatDescriptor formatDescriptor =
+                FormatDescriptor.forFormat("test-format").option(OPTION_A, false).build();
+
+        final TableDescriptor tableDescriptor =
+                TableDescriptor.forConnector("test-connector")
+                        .schema(schema)
+                        .option(OPTION_A, true)
+                        .format(formatDescriptor)
+                        .build();
+
+        assertThat(formatDescriptor.toString()).isEqualTo("test-format[{a=false}]");
+        assertThat(tableDescriptor.toString())
+                .isEqualTo(
+                        "(\n"
+                                + "  `f0` STRING\n"
+                                + ")\n"
+                                + "WITH (\n"
+                                + "  'a' = 'true',\n"
+                                + "  'connector' = 'test-connector',\n"
+                                + "  'test-format.a' = 'false',\n"
+                                + "  'format' = 'test-format'\n"
+                                + ")");
+    }
+
+    @Test
     void testFormatDescriptorWithPrefix() {
         assertThatThrownBy(
                         () ->

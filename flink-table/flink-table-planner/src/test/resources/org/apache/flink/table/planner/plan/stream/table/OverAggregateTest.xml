@@ -26,7 +26,7 @@ LogicalProject(a=[$0], _c1=[AS(COUNT($2) OVER (ORDER BY $3 NULLS FIRST RANGE 100
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, w0$o0 AS _c1])
-+- OverAggregate(orderBy=[proctime ASC], window=[ RANG BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(c) AS w0$o0])
++- OverAggregate(orderBy=[proctime ASC], window=[ RANGE BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(c) AS w0$o0])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -60,7 +60,7 @@ LogicalProject(a=[$0], myAvg=[AS(*org.apache.flink.table.planner.plan.utils.Java
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, w0$o0 AS myAvg])
-+- OverAggregate(partitionBy=[a], orderBy=[proctime ASC], window=[ RANG BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[a, c, proctime, $3, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*(c, $3) AS w0$o0])
++- OverAggregate(partitionBy=[a], orderBy=[proctime ASC], window=[ RANGE BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[a, c, proctime, $3, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*(c, $3) AS w0$o0])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, c, proctime, CAST(a AS BIGINT) AS $3])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -94,7 +94,7 @@ LogicalProject(a=[$0], c=[$2], _c2=[AS(COUNT($0) OVER (ORDER BY $3 NULLS FIRST),
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, c, w0$o0 AS _c2, w0$o1 AS _c3])
-+- OverAggregate(orderBy=[proctime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, SUM(a) AS w0$o1])
++- OverAggregate(orderBy=[proctime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(a) AS w0$o0, SUM(a) AS w0$o1])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, proctime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -128,7 +128,7 @@ LogicalProject(a=[$0], c=[$2], _c2=[AS(COUNT($0) OVER (PARTITION BY $2 ORDER BY 
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, c, w0$o0 AS _c2, w0$o1 AS _c3])
-+- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, $3, COUNT(a) AS w0$o0, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*(c, $3) AS w0$o1])
++- OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, proctime, $3, COUNT(a) AS w0$o0, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*(c, $3) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, proctime, CAST(a AS BIGINT) AS $3])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -162,7 +162,7 @@ LogicalProject(c=[$2], _c1=[AS(COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w0$o0 AS _c1, w0$o1 AS _c2, w0$o2 AS _c3])
-+- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANG BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, COUNT(DISTINCT a) AS w0$o0, SUM(DISTINCT a) AS w0$o1, AVG(DISTINCT $3) AS w0$o2])
++- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANGE BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, COUNT(DISTINCT a) AS w0$o0, SUM(DISTINCT a) AS w0$o1, AVG(DISTINCT $3) AS w0$o2])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, rowtime, CAST(a AS FLOAT) AS $3])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -196,26 +196,9 @@ LogicalProject(a=[$0], _c1=[AS(COUNT($2) OVER (ORDER BY $4 NULLS FIRST RANGE 100
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, w0$o0 AS _c1])
-+- OverAggregate(orderBy=[rowtime ASC], window=[ RANG BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(c) AS w0$o0])
++- OverAggregate(orderBy=[rowtime ASC], window=[ RANGE BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(c) AS w0$o0])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, rowtime])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRowTimeBoundedPartitionedRangeOver">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], _c1=[AS(AVG($2) OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'_c1')], wAvg=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'wAvg')])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, w0$o0 AS _c1, w0$o1 AS wAvg])
-+- OverAggregate(partitionBy=[a], orderBy=[rowtime ASC], window=[ RANG BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, AVG(c) AS w0$o0, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*(c, $3) AS w0$o1])
-   +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a, c, rowtime, CAST(a AS BIGINT) AS $3])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -233,6 +216,23 @@ Calc(select=[c, w0$o0 AS _c1])
 +- OverAggregate(orderBy=[rowtime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, rowtime])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeBoundedPartitionedRangeOver">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], _c1=[AS(AVG($2) OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'_c1')], wAvg=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $0 ORDER BY $4 NULLS FIRST RANGE 7200000 PRECEDING), _UTF-16LE'wAvg')])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, w0$o0 AS _c1, w0$o1 AS wAvg])
++- OverAggregate(partitionBy=[a], orderBy=[rowtime ASC], window=[ RANGE BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, AVG(c) AS w0$o0, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*(c, $3) AS w0$o1])
+   +- Exchange(distribution=[hash[a]])
+      +- Calc(select=[a, c, rowtime, CAST(a AS BIGINT) AS $3])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -264,7 +264,7 @@ LogicalProject(c=[$2], _c1=[AS(COUNT(DISTINCT $0) OVER (PARTITION BY $2 ORDER BY
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, w0$o0 AS _c1, w0$o1 AS _c2, w0$o2 AS _c3])
-+- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, COUNT(DISTINCT a) AS w0$o0, SUM(DISTINCT a) AS w0$o1, AVG(DISTINCT $3) AS w0$o2])
++- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, COUNT(DISTINCT a) AS w0$o0, SUM(DISTINCT a) AS w0$o1, AVG(DISTINCT $3) AS w0$o2])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, rowtime, CAST(a AS FLOAT) AS $3])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -298,7 +298,7 @@ LogicalProject(a=[$0], c=[$2], _c2=[AS(COUNT($0) OVER (ORDER BY $4 NULLS FIRST),
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[a, c, w0$o0 AS _c2, w0$o1 AS _c3])
-+- OverAggregate(orderBy=[rowtime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, SUM(a) AS w0$o1])
++- OverAggregate(orderBy=[rowtime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, COUNT(a) AS w0$o0, SUM(a) AS w0$o1])
    +- Exchange(distribution=[single])
       +- Calc(select=[a, c, rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
@@ -322,6 +322,23 @@ Calc(select=[c, w0$o0 AS _c1])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRowTimeUnboundedPartitionedRangeOver">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], c=[$2], _c2=[AS(COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), _UTF-16LE'_c2')], wAvg=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), _UTF-16LE'wAvg')])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, c, w0$o0 AS _c2, w0$o1 AS wAvg])
++- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, COUNT(a) AS w0$o0, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*(c, $3) AS w0$o1])
+   +- Exchange(distribution=[hash[c]])
+      +- Calc(select=[a, c, rowtime, CAST(a AS BIGINT) AS $3])
+         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRowTimeUnboundedPartitionedRowsOver">
     <Resource name="ast">
       <![CDATA[
@@ -333,23 +350,6 @@ LogicalProject(c=[$2], _c1=[AS(COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS
       <![CDATA[
 Calc(select=[c, w0$o0 AS _c1, w0$o1 AS wAvg])
 +- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, COUNT(a) AS w0$o0, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*(c, $3) AS w0$o1])
-   +- Exchange(distribution=[hash[c]])
-      +- Calc(select=[a, c, rowtime, CAST(a AS BIGINT) AS $3])
-         +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testRowTimeUnboundedPartitionedRangeOver">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], c=[$2], _c2=[AS(COUNT($0) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), _UTF-16LE'_c2')], wAvg=[AS(*org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*($2, CAST($0):BIGINT) OVER (PARTITION BY $2 ORDER BY $4 NULLS FIRST), _UTF-16LE'wAvg')])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, c, w0$o0 AS _c2, w0$o1 AS wAvg])
-+- OverAggregate(partitionBy=[c], orderBy=[rowtime ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, rowtime, $3, COUNT(a) AS w0$o0, *org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvgWithRetract*(c, $3) AS w0$o1])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[a, c, rowtime, CAST(a AS BIGINT) AS $3])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])

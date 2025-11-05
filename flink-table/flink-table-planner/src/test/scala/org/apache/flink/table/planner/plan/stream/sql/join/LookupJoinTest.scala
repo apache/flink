@@ -59,6 +59,28 @@ class LookupJoinTest extends TableTestBase with Serializable {
     util.addDataStream[(Int, String, Int)]("nonTemporal", 'id, 'name, 'age)
 
     util.addTable("""
+                    |CREATE TABLE UpsertTable (
+                    |  `id` INT,
+                    |  `name` STRING,
+                    |  `age` INT
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'changelog-mode' = 'I,UA,UB,D'
+                    |)
+                    |""".stripMargin)
+
+    util.addTable("""
+                    |CREATE TABLE AppendOnlyTable (
+                    |  `id` INT,
+                    |  `name` STRING,
+                    |  `age` INT
+                    |) WITH (
+                    |  'connector' = 'values',
+                    |  'bounded' = 'true'
+                    |)
+                    |""".stripMargin)
+
+    util.addTable("""
                     |CREATE TABLE LookupTable (
                     |  `id` INT,
                     |  `name` STRING,
@@ -249,12 +271,9 @@ class LookupJoinTest extends TableTestBase with Serializable {
     expectExceptionThrown(
       "SELECT * FROM T JOIN LookupTable7 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
-      "Could not find an implementation method 'eval' in class " +
+      "Method 'eval' of function class " +
         "'org.apache.flink.table.planner.plan.utils.InvalidAsyncTableFunctionEvalSignature1' " +
-        "for function 'default_catalog.default_database.LookupTable7' that matches the " +
-        "following signature:\n" +
-        "void eval(java.util.concurrent.CompletableFuture, java.lang.Integer, " +
-        "org.apache.flink.table.data.StringData, org.apache.flink.table.data.TimestampData)",
+        "must have a first argument of type java.util.concurrent.CompletableFuture<java.util.Collection>.",
       classOf[ValidationException]
     )
 
@@ -262,12 +281,9 @@ class LookupJoinTest extends TableTestBase with Serializable {
     expectExceptionThrown(
       "SELECT * FROM T JOIN LookupTable8 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
-      "Could not find an implementation method 'eval' in class " +
+      "Method 'eval' of function class " +
         "'org.apache.flink.table.planner.plan.utils.InvalidAsyncTableFunctionEvalSignature2' " +
-        "for function 'default_catalog.default_database.LookupTable8' that matches the " +
-        "following signature:\nvoid eval(java.util.concurrent.CompletableFuture, " +
-        "java.lang.Integer, java.lang.String, " +
-        "java.time.LocalDateTime)",
+        "must have a first argument of type java.util.concurrent.CompletableFuture<java.util.Collection>.",
       classOf[ValidationException]
     )
 
@@ -281,12 +297,19 @@ class LookupJoinTest extends TableTestBase with Serializable {
     expectExceptionThrown(
       "SELECT * FROM T JOIN LookupTable10 " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
-      "Could not find an implementation method 'eval' in class " +
+      "Method 'eval' of function class " +
         "'org.apache.flink.table.planner.plan.utils.InvalidAsyncTableFunctionEvalSignature3' " +
-        "for function 'default_catalog.default_database.LookupTable10' that matches the " +
-        "following signature:\n" +
-        "void eval(java.util.concurrent.CompletableFuture, java.lang.Integer, " +
-        "org.apache.flink.table.data.StringData, org.apache.flink.table.data.TimestampData)",
+        "must have a first argument of type java.util.concurrent.CompletableFuture<java.util.Collection>.",
+      classOf[ValidationException]
+    )
+
+    createLookupTable("LookupTable11", new InvalidAsyncTableFunctionType)
+    expectExceptionThrown(
+      "SELECT * FROM T JOIN LookupTable11 " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id AND T.b = D.name AND T.ts = D.ts",
+      "Method 'eval' of function class " +
+        "'org.apache.flink.table.planner.plan.utils.InvalidAsyncTableFunctionType' " +
+        "must have a first argument of type java.util.concurrent.CompletableFuture<java.util.Collection>.",
       classOf[ValidationException]
     )
   }
@@ -784,7 +807,7 @@ class LookupJoinTest extends TableTestBase with Serializable {
         |SELECT /*+ LOOKUP('table'='D', 'output-mode'='allow_unordered'),
         |           LOOKUP('table'='D', 'output-mode'='ordered') */ *
         |FROM MyTable AS T
-        |JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D 
+        |JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
         | ON T.a = D.id
       """.stripMargin
     util.verifyExecPlan(sql)
@@ -814,9 +837,9 @@ class LookupJoinTest extends TableTestBase with Serializable {
         |SELECT /*+ LOOKUP('table'='D', 'output-mode'='allow_unordered'),
         |           LOOKUP('table'='D1', 'retry-predicate'='lookup_miss', 'retry-strategy'='fixed_delay', 'fixed-delay'='10s', 'max-attempts'='3') */ *
         |FROM MyTable AS T
-        |JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D 
+        |JOIN AsyncLookupTable FOR SYSTEM_TIME AS OF T.proctime AS D
         |  ON T.a = D.id
-        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D1 
+        |JOIN LookupTable FOR SYSTEM_TIME AS OF T.proctime AS D1
         |  ON T.a = D1.id
       """.stripMargin
     util.verifyExecPlan(sql)
@@ -845,6 +868,28 @@ class LookupJoinTest extends TableTestBase with Serializable {
       "SELECT /*+ LOOKUP('table'='D', 'async'='false') */ * " +
         "FROM MyTable AS T JOIN AsyncLookupTable " +
         "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.a = D.id"
+    util.verifyExecPlan(sql)
+  }
+
+  @Test
+  def testJoinAsyncTableKeyOrderedWithCdcSource(): Unit = {
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED, Boolean.box(true))
+    val sql =
+      "SELECT /*+ LOOKUP('table'='D', 'async'='true', 'output-mode'='allow_unordered') */ * " +
+        "FROM (SELECT *, PROCTIME() AS proctime FROM UpsertTable) AS T JOIN AsyncLookupTable " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.id = D.id"
+    util.verifyExplain(sql)
+  }
+
+  @Test
+  def testJoinAsyncTableKeyOrderedWithAppendOnlySource(): Unit = {
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_ASYNC_LOOKUP_KEY_ORDERED, Boolean.box(true))
+    val sql =
+      "SELECT /*+ LOOKUP('table'='D', 'async'='true', 'output-mode'='allow_unordered') */ * " +
+        "FROM (SELECT *, PROCTIME() AS proctime FROM AppendOnlyTable) AS T JOIN AsyncLookupTable " +
+        "FOR SYSTEM_TIME AS OF T.proctime AS D ON T.id = D.id"
     util.verifyExecPlan(sql)
   }
 

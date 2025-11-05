@@ -162,6 +162,40 @@ Calc(select=[deptno, c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCaseWhenRefGroupingSetsNullableCols">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+    case
+     when g1 = 1 then 'aaa'
+     when g2 = 1 then 'bbb'
+    end as gt,
+    b, c,
+    AVG(a) AS a
+FROM (select *, 1 g1, 1 g2 from MyTable) t
+    GROUP BY GROUPING SETS ((g1, b), (g2, b, c))
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(gt=[CASE(=($0, 1), _UTF-16LE'aaa', =($2, 1), _UTF-16LE'bbb', null:CHAR(3) CHARACTER SET "UTF-16LE")], b=[$1], c=[$3], a=[$4])
++- LogicalAggregate(group=[{0, 1, 2, 3}], groups=[[{0, 1}, {1, 2, 3}]], a=[AVG($4)])
+   +- LogicalProject(g1=[$3], b=[$1], g2=[$4], c=[$2], a=[$0])
+      +- LogicalProject(a=[$0], b=[$1], c=[$2], g1=[1], g2=[1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[CASE((g1 = 1), 'aaa', (g2 = 1), 'bbb', null:CHAR(3)) AS gt, b, c, a])
++- GroupAggregate(groupBy=[g1, b, g2, c, $e], select=[g1, b, g2, c, $e, AVG(a) AS a])
+   +- Exchange(distribution=[hash[g1, b, g2, c, $e]])
+      +- Expand(projects=[{g1, b, null AS g2, null AS c, a, 3 AS $e}, {null AS g1, b, g2, c, a, 8 AS $e}])
+         +- Calc(select=[1 AS g1, b, 1 AS g2, c, a])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testCube">
     <Resource name="sql">
       <![CDATA[
@@ -320,29 +354,6 @@ Calc(select=[deptno, gender, CASE(($e = 0), 0, ($e = 1), 5, 7) AS EXPR$2, c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testSimpleCube">
-    <Resource name="sql">
-      <![CDATA[SELECT deptno + 1, COUNT(*) AS c FROM emp GROUP BY CUBE(deptno, gender)]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[+($0, 1)], c=[$2])
-+- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], c=[COUNT()])
-   +- LogicalProject(deptno=[$1], gender=[$2])
-      +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[(deptno + 1) AS EXPR$0, c])
-+- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS c])
-   +- Exchange(distribution=[hash[deptno, gender, $e]])
-      +- Expand(projects=[{deptno, gender, 0 AS $e}, {deptno, null AS gender, 1 AS $e}, {null AS deptno, gender, 2 AS $e}, {null AS deptno, null AS gender, 3 AS $e}])
-         +- Calc(select=[deptno, gender])
-            +- TableSourceScan(table=[[default_catalog, default_database, emp]], fields=[ename, deptno, gender])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testFromBlogspot">
     <Resource name="sql">
       <![CDATA[
@@ -478,6 +489,36 @@ Calc(select=[deptno, gender, CASE(SEARCH($e, Sarg[0, 1]), 0, 1) AS gd, CASE(($e 
       +- Expand(projects=[{deptno, gender, 0 AS $e}, {deptno, null AS gender, 1 AS $e}, {null AS deptno, gender, 2 AS $e}, {null AS deptno, null AS gender, 3 AS $e}])
          +- Calc(select=[deptno, gender])
             +- TableSourceScan(table=[[default_catalog, default_database, emp]], fields=[ename, deptno, gender])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupingInOrderByClause">
+    <Resource name="sql">
+      <![CDATA[
+SELECT COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno) ORDER BY GROUPING(deptno), c
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(c=[$0])
++- LogicalSort(sort0=[$1], sort1=[$0], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
+   +- LogicalProject(c=[$1], EXPR$1=[$2])
+      +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()], agg#1=[GROUPING($0)])
+         +- LogicalProject(deptno=[$1])
+            +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[c])
++- Sort(orderBy=[EXPR$1 ASC, c ASC])
+   +- Exchange(distribution=[single])
+      +- Calc(select=[c, CASE(($e = 0), 0, 1) AS EXPR$1])
+         +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
+            +- Exchange(distribution=[hash[deptno, $e]])
+               +- Expand(projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
+                  +- Calc(select=[deptno])
+                     +- TableSourceScan(table=[[default_catalog, default_database, emp]], fields=[ename, deptno, gender])
 ]]>
     </Resource>
   </TestCase>
@@ -662,36 +703,6 @@ Calc(select=[EXPR$0, c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testGroupingInOrderByClause">
-    <Resource name="sql">
-      <![CDATA[
-SELECT COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno) ORDER BY GROUPING(deptno), c
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(c=[$0])
-+- LogicalSort(sort0=[$1], sort1=[$0], dir0=[ASC-nulls-first], dir1=[ASC-nulls-first])
-   +- LogicalProject(c=[$1], EXPR$1=[$2])
-      +- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()], agg#1=[GROUPING($0)])
-         +- LogicalProject(deptno=[$1])
-            +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[c])
-+- Sort(orderBy=[EXPR$1 ASC, c ASC])
-   +- Exchange(distribution=[single])
-      +- Calc(select=[c, CASE(($e = 0), 0, 1) AS EXPR$1])
-         +- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
-            +- Exchange(distribution=[hash[deptno, $e]])
-               +- Expand(projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
-                  +- Calc(select=[deptno])
-                     +- TableSourceScan(table=[[default_catalog, default_database, emp]], fields=[ename, deptno, gender])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testGroupingSetsOutputsNullability">
     <Resource name="sql">
       <![CDATA[
@@ -865,6 +876,29 @@ Calc(select=[($f0 + 1) AS half1, c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRollupOn1Column">
+    <Resource name="sql">
+      <![CDATA[SELECT deptno + 1, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[+($0, 1)], c=[$1])
++- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
+   +- LogicalProject(deptno=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[(deptno + 1) AS EXPR$0, c])
++- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
+   +- Exchange(distribution=[hash[deptno, $e]])
+      +- Expand(projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
+         +- Calc(select=[deptno])
+            +- TableSourceScan(table=[[default_catalog, default_database, emp]], fields=[ename, deptno, gender])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRollupOn2Column">
     <Resource name="sql">
       <![CDATA[
@@ -963,60 +997,26 @@ Calc(select=[(deptno + 1) AS d1, c], where=[(c > 3)])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRollupOn1Column">
+  <TestCase name="testSimpleCube">
     <Resource name="sql">
-      <![CDATA[SELECT deptno + 1, COUNT(*) AS c FROM emp GROUP BY ROLLUP(deptno)]]>
+      <![CDATA[SELECT deptno + 1, COUNT(*) AS c FROM emp GROUP BY CUBE(deptno, gender)]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(EXPR$0=[+($0, 1)], c=[$1])
-+- LogicalAggregate(group=[{0}], groups=[[{0}, {}]], c=[COUNT()])
-   +- LogicalProject(deptno=[$1])
+LogicalProject(EXPR$0=[+($0, 1)], c=[$2])
++- LogicalAggregate(group=[{0, 1}], groups=[[{0, 1}, {0}, {1}, {}]], c=[COUNT()])
+   +- LogicalProject(deptno=[$1], gender=[$2])
       +- LogicalTableScan(table=[[default_catalog, default_database, emp]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[(deptno + 1) AS EXPR$0, c])
-+- GroupAggregate(groupBy=[deptno, $e], select=[deptno, $e, COUNT(*) AS c])
-   +- Exchange(distribution=[hash[deptno, $e]])
-      +- Expand(projects=[{deptno, 0 AS $e}, {null AS deptno, 1 AS $e}])
-         +- Calc(select=[deptno])
++- GroupAggregate(groupBy=[deptno, gender, $e], select=[deptno, gender, $e, COUNT(*) AS c])
+   +- Exchange(distribution=[hash[deptno, gender, $e]])
+      +- Expand(projects=[{deptno, gender, 0 AS $e}, {deptno, null AS gender, 1 AS $e}, {null AS deptno, gender, 2 AS $e}, {null AS deptno, null AS gender, 3 AS $e}])
+         +- Calc(select=[deptno, gender])
             +- TableSourceScan(table=[[default_catalog, default_database, emp]], fields=[ename, deptno, gender])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testCaseWhenRefGroupingSetsNullableCols">
-    <Resource name="sql">
-      <![CDATA[
-SELECT
-    case
-     when g1 = 1 then 'aaa'
-     when g2 = 1 then 'bbb'
-    end as gt,
-    b, c,
-    AVG(a) AS a
-FROM (select *, 1 g1, 1 g2 from MyTable) t
-    GROUP BY GROUPING SETS ((g1, b), (g2, b, c))
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(gt=[CASE(=($0, 1), _UTF-16LE'aaa', =($2, 1), _UTF-16LE'bbb', null:CHAR(3) CHARACTER SET "UTF-16LE")], b=[$1], c=[$3], a=[$4])
-+- LogicalAggregate(group=[{0, 1, 2, 3}], groups=[[{0, 1}, {1, 2, 3}]], a=[AVG($4)])
-   +- LogicalProject(g1=[$3], b=[$1], g2=[$4], c=[$2], a=[$0])
-      +- LogicalProject(a=[$0], b=[$1], c=[$2], g1=[1], g2=[1])
-         +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[CASE((g1 = 1), 'aaa', (g2 = 1), 'bbb', null:CHAR(3)) AS gt, b, c, a])
-+- GroupAggregate(groupBy=[g1, b, g2, c, $e], select=[g1, b, g2, c, $e, AVG(a) AS a])
-   +- Exchange(distribution=[hash[g1, b, g2, c, $e]])
-      +- Expand(projects=[{g1, b, null AS g2, null AS c, a, 3 AS $e}, {null AS g1, b, g2, c, a, 8 AS $e}])
-         +- Calc(select=[1 AS g1, b, 1 AS g2, c, a])
-            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

@@ -278,8 +278,6 @@ Heap state backend 会额外存储一个包括用户状态以及时间戳的 Jav
 
 - 暂时只支持基于 *processing time* 的 TTL。
 
-- 尝试从 checkpoint/savepoint 进行恢复时，TTL 的状态（是否开启）必须和之前保持一致，否则会遇到 "StateMigrationException"。
-
 - TTL 的配置并不会保存在 checkpoint/savepoint 中，仅对当前 Job 有效。
 
 - 不建议checkpoint恢复前后将state TTL从短调长，这可能会产生潜在的数据错误。
@@ -320,7 +318,7 @@ ttl_config = StateTtlConfig \
 
 可以按照如下所示配置更细粒度的后台清理策略。当前的实现中 `HeapStateBackend` 依赖增量数据清理，`RocksDBStateBackend` 利用压缩过滤器进行后台清理。
 
-#### 全量快照时进行清理
+##### 全量快照时进行清理
 
 另外，你可以启用全量快照时进行清理的策略，这可以减少整个快照的大小。当前实现中不会清理本地的状态，但从上次快照恢复时，不会恢复那些已经删除的过期数据。
 该策略可以通过 `StateTtlConfig` 配置进行配置：
@@ -451,6 +449,15 @@ RocksDB backend 的默认后台清理策略会每处理 1000 条数据进行一�
 - 对已有的作业，这个清理方式可以在任何时候通过 `StateTtlConfig` 启用或禁用该特性，比如从 savepoint 重启后。
 - 定期压缩功能只在 TTL 启用时生效。
 
+### TTL Migration Compatibility
+
+Starting from Flink 2.2.0, Flink supports seamless migration between state with and without TTL enabled.
+
+If you previously configured state without TTL and now want to enable it (or vice versa),
+this is now safe to do without triggering restore-time errors.
+
+Read the full details here: [TTL / Non-TTL State Migration Compatibility]({{< ref "docs/dev/datastream/fault-tolerance/state_migration" >}})
+
 ## 算子状态 (Operator State)
 
 *算子状态*（或者*非 keyed 状态*）是绑定到一个并行算子实例的状态。[Kafka Connector]({{< ref "docs/connectors/datastream/kafka" >}}) 是 Flink 中使用算子状态一个很具有启发性的例子。Kafka consumer 每个并行实例维护了 topic partitions 和偏移量的 map 作为它的算子状态。
@@ -520,7 +527,7 @@ public class BufferingSink
     }
 
     @Override
-    public void invoke(Tuple2<String, Integer> value, Context contex) throws Exception {
+    public void invoke(Tuple2<String, Integer> value, Context context) throws Exception {
         bufferedElements.add(value);
         if (bufferedElements.size() >= threshold) {
             for (Tuple2<String, Integer> element: bufferedElements) {

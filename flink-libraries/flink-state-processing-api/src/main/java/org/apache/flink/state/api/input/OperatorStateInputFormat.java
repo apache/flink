@@ -120,6 +120,7 @@ abstract class OperatorStateInputFormat<OT> extends RichInputFormat<OT, Operator
         return new DefaultInputSplitAssigner(inputSplits);
     }
 
+    @Override
     public OperatorStateInputSplit[] createInputSplits(int minNumSplits) {
         OperatorStateInputSplit[] splits = getOperatorStateInputSplits(minNumSplits);
 

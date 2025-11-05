@@ -21,10 +21,12 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.array.BytePrimitiveArraySerializer;
 import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.RichSourceReaderContext;
 import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
@@ -213,6 +215,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     /** Watermark identifier to whether the watermark are aligned. */
     private final Map<String, Boolean> watermarkIsAlignedMap;
 
+    private final boolean supportsSplitReassignmentOnRecovery;
+
     public SourceOperator(
             StreamOperatorParameters<OUT> parameters,
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
@@ -225,7 +229,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             String localHostname,
             boolean emitProgressiveWatermarks,
             CanEmitBatchOfRecordsChecker canEmitBatchOfRecords,
-            Map<String, Boolean> watermarkIsAlignedMap) {
+            Map<String, Boolean> watermarkIsAlignedMap,
+            boolean supportsSplitReassignmentOnRecovery) {
         super(parameters);
         this.readerFactory = checkNotNull(readerFactory);
         this.operatorEventGateway = checkNotNull(operatorEventGateway);
@@ -240,6 +245,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         this.allowUnalignedSourceSplits = configuration.get(ALLOW_UNALIGNED_SOURCE_SPLITS);
         this.canEmitBatchOfRecords = checkNotNull(canEmitBatchOfRecords);
         this.watermarkIsAlignedMap = watermarkIsAlignedMap;
+        this.supportsSplitReassignmentOnRecovery = supportsSplitReassignmentOnRecovery;
     }
 
     @Override
@@ -278,10 +284,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             return;
         }
 
-        final int subtaskIndex = getRuntimeContext().getTaskInfo().getIndexOfThisSubtask();
+        StreamingRuntimeContext runtimeContext = getRuntimeContext();
+        final int subtaskIndex = runtimeContext.getTaskInfo().getIndexOfThisSubtask();
 
-        final SourceReaderContext context =
-                new SourceReaderContext() {
+        final RichSourceReaderContext context =
+                new RichSourceReaderContext() {
                     @Override
                     public SourceReaderMetricGroup metricGroup() {
                         return sourceMetricGroup;
@@ -345,6 +352,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                                         watermark,
                                         watermarkIsAlignedMap.get(watermark.getIdentifier())));
                     }
+
+                    @Override
+                    public RuntimeContext getRuntimeContext() {
+                        return runtimeContext;
+                    }
                 };
 
         sourceReader = readerFactory.apply(context);
@@ -403,7 +415,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
         // restore the state if necessary.
         final List<SplitT> splits = CollectionUtil.iterableToList(readerState.get());
-        if (!splits.isEmpty()) {
+        if (!splits.isEmpty() && !supportsSplitReassignmentOnRecovery) {
             LOG.info("Restoring state for {} split(s) to reader.", splits.size());
             for (SplitT s : splits) {
                 getOrCreateSplitMetricGroup(s.splitId());
@@ -413,7 +425,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         }
 
         // Register the reader to the coordinator.
-        registerReader();
+        registerReader(supportsSplitReassignmentOnRecovery ? splits : Collections.emptyList());
 
         sourceMetricGroup.idlingStarted();
         // Start the reader after registration, sending messages in start is allowed.
@@ -803,10 +815,13 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         return currentMaxDesiredWatermark < latestWatermark;
     }
 
-    private void registerReader() {
+    private void registerReader(List<SplitT> splits) throws Exception {
         operatorEventGateway.sendEventToCoordinator(
-                new ReaderRegistrationEvent(
-                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(), localHostname));
+                ReaderRegistrationEvent.createReaderRegistrationEvent(
+                        getRuntimeContext().getTaskInfo().getIndexOfThisSubtask(),
+                        localHostname,
+                        splits,
+                        splitSerializer));
     }
 
     // --------------- methods for unit tests ------------

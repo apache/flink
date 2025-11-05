@@ -24,6 +24,8 @@ import org.apache.flink.api.common.eventtime.WatermarkGenerator;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
@@ -33,6 +35,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.streaming.util.StreamRecordMatchers.streamRecord;
 import static org.apache.flink.streaming.util.WatermarkMatchers.legacyWatermark;
@@ -243,6 +246,25 @@ class TimestampsAndWatermarksOperatorTest {
     }
 
     @Test
+    void testGetMetricGroup() throws Exception {
+        AtomicReference<Gauge<Long>> lastTimestampGauge = new AtomicReference<>();
+        OneInputStreamOperatorTestHarness<Long, Long> testHarness =
+                createTestHarness(
+                        WatermarkStrategy.forGenerator(
+                                        (ctx) -> {
+                                            WatermarkGeneratorWithMetrics generator =
+                                                    new WatermarkGeneratorWithMetrics(
+                                                            ctx.getMetricGroup());
+                                            lastTimestampGauge.set(generator.lastTimestampGauge);
+                                            return generator;
+                                        })
+                                .withTimestampAssigner((ctx) -> new LongExtractor()));
+
+        testHarness.processElement(new StreamRecord<>(42L));
+        assertThat(lastTimestampGauge.get().getValue()).isEqualTo(42L);
+    }
+
+    @Test
     void watermarksWithIdlenessUnderBackpressure() throws Exception {
         long idleTimeout = 100;
 
@@ -388,6 +410,25 @@ class TimestampsAndWatermarksOperatorTest {
 
         @Override
         public void onEvent(Long event, long eventTimestamp, WatermarkOutput output) {}
+
+        @Override
+        public void onPeriodicEmit(WatermarkOutput output) {}
+    }
+
+    private static class WatermarkGeneratorWithMetrics
+            implements WatermarkGenerator<Long>, Serializable {
+
+        private long lastTimestamp;
+        Gauge<Long> lastTimestampGauge;
+
+        public WatermarkGeneratorWithMetrics(MetricGroup metricGroup) {
+            lastTimestampGauge = metricGroup.gauge("lastTimestamp", () -> lastTimestamp);
+        }
+
+        @Override
+        public void onEvent(Long event, long eventTimestamp, WatermarkOutput output) {
+            lastTimestamp = eventTimestamp;
+        }
 
         @Override
         public void onPeriodicEmit(WatermarkOutput output) {}

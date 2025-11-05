@@ -86,7 +86,7 @@ public class ValidatingSink<T> extends RichSinkFunction<T>
     }
 
     @Override
-    public void close() {
+    public void finish() throws Exception {
         if (resultChecker.checkResult(windowCounts)) {
             if (usingProcessingTime) {
                 throw new SuccessException();

@@ -49,7 +49,7 @@ traces.reporter.otel.factory.class: org.apache.flink.traces.otel.OpenTelemetryTr
 traces.reporter.otel.exporter.endpoint: http://127.0.0.1:1337
 traces.reporter.otel.scope.variables.additional: region:eu-west-1,environment:local,flink_runtime:1.17.1
 
-traces.reporter.my_other_otel.factory.class: org.apache.flink.common.metrics.OpenTelemetryTraceReporterFactory
+traces.reporter.my_other_otel.factory.class: org.apache.flink.common.traces.OpenTelemetryTraceReporterFactory
 traces.reporter.my_other_otel.exporter.endpoint: http://196.168.0.1:31337
 ```
 
@@ -67,17 +67,22 @@ The following sections list the supported reporters.
 ### OpenTelemetry
 #### (org.apache.flink.traces.otel.OpenTelemetryTraceReporterFactory)
 
-`OpenTelemetryTraceReporterFactory` currently supports only gRPC.
-
 Parameters:
 
 {{< include_reporter_config "layouts/shortcodes/generated/open_telemetry_reporter_configuration.html" >}}
 
-Example configuration:
+Example configurations:
 
 ```yaml
-traces.reporter.otel.factory.class: org.apache.flink.metrics.otel.OpenTelemetryTraceReporterFactory
+traces.reporter.otel.factory.class: org.apache.flink.traces.otel.OpenTelemetryTraceReporterFactory
 traces.reporter.otel.exporter.endpoint: http://127.0.0.1:1337
+traces.reporter.otel.exporter.protocol: gRPC
+```
+
+```yaml
+traces.reporter.otel.factory.class: org.apache.flink.traces.otel.OpenTelemetryTraceReporterFactory
+traces.reporter.otel.exporter.endpoint: http://127.0.0.1:9090
+traces.reporter.otel.exporter.protocol: HTTP
 ```
 
 ### Slf4j

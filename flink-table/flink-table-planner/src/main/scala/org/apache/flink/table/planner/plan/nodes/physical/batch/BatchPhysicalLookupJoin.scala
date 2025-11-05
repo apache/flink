@@ -23,7 +23,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLookupJoin
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, JoinTypeUtil}
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -79,7 +78,7 @@ class BatchPhysicalLookupJoin(
     val (projectionOnTemporalTable, filterOnTemporalTable) = calcOnTemporalTable match {
       case Some(program) =>
         val (projection, filter) = FlinkRexUtil.expandRexProgram(program)
-        (JavaScalaConversionUtil.toJava(projection), filter.orNull)
+        (projection, filter.orNull)
       case _ =>
         (null, null)
     }

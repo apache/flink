@@ -25,11 +25,13 @@ from pyflink.metrics import MetricGroup
 from pyflink.table import Expression
 from pyflink.table.types import DataType, _to_java_data_type
 from pyflink.util import java_utils
+from pyflink.util.api_stability_decorators import PublicEvolving, Internal
 
 __all__ = ['FunctionContext', 'AggregateFunction', 'ScalarFunction', 'TableFunction',
            'TableAggregateFunction', 'udf', 'udtf', 'udaf', 'udtaf']
 
 
+@PublicEvolving()
 class FunctionContext(object):
     """
     Used to obtain global runtime information about the context in which the
@@ -65,6 +67,7 @@ class FunctionContext(object):
         return self._job_parameters[key] if key in self._job_parameters else default_value
 
 
+@PublicEvolving()
 class UserDefinedFunction(abc.ABC):
     """
     Base interface for user-defined function.
@@ -102,6 +105,7 @@ class UserDefinedFunction(abc.ABC):
         return True
 
 
+@PublicEvolving()
 class ScalarFunction(UserDefinedFunction):
     """
     Base interface for user-defined scalar function. A user-defined scalar functions maps zero, one,
@@ -118,6 +122,7 @@ class ScalarFunction(UserDefinedFunction):
         pass
 
 
+@PublicEvolving()
 class TableFunction(UserDefinedFunction):
     """
     Base interface for user-defined table function. A user-defined table function creates zero, one,
@@ -138,6 +143,7 @@ T = TypeVar('T')
 ACC = TypeVar('ACC')
 
 
+@PublicEvolving()
 class ImperativeAggregateFunction(UserDefinedFunction, Generic[T, ACC]):
     """
     Base interface for user-defined aggregate function and table aggregate function.
@@ -211,6 +217,7 @@ class ImperativeAggregateFunction(UserDefinedFunction, Generic[T, ACC]):
         raise RuntimeError("Method get_accumulator_type is not implemented")
 
 
+@PublicEvolving()
 class AggregateFunction(ImperativeAggregateFunction):
     """
     Base interface for user-defined aggregate function. A user-defined aggregate function maps
@@ -232,6 +239,7 @@ class AggregateFunction(ImperativeAggregateFunction):
         pass
 
 
+@PublicEvolving()
 class TableAggregateFunction(ImperativeAggregateFunction):
     """
     Base class for a user-defined table aggregate function. A user-defined table aggregate function
@@ -255,6 +263,7 @@ class TableAggregateFunction(ImperativeAggregateFunction):
         pass
 
 
+@Internal()
 class DelegatingScalarFunction(ScalarFunction):
     """
     Helper scalar function implementation for lambda expression and python function. It's for
@@ -268,6 +277,7 @@ class DelegatingScalarFunction(ScalarFunction):
         return self.func(*args)
 
 
+@Internal()
 class DelegationTableFunction(TableFunction):
     """
     Helper table function implementation for lambda expression and python function. It's for
@@ -281,6 +291,7 @@ class DelegationTableFunction(TableFunction):
         return self.func(*args)
 
 
+@Internal()
 class DelegatingPandasAggregateFunction(AggregateFunction):
     """
     Helper pandas aggregate function implementation for lambda expression and python function.
@@ -319,6 +330,7 @@ class PandasAggregateFunctionWrapper(object):
         self.func.close()
 
 
+@Internal()
 class UserDefinedFunctionWrapper(object):
     """
     Base Wrapper for Python user-defined function. It handles things like converting lambda
@@ -561,10 +573,6 @@ class UserDefinedAggregateFunctionWrapper(UserDefinedFunctionWrapper):
             else:
                 self._accumulator_type = 'ARRAY<{0}>'.format(self._result_type)
 
-        if j_input_types is not None:
-            gateway = get_gateway()
-            j_input_types = java_utils.to_jarray(
-                gateway.jvm.DataType, [_to_java_data_type(i) for i in self._input_types])
         if isinstance(self._result_type, DataType):
             j_result_type = _to_java_data_type(self._result_type)
         else:

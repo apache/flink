@@ -36,6 +36,7 @@ Flink SQL supports the following CREATE statements for now:
 - CREATE DATABASE
 - CREATE VIEW
 - CREATE FUNCTION
+- CREATE MODEL
 
 ## Run a CREATE statement
 
@@ -154,8 +155,8 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
     [ <table_constraint> ][ , ...n]
   )
   [COMMENT table_comment]
-  [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
   [ <distribution> ]
+  [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
   WITH (key1=val1, key2=val2, ...)
   [ LIKE source_table [( <like_options> )] | AS select_query ]
    
@@ -455,7 +456,7 @@ The key and value of expression `key1=val1` should both be string literal. See d
 
 ### `LIKE`
 
-The `LIKE` clause is a variant/combination of SQL features (Feature T171, “LIKE clause in table definition” and Feature T173, “Extended LIKE clause in table definition”). The clause can be used to create a table based on a definition of an existing table. Additionally, users
+The `LIKE` clause is a variant/combination of SQL features (Feature T171, "LIKE clause in table definition" and Feature T173, "Extended LIKE clause in table definition"). The clause can be used to create a table based on a definition of an existing table. Additionally, users
 can extend the original table or exclude certain parts of it. In contrast to the SQL standard the clause must be defined at the top-level of a CREATE statement. That is because the clause applies to multiple parts of the definition and not only to the schema part.
 
 You can use the clause to reuse (and potentially overwrite) certain connector properties or add watermarks to tables defined externally. For example, you can add a watermark to a table defined in Apache Hive. 
@@ -818,7 +819,7 @@ Check out more details at [Catalogs]({{< ref "docs/dev/table/catalogs" >}}).
 ```sql
 CREATE DATABASE [IF NOT EXISTS] [catalog_name.]db_name
   [COMMENT database_comment]
-  WITH (key1=val1, key2=val2, ...)
+  [WITH (key1=val1, key2=val2, ...)]
 ```
 
 Create a database with the given database properties. If a database with the same name already exists in the catalog, an exception is thrown.
@@ -859,6 +860,7 @@ CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
   [IF NOT EXISTS] [catalog_name.][db_name.]function_name 
   AS identifier [LANGUAGE JAVA|SCALA|PYTHON] 
   [USING JAR '<path_to_filename>.jar' [, JAR '<path_to_filename>.jar']* ]
+  [WITH (key1=val1, key2=val2, ...)]
 ```
 
 Create a catalog function that has catalog and database namespaces with the identifier and optional language tag. If a function with the same name already exists in the catalog, an exception is thrown.
@@ -890,3 +892,63 @@ Language tag to instruct Flink runtime how to execute the function. Currently on
 Specifies the list of jar resources that contain the implementation of the function along with its dependencies. The jar should be located in a local or remote [file system]({{< ref "docs/deployment/filesystems/overview" >}}) such as hdfs/s3/oss which Flink current supports. 
 
 <span class="label label-danger">Attention</span> Currently only JAVA, SCALA language support USING clause.
+
+{{< top >}}
+
+## CREATE MODEL
+```sql
+CREATE [TEMPORARY] MODEL [IF NOT EXISTS] [catalog_name.][db_name.]model_name
+  [(
+    { <input_column_definition> }[ , ...n]
+    { <output_column_definition> }[ , ...n]
+  )]
+  [COMMENT model_comment]
+  WITH (key1=val1, key2=val2, ...)
+
+<input_column_definition>:
+  column_name column_type [COMMENT column_comment]
+
+<output_column_definition>:
+  column_name column_type [COMMENT column_comment]
+```
+
+Create a model with optional input and output column definitions. If a model with the same name already exists in the catalog, an exception is thrown.
+
+**TEMPORARY**
+
+Create a temporary model that has catalog and database namespaces and overrides models.
+
+**IF NOT EXISTS**
+
+If the model already exists, nothing happens.
+
+**Input/Output Columns**
+
+The input columns define the features that will be used for model inference. The output columns define the predictions that the model will produce. Each column must have a name and data type. 
+
+**WITH OPTIONS**
+
+Model properties used to store extra information related to this model. The properties are usually used to find and create the underlying model provider.
+The key and value of expression `key1=val1` should both be string literal.
+
+**Note:** The model properties and supported model types may vary depending on the underlying model provider.
+
+### Examples
+
+The following examples illustrate the usage of the `CREATE MODEL` statements.
+
+```sql
+CREATE MODEL sentiment_analysis_model 
+INPUT (text STRING COMMENT 'Input text for sentiment analysis') 
+OUTPUT (sentiment STRING COMMENT 'Predicted sentiment (positive/negative/neutral/mixed)')
+COMMENT 'A model for sentiment analysis of text'
+WITH (
+    'provider' = 'openai',
+    'endpoint' = 'https://api.openai.com/v1/chat/completions',
+    'api-key' = '<YOUR KEY>',
+    'model'='gpt-3.5-turbo',
+    'system-prompt' = 'Classify the text below into one of the following labels: [positive, negative, neutral, mixed]. Output only the label.'
+);
+```
+
+{{< top >}}

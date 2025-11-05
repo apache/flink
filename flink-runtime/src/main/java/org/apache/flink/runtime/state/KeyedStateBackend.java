@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -165,6 +166,13 @@ public interface KeyedStateBackend<K>
     default boolean isSafeToReuseKVState() {
         return false;
     }
+
+    /**
+     * @return fixed lower-case string identifying the type of the underlying state backend, e.g.
+     *     rocksdb, hashmap, forst, batch.
+     */
+    @Experimental
+    String getBackendTypeIdentifier();
 
     /** Listener is given a callback when {@link #setCurrentKey} is called (key context changes). */
     @FunctionalInterface

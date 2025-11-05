@@ -35,7 +35,7 @@ import org.apache.flink.util.function.ThrowingRunnable;
 public class BatchExecutionInternalTimeServiceWithAsyncState<K, N>
         extends BatchExecutionInternalTimeService<K, N> {
 
-    private AsyncExecutionController<K> asyncExecutionController;
+    private AsyncExecutionController<K, ?> asyncExecutionController;
 
     BatchExecutionInternalTimeServiceWithAsyncState(
             ProcessingTimeService processingTimeService, Triggerable<K, N> triggerTarget) {
@@ -43,7 +43,7 @@ public class BatchExecutionInternalTimeServiceWithAsyncState<K, N>
     }
 
     /** Set up the async execution controller. */
-    public void setup(AsyncExecutionController<K> asyncExecutionController) {
+    public void setup(AsyncExecutionController<K, ?> asyncExecutionController) {
         if (asyncExecutionController != null) {
             this.asyncExecutionController = asyncExecutionController;
         }

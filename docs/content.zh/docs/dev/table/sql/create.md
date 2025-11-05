@@ -24,6 +24,8 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<a name="create statements"></a>
+
 # CREATE 语句
 
 
@@ -38,6 +40,9 @@ CREATE 语句用于向当前或指定的 [Catalog]({{< ref "docs/dev/table/catal
 - CREATE DATABASE
 - CREATE VIEW
 - CREATE FUNCTION
+- CREATE MODEL
+
+<a name="run-a-create-statement"></a>
 
 ## 执行 CREATE 语句
 
@@ -156,8 +161,8 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
     [ <table_constraint> ][ , ...n]
   )
   [COMMENT table_comment]
-  [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
   [ <distribution> ]
+  [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
   WITH (key1=val1, key2=val2, ...)
   [ LIKE source_table [( <like_options> )] | AS select_query ]
    
@@ -414,33 +419,40 @@ Flink 假设声明了主键的列都是不包含 Null 值的，Connector 在处�
 
 ### `DISTRIBUTED`
 
-Buckets enable load balancing in an external storage system by splitting data into disjoint subsets. These subsets group rows with potentially "infinite" keyspace into smaller and more manageable chunks that allow for efficient parallel processing.
+分桶通过将数据拆分为互不相交的子集，实现外部存储系统的负载均衡。
+这些子集将理论上具有 “无限 ”键空间的行划分为更小且更易于管理的块，从而实现高效的并行处理。
 
-Bucketing depends heavily on the semantics of the underlying connector. However, a user can influence the bucketing behavior by specifying the number of buckets, the bucketing algorithm, and (if the algorithm allows it) the columns which are used for target bucket calculation.
+分桶行为在很大程度上取决于底层连接器的具体实现。不过用户仍然可以通过以下方式影响分桶行为：
 
-All bucketing components (i.e. bucket number, distribution algorithm, bucket key columns) are
-optional from a SQL syntax perspective.
+ 1. 指定桶的数量。
+ 2. 选择分桶算法。
+ 3. 指定用于计算目标桶的列（如果分桶算法支持）。
 
-Given the following SQL statements:
+从 SQL 语法角度来看，所有分桶要素（即桶数量、分桶算法、分桶键列）均为可选配置。
+
+给定以下 SQL 语句：
 
 ```sql
--- Example 1
+-- 示例 1
 CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED BY HASH(uid) INTO 4 BUCKETS;
 
--- Example 2
+-- 示例 2
 CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED BY (uid) INTO 4 BUCKETS;
 
--- Example 3
+-- 示例 3
 CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED BY (uid);
 
--- Example 4
+-- 示例 4
 CREATE TABLE MyTable (uid BIGINT, name STRING) DISTRIBUTED INTO 4 BUCKETS;
 ```
 
-Example 1 declares a hash function on a fixed number of 4 buckets (i.e. HASH(uid) % 4 = target
-bucket). Example 2 leaves the selection of an algorithm up to the connector. Additionally,
-Example 3 leaves the number of buckets up  to the connector.
-In contrast, Example 4 only defines the number of buckets.
+示例 1 完整声明了一个分桶，根据 uid 列的哈希值分配到 4 个桶（即 目标桶 = HASH(uid) % 4）。
+
+示例 2 仅声明了分桶列和桶的数量，剩余要素即分桶算法则由连接器决定。
+
+示例 3 则仅声明了分桶列，剩余要素即分桶算法和桶的数量由连接器决定。
+
+示例 4 仅限定了桶的数量，其余要素依赖连接器决定。
 
 ### `WITH` Options
 
@@ -501,7 +513,7 @@ CREATE TABLE Orders_with_watermark (
 * CONSTRAINTS - 主键和唯一键约束
 * GENERATED - 计算列
 * OPTIONS - 连接器信息、格式化方式等配置项
-* DISTRIBUTION - distribution definition
+* DISTRIBUTION - 分布定义
 * PARTITIONS - 表分区信息
 * WATERMARKS - watermark 定义
 
@@ -684,6 +696,8 @@ INSERT INTO my_ctas_table (order_time, price, quantity, id)
 
 **注意：** 默认情况下，CTAS 是非原子性的，这意味着如果在向表中插入数据时发生错误，该表不会被自动删除。
 
+<a name="atomicity"></a>
+
 #### 原子性
 
 如果要启用 CTAS 的原子性，则应确保：
@@ -821,7 +835,7 @@ catalog 属性一般用于存储关于这个 catalog 的额外的信息。
 ```sql
 CREATE DATABASE [IF NOT EXISTS] [catalog_name.]db_name
   [COMMENT database_comment]
-  WITH (key1=val1, key2=val2, ...)
+  [WITH (key1=val1, key2=val2, ...)]
 ```
 
 根据给定的表属性创建数据库。若数据库中已存在同名表会抛出异常。
@@ -862,6 +876,7 @@ CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
   [IF NOT EXISTS] [[catalog_name.]db_name.]function_name
   AS identifier [LANGUAGE JAVA|SCALA|PYTHON]
   [USING JAR '<path_to_filename>.jar' [, JAR '<path_to_filename>.jar']* ]
+  [WITH (key1=val1, key2=val2, ...)]
 ```
 
 创建一个有 catalog 和数据库命名空间的 catalog function ，需要指定一个 identifier ，可指定 language tag 。 若 catalog 中，已经有同名的函数注册了，则无法注册。
@@ -893,3 +908,64 @@ Language tag 用于指定 Flink runtime 如何执行这个函数。目前，只�
 指定包含该函数的实现及其依赖的 jar 资源列表。该 jar 应该位于 Flink 当前支持的本地或远程[文件系统]({{< ref "docs/deployment/filesystems/overview" >}}) 中，比如 hdfs/s3/oss。
 
 <span class="label label-danger">注意</span> 目前只有 JAVA、SCALA 语言支持 USING 子句。
+
+## CREATE MODEL
+```sql
+CREATE [TEMPORARY] MODEL [IF NOT EXISTS] [catalog_name.][db_name.]model_name
+  [(
+    { <input_column_definition> }[ , ...n]
+    { <output_column_definition> }[ , ...n]
+  )]
+  [COMMENT model_comment]
+  WITH (key1=val1, key2=val2, ...)
+
+<input_column_definition>:
+  column_name column_type [COMMENT column_comment]
+
+<output_column_definition>:
+  column_name column_type [COMMENT column_comment]
+```
+
+创建一个有 catalog 和数据库命名空间的模型。若 catalog 中已经存在同名模型，则无法注册。
+
+**TEMPORARY**
+
+创建一个有 catalog 和数据库命名空间的临时模型，并覆盖原有的模型。
+
+**IF NOT EXISTS**
+
+若该模型已经存在，则不会进行任何操作。
+
+**Input/Output**
+
+输入列定义了将用于模型推理的特征。输出列定义了模型将产生的预测结果。每个列必须有名称和数据类型。
+
+**COMMENT**
+
+为模型添加注释。
+
+**WITH OPTIONS**
+
+用于存储与此模型相关的额外信息的模型属性。这些属性通常用于查找和创建底层模型提供者。表达式 `key1=val1` 中的键和值都应该是字符串字面量。
+
+**注意：** 模型属性和支持的模型类型可能因底层模型提供者而异。
+
+### 示例
+
+以下示例展示了 `CREATE MODEL` 语句的使用方法：
+
+```sql
+CREATE MODEL sentiment_analysis_model 
+INPUT (text STRING COMMENT '用于情感分析的输入文本') 
+OUTPUT (sentiment STRING COMMENT '预测的情感（positive/negative/neutral/mixed）')
+COMMENT '用于文本情感分析的模型'
+WITH (
+    'provider' = 'openai',
+    'endpoint' = 'https://api.openai.com/v1/chat/completions',
+    'api-key' = '<YOUR KEY>',
+    'model'='gpt-3.5-turbo',
+    'system-prompt' = 'Classify the text below into one of the following labels: [positive, negative, neutral, mixed]. Output only the label.'
+);
+```
+
+{{< top >}}

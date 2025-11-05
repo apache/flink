@@ -30,33 +30,30 @@ import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
+import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 
-import org.junit.jupiter.api.AfterEach;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableSet;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createExecutionAttemptId;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 
 /** Tests for the {@link InternalOperatorMetricGroup}. */
 class InternalOperatorGroupTest {
 
-    private MetricRegistryImpl registry;
+    private static final int NUMBER_OF_REPORTERS = 1;
+    private TestingMetricRegistry registry;
 
     @BeforeEach
-    void setup() {
-        registry =
-                new MetricRegistryImpl(
-                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
-    }
-
-    @AfterEach
-    void teardown() throws Exception {
-        if (registry != null) {
-            registry.closeAsync().get();
-        }
+    public void setup() {
+        registry = TestingMetricRegistry.builder().setNumberReporters(NUMBER_OF_REPORTERS).build();
     }
 
     @Test
@@ -68,8 +65,11 @@ class InternalOperatorGroupTest {
         TaskMetricGroup taskGroup =
                 tmGroup.addJob(new JobID(), "myJobName")
                         .addTask(createExecutionAttemptId(new JobVertexID(), 11, 0), "aTaskName");
+        Map<String, String> additionalVariables = new HashMap<>();
+        additionalVariables.put("foo", "42");
+        additionalVariables.put("bar", "44");
         InternalOperatorMetricGroup opGroup =
-                taskGroup.getOrAddOperator(new OperatorID(), "myOpName");
+                taskGroup.getOrAddOperator(new OperatorID(), "myOpName", additionalVariables);
 
         assertThat(opGroup.getScopeComponents())
                 .containsExactly(
@@ -77,6 +77,16 @@ class InternalOperatorGroupTest {
 
         assertThat(opGroup.getMetricIdentifier("name"))
                 .isEqualTo("theHostName.taskmanager.test-tm-id.myJobName.myOpName.11.name");
+
+        /**
+         * {@link InternalOperatorMetricGroup#getAllVariables()} and {@link
+         * InternalOperatorMetricGroup#getAllVariables(int, Set)} work quite differently, so we have
+         * to test them separately.
+         */
+        assertThat(opGroup.getAllVariables(NUMBER_OF_REPORTERS - 1, ImmutableSet.of("foo")))
+                .contains(entry("bar", "44"))
+                .doesNotContain(entry("foo", "42"));
+        assertThat(opGroup.getAllVariables()).contains(entry("foo", "42"), entry("bar", "44"));
     }
 
     @Test
@@ -99,7 +109,7 @@ class InternalOperatorGroupTest {
                                     registry, "theHostName", new ResourceID(tmID))
                             .addJob(jid, "myJobName")
                             .addTask(createExecutionAttemptId(vertexId, 13, 2), "aTaskname")
-                            .getOrAddOperator(operatorID, operatorName);
+                            .getOrAddOperator(operatorID, operatorName, Collections.emptyMap());
 
             assertThat(operatorGroup.getScopeComponents())
                     .containsExactly(
@@ -127,7 +137,7 @@ class InternalOperatorGroupTest {
                 tmGroup.addJob(new JobID(), "myJobName")
                         .addTask(createExecutionAttemptId(new JobVertexID(), 11, 0), "aTaskName");
         InternalOperatorMetricGroup opGroup =
-                taskGroup.getOrAddOperator(new OperatorID(), "myOpName");
+                taskGroup.getOrAddOperator(new OperatorID(), "myOpName", Collections.emptyMap());
 
         assertThat(opGroup.getIOMetricGroup()).isNotNull();
         assertThat(opGroup.getIOMetricGroup().getNumRecordsInCounter()).isNotNull();
@@ -146,7 +156,8 @@ class InternalOperatorGroupTest {
                         registry, "theHostName", new ResourceID("test-tm-id"));
 
         TaskMetricGroup taskGroup = tmGroup.addJob(jid, "myJobName").addTask(eid, "aTaskName");
-        InternalOperatorMetricGroup opGroup = taskGroup.getOrAddOperator(oid, "myOpName");
+        InternalOperatorMetricGroup opGroup =
+                taskGroup.getOrAddOperator(oid, "myOpName", Collections.emptyMap());
 
         Map<String, String> variables = opGroup.getAllVariables();
 
@@ -180,7 +191,8 @@ class InternalOperatorGroupTest {
                         registry, "host", new ResourceID("id"));
 
         TaskMetricGroup task = tm.addJob(jid, "jobname").addTask(eid, "taskName");
-        InternalOperatorMetricGroup operator = task.getOrAddOperator(oid, "operator");
+        InternalOperatorMetricGroup operator =
+                task.getOrAddOperator(oid, "operator", Collections.emptyMap());
 
         QueryScopeInfo.OperatorQueryScopeInfo info =
                 operator.createQueryServiceMetricInfo(new DummyCharacterFilter());

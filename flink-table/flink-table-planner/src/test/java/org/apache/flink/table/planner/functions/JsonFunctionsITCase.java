@@ -782,11 +782,54 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                         .testTableApiRuntimeError(
                                 jsonObject(JsonOnNull.NULL, "K", json("{")),
                                 TableRuntimeException.class,
-                                "Invalid JSON string in JSON(value) function"),
-                // Tests for JSON calls inside of JSON_ARRAY
-                TestSetSpec.forFunction(BuiltInFunctionDefinitions.JSON_ARRAY)
-                        .onFieldsWithData("{\"key\":\"value\"}", "{\"key\": {\"value\": 42}}")
-                        .andDataTypes(STRING(), STRING())
+                                "Invalid JSON string in JSON(value) function")
+
+                        // Tests for JSON_OBJECT with multiple parameters
+                        .testResult(
+                                jsonObject(JsonOnNull.NULL, "key1", "val", "key2", json($("f1"))),
+                                "JSON_OBJECT(KEY 'key1' VALUE 'val', KEY 'key2' VALUE JSON(f1))",
+                                "{\"key1\":\"val\",\"key2\":{\"key\":{\"value\":42}}}",
+                                STRING().notNull())
+                        .testResult(
+                                jsonObject(
+                                        JsonOnNull.NULL,
+                                        "key1",
+                                        json($("f0")),
+                                        "key2",
+                                        json($("f1"))),
+                                "JSON_OBJECT(KEY 'key1' VALUE JSON(f0), KEY 'key2' VALUE JSON(f1))",
+                                "{\"key1\":{\"key\":\"value\"},\"key2\":{\"key\":{\"value\":42}}}",
+                                STRING().notNull())
+                        .testResult(
+                                jsonObject(
+                                        JsonOnNull.NULL,
+                                        "outerKey",
+                                        "outerValue",
+                                        "nestedObject",
+                                        jsonObject(JsonOnNull.NULL, "innerKey", json($("f0")))),
+                                "JSON_OBJECT(KEY 'outerKey' VALUE 'outerValue', KEY 'nestedObject' VALUE JSON_OBJECT(KEY 'innerKey' VALUE JSON(f0)))",
+                                "{\"nestedObject\":{\"innerKey\":{\"key\":\"value\"}},\"outerKey\":\"outerValue\"}",
+                                STRING().notNull())
+                        .testResult(
+                                jsonObject(
+                                        JsonOnNull.NULL,
+                                        "p1",
+                                        json($("f0")),
+                                        "p2",
+                                        json($("f1")),
+                                        "p3",
+                                        json("[1, 2, 3]")),
+                                "JSON_OBJECT(KEY 'p1' VALUE JSON(f0), KEY 'p2' VALUE JSON(f1), KEY 'p3' VALUE JSON('[1, 2, 3]'))",
+                                "{\"p1\":{\"key\":\"value\"},\"p2\":{\"key\":{\"value\":42}},\"p3\":[1,2,3]}",
+                                STRING().notNull())
+                        .testSqlValidationError(
+                                "JSON_OBJECT(KEY JSON('{}') VALUE 'value' ABSENT ON NULL)",
+                                "The JSON() function is currently only supported inside JSON_ARRAY() or as the VALUE param of JSON_OBJECT()")
+                        .testTableApiValidationError(
+                                jsonObject(JsonOnNull.NULL, json($("f0")), "value"),
+                                "Invalid function call:\n"
+                                        + "JSON_OBJECT(SYMBOL NOT NULL, STRING, CHAR(5) NOT NULL)")
+                        // Tests for JSON calls inside of JSON_ARRAY
                         .testResult(
                                 jsonArray(JsonOnNull.NULL, json("{}")),
                                 "JSON_ARRAY(JSON('{}'))",
@@ -865,10 +908,10 @@ class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "line: 1, column: 1")
                         .testTableApiValidationError(
                                 json($("f0")),
-                                "The JSON() function is currently only supported inside a JSON_OBJECT() or JSON_ARRAY() function.")
+                                "The JSON() function is currently only supported inside JSON_ARRAY() or as the VALUE param of JSON_OBJECT()")
                         .testSqlValidationError(
                                 "JSON(f0)",
-                                "The JSON() function is currently only supported inside a JSON_OBJECT() or JSON_ARRAY() function."));
+                                "The JSON() function is currently only supported inside JSON_ARRAY() or as the VALUE param of JSON_OBJECT()"));
     }
 
     private static List<TestSetSpec> jsonObjectSpec() {

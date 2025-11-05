@@ -361,7 +361,7 @@ public class StateAssignmentOperation {
     public void reDistributeResultSubpartitionStates(TaskStateAssignment assignment) {
         // FLINK-31963: We can skip this phase if there is no output state AND downstream has no
         // input states
-        if (!assignment.hasOutputState && !assignment.hasDownstreamInputStates()) {
+        if (!assignment.hasOutputState() && !assignment.hasDownstreamInputStates()) {
             return;
         }
 
@@ -386,6 +386,9 @@ public class StateAssignmentOperation {
         // Parallelism of this vertex changed, distribute ResultSubpartitionStateHandle
         // according to output mapping.
         for (int partitionIndex = 0; partitionIndex < outputs.size(); partitionIndex++) {
+            if (!assignment.hasInFlightDataForResultPartition(partitionIndex)) {
+                continue;
+            }
             final List<List<ResultSubpartitionStateHandle>> partitionState =
                     outputs.size() == 1
                             ? outputOperatorState
@@ -410,7 +413,7 @@ public class StateAssignmentOperation {
     public void reDistributeInputChannelStates(TaskStateAssignment stateAssignment) {
         // FLINK-31963: We can skip this phase only if there is no input state AND upstream has no
         // output states
-        if (!stateAssignment.hasInputState && !stateAssignment.hasUpstreamOutputStates()) {
+        if (!stateAssignment.hasInputState() && !stateAssignment.hasUpstreamOutputStates()) {
             return;
         }
 
@@ -466,6 +469,9 @@ public class StateAssignmentOperation {
         // subtask 0 recovers data from old subtask 0 + 1 and subtask 1 recovers data from old
         // subtask 1 + 2
         for (int gateIndex = 0; gateIndex < inputs.size(); gateIndex++) {
+            if (!stateAssignment.hasInFlightDataForInputGate(gateIndex)) {
+                continue;
+            }
             final RescaleMappings mapping =
                     stateAssignment.getInputMapping(gateIndex).getRescaleMappings();
 

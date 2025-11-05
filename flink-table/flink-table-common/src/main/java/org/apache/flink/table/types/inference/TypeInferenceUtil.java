@@ -23,6 +23,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.ModelSemantics;
 import org.apache.flink.table.functions.TableSemantics;
 import org.apache.flink.table.functions.UserDefinedFunctionHelper;
 import org.apache.flink.table.types.DataType;
@@ -481,6 +482,20 @@ public final class TypeInferenceUtil {
                                                 return null;
                                             }
                                             return semantics.dataType();
+                                        } else if (expectedArg.is(StaticArgumentTrait.MODEL)) {
+                                            final ModelSemantics semantics =
+                                                    callContext.getModelSemantics(pos).orElse(null);
+                                            if (semantics == null) {
+                                                if (throwOnFailure) {
+                                                    throw new ValidationException(
+                                                            String.format(
+                                                                    "Invalid argument value. "
+                                                                            + "Argument '%s' expects a model to be passed.",
+                                                                    expectedArg.getName()));
+                                                }
+                                                return null;
+                                            }
+                                            return semantics.outputDataType();
                                         }
                                         return expectedArg.getDataType().orElse(null);
                                     })

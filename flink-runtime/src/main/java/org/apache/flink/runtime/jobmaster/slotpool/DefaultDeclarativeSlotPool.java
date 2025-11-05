@@ -104,6 +104,8 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     private ResourceCounter fulfilledResourceRequirements;
 
     private NewSlotsListener newSlotsListener = NoOpNewSlotsListener.INSTANCE;
+    private ResourceRequestStableListener resourceRequestStableListener =
+            NoOpResourceRequestStableListener.INSTANCE;
 
     private final RequirementMatcher requirementMatcher = new DefaultRequirementMatcher();
 
@@ -112,6 +114,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
     // For slots(resources) requests by batch.
     @Nonnull private final Duration slotRequestMaxInterval;
     @Nullable private ScheduledFuture<?> slotRequestFuture;
+    private boolean resourceRequestStable;
 
     public DefaultDeclarativeSlotPool(
             JobID jobId,
@@ -129,9 +132,15 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         this.rpcTimeout = rpcTimeout;
         this.componentMainThreadExecutor = Preconditions.checkNotNull(componentMainThreadExecutor);
         this.slotRequestMaxInterval = Preconditions.checkNotNull(slotRequestMaxInterval);
+        this.resourceRequestStable = true;
         this.totalResourceRequirements = ResourceCounter.empty();
         this.fulfilledResourceRequirements = ResourceCounter.empty();
         this.slotToRequirementProfileMappings = new HashMap<>();
+    }
+
+    @Override
+    public boolean isResourceRequestStable() {
+        return resourceRequestStable;
     }
 
     @Override
@@ -141,7 +150,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         }
         totalResourceRequirements = totalResourceRequirements.add(increment);
 
-        doDeclareResourceRequirements();
+        doDeclareResourceRequirements(false);
     }
 
     @Override
@@ -151,25 +160,39 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         }
         totalResourceRequirements = totalResourceRequirements.subtract(decrement);
 
-        doDeclareResourceRequirements();
+        doDeclareResourceRequirements(false);
     }
 
-    private void doDeclareResourceRequirements() {
+    private void doDeclareResourceRequirements(boolean internalAdjust) {
         if (slotRequestMaxInterval.toMillis() <= 0L) {
             declareResourceRequirements();
-            return;
-        }
+        } else {
+            cancelSlotRequestFutureTaskIfNeeded();
 
+            if (!internalAdjust) {
+                resourceRequestStable = false;
+            }
+
+            slotRequestFuture =
+                    componentMainThreadExecutor.schedule(
+                            () -> {
+                                declareResourceRequirements();
+                                if (!internalAdjust) {
+                                    resourceRequestStable = true;
+                                    resourceRequestStableListener.notifyResourceRequestStable();
+                                }
+                            },
+                            slotRequestMaxInterval.toMillis(),
+                            TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private void cancelSlotRequestFutureTaskIfNeeded() {
         if (slotRequestFuture != null
                 && !slotRequestFuture.isDone()
                 && !slotRequestFuture.isCancelled()) {
             slotRequestFuture.cancel(true);
         }
-        slotRequestFuture =
-                componentMainThreadExecutor.schedule(
-                        this::declareResourceRequirements,
-                        slotRequestMaxInterval.toMillis(),
-                        TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -450,8 +473,12 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         // offered, so we have to adjust the requirements accordingly to ensure we still request
         // enough slots to
         // be able to fulfill the total requirements
-        decreaseResourceRequirementsBy(ResourceCounter.withResource(newResourceProfile, 1));
-        increaseResourceRequirementsBy(ResourceCounter.withResource(oldResourceProfile, 1));
+        totalResourceRequirements =
+                totalResourceRequirements.subtract(
+                        ResourceCounter.withResource(newResourceProfile, 1));
+        totalResourceRequirements =
+                totalResourceRequirements.add(ResourceCounter.withResource(oldResourceProfile, 1));
+        doDeclareResourceRequirements(true);
     }
 
     @Override
@@ -460,6 +487,14 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
                 this.newSlotsListener == NoOpNewSlotsListener.INSTANCE,
                 "DefaultDeclarativeSlotPool only supports a single slot listener.");
         this.newSlotsListener = newSlotsListener;
+    }
+
+    @Override
+    public void registerResourceRequestStableListener(ResourceRequestStableListener listener) {
+        Preconditions.checkState(
+                this.resourceRequestStableListener == NoOpResourceRequestStableListener.INSTANCE,
+                "DefaultDeclarativeSlotPool only supports a stable resource request listener.");
+        this.resourceRequestStableListener = Preconditions.checkNotNull(listener);
     }
 
     @Override

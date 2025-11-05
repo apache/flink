@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.operators.join.stream;
 
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
-import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncStateProcessingOperator;
+import org.apache.flink.streaming.runtime.operators.asyncprocessing.AsyncKeyOrderedProcessingOperator;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.asyncprocessing.AsyncKeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
@@ -106,7 +106,7 @@ public abstract class StreamingJoinOperatorTestBase {
     void beforeEach(TestInfo testInfo) throws Exception {
         TwoInputStreamOperator<RowData, RowData, RowData> operator = createJoinOperator(testInfo);
         testHarness =
-                operator instanceof AsyncStateProcessingOperator
+                operator instanceof AsyncKeyOrderedProcessingOperator
                         ? AsyncKeyedTwoInputStreamOperatorTestHarness.create(
                                 operator, leftKeySelector, rightKeySelector, joinKeyTypeInfo)
                         : new KeyedTwoInputStreamOperatorTestHarness<>(

@@ -26,17 +26,18 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableDistribution;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.ObjectCodec;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeOptionalField;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeFieldOrNull;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeListOrEmpty;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.deserializeMapOrEmpty;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.CompiledPlanSerdeUtil.traverse;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedCatalogTableJsonSerializer.COMMENT;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedCatalogTableJsonSerializer.DISTRIBUTION;
@@ -61,40 +62,18 @@ final class ResolvedCatalogTableJsonDeserializer extends StdDeserializer<Resolve
     public ResolvedCatalogTable deserialize(JsonParser jsonParser, DeserializationContext ctx)
             throws IOException {
         ObjectNode jsonNode = jsonParser.readValueAsTree();
+        ObjectCodec codec = jsonParser.getCodec();
 
         ResolvedSchema resolvedSchema =
                 ctx.readValue(
-                        traverse(jsonNode.required(RESOLVED_SCHEMA), jsonParser.getCodec()),
-                        ResolvedSchema.class);
-
-        Optional<TableDistribution> distribution =
-                deserializeOptionalField(
-                        jsonNode,
-                        DISTRIBUTION,
-                        TableDistribution.class,
-                        jsonParser.getCodec(),
-                        ctx);
-
+                        traverse(jsonNode.required(RESOLVED_SCHEMA), codec), ResolvedSchema.class);
+        TableDistribution distribution =
+                deserializeFieldOrNull(jsonNode, DISTRIBUTION, TableDistribution.class, codec, ctx);
         List<String> partitionKeys =
-                ctx.readValue(
-                        traverse(jsonNode.required(PARTITION_KEYS), jsonParser.getCodec()),
-                        ctx.getTypeFactory().constructCollectionType(List.class, String.class));
-        String comment =
-                deserializeOptionalField(
-                                jsonNode, COMMENT, String.class, jsonParser.getCodec(), ctx)
-                        .orElse(null);
-        @SuppressWarnings("unchecked")
+                deserializeListOrEmpty(jsonNode, PARTITION_KEYS, String.class, codec, ctx);
+        String comment = deserializeFieldOrNull(jsonNode, COMMENT, String.class, codec, ctx);
         Map<String, String> options =
-                (Map<String, String>)
-                        deserializeOptionalField(
-                                        jsonNode,
-                                        OPTIONS,
-                                        ctx.getTypeFactory()
-                                                .constructMapType(
-                                                        Map.class, String.class, String.class),
-                                        jsonParser.getCodec(),
-                                        ctx)
-                                .orElse(Collections.emptyMap());
+                deserializeMapOrEmpty(jsonNode, OPTIONS, String.class, String.class, codec, ctx);
 
         return new ResolvedCatalogTable(
                 // Create the unresolved schema from the resolved one. We do this for safety
@@ -102,7 +81,7 @@ final class ResolvedCatalogTableJsonDeserializer extends StdDeserializer<Resolve
                 CatalogTable.newBuilder()
                         .schema(Schema.newBuilder().fromResolvedSchema(resolvedSchema).build())
                         .comment(comment)
-                        .distribution(distribution.orElse(null))
+                        .distribution(distribution)
                         .partitionKeys(partitionKeys)
                         .options(options)
                         .build(),

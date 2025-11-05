@@ -47,6 +47,7 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -160,6 +161,23 @@ class StateAssignmentOperationTest {
                 1, OperatorSubtaskState.builder().setManagedOperatorState(osh2).build());
 
         verifyOneKindPartitionableStateRescale(operatorState, operatorID);
+    }
+
+    @Test
+    public void testPartiallyReported() {
+        RoundRobinOperatorStateRepartitioner.StateEntry stateEntry =
+                new RoundRobinOperatorStateRepartitioner.StateEntry(0, 5);
+        stateEntry.addEntry(0, null);
+        stateEntry.addEntry(1, null);
+        stateEntry.addEntry(3, null);
+
+        // assert partially report
+        Assertions.assertTrue(stateEntry.isPartiallyReported());
+
+        // assert fully report
+        stateEntry.addEntry(2, null);
+        stateEntry.addEntry(4, null);
+        Assertions.assertFalse(stateEntry.isPartiallyReported());
     }
 
     @Test
@@ -509,7 +527,7 @@ class StateAssignmentOperationTest {
                 Stream.of(upstream1, upstream2, downstream)
                         .map(v -> v.getOperatorIDs().get(0).getGeneratedOperatorID())
                         .collect(Collectors.toList());
-        Map<OperatorID, OperatorState> states = buildOperatorStates(operatorIds, 3);
+        Map<OperatorID, OperatorState> states = buildOperatorStatesForTwoGates(operatorIds, 3);
 
         connectVertices(upstream1, downstream, ARBITRARY, RANGE);
         connectVertices(upstream2, downstream, ROUND_ROBIN, ROUND_ROBIN);
@@ -1135,6 +1153,89 @@ class StateAssignmentOperationTest {
                                 }));
     }
 
+    private Map<OperatorID, OperatorState> buildOperatorStatesForTwoGates(
+            List<OperatorID> operatorIDs, int numSubTasks) {
+        Random random = new Random();
+        // operatorIDs should be [upstream1, upstream2, downstream]
+        // downstream has 2 input gates (from upstream1 and upstream2)
+        return operatorIDs.stream()
+                .collect(
+                        Collectors.toMap(
+                                Function.identity(),
+                                operatorID -> {
+                                    OperatorState state =
+                                            new OperatorState(
+                                                    "", "", operatorID, numSubTasks, MAX_P);
+                                    for (int i = 0; i < numSubTasks; i++) {
+                                        OperatorSubtaskState.Builder builder =
+                                                OperatorSubtaskState.builder()
+                                                        .setManagedOperatorState(
+                                                                new StateObjectCollection<>(
+                                                                        asList(
+                                                                                createNewOperatorStateHandle(
+                                                                                        10, random),
+                                                                                createNewOperatorStateHandle(
+                                                                                        10,
+                                                                                        random))))
+                                                        .setRawOperatorState(
+                                                                new StateObjectCollection<>(
+                                                                        asList(
+                                                                                createNewOperatorStateHandle(
+                                                                                        5, random),
+                                                                                createNewOperatorStateHandle(
+                                                                                        5,
+                                                                                        random))))
+                                                        .setManagedKeyedState(
+                                                                StateObjectCollection.singleton(
+                                                                        createNewKeyedStateHandle(
+                                                                                KeyGroupRange.of(
+                                                                                        i, i))))
+                                                        .setRawKeyedState(
+                                                                StateObjectCollection.singleton(
+                                                                        createNewKeyedStateHandle(
+                                                                                KeyGroupRange.of(
+                                                                                        i, i))));
+
+                                        // Handle input channel state
+                                        if (operatorID == operatorIDs.get(2)) {
+                                            // This is the downstream operator with 2 input gates
+                                            builder.setInputChannelState(
+                                                    new StateObjectCollection<>(
+                                                            asList(
+                                                                    createNewInputChannelStateHandle(
+                                                                            10, 0,
+                                                                            random), // gate 0
+                                                                    createNewInputChannelStateHandle(
+                                                                            10, 1, random) // gate 1
+                                                                    )));
+                                        } else {
+                                            // Upstream operators don't have input state
+                                            builder.setInputChannelState(
+                                                    StateObjectCollection.empty());
+                                        }
+
+                                        // Handle result subpartition state
+                                        if (operatorID != operatorIDs.get(2)) {
+                                            // Upstream operators have output state
+                                            builder.setResultSubpartitionState(
+                                                    new StateObjectCollection<>(
+                                                            asList(
+                                                                    createNewResultSubpartitionStateHandle(
+                                                                            10, 0, random),
+                                                                    createNewResultSubpartitionStateHandle(
+                                                                            10, 0, random))));
+                                        } else {
+                                            // Downstream operator doesn't have output state
+                                            builder.setResultSubpartitionState(
+                                                    StateObjectCollection.empty());
+                                        }
+
+                                        state.putState(i, builder.build());
+                                    }
+                                    return state;
+                                }));
+    }
+
     private static class OperatorIdWithParallelism {
         private final OperatorID operatorID;
         private final int parallelism;
@@ -1275,5 +1376,218 @@ class StateAssignmentOperationTest {
                 .getTaskRestore()
                 .getTaskStateSnapshot()
                 .getSubtaskStateByOperatorID(operatorId);
+    }
+
+    @Test
+    void testMixedExchangesForwardAndHashNoStateOnForward()
+            throws JobException, JobExecutionException {
+        // Create topology: source -> (forward to map1, hash to map2)
+        JobVertex source = createJobVertex(new OperatorID(), 2);
+        JobVertex map1 = createJobVertex(new OperatorID(), 2);
+        JobVertex map2 = createJobVertex(new OperatorID(), 3);
+
+        List<OperatorID> operatorIds =
+                Stream.of(source, map1, map2)
+                        .map(v -> v.getOperatorIDs().get(0).getGeneratedOperatorID())
+                        .collect(Collectors.toList());
+
+        // Create state with output state only for hash exchange (to map2)
+        Map<OperatorID, OperatorState> states = new HashMap<>();
+        Random random = new Random();
+
+        // Source has output state only for partition 1 (hash exchange)
+        OperatorState sourceState = new OperatorState("", "", operatorIds.get(0), 2, MAX_P);
+        for (int i = 0; i < 2; i++) {
+            sourceState.putState(
+                    i,
+                    OperatorSubtaskState.builder()
+                            .setResultSubpartitionState(
+                                    new StateObjectCollection<>(
+                                            Arrays.asList(
+                                                    // No state for partition 0 (forward)
+                                                    createNewResultSubpartitionStateHandle(
+                                                            10, 1, random) // partition 1 (hash)
+                                                    )))
+                            .build());
+        }
+        states.put(operatorIds.get(0), sourceState);
+
+        // Map1 (forward) has no input state
+        OperatorState map1State = new OperatorState("", "", operatorIds.get(1), 2, MAX_P);
+        for (int i = 0; i < 2; i++) {
+            map1State.putState(i, OperatorSubtaskState.builder().build());
+        }
+        states.put(operatorIds.get(1), map1State);
+
+        // Map2 (hash) has input state
+        OperatorState map2State = new OperatorState("", "", operatorIds.get(2), 2, MAX_P);
+        for (int i = 0; i < 2; i++) {
+            map2State.putState(
+                    i,
+                    OperatorSubtaskState.builder()
+                            .setInputChannelState(
+                                    new StateObjectCollection<>(
+                                            Arrays.asList(
+                                                    createNewInputChannelStateHandle(
+                                                            10, 0, random))))
+                            .build());
+        }
+        states.put(operatorIds.get(2), map2State);
+
+        // Connect vertices
+        connectVertices(source, map1, RANGE, RANGE); // Forward-like connection
+        connectVertices(source, map2, ARBITRARY, RANGE); // Hash connection
+
+        Map<OperatorID, ExecutionJobVertex> vertices = toExecutionVertices(source, map1, map2);
+
+        // This should not throw UnsupportedOperationException
+        new StateAssignmentOperation(0, new HashSet<>(vertices.values()), states, false)
+                .assignStates();
+
+        // Verify state assignment succeeded
+        assertThat(getAssignedState(vertices.get(operatorIds.get(2)), operatorIds.get(2), 0))
+                .isNotNull();
+    }
+
+    @Test
+    void testMixedExchangesMultipleGatesWithPartialState()
+            throws JobException, JobExecutionException {
+        // Create topology with 3 upstreams connecting to 1 downstream
+        JobVertex upstream1 = createJobVertex(new OperatorID(), 2);
+        JobVertex upstream2 = createJobVertex(new OperatorID(), 2);
+        JobVertex upstream3 = createJobVertex(new OperatorID(), 2);
+        JobVertex downstream = createJobVertex(new OperatorID(), 2);
+
+        List<OperatorID> operatorIds =
+                Stream.of(upstream1, upstream2, upstream3, downstream)
+                        .map(v -> v.getOperatorIDs().get(0).getGeneratedOperatorID())
+                        .collect(Collectors.toList());
+
+        // Build state where only upstream2 has output state
+        Map<OperatorID, OperatorState> states = new HashMap<>();
+        Random random = new Random();
+
+        // Upstream1 - no output state
+        OperatorState upstream1State = new OperatorState("", "", operatorIds.get(0), 3, MAX_P);
+        for (int i = 0; i < 3; i++) {
+            upstream1State.putState(i, OperatorSubtaskState.builder().build());
+        }
+        states.put(operatorIds.get(0), upstream1State);
+
+        // Upstream2 - has output state
+        OperatorState upstream2State = new OperatorState("", "", operatorIds.get(1), 3, MAX_P);
+        for (int i = 0; i < 3; i++) {
+            upstream2State.putState(
+                    i,
+                    OperatorSubtaskState.builder()
+                            .setResultSubpartitionState(
+                                    new StateObjectCollection<>(
+                                            Arrays.asList(
+                                                    createNewResultSubpartitionStateHandle(
+                                                            10, 0, random))))
+                            .build());
+        }
+        states.put(operatorIds.get(1), upstream2State);
+
+        // Upstream3 - no output state
+        OperatorState upstream3State = new OperatorState("", "", operatorIds.get(2), 3, MAX_P);
+        for (int i = 0; i < 3; i++) {
+            upstream3State.putState(i, OperatorSubtaskState.builder().build());
+        }
+        states.put(operatorIds.get(2), upstream3State);
+
+        // Downstream - has input state only for gate 1 (from upstream2)
+        OperatorState downstreamState = new OperatorState("", "", operatorIds.get(3), 3, MAX_P);
+        for (int i = 0; i < 3; i++) {
+            downstreamState.putState(
+                    i,
+                    OperatorSubtaskState.builder()
+                            .setInputChannelState(
+                                    new StateObjectCollection<>(
+                                            Arrays.asList(
+                                                    createNewInputChannelStateHandle(
+                                                            10, 1, random) // gate 1 only
+                                                    )))
+                            .build());
+        }
+        states.put(operatorIds.get(3), downstreamState);
+
+        // Connect all upstreams to downstream
+        connectVertices(upstream1, downstream, RANGE, RANGE); // gate 0
+        connectVertices(upstream2, downstream, ARBITRARY, RANGE); // gate 1
+        connectVertices(upstream3, downstream, ROUND_ROBIN, ROUND_ROBIN); // gate 2
+
+        Map<OperatorID, ExecutionJobVertex> vertices =
+                toExecutionVertices(upstream1, upstream2, upstream3, downstream);
+
+        // This should not throw UnsupportedOperationException
+        new StateAssignmentOperation(0, new HashSet<>(vertices.values()), states, false)
+                .assignStates();
+
+        // Verify downstream received state
+        OperatorSubtaskState downstreamAssignedState =
+                getAssignedState(vertices.get(operatorIds.get(3)), operatorIds.get(3), 0);
+        assertThat(downstreamAssignedState).isNotNull();
+        assertThat(downstreamAssignedState.getInputChannelState()).isNotEmpty();
+    }
+
+    @Test
+    void testMixedExchangesRescaleAndRebalanceNoStateOnRescale()
+            throws JobException, JobExecutionException {
+        // Create topology with mixed partitioner types
+        JobVertex source = createJobVertex(new OperatorID(), 4);
+        JobVertex sink = createJobVertex(new OperatorID(), 2);
+
+        List<OperatorID> operatorIds =
+                Stream.of(source, sink)
+                        .map(v -> v.getOperatorIDs().get(0).getGeneratedOperatorID())
+                        .collect(Collectors.toList());
+
+        // Create state - source has output state
+        Map<OperatorID, OperatorState> states = new HashMap<>();
+        Random random = new Random();
+
+        OperatorState sourceState = new OperatorState("", "", operatorIds.get(0), 4, MAX_P);
+        for (int i = 0; i < 4; i++) {
+            sourceState.putState(
+                    i,
+                    OperatorSubtaskState.builder()
+                            .setResultSubpartitionState(
+                                    new StateObjectCollection<>(
+                                            Arrays.asList(
+                                                    createNewResultSubpartitionStateHandle(
+                                                            10, 0, random))))
+                            .build());
+        }
+        states.put(operatorIds.get(0), sourceState);
+
+        // Sink has input state
+        OperatorState sinkState = new OperatorState("", "", operatorIds.get(1), 4, MAX_P);
+        for (int i = 0; i < 4; i++) {
+            sinkState.putState(
+                    i,
+                    OperatorSubtaskState.builder()
+                            .setInputChannelState(
+                                    new StateObjectCollection<>(
+                                            Arrays.asList(
+                                                    createNewInputChannelStateHandle(
+                                                            10, 0, random))))
+                            .build());
+        }
+        states.put(operatorIds.get(1), sinkState);
+
+        // Connect with RESCALE partitioner
+        connectVertices(source, sink, ROUND_ROBIN, ROUND_ROBIN);
+
+        Map<OperatorID, ExecutionJobVertex> vertices = toExecutionVertices(source, sink);
+
+        // This should succeed even with RESCALE partitioner when parallelism changes
+        new StateAssignmentOperation(0, new HashSet<>(vertices.values()), states, false)
+                .assignStates();
+
+        // Verify state was assigned
+        OperatorSubtaskState sinkAssignedState =
+                getAssignedState(vertices.get(operatorIds.get(1)), operatorIds.get(1), 0);
+        assertThat(sinkAssignedState).isNotNull();
     }
 }

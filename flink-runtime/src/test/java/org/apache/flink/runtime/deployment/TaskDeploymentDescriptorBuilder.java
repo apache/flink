@@ -49,7 +49,7 @@ public class TaskDeploymentDescriptorBuilder {
     private List<ResultPartitionDeploymentDescriptor> producedPartitions;
     private List<InputGateDeploymentDescriptor> inputGates;
 
-    @Nullable private JobManagerTaskRestore taskRestore;
+    @Nullable private MaybeOffloaded<JobManagerTaskRestore> serializedTaskRestore;
 
     private TaskDeploymentDescriptorBuilder(JobID jobId, String invokableClassName)
             throws IOException {
@@ -71,7 +71,7 @@ public class TaskDeploymentDescriptorBuilder {
         this.allocationId = new AllocationID();
         this.producedPartitions = Collections.emptyList();
         this.inputGates = Collections.emptyList();
-        this.taskRestore = null;
+        this.serializedTaskRestore = null;
     }
 
     public TaskDeploymentDescriptorBuilder setSerializedJobInformation(
@@ -113,9 +113,9 @@ public class TaskDeploymentDescriptorBuilder {
         return this;
     }
 
-    public TaskDeploymentDescriptorBuilder setTaskRestore(
-            @Nullable JobManagerTaskRestore taskRestore) {
-        this.taskRestore = taskRestore;
+    public TaskDeploymentDescriptorBuilder setSerializedTaskRestore(
+            @Nullable MaybeOffloaded<JobManagerTaskRestore> serializedTaskRestore) {
+        this.serializedTaskRestore = serializedTaskRestore;
         return this;
     }
 
@@ -126,7 +126,7 @@ public class TaskDeploymentDescriptorBuilder {
                 serializedTaskInformation,
                 executionId,
                 allocationId,
-                taskRestore,
+                serializedTaskRestore,
                 producedPartitions,
                 inputGates);
     }

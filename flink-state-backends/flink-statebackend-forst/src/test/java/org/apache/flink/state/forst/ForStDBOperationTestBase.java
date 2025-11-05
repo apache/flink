@@ -29,9 +29,9 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.core.asyncprocessing.InternalAsyncFuture;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
-import org.apache.flink.core.state.InternalStateFuture;
 import org.apache.flink.runtime.asyncprocessing.EpochManager.Epoch;
 import org.apache.flink.runtime.asyncprocessing.RecordContext;
 import org.apache.flink.runtime.asyncprocessing.StateRequestHandler;
@@ -95,7 +95,7 @@ public class ForStDBOperationTestBase {
 
         return new StateRequestHandler() {
             @Override
-            public <IN, OUT> InternalStateFuture<OUT> handleRequest(
+            public <IN, OUT> InternalAsyncFuture<OUT> handleRequest(
                     @Nullable State state, StateRequestType type, @Nullable IN payload) {
                 throw new UnsupportedOperationException();
             }
@@ -238,7 +238,7 @@ public class ForStDBOperationTestBase {
                 1);
     }
 
-    static class TestStateFuture<T> implements InternalStateFuture<T> {
+    static class TestAsyncFuture<T> implements InternalAsyncFuture<T> {
 
         public CompletableFuture<T> future = new CompletableFuture<>();
 
@@ -278,26 +278,26 @@ public class ForStDBOperationTestBase {
         }
 
         @Override
-        public <U> StateFuture<U> thenApply(
+        public <U> InternalAsyncFuture<U> thenApply(
                 FunctionWithException<? super T, ? extends U, ? extends Exception> fn) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public StateFuture<Void> thenAccept(
+        public InternalAsyncFuture<Void> thenAccept(
                 ThrowingConsumer<? super T, ? extends Exception> action) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public <U> StateFuture<U> thenCompose(
+        public <U> InternalAsyncFuture<U> thenCompose(
                 FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
                         action) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public <U, V> StateFuture<V> thenCombine(
+        public <U, V> InternalAsyncFuture<V> thenCombine(
                 StateFuture<? extends U> other,
                 BiFunctionWithException<? super T, ? super U, ? extends V, ? extends Exception>
                         fn) {
@@ -305,7 +305,7 @@ public class ForStDBOperationTestBase {
         }
 
         @Override
-        public <U, V> StateFuture<Tuple2<Boolean, Object>> thenConditionallyApply(
+        public <U, V> InternalAsyncFuture<Tuple2<Boolean, Object>> thenConditionallyApply(
                 FunctionWithException<? super T, Boolean, ? extends Exception> condition,
                 FunctionWithException<? super T, ? extends U, ? extends Exception> actionIfTrue,
                 FunctionWithException<? super T, ? extends V, ? extends Exception> actionIfFalse) {
@@ -313,14 +313,14 @@ public class ForStDBOperationTestBase {
         }
 
         @Override
-        public <U> StateFuture<Tuple2<Boolean, U>> thenConditionallyApply(
+        public <U> InternalAsyncFuture<Tuple2<Boolean, U>> thenConditionallyApply(
                 FunctionWithException<? super T, Boolean, ? extends Exception> condition,
                 FunctionWithException<? super T, ? extends U, ? extends Exception> actionIfTrue) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public StateFuture<Boolean> thenConditionallyAccept(
+        public InternalAsyncFuture<Boolean> thenConditionallyAccept(
                 FunctionWithException<? super T, Boolean, ? extends Exception> condition,
                 ThrowingConsumer<? super T, ? extends Exception> actionIfTrue,
                 ThrowingConsumer<? super T, ? extends Exception> actionIfFalse) {
@@ -328,14 +328,14 @@ public class ForStDBOperationTestBase {
         }
 
         @Override
-        public StateFuture<Boolean> thenConditionallyAccept(
+        public InternalAsyncFuture<Boolean> thenConditionallyAccept(
                 FunctionWithException<? super T, Boolean, ? extends Exception> condition,
                 ThrowingConsumer<? super T, ? extends Exception> actionIfTrue) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public <U, V> StateFuture<Tuple2<Boolean, Object>> thenConditionallyCompose(
+        public <U, V> InternalAsyncFuture<Tuple2<Boolean, Object>> thenConditionallyCompose(
                 FunctionWithException<? super T, Boolean, ? extends Exception> condition,
                 FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
                         actionIfTrue,
@@ -345,7 +345,7 @@ public class ForStDBOperationTestBase {
         }
 
         @Override
-        public <U> StateFuture<Tuple2<Boolean, U>> thenConditionallyCompose(
+        public <U> InternalAsyncFuture<Tuple2<Boolean, U>> thenConditionallyCompose(
                 FunctionWithException<? super T, Boolean, ? extends Exception> condition,
                 FunctionWithException<? super T, ? extends StateFuture<U>, ? extends Exception>
                         actionIfTrue) {

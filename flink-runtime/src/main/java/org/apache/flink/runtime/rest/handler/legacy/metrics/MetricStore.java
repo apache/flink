@@ -239,47 +239,8 @@ public class MetricStore {
         return TaskMetricStore.unmodifiable(job.getTaskMetricStore(taskID));
     }
 
-    /**
-     * Returns the {@link ComponentMetricStore} for the given job/task ID and subtask index.
-     *
-     * @param jobID job ID
-     * @param taskID task ID
-     * @param subtaskIndex subtask index
-     * @return SubtaskMetricStore for the given IDs and index, or null if no store for the given
-     *     arguments exists
-     */
-    public synchronized ComponentMetricStore getSubtaskMetricStore(
-            String jobID, String taskID, int subtaskIndex) {
-        JobMetricStore job = jobID == null ? null : jobs.get(jobID);
-        if (job == null) {
-            return null;
-        }
-        TaskMetricStore task = job.getTaskMetricStore(taskID);
-        if (task == null) {
-            return null;
-        }
-        return SubtaskMetricStore.unmodifiable(task.getSubtaskMetricStore(subtaskIndex));
-    }
-
-    public synchronized ComponentMetricStore getSubtaskAttemptMetricStore(
-            String jobID, String taskID, int subtaskIndex, int attemptNumber) {
-        JobMetricStore job = jobID == null ? null : jobs.get(jobID);
-        if (job == null) {
-            return null;
-        }
-        TaskMetricStore task = job.getTaskMetricStore(taskID);
-        if (task == null) {
-            return null;
-        }
-        SubtaskMetricStore subtask = task.getSubtaskMetricStore(subtaskIndex);
-        if (subtask == null) {
-            return null;
-        }
-        return ComponentMetricStore.unmodifiable(subtask.getAttemptsMetricStore(attemptNumber));
-    }
-
-    public synchronized Map<String, JobMetricStore> getJobs() {
-        return unmodifiableMap(jobs);
+    public synchronized JobMetricStoreSnapshot getJobs() {
+        return new JobMetricStoreSnapshot(unmodifiableMap(jobs));
     }
 
     public synchronized Map<String, TaskManagerMetricStore> getTaskManagers() {
@@ -687,6 +648,59 @@ public class MetricStore {
             }
             return new SubtaskMetricStore(
                     unmodifiableMap(source.metrics), unmodifiableMap(source.attempts));
+        }
+    }
+
+    /** Sub-structure containing a snapshot of all jobs in the metric store. */
+    @ThreadSafe
+    public static class JobMetricStoreSnapshot {
+        private final Map<String, JobMetricStore> jobs;
+
+        private JobMetricStoreSnapshot(Map<String, JobMetricStore> jobs) {
+            this.jobs = checkNotNull(jobs);
+        }
+
+        /**
+         * Returns the {@link ComponentMetricStore} for the given job/task ID and subtask index.
+         *
+         * @param jobID job ID
+         * @param taskID task ID
+         * @param subtaskIndex subtask index
+         * @return SubtaskMetricStore for the given IDs and index, or null if no store for the given
+         *     arguments exists
+         */
+        public ComponentMetricStore getSubtaskMetricStore(
+                String jobID, String taskID, int subtaskIndex) {
+            JobMetricStore job = jobID == null ? null : jobs.get(jobID);
+            if (job == null) {
+                return null;
+            }
+            TaskMetricStore task = job.getTaskMetricStore(taskID);
+            if (task == null) {
+                return null;
+            }
+            return SubtaskMetricStore.unmodifiable(task.getSubtaskMetricStore(subtaskIndex));
+        }
+
+        public ComponentMetricStore getSubtaskAttemptMetricStore(
+                String jobID, String taskID, int subtaskIndex, int attemptNumber) {
+            JobMetricStore job = jobID == null ? null : jobs.get(jobID);
+            if (job == null) {
+                return null;
+            }
+            TaskMetricStore task = job.getTaskMetricStore(taskID);
+            if (task == null) {
+                return null;
+            }
+            SubtaskMetricStore subtask = task.getSubtaskMetricStore(subtaskIndex);
+            if (subtask == null) {
+                return null;
+            }
+            return ComponentMetricStore.unmodifiable(subtask.getAttemptsMetricStore(attemptNumber));
+        }
+
+        public Collection<? extends MetricStore.ComponentMetricStore> values() {
+            return jobs.values();
         }
     }
 }

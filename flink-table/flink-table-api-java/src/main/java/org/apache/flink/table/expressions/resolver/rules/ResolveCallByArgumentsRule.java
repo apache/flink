@@ -728,11 +728,6 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
         }
 
         @Override
-        public List<String> coPartitionArgs() {
-            return List.of();
-        }
-
-        @Override
         public Optional<ChangelogMode> changelogMode() {
             return Optional.empty();
         }

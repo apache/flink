@@ -54,7 +54,6 @@
               }
             } ]
           },
-          "partitionKeys" : [ ],
           "options" : {
             "bounded" : "false",
             "connector" : "values"
@@ -72,8 +71,7 @@
       } ]
     },
     "outputType" : "ROW<`c` INT NOT NULL, `a` INT, `rowtime` TIMESTAMP(3)>",
-    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, rowtime], metadata=[]]], fields=[c, a, rowtime])",
-    "inputProperties" : [ ]
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[c, a, rowtime], metadata=[]]], fields=[c, a, rowtime])"
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
@@ -329,7 +327,7 @@
         "fieldType" : "BIGINT"
       } ]
     },
-    "description" : "PythonOverAggregate(orderBy=[proctime ASC], window=[ RANG BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[c, proctime, $2, pyFunc(c, c) AS w0$o0])"
+    "description" : "PythonOverAggregate(orderBy=[proctime ASC], window=[ RANGE BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[c, proctime, $2, pyFunc(c, c) AS w0$o0])"
   }, {
     "id" : 7,
     "type" : "stream-exec-calc_1",
@@ -373,10 +371,8 @@
             }, {
               "name" : "b",
               "dataType" : "BIGINT"
-            } ],
-            "watermarkSpecs" : [ ]
+            } ]
           },
-          "partitionKeys" : [ ],
           "options" : {
             "connector" : "values",
             "sink-insert-only" : "false",

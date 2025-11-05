@@ -82,6 +82,8 @@ Functions used to transform a :class:`DataStream` into another :class:`DataStrea
     - :class:`KeyedBroadcastProcessFunction`:
       A function to be applied to a :class:`BroadcastConnectedStream` that connects
       :class:`BroadcastStream`, i.e. a stream with broadcast state, with a :class:`KeyedStream`.
+    - :class:`AsyncFunction`:
+      A function to trigger Async I/O operation.
     - :class:`RuntimeContext`:
       Contains information about the context in which functions are executed. Each
       parallel instance of the function will have a context through which it can access static
@@ -256,6 +258,7 @@ Other important classes:
     - :class:`OutputTag`:
       Tag with a name and type for identifying side output of an operator
 """
+from pyflink.datastream.async_data_stream import AsyncDataStream
 from pyflink.datastream.checkpoint_config import CheckpointConfig
 from pyflink.datastream.externalized_checkpoint_retention import ExternalizedCheckpointRetention
 from pyflink.datastream.checkpointing_mode import CheckpointingMode
@@ -268,7 +271,8 @@ from pyflink.datastream.functions import (MapFunction, CoMapFunction, FlatMapFun
                                           SinkFunction, CoProcessFunction, KeyedProcessFunction,
                                           KeyedCoProcessFunction, AggregateFunction, WindowFunction,
                                           ProcessWindowFunction, BroadcastProcessFunction,
-                                          KeyedBroadcastProcessFunction)
+                                          KeyedBroadcastProcessFunction, AsyncFunction,
+                                          AsyncRetryPredicate, AsyncRetryStrategy)
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup, MemorySize
 from pyflink.datastream.state_backend import (StateBackend, CustomStateBackend,
                                               PredefinedOptions, HashMapStateBackend,
@@ -292,6 +296,7 @@ __all__ = [
     'ConnectedStreams',
     'BroadcastStream',
     'BroadcastConnectedStream',
+    'AsyncDataStream',
     'DataStreamSink',
     'MapFunction',
     'CoMapFunction',
@@ -308,6 +313,7 @@ __all__ = [
     'AggregateFunction',
     'BroadcastProcessFunction',
     'KeyedBroadcastProcessFunction',
+    'AsyncFunction',
     'RuntimeContext',
     'TimerService',
     'CheckpointingMode',
@@ -338,5 +344,7 @@ __all__ = [
     'SinkFunction',
     'SlotSharingGroup',
     'MemorySize',
-    'OutputTag'
+    'OutputTag',
+    'AsyncRetryPredicate',
+    'AsyncRetryStrategy'
 ]

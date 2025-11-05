@@ -123,7 +123,12 @@ public class CopyDataTransferStrategy extends DataTransferStrategy {
 
         // Try path-copying first. If failed, fallback to bytes-copying
         StreamStateHandle targetStateHandle =
-                tryPathCopyingToCheckpoint(sourceStateHandle, checkpointStreamFactory, stateScope);
+                tryPathCopyingToCheckpoint(
+                        sourceStateHandle,
+                        checkpointStreamFactory,
+                        stateScope,
+                        tmpResourcesRegistry,
+                        maxTransferBytes);
         if (targetStateHandle != null) {
             LOG.trace("Path-copy file to checkpoint: {} {}", dbFilePath, targetStateHandle);
         } else {
@@ -148,22 +153,36 @@ public class CopyDataTransferStrategy extends DataTransferStrategy {
      * @param sourceHandle The source state handle
      * @param checkpointStreamFactory The checkpoint stream factory
      * @param stateScope The state scope
+     * @param tmpResourcesRegistry The temporary resources registry
+     * @param maxTransferBytes The max transfer bytes
      * @return The target state handle if path-copying is successful, otherwise null
      */
     private @Nullable StreamStateHandle tryPathCopyingToCheckpoint(
             @Nonnull StreamStateHandle sourceHandle,
             CheckpointStreamFactory checkpointStreamFactory,
-            CheckpointedStateScope stateScope) {
+            CheckpointedStateScope stateScope,
+            CloseableRegistry tmpResourcesRegistry,
+            long maxTransferBytes) {
 
         try {
-            if (!checkpointStreamFactory.canFastDuplicate(sourceHandle, stateScope)) {
+            // skip if there is a limit of transfer bytes
+            if (maxTransferBytes > 0 && maxTransferBytes != Long.MAX_VALUE) {
                 return null;
             }
 
+            // copy the file by duplicating
+            if (!checkpointStreamFactory.canFastDuplicate(sourceHandle, stateScope)) {
+                return null;
+            }
             List<StreamStateHandle> result =
                     checkpointStreamFactory.duplicate(
                             Collections.singletonList(sourceHandle), stateScope);
-            return result.get(0);
+            StreamStateHandle resultStateHandle = result.get(0);
+
+            // register the clean-up logic of the uploaded file
+            tmpResourcesRegistry.registerCloseable(
+                    () -> StateUtil.discardStateObjectQuietly(resultStateHandle));
+            return resultStateHandle;
         } catch (Exception e) {
             LOG.warn("Failed to duplicate file to checkpoint: {} {}", sourceHandle, stateScope, e);
         }
@@ -179,6 +198,7 @@ public class CopyDataTransferStrategy extends DataTransferStrategy {
             CloseableRegistry closeableRegistry,
             CloseableRegistry tmpResourcesRegistry)
             throws IOException {
+        // copy the file by bytes
         InputStream inputStream = null;
         CheckpointStateOutputStream outputStream = null;
 
@@ -211,6 +231,8 @@ public class CopyDataTransferStrategy extends DataTransferStrategy {
             } else {
                 result = null;
             }
+
+            // register the clean-up logic of the uploaded file
             tmpResourcesRegistry.registerCloseable(
                     () -> StateUtil.discardStateObjectQuietly(result));
 

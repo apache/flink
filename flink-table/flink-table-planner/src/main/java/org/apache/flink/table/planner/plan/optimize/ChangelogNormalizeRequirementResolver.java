@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.optimize;
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.connector.source.abilities.SupportsReadingMetadata;
 import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
@@ -31,6 +32,7 @@ import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.trait.UpdateKindTrait$;
 import org.apache.flink.table.planner.plan.trait.UpdateKindTraitDef$;
 import org.apache.flink.table.planner.plan.utils.FlinkRelUtil;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.SingleRel;
@@ -65,6 +67,12 @@ public class ChangelogNormalizeRequirementResolver {
         if (!Objects.equals(
                 normalize.getTraitSet().getTrait(UpdateKindTraitDef$.MODULE$.INSTANCE()),
                 UpdateKindTrait$.MODULE$.ONLY_UPDATE_AFTER())) {
+            return true;
+        }
+
+        // the changelog normalize is requested to perform deduplication on a retract stream
+        if (ShortcutUtils.unwrapTableConfig(normalize)
+                .get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE)) {
             return true;
         }
 

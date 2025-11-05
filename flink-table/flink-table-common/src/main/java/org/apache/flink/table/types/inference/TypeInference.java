@@ -59,16 +59,19 @@ public final class TypeInference {
     private final InputTypeStrategy inputTypeStrategy;
     private final LinkedHashMap<String, StateTypeStrategy> stateTypeStrategies;
     private final TypeStrategy outputTypeStrategy;
+    private final boolean disableSystemArguments;
 
     private TypeInference(
             @Nullable List<StaticArgument> staticArguments,
             InputTypeStrategy inputTypeStrategy,
             LinkedHashMap<String, StateTypeStrategy> stateTypeStrategies,
-            TypeStrategy outputTypeStrategy) {
+            TypeStrategy outputTypeStrategy,
+            boolean disableSystemArguments) {
         this.staticArguments = staticArguments;
         this.inputTypeStrategy = inputTypeStrategy;
         this.stateTypeStrategies = stateTypeStrategies;
         this.outputTypeStrategy = outputTypeStrategy;
+        this.disableSystemArguments = disableSystemArguments;
         checkStateEntries();
     }
 
@@ -91,6 +94,10 @@ public final class TypeInference {
 
     public TypeStrategy getOutputTypeStrategy() {
         return outputTypeStrategy;
+    }
+
+    public boolean disableSystemArguments() {
+        return disableSystemArguments;
     }
 
     /**
@@ -180,6 +187,8 @@ public final class TypeInference {
                 new LinkedHashMap<>();
         private @Nullable TypeStrategy outputTypeStrategy;
 
+        private boolean disableSystemArguments = false;
+
         // Legacy
         private @Nullable List<String> namedArguments;
         private @Nullable List<Boolean> optionalArguments;
@@ -252,6 +261,16 @@ public final class TypeInference {
         }
 
         /**
+         * Sets whether system arguments are allowed in addition to the declared arguments for PTFs.
+         * If disabled, uid and time attributes arguments will not be added to PTF input arguments
+         * automatically.
+         */
+        public Builder disableSystemArguments(boolean disableSystemArguments) {
+            this.disableSystemArguments = disableSystemArguments;
+            return this;
+        }
+
+        /**
          * Sets the strategy for inferring the final output data type of a function call.
          *
          * <p>Required.
@@ -269,7 +288,8 @@ public final class TypeInference {
                     inputTypeStrategy,
                     stateTypeStrategies,
                     Preconditions.checkNotNull(
-                            outputTypeStrategy, "Output type strategy must not be null."));
+                            outputTypeStrategy, "Output type strategy must not be null."),
+                    disableSystemArguments);
         }
 
         /**

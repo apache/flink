@@ -167,6 +167,15 @@ public class HighAvailabilityOptions {
                     .withDescription("Defines the pause between consecutive retries.");
 
     @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
+    public static final ConfigOption<Duration> ZOOKEEPER_MAX_RETRY_WAIT =
+            key("high-availability.zookeeper.client.max-retry-wait")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(60000))
+                    .withDescription(
+                            "Defines the maximum retry wait time in milliseconds for each attempt. "
+                                    + "This caps the exponential backoff to prevent excessively long waits between retries.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
     public static final ConfigOption<Integer> ZOOKEEPER_MAX_RETRY_ATTEMPTS =
             key("high-availability.zookeeper.client.max-retry-attempts")
                     .intType()

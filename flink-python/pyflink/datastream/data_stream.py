@@ -46,7 +46,8 @@ from pyflink.datastream.functions import (_get_python_env, FlatMapFunction, MapF
                                           KeyedBroadcastProcessFunction,
                                           InternalSingleValueAllWindowFunction,
                                           PassThroughAllWindowFunction,
-                                          InternalSingleValueProcessAllWindowFunction)
+                                          InternalSingleValueProcessAllWindowFunction,
+                                          AsyncFunctionDescriptor)
 from pyflink.datastream.output_tag import OutputTag
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup
 from pyflink.datastream.state import (ListStateDescriptor, StateDescriptor, ReducingStateDescriptor,
@@ -634,7 +635,7 @@ class DataStream(object):
             for arg in args:
                 if not isinstance(arg, MapStateDescriptor):
                     raise TypeError("broadcast_state_descriptor must be MapStateDescriptor")
-            broadcast_state_descriptors = [arg for arg in args]  # type: List[MapStateDescriptor]
+            broadcast_state_descriptors: List[MapStateDescriptor] = [arg for arg in args]
             return BroadcastStream(cast(DataStream, self.broadcast()), broadcast_state_descriptors)
         return DataStream(self._j_data_stream.broadcast())
 
@@ -1232,7 +1233,7 @@ class KeyedStream(DataStream):
                     self._open_func = None
                     self._close_func = None
                     self._reduce_function = reduce_function
-                self._reduce_state = None  # type: ReducingState
+                self._reduce_state: ReducingState = None
                 self._in_batch_execution_mode = True
 
             def open(self, runtime_context: RuntimeContext):
@@ -1847,8 +1848,8 @@ class WindowedStream(object):
         self._keyed_stream = keyed_stream
         self._window_assigner = window_assigner
         self._allowed_lateness = 0
-        self._late_data_output_tag = None  # type: Optional[OutputTag]
-        self._window_trigger = None  # type: Trigger
+        self._late_data_output_tag: Optional[OutputTag] = None
+        self._window_trigger: Trigger = None
 
     def get_execution_environment(self):
         return self._keyed_stream.get_execution_environment()
@@ -1929,8 +1930,8 @@ class WindowedStream(object):
         .. versionadded:: 1.16.0
         """
         if window_function is None:
-            internal_window_function = InternalSingleValueWindowFunction(
-                PassThroughWindowFunction())  # type: InternalWindowFunction
+            internal_window_function: InternalWindowFunction = InternalSingleValueWindowFunction(
+                PassThroughWindowFunction())
             if output_type is None:
                 output_type = self.get_input_type()
         elif isinstance(window_function, WindowFunction):
@@ -1998,8 +1999,8 @@ class WindowedStream(object):
         .. versionadded:: 1.16.0
         """
         if window_function is None:
-            internal_window_function = InternalSingleValueWindowFunction(
-                PassThroughWindowFunction())  # type: InternalWindowFunction
+            internal_window_function: InternalWindowFunction = InternalSingleValueWindowFunction(
+                PassThroughWindowFunction())
         elif isinstance(window_function, WindowFunction):
             internal_window_function = InternalSingleValueWindowFunction(window_function)
         elif isinstance(window_function, ProcessWindowFunction):
@@ -2037,8 +2038,8 @@ class WindowedStream(object):
         :param output_type: Type information for the result type of the window function.
         :return: The data stream that is the result of applying the window function to the window.
         """
-        internal_window_function = InternalIterableWindowFunction(
-            window_function)  # type: InternalWindowFunction
+        internal_window_function: InternalWindowFunction = InternalIterableWindowFunction(
+            window_function)
         list_state_descriptor = ListStateDescriptor(WINDOW_STATE_NAME, self.get_input_type())
         func_desc = type(window_function).__name__
         return self._get_result_data_stream(internal_window_function,
@@ -2061,8 +2062,8 @@ class WindowedStream(object):
         :param output_type: Type information for the result type of the window function.
         :return: The data stream that is the result of applying the window function to the window.
         """
-        internal_window_function = InternalIterableProcessWindowFunction(
-            process_window_function)  # type: InternalWindowFunction
+        internal_window_function: InternalWindowFunction = InternalIterableProcessWindowFunction(
+            process_window_function)
         list_state_descriptor = ListStateDescriptor(WINDOW_STATE_NAME, self.get_input_type())
         func_desc = type(process_window_function).__name__
         return self._get_result_data_stream(internal_window_function,
@@ -2122,8 +2123,8 @@ class AllWindowedStream(object):
         self._keyed_stream = data_stream.key_by(NullByteKeySelector())
         self._window_assigner = window_assigner
         self._allowed_lateness = 0
-        self._late_data_output_tag = None  # type: Optional[OutputTag]
-        self._window_trigger = None  # type: Trigger
+        self._late_data_output_tag: Optional[OutputTag] = None
+        self._window_trigger: Trigger = None
 
     def get_execution_environment(self):
         return self._keyed_stream.get_execution_environment()
@@ -2201,8 +2202,8 @@ class AllWindowedStream(object):
         .. versionadded:: 1.16.0
         """
         if window_function is None:
-            internal_window_function = InternalSingleValueAllWindowFunction(
-                PassThroughAllWindowFunction())  # type: InternalWindowFunction
+            internal_window_function: InternalWindowFunction = InternalSingleValueAllWindowFunction(
+                PassThroughAllWindowFunction())
             if output_type is None:
                 output_type = self.get_input_type()
         elif isinstance(window_function, AllWindowFunction):
@@ -2271,8 +2272,8 @@ class AllWindowedStream(object):
         .. versionadded:: 1.16.0
         """
         if window_function is None:
-            internal_window_function = InternalSingleValueAllWindowFunction(
-                PassThroughAllWindowFunction())  # type: InternalWindowFunction
+            internal_window_function: InternalWindowFunction = InternalSingleValueAllWindowFunction(
+                PassThroughAllWindowFunction())
         elif isinstance(window_function, AllWindowFunction):
             internal_window_function = InternalSingleValueAllWindowFunction(window_function)
         elif isinstance(window_function, ProcessAllWindowFunction):
@@ -2312,8 +2313,8 @@ class AllWindowedStream(object):
         :param output_type: Type information for the result type of the window function.
         :return: The data stream that is the result of applying the window function to the window.
         """
-        internal_window_function = InternalIterableAllWindowFunction(
-            window_function)  # type: InternalWindowFunction
+        internal_window_function: InternalWindowFunction = InternalIterableAllWindowFunction(
+            window_function)
         list_state_descriptor = ListStateDescriptor(WINDOW_STATE_NAME, self.get_input_type())
         func_desc = type(window_function).__name__
         return self._get_result_data_stream(internal_window_function,
@@ -2336,8 +2337,8 @@ class AllWindowedStream(object):
         :param output_type: Type information for the result type of the window function.
         :return: The data stream that is the result of applying the window function to the window.
         """
-        internal_window_function = InternalIterableProcessAllWindowFunction(
-            process_window_function)  # type: InternalWindowFunction
+        internal_window_function: InternalWindowFunction = InternalIterableProcessAllWindowFunction(
+            process_window_function)
         list_state_descriptor = ListStateDescriptor(WINDOW_STATE_NAME, self.get_input_type())
         func_desc = type(process_window_function).__name__
         return self._get_result_data_stream(internal_window_function,
@@ -2684,7 +2685,7 @@ class BroadcastConnectedStream(object):
         )
 
         if output_type is None:
-            output_type_info = Types.PICKLED_BYTE_ARRAY()  # type: TypeInformation
+            output_type_info: TypeInformation = Types.PICKLED_BYTE_ARRAY()
         elif isinstance(output_type, list):
             output_type_info = RowTypeInfo(output_type)
         elif isinstance(output_type, TypeInformation):
@@ -2757,7 +2758,8 @@ class BroadcastConnectedStream(object):
 def _get_one_input_stream_operator(data_stream: DataStream,
                                    func: Union[Function,
                                                FunctionWrapper,
-                                               WindowOperationDescriptor],
+                                               WindowOperationDescriptor,
+                                               AsyncFunctionDescriptor],
                                    func_type: int,
                                    output_type: Union[TypeInformation, List] = None):
     """
@@ -2773,7 +2775,7 @@ def _get_one_input_stream_operator(data_stream: DataStream,
 
     j_input_types = data_stream._j_data_stream.getTransformation().getOutputType()
     if output_type is None:
-        output_type_info = Types.PICKLED_BYTE_ARRAY()  # type: TypeInformation
+        output_type_info: TypeInformation = Types.PICKLED_BYTE_ARRAY()
     elif isinstance(output_type, list):
         output_type_info = RowTypeInfo(output_type)
     else:
@@ -2806,7 +2808,7 @@ def _get_one_input_stream_operator(data_stream: DataStream,
                 gateway.jvm.org.apache.flink.table.runtime.operators.window.CountWindow.Serializer()
         elif isinstance(window_serializer, GlobalWindowSerializer):
             j_namespace_serializer = \
-                gateway.jvm.org.apache.flink.streaming.api.windowing.windows.GlobalWindow \
+                gateway.jvm.org.apache.flink.table.runtime.operators.window.GlobalWindow \
                 .Serializer()
         else:
             j_namespace_serializer = \
@@ -2853,7 +2855,7 @@ def _get_two_input_stream_operator(connected_streams: ConnectedStreams,
     j_input_types2 = connected_streams.stream2._j_data_stream.getTransformation().getOutputType()
 
     if type_info is None:
-        output_type_info = Types.PICKLED_BYTE_ARRAY()  # type: TypeInformation
+        output_type_info: TypeInformation = Types.PICKLED_BYTE_ARRAY()
     elif isinstance(type_info, list):
         output_type_info = RowTypeInfo(type_info)
     else:
@@ -2891,7 +2893,8 @@ def _get_two_input_stream_operator(connected_streams: ConnectedStreams,
 
 
 def _create_j_data_stream_python_function_info(
-    func: Union[Function, FunctionWrapper, WindowOperationDescriptor], func_type: int
+    func: Union[Function, FunctionWrapper, WindowOperationDescriptor, AsyncFunctionDescriptor],
+    func_type: int
 ) -> bytes:
     gateway = get_gateway()
 

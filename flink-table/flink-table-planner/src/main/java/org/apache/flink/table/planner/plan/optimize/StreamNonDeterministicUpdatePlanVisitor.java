@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalC
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalChangelogNormalize;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalCorrelateBase;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDataStreamScan;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeltaJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDropUpdateBefore;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExchange;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalExpand;
@@ -44,6 +45,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalL
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalLookupJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMatch;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMiniBatchAssigner;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalOverAggregateBase;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRank;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel;
@@ -76,6 +78,7 @@ import org.apache.flink.types.RowKind;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
+import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexProgram;
@@ -179,6 +182,8 @@ public class StreamNonDeterministicUpdatePlanVisitor {
             return visitExpand((StreamPhysicalExpand) rel, requireDeterminism);
         } else if (rel instanceof CommonPhysicalJoin) {
             return visitJoin((CommonPhysicalJoin) rel, requireDeterminism);
+        } else if (rel instanceof StreamPhysicalMultiJoin) {
+            return visitMultiJoin((StreamPhysicalMultiJoin) rel, requireDeterminism);
         } else if (rel instanceof StreamPhysicalOverAggregateBase) {
             return visitOverAggregate((StreamPhysicalOverAggregateBase) rel, requireDeterminism);
         } else if (rel instanceof StreamPhysicalRank) {
@@ -191,6 +196,8 @@ public class StreamNonDeterministicUpdatePlanVisitor {
         } else if (rel instanceof StreamPhysicalWindowTableFunction) {
             return visitWindowTableFunction(
                     (StreamPhysicalWindowTableFunction) rel, requireDeterminism);
+        } else if (rel instanceof StreamPhysicalDeltaJoin) {
+            return visitDeltaJoin((StreamPhysicalDeltaJoin) rel, requireDeterminism);
         } else if (rel instanceof StreamPhysicalChangelogNormalize
                 || rel instanceof StreamPhysicalDropUpdateBefore
                 || rel instanceof StreamPhysicalMiniBatchAssigner
@@ -421,6 +428,17 @@ public class StreamNonDeterministicUpdatePlanVisitor {
         }
     }
 
+    /** Currently, DeltaJoin only supports consuming append only stream. */
+    private StreamPhysicalRel visitDeltaJoin(
+            final StreamPhysicalDeltaJoin deltaJoin, final ImmutableBitSet requireDeterminism) {
+        if (inputInsertOnly(deltaJoin) || requireDeterminism.isEmpty()) {
+            return transmitDeterminismRequirement(deltaJoin, NO_REQUIRED_DETERMINISM);
+        } else {
+            throw new TableException(
+                    "Currently DeltaJoin only supports consuming append only stream");
+        }
+    }
+
     private StreamPhysicalRel visitTableSourceScan(
             final StreamPhysicalTableSourceScan tableScan,
             final ImmutableBitSet requireDeterminism) {
@@ -475,6 +493,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                                                 true,
                                                 false,
                                                 true,
+                                                false,
                                                 false);
                         throw new TableException(errorMsg);
                     }
@@ -604,6 +623,102 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                         newRight,
                         join.getJoinType(),
                         join.isSemiJoin());
+    }
+
+    /**
+     * Multi-join determinism handling, mirroring the binary join logic:
+     *
+     * <p>If all inputs are insert-only and every join is INNER, the output is insert-only → no
+     * determinism required downstream.
+     *
+     * <p>Otherwise the combined join condition must be deterministic, and we propagate per-input
+     * determinism:
+     *
+     * <ul>
+     *   <li>If an input can produce updates, and we cannot guarantee uniqueness, we must require
+     *       determinism for the entire input row (retract-by-row correctness).
+     *   <li>If uniqueness is guaranteed, we pass through the part of the requirement that belongs
+     *       to that input.
+     * </ul>
+     */
+    private StreamPhysicalRel visitMultiJoin(
+            final StreamPhysicalMultiJoin multiJoin, final ImmutableBitSet requireDeterminism) {
+        final List<RelNode> inputs = multiJoin.getInputs();
+        final boolean allInputsInsertOnly =
+                inputs.stream().allMatch(in -> inputInsertOnly((StreamPhysicalRel) in));
+        final boolean allInner =
+                multiJoin.getJoinTypes().stream().allMatch(t -> t == JoinRelType.INNER);
+
+        // Fast path: pure insert-only inner join produces insert-only output -> nothing to require.
+        if (allInputsInsertOnly && allInner) {
+            return transmitDeterminismRequirement(multiJoin, NO_REQUIRED_DETERMINISM);
+        }
+
+        // Output may carry updates (some input updates or some non-inner join): condition must be
+        // deterministic.
+        final RexNode multiJoinCondition = multiJoin.getMultiJoinCondition();
+        if (multiJoinCondition != null) {
+            final Optional<String> ndCall =
+                    FlinkRexUtil.getNonDeterministicCallName(multiJoinCondition);
+            ndCall.ifPresent(
+                    s -> throwNonDeterministicConditionError(s, multiJoinCondition, multiJoin));
+        }
+
+        // Output may carry updates: we need to propagate determinism requirements to inputs.
+        final List<RelNode> newInputs = rewriteMultiJoinInputs(multiJoin, requireDeterminism);
+
+        return (StreamPhysicalRel) multiJoin.copy(multiJoin.getTraitSet(), newInputs);
+    }
+
+    private ImmutableBitSet projectToInput(
+            final ImmutableBitSet globalRequired, final int inputStart, final int inputFieldCount) {
+        final List<Integer> local =
+                globalRequired.toList().stream()
+                        .filter(idx -> idx >= inputStart && idx < inputStart + inputFieldCount)
+                        .map(idx -> idx - inputStart)
+                        .collect(Collectors.toList());
+        return ImmutableBitSet.of(local);
+    }
+
+    private ImmutableBitSet requiredForUpdatingMultiJoinInput(
+            final StreamPhysicalMultiJoin multiJoin,
+            final int inputIndex,
+            final ImmutableBitSet localRequired,
+            final int inputFieldCount) {
+        final List<int[]> uniqueKeys = multiJoin.getUniqueKeysForInputs().get(inputIndex);
+        final boolean hasUniqueKey = !uniqueKeys.isEmpty();
+
+        if (hasUniqueKey) {
+            return localRequired;
+        }
+        // Without uniqueness guarantees we must retract by entire row for correctness.
+        return ImmutableBitSet.range(inputFieldCount);
+    }
+
+    private List<RelNode> rewriteMultiJoinInputs(
+            final StreamPhysicalMultiJoin multiJoin, final ImmutableBitSet requireDeterminism) {
+        final List<RelNode> inputs = multiJoin.getInputs();
+        final List<RelNode> newInputs = new ArrayList<>(inputs.size());
+        int fieldStartOffset = 0;
+        for (int i = 0; i < inputs.size(); i++) {
+            final StreamPhysicalRel input = (StreamPhysicalRel) inputs.get(i);
+            final int inputFieldCount = input.getRowType().getFieldCount();
+
+            final ImmutableBitSet localRequired =
+                    projectToInput(requireDeterminism, fieldStartOffset, inputFieldCount);
+
+            final ImmutableBitSet inputRequired =
+                    inputInsertOnly(input)
+                            ? NO_REQUIRED_DETERMINISM
+                            : requiredForUpdatingMultiJoinInput(
+                                    multiJoin, i, localRequired, inputFieldCount);
+
+            final ImmutableBitSet finalRequired =
+                    requireDeterminismExcludeUpsertKey(input, inputRequired);
+            newInputs.add(visit(input, finalRequired));
+            fieldStartOffset += inputFieldCount;
+        }
+        return newInputs;
     }
 
     private StreamPhysicalRel visitOverAggregate(
@@ -899,6 +1014,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                                 true,
                                 false,
                                 true,
+                                false,
                                 false);
 
         throw new TableException(errorMsg);
@@ -941,6 +1057,7 @@ public class StreamNonDeterministicUpdatePlanVisitor {
                                 true,
                                 false,
                                 true,
+                                false,
                                 false));
 
         throw new TableException(errorMsg.toString());

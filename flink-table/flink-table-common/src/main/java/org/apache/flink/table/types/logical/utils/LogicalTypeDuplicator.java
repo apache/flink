@@ -32,7 +32,6 @@ import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.StructuredType.StructuredAttribute;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -94,7 +93,7 @@ public class LogicalTypeDuplicator extends LogicalTypeDefaultVisitor<LogicalType
 
     @Override
     public LogicalType visit(StructuredType structuredType) {
-        final StructuredType.Builder builder = instantiateStructuredBuilder(structuredType);
+        final StructuredType.Builder builder = createStructuredBuilder(structuredType);
         builder.attributes(duplicateStructuredAttributes(structuredType));
         builder.setNullable(structuredType.isNullable());
         builder.setFinal(structuredType.isFinal());
@@ -123,17 +122,19 @@ public class LogicalTypeDuplicator extends LogicalTypeDefaultVisitor<LogicalType
 
     // --------------------------------------------------------------------------------------------
 
-    private StructuredType.Builder instantiateStructuredBuilder(StructuredType structuredType) {
-        final Optional<ObjectIdentifier> identifier = structuredType.getObjectIdentifier();
-        final Optional<Class<?>> implementationClass = structuredType.getImplementationClass();
-        if (identifier.isPresent() && implementationClass.isPresent()) {
-            return StructuredType.newBuilder(identifier.get(), implementationClass.get());
-        } else if (identifier.isPresent()) {
-            return StructuredType.newBuilder(identifier.get());
-        } else if (implementationClass.isPresent()) {
-            return StructuredType.newBuilder(implementationClass.get());
+    private StructuredType.Builder createStructuredBuilder(StructuredType structuredType) {
+        final ObjectIdentifier identifier = structuredType.getObjectIdentifier().orElse(null);
+        final String className = structuredType.getClassName().orElse(null);
+        final Class<?> implementationClass = structuredType.getImplementationClass().orElse(null);
+
+        if (identifier != null && implementationClass != null) {
+            return StructuredType.newBuilder(identifier, implementationClass);
+        } else if (identifier != null) {
+            return StructuredType.newBuilder(identifier);
+        } else if (implementationClass != null) {
+            return StructuredType.newBuilder(implementationClass);
         } else {
-            throw new TableException("Invalid structured type.");
+            return StructuredType.newBuilder(className);
         }
     }
 

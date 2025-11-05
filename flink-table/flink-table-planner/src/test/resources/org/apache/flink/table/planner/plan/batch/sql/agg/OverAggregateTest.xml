@@ -16,6 +16,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
+  <TestCase name="testDenseRankOnOrder">
+    <Resource name="sql">
+      <![CDATA[SELECT a, DENSE_RANK() OVER (PARTITION BY a ORDER BY proctime) FROM MyTableWithProctime]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[DENSE_RANK() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTableWithProctime]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, w0$o0 AS $1])
++- OverAggregate(partitionBy=[a], orderBy=[proctime ASC], window#0=[DENSE_RANK(*) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, proctime, w0$o0])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, proctime ASC])
+         +- Exchange(distribution=[hash[a]])
+            +- Calc(select=[a, proctime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTableWithProctime]], fields=[a, b, c, proctime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testDiffPartitionKeysWithDiffOrderKeys1">
     <Resource name="sql">
       <![CDATA[
@@ -37,15 +59,15 @@ LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS 
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS EXPR$0, w1$o0 AS EXPR$1, CAST((CASE((w2$o0 > 0), w2$o1, null:INTEGER) / w2$o0) AS INTEGER) AS EXPR$2, w0$o2 AS EXPR$3, w2$o2 AS EXPR$4])
-+- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(a) AS w2$o0, $SUM0(a) AS w2$o1, MIN(a) AS w2$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o1, w0$o2, w1$o0, w2$o0, w2$o1, w2$o2])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(a) AS w2$o0, $SUM0(a) AS w2$o1, MIN(a) AS w2$o2 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o1, w0$o2, w1$o0, w2$o0, w2$o1, w2$o2])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[c ASC, a ASC])
          +- Exchange(distribution=[hash[c]])
-            +- OverAggregate(partitionBy=[b], orderBy=[c ASC], window#0=[MAX(a) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o1, w0$o2, w1$o0])
+            +- OverAggregate(partitionBy=[b], orderBy=[c ASC], window#0=[MAX(a) AS w1$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o1, w0$o2, w1$o0])
                +- Exchange(distribution=[forward])
                   +- Sort(orderBy=[b ASC, c ASC])
                      +- Exchange(distribution=[keep_input_as_is[hash[b]]])
-                        +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[RANK(*) AS w0$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o1, w0$o2])
+                        +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[RANK(*) AS w0$o2 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o1, w0$o2])
                            +- Exchange(distribution=[forward])
                               +- Sort(orderBy=[b ASC, a ASC])
                                  +- Exchange(distribution=[hash[b]])
@@ -74,19 +96,19 @@ LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $2 NULLS 
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS EXPR$0, w1$o0 AS EXPR$1, w2$o0 AS EXPR$2, w0$o2 AS EXPR$3, CAST((CASE((w3$o0 > 0), w3$o1, null:INTEGER) / w3$o0) AS INTEGER) AS EXPR$4])
-+- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[MAX(a) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o2, w1$o0, w0$o1, w3$o0, w3$o1, w2$o0, w0$o0])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[MAX(a) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o2, w1$o0, w0$o1, w3$o0, w3$o1, w2$o0, w0$o0])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[c ASC, a ASC])
          +- Exchange(distribution=[hash[c]])
-            +- OverAggregate(partitionBy=[b], orderBy=[c ASC], window#0=[COUNT(a) AS w3$o0, $SUM0(a) AS w3$o1 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[RANK(*) AS w2$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o2, w1$o0, w0$o1, w3$o0, w3$o1, w2$o0])
+            +- OverAggregate(partitionBy=[b], orderBy=[c ASC], window#0=[COUNT(a) AS w3$o0, $SUM0(a) AS w3$o1 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[RANK(*) AS w2$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o2, w1$o0, w0$o1, w3$o0, w3$o1, w2$o0])
                +- Exchange(distribution=[forward])
                   +- Sort(orderBy=[b ASC, c ASC])
                      +- Exchange(distribution=[hash[b]])
-                        +- OverAggregate(orderBy=[c ASC, a ASC], window#0=[MIN(a) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o2, w1$o0, w0$o1])
+                        +- OverAggregate(orderBy=[c ASC, a ASC], window#0=[MIN(a) AS w0$o1 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o2, w1$o0, w0$o1])
                            +- Exchange(distribution=[forward])
                               +- Sort(orderBy=[c ASC, a ASC])
                                  +- Exchange(distribution=[forward])
-                                    +- OverAggregate(orderBy=[b ASC], window#0=[COUNT(a) AS w0$o2, $SUM0(a) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o2, w1$o0])
+                                    +- OverAggregate(orderBy=[b ASC], window#0=[COUNT(a) AS w0$o2, $SUM0(a) AS w1$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o2, w1$o0])
                                        +- Sort(orderBy=[b ASC])
                                           +- Exchange(distribution=[single])
                                              +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
@@ -111,11 +133,11 @@ LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS 
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS EXPR$0, w1$o0 AS EXPR$1])
-+- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[MAX(a) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o1, w1$o0])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[MAX(a) AS w1$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o1, w1$o0])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[c ASC, a ASC])
          +- Exchange(distribution=[hash[c]])
-            +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o1])
+            +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o1])
                +- Exchange(distribution=[forward])
                   +- Sort(orderBy=[b ASC, a ASC])
                      +- Exchange(distribution=[hash[b]])
@@ -146,12 +168,49 @@ LogicalProject(EXPR$0=[COUNT() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RAN
 Calc(select=[w0$o0 AS EXPR$0, CASE((w1$o0 > 0), w1$o1, null:INTEGER) AS EXPR$1, w2$o0 AS EXPR$2, CASE((w3$o0 > 0), w3$o1, null:INTEGER) AS EXPR$3, w4$o0 AS EXPR$4])
 +- OverAggregate(partitionBy=[c], orderBy=[c ASC], window#0=[COUNT(*) AS w4$o0 ROWS BETWEEN 1 PRECEDING AND 10 FOLLOWING], select=[a, c, w0$o0, w1$o0, w1$o1, w3$o1, w2$o0, w3$o0, w4$o0])
    +- Exchange(distribution=[forward])
-      +- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN -1 PRECEDING AND 10 FOLLOWING], window#1=[COUNT(a) AS w1$o0, $SUM0(a) AS w1$o1 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#2=[COUNT(a) AS w3$o1, $SUM0(a) AS w2$o0 RANG BETWEEN 1 PRECEDING AND 10 FOLLOWING], window#3=[RANK(*) AS w3$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, w0$o0, w1$o0, w1$o1, w3$o1, w2$o0, w3$o0])
+      +- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(*) AS w0$o0 RANGE BETWEEN -1 PRECEDING AND 10 FOLLOWING], window#1=[COUNT(a) AS w1$o0, $SUM0(a) AS w1$o1 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#2=[COUNT(a) AS w3$o1, $SUM0(a) AS w2$o0 RANGE BETWEEN 1 PRECEDING AND 10 FOLLOWING], window#3=[RANK(*) AS w3$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, w0$o0, w1$o0, w1$o1, w3$o1, w2$o0, w3$o0])
          +- Exchange(distribution=[forward])
             +- Sort(orderBy=[c ASC, a ASC])
                +- Exchange(distribution=[hash[c]])
                   +- Calc(select=[a, c])
                      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedOverAgg">
+    <Resource name="sql">
+      <![CDATA[
+SELECT *
+FROM (
+ SELECT
+    *, count(*) OVER (PARTITION BY a ORDER BY ts) AS c2
+  FROM (
+    SELECT
+      *, count(*) OVER (PARTITION BY a,b ORDER BY ts) AS c1
+    FROM src
+  )
+)
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], ts=[$2], c1=[$3], c2=[$4])
++- LogicalProject(a=[$0], b=[$1], ts=[$2], c1=[$3], c2=[COUNT() OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
+   +- LogicalProject(a=[$0], b=[$1], ts=[$2], c1=[COUNT() OVER (PARTITION BY $0, $1 ORDER BY $2 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+OverAggregate(partitionBy=[a], orderBy=[ts ASC], window#0=[COUNT(*) AS w0$o0_0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, ts, w0$o0, w0$o0_0])
++- Exchange(distribution=[forward])
+   +- Sort(orderBy=[a ASC, ts ASC])
+      +- Exchange(distribution=[hash[a]])
+         +- OverAggregate(partitionBy=[a, b], orderBy=[ts ASC], window#0=[COUNT(*) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, ts, w0$o0])
+            +- Exchange(distribution=[forward])
+               +- Sort(orderBy=[a ASC, b ASC, ts ASC])
+                  +- Exchange(distribution=[hash[a, b]])
+                     +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b, ts])
 ]]>
     </Resource>
   </TestCase>
@@ -250,12 +309,42 @@ LogicalProject(EXPR$0=[COUNT() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RAN
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[w0$o0 AS $0])
-+- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN -1 PRECEDING AND 10 FOLLOWING], select=[a, c, w0$o0])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(*) AS w0$o0 RANGE BETWEEN -1 PRECEDING AND 10 FOLLOWING], select=[a, c, w0$o0])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[c ASC, a ASC])
          +- Exchange(distribution=[hash[c]])
             +- Calc(select=[a, c])
                +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOverWindowWithConstants3">
+    <Resource name="sql">
+      <![CDATA[
+SELECT
+    COUNT(2) OVER (ORDER BY a),
+    COUNT(1) OVER (PARTITION BY c ORDER BY a)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[COUNT(2) OVER (ORDER BY $0 NULLS FIRST)], EXPR$1=[COUNT(1) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[w0$o0 AS $0, w1$o0 AS $1])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(1) AS w1$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, w0$o0, w1$o0])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[c ASC, a ASC])
+         +- Exchange(distribution=[hash[c]])
+            +- OverAggregate(orderBy=[a ASC], window#0=[COUNT(2) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, w0$o0])
+               +- Sort(orderBy=[a ASC])
+                  +- Exchange(distribution=[single])
+                     +- Calc(select=[a, c])
+                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -271,7 +360,7 @@ LogicalProject(c=[$2], EXPR$1=[COUNT() OVER (PARTITION BY $2)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-OverAggregate(partitionBy=[c], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[c, w0$o0])
+OverAggregate(partitionBy=[c], window#0=[COUNT(*) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[c, w0$o0])
 +- Exchange(distribution=[forward])
    +- Sort(orderBy=[c ASC])
       +- Exchange(distribution=[hash[c]])
@@ -280,50 +369,6 @@ OverAggregate(partitionBy=[c], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN UNBOUNDE
 ]]>
     </Resource>
   </TestCase>
-	<TestCase name="testDenseRankOnOrder">
-		<Resource name="sql">
-			<![CDATA[SELECT a, DENSE_RANK() OVER (PARTITION BY a ORDER BY proctime) FROM MyTableWithProctime]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
-LogicalProject(a=[$0], EXPR$1=[DENSE_RANK() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTableWithProctime]])
-]]>
-		</Resource>
-		<Resource name="optimized exec plan">
-			<![CDATA[
-Calc(select=[a, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[a], orderBy=[proctime ASC], window#0=[DENSE_RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, proctime, w0$o0])
-   +- Exchange(distribution=[forward])
-      +- Sort(orderBy=[a ASC, proctime ASC])
-         +- Exchange(distribution=[hash[a]])
-            +- Calc(select=[a, proctime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTableWithProctime]], fields=[a, b, c, proctime])
-]]>
-		</Resource>
-	</TestCase>
-	<TestCase name="testRankOnOver">
-		<Resource name="sql">
-			<![CDATA[SELECT a, RANK() OVER (PARTITION BY a ORDER BY proctime) FROM MyTableWithProctime]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
-LogicalProject(a=[$0], EXPR$1=[RANK() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTableWithProctime]])
-]]>
-		</Resource>
-		<Resource name="optimized exec plan">
-			<![CDATA[
-Calc(select=[a, w0$o0 AS $1])
-+- OverAggregate(partitionBy=[a], orderBy=[proctime ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, proctime, w0$o0])
-   +- Exchange(distribution=[forward])
-      +- Sort(orderBy=[a ASC, proctime ASC])
-         +- Exchange(distribution=[hash[a]])
-            +- Calc(select=[a, proctime])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTableWithProctime]], fields=[a, b, c, proctime])
-]]>
-		</Resource>
-	</TestCase>
   <TestCase name="testOverWindowWithoutPartitionBy">
     <Resource name="sql">
       <![CDATA[SELECT c, SUM(a) OVER (ORDER BY b) FROM MyTable]]>
@@ -337,7 +382,7 @@ LogicalProject(c=[$2], EXPR$1=[CASE(>(COUNT($0) OVER (ORDER BY $1 NULLS FIRST), 
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[c, CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS EXPR$1])
-+- OverAggregate(orderBy=[b ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o1])
++- OverAggregate(orderBy=[b ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w0$o1])
    +- Sort(orderBy=[b ASC])
       +- Exchange(distribution=[single])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
@@ -356,7 +401,7 @@ LogicalProject(c=[$2], EXPR$1=[COUNT() OVER ()])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-OverAggregate(window#0=[COUNT(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[c, w0$o0])
+OverAggregate(window#0=[COUNT(*) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[c, w0$o0])
 +- Exchange(distribution=[single])
    +- Calc(select=[c])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
@@ -380,7 +425,7 @@ LogicalProject(EXPR$0=[COUNT() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RAN
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[w0$o0 AS $0])
-+- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN -1 PRECEDING AND 10 FOLLOWING], select=[a, c, w0$o0])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(*) AS w0$o0 RANGE BETWEEN -1 PRECEDING AND 10 FOLLOWING], select=[a, c, w0$o0])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[c ASC, a ASC])
          +- Exchange(distribution=[hash[c]])
@@ -406,12 +451,34 @@ LogicalProject(EXPR$0=[COUNT() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST RAN
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[w0$o0 AS $0])
-+- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN -1 FOLLOWING AND 10 FOLLOWING], select=[a, c, w0$o0])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(*) AS w0$o0 RANGE BETWEEN -1 FOLLOWING AND 10 FOLLOWING], select=[a, c, w0$o0])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[c ASC, a ASC])
          +- Exchange(distribution=[hash[c]])
             +- Calc(select=[a, c])
                +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRankOnOver">
+    <Resource name="sql">
+      <![CDATA[SELECT a, RANK() OVER (PARTITION BY a ORDER BY proctime) FROM MyTableWithProctime]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[RANK() OVER (PARTITION BY $0 ORDER BY $3 NULLS FIRST)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTableWithProctime]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, w0$o0 AS $1])
++- OverAggregate(partitionBy=[a], orderBy=[proctime ASC], window#0=[RANK(*) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, proctime, w0$o0])
+   +- Exchange(distribution=[forward])
+      +- Sort(orderBy=[a ASC, proctime ASC])
+         +- Exchange(distribution=[hash[a]])
+            +- Calc(select=[a, proctime])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTableWithProctime]], fields=[a, b, c, proctime])
 ]]>
     </Resource>
   </TestCase>
@@ -428,7 +495,7 @@ LogicalProject(EXPR$0=[RANK() OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST, $2 
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[w0$o0 AS $0])
-+- OverAggregate(partitionBy=[c], orderBy=[a ASC, c ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, w0$o0])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC, c ASC], window#0=[RANK(*) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, w0$o0])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[c ASC, a ASC])
          +- Exchange(distribution=[hash[c]])
@@ -449,7 +516,7 @@ LogicalProject(EXPR$0=[COUNT(1) OVER ()])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-OverAggregate(window#0=[COUNT(1) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[w0$o0])
+OverAggregate(window#0=[COUNT(1) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[w0$o0])
 +- Exchange(distribution=[single])
    +- Calc(select=[])
       +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
@@ -474,7 +541,7 @@ LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $2 ORDER BY $0 NULLS 
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS EXPR$0, w0$o2 AS EXPR$1])
-+- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1, COUNT(1) AS w0$o2 RANG BETWEEN -1 FOLLOWING AND 10 FOLLOWING], select=[a, c, w0$o0, w0$o1, w0$o2])
++- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1, COUNT(1) AS w0$o2 RANGE BETWEEN -1 FOLLOWING AND 10 FOLLOWING], select=[a, c, w0$o0, w0$o1, w0$o2])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[c ASC, a ASC])
          +- Exchange(distribution=[hash[c]])
@@ -482,36 +549,6 @@ Calc(select=[CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS EXPR$0, w0$o2 AS EXPR$1])
                +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
-  </TestCase>
-  <TestCase name="testOverWindowWithConstants3">
-    <Resource name="sql">
-      <![CDATA[
-SELECT
-    COUNT(2) OVER (ORDER BY a),
-    COUNT(1) OVER (PARTITION BY c ORDER BY a)
-FROM MyTable
-      ]]>
-	</Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(EXPR$0=[COUNT(2) OVER (ORDER BY $0 NULLS FIRST)], EXPR$1=[COUNT(1) OVER (PARTITION BY $2 ORDER BY $0 NULLS FIRST)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-	</Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[w0$o0 AS $0, w1$o0 AS $1])
-+- OverAggregate(partitionBy=[c], orderBy=[a ASC], window#0=[COUNT(1) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, w0$o0, w1$o0])
-   +- Exchange(distribution=[forward])
-      +- Sort(orderBy=[c ASC, a ASC])
-         +- Exchange(distribution=[hash[c]])
-            +- OverAggregate(orderBy=[a ASC], window#0=[COUNT(2) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, c, w0$o0])
-               +- Sort(orderBy=[a ASC])
-                  +- Exchange(distribution=[single])
-                     +- Calc(select=[a, c])
-                        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-	</Resource>
   </TestCase>
   <TestCase name="testSamePartitionKeysWithDiffOrderKeys1">
     <Resource name="sql">
@@ -534,13 +571,13 @@ LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $2 NULLS 
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS EXPR$0, w1$o0 AS EXPR$1, CAST((CASE((w2$o0 > 0), w2$o1, null:INTEGER) / w2$o0) AS INTEGER) AS EXPR$2, w0$o2 AS EXPR$3, w1$o1 AS EXPR$4])
-+- OverAggregate(partitionBy=[b], orderBy=[c ASC], window#0=[COUNT(a) AS w2$o0, $SUM0(a) AS w2$o1 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[RANK(*) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o1, w0$o2, w1$o1, w0$o0, w2$o0, w2$o1, w1$o0])
++- OverAggregate(partitionBy=[b], orderBy=[c ASC], window#0=[COUNT(a) AS w2$o0, $SUM0(a) AS w2$o1 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[RANK(*) AS w1$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o1, w0$o2, w1$o1, w0$o0, w2$o0, w2$o1, w1$o0])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, c ASC])
          +- Exchange(distribution=[keep_input_as_is[hash[b]]])
-            +- OverAggregate(partitionBy=[b], orderBy=[b ASC], window#0=[MAX(a) AS w1$o1, MIN(a) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o1, w0$o2, w1$o1, w0$o0])
+            +- OverAggregate(partitionBy=[b], orderBy=[b ASC], window#0=[MAX(a) AS w1$o1, MIN(a) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o1, w0$o2, w1$o1, w0$o0])
                +- Exchange(distribution=[forward])
-                  +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o1, $SUM0(a) AS w0$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o1, w0$o2])
+                  +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o1, $SUM0(a) AS w0$o2 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o1, w0$o2])
                      +- Exchange(distribution=[forward])
                         +- Sort(orderBy=[b ASC, a ASC])
                            +- Exchange(distribution=[hash[b]])
@@ -569,17 +606,17 @@ LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $2 NULLS 
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS EXPR$0, w1$o0 AS EXPR$1, CAST((CASE((w2$o0 > 0), w2$o1, null:INTEGER) / w2$o0) AS INTEGER) AS EXPR$2, w3$o0 AS EXPR$3, w4$o0 AS EXPR$4])
-+- OverAggregate(partitionBy=[b], orderBy=[c ASC], window#0=[COUNT(a) AS w1$o0, $SUM0(a) AS w3$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w2$o0, w0$o0, w2$o1, w4$o0, w0$o1, w1$o0, w3$o0])
++- OverAggregate(partitionBy=[b], orderBy=[c ASC], window#0=[COUNT(a) AS w1$o0, $SUM0(a) AS w3$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w2$o0, w0$o0, w2$o1, w4$o0, w0$o1, w1$o0, w3$o0])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, c ASC])
          +- Exchange(distribution=[keep_input_as_is[hash[b]]])
-            +- OverAggregate(partitionBy=[b], orderBy=[b ASC], window#0=[MIN(a) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w2$o0, w0$o0, w2$o1, w4$o0, w0$o1])
+            +- OverAggregate(partitionBy=[b], orderBy=[b ASC], window#0=[MIN(a) AS w0$o1 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w2$o0, w0$o0, w2$o1, w4$o0, w0$o1])
                +- Exchange(distribution=[forward])
-                  +- OverAggregate(partitionBy=[b], orderBy=[a ASC, c ASC], window#0=[COUNT(a) AS w2$o1, $SUM0(a) AS w4$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w2$o0, w0$o0, w2$o1, w4$o0])
+                  +- OverAggregate(partitionBy=[b], orderBy=[a ASC, c ASC], window#0=[COUNT(a) AS w2$o1, $SUM0(a) AS w4$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w2$o0, w0$o0, w2$o1, w4$o0])
                      +- Exchange(distribution=[forward])
                         +- Sort(orderBy=[b ASC, a ASC, c ASC])
                            +- Exchange(distribution=[keep_input_as_is[hash[b]]])
-                              +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[MAX(a) AS w2$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w2$o0, w0$o0])
+                              +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[MAX(a) AS w2$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[RANK(*) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w2$o0, w0$o0])
                                  +- Exchange(distribution=[forward])
                                     +- Sort(orderBy=[b ASC, a ASC])
                                        +- Exchange(distribution=[hash[b]])
@@ -605,7 +642,7 @@ LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS 
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS EXPR$0, w0$o2 AS EXPR$1])
-+- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1, MAX(a) AS w0$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0, w0$o1, w0$o2])
++- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1, MAX(a) AS w0$o2 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0, w0$o1, w0$o2])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, a ASC])
          +- Exchange(distribution=[hash[b]])
@@ -635,11 +672,11 @@ LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS 
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS EXPR$0, w0$o2 AS EXPR$1, CAST((CASE((w1$o0 > 0), w1$o1, null:INTEGER) / w1$o0) AS INTEGER) AS EXPR$2, w0$o3 AS EXPR$3, w1$o2 AS EXPR$4])
-+- OverAggregate(partitionBy=[b], orderBy=[a DESC], window#0=[COUNT(a) AS w1$o0, $SUM0(a) AS w1$o1, MIN(a) AS w1$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0, w0$o1, w0$o2, w0$o3, w1$o0, w1$o1, w1$o2])
++- OverAggregate(partitionBy=[b], orderBy=[a DESC], window#0=[COUNT(a) AS w1$o0, $SUM0(a) AS w1$o1, MIN(a) AS w1$o2 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0, w0$o1, w0$o2, w0$o3, w1$o0, w1$o1, w1$o2])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, a DESC])
          +- Exchange(distribution=[keep_input_as_is[hash[b]]])
-            +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1, MAX(a) AS w0$o2 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[RANK(*) AS w0$o3 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0, w0$o1, w0$o2, w0$o3])
+            +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[COUNT(a) AS w0$o0, $SUM0(a) AS w0$o1, MAX(a) AS w0$o2 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], window#1=[RANK(*) AS w0$o3 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0, w0$o1, w0$o2, w0$o3])
                +- Exchange(distribution=[forward])
                   +- Sort(orderBy=[b ASC, a ASC])
                      +- Exchange(distribution=[hash[b]])
@@ -666,15 +703,43 @@ LogicalProject(EXPR$0=[RANK() OVER (PARTITION BY $1 ORDER BY $0 DESC NULLS LAST)
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[w0$o0 AS $0, w1$o0 AS $1])
-+- OverAggregate(partitionBy=[b], orderBy=[a DESC], window#0=[RANK(*) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w1$o0])
++- OverAggregate(partitionBy=[b], orderBy=[a DESC], window#0=[RANK(*) AS w1$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w1$o0])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, a DESC])
          +- Exchange(distribution=[keep_input_as_is[hash[b]]])
-            +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])
+            +- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[RANK(*) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])
                +- Exchange(distribution=[forward])
                   +- Sort(orderBy=[b ASC, a ASC])
                      +- Exchange(distribution=[hash[b]])
                         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSamePartitionKeysWithSameOrderKeysPrefix">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a,
+    RANK() OVER (PARTITION BY b ORDER BY c, a DESC),
+    RANK() OVER (PARTITION BY b ORDER BY c, b)
+FROM MyTable
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[RANK() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST, $0 DESC NULLS LAST)], EXPR$2=[RANK() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST, $1 NULLS FIRST)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, w0$o0 AS $1, w1$o0 AS $2])
++- OverAggregate(partitionBy=[b], orderBy=[c ASC, b ASC], window#0=[RANK(*) AS w1$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w1$o0])
+   +- Exchange(distribution=[forward])
+      +- OverAggregate(partitionBy=[b], orderBy=[c ASC, a DESC], window#0=[RANK(*) AS w0$o0 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])
+         +- Exchange(distribution=[forward])
+            +- Sort(orderBy=[b ASC, c ASC, a DESC])
+               +- Exchange(distribution=[hash[b]])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -697,81 +762,16 @@ LogicalProject(EXPR$0=[CASE(>(COUNT($0) OVER (PARTITION BY $1 ORDER BY $0 NULLS 
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS EXPR$0, w1$o0 AS EXPR$1, w0$o2 AS EXPR$2])
-+- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[COUNT(a) AS w1$o0, $SUM0(a) AS w0$o0, MAX(a) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o2, w1$o0, w0$o0, w0$o1])
++- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[COUNT(a) AS w1$o0, $SUM0(a) AS w0$o0, MAX(a) AS w0$o1 RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o2, w1$o0, w0$o0, w0$o1])
    +- Exchange(distribution=[forward])
       +- Sort(orderBy=[b ASC, a ASC])
          +- Exchange(distribution=[keep_input_as_is[hash[b]]])
-            +- OverAggregate(partitionBy=[b], window#0=[MIN(a) AS w0$o2 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[a, b, w0$o2])
+            +- OverAggregate(partitionBy=[b], window#0=[MIN(a) AS w0$o2 RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[a, b, w0$o2])
                +- Exchange(distribution=[forward])
                   +- Sort(orderBy=[b ASC])
                      +- Exchange(distribution=[hash[b]])
                         +- Calc(select=[a, b])
                            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testSamePartitionKeysWithSameOrderKeysPrefix">
-    <Resource name="sql">
-      <![CDATA[
-SELECT a,
-    RANK() OVER (PARTITION BY b ORDER BY c, a DESC),
-    RANK() OVER (PARTITION BY b ORDER BY c, b)
-FROM MyTable
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[RANK() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST, $0 DESC NULLS LAST)], EXPR$2=[RANK() OVER (PARTITION BY $1 ORDER BY $2 NULLS FIRST, $1 NULLS FIRST)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, w0$o0 AS $1, w1$o0 AS $2])
-+- OverAggregate(partitionBy=[b], orderBy=[c ASC, b ASC], window#0=[RANK(*) AS w1$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0, w1$o0])
-   +- Exchange(distribution=[forward])
-      +- OverAggregate(partitionBy=[b], orderBy=[c ASC, a DESC], window#0=[RANK(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, c, w0$o0])
-         +- Exchange(distribution=[forward])
-            +- Sort(orderBy=[b ASC, c ASC, a DESC])
-               +- Exchange(distribution=[hash[b]])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testNestedOverAgg">
-    <Resource name="sql">
-      <![CDATA[
-SELECT *
-FROM (
- SELECT
-    *, count(*) OVER (PARTITION BY a ORDER BY ts) AS c2
-  FROM (
-    SELECT
-      *, count(*) OVER (PARTITION BY a,b ORDER BY ts) AS c1
-    FROM src
-  )
-)
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], ts=[$2], c1=[$3], c2=[$4])
-+- LogicalProject(a=[$0], b=[$1], ts=[$2], c1=[$3], c2=[COUNT() OVER (PARTITION BY $0 ORDER BY $2 NULLS FIRST)])
-   +- LogicalProject(a=[$0], b=[$1], ts=[$2], c1=[COUNT() OVER (PARTITION BY $0, $1 ORDER BY $2 NULLS FIRST)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, src]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-OverAggregate(partitionBy=[a], orderBy=[ts ASC], window#0=[COUNT(*) AS w0$o0_0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, ts, w0$o0, w0$o0_0])
-+- Exchange(distribution=[forward])
-   +- Sort(orderBy=[a ASC, ts ASC])
-      +- Exchange(distribution=[hash[a]])
-         +- OverAggregate(partitionBy=[a, b], orderBy=[ts ASC], window#0=[COUNT(*) AS w0$o0 RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, ts, w0$o0])
-            +- Exchange(distribution=[forward])
-               +- Sort(orderBy=[a ASC, b ASC, ts ASC])
-                  +- Exchange(distribution=[hash[a, b]])
-                     +- TableSourceScan(table=[[default_catalog, default_database, src]], fields=[a, b, ts])
 ]]>
     </Resource>
   </TestCase>

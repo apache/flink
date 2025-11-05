@@ -28,6 +28,7 @@ import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
 
+import java.net.InetAddress;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -63,6 +64,14 @@ public interface DispatcherGateway extends FencedRpcGateway<DispatcherId>, Restf
      * @return A future integer of the blob server port
      */
     CompletableFuture<Integer> getBlobServerPort(@RpcTimeout Duration timeout);
+
+    /**
+     * Returns the address of the blob server.
+     *
+     * @param timeout of the operation
+     * @return A future InetAddress of the blob server address
+     */
+    CompletableFuture<InetAddress> getBlobServerAddress(@RpcTimeout Duration timeout);
 
     default CompletableFuture<Acknowledge> shutDownCluster(ApplicationStatus applicationStatus) {
         return shutDownCluster();

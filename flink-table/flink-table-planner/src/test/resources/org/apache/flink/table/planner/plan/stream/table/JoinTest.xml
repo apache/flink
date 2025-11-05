@@ -38,25 +38,6 @@ Join(joinType=[InnerJoin], where=[(((a = 1) AND (d = 1)) OR ((b = 2) AND (d = 5)
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRowTimeInnerJoinWithTimeAccessed">
-    <Resource name="ast">
-      <![CDATA[
-LogicalFilter(condition=[AND(=($0, $4), >=($3, -($7, 300000:INTERVAL DAY TO SECOND)), <($3, $7), >($3, $6))])
-+- LogicalJoin(condition=[true], joinType=[inner])
-   :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-300000, leftUpperBound=-1, leftTimeIndex=3, rightTimeIndex=3], where=[((a = d) AND (lrtime >= (rrtime - 300000:INTERVAL DAY TO SECOND)) AND (lrtime < rrtime) AND (lrtime > f))], select=[a, b, c, lrtime, d, e, f, rrtime])
-:- Exchange(distribution=[hash[a]])
-:  +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, lrtime])
-+- Exchange(distribution=[hash[d]])
-   +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f, rrtime])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testDependentConditionDerivationInnerJoinWithNull">
     <Resource name="ast">
       <![CDATA[
@@ -322,29 +303,6 @@ Calc(select=[b, y])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testRowTimeWindowInnerJoin">
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], e=[$5], lrtime=[$3])
-+- LogicalFilter(condition=[AND(=($0, $4), >=($3, -($7, 300000:INTERVAL DAY TO SECOND)), <($3, +($7, 3000:INTERVAL DAY TO SECOND)))])
-   +- LogicalJoin(condition=[true], joinType=[inner])
-      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
-      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, e, lrtime])
-+- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-300000, leftUpperBound=2999, leftTimeIndex=1, rightTimeIndex=2], where=[((a = d) AND (lrtime >= (rrtime - 300000:INTERVAL DAY TO SECOND)) AND (lrtime < (rrtime + 3000:INTERVAL DAY TO SECOND)))], select=[a, lrtime, d, e, rrtime])
-   :- Exchange(distribution=[hash[a]])
-   :  +- Calc(select=[a, lrtime])
-   :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, lrtime])
-   +- Exchange(distribution=[hash[d]])
-      +- Calc(select=[d, e, rrtime])
-         +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f, rrtime])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testRightOuterJoinEquiPred">
     <Resource name="ast">
       <![CDATA[
@@ -367,6 +325,25 @@ Calc(select=[b, y])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRowTimeInnerJoinWithTimeAccessed">
+    <Resource name="ast">
+      <![CDATA[
+LogicalFilter(condition=[AND(=($0, $4), >=($3, -($7, 300000:INTERVAL DAY TO SECOND)), <($3, $7), >($3, $6))])
++- LogicalJoin(condition=[true], joinType=[inner])
+   :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-300000, leftUpperBound=-1, leftTimeIndex=3, rightTimeIndex=3], where=[((a = d) AND (lrtime >= (rrtime - 300000:INTERVAL DAY TO SECOND)) AND (lrtime < rrtime) AND (lrtime > f))], select=[a, b, c, lrtime, d, e, f, rrtime])
+:- Exchange(distribution=[hash[a]])
+:  +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, lrtime])
++- Exchange(distribution=[hash[d]])
+   +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f, rrtime])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRowTimeWindowFullOuterJoin">
     <Resource name="ast">
       <![CDATA[
@@ -380,6 +357,29 @@ LogicalProject(a=[$0], e=[$5], lrtime=[$3])
       <![CDATA[
 Calc(select=[a, e, lrtime])
 +- IntervalJoin(joinType=[FullOuterJoin], windowBounds=[isRowTime=true, leftLowerBound=-300000, leftUpperBound=2999, leftTimeIndex=1, rightTimeIndex=2], where=[((a = d) AND (lrtime >= (rrtime - 300000:INTERVAL DAY TO SECOND)) AND (lrtime < (rrtime + 3000:INTERVAL DAY TO SECOND)))], select=[a, lrtime, d, e, rrtime])
+   :- Exchange(distribution=[hash[a]])
+   :  +- Calc(select=[a, lrtime])
+   :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, lrtime])
+   +- Exchange(distribution=[hash[d]])
+      +- Calc(select=[d, e, rrtime])
+         +- DataStreamScan(table=[[default_catalog, default_database, T2]], fields=[d, e, f, rrtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRowTimeWindowInnerJoin">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], e=[$5], lrtime=[$3])
++- LogicalFilter(condition=[AND(=($0, $4), >=($3, -($7, 300000:INTERVAL DAY TO SECOND)), <($3, +($7, 3000:INTERVAL DAY TO SECOND)))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, T1]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, T2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, e, lrtime])
++- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-300000, leftUpperBound=2999, leftTimeIndex=1, rightTimeIndex=2], where=[((a = d) AND (lrtime >= (rrtime - 300000:INTERVAL DAY TO SECOND)) AND (lrtime < (rrtime + 3000:INTERVAL DAY TO SECOND)))], select=[a, lrtime, d, e, rrtime])
    :- Exchange(distribution=[hash[a]])
    :  +- Calc(select=[a, lrtime])
    :     +- DataStreamScan(table=[[default_catalog, default_database, T1]], fields=[a, b, c, lrtime])

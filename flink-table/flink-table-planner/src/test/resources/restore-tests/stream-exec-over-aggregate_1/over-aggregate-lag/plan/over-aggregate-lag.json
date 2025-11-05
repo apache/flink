@@ -210,7 +210,7 @@
         "fieldType" : "MAP<DOUBLE, DOUBLE>"
       } ]
     },
-    "description" : "OverAggregate(orderBy=[r_time ASC], window=[ RANG BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[ts, b, r_time, LAG(b, 1) AS w0$o0])"
+    "description" : "OverAggregate(orderBy=[r_time ASC], window=[ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[ts, b, r_time, LAG(b, 1) AS w0$o0])"
   }, {
     "id" : 6,
     "type" : "stream-exec-calc_1",

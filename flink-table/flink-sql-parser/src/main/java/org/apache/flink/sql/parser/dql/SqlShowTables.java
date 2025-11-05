@@ -29,17 +29,17 @@ import org.apache.calcite.sql.parser.SqlParserPos;
  * SHOW TABLES sql call. The full syntax for show functions is as followings:
  *
  * <pre>{@code
- * SHOW TABLES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE
+ * SHOW ( VIEWS | [ MATERIALIZED ]TABLES ) [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE
  * <sql_like_pattern> ] statement
  * }</pre>
  */
 public class SqlShowTables extends SqlShowCall {
 
-    public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("SHOW TABLES", SqlKind.OTHER);
+    private final SqlTableKind kind;
 
     public SqlShowTables(
             SqlParserPos pos,
+            SqlTableKind kind,
             String preposition,
             SqlIdentifier databaseName,
             boolean notLike,
@@ -52,15 +52,40 @@ public class SqlShowTables extends SqlShowCall {
                 likeLiteral == null ? null : "LIKE",
                 likeLiteral,
                 notLike);
+        this.kind = kind;
     }
 
     @Override
     public SqlOperator getOperator() {
-        return OPERATOR;
+        return kind.getOperator();
     }
 
     @Override
     String getOperationName() {
-        return "SHOW TABLES";
+        return getOperator().getName();
+    }
+
+    public SqlTableKind getTableKind() {
+        return kind;
+    }
+
+    /**
+     * The kind of table. Keep in sync with {@link
+     * org.apache.flink.table.catalog.CatalogBaseTable.TableKind}.
+     */
+    public enum SqlTableKind {
+        MATERIALIZED_TABLE(new SqlSpecialOperator("SHOW MATERIALIZED TABLES", SqlKind.OTHER)),
+        TABLE(new SqlSpecialOperator("SHOW TABLES", SqlKind.OTHER)),
+        VIEW(new SqlSpecialOperator("SHOW VIEWS", SqlKind.OTHER));
+
+        private final SqlSpecialOperator operator;
+
+        SqlTableKind(final SqlSpecialOperator operator) {
+            this.operator = operator;
+        }
+
+        public SqlSpecialOperator getOperator() {
+            return operator;
+        }
     }
 }

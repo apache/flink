@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.JArrayList
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.spec.{OverSpec, PartitionSpec}
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec.GroupSpec
-import org.apache.flink.table.planner.typeutils.RowTypeUtils
+import org.apache.flink.table.typeutils.RowTypeUtils
 
 import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rel.`type`.RelDataType
@@ -40,7 +40,7 @@ object OverAggregateUtil {
 
   /** Convert [[Window]] to [[OverSpec]]. */
   def createOverSpec(logicalWindow: Window): OverSpec = {
-    val groups = logicalWindow.groups.asList()
+    val groups = logicalWindow.groups
     val partition = new PartitionSpec(groups.head.keys.toArray)
     groups.tail.foreach {
       g =>
@@ -52,7 +52,7 @@ object OverAggregateUtil {
     new OverSpec(
       partition,
       groups.map(createGroupSpec(_, logicalWindow)),
-      logicalWindow.constants.asList(),
+      logicalWindow.constants,
       calcOriginalInputFields(logicalWindow)
     )
   }

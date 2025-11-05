@@ -30,6 +30,12 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td>The maximum number of joined nodes allowed in the bushy join reorder algorithm, otherwise the left-deep join reorder algorithm will be used. The search space of bushy join reorder algorithm will increase with the increase of this threshold value, so this threshold is not recommended to be set too large. The default value is 12.</td>
         </tr>
         <tr>
+            <td><h5>table.optimizer.delta-join.strategy</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">AUTO</td>
+            <td><p>Enum</p></td>
+            <td>Strategy for optimizing the delta-join. Only AUTO, FORCE or NONE can be set. Default it AUTO.<br /><br />Possible values:<ul><li>"AUTO": Optimizer will try to use delta join first. If it fails, it will fallback to the regular join.</li><li>"FORCE": Use the delta join. If it fails, an exception will be thrown.</li><li>"NONE": Don't try to use delta join.</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>table.optimizer.distinct-agg.split.bucket-num</h5><br> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">1024</td>
             <td>Integer</td>
@@ -66,6 +72,12 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td>Configures the maximum size in bytes for a table that will be broadcast to all worker nodes when performing a join. By setting this value to -1 to disable broadcasting.</td>
         </tr>
         <tr>
+            <td><h5>table.optimizer.multi-join.enabled</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Enables a multi-way join operator for a chain of streaming joins. This operator processes multiple inputs at once, reducing the state size considerably by avoiding intermediate results. It supports regular INNER and LEFT joins.<br /><br />Note: This is an experimental feature and not recommended for production just yet. The operator's internal implementation and state layout is subject to changes due to ongoing relevant optimizations. These might break savepoint compatibility across Flink versions and the goal is to have a stable version in the next release.</td>
+        </tr>
+        <tr>
             <td><h5>table.optimizer.multiple-input-enabled</h5><br> <span class="label label-primary">Batch</span></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
@@ -78,10 +90,22 @@ ONE_PHASE: Enforce to use one stage aggregate which only has CompleteGlobalAggre
             <td>When it is `TRY_RESOLVE`, the optimizer tries to resolve the correctness issue caused by 'Non-Deterministic Updates' (NDU) in a changelog pipeline. Changelog may contain kinds of message types: Insert (I), Delete (D), Update_Before (UB), Update_After (UA). There's no NDU problem in an insert only changelog pipeline. For updates, there are  three main NDU problems:<br />1. Non-deterministic functions, include scalar, table, aggregate functions, both builtin and custom ones.<br />2. LookupJoin on an evolving source<br />3. Cdc-source carries metadata fields which are system columns, not belongs to the entity data itself.<br /><br />For the first step, the optimizer automatically enables the materialization for No.2(LookupJoin) if needed, and gives the detailed error message for No.1(Non-deterministic functions) and No.3(Cdc-source with metadata) which is relatively easier to solve by changing the SQL.<br />Default value is `IGNORE`, the optimizer does no changes.<br /><br />Possible values:<ul><li>"TRY_RESOLVE"</li><li>"IGNORE"</li></ul></td>
         </tr>
         <tr>
+            <td><h5>table.optimizer.ptf.max-tables</h5><br> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">20</td>
+            <td>Integer</td>
+            <td>The maximum number of table arguments for a Process Table Function (PTF). In theory, a PTF can accept an arbitrary number of input tables. In practice, however, each input requires reserving network buffers, which impacts memory usage. For this reason, the number of input tables is limited to 20.</td>
+        </tr>
+        <tr>
             <td><h5>table.optimizer.reuse-optimize-block-with-digest-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
             <td>When true, the optimizer will try to find out duplicated sub-plans by digest to build optimize blocks (a.k.a. common sub-graphs). Each optimize block will be optimized independently.</td>
+        </tr>
+        <tr>
+            <td><h5>table.optimizer.reuse-sink-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When it is true, the optimizer will try to find out duplicated table sinks and reuse them. This works only when table.optimizer.reuse-sub-plan-enabled is true.</td>
         </tr>
         <tr>
             <td><h5>table.optimizer.reuse-source-enabled</h5><br> <span class="label label-primary">Batch</span> <span class="label label-primary">Streaming</span></td>

@@ -80,6 +80,7 @@ public final class Documentation {
         public static final String STATE_BACKEND_FORST = "state_backend_forst";
 
         public static final String STATE_LATENCY_TRACKING = "state_latency_tracking";
+        public static final String STATE_SIZE_TRACKING = "state_size_tracking";
 
         public static final String STATE_CHANGELOG = "state_changelog";
 
@@ -113,6 +114,12 @@ public final class Documentation {
         public static final String EVENT_REPORTERS = "event_reporters";
 
         public static final String CHECKPOINT_FILE_MERGING = "checkpoint_file_merging";
+
+        public static final String MODEL_OPENAI_COMMON = "model_openai_common";
+
+        public static final String MODEL_OPENAI_CHAT = "model_openai_chat";
+
+        public static final String MODEL_OPENAI_EMBEDDING = "model_openai_embedding";
 
         private Sections() {}
     }

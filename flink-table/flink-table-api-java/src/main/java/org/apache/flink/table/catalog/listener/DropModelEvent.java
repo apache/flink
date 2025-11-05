@@ -26,7 +26,7 @@ import javax.annotation.Nullable;
 
 /** When a model is dropped, a {@link DropModelEvent} event will be created and fired. */
 @PublicEvolving
-public interface DropModelEvent extends CatalogModificationEvent {
+public interface DropModelEvent extends ModelModificationEvent {
     ObjectIdentifier identifier();
 
     boolean ignoreIfNotExists();

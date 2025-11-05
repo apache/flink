@@ -22,11 +22,9 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.attribute.Attribute;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -43,12 +41,12 @@ import org.apache.flink.util.ClassLoaderUtil;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.SerializedValue;
-import org.apache.flink.util.TernaryBoolean;
 import org.apache.flink.util.concurrent.FutureUtils;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -69,6 +67,11 @@ import static org.apache.flink.util.Preconditions.checkState;
 /**
  * Internal configuration for a {@link StreamOperator}. This is created and populated by the {@link
  * StreamingJobGraphGenerator}.
+ *
+ * <p>NOTE TO IMPLEMENTERS: Please do not set public ConfigOption to this class. Use the job
+ * Configuration instead! See {@link
+ * org.apache.flink.configuration.CheckpointingOptions#ENABLE_UNALIGNED} for a reference
+ * implementation.
  */
 @Internal
 public class StreamConfig implements Serializable {
@@ -116,16 +119,9 @@ public class StreamConfig implements Serializable {
     private static final ConfigOption<Boolean> GRAPH_CONTAINING_LOOPS =
             ConfigOptions.key("graphContainingLoops").booleanType().defaultValue(false);
 
-    private static final ConfigOption<Boolean> CHECKPOINTING_ENABLED =
-            ConfigOptions.key("checkpointing").booleanType().defaultValue(false);
-
-    private static final ConfigOption<Integer> CHECKPOINT_MODE =
-            ConfigOptions.key("checkpointMode").intType().defaultValue(-1);
-
-    private static final String SAVEPOINT_DIR = "savepointdir";
+    private static final String ADDITIONAL_METRIC_VARIABLES = "additionalmetricvariables";
     private static final String CHECKPOINT_STORAGE = "checkpointstorage";
     private static final String STATE_BACKEND = "statebackend";
-    private static final String ENABLE_CHANGE_LOG_STATE_BACKEND = "enablechangelog";
     private static final String TIMER_SERVICE_PROVIDER = "timerservice";
     private static final String STATE_PARTITIONER = "statePartitioner";
 
@@ -154,9 +150,6 @@ public class StreamConfig implements Serializable {
     // ------------------------------------------------------------------------
     //  Default Values
     // ------------------------------------------------------------------------
-
-    private static final CheckpointingMode DEFAULT_CHECKPOINTING_MODE =
-            CheckpointingMode.EXACTLY_ONCE;
 
     private static final double DEFAULT_MANAGED_MEMORY_FRACTION = 0.0;
 
@@ -535,77 +528,6 @@ public class StreamConfig implements Serializable {
         }
     }
 
-    // --------------------- checkpointing -----------------------
-
-    public void setCheckpointingEnabled(boolean enabled) {
-        config.set(CHECKPOINTING_ENABLED, enabled);
-    }
-
-    public boolean isCheckpointingEnabled() {
-        return config.get(CHECKPOINTING_ENABLED);
-    }
-
-    public void setCheckpointMode(CheckpointingMode mode) {
-        config.set(CHECKPOINT_MODE, mode.ordinal());
-    }
-
-    public CheckpointingMode getCheckpointMode() {
-        int ordinal = config.get(CHECKPOINT_MODE, -1);
-        if (ordinal >= 0) {
-            return CheckpointingMode.values()[ordinal];
-        } else {
-            return DEFAULT_CHECKPOINTING_MODE;
-        }
-    }
-
-    public void setUnalignedCheckpointsEnabled(boolean enabled) {
-        config.set(CheckpointingOptions.ENABLE_UNALIGNED, enabled);
-    }
-
-    public boolean isUnalignedCheckpointsEnabled() {
-        return config.get(CheckpointingOptions.ENABLE_UNALIGNED, false);
-    }
-
-    public void setUnalignedCheckpointsSplittableTimersEnabled(boolean enabled) {
-        config.set(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, enabled);
-    }
-
-    public boolean isUnalignedCheckpointsSplittableTimersEnabled() {
-        return config.get(CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS);
-    }
-
-    public boolean isExactlyOnceCheckpointMode() {
-        return getCheckpointMode() == CheckpointingMode.EXACTLY_ONCE;
-    }
-
-    public Duration getAlignedCheckpointTimeout() {
-        return config.get(CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT);
-    }
-
-    public void setAlignedCheckpointTimeout(Duration alignedCheckpointTimeout) {
-        config.set(CheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT, alignedCheckpointTimeout);
-    }
-
-    public void setMaxConcurrentCheckpoints(int maxConcurrentCheckpoints) {
-        config.set(CheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS, maxConcurrentCheckpoints);
-    }
-
-    public int getMaxConcurrentCheckpoints() {
-        return config.get(
-                CheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS,
-                CheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS.defaultValue());
-    }
-
-    public int getMaxSubtasksPerChannelStateFile() {
-        return config.get(CheckpointingOptions.UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE);
-    }
-
-    public void setMaxSubtasksPerChannelStateFile(int maxSubtasksPerChannelStateFile) {
-        config.set(
-                CheckpointingOptions.UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE,
-                maxSubtasksPerChannelStateFile);
-    }
-
     /**
      * Sets the job vertex level non-chained outputs. The given output list must have the same order
      * with {@link JobVertex#getProducedDataSets()}.
@@ -688,10 +610,6 @@ public class StreamConfig implements Serializable {
         }
     }
 
-    public void setChangelogStateBackendEnabled(TernaryBoolean enabled) {
-        toBeSerializedConfigObjects.put(ENABLE_CHANGE_LOG_STATE_BACKEND, enabled);
-    }
-
     @VisibleForTesting
     public void setStateBackendUsesManagedMemory(boolean usesManagedMemory) {
         this.config.set(STATE_BACKEND_USE_MANAGED_MEMORY, usesManagedMemory);
@@ -720,13 +638,25 @@ public class StreamConfig implements Serializable {
         }
     }
 
-    public TernaryBoolean isChangelogStateBackendEnabled(ClassLoader cl) {
+    public void setAdditionalMetricVariables(
+            @Nullable Map<String, String> additionalMetricVariables) {
+        if (additionalMetricVariables != null) {
+            toBeSerializedConfigObjects.put(ADDITIONAL_METRIC_VARIABLES, additionalMetricVariables);
+        }
+    }
+
+    public Map<String, String> getAdditionalMetricVariables() {
         try {
-            return InstantiationUtil.readObjectFromConfig(
-                    this.config, ENABLE_CHANGE_LOG_STATE_BACKEND, cl);
+            Map<String, String> additionalMetricVariables =
+                    InstantiationUtil.readObjectFromConfig(
+                            this.config,
+                            ADDITIONAL_METRIC_VARIABLES,
+                            this.getClass().getClassLoader());
+            return additionalMetricVariables == null
+                    ? Collections.emptyMap()
+                    : additionalMetricVariables;
         } catch (Exception e) {
-            throw new StreamTaskException(
-                    "Could not instantiate change log state backend enable flag.", e);
+            throw new StreamTaskException("Could not instantiate additional metric variables.", e);
         }
     }
 
@@ -832,7 +762,6 @@ public class StreamConfig implements Serializable {
         } catch (Exception e) {
             builder.append("\nOperator: Missing");
         }
-        builder.append("\nState Monitoring: ").append(isCheckpointingEnabled());
         if (isChainStart() && getChainedOutputs(cl).size() > 0) {
             builder.append(
                     "\n\n\n---------------------\nChained task configs\n---------------------\n");
@@ -975,9 +904,9 @@ public class StreamConfig implements Serializable {
         }
     }
 
-    public static boolean requiresSorting(StreamConfig.InputConfig inputConfig) {
-        return inputConfig instanceof StreamConfig.NetworkInputConfig
-                && ((StreamConfig.NetworkInputConfig) inputConfig).getInputRequirement()
-                        == StreamConfig.InputRequirement.SORTED;
+    public static boolean requiresSorting(InputConfig inputConfig) {
+        return inputConfig instanceof NetworkInputConfig
+                && ((NetworkInputConfig) inputConfig).getInputRequirement()
+                        == InputRequirement.SORTED;
     }
 }

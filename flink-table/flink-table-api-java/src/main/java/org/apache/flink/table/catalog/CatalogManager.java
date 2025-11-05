@@ -33,6 +33,7 @@ import org.apache.flink.table.catalog.exceptions.CatalogException;
 import org.apache.flink.table.catalog.exceptions.DatabaseAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotEmptyException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
+import org.apache.flink.table.catalog.exceptions.ModelAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.ModelNotExistException;
 import org.apache.flink.table.catalog.exceptions.PartitionNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
@@ -707,7 +708,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         return getTable(objectIdentifier)
                 .orElseThrow(
                         () ->
-                                new TableException(
+                                new ValidationException(
                                         String.format(
                                                 "Cannot find table '%s' in any of the catalogs %s, nor as a temporary table.",
                                                 objectIdentifier, listCatalogs())));
@@ -747,7 +748,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 if (timestamp != null) {
                     table = currentCatalog.getTable(objectPath, timestamp);
                     if (table.getTableKind() == TableKind.VIEW) {
-                        throw new TableException(
+                        throw new ValidationException(
                                 String.format(
                                         "%s is a view, but time travel is not supported for view.",
                                         objectIdentifier.asSummaryString()));
@@ -901,6 +902,36 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             String catalogName, String databaseName) {
         return listTemporaryTablesInternal(catalogName, databaseName)
                 .filter(e -> e.getValue() instanceof CatalogView);
+    }
+
+    /**
+     * Returns an array of names of materialized tables registered in the namespace of the current
+     * catalog and database.
+     *
+     * @return names of registered materialized tables
+     */
+    public Set<String> listMaterializedTables() {
+        return listMaterializedTables(getCurrentCatalog(), getCurrentDatabase());
+    }
+
+    /**
+     * Returns an array of names of materialized tables registered in the namespace of the given
+     * catalog and database.
+     *
+     * @return names of registered materialized tables
+     */
+    public Set<String> listMaterializedTables(String catalogName, String databaseName) {
+        Catalog catalog = getCatalogOrThrowException(catalogName);
+        if (catalog == null) {
+            throw new ValidationException(String.format("Catalog %s does not exist", catalogName));
+        }
+
+        try {
+            return new HashSet<>(catalog.listMaterializedTables(databaseName));
+        } catch (DatabaseNotExistException e) {
+            throw new ValidationException(
+                    String.format("Database %s does not exist", databaseName), e);
+        }
     }
 
     /**
@@ -1417,7 +1448,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
         return getModel(objectIdentifier)
                 .orElseThrow(
                         () ->
-                                new TableException(
+                                new ValidationException(
                                         String.format(
                                                 "Cannot find model '%s' in any of the catalogs %s.",
                                                 objectIdentifier, listCatalogs())));
@@ -1434,8 +1465,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     }
 
     /**
-     * Returns an array of names of all models registered in the namespace of the current catalog
-     * and database.
+     * Returns a set of names of all models registered in the namespace of the current catalog and
+     * database.
      *
      * @return names of all registered models
      */
@@ -1444,7 +1475,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     }
 
     /**
-     * Returns an array of names of all models registered in the namespace of the given catalog and
+     * Returns a set of names of all models registered in the namespace of the given catalog and
      * database.
      *
      * @return names of all registered models
@@ -1460,6 +1491,29 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
             throw new ValidationException(
                     String.format("Database %s does not exist", databaseName), e);
         }
+    }
+
+    /**
+     * Returns an array of names of temporary models registered in the namespace of the current
+     * catalog and database.
+     *
+     * @return names of registered temporary models
+     */
+    public Set<String> listTemporaryModels() {
+        return listTemporaryModelsInternal(getCurrentCatalog(), getCurrentDatabase())
+                .map(e -> e.getKey().getObjectName())
+                .collect(Collectors.toSet());
+    }
+
+    private Stream<Map.Entry<ObjectIdentifier, CatalogModel>> listTemporaryModelsInternal(
+            String catalogName, String databaseName) {
+        return temporaryModels.entrySet().stream()
+                .filter(
+                        e -> {
+                            ObjectIdentifier identifier = e.getKey();
+                            return identifier.getCatalogName().equals(catalogName)
+                                    && identifier.getDatabaseName().equals(databaseName);
+                        });
     }
 
     /**
@@ -1542,18 +1596,50 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     /**
      * Alters a model in a given fully qualified path.
      *
-     * @param modelChange The model containing only changes
+     * @param newModel The new model containing changes.
+     * @param modelChanges The changes to apply to the model.
      * @param objectIdentifier The fully qualified path where to alter the model.
      * @param ignoreIfNotExists If false exception will be thrown if the model to be altered does
      *     not exist.
      */
     public void alterModel(
-            CatalogModel modelChange,
+            CatalogModel newModel,
+            List<ModelChange> modelChanges,
             ObjectIdentifier objectIdentifier,
             boolean ignoreIfNotExists) {
         execute(
                 (catalog, path) -> {
-                    ResolvedCatalogModel resolvedModel = resolveCatalogModel(modelChange);
+                    ResolvedCatalogModel resolvedModel = resolveCatalogModel(newModel);
+                    catalog.alterModel(path, resolvedModel, modelChanges, ignoreIfNotExists);
+                    catalogModificationListeners.forEach(
+                            listener ->
+                                    listener.onEvent(
+                                            AlterModelEvent.createEvent(
+                                                    CatalogContext.createContext(
+                                                            objectIdentifier.getCatalogName(),
+                                                            catalog),
+                                                    objectIdentifier,
+                                                    resolvedModel,
+                                                    ignoreIfNotExists)));
+                },
+                objectIdentifier,
+                ignoreIfNotExists,
+                "AlterModel");
+    }
+
+    /**
+     * Alters a model in a given fully qualified path.
+     *
+     * @param newModel The new model containing changes
+     * @param objectIdentifier The fully qualified path where to alter the model.
+     * @param ignoreIfNotExists If false exception will be thrown if the model to be altered does
+     *     not exist.
+     */
+    public void alterModel(
+            CatalogModel newModel, ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        execute(
+                (catalog, path) -> {
+                    ResolvedCatalogModel resolvedModel = resolveCatalogModel(newModel);
                     catalog.alterModel(path, resolvedModel, ignoreIfNotExists);
                     catalogModificationListeners.forEach(
                             listener ->
@@ -1578,11 +1664,11 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
      * @param ignoreIfNotExists If false exception will be thrown if the model to drop does not
      *     exist.
      */
-    public void dropModel(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
-        execute(
-                (catalog, path) -> {
-                    Optional<ContextResolvedModel> resultOpt = getModel(objectIdentifier);
-                    if (resultOpt.isPresent()) {
+    public boolean dropModel(ObjectIdentifier objectIdentifier, boolean ignoreIfNotExists) {
+        Optional<ContextResolvedModel> resultOpt = getModel(objectIdentifier);
+        if (resultOpt.isPresent()) {
+            execute(
+                    (catalog, path) -> {
                         ResolvedCatalogModel resolvedModel = resultOpt.get().getResolvedModel();
                         catalog.dropModel(path, ignoreIfNotExists);
                         catalogModificationListeners.forEach(
@@ -1596,14 +1682,18 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                                         resolvedModel,
                                                         ignoreIfNotExists,
                                                         false)));
-                    } else if (!ignoreIfNotExists) {
-                        throw new ModelNotExistException(
-                                objectIdentifier.getCatalogName(), objectIdentifier.toObjectPath());
-                    }
-                },
-                objectIdentifier,
-                ignoreIfNotExists,
-                "DropModel");
+                    },
+                    objectIdentifier,
+                    ignoreIfNotExists,
+                    "DropModel");
+            return true;
+        } else if (!ignoreIfNotExists) {
+            throw new ValidationException(
+                    String.format(
+                            "Model with identifier '%s' does not exist.",
+                            objectIdentifier.asSummaryString()));
+        }
+        return false;
     }
 
     /**
@@ -1670,6 +1760,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                 command.execute(catalog.get(), objectIdentifier.toObjectPath());
             } catch (TableAlreadyExistException
                     | TableNotExistException
+                    | ModelNotExistException
+                    | ModelAlreadyExistException
                     | DatabaseNotExistException e) {
                 throw new ValidationException(getErrorMessage(objectIdentifier, commandName), e);
             } catch (Exception e) {
@@ -1846,7 +1938,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                                                             .get(i)))
                                     .collect(Collectors.toList()),
                             resolvedSchema.getWatermarkSpecs(),
-                            resolvedSchema.getPrimaryKey().orElse(null));
+                            resolvedSchema.getPrimaryKey().orElse(null),
+                            resolvedSchema.getIndexes());
             return new ResolvedCatalogView(
                     // pass a view that has the query parsed and
                     // validated already

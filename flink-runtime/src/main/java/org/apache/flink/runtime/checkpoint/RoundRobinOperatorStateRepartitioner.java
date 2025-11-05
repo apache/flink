@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
@@ -488,13 +489,16 @@ public class RoundRobinOperatorStateRepartitioner
         }
     }
 
-    private static final class StateEntry {
+    @VisibleForTesting
+    static final class StateEntry {
         final List<Tuple2<StreamStateHandle, OperatorStateHandle.StateMetaInfo>> entries;
         final BitSet reportedSubtaskIndices;
+        final int parallelism;
 
         public StateEntry(int estimatedEntrySize, int parallelism) {
             this.entries = new ArrayList<>(estimatedEntrySize);
             this.reportedSubtaskIndices = new BitSet(parallelism);
+            this.parallelism = parallelism;
         }
 
         void addEntry(
@@ -506,7 +510,7 @@ public class RoundRobinOperatorStateRepartitioner
 
         boolean isPartiallyReported() {
             return reportedSubtaskIndices.cardinality() > 0
-                    && reportedSubtaskIndices.cardinality() < reportedSubtaskIndices.size();
+                    && reportedSubtaskIndices.cardinality() < parallelism;
         }
     }
 }

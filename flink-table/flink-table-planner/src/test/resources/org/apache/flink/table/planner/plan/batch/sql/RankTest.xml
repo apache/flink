@@ -229,35 +229,6 @@ Calc(select=[a, b, w0$o0], where=[(a > 10)])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testWithoutPartitionBy">
-    <Resource name="sql">
-      <![CDATA[
-SELECT * FROM (
- SELECT a, b, RANK() OVER (ORDER BY a) rk FROM MyTable) t
-WHERE rk < 10
-      ]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], rk=[$2])
-+- LogicalFilter(condition=[<($2, 10)])
-   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (ORDER BY $0 NULLS FIRST)])
-      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], global=[true], select=[a, b, w0$o0])
-+- Sort(orderBy=[a ASC])
-   +- Exchange(distribution=[single])
-      +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], global=[false], select=[a, b])
-         +- Exchange(distribution=[forward])
-            +- Sort(orderBy=[a ASC])
-               +- Calc(select=[a, b])
-                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testRankWithAnotherRankAsInput">
     <Resource name="sql">
       <![CDATA[
@@ -374,6 +345,35 @@ Calc(select=[CONCAT('http://txmov2.a.yximgs.com', uri) AS url, reqcount AS downl
                                        +- Exchange(distribution=[forward])
                                           +- Sort(orderBy=[start_time ASC, bucket_id ASC, reqcount DESC])
                                              +- BoundedStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[uri, reqcount, start_time, bucket_id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testWithoutPartitionBy">
+    <Resource name="sql">
+      <![CDATA[
+SELECT * FROM (
+ SELECT a, b, RANK() OVER (ORDER BY a) rk FROM MyTable) t
+WHERE rk < 10
+      ]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], rk=[$2])
++- LogicalFilter(condition=[<($2, 10)])
+   +- LogicalProject(a=[$0], b=[$1], rk=[RANK() OVER (ORDER BY $0 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], global=[true], select=[a, b, w0$o0])
++- Sort(orderBy=[a ASC])
+   +- Exchange(distribution=[single])
+      +- Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=9], partitionBy=[], orderBy=[a ASC], global=[false], select=[a, b])
+         +- Exchange(distribution=[forward])
+            +- Sort(orderBy=[a ASC])
+               +- Calc(select=[a, b])
+                  +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

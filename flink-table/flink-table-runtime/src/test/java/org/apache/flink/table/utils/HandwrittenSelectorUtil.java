@@ -91,5 +91,10 @@ public class HandwrittenSelectorUtil {
         public InternalTypeInfo<RowData> getProducedType() {
             return InternalTypeInfo.ofFields(keyFieldTypes);
         }
+
+        @Override
+        public HandwrittenKeySelector copy() {
+            return new HandwrittenKeySelector(keyFields, inputFieldTypes);
+        }
     }
 }

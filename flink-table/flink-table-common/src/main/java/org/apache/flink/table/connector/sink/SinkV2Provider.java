@@ -25,6 +25,8 @@ import org.apache.flink.table.data.RowData;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -58,4 +60,12 @@ public interface SinkV2Provider extends DynamicTableSink.SinkRuntimeProvider, Pa
     }
 
     Sink<RowData> createSink();
+
+    /**
+     * @return additional variables that will be added to scope of the metrics reported from the
+     *     {@link Sink} created by this {@link SinkV2Provider}.
+     */
+    default Map<String, String> getAdditionalMetricVariables() {
+        return Collections.emptyMap();
+    }
 }

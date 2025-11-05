@@ -88,5 +88,8 @@ public interface TransformationTranslator<OUT, T extends Transformation<OUT>> {
 
         /** Transforms the transformation and updates the current stream graph. */
         Collection<Integer> transform(Transformation<?> transformation);
+
+        /** Returns all sink transformations that should be translated into the StreamGraph. */
+        Collection<Transformation<?>> getSinkTransformations();
     }
 }

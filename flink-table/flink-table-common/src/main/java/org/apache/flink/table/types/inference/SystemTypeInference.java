@@ -35,6 +35,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.RowType.RowField;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
@@ -43,11 +44,11 @@ import org.apache.flink.types.ColumnList;
 import javax.annotation.Nullable;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -96,16 +97,27 @@ public class SystemTypeInference {
         final TypeInference.Builder builder = TypeInference.newBuilder();
 
         final List<StaticArgument> systemArgs =
-                deriveSystemArgs(functionKind, origin.getStaticArguments().orElse(null));
+                deriveSystemArgs(
+                        functionKind,
+                        origin.getStaticArguments().orElse(null),
+                        origin.disableSystemArguments());
         if (systemArgs != null) {
             builder.staticArguments(systemArgs);
         }
         builder.inputTypeStrategy(
-                deriveSystemInputStrategy(functionKind, systemArgs, origin.getInputTypeStrategy()));
+                deriveSystemInputStrategy(
+                        functionKind,
+                        systemArgs,
+                        origin.getInputTypeStrategy(),
+                        origin.disableSystemArguments()));
         builder.stateTypeStrategies(origin.getStateTypeStrategies());
         builder.outputTypeStrategy(
                 deriveSystemOutputStrategy(
-                        functionKind, systemArgs, origin.getOutputTypeStrategy()));
+                        functionKind,
+                        systemArgs,
+                        origin.getOutputTypeStrategy(),
+                        origin.disableSystemArguments()));
+        builder.disableSystemArguments(origin.disableSystemArguments());
         return builder.build();
     }
 
@@ -129,7 +141,9 @@ public class SystemTypeInference {
     }
 
     private static @Nullable List<StaticArgument> deriveSystemArgs(
-            FunctionKind functionKind, @Nullable List<StaticArgument> declaredArgs) {
+            FunctionKind functionKind,
+            @Nullable List<StaticArgument> declaredArgs,
+            boolean disableSystemArgs) {
         if (functionKind != FunctionKind.PROCESS_TABLE) {
             if (declaredArgs != null) {
                 checkScalarArgsOnly(declaredArgs);
@@ -143,10 +157,12 @@ public class SystemTypeInference {
 
         checkReservedArgs(declaredArgs);
         checkMultipleTableArgs(declaredArgs);
-        checkUpdatingPassThroughColumns(declaredArgs);
+        checkPassThroughColumns(declaredArgs);
 
         final List<StaticArgument> newStaticArgs = new ArrayList<>(declaredArgs);
-        newStaticArgs.addAll(PROCESS_TABLE_FUNCTION_SYSTEM_ARGS);
+        if (!disableSystemArgs) {
+            newStaticArgs.addAll(PROCESS_TABLE_FUNCTION_SYSTEM_ARGS);
+        }
         return newStaticArgs;
     }
 
@@ -166,42 +182,56 @@ public class SystemTypeInference {
     }
 
     private static void checkMultipleTableArgs(List<StaticArgument> staticArgs) {
-        if (staticArgs.stream().filter(arg -> arg.is(StaticArgumentTrait.TABLE)).count() > 1) {
+        if (staticArgs.stream().filter(arg -> arg.is(StaticArgumentTrait.TABLE)).count() <= 1) {
+            return;
+        }
+        if (staticArgs.stream().anyMatch(arg -> !arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE))) {
             throw new ValidationException(
-                    "Currently, only signatures with at most one table argument are supported.");
+                    "All table arguments must use set semantics if multiple table arguments are declared.");
         }
     }
 
-    private static void checkUpdatingPassThroughColumns(List<StaticArgument> staticArgs) {
+    private static void checkPassThroughColumns(List<StaticArgument> staticArgs) {
         final Set<StaticArgumentTrait> traits =
                 staticArgs.stream()
                         .flatMap(arg -> arg.getTraits().stream())
                         .collect(Collectors.toSet());
-        if (traits.contains(StaticArgumentTrait.SUPPORT_UPDATES)
-                && traits.contains(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
+        if (!traits.contains(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
+            return;
+        }
+        if (traits.contains(StaticArgumentTrait.SUPPORT_UPDATES)) {
             throw new ValidationException(
                     "Signatures with updating inputs must not pass columns through.");
+        }
+        if (staticArgs.stream().filter(arg -> arg.is(StaticArgumentTrait.TABLE)).count() > 1) {
+            throw new ValidationException(
+                    "Pass-through columns are not supported if multiple table arguments are declared.");
         }
     }
 
     private static InputTypeStrategy deriveSystemInputStrategy(
             FunctionKind functionKind,
             @Nullable List<StaticArgument> staticArgs,
-            InputTypeStrategy inputStrategy) {
+            InputTypeStrategy inputStrategy,
+            boolean disableSystemArgs) {
         if (functionKind != FunctionKind.PROCESS_TABLE) {
             return inputStrategy;
         }
-        return new SystemInputStrategy(staticArgs, inputStrategy);
+        return new SystemInputStrategy(staticArgs, inputStrategy, disableSystemArgs);
     }
 
     private static TypeStrategy deriveSystemOutputStrategy(
             FunctionKind functionKind,
             @Nullable List<StaticArgument> staticArgs,
-            TypeStrategy outputStrategy) {
-        if (functionKind != FunctionKind.TABLE && functionKind != FunctionKind.PROCESS_TABLE) {
+            TypeStrategy outputStrategy,
+            boolean disableSystemArgs) {
+        if (functionKind != FunctionKind.TABLE
+                && functionKind != FunctionKind.PROCESS_TABLE
+                && functionKind != FunctionKind.ASYNC_TABLE) {
             return outputStrategy;
         }
-        return new SystemOutputStrategy(functionKind, staticArgs, outputStrategy);
+        return new SystemOutputStrategy(
+                functionKind, staticArgs, outputStrategy, disableSystemArgs);
     }
 
     private static class SystemOutputStrategy implements TypeStrategy {
@@ -209,12 +239,17 @@ public class SystemTypeInference {
         private final FunctionKind functionKind;
         private final List<StaticArgument> staticArgs;
         private final TypeStrategy origin;
+        private final boolean disableSystemArgs;
 
         private SystemOutputStrategy(
-                FunctionKind functionKind, List<StaticArgument> staticArgs, TypeStrategy origin) {
+                FunctionKind functionKind,
+                List<StaticArgument> staticArgs,
+                TypeStrategy origin,
+                boolean disableSystemArgs) {
             this.functionKind = functionKind;
             this.staticArgs = staticArgs;
             this.origin = origin;
+            this.disableSystemArgs = disableSystemArgs;
         }
 
         @Override
@@ -235,7 +270,10 @@ public class SystemTypeInference {
                                 // this whole topic is kind of vendor specific already
                                 fields.addAll(derivePassThroughFields(callContext));
                                 fields.addAll(deriveFunctionOutputFields(functionDataType));
-                                fields.addAll(deriveRowtimeField(callContext));
+
+                                if (!disableSystemArgs) {
+                                    fields.addAll(deriveRowtimeField(callContext));
+                                }
 
                                 final List<Field> uniqueFields = makeFieldNamesUnique(fields);
 
@@ -272,7 +310,7 @@ public class SystemTypeInference {
                                 if (arg.is(StaticArgumentTrait.PASS_COLUMNS_THROUGH)) {
                                     return DataType.getFields(argDataTypes.get(pos)).stream();
                                 }
-                                if (!arg.is(StaticArgumentTrait.TABLE_AS_SET)) {
+                                if (!arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
                                     return Stream.<Field>empty();
                                 }
                                 final TableSemantics semantics =
@@ -323,37 +361,44 @@ public class SystemTypeInference {
 
             final Set<String> usedOnTimeFields = new HashSet<>();
 
-            final List<LogicalType> onTimeColumns =
-                    IntStream.range(0, staticArgs.size())
-                            .mapToObj(
-                                    pos -> {
-                                        final StaticArgument staticArg = staticArgs.get(pos);
-                                        if (!staticArg.is(StaticArgumentTrait.TABLE)) {
-                                            return null;
-                                        }
-                                        final RowType rowType =
-                                                LogicalTypeUtils.toRowType(
-                                                        args.get(pos).getLogicalType());
-                                        final int onTimeColumn =
-                                                findUniqueOnTimeColumn(
-                                                        staticArg.getName(), rowType, onTimeFields);
-                                        if (onTimeColumn >= 0) {
-                                            usedOnTimeFields.add(
-                                                    rowType.getFieldNames().get(onTimeColumn));
-                                            return rowType.getTypeAt(onTimeColumn);
-                                        }
-                                        if (staticArg.is(StaticArgumentTrait.REQUIRE_ON_TIME)) {
-                                            throw new ValidationException(
-                                                    String.format(
-                                                            "Table argument '%s' requires a time attribute. "
-                                                                    + "Please provide one using the implicit `on_time` argument. "
-                                                                    + "For example: myFunction(..., on_time => DESCRIPTOR(`my_timestamp`)",
-                                                            staticArg.getName()));
-                                        }
-                                        return null;
-                                    })
-                            .filter(Objects::nonNull)
-                            .collect(Collectors.toList());
+            final List<LogicalType> onTimeColumns = new ArrayList<>();
+            final List<String> missingOnTimeColumns = new ArrayList<>();
+            IntStream.range(0, staticArgs.size())
+                    .forEach(
+                            pos -> {
+                                final StaticArgument staticArg = staticArgs.get(pos);
+                                if (!staticArg.is(StaticArgumentTrait.TABLE)) {
+                                    return;
+                                }
+                                final RowType rowType =
+                                        LogicalTypeUtils.toRowType(args.get(pos).getLogicalType());
+                                final int onTimeColumn =
+                                        findUniqueOnTimeColumn(
+                                                staticArg.getName(), rowType, onTimeFields);
+                                if (onTimeColumn >= 0) {
+                                    usedOnTimeFields.add(rowType.getFieldNames().get(onTimeColumn));
+                                    onTimeColumns.add(rowType.getTypeAt(onTimeColumn));
+                                    return;
+                                }
+                                if (staticArg.is(StaticArgumentTrait.REQUIRE_ON_TIME)) {
+                                    throw new ValidationException(
+                                            String.format(
+                                                    "Table argument '%s' requires a time attribute. "
+                                                            + "Please provide one using the implicit `on_time` argument. "
+                                                            + "For example: myFunction(..., on_time => DESCRIPTOR(`my_timestamp`)",
+                                                    staticArg.getName()));
+                                } else {
+                                    missingOnTimeColumns.add(staticArg.getName());
+                                }
+                            });
+
+            if (!onTimeColumns.isEmpty() && !missingOnTimeColumns.isEmpty()) {
+                throw new ValidationException(
+                        "Invalid time attribute declaration. If multiple tables are declared, the `on_time` argument "
+                                + "must reference a time column for each table argument or none. "
+                                + "Missing time attributes for: "
+                                + missingOnTimeColumns);
+            }
 
             final Set<String> unusedOnTimeFields = new HashSet<>(onTimeFields);
             unusedOnTimeFields.removeAll(usedOnTimeFields);
@@ -461,10 +506,15 @@ public class SystemTypeInference {
 
         private final List<StaticArgument> staticArgs;
         private final InputTypeStrategy origin;
+        private final boolean disableSystemArgs;
 
-        private SystemInputStrategy(List<StaticArgument> staticArgs, InputTypeStrategy origin) {
+        private SystemInputStrategy(
+                List<StaticArgument> staticArgs,
+                InputTypeStrategy origin,
+                boolean disableSystemArgs) {
             this.staticArgs = staticArgs;
             this.origin = origin;
+            this.disableSystemArgs = disableSystemArgs;
         }
 
         @Override
@@ -494,8 +544,10 @@ public class SystemTypeInference {
             }
 
             try {
-                checkTableArgTraits(staticArgs, callContext);
-                checkUidArg(callContext);
+                checkTableArgs(staticArgs, callContext);
+                if (!disableSystemArgs) {
+                    checkUidArg(callContext);
+                }
             } catch (ValidationException e) {
                 return callContext.fail(throwOnFailure, e.getMessage());
             }
@@ -527,8 +579,9 @@ public class SystemTypeInference {
             }
         }
 
-        private static void checkTableArgTraits(
+        private static void checkTableArgs(
                 List<StaticArgument> staticArgs, CallContext callContext) {
+            final List<TableSemantics> tableSemantics = new ArrayList<>();
             IntStream.range(0, staticArgs.size())
                     .forEach(
                             pos -> {
@@ -546,11 +599,50 @@ public class SystemTypeInference {
                                 }
                                 checkRowSemantics(staticArg, semantics);
                                 checkSetSemantics(staticArg, semantics);
+                                tableSemantics.add(semantics);
                             });
+            checkCoPartitioning(tableSemantics);
+        }
+
+        private static void checkCoPartitioning(List<TableSemantics> tableSemantics) {
+            if (tableSemantics.isEmpty()) {
+                return;
+            }
+            final List<LogicalType> partitioningTypes =
+                    tableSemantics.stream()
+                            .map(
+                                    semantics -> {
+                                        final LogicalType tableType =
+                                                semantics.dataType().getLogicalType();
+                                        final List<LogicalType> fieldTypes =
+                                                LogicalTypeChecks.getFieldTypes(tableType);
+                                        final LogicalType[] partitionTypes =
+                                                Arrays.stream(semantics.partitionByColumns())
+                                                        .mapToObj(fieldTypes::get)
+                                                        .toArray(LogicalType[]::new);
+                                        return (LogicalType) RowType.of(partitionTypes);
+                                    })
+                            .collect(Collectors.toList());
+            final LogicalType commonType =
+                    LogicalTypeMerging.findCommonType(partitioningTypes).orElse(null);
+            if (commonType == null
+                    || partitioningTypes.stream()
+                            .anyMatch(
+                                    partitioningType ->
+                                            !LogicalTypeCasts.supportsAvoidingCast(
+                                                    partitioningType, commonType))) {
+                throw new ValidationException(
+                        "Invalid PARTITION BY columns. The number of columns and their data types must match "
+                                + "across all involved table arguments. Given partition key sets: "
+                                + partitioningTypes.stream()
+                                        .map(LogicalType::getChildren)
+                                        .map(Object::toString)
+                                        .collect(Collectors.joining(", ")));
+            }
         }
 
         private static void checkRowSemantics(StaticArgument staticArg, TableSemantics semantics) {
-            if (!staticArg.is(StaticArgumentTrait.TABLE_AS_ROW)) {
+            if (!staticArg.is(StaticArgumentTrait.ROW_SEMANTIC_TABLE)) {
                 return;
             }
             if (semantics.partitionByColumns().length > 0
@@ -561,7 +653,7 @@ public class SystemTypeInference {
         }
 
         private static void checkSetSemantics(StaticArgument staticArg, TableSemantics semantics) {
-            if (!staticArg.is(StaticArgumentTrait.TABLE_AS_SET)) {
+            if (!staticArg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE)) {
                 return;
             }
             if (semantics.partitionByColumns().length == 0

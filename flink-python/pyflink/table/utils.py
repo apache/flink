@@ -22,11 +22,13 @@ from pyflink.common.types import RowKind
 from pyflink.java_gateway import get_gateway
 from pyflink.table.types import DataType, LocalZonedTimestampType, Row, RowType, \
     TimeType, DateType, ArrayType, MapType, TimestampType, FloatType, RawType
+from pyflink.util.api_stability_decorators import Internal
 from pyflink.util.java_utils import to_jarray
 import datetime
 import pickle
 
 
+@Internal()
 def pandas_to_arrow(schema, timezone, field_types, series):
     import pyarrow as pa
     import pandas as pd
@@ -55,6 +57,7 @@ def pandas_to_arrow(schema, timezone, field_types, series):
     return pa.RecordBatch.from_arrays(arrays, schema=schema)
 
 
+@Internal()
 def arrow_to_pandas(timezone, field_types, batches):
     def arrow_column_to_pandas(arrow_column, t: DataType):
         if type(t) == RowType:
@@ -70,6 +73,7 @@ def arrow_to_pandas(timezone, field_types, batches):
             for c, t in zip(table.itercolumns(), field_types)]
 
 
+@Internal()
 def tz_convert_from_internal(s, t: DataType, local_tz):
     """
     Converts the timestamp series from internal according to the specified local timezone.
@@ -83,6 +87,7 @@ def tz_convert_from_internal(s, t: DataType, local_tz):
         return s
 
 
+@Internal()
 def tz_convert_to_internal(s, t: DataType, local_tz):
     """
     Converts the timestamp series to internal according to the specified local timezone.
@@ -96,6 +101,7 @@ def tz_convert_to_internal(s, t: DataType, local_tz):
     return s
 
 
+@Internal()
 def to_expression_jarray(exprs):
     """
     Convert python list of Expression to java array of Expression.
@@ -104,6 +110,7 @@ def to_expression_jarray(exprs):
     return to_jarray(gateway.jvm.Expression, [expr._j_expr for expr in exprs])
 
 
+@Internal()
 def pickled_bytes_to_python_converter(data, field_type: DataType):
     if isinstance(field_type, RowType):
         row_kind = RowKind(int.from_bytes(data[0], byteorder='big', signed=False))

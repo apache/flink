@@ -33,6 +33,37 @@ Calc(select=[ARRAY('Hi', 'Hello', c) AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testCalcMergeWithCorrelate">
+    <Resource name="sql">
+      <![CDATA[
+SELECT a, r FROM (
+ SELECT a, random_udf(b) r FROM (
+  select a, b, c1 FROM MyTable, LATERAL TABLE(str_split(c)) AS T(c1)
+ ) t
+)
+WHERE r > 10
+]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], r=[$1])
++- LogicalFilter(condition=[>($1, 10)])
+   +- LogicalProject(a=[$0], r=[random_udf($1)])
+      +- LogicalProject(a=[$0], b=[$1], c1=[$3])
+         +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+            :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+            +- LogicalTableFunctionScan(invocation=[str_split($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, r], where=[>(r, 10)])
++- Calc(select=[a, random_udf(b) AS r])
+   +- Correlate(invocation=[str_split($cor0.c)], correlate=[table(str_split($cor0.c))], select=[a,b,c,EXPR$0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testCalcMergeWithNonDeterministicExpr">
     <Resource name="sql">
       <![CDATA[SELECT a, a1 FROM (SELECT a, random_udf(b) AS a1 FROM MyTable) t WHERE a1 > 10]]>
@@ -69,37 +100,6 @@ LogicalProject(a=[$0])
       <![CDATA[
 Calc(select=[a], where=[>(random_udf(b), 10)])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testCalcMergeWithCorrelate">
-    <Resource name="sql">
-      <![CDATA[
-SELECT a, r FROM (
- SELECT a, random_udf(b) r FROM (
-  select a, b, c1 FROM MyTable, LATERAL TABLE(str_split(c)) AS T(c1)
- ) t
-)
-WHERE r > 10
-]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], r=[$1])
-+- LogicalFilter(condition=[>($1, 10)])
-   +- LogicalProject(a=[$0], r=[random_udf($1)])
-      +- LogicalProject(a=[$0], b=[$1], c1=[$3])
-         +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
-            :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-            +- LogicalTableFunctionScan(invocation=[str_split($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[a, r], where=[>(r, 10)])
-+- Calc(select=[a, random_udf(b) AS r])
-   +- Correlate(invocation=[str_split($cor0.c)], correlate=[table(str_split($cor0.c))], select=[a,b,c,EXPR$0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
@@ -285,23 +285,6 @@ Calc(select=[a, b, c], where=[((b > 0) AND (a < 50))])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testMultipleFlattening">
-    <Resource name="sql">
-      <![CDATA[SELECT MyTable2.a.*, c, MyTable2.b.* FROM MyTable2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(_1=[$0._1], _2=[$0._2], c=[$2], _10=[$1._1], _20=[$1._2])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a._1 AS _1, a._2 AS _2, c, b._1 AS _10, b._2 AS _20])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testMultiProjects">
     <Resource name="sql">
       <![CDATA[SELECT c FROM (SELECT a, c FROM MyTable)]]>
@@ -320,6 +303,23 @@ Calc(select=[c])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testMultipleFlattening">
+    <Resource name="sql">
+      <![CDATA[SELECT MyTable2.a.*, c, MyTable2.b.* FROM MyTable2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(_1=[$0._1], _2=[$0._2], c=[$2], _10=[$1._1], _20=[$1._2])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable2]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a._1 AS _1, a._2 AS _2, c, b._1 AS _10, b._2 AS _20])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testNonPrimitiveMapType">
     <Resource name="sql">
       <![CDATA[SELECT MAP[a, c] FROM MyTable]]>
@@ -333,24 +333,6 @@ LogicalProject(EXPR$0=[MAP($0, $2)])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[MAP(a, c) AS EXPR$0])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testOrWithIsNullPredicate">
-    <Resource name="sql">
-      <![CDATA[SELECT * FROM MyTable WHERE a = 1 OR a = 10 OR a IS NULL]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2])
-+- LogicalFilter(condition=[OR(=($0, 1), =($0, 10), IS NULL($0))])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, b, c], where=[SEARCH(a, Sarg[1, 10; NULL AS TRUE])])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -408,24 +390,6 @@ Calc(select=[a, c])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testProjectAndFilter">
-    <Resource name="sql">
-      <![CDATA[SELECT a, b + 1 FROM MyTable WHERE b > 2]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(a=[$0], EXPR$1=[+($1, 1)])
-+- LogicalFilter(condition=[>($1, 2)])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
-]]>
-    </Resource>
-    <Resource name="optimized exec plan">
-      <![CDATA[
-Calc(select=[a, (b + 1) AS EXPR$1], where=[(b > 2)])
-+- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testOrWithIsNullInIf">
     <Resource name="sql">
       <![CDATA[SELECT IF(c = '' OR c IS NULL, 'a', 'b') FROM MyTable]]>
@@ -439,6 +403,24 @@ LogicalProject(EXPR$0=[IF(SEARCH($2, Sarg[_UTF-16LE'':VARCHAR(2147483647) CHARAC
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[IF(SEARCH(c, Sarg[_UTF-16LE''; NULL AS TRUE]), 'a', 'b') AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOrWithIsNullPredicate">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE a = 1 OR a = 10 OR a IS NULL]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[OR(=($0, 1), =($0, 10), IS NULL($0))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, c], where=[SEARCH(a, Sarg[1, 10; NULL AS TRUE])])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -472,6 +454,24 @@ LogicalProject(EXPR$0=[MAP($1, 30:BIGINT, 10, $0)])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[MAP(b, 30, 10, a) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testProjectAndFilter">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b + 1 FROM MyTable WHERE b > 2]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[+($1, 1)])
++- LogicalFilter(condition=[>($1, 2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, (b + 1) AS EXPR$1], where=[(b > 2)])
 +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
 ]]>
     </Resource>

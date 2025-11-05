@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.PriorityQueueSetFactory;
 import org.apache.flink.runtime.state.SerializedCompositeKeyBuilder;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.SnapshotStrategyRunner;
+import org.apache.flink.runtime.state.StateBackendLoader;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSetFactory;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueSnapshotRestoreWrapper;
@@ -596,18 +597,14 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
                 IOUtils.closeQuietly(db);
 
                 LOG.info(
-                        "Closed ForSt State Backend. Cleaning up ForSt local working directory {}, remote working directory {}.",
-                        optionsContainer.getLocalBasePath(),
-                        optionsContainer.getRemoteBasePath());
+                        "Closed ForSt State Backend. Cleaning up ForSt: {}.",
+                        optionsContainer.getPathContainer());
 
                 try {
                     optionsContainer.clearDirectories();
                 } catch (Exception ex) {
                     LOG.warn(
-                            "Could not delete ForSt local working directory {}, remote working directory {}.",
-                            optionsContainer.getLocalBasePath(),
-                            optionsContainer.getRemoteBasePath(),
-                            ex);
+                            "Could not delete ForSt: {}.", optionsContainer.getPathContainer(), ex);
                 }
 
                 IOUtils.closeQuietly(optionsContainer);
@@ -618,18 +615,23 @@ public class ForStKeyedStateBackend<K> implements AsyncKeyedStateBackend<K> {
     }
 
     @Override
+    public String getBackendTypeIdentifier() {
+        return StateBackendLoader.FORST_STATE_BACKEND_NAME;
+    }
+
+    @Override
     public boolean isSafeToReuseKVState() {
         return true;
     }
 
     @VisibleForTesting
     Path getLocalBasePath() {
-        return optionsContainer.getLocalBasePath();
+        return optionsContainer.getPathContainer().getLocalBasePath();
     }
 
     @VisibleForTesting
     Path getRemoteBasePath() {
-        return optionsContainer.getRemoteBasePath();
+        return optionsContainer.getPathContainer().getRemoteBasePath();
     }
 
     @Override

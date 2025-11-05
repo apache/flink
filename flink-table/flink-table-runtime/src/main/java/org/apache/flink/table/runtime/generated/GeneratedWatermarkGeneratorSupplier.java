@@ -23,6 +23,7 @@ import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
 import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.functions.DefaultOpenContext;
+import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.watermark.WatermarkEmitStrategy;
 import org.apache.flink.table.watermark.WatermarkParams;
@@ -100,6 +101,17 @@ public class GeneratedWatermarkGeneratorSupplier implements WatermarkGeneratorSu
             this.watermarkEmitStrategy = watermarkEmitStrategy;
         }
 
+        public long extractTimestamp(RowData event) {
+            try {
+                return innerWatermarkGenerator.extractTimestamp(event);
+            } catch (Exception e) {
+                throw new TableRuntimeException(
+                        String.format(
+                                "Unable to generate an event-time timestamp for row: %s.", event),
+                        e);
+            }
+        }
+
         @Override
         public void onEvent(RowData event, long eventTimestamp, WatermarkOutput output) {
             try {
@@ -111,11 +123,8 @@ public class GeneratedWatermarkGeneratorSupplier implements WatermarkGeneratorSu
                     }
                 }
             } catch (Exception e) {
-                throw new RuntimeException(
-                        String.format(
-                                "Generated WatermarkGenerator fails to generate for row: %s.",
-                                event),
-                        e);
+                throw new TableRuntimeException(
+                        String.format("Unable to generate a watermark for row: %s.", event), e);
             }
         }
 

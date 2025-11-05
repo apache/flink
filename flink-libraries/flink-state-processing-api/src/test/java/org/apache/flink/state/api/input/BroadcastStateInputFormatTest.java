@@ -68,7 +68,7 @@ public class BroadcastStateInputFormatTest {
                     new BroadcastStateInputFormat<>(
                             state, new Configuration(), null, descriptor, new ExecutionConfig());
 
-            format.setRuntimeContext(new MockStreamingRuntimeContext(false, 1, 0));
+            format.setRuntimeContext(new MockStreamingRuntimeContext(1, 0));
             format.open(split);
 
             Map<Integer, Integer> results = new HashMap<>(3);

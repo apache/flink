@@ -37,7 +37,7 @@ Flink supports the usage of lambda expressions for all operators of the Java API
 
 This document shows how to use lambda expressions and describes current
 limitations. For a general introduction to the Flink API, please refer to the
-[DataSteam API overview]({{< ref "docs/dev/datastream/overview" >}})
+[DataStream API overview]({{< ref "docs/dev/datastream/overview" >}})
 
 ### Examples and Limitations
 

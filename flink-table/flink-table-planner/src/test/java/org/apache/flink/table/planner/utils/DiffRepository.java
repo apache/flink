@@ -17,8 +17,14 @@
 
 package org.apache.flink.table.planner.utils;
 
+import org.apache.flink.shaded.guava33.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava33.com.google.common.cache.CacheLoader;
+import org.apache.flink.shaded.guava33.com.google.common.cache.LoadingCache;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableSortedSet;
+
 import org.apache.calcite.avatica.util.Spaces;
 import org.apache.calcite.util.Pair;
+import org.apache.calcite.util.Sources;
 import org.apache.calcite.util.Util;
 import org.apache.calcite.util.XmlOutput;
 import org.junit.jupiter.api.Assertions;
@@ -34,19 +40,25 @@ import org.w3c.dom.Text;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Writer;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.AbstractList;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
+import java.util.SortedMap;
+import java.util.TreeMap;
+
+import static java.util.Objects.requireNonNull;
 
 // THIS FILE IS COPIED FROM APACHE CALCITE
 
@@ -185,18 +197,42 @@ public class DiffRepository {
      * share the same diff-repository: if the repository gets loaded once per test case, then only
      * one diff is recorded.
      */
-    private static final Map<Class<?>, DiffRepository> MAP_CLASS_TO_REPOSITORY = new HashMap<>();
+    private static final LoadingCache<Key, DiffRepository> REPOSITORY_CACHE =
+            CacheBuilder.newBuilder().build(CacheLoader.from(Key::toRepo));
+
+    private static final ThreadLocal<DocumentBuilderFactory> DOCUMENT_BUILDER_FACTORY =
+            ThreadLocal.withInitial(
+                    () -> {
+                        final DocumentBuilderFactory documentBuilderFactory =
+                                DocumentBuilderFactory.newInstance();
+                        documentBuilderFactory.setXIncludeAware(false);
+                        documentBuilderFactory.setExpandEntityReferences(false);
+                        documentBuilderFactory.setNamespaceAware(true);
+
+                        try {
+                            documentBuilderFactory.setFeature(
+                                    XMLConstants.FEATURE_SECURE_PROCESSING, true);
+                            documentBuilderFactory.setFeature(
+                                    "http://apache.org/xml/features/disallow-doctype-decl", true);
+                        } catch (final ParserConfigurationException e) {
+                            throw new IllegalStateException(
+                                    "Document Builder configuration failed", e);
+                        }
+                        return documentBuilderFactory;
+                    });
 
     // ~ Instance fields --------------------------------------------------------
 
     private final DiffRepository baseRepository;
+    private final ImmutableSortedSet<String> outOfOrderTests;
     private final int indent;
     private Document doc;
     private final Element root;
+    private final URL refFile;
     private final File logFile;
     private final Filter filter;
-
-    // ~ Constructors -----------------------------------------------------------
+    private int modCount;
+    private int modCountAtLastWrite;
 
     /**
      * Creates a DiffRepository.
@@ -207,23 +243,22 @@ public class DiffRepository {
      * @param filter Filter or null
      */
     private DiffRepository(
-            URL refFile, File logFile, DiffRepository baseRepository, Filter filter) {
+            URL refFile, File logFile, DiffRepository baseRepository, Filter filter, int indent) {
         this.baseRepository = baseRepository;
         this.filter = filter;
-        if (refFile == null) {
-            throw new IllegalArgumentException("url must not be null");
-        }
+        this.indent = indent;
+        this.refFile = requireNonNull(refFile, "refFile");
         this.logFile = logFile;
+        this.modCountAtLastWrite = 0;
+        this.modCount = 0;
 
         // Load the document.
-        DocumentBuilderFactory fac = DocumentBuilderFactory.newInstance();
         try {
-            DocumentBuilder docBuilder = fac.newDocumentBuilder();
-            try {
+            DocumentBuilder docBuilder = DOCUMENT_BUILDER_FACTORY.get().newDocumentBuilder();
+            try (InputStream inputStream = refFile.openStream()) {
                 // Parse the reference file.
-                this.doc = docBuilder.parse(refFile.openStream());
-                // Don't write a log file yet -- as far as we know, it's still
-                // identical.
+                this.doc = docBuilder.parse(inputStream);
+                // Don't write a log file yet -- as far as we know, it's still identical.
             } catch (IOException | SAXParseException e) {
                 // There's no reference file. Create and write a log file.
                 this.doc = docBuilder.newDocument();
@@ -232,28 +267,15 @@ public class DiffRepository {
                 flushDoc();
             }
             this.root = doc.getDocumentElement();
-            if (!root.getNodeName().equals(ROOT_TAG)) {
-                throw new RuntimeException(
-                        "expected root element of type '"
-                                + ROOT_TAG
-                                + "', but found '"
-                                + root.getNodeName()
-                                + "'");
-            }
+            outOfOrderTests = validate(this.root);
         } catch (ParserConfigurationException | SAXException e) {
             throw new RuntimeException("error while creating xml parser", e);
         }
-        indent =
-                logFile.getPath().contains("RelOptRulesTest")
-                                || logFile.getPath().contains("SqlToRelConverterTest")
-                                || logFile.getPath().contains("SqlLimitsTest")
-                        ? 4
-                        : 2;
     }
 
     // ~ Methods ----------------------------------------------------------------
 
-    private static URL findFile(Class clazz, final String suffix) {
+    private static URL findFile(Class<?> clazz, final String suffix) {
         // The reference file for class "com.foo.Bar" is "com/foo/Bar.xml"
         String rest = "/" + clazz.getName().replace('.', File.separatorChar) + suffix;
         URL url = clazz.getResource(rest);
@@ -279,7 +301,7 @@ public class DiffRepository {
      * Expands a string containing one or more variables. (Currently only works if there is one
      * variable.)
      */
-    public synchronized String expand(String testCaseName, String tag, String text) {
+    public String expand(String testCaseName, String tag, String text) {
         if (text == null) {
             return null;
         } else if (text.startsWith("${") && text.endsWith("}")) {
@@ -406,6 +428,19 @@ public class DiffRepository {
                                         + "test case in the base repository, but does "
                                         + "not specify 'overrides=true'");
                     }
+                    if (outOfOrderTests.contains(testCaseName)) {
+                        ++modCount;
+                        flushDoc();
+                        throw new IllegalArgumentException(
+                                "TestCase '"
+                                        + testCaseName
+                                        + "' is out of order in the reference file: "
+                                        + Sources.of(refFile).file()
+                                        + "\n"
+                                        + "To fix, copy the generated log file: "
+                                        + logFile
+                                        + "\n");
+                    }
                     return testCase;
                 }
                 if (elements != null) {
@@ -461,24 +496,34 @@ public class DiffRepository {
             testCaseElement.setAttribute(TEST_CASE_NAME_ATTR, testCaseName);
             Node refElement = ref(testCaseName, map);
             root.insertBefore(testCaseElement, refElement);
+            ++modCount;
         }
         Element resourceElement = getResourceElement(testCaseElement, resourceName, true);
         if (resourceElement == null) {
             resourceElement = doc.createElement(RESOURCE_TAG);
             resourceElement.setAttribute(RESOURCE_NAME_ATTR, resourceName);
             testCaseElement.appendChild(resourceElement);
+            ++modCount;
+            if (!value.equals("")) {
+                resourceElement.appendChild(doc.createCDATASection(value));
+            }
         } else {
-            removeAllChildren(resourceElement);
-        }
-        if (!value.equals("")) {
-            resourceElement.appendChild(doc.createCDATASection(value));
+            final List<Node> newChildList;
+            if (value.equals("")) {
+                newChildList = List.of();
+            } else {
+                newChildList = List.of(doc.createCDATASection(value));
+            }
+            if (replaceChildren(resourceElement, newChildList)) {
+                ++modCount;
+            }
         }
 
         // Write out the document.
         flushDoc();
     }
 
-    private Node ref(String testCaseName, List<Pair<String, Element>> map) {
+    private static Node ref(String testCaseName, List<Pair<String, Element>> map) {
         if (map.isEmpty()) {
             return null;
         }
@@ -487,7 +532,7 @@ public class DiffRepository {
         int i = 0;
         final List<String> names = Pair.left(map);
         for (String s : names) {
-            if (s.compareToIgnoreCase(testCaseName) <= 0) {
+            if (s.compareTo(testCaseName) <= 0) {
                 ++i;
             }
         }
@@ -498,20 +543,24 @@ public class DiffRepository {
         // The intended effect is that if the list is already sorted, the new item
         // will end up in exactly the right position, and if the list is not sorted,
         // the new item will end up in approximately the right position.
-        while (i < map.size() && names.get(i).compareToIgnoreCase(testCaseName) < 0) {
+        while (i < map.size() && names.get(i).compareTo(testCaseName) < 0) {
             ++i;
         }
-        if (i >= map.size() - 1) {
+        if (i > map.size() - 1) {
             return null;
         }
-        while (i >= 0 && names.get(i).compareToIgnoreCase(testCaseName) > 0) {
+        while (i >= 0 && names.get(i).compareTo(testCaseName) > 0) {
             --i;
         }
         return map.get(i + 1).right;
     }
 
     /** Flushes the reference document to the file system. */
-    private void flushDoc() {
+    private synchronized void flushDoc() {
+        if (modCount == modCountAtLastWrite) {
+            // Document has not been modified since last write.
+            return;
+        }
         try {
             boolean b = logFile.getParentFile().mkdirs();
             Util.discard(b);
@@ -519,9 +568,60 @@ public class DiffRepository {
                 write(doc, w, indent);
             }
         } catch (IOException e) {
-            throw new RuntimeException(
+            throw Util.throwAsRuntime(
                     "error while writing test reference log '" + logFile + "'", e);
         }
+        modCountAtLastWrite = modCount;
+    }
+
+    /**
+     * Validates the root element.
+     *
+     * <p>Returns the set of test names that are out of order in the reference file (empty if the
+     * reference file is fully sorted).
+     */
+    private static ImmutableSortedSet<String> validate(Element root) {
+        if (!root.getNodeName().equals(ROOT_TAG)) {
+            throw new RuntimeException(
+                    "expected root element of type '"
+                            + ROOT_TAG
+                            + "', but found '"
+                            + root.getNodeName()
+                            + "'");
+        }
+
+        // Make sure that there are no duplicate test cases, and count how many
+        // tests are out of order.
+        final SortedMap<String, Node> testCases = new TreeMap<>();
+        final NodeList childNodes = root.getChildNodes();
+        final List<String> outOfOrderNames = new ArrayList<>();
+        String previousName = null;
+        for (int i = 0; i < childNodes.getLength(); i++) {
+            Node child = childNodes.item(i);
+            if (child.getNodeName().equals(TEST_CASE_TAG)) {
+                Element testCase = (Element) child;
+                final String name = testCase.getAttribute(TEST_CASE_NAME_ATTR);
+                if (testCases.put(name, testCase) != null) {
+                    throw new RuntimeException("TestCase '" + name + "' is duplicate");
+                }
+                if (previousName != null && previousName.compareTo(name) > 0) {
+                    outOfOrderNames.add(name);
+                }
+                previousName = name;
+            }
+        }
+
+        // If any nodes were out of order, rebuild the document in sorted order.
+        if (!outOfOrderNames.isEmpty()) {
+            for (Node testCase : testCases.values()) {
+                root.removeChild(testCase);
+            }
+            for (Node testCase : testCases.values()) {
+                root.appendChild(testCase);
+            }
+        }
+
+        return ImmutableSortedSet.copyOf(outOfOrderNames);
     }
 
     /**
@@ -574,6 +674,33 @@ public class DiffRepository {
         while (childNodes.getLength() > 0) {
             element.removeChild(childNodes.item(0));
         }
+    }
+
+    private static boolean replaceChildren(Element element, List<Node> children) {
+        // Current children
+        final NodeList childNodes = element.getChildNodes();
+        final List<Node> list = new ArrayList<>();
+        for (Node item : iterate(childNodes)) {
+            if (item.getNodeType() != Node.TEXT_NODE) {
+                list.add(item);
+            }
+        }
+
+        // Are new children equal to old?
+        if (equalList(children, list)) {
+            return false;
+        }
+
+        // Replace old children with new children
+        removeAllChildren(element);
+        children.forEach(element::appendChild);
+        return true;
+    }
+
+    /** Returns whether two lists of nodes are equal. */
+    private static boolean equalList(List<Node> list0, List<Node> list1) {
+        return list1.size() == list0.size()
+                && Pair.zip(list1, list0).stream().allMatch(p -> p.left.isEqualNode(p.right));
     }
 
     /**
@@ -676,18 +803,7 @@ public class DiffRepository {
      * @return The diff repository shared between test cases in this class.
      */
     public static DiffRepository lookup(Class<?> clazz) {
-        return lookup(clazz, null);
-    }
-
-    /**
-     * Finds the repository instance for a given class and inheriting from a given repository.
-     *
-     * @param clazz Test case class
-     * @param baseRepository Base class of test class
-     * @return The diff repository shared between test cases in this class.
-     */
-    public static DiffRepository lookup(Class<?> clazz, DiffRepository baseRepository) {
-        return lookup(clazz, baseRepository, null);
+        return lookup(clazz, null, null, 2);
     }
 
     /**
@@ -712,16 +828,10 @@ public class DiffRepository {
      * @param filter Filters each string returned by the repository
      * @return The diff repository shared between test cases in this class.
      */
-    public static synchronized DiffRepository lookup(
-            Class<?> clazz, DiffRepository baseRepository, Filter filter) {
-        DiffRepository diffRepository = MAP_CLASS_TO_REPOSITORY.get(clazz);
-        if (diffRepository == null) {
-            final URL refFile = findFile(clazz, ".xml");
-            final File logFile = new File(refFile.getFile().replace("test-classes", "surefire"));
-            diffRepository = new DiffRepository(refFile, logFile, baseRepository, filter);
-            MAP_CLASS_TO_REPOSITORY.put(clazz, diffRepository);
-        }
-        return diffRepository;
+    public static DiffRepository lookup(
+            Class<?> clazz, DiffRepository baseRepository, Filter filter, int indent) {
+        final Key key = new Key(clazz, baseRepository, filter, indent);
+        return REPOSITORY_CACHE.getUnchecked(key);
     }
 
     /** Callback to filter strings before returning them. */
@@ -743,6 +853,58 @@ public class DiffRepository {
                 String text,
                 String expanded);
     }
-}
 
-// End DiffRepository.java
+    /** Cache key. */
+    private static class Key {
+        private final Class<?> clazz;
+        private final DiffRepository baseRepository;
+        private final Filter filter;
+        private final int indent;
+
+        Key(Class<?> clazz, DiffRepository baseRepository, Filter filter, int indent) {
+            this.clazz = requireNonNull(clazz, "clazz");
+            this.baseRepository = baseRepository;
+            this.filter = filter;
+            this.indent = indent;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(clazz, baseRepository, filter);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return this == obj
+                    || obj instanceof Key
+                            && clazz.equals(((Key) obj).clazz)
+                            && Objects.equals(baseRepository, ((Key) obj).baseRepository)
+                            && Objects.equals(filter, ((Key) obj).filter);
+        }
+
+        DiffRepository toRepo() {
+            final URL refFile = findFile(clazz, ".xml");
+            final File file = Sources.of(refFile).file();
+            final String refFilePath = file.getAbsolutePath();
+            final String logFilePath =
+                    file.length() > 0 ? refFilePath.replace(".xml", "_actual.xml") : refFilePath;
+            final File logFile = new File(logFilePath);
+            assert file.length() == 0 || !refFilePath.equals(logFile.getAbsolutePath());
+            return new DiffRepository(refFile, logFile, baseRepository, filter, indent);
+        }
+    }
+
+    private static Iterable<Node> iterate(NodeList nodeList) {
+        return new AbstractList<Node>() {
+            @Override
+            public Node get(int index) {
+                return nodeList.item(index);
+            }
+
+            @Override
+            public int size() {
+                return nodeList.getLength();
+            }
+        };
+    }
+}

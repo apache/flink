@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.types.variant.Variant;
 
 import javax.annotation.Nullable;
 
@@ -95,6 +96,9 @@ public interface ArrayData {
 
     /** Returns the raw value at the given position. */
     <T> RawValueData<T> getRawValue(int pos);
+
+    /** Returns the Variant value at the given position. */
+    Variant getVariant(int i);
 
     /** Returns the binary value at the given position. */
     byte[] getBinary(int pos);
@@ -207,6 +211,9 @@ public interface ArrayData {
                 break;
             case RAW:
                 elementGetter = ArrayData::getRawValue;
+                break;
+            case VARIANT:
+                elementGetter = ArrayData::getVariant;
                 break;
             case NULL:
             case SYMBOL:

@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.DefaultIndex;
 import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
@@ -41,6 +42,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -74,9 +76,11 @@ public class CatalogConstraintTest {
                                         Collections.emptyList(),
                                         UniqueConstraint.primaryKey(
                                                 "primary_constraint",
-                                                Collections.singletonList("b"))))
+                                                Collections.singletonList("b")),
+                                        Collections.singletonList(
+                                                DefaultIndex.newIndex("idx", List.of("a", "b")))))
                         .build();
-        Map<String, String> properties = buildCatalogTableProperties(tableSchema);
+        Map<String, String> properties = buildCatalogTableProperties();
 
         catalog.createTable(
                 new ObjectPath(databaseName, "T1"),
@@ -104,7 +108,7 @@ public class CatalogConstraintTest {
                                         Column.physical("b", DataTypes.STRING()),
                                         Column.physical("c", DataTypes.INT())))
                         .build();
-        Map<String, String> properties = buildCatalogTableProperties(tableSchema);
+        Map<String, String> properties = buildCatalogTableProperties();
 
         catalog.createTable(
                 new ObjectPath(databaseName, "T1"),
@@ -121,7 +125,7 @@ public class CatalogConstraintTest {
         assertThat(mq.getUniqueKeys(t1)).isEqualTo(ImmutableSet.of());
     }
 
-    private Map<String, String> buildCatalogTableProperties(Schema tableSchema) {
+    private Map<String, String> buildCatalogTableProperties() {
         Map<String, String> properties = new HashMap<>();
         properties.put("connector.type", "filesystem");
         properties.put("connector.property-version", "1");
