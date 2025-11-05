@@ -289,3 +289,60 @@ ON a.id = b.id
 默认情况下，对于 regular join 算子来说，mini-batch 优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({{< ref "docs/dev/table/config" >}}#execution-options)页面。
 
 {{< top >}}
+
+## Delta Joins
+
+在流作业中，regular join 会维护来自两个输入的所有历史数据，以确保结果的准确性。随着时间的推移，这会导致状态不断增长，从而增加资源的使用，并影响作业的稳定性。
+
+为了应对这些挑战，Flink 引入了 delta join 算子。其核心思想是基于双向 lookup join 来替代 regular join 所维护的大状态，直接重用源表中的数据。与传统的 regular join 相比，delta join 显著减少了状态大小，提高了作业的稳定性，并降低了总体的资源消耗。
+
+该功能默认启用。当满足以下所有条件时， regular join 将自动优化为 delta join。
+
+1. 作业拓扑结构满足优化条件。具体可以查看[支持的功能和限制]({{< ref "docs/dev/table/tuning" >}}#supported-features-and-limitations)。
+2. 源表所在的外部存储系统提供了可供 delta join 快速查询的索引信息。目前 [Apache Fluss(Incubating)](https://fluss.apache.org/blog/fluss-open-source/) 已支持在 Flink 中提供表级别的索引信息，其上的表可作为 delta join 的源表。具体可参考 [Fluss 文档](https://fluss.apache.org/docs/0.8/engine-flink/delta-joins/#flink-version-support)。
+
+### 工作原理
+
+在 Flink 中，regular join 将来自两个输入端的所有输入数据存储在状态中，以确保当对侧的数据到达时，能够正确地匹配对应的记录。
+
+相比之下，delta join 利用了外部存储系统的索引功能，并不执行状态查找，而是直接对外部存储发出高效的、基于索引的查询，以获取匹配的记录。该方法消除了 Flink 状态与外部系统之间冗余的数据存储。
+
+{{< img src="/fig/table-streaming/delta_join.png" width="70%" height="70%" >}}
+
+### 关键参数
+
+Delta join 优化默认启用。您可以通过设置以下配置手动禁用此功能：
+
+```sql
+SET 'table.optimizer.delta-join.strategy' = 'NONE';
+```
+
+详细信息请参见[配置]({{< ref "docs/dev/table/config" >}}#optimizer-options)页面。
+
+您还可以配置以下参数来调整优化 delta join 的性能。
+
+- `table.exec.delta-join.cache-enabled`
+- `table.exec.delta-join.left.cache-size`
+- `table.exec.delta-join.right.cache-size`
+
+详细信息请参见[配置]({{< ref "docs/dev/table/config" >}}#execution-options)页面。
+
+<a name="supported-features-and-limitations" />
+
+### 支持的功能和限制
+
+目前 delta join 仍在持续演进中，当前版本已支持的功能如下：
+
+1. 支持 **INSERT-only** 的表作为源表。
+2. 支持不带 **DELETE 操作**的 **CDC** 表作为源表。
+3. 支持源表和 delta join 间包含 **project** 和 **filter** 算子。
+4. Delta join 算子内支持**缓存**。
+
+然而，delta join 也存在几个**限制**，包含以下任何条件的作业无法优化为 delta join。
+
+1. 表的**索引键**必须包含在 join 的**等值条件**中
+2. 目前仅支持 **INNER JOIN**。
+3. **下游节点**必须能够处理**冗余变更**。例如以 **UPSERT 模式**运行、不带 `upsertMaterialize` 的 sink 节点。
+4. 当消费 **CDC 流**时，**join key** 必须是**主键**的一部分。
+5. 当消费 **CDC 流**时，所有 **filter** 必须应用于 **upsert key** 上。
+6. 所有 project 和 filter 都不能包含**非确定性函数**。
