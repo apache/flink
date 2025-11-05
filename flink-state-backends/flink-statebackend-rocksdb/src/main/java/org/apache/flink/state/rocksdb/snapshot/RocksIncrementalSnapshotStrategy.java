@@ -351,7 +351,10 @@ public class RocksIncrementalSnapshotStrategy<K>
                 List<Path> miscFilePaths = new ArrayList<>(files.length);
 
                 createUploadFilePaths(files, sstFiles, sstFilePaths, miscFilePaths);
-                LOG.info("Will re-use {} SST files. {}", sstFiles.size(), sstFiles);
+                LOG.trace(
+                        "Will re-use {} SST files for incremental checkpoint: {}",
+                        sstFiles.size(),
+                        sstFiles);
 
                 final CheckpointedStateScope stateScope =
                         sharingFilesStrategy == SnapshotType.SharingFilesStrategy.NO_SHARING
