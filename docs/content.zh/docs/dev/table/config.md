@@ -116,11 +116,15 @@ Flink SQL> SET 'table.exec.mini-batch.size' = '5000';
 {{< /tab >}}
 {{< /tabs >}}
 
+<a name="execution-options" />
+
 ### 执行配置
 
 以下选项可用于优化查询执行的性能。
 
 {{< generated/execution_config_configuration >}}
+
+<a name="optimizer-options" />
 
 ### 优化器配置
 
@@ -128,17 +132,23 @@ Flink SQL> SET 'table.exec.mini-batch.size' = '5000';
 
 {{< generated/optimizer_config_configuration >}}
 
+<a name="table-options" />
+
 ### Planner 配置
 
 以下配置可以用于调整 planner 的行为。
 
 {{< generated/table_config_configuration >}}
 
+<a name="materialized-table-options" />
+
 ### Materialized Table 配置
 
 以下配置可以用于调整 Materialized Table 的行为。
 
 {{< generated/materialized_table_config_configuration >}}
+
+<a name="sql-client-options" />
 
 ### SQL Client 配置
 
