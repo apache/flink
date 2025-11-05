@@ -310,6 +310,33 @@ class HybridSourceReaderTest {
         reader.close();
     }
 
+    @Test
+    void testPauseResumeCurrentSourceSplits() throws Exception {
+        TestingReaderContext readerContext = new TestingReaderContext();
+        MockBaseSource source =
+                new MockBaseSource(1, 1, Boundedness.BOUNDED) {
+                    @Override
+                    public SourceReader<Integer, MockSourceSplit> createReader(
+                            SourceReaderContext readerContext) {
+                        return Mockito.spy(super.createReader(readerContext));
+                    }
+                };
+
+        HybridSourceReader<Integer> reader = new HybridSourceReader<>(readerContext);
+
+        reader.start();
+        assertAndClearSourceReaderFinishedEvent(readerContext, -1);
+        reader.handleSourceEvents(new SwitchSourceEvent(0, source, false));
+        SourceReader<Integer, MockSourceSplit> underlyingReader = currentReader(reader);
+
+        reader.pauseOrResumeSplits(
+                Collections.singletonList("foo"), Collections.singletonList("bar"));
+        Mockito.verify(underlyingReader)
+                .pauseOrResumeSplits(
+                        Collections.singletonList("foo"), Collections.singletonList("bar"));
+        reader.close();
+    }
+
     private static SourceReader<Integer, MockSourceSplit> currentReader(
             HybridSourceReader<?> reader) {
         return Whitebox.getInternalState(reader, "currentReader");
