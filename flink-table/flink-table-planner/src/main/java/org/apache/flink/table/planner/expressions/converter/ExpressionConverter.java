@@ -25,13 +25,11 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ExpressionVisitor;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
 import org.apache.flink.table.expressions.ModelReferenceExpression;
 import org.apache.flink.table.expressions.NestedFieldReferenceExpression;
-import org.apache.flink.table.expressions.ResolvedExpression;
-import org.apache.flink.table.expressions.ResolvedExpressionVisitor;
-import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
@@ -40,12 +38,10 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.ModelProviderFactory;
 import org.apache.flink.table.ml.ModelProvider;
 import org.apache.flink.table.module.Module;
-import org.apache.flink.table.operations.PartitionQueryOperation;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexFieldVariable;
 import org.apache.flink.table.planner.calcite.RexModelCall;
-import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule.ConvertContext;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
@@ -76,7 +72,6 @@ import java.time.LocalTime;
 import java.time.Period;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoField;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -89,19 +84,17 @@ import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.
 import static org.apache.flink.util.OptionalUtils.firstPresent;
 
 /** Visit expression to generator {@link RexNode}. */
-public class ExpressionConverter extends ResolvedExpressionVisitor<RexNode> {
+public class ExpressionConverter implements ExpressionVisitor<RexNode> {
 
     private final RelBuilder relBuilder;
     private final FlinkTypeFactory typeFactory;
     private final DataTypeFactory dataTypeFactory;
-    private final List<RelNode> inputStack;
 
     public ExpressionConverter(RelBuilder relBuilder) {
         this.relBuilder = relBuilder;
         this.typeFactory = (FlinkTypeFactory) relBuilder.getRexBuilder().getTypeFactory();
         this.dataTypeFactory =
                 unwrapContext(relBuilder.getCluster()).getCatalogManager().getDataTypeFactory();
-        this.inputStack = new ArrayList<>();
     }
 
     private List<CallExpressionConvertRule> getFunctionConvertChain(boolean isBatchMode) {
@@ -255,32 +248,35 @@ public class ExpressionConverter extends ResolvedExpressionVisitor<RexNode> {
     }
 
     @Override
-    public RexNode visit(TableReferenceExpression tableRef) {
-        final LogicalType tableArgType = tableRef.getOutputDataType().getLogicalType();
-        final RelDataType rowType = typeFactory.buildRelNodeRowType((RowType) tableArgType);
-        final int[] partitionKeys;
-        if (tableRef.getQueryOperation() instanceof PartitionQueryOperation) {
-            final PartitionQueryOperation partitionOperation =
-                    (PartitionQueryOperation) tableRef.getQueryOperation();
-            partitionKeys = partitionOperation.getPartitionKeys();
+    public RexNode visit(Expression other) {
+        if (other instanceof RexNodeExpression) {
+            return ((RexNodeExpression) other).getRexNode();
+        } else if (other instanceof LocalReferenceExpression) {
+            final LocalReferenceExpression local = (LocalReferenceExpression) other;
+            // check whether the local field reference can actually be resolved to an existing
+            // field otherwise preserve the locality attribute
+            RelNode inputNode;
+            try {
+                inputNode = relBuilder.peek();
+            } catch (Throwable t) {
+                inputNode = null;
+            }
+            if (inputNode != null
+                    && inputNode.getRowType().getFieldNames().contains(local.getName())) {
+                return relBuilder.field(local.getName());
+            }
+            return new RexFieldVariable(
+                    local.getName(),
+                    typeFactory.createFieldTypeFromLogicalType(
+                            fromDataTypeToLogicalType(local.getOutputDataType())));
+        } else if (other instanceof ModelReferenceExpression) {
+            return visit((ModelReferenceExpression) other);
         } else {
-            partitionKeys = new int[0];
+            throw new UnsupportedOperationException(
+                    other.getClass().getSimpleName() + ":" + other.toString());
         }
-        final RexTableArgCall tableArgCall =
-                new RexTableArgCall(rowType, inputStack.size(), partitionKeys, new int[0]);
-        inputStack.add(relBuilder.build());
-        return tableArgCall;
     }
 
-    public List<RelNode> copyInputStack() {
-        return new ArrayList<>(inputStack);
-    }
-
-    public void clearInputStack() {
-        inputStack.clear();
-    }
-
-    @Override
     public RexNode visit(ModelReferenceExpression modelRef) {
         final ContextResolvedModel contextResolvedModel = modelRef.getModel();
         final FlinkContext flinkContext = ShortcutUtils.unwrapContext(relBuilder);
@@ -320,35 +316,6 @@ public class ExpressionConverter extends ResolvedExpressionVisitor<RexNode> {
                 typeFactory.buildRelNodeRowType((RowType) modelOutputType);
 
         return new RexModelCall(modelOutputRelDataType, contextResolvedModel, modelProvider);
-    }
-
-    @Override
-    public RexNode visit(LocalReferenceExpression local) {
-        // check whether the local field reference can actually be resolved to an existing
-        // field otherwise preserve the locality attribute
-        RelNode inputNode;
-        try {
-            inputNode = relBuilder.peek();
-        } catch (Throwable t) {
-            inputNode = null;
-        }
-        if (inputNode != null && inputNode.getRowType().getFieldNames().contains(local.getName())) {
-            return relBuilder.field(local.getName());
-        }
-        return new RexFieldVariable(
-                local.getName(),
-                typeFactory.createFieldTypeFromLogicalType(
-                        fromDataTypeToLogicalType(local.getOutputDataType())));
-    }
-
-    @Override
-    public RexNode visit(ResolvedExpression other) {
-        if (other instanceof RexNodeExpression) {
-            return ((RexNodeExpression) other).getRexNode();
-        } else {
-            throw new UnsupportedOperationException(
-                    other.getClass().getSimpleName() + ":" + other.toString());
-        }
     }
 
     public static List<RexNode> toRexNodes(ConvertContext context, List<Expression> expr) {

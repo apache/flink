@@ -36,6 +36,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionDefaultVisitor;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -67,6 +68,7 @@ import org.apache.flink.table.operations.utils.QueryOperationDefaultVisitor;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.RexTableArgCall;
 import org.apache.flink.table.planner.connectors.DynamicSourceUtils;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.expressions.SqlAggFunctionVisitor;
@@ -300,13 +302,42 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             final RelDataType outputRelDataType =
                     typeFactory.buildRelNodeRowType((RowType) outputType);
 
+            final List<RelNode> inputStack = new ArrayList<>();
             final List<RexNode> rexNodeArgs =
                     resolvedArgs.stream()
-                            .map(QueryOperationConverter.this::convertExprToRexNode)
+                            .map(
+                                    resolvedArg -> {
+                                        if (resolvedArg instanceof TableReferenceExpression) {
+                                            final TableReferenceExpression tableRef =
+                                                    (TableReferenceExpression) resolvedArg;
+                                            final LogicalType tableArgType =
+                                                    tableRef.getOutputDataType().getLogicalType();
+                                            final RelDataType rowType =
+                                                    typeFactory.buildRelNodeRowType(
+                                                            (RowType) tableArgType);
+                                            final int[] partitionKeys;
+                                            if (tableRef.getQueryOperation()
+                                                    instanceof PartitionQueryOperation) {
+                                                final PartitionQueryOperation partitionOperation =
+                                                        (PartitionQueryOperation)
+                                                                tableRef.getQueryOperation();
+                                                partitionKeys =
+                                                        partitionOperation.getPartitionKeys();
+                                            } else {
+                                                partitionKeys = new int[0];
+                                            }
+                                            final RexTableArgCall tableArgCall =
+                                                    new RexTableArgCall(
+                                                            rowType,
+                                                            inputStack.size(),
+                                                            partitionKeys,
+                                                            new int[0]);
+                                            inputStack.add(relBuilder.build());
+                                            return tableArgCall;
+                                        }
+                                        return convertExprToRexNode(resolvedArg);
+                                    })
                             .collect(Collectors.toList());
-
-            final List<RelNode> inputStack = expressionConverter.copyInputStack();
-            expressionConverter.clearInputStack();
 
             // relBuilder.build() works in LIFO fashion, this restores the original input order
             Collections.reverse(inputStack);
