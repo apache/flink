@@ -78,6 +78,8 @@ public class SSLUtils {
      */
     public static ServerSocketFactory createSSLServerSocketFactory(Configuration config)
             throws Exception {
+        // server would recreate the socket on certificates reload
+        // since in java there is no build in method for cert reload for plain socket
         SSLContext sslContext = createInternalSSLContext(config, false, false);
         if (sslContext == null) {
             throw new IllegalConfigurationException("SSL is not enabled");
