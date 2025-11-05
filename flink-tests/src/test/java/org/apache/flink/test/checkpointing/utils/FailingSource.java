@@ -22,6 +22,8 @@ import org.apache.flink.api.common.functions.OpenContext;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.throwable.ThrowableAnnotation;
+import org.apache.flink.runtime.throwable.ThrowableType;
 import org.apache.flink.streaming.api.checkpoint.ListCheckpointed;
 import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
 
@@ -108,7 +110,7 @@ public class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>
                 while (checkpointStatus.get() != STATEFUL_CHECKPOINT_COMPLETED) {
                     Thread.sleep(1);
                 }
-                throw new Exception("Artificial Failure");
+                throw new NonRecoverableException("Artificial Failure");
             }
         }
 
@@ -150,5 +152,12 @@ public class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>
                     "Test failed due to unexpected recovered state size " + state.size());
         }
         this.emitCallCount = state.get(0);
+    }
+
+    @ThrowableAnnotation(ThrowableType.NonRecoverableError)
+    public static class NonRecoverableException extends Exception {
+        public NonRecoverableException(String s) {
+            super(s);
+        }
     }
 }
