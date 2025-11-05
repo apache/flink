@@ -33,6 +33,7 @@ import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackend;
 import org.apache.flink.state.rocksdb.EmbeddedRocksDBStateBackendTest;
 import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.io.TempDir;
@@ -48,6 +49,15 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
         extends EmbeddedRocksDBStateBackendTest {
 
     @TempDir private Path temp;
+
+    @BeforeEach
+    public void setup() throws IOException {
+        assumeFalse(
+                useHeapTimer,
+                "The combination RocksDB state backend with heap-based timers currently "
+                        + "does NOT support asynchronous snapshots for the timers state. "
+                        + "Thus we disable the changelog test for now.");
+    }
 
     @Override
     protected TestTaskStateManager getTestTaskStateManager() throws IOException {
@@ -115,9 +125,6 @@ public class ChangelogDelegateEmbeddedRocksDBStateBackendTest
 
     @TestTemplate
     public void testMaterializedRestorePriorityQueue() throws Exception {
-        assumeFalse(
-                useHeapTimer,
-                "Heap priority queue does not support restore test on managed keyed state");
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         ChangelogStateBackendTestUtils.testMaterializedRestoreForPriorityQueue(
