@@ -123,28 +123,22 @@ public abstract class StreamFaultToleranceTestBase extends TestLogger {
      */
     @Test
     public void runCheckpointedProgram() throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
+        env.enableCheckpointing(500);
+        RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
+
+        testProgram(env);
+
+        JobGraph jobGraph = env.getStreamGraph().getJobGraph();
         try {
-            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-            env.setParallelism(PARALLELISM);
-            env.enableCheckpointing(500);
-            RestartStrategyUtils.configureFixedDelayRestartStrategy(env, Integer.MAX_VALUE, 0L);
-
-            testProgram(env);
-
-            JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-            try {
-                submitJobAndWaitForResult(
-                        cluster.getClusterClient(), jobGraph, getClass().getClassLoader());
-            } catch (Exception e) {
-                Assert.assertTrue(
-                        ExceptionUtils.findThrowable(e, SuccessException.class).isPresent());
-            }
-
-            postSubmit();
+            submitJobAndWaitForResult(
+                    cluster.getClusterClient(), jobGraph, getClass().getClassLoader());
         } catch (Exception e) {
-            e.printStackTrace();
-            Assert.fail(e.getMessage());
+            Assert.assertTrue(ExceptionUtils.findThrowable(e, SuccessException.class).isPresent());
         }
+
+        postSubmit();
     }
 
     // --------------------------------------------------------------------------------------------

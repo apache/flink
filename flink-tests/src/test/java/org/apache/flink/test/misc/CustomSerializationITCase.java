@@ -40,7 +40,6 @@ import java.io.IOException;
 
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 /**
  * Test for proper error messages in case user-defined serialization is broken and detected in the
@@ -67,7 +66,7 @@ public class CustomSerializationITCase extends TestLogger {
     }
 
     @Test
-    public void testIncorrectSerializer1() {
+    public void testIncorrectSerializer1() throws Exception {
         try {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARLLELISM);
@@ -93,14 +92,11 @@ public class CustomSerializationITCase extends TestLogger {
                                                     .getMessage()
                                                     .contains("broken serialization."))
                             .isPresent());
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testIncorrectSerializer2() {
+    public void testIncorrectSerializer2() throws Exception {
         try {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARLLELISM);
@@ -126,14 +122,11 @@ public class CustomSerializationITCase extends TestLogger {
                                                     .getMessage()
                                                     .contains("broken serialization."))
                             .isPresent());
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testIncorrectSerializer3() {
+    public void testIncorrectSerializer3() throws Exception {
         try {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARLLELISM);
@@ -159,14 +152,11 @@ public class CustomSerializationITCase extends TestLogger {
                                                     .getMessage()
                                                     .contains("broken serialization."))
                             .isPresent());
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
     @Test
-    public void testIncorrectSerializer4() {
+    public void testIncorrectSerializer4() throws Exception {
         try {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             env.setParallelism(PARLLELISM);
@@ -192,9 +182,6 @@ public class CustomSerializationITCase extends TestLogger {
                                                     .getMessage()
                                                     .contains("broken serialization."))
                             .isPresent());
-        } catch (Exception e) {
-            e.printStackTrace();
-            fail(e.getMessage());
         }
     }
 
