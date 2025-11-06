@@ -1342,7 +1342,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                                         TEST_DEFAULT_DATABASE,
                                         "users_shops"));
 
-        assertThat(newTable.getDefinitionQuery()).isEqualTo(oldTable.getDefinitionQuery());
+        assertThat(newTable.getExpandedQuery()).isEqualTo(oldTable.getExpandedQuery());
 
         // the refresh handler in full mode should be the same as the old one
         assertThat(oldTable.getSerializedRefreshHandler())

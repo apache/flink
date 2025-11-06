@@ -64,11 +64,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.DATE_FORMATTER;
-import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.MATERIALIZED_TABLE_FRESHNESS_THRESHOLD;
 import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.PARTITION_FIELDS;
 import static org.apache.flink.table.catalog.CatalogBaseTable.TableKind.MATERIALIZED_TABLE;
-import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToCron;
-import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToDuration;
+import static org.apache.flink.table.catalog.IntervalFreshness.convertFreshnessToCron;
 
 /** A converter for {@link SqlCreateOrAlterMaterializedTable}. */
 public class SqlCreateOrAlterMaterializedTableConverter
@@ -161,26 +159,26 @@ public class SqlCreateOrAlterMaterializedTableConverter
 
         // Parse freshness
         ctx.intervalFreshness =
-                MaterializedTableUtils.getMaterializedTableFreshness(sql.getFreshness());
+                Optional.ofNullable(sql.getFreshness())
+                        .map(MaterializedTableUtils::getMaterializedTableFreshness)
+                        .orElse(null);
 
-        // Parse refresh mode
-        SqlRefreshMode sqlRefreshMode = null;
-        if (sql.getRefreshMode().isPresent()) {
-            sqlRefreshMode = sql.getRefreshMode().get().getValueAs(SqlRefreshMode.class);
-        }
+        // Get the logical refresh mode from SQL
+        SqlRefreshMode sqlRefreshMode =
+                Optional.ofNullable(sql.getRefreshMode())
+                        .map(mode -> mode.getValueAs(SqlRefreshMode.class))
+                        .orElse(null);
+
         ctx.logicalRefreshMode = MaterializedTableUtils.deriveLogicalRefreshMode(sqlRefreshMode);
 
-        // Derive refresh mode based on freshness threshold
+        // get the physical refresh mode from SQL
         ctx.refreshMode =
-                MaterializedTableUtils.deriveRefreshMode(
-                        context.getTableConfig()
-                                .getRootConfiguration()
-                                .get(MATERIALIZED_TABLE_FRESHNESS_THRESHOLD),
-                        convertFreshnessToDuration(ctx.intervalFreshness),
-                        ctx.logicalRefreshMode);
+                sqlRefreshMode == null
+                        ? null
+                        : MaterializedTableUtils.fromSqltoRefreshMode(sqlRefreshMode);
 
         // Validate freshness can convert to cron for full refresh mode
-        if (RefreshMode.FULL == ctx.refreshMode) {
+        if (RefreshMode.FULL == ctx.refreshMode && ctx.intervalFreshness != null) {
             convertFreshnessToCron(ctx.intervalFreshness);
         }
 
@@ -373,7 +371,7 @@ public class SqlCreateOrAlterMaterializedTableConverter
         ObjectIdentifier identifier;
         @Nullable String comment;
         Map<String, String> options;
-        IntervalFreshness intervalFreshness;
+        @Nullable IntervalFreshness intervalFreshness;
         LogicalRefreshMode logicalRefreshMode;
         RefreshMode refreshMode;
         String originalQuery;

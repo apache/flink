@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -29,7 +30,6 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 

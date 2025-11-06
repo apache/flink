@@ -207,9 +207,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         .logicalRefreshMode(LogicalRefreshMode.FULL)
                         .refreshMode(RefreshMode.FULL)
                         .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
-                        .definitionQuery(
-                                "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
-                                        + "FROM `builtin`.`default`.`t1` AS `t1`")
+                        .originalQuery("SELECT *\nFROM `t1`")
+                        .expandedQuery("SELECT *\nFROM `builtin`.`default`.`t1`")
                         .build();
 
         // The resolved freshness should default to 1 minute
@@ -259,9 +258,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         .partitionKeys(Arrays.asList("a", "d"))
                         .logicalRefreshMode(LogicalRefreshMode.AUTOMATIC)
                         .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
-                        .definitionQuery(
-                                "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
-                                        + "FROM `builtin`.`default`.`t1` AS `t1`")
+                        .originalQuery("SELECT *\nFROM `t1`")
+                        .expandedQuery("SELECT *\nFROM `builtin`.`default`.`t1`")
                         .build();
 
         final IntervalFreshness resolvedFreshness = materializedTable.getDefinitionFreshness();

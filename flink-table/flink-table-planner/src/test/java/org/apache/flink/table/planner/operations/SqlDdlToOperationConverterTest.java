@@ -1443,7 +1443,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                 + "  `user_id` INT NOT NULL,\n"
                                 + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
                                 + "), comment='null', distribution=null, partitionKeys=[], "
-                                + "options={format=debezium-json}, snapshot=null, definitionQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
+                                + "options={format=debezium-json}, snapshot=null, originalQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', expandedQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
                                 + "freshness=INTERVAL '30' SECOND, logicalRefreshMode=CONTINUOUS, refreshMode=CONTINUOUS, "
                                 + "refreshStatus=INITIALIZING, refreshHandlerDescription='null', serializedRefreshHandler=null}, resolvedSchema=(\n"
                                 + "  `shop_id` INT,\n"
@@ -1475,7 +1475,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                 + "  `user_id` INT NOT NULL,\n"
                                 + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
                                 + "), comment='null', distribution=DISTRIBUTED BY HASH(`user_id`) INTO 7 BUCKETS, partitionKeys=[], "
-                                + "options={format=debezium-json}, snapshot=null, definitionQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
+                                + "options={format=debezium-json}, snapshot=null, originalQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', expandedQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
                                 + "freshness=INTERVAL '30' SECOND, logicalRefreshMode=AUTOMATIC, refreshMode=null, "
                                 + "refreshStatus=INITIALIZING, refreshHandlerDescription='null', serializedRefreshHandler=null}, resolvedSchema=(\n"
                                 + "  `shop_id` INT NOT NULL,\n"
@@ -1517,7 +1517,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                         + "options={format=debezium-json}, snapshot=null, "
                         + "originalQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
                         + "expandedQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
-                        + "freshness=INTERVAL '30' SECOND, logicalRefreshMode=AUTOMATIC, refreshMode=CONTINUOUS, "
+                        + "freshness=INTERVAL '30' SECOND, logicalRefreshMode=AUTOMATIC, refreshMode=null, "
                         + "refreshStatus=INITIALIZING, refreshHandlerDescription='null', serializedRefreshHandler=null}, resolvedSchema=(\n"
                         + "  `shop_id` INT NOT NULL,\n"
                         + "  `user_id` INT NOT NULL,\n"
@@ -1529,18 +1529,18 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
         assertThat(operation.asSummaryString()).isEqualTo(expectedSummaryString);
         assertThat(
-                ((CreateMaterializedTableOperation) operation)
-                        .getCatalogMaterializedTable()
-                        .getDistribution()
-                        .get())
+                        ((CreateMaterializedTableOperation) operation)
+                                .getCatalogMaterializedTable()
+                                .getDistribution()
+                                .get())
                 .isEqualTo(TableDistribution.of(Kind.HASH, 7, List.of("user_id")));
 
         prepareMaterializedTable("tb2", false, 1, null, "SELECT 1");
 
         assertThatThrownBy(
-                () ->
-                        parse(
-                                "alter MATERIALIZED table cat1.db1.tb2 modify distribution into 3 buckets"))
+                        () ->
+                                parse(
+                                        "alter MATERIALIZED table cat1.db1.tb2 modify distribution into 3 buckets"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
                         "Materialized table `cat1`.`db1`.`tb2` does not have a distribution to modify.");
