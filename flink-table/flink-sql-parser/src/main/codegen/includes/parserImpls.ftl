@@ -1907,16 +1907,18 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
         <WITH>
         propertyList = Properties()
     ]
-    <FRESHNESS> <EQ>
-    freshness = Expression(ExprContext.ACCEPT_NON_QUERY)
-    {
-        if (!(freshness instanceof SqlIntervalLiteral))
+    [
+        <FRESHNESS> <EQ>
+        freshness = Expression(ExprContext.ACCEPT_NON_QUERY)
         {
-            throw SqlUtil.newContextException(
-            getPos(),
-            ParserResource.RESOURCE.unsupportedFreshnessType());
+            if (!(freshness instanceof SqlIntervalLiteral))
+            {
+                throw SqlUtil.newContextException(
+                getPos(),
+                ParserResource.RESOURCE.unsupportedFreshnessType());
+            }
         }
-    }
+    ]
     [
         <REFRESH_MODE> <EQ>
         (

@@ -16,53 +16,69 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.utils;
+package org.apache.flink.table.catalog;
 
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.IntervalFreshness;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
 
-import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToCron;
-import static org.apache.flink.table.utils.IntervalFreshnessUtils.convertFreshnessToDuration;
-import static org.apache.flink.table.utils.IntervalFreshnessUtils.validateIntervalFreshness;
+import static org.apache.flink.table.catalog.IntervalFreshness.convertFreshnessToCron;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Tests for {@link IntervalFreshnessUtils}. */
-public class IntervalFreshnessUtilsTest {
+/** Tests for {@link IntervalFreshness}. */
+public class IntervalFreshnessTest {
+
+    @ParameterizedTest
+    @ValueSource(strings = {"2efedd", "2.5", "-2", "0", "12345678901234567890"})
+    void testIllegalIntervalFreshness(String invalidInput) {
+        assertThatThrownBy(() -> IntervalFreshness.ofMinute(invalidInput))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(
+                        String.format(
+                                "The freshness interval currently only supports positive integer type values. But was: %s",
+                                invalidInput));
+    }
 
     @Test
-    void testIllegalIntervalFreshness() {
-        assertThatThrownBy(() -> validateIntervalFreshness(IntervalFreshness.ofMinute("2efedd")))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "The interval freshness value '2efedd' is an illegal integer type value.");
+    void testConvertDurationToFreshnessInterval() {
+        // verify second
+        IntervalFreshness actualSeconds = IntervalFreshness.fromDuration(Duration.ofSeconds(20));
+        assertThat(actualSeconds).isEqualTo(IntervalFreshness.ofSecond("20"));
 
-        assertThatThrownBy(() -> validateIntervalFreshness(IntervalFreshness.ofMinute("2.5")))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "The freshness interval currently only supports integer type values.");
+        // verify minute
+        IntervalFreshness actualMinutes = IntervalFreshness.fromDuration(Duration.ofMinutes(3));
+        assertThat(actualMinutes).isEqualTo(IntervalFreshness.ofMinute("3"));
+
+        // verify hour
+        IntervalFreshness actualHour = IntervalFreshness.fromDuration(Duration.ofHours(1));
+        assertThat(actualHour).isEqualTo(IntervalFreshness.ofHour("1"));
+
+        // verify day
+        IntervalFreshness actualDay = IntervalFreshness.fromDuration(Duration.ofDays(2));
+        assertThat(actualDay).isEqualTo(IntervalFreshness.ofDay("2"));
     }
 
     @Test
     void testConvertFreshnessToDuration() {
         // verify second
-        Duration actualSecond = convertFreshnessToDuration(IntervalFreshness.ofSecond("20"));
+        Duration actualSecond = IntervalFreshness.ofSecond("20").toDuration();
         assertThat(actualSecond).isEqualTo(Duration.ofSeconds(20));
 
         // verify minute
-        Duration actualMinute = convertFreshnessToDuration(IntervalFreshness.ofMinute("3"));
+        Duration actualMinute = IntervalFreshness.ofMinute("3").toDuration();
         assertThat(actualMinute).isEqualTo(Duration.ofMinutes(3));
 
         // verify hour
-        Duration actualHour = convertFreshnessToDuration(IntervalFreshness.ofHour("3"));
+        Duration actualHour = IntervalFreshness.ofHour("3").toDuration();
         assertThat(actualHour).isEqualTo(Duration.ofHours(3));
 
         // verify day
-        Duration actualDay = convertFreshnessToDuration(IntervalFreshness.ofDay("3"));
+        Duration actualDay = IntervalFreshness.ofDay("3").toDuration();
         assertThat(actualDay).isEqualTo(Duration.ofDays(3));
     }
 

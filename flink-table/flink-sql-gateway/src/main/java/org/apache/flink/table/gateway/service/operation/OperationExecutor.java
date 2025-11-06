@@ -556,8 +556,7 @@ public class OperationExecutor {
             return sessionContext
                     .getSessionState()
                     .materializedTableManager
-                    .callMaterializedTableOperation(
-                            this, handle, (MaterializedTableOperation) op, statement);
+                    .callMaterializedTableOperation(this, handle, (MaterializedTableOperation) op);
         } else {
             return callOperation(tableEnv, handle, op);
         }

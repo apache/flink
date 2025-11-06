@@ -22,12 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.IntervalFreshness;
 
 import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.type.SqlTypeFamily;
-
-import java.time.Duration;
 
 /** The utils for materialized table. */
 @Internal
@@ -79,22 +78,14 @@ public class MaterializedTableUtils {
         }
     }
 
-    public static CatalogMaterializedTable.RefreshMode deriveRefreshMode(
-            Duration threshold,
-            Duration definedFreshness,
-            CatalogMaterializedTable.LogicalRefreshMode definedRefreshMode) {
-        // If the refresh mode is specified manually, use it directly.
-        if (definedRefreshMode == CatalogMaterializedTable.LogicalRefreshMode.FULL) {
-            return CatalogMaterializedTable.RefreshMode.FULL;
-        } else if (definedRefreshMode == CatalogMaterializedTable.LogicalRefreshMode.CONTINUOUS) {
-            return CatalogMaterializedTable.RefreshMode.CONTINUOUS;
-        }
-
-        // derive the actual refresh mode via defined freshness
-        if (definedFreshness.compareTo(threshold) < 0) {
-            return CatalogMaterializedTable.RefreshMode.CONTINUOUS;
-        } else {
-            return CatalogMaterializedTable.RefreshMode.FULL;
+    public static RefreshMode fromSqltoRefreshMode(SqlRefreshMode sqlRefreshMode) {
+        switch (sqlRefreshMode) {
+            case FULL:
+                return RefreshMode.FULL;
+            case CONTINUOUS:
+                return RefreshMode.CONTINUOUS;
+            default:
+                throw new IllegalArgumentException("Unknown refresh mode: " + sqlRefreshMode);
         }
     }
 }

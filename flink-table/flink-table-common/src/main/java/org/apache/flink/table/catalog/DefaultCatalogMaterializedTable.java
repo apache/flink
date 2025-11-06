@@ -60,9 +60,9 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
             Map<String, String> options,
             @Nullable Long snapshot,
             String definitionQuery,
-            IntervalFreshness freshness,
+            @Nullable IntervalFreshness freshness,
             LogicalRefreshMode logicalRefreshMode,
-            RefreshMode refreshMode,
+            @Nullable RefreshMode refreshMode,
             RefreshStatus refreshStatus,
             @Nullable String refreshHandlerDescription,
             @Nullable byte[] serializedRefreshHandler) {
@@ -73,10 +73,10 @@ public class DefaultCatalogMaterializedTable implements CatalogMaterializedTable
         this.options = checkNotNull(options, "Options must not be null.");
         this.snapshot = snapshot;
         this.definitionQuery = checkNotNull(definitionQuery, "Definition query must not be null.");
-        this.freshness = checkNotNull(freshness, "Freshness must not be null.");
+        this.freshness = freshness;
         this.logicalRefreshMode =
                 checkNotNull(logicalRefreshMode, "Logical refresh mode must not be null.");
-        this.refreshMode = checkNotNull(refreshMode, "Refresh mode must not be null.");
+        this.refreshMode = refreshMode;
         this.refreshStatus = checkNotNull(refreshStatus, "Refresh status must not be null.");
         this.refreshHandlerDescription = refreshHandlerDescription;
         this.serializedRefreshHandler = serializedRefreshHandler;

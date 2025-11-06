@@ -35,21 +35,21 @@ Flink SQL 目前支持以下物化表操作：
 
 ```
 CREATE MATERIALIZED TABLE [catalog_name.][db_name.]table_name
- 
+
 [ ([ <table_constraint> ]) ]
- 
+
 [COMMENT table_comment]
- 
+
 [PARTITIONED BY (partition_column_name1, partition_column_name2, ...)]
- 
+
 [WITH (key1=val1, key2=val2, ...)]
- 
+
 FRESHNESS = INTERVAL '<num>' { SECOND | MINUTE | HOUR | DAY }
- 
+
 [REFRESH_MODE = { CONTINUOUS | FULL }]
- 
+
 AS <select_statement>
- 
+
 <table_constraint>:
   [CONSTRAINT constraint_name] PRIMARY KEY (column_name, ...) NOT ENFORCED
 ```
@@ -69,7 +69,7 @@ AS <select_statement>
 CREATE MATERIALIZED TABLE my_materialized_table
     PARTITIONED BY (ds)
     FRESHNESS = INTERVAL '1' HOUR
-    AS SELECT 
+    AS SELECT
         ds
     FROM
         ...
@@ -103,9 +103,11 @@ CREATE MATERIALIZED TABLE my_materialized_table
 
 `FRESHNESS` 用于指定物化表的数据新鲜度。
 
+`FRESHNESS` is optional. When omitted, the system uses the default freshness based on the refresh mode: `materialized-table.default-freshness.continuous` (default: 3 minutes) for CONTINUOUS mode, or `materialized-table.default-freshness.full` (default: 1 hour) for FULL mode.
+
 **数据新鲜度与刷新模式关系**
 
-数据新鲜度定义了物化表内容滞后于基础表更新的最长时间。它有两个作用，首先通过[配置]({{< ref "docs/dev/table/config" >}}#materialized-table-refresh-mode-freshness-threshold)确定物化表的[刷新模式]({{< ref "docs/dev/table/materialized-table/overview" >}}#刷新模式)，然后确定数据刷新频率以满足实际数据新鲜度要求。
+数据新鲜度定义了物化表内容滞后于基础表更新的最长时间。When not specified, it uses the default value from configuration based on the refresh mode. 它有两个作用，首先通过[配置]({{< ref "docs/dev/table/config" >}}#materialized-table-refresh-mode-freshness-threshold)确定物化表的[刷新模式]({{< ref "docs/dev/table/materialized-table/overview" >}}#刷新模式)，然后确定数据刷新频率以满足实际数据新鲜度要求。
 
 **FRESHNESS 参数详解**
 
@@ -128,6 +130,22 @@ FRESHNESS = INTERVAL '1' HOUR
 FRESHNESS = INTERVAL '1' DAY
 ```
 
+**Default FRESHNESS Example:**
+(Assuming `materialized-table.default-freshness.continuous` is 3 minutes, `materialized-table.default-freshness.full` is 1 hour, and `materialized-table.refresh-mode.freshness-threshold` is 30 minutes)
+
+```sql
+-- FRESHNESS is omitted, uses the configured default of 3 minutes for CONTINUOUS mode
+-- The corresponding refresh pipeline is a streaming job with a checkpoint interval of 3 minutes
+CREATE MATERIALIZED TABLE my_materialized_table
+    AS SELECT * FROM source_table;
+
+-- FRESHNESS is omitted and FULL mode is explicitly specified, uses the configured default of 1 hour
+-- The corresponding refresh pipeline is a scheduled workflow with a schedule cycle of 1 hour
+CREATE MATERIALIZED TABLE my_materialized_table_full
+    REFRESH_MODE = FULL
+    AS SELECT * FROM source_table;
+```
+
 **不合法的 `FRESHNESS` 示例：**
 
 ```sql
@@ -147,6 +165,7 @@ FRESHNESS = INTERVAL '5' HOUR
 ```
 
 <span class="label label-danger">注意</span>
+- If FRESHNESS is not specified, the table will use the default freshness interval based on the refresh mode: `materialized-table.default-freshness.continuous` (default: 3 minutes) for CONTINUOUS mode, or `materialized-table.default-freshness.full` (default: 1 hour) for FULL mode.
 - 尽管物化表数据将尽可能在定义的新鲜度内刷新，但不能保证完全满足新鲜度要求。
 - 在持续模式下，数据新鲜度和 `checkpoint` 间隔一致，设置过短的数据新鲜度可能会对作业性能产生影响。此外，为了优化 `checkpoint` 性能，建议[开启 Changelog]({{< ref "docs/ops/state/state_backends" >}}#开启-changelog)。
 - 在全量模式下，数据新鲜度会转换为 `cron` 表达式，因此目前仅支持在预定义时间间隔单位内的新鲜度间隔，这种设计确保了与 `cron` 表达式语义的一致性。具体支持以下新鲜度间隔：
@@ -168,14 +187,14 @@ CREATE MATERIALIZED TABLE my_materialized_table
     FRESHNESS = INTERVAL '1' HOUR
     REFRESH_MODE = CONTINUOUS
     AS SELECT
-       ...    
+       ...
 
 -- 创建的物化表的刷新模式为全量模式，作业的调度周期为 10 分钟。
 CREATE MATERIALIZED TABLE my_materialized_table
     FRESHNESS = INTERVAL '10' MINUTE
     REFRESH_MODE = FULL
     AS SELECT
-       ...    
+       ...
 ```
 
 ## AS <select_statement>
@@ -204,22 +223,22 @@ CREATE MATERIALIZED TABLE my_materialized_table_continuous
         'partition.fields.ds.date-formatter' = 'yyyy-MM-dd'
     )
     FRESHNESS = INTERVAL '10' SECOND
-    AS 
-    SELECT 
+    AS
+    SELECT
         k.ds,
         k.user_id,
         COUNT(*) AS event_count,
         SUM(k.amount) AS total_amount,
         MAX(u.age) AS max_age
-    FROM 
+    FROM
         kafka_catalog.db1.kafka_table k
-    JOIN 
+    JOIN
         user_catalog.db1.user_table u
-    ON 
+    ON
         k.user_id = u.user_id
-    WHERE 
+    WHERE
         k.event_type = 'purchase'
-    GROUP BY 
+    GROUP BY
         k.ds, k.user_id
 ```
 
@@ -233,22 +252,22 @@ CREATE MATERIALIZED TABLE my_materialized_table_full
         'partition.fields.ds.date-formatter' = 'yyyy-MM-dd'
     )
     FRESHNESS = INTERVAL '1' HOUR
-    AS 
-    SELECT 
+    AS
+    SELECT
         p.ds,
         p.product_id,
         p.product_name,
         AVG(s.sale_price) AS avg_sale_price,
         SUM(s.quantity) AS total_quantity
-    FROM 
+    FROM
         paimon_catalog.db1.product_table p
-    LEFT JOIN 
+    LEFT JOIN
         paimon_catalog.db1.sales_table s
-    ON 
+    ON
         p.product_id = s.product_id
-    WHERE 
+    WHERE
         p.category = 'electronics'
-    GROUP BY 
+    GROUP BY
         p.ds, p.product_id, p.product_name
 ```
 
@@ -276,7 +295,7 @@ ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name SUSPEND
 
 `SUSPEND` 用于暂停物化表的后台刷新管道。
 
-**示例:** 
+**示例:**
 
 ```sql
 -- 暂停前指定 SAVEPOINT 路径
@@ -297,7 +316,7 @@ ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name RESUME [WITH (key1=
 
 `RESUME` 用于恢复物化表的刷新管道。在恢复时，可以通过 `WITH` 子句动态指定物化表的参数，该参数仅对当前恢复的刷新管道生效，并不会持久化到物化表中。
 
-**示例:** 
+**示例:**
 
 ```sql
 -- 恢复指定的物化表
@@ -358,21 +377,21 @@ ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name AS <select_statemen
 -- 原始物化表定义
 CREATE MATERIALIZED TABLE my_materialized_table
     FRESHNESS = INTERVAL '10' SECOND
-    AS 
-    SELECT 
+    AS
+    SELECT
         user_id,
         COUNT(*) AS event_count,
         SUM(amount) AS total_amount
-    FROM 
+    FROM
         kafka_catalog.db1.events
-    WHERE 
+    WHERE
         event_type = 'purchase'
-    GROUP BY 
+    GROUP BY
         user_id;
 
 -- 修改现有物化表的查询
 ALTER MATERIALIZED TABLE my_materialized_table
-AS SELECT 
+AS SELECT
     user_id,
     COUNT(*) AS event_count,
     SUM(amount) AS total_amount,
@@ -403,7 +422,3 @@ DROP MATERIALIZED TABLE [IF EXISTS] [catalog_name.][database_name.]table_name
 -- 删除指定的物化表
 DROP MATERIALIZED TABLE IF EXISTS my_materialized_table;
 ```
-
-
-
-

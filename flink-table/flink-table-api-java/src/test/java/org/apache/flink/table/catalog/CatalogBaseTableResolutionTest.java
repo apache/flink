@@ -197,8 +197,8 @@ class CatalogBaseTableResolutionTest {
 
         assertThat(resolvedMaterializedTable.getDefinitionQuery())
                 .isEqualTo(materializedTable.getDefinitionQuery());
-        assertThat(resolvedMaterializedTable.getFreshness())
-                .isEqualTo(materializedTable.getFreshness());
+        assertThat(resolvedMaterializedTable.getDefinitionFreshness())
+                .isEqualTo(materializedTable.getDefinitionFreshness());
         assertThat(resolvedMaterializedTable.getLogicalRefreshMode())
                 .isEqualTo(materializedTable.getLogicalRefreshMode());
         assertThat(resolvedMaterializedTable.getRefreshMode())

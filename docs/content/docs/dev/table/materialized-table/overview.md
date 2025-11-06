@@ -34,7 +34,9 @@ Materialized Table encompass the following core concepts: Data Freshness, Refres
 
 ## Data Freshness
 
-Data freshness defines the maximum amount of time that the materialized table’s content should lag behind updates to the base tables. Freshness is not a guarantee. Instead, it is a target that Flink attempts to meet. Data in materialized table is refreshed as closely as possible within the freshness.
+Data freshness defines the maximum amount of time that the materialized table's content should lag behind updates to the base tables. Freshness is not a guarantee. Instead, it is a target that Flink attempts to meet. The data in materialized table is refreshed as closely as possible within the freshness target.
+
+Data freshness is optional when creating a materialized table. If not specified, the system uses the default freshness based on the refresh mode: [materialized-table.default-freshness.continuous]({{< ref "docs/dev/table/config" >}}#materialized-table-default-freshness-continuous) (default: 3 minutes) for CONTINUOUS mode, or [materialized-table.default-freshness.full]({{< ref "docs/dev/table/config" >}}#materialized-table-default-freshness-full) (default: 1 hour) for FULL mode.
 
 Data freshness is a crucial attribute of a materialized table, serving two main purposes:
 - **Determining the Refresh Mode**. Currently, there are CONTINUOUS and FULL modes. For details on how to determine the refresh mode, refer to the [materialized-table.refresh-mode.freshness-threshold]({{< ref "docs/dev/table/config" >}}#materialized-table-refresh-mode-freshness-threshold) configuration item.
