@@ -46,7 +46,7 @@ import org.junit.jupiter.api.extension.RegisterExtension
 import java.time.Instant
 import java.util
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 class CalcITCase extends StreamingTestBase {
 
@@ -288,6 +288,7 @@ class CalcITCase extends StreamingTestBase {
     assertThat(
       TestValuesTableFactory
         .getResultsAsStrings("MySink")
+        .asScala
         .sorted).isEqualTo(expected.sorted)
   }
 
@@ -391,6 +392,7 @@ class CalcITCase extends StreamingTestBase {
     val actual = tEnv
       .executeSql("SELECT IF(a > 3, 'true', 'false'), a from t")
       .collect()
+      .asScala
       .map(r => r.toString)
       .toList
     assertThat(actual.sorted).isEqualTo(expected.sorted)
@@ -433,7 +435,7 @@ class CalcITCase extends StreamingTestBase {
     val result = tEnv.executeSql("select a, b from CustomTable")
 
     val expected = List("1,{1=2}", "2,{4=5}")
-    val actual = CollectionUtil.iteratorToList(result.collect()).map(r => r.toString)
+    val actual = CollectionUtil.iteratorToList(result.collect()).asScala.map(r => r.toString)
     assertThat(actual.sorted).isEqualTo(expected.sorted)
   }
 
@@ -563,7 +565,9 @@ class CalcITCase extends StreamingTestBase {
       .select($("id"), currentWatermark($("ts")))
       .execute()
       .collect()
+      .asScala
       .toList
+      .asJava
     TestBaseUtils.compareResultAsText(
       result1,
       """1,null
@@ -576,7 +580,9 @@ class CalcITCase extends StreamingTestBase {
       .sqlQuery("SELECT id, CURRENT_WATERMARK(ts) FROM T")
       .execute()
       .collect()
+      .asScala
       .toList
+      .asJava
     TestBaseUtils.compareResultAsText(
       result2,
       """1,null
@@ -591,7 +597,9 @@ class CalcITCase extends StreamingTestBase {
           |""".stripMargin)
       .execute()
       .collect()
+      .asScala
       .toList
+      .asJava
     TestBaseUtils.compareResultAsText(
       result3,
       """1
@@ -610,7 +618,9 @@ class CalcITCase extends StreamingTestBase {
                   |""".stripMargin)
       .execute()
       .collect()
+      .asScala
       .toList
+      .asJava
     TestBaseUtils.compareResultAsText(
       result4,
       """1990-06-02T13:37:43,null
@@ -679,13 +689,13 @@ class CalcITCase extends StreamingTestBase {
         .build()
     )
 
-    val result = tEnv.sqlQuery("SELECT * FROM T").execute().collect().toList
+    val result = tEnv.sqlQuery("SELECT * FROM T").execute().collect().asScala.toList.asJava
     TestBaseUtils.compareResultAsText(result, "42")
   }
 
   @Test
   def testSearch(): Unit = {
-    val stream = env.fromElements("HC809", "H389N     ")
+    val stream = env.fromData("HC809", "H389N     ")
     tEnv.createTemporaryView(
       "SimpleTable",
       stream,
@@ -737,13 +747,15 @@ class CalcITCase extends StreamingTestBase {
           "COALESCE(cast(NULL as double), cast(NULL as double))")
       .execute()
       .collect()
+      .asScala
       .toList
+      .asJava
     TestBaseUtils.compareResultAsText(result, "1,1,2,1,3,4,1,1,2,1,3,4,1.0,1.0,2.0,2.0,2.0,null")
   }
 
   @Test
   def testCurrentDatabase(): Unit = {
-    val result1 = tEnv.sqlQuery("SELECT CURRENT_DATABASE()").execute().collect().toList
+    val result1 = tEnv.sqlQuery("SELECT CURRENT_DATABASE()").execute().collect().asScala.toList
     assertThat(result1).isEqualTo(Seq(row(tEnv.getCurrentDatabase)))
 
     // switch to another database
@@ -755,7 +767,8 @@ class CalcITCase extends StreamingTestBase {
         new CatalogDatabaseImpl(new util.HashMap[String, String](), "db1"),
         false)
     tEnv.useDatabase("db1")
-    val result2 = tEnv.sqlQuery("SELECT CURRENT_DATABASE()").execute().collect().toList
+    val result2 =
+      tEnv.sqlQuery("SELECT CURRENT_DATABASE()").execute().collect().asScala.toList
     assertThat(result2).isEqualTo(Seq(row(tEnv.getCurrentDatabase)))
   }
 
@@ -851,6 +864,7 @@ class CalcITCase extends StreamingTestBase {
     val actual = tEnv
       .executeSql("select a.data.nested.trId, b.data.nested.trId, b AS col from t")
       .collect()
+      .asScala
       .map(r => r)
       .toList
     assertThat(actual).isEqualTo(expected)
@@ -873,6 +887,7 @@ class CalcITCase extends StreamingTestBase {
                      |))
                      |""".stripMargin)
       .collect()
+      .asScala
       .toList
 
     val field = result.head.getField(0)
@@ -900,6 +915,7 @@ class CalcITCase extends StreamingTestBase {
                      |))
                      |""".stripMargin)
       .collect()
+      .asScala
       .toList
 
     val field = result.head.getField(0)
