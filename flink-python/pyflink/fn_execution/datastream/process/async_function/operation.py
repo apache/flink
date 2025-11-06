@@ -153,6 +153,7 @@ class RetryableResultHandler(ResultFuture, Generic[IN, OUT]):
             retry_strategy.get_retry_predicate().exception_predicate() or (lambda _: False)
         self._retry_awaiting = AtomicBoolean(False)
         self._current_attempts = 1
+        self._delayed_retry_timer = None
 
     def register_timeout(self, timeout):
         timer = threading.Timer(timeout, self._timer_triggered)
