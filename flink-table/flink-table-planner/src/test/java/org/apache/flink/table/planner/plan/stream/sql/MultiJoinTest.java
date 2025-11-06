@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 import scala.Enumeration;
@@ -187,6 +188,7 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    @Tag("no-common-join-key")
     void testThreeWayInnerJoinNoCommonJoinKeyRelPlan() {
         util.verifyRelPlan(
                 "SELECT u.user_id, u.name, o.order_id, p.payment_id "
@@ -286,6 +288,7 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    @Tag("no-common-join-key")
     void testThreeWayJoinNoJoinKeyExecPlan() {
         util.verifyExecPlan(
                 "SELECT u.user_id, u.name, o.order_id, p.payment_id "
@@ -295,6 +298,7 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    @Tag("no-common-join-key")
     void testFourWayJoinNoCommonJoinKeyRelPlan() {
         util.verifyRelPlan(
                 "SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location "
@@ -698,6 +702,7 @@ public class MultiJoinTest extends TableTestBase {
      * a single MultiJoin node initially.
      */
     @Test
+    @Tag("expected-multijoin-chain")
     void testFourWayJoinNoCommonJoinKeyWithFunctionInCondition() {
         util.verifyRelPlan(
                 "SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location "
@@ -714,6 +719,7 @@ public class MultiJoinTest extends TableTestBase {
      * because `documents.common_id` is different from `other_documents.common_id`.
      */
     @Test
+    @Tag("no-common-join-key")
     void testComplexCommonJoinKeyMissingProjection() {
         util.tableEnv()
                 .executeSql(
@@ -805,6 +811,7 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    @Tag("no-common-join-key")
     void testComplexConditionalLogicWithMultiJoin() {
         util.tableEnv()
                 .executeSql(
@@ -854,6 +861,7 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    @Tag("no-common-join-key")
     void testComplexCTEWithMultiJoin() {
         util.tableEnv()
                 .executeSql(
@@ -899,6 +907,7 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    @Tag("no-common-join-key")
     void testAggregationAndGroupingWithMultiJoin() {
         util.tableEnv()
                 .executeSql(
@@ -940,6 +949,7 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    @Tag("no-common-join-key")
     void testFunctionAndExpressionWithMultiJoin() {
         util.tableEnv()
                 .executeSql(
@@ -995,6 +1005,7 @@ public class MultiJoinTest extends TableTestBase {
      * Therefore, in this test, each Join is still converted to a MultiJoin individually.
      */
     @Test
+    @Tag("expected-multijoin-chain")
     void testJoinConditionHasNestedFields() {
         util.tableEnv()
                 .executeSql(
@@ -1048,6 +1059,7 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    @Tag("expected-multijoin-chain")
     void testComplexNestedCTEWithAggregationAndFunctions() {
         util.tableEnv()
                 .executeSql(
@@ -1108,6 +1120,38 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    void testJoinOfProjections() {
+        util.verifyRelPlan(
+                "SELECT u.user_id, o.order_id, o.product, p.price, s.location "
+                        + "FROM (SELECT user_id, name, cash FROM Users WHERE cash > 100) AS u "
+                        + "JOIN (SELECT user_id, order_id, product FROM Orders WHERE product IS NOT NULL) AS o "
+                        + "  ON u.user_id = o.user_id "
+                        + "LEFT JOIN (SELECT user_id, price FROM Payments WHERE price > 50) AS p "
+                        + "  ON u.user_id = p.user_id "
+                        + "LEFT JOIN (SELECT user_id, location FROM Shipments WHERE location IS NOT NULL) AS s "
+                        + "  ON u.user_id = s.user_id");
+    }
+
+    @Test
+    @Tag("expected-multijoin-chain")
+    void testJoinWithNestedSubquery() {
+        util.verifyRelPlan(
+                "SELECT * "
+                        + "FROM Users u "
+                        + "JOIN ("
+                        + "    SELECT o.user_id, o.order_id, p.payment_id, p.price "
+                        + "    FROM Orders o "
+                        + "    JOIN ("
+                        + "        SELECT payment_id, user_id, price "
+                        + "        FROM Payments "
+                        + "        WHERE price > 100"
+                        + "    ) AS p "
+                        + "    ON o.user_id = p.user_id"
+                        + ") AS op "
+                        + "ON u.user_id = op.user_id");
+    }
+
+    @Test
     void testCTEWithMultiJoinV2() {
         util.tableEnv()
                 .executeSql(
@@ -1146,8 +1190,39 @@ public class MultiJoinTest extends TableTestBase {
                         + "  hbd.budget "
                         + "FROM Users u "
                         + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "LEFT JOIN high_budget_depts hbd ON o.product = hbd.dept_id "
+                        + "LEFT JOIN high_budget_depts hbd ON o.user_id = hbd.dept_id "
                         + "LEFT JOIN active_projects ap ON hbd.dept_id = ap.dept_id");
+    }
+
+    @Test
+    void testWithOrInJoinCondition() {
+        util.verifyRelPlan(
+                "SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location "
+                        + "FROM Users u "
+                        + "LEFT JOIN Orders o ON o.user_id = u.user_id "
+                        + "LEFT JOIN Payments p ON u.user_id = p.user_id OR u.name = p.payment_id "
+                        + "LEFT JOIN Shipments s ON p.user_id = s.user_id");
+    }
+
+    @Test
+    @Tag("expected-multijoin-chain")
+    void testWithCastCommonJoinKeyToInteger() {
+        util.verifyRelPlan(
+                "SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location "
+                        + "FROM Users u "
+                        + "LEFT JOIN Orders o ON o.user_id = u.user_id "
+                        + "LEFT JOIN Payments p ON CAST(u.user_id as INTEGER) = CAST(p.user_id as INTEGER)"
+                        + "LEFT JOIN Shipments s ON u.user_id = s.user_id");
+    }
+
+    @Test
+    void testWithCastCommonJoinKeyToVarchar() {
+        util.verifyRelPlan(
+                "SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location "
+                        + "FROM Users u "
+                        + "LEFT JOIN Orders o ON o.user_id = u.user_id "
+                        + "LEFT JOIN Payments p ON CAST(u.user_id as VARCHAR) = CAST(p.user_id as VARCHAR)"
+                        + "LEFT JOIN Shipments s ON u.user_id = s.user_id");
     }
 
     @Test
@@ -1157,7 +1232,8 @@ public class MultiJoinTest extends TableTestBase {
                         "CREATE TABLE Categories ("
                                 + "  category_id STRING PRIMARY KEY NOT ENFORCED,"
                                 + "  category_name STRING,"
-                                + "  parent_category STRING"
+                                + "  parent_category STRING,"
+                                + "  user_id STRING"
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
 
         util.tableEnv()
@@ -1180,7 +1256,7 @@ public class MultiJoinTest extends TableTestBase {
                         + "  MAX(s.amount) AS max_sale_amount "
                         + "FROM Users u "
                         + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "LEFT JOIN Categories c ON o.product = c.category_id "
+                        + "LEFT JOIN Categories c ON u.user_id = c.user_id AND o.product = c.category_id "
                         + "LEFT JOIN Sales s ON u.user_id = s.user_id "
                         + "GROUP BY c.category_name "
                         + "HAVING COUNT(s.sale_id) > 0");
@@ -1197,6 +1273,7 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    @Tag("expected-multijoin-chain")
     void testWithExpressionInJoinCondition() {
         util.tableEnv()
                 .executeSql(
@@ -1237,6 +1314,7 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    @Tag("no-common-join-key")
     void testFunctionAndExpressionWithMultiJoinV2() {
         util.tableEnv()
                 .executeSql(

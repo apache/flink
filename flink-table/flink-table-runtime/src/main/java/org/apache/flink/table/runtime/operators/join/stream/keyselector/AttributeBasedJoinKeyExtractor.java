@@ -22,6 +22,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.NoCommonJoinKeyException;
 
 import javax.annotation.Nullable;
 
@@ -532,7 +533,7 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
             if (commonAttrsForThisInput.isEmpty()) {
                 // This indicates that there is no common join key among all inputs.
                 // In this case, we cannot use a multi-join, so throw an exception.
-                throw new IllegalStateException(
+                throw new NoCommonJoinKeyException(
                         "All inputs in a multi-way join must share a common join key. Input #"
                                 + currentInputId
                                 + " does not share a join key with the other inputs. Please ensure all join"

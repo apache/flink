@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.plan.utils.IntervalJoinUtil;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.NoCommonJoinKeyException;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -446,30 +447,24 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
      * @return true if original Join and child multi-join have at least one common JoinKey
      */
     private boolean haveCommonJoinKey(Join origJoin, MultiJoin otherJoin) {
-        final List<RowType> otherJoinInputTypes =
-                otherJoin.getInputs().stream()
-                        .map(i -> FlinkTypeFactory.toLogicalRowType(i.getRowType()))
-                        .collect(Collectors.toUnmodifiableList());
-        final List<RowType> origJoinInputTypes =
-                List.of(FlinkTypeFactory.toLogicalRowType(origJoin.getRight().getRowType()));
-        final List<RowType> combinedInputTypes =
-                Stream.concat(otherJoinInputTypes.stream(), origJoinInputTypes.stream())
+        final List<RelNode> combinedJoinInputs =
+                Stream.concat(otherJoin.getInputs().stream(), Stream.of(origJoin.getRight()))
                         .collect(Collectors.toUnmodifiableList());
 
-        final List<RexNode> otherJoinConditions = otherJoin.getOuterJoinConditions();
-        final List<RexNode> origJoinCondition = List.of(origJoin.getCondition());
+        final List<RowType> combinedInputTypes =
+                combinedJoinInputs.stream()
+                        .map(i -> FlinkTypeFactory.toLogicalRowType(i.getRowType()))
+                        .collect(Collectors.toUnmodifiableList());
+
         final List<RexNode> combinedJoinConditions =
-                Stream.concat(otherJoinConditions.stream(), origJoinCondition.stream())
+                Stream.concat(
+                                otherJoin.getOuterJoinConditions().stream(),
+                                List.of(origJoin.getCondition()).stream())
                         .collect(Collectors.toUnmodifiableList());
 
         final Map<Integer, List<AttributeBasedJoinKeyExtractor.ConditionAttributeRef>>
                 joinAttributeMap =
-                        createJoinAttributeMap(
-                                Stream.concat(
-                                                otherJoin.getInputs().stream(),
-                                                Stream.of(origJoin.getRight()))
-                                        .collect(Collectors.toUnmodifiableList()),
-                                combinedJoinConditions);
+                        createJoinAttributeMap(combinedJoinInputs, combinedJoinConditions);
 
         boolean haveCommonJoinKey = false;
         try {
@@ -478,7 +473,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
             final JoinKeyExtractor keyExtractor =
                     new AttributeBasedJoinKeyExtractor(joinAttributeMap, combinedInputTypes);
             haveCommonJoinKey = keyExtractor.getCommonJoinKeyIndices(0).length > 0;
-        } catch (IllegalStateException ignored) {
+        } catch (NoCommonJoinKeyException ignored) {
             // failed to instantiate common join key structures => haveCommonJoinKey is false
         }
 
