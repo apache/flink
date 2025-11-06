@@ -40,7 +40,6 @@ import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.schema.SchemaVersion;
@@ -129,10 +128,7 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
                 typeFactory,
                 config,
                 ShortcutUtils.unwrapTableConfig(relOptCluster)
-                                        .get(TableConfigOptions.LEGACY_EXTENDED_ROW_STRUCT_KIND)
-                                == Boolean.TRUE
-                        ? StructKind.FULLY_QUALIFIED
-                        : StructKind.PEEK_FIELDS_NO_EXPAND);
+                        .get(TableConfigOptions.LEGACY_EXTENDED_ROW_STRUCT_KIND));
         this.relOptCluster = relOptCluster;
         this.toRelContext = toRelcontext;
         this.frameworkConfig = frameworkConfig;

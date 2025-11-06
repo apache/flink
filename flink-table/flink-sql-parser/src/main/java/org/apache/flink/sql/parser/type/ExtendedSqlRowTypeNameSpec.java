@@ -22,6 +22,7 @@ import org.apache.flink.sql.parser.FlinkSqlParsingValidator;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
+import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -157,8 +158,12 @@ public class ExtendedSqlRowTypeNameSpec extends SqlTypeNameSpec {
     @Override
     public RelDataType deriveType(SqlValidator sqlValidator) {
         final RelDataTypeFactory typeFactory = sqlValidator.getTypeFactory();
+        final StructKind structKind =
+                ((FlinkSqlParsingValidator) sqlValidator).isLegacyNestedRowNullability()
+                        ? StructKind.FULLY_QUALIFIED
+                        : StructKind.PEEK_FIELDS_NO_EXPAND;
         return typeFactory.createStructType(
-                ((FlinkSqlParsingValidator) sqlValidator).getExtendedRowStructKind(),
+                structKind,
                 fieldTypes.stream()
                         .map(
                                 dt ->

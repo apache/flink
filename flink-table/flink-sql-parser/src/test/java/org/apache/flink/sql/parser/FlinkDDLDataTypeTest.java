@@ -596,7 +596,7 @@ class FlinkDDLDataTypeTest {
                                     sqlValidatorCatalogReader,
                                     relDataTypeFactory,
                                     config,
-                                    StructKind.PEEK_FIELDS_NO_EXPAND));
+                                    false));
         }
 
         TestFactory(

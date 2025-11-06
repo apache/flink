@@ -19,31 +19,28 @@
 package org.apache.flink.sql.parser;
 
 import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.validate.SqlValidatorCatalogReader;
 import org.apache.calcite.sql.validate.SqlValidatorImpl;
 
 /**
- * Extends Calcite's {@link org.apache.calcite.sql.validate.SqlValidator}. Right now it extends by
- * row struct kind depending on a table config option value {@code
- * table.legacy-extended-row-struct-kind-as-fully-qualified}. However, in future more config option
- * dependent fields might be added here.
+ * Extends Calcite's {@link org.apache.calcite.sql.validate.SqlValidator}. It allows for
+ * parameterizing the parsing based on feature flags backed by options.
  */
 public class FlinkSqlParsingValidator extends SqlValidatorImpl {
-    private final StructKind extendedRowStructKind;
+    private final boolean isLegacyNestedRowNullability;
 
     protected FlinkSqlParsingValidator(
             SqlOperatorTable opTab,
             SqlValidatorCatalogReader catalogReader,
             RelDataTypeFactory typeFactory,
             Config config,
-            StructKind extendedRowStructKind) {
+            boolean isLegacyNestedRowNullability) {
         super(opTab, catalogReader, typeFactory, config);
-        this.extendedRowStructKind = extendedRowStructKind;
+        this.isLegacyNestedRowNullability = isLegacyNestedRowNullability;
     }
 
-    public final StructKind getExtendedRowStructKind() {
-        return extendedRowStructKind;
+    public final boolean isLegacyNestedRowNullability() {
+        return isLegacyNestedRowNullability;
     }
 }

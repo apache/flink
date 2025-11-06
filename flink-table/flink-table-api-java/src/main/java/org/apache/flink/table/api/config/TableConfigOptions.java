@@ -159,7 +159,7 @@ public class TableConfigOptions {
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> LEGACY_EXTENDED_ROW_STRUCT_KIND =
-            key("table.legacy-extended-row-struct-kind-as-fully-qualified")
+            key("table.legacy-nested-row-nullability")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(

@@ -94,8 +94,32 @@ public final class FlinkRexBuilder extends RexBuilder {
 
     /**
      * Adjust the nullability of the nested column based on the nullability of the enclosing type.
-     * However, if there is former nullability CAST present then it will be dropped and replaced
-     * with a new one (if needed).
+     * However, if there is former nullability {@code CAST} present then it will be dropped and
+     * replaced with a new one (if needed). For instance if there is a table
+     *
+     * <pre>{@code
+     * CREATE TABLE MyTable (
+     * `field1` ROW<`data` ROW<`nested` ROW<`trId` STRING>>NOT NULL>
+     * WITH ('connector' = 'datagen')
+     * }</pre>
+     *
+     * <p>and then there is a SQL query
+     *
+     * <pre>{@code
+     * SELECT `field1`.`data`.`nested`.`trId` AS transactionId FROM MyTable
+     * }</pre>
+     *
+     * <p>The {@code SELECT} picks a nested field only. In this case it should go step by step
+     * checking each level.
+     *
+     * <ol>
+     *   <li>Looking at {@code `field1`} type it is nullable, then no changes.
+     *   <li>{@code `field1`.`data`} is {@code NOT NULL}, however keeping in mind that enclosing
+     *       type @{code `field1`} is nullable then need to change nullability with {@code CAST}
+     *   <li>{@code `field1`.`data`.`nested`} is nullable that means that in this case no need for
+     *       extra {@code CAST} inserted in previous step, so it will be dropped.
+     *   <li>{@code `field1`.`data`.`nested`.`trId`} is also nullable, so no changes.
+     * </ol>
      */
     private RexNode makeFieldAccess(RexNode expr, RexNode field) {
         final RexNode fieldWithRemovedCast = removeCastNullableFromFieldAccess(field);
