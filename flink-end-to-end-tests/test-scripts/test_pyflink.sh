@@ -239,7 +239,11 @@ JOB_ID=$(${FLINK_DIR}/bin/flink run \
     -j "${KAFKA_SQL_JAR}")
 
 echo "${JOB_ID}"
-JOB_ID=`echo "${JOB_ID}" | sed 's/.* //g'`
+# After bump the setuptools, there are warnings such as "The pkg_resources
+# package is slated for removal as early as 2025-11-30. Refrain from using
+# this package or pin to Setuptools<81.
+# import pkg_resources" in the output of `flink run`, need adjust the way to parse the JOB_ID
+JOB_ID=`echo "${JOB_ID}" | sed -n 's/.*JobID //p'`
 
 wait_job_running ${JOB_ID}
 

@@ -19,7 +19,7 @@
 # Minimum requirements for the build system to execute.
 requires = [
     "packaging>=20.5; platform_machine=='arm64'",  # macos M1
-    "setuptools>=75.3,<81",
+    "setuptools>=75.3",
     "wheel",
     "cython>=0.29.24,<3; sys_platform == 'darwin' and python_version == '3.8'",
     "fastavro==1.7.4; sys_platform == 'darwin' and python_version == '3.8'",
