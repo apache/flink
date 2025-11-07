@@ -104,11 +104,10 @@ LogicalProject(EXPR$0=[func1($0)], EXPR$1=[func2($0)], EXPR$2=[func1($0)], EXPR$
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-AsyncCalc(select=[f0 AS EXPR$0, f00 AS EXPR$1, f01 AS EXPR$2, func2(a) AS EXPR$3])
-+- AsyncCalc(select=[f0, f00, a, func1(a) AS f01])
-   +- AsyncCalc(select=[f0, a, func2(a) AS f00])
-      +- AsyncCalc(select=[a, func1(a) AS f0])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+Calc(select=[f0 AS EXPR$0, f00 AS EXPR$1, f0 AS EXPR$2, f00 AS EXPR$3])
++- AsyncCalc(select=[f0, func2(a) AS f00])
+   +- AsyncCalc(select=[a, func1(a) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -132,10 +131,9 @@ LogicalProject(a=[$0])
 Calc(select=[a])
 +- Join(joinType=[InnerJoin], where=[=($f4, $f40)], select=[a, $f4, $f40], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[$f4]])
-   :  +- AsyncCalc(select=[a, func2(a) AS $f4])
-   :     +- Calc(select=[a], where=[REGEXP(f0, 'string (2|4)')])
-   :        +- AsyncCalc(select=[a, func2(a) AS f0])
-   :           +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+   :  +- Calc(select=[a, f0 AS $f4], where=[REGEXP(f0, 'string (2|4)')])
+   :     +- AsyncCalc(select=[a, func2(a) AS f0])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
    +- Exchange(distribution=[hash[$f4]])
       +- AsyncCalc(select=[func2(a2) AS $f4])
          +- TableSourceScan(table=[[default_catalog, default_database, MyTable2]], fields=[a2, b2, c2, d2])
@@ -513,10 +511,9 @@ LogicalProject(blah=[$0])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-AsyncCalc(select=[func2(a) AS blah])
-+- Calc(select=[a], where=[REGEXP(f0, 'string (2|3)')])
-   +- AsyncCalc(select=[a, func2(a) AS f0])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+Calc(select=[f0 AS blah], where=[REGEXP(f0, 'string (2|3)')])
++- AsyncCalc(select=[func2(a) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -704,10 +701,9 @@ LogicalProject(EXPR$0=[func1(func1($0))], EXPR$1=[func1(func1(func1($0)))], EXPR
 AsyncCalc(select=[f0 AS EXPR$0, func1(f1) AS EXPR$1, f2 AS EXPR$2])
 +- AsyncCalc(select=[f2, f0, func1(f1) AS f1])
    +- AsyncCalc(select=[f2, f1, func1(f0) AS f0])
-      +- AsyncCalc(select=[f0, f00 AS f1, func1(a) AS f2])
-         +- AsyncCalc(select=[f0, a, func1(a) AS f00])
-            +- AsyncCalc(select=[a, func1(a) AS f0])
-               +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+      +- Calc(select=[f0, f0 AS f1, f0 AS f2])
+         +- AsyncCalc(select=[func1(a) AS f0])
+            +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>
@@ -723,8 +719,8 @@ LogicalProject(EXPR$0=[func1($0)], EXPR$1=[func1($0)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-AsyncCalc(select=[f0 AS EXPR$0, func1(a) AS EXPR$1])
-+- AsyncCalc(select=[a, func1(a) AS f0])
+Calc(select=[f0 AS EXPR$0, f0 AS EXPR$1])
++- AsyncCalc(select=[func1(a) AS f0])
    +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
@@ -761,10 +757,9 @@ LogicalProject(EXPR$0=[func2($0)])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-AsyncCalc(select=[func2(a) AS EXPR$0])
-+- Calc(select=[a], where=[REGEXP(f0, 'val (2|3)')])
-   +- AsyncCalc(select=[a, func2(a) AS f0])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+Calc(select=[f0 AS EXPR$0], where=[REGEXP(f0, 'val (2|3)')])
++- AsyncCalc(select=[func2(a) AS f0])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
 ]]>
     </Resource>
   </TestCase>

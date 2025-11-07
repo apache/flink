@@ -523,4 +523,23 @@ FlinkLogicalCalc(select=[a, f0 AS EXPR$1, b])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testSamePythonFunctionUsedInBothSelectAndWhere">
+    <Resource name="sql">
+      <![CDATA[SELECT a, pyFunc1(a, c) FROM MyTable where pyFunc1(a, c) > 0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[pyFunc1($0, $2)])
++- LogicalFilter(condition=[>(pyFunc1($0, $2), 0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, f0 AS EXPR$1], where=[>(f0, 0)])
++- FlinkLogicalCalc(select=[a, pyFunc1(a, c) AS f0])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+]]>
+    </Resource>
+  </TestCase>
 </Root>
