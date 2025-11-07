@@ -44,7 +44,7 @@ class TableEnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, PyFlin
             "from",
             "registerFunction",
             "fromCall",
-            "fromModelPath",
+            "fromModel",
         }
 
 

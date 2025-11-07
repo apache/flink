@@ -687,7 +687,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
-    public Model fromModelPath(String modelPath) {
+    public Model fromModel(String modelPath) {
         UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(modelPath);
         ObjectIdentifier modelIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
         return catalogManager
@@ -701,7 +701,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
-    public Model from(ModelDescriptor descriptor) {
+    public Model fromModel(ModelDescriptor descriptor) {
         Preconditions.checkNotNull(descriptor, "Model descriptor must not be null.");
 
         final ResolvedCatalogModel resolvedCatalogModel =

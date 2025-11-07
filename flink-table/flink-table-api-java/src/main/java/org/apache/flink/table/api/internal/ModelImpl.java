@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Map;
 
 import static org.apache.flink.table.api.Expressions.lit;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 
 /** Implementation of {@link Model} that works with the Table API. */
 @Internal
@@ -84,7 +85,7 @@ public class ModelImpl implements Model {
                     BuiltInFunctionDefinitions.ML_PREDICT.getName(),
                     table.asArgument("INPUT"),
                     this.asArgument("MODEL"),
-                    Expressions.descriptor(inputColumns).asArgument("ARGS"));
+                    new ApiExpression(valueLiteral(inputColumns)).asArgument("ARGS"));
         }
         ArrayList<String> configKVs = new ArrayList<>();
         options.forEach(
@@ -96,7 +97,7 @@ public class ModelImpl implements Model {
                 BuiltInFunctionDefinitions.ML_PREDICT.getName(),
                 table.asArgument("INPUT"),
                 this.asArgument("MODEL"),
-                Expressions.descriptor(inputColumns).asArgument("ARGS"),
+                new ApiExpression(valueLiteral(inputColumns)).asArgument("ARGS"),
                 Expressions.map(
                                 configKVs.get(0),
                                 configKVs.get(1),

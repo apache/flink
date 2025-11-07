@@ -24,7 +24,6 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ContextResolvedModel;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -90,14 +89,12 @@ public final class ModelReferenceExpression implements ResolvedExpression {
      * @return the input data type expected by the model
      */
     public DataType getInputDataType() {
-        return DataTypeUtils.fromResolvedSchemaPreservingTimeAttributes(
-                model.getResolvedModel().getResolvedInputSchema());
+        return model.getResolvedModel().getResolvedInputSchema().toPhysicalRowDataType();
     }
 
     @Override
     public DataType getOutputDataType() {
-        return DataTypeUtils.fromResolvedSchemaPreservingTimeAttributes(
-                model.getResolvedModel().getResolvedOutputSchema());
+        return model.getResolvedModel().getResolvedOutputSchema().toPhysicalRowDataType();
     }
 
     @Override

@@ -161,7 +161,7 @@ public class MLPredictITCase extends StreamingTestBase {
 
     @Test
     public void testPredictTableApiWithView() {
-        Model model = tEnv().fromModelPath("m1");
+        Model model = tEnv().fromModel("m1");
         Table table = tEnv().from("src");
         tEnv().createView("view_src", model.predict(table, ColumnList.of("id")));
         List<Row> results =

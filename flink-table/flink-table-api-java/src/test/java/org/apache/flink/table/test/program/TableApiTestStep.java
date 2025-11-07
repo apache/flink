@@ -80,12 +80,12 @@ public class TableApiTestStep implements TestStep {
 
                     @Override
                     public Model fromModel(String modelPath) {
-                        return env.fromModelPath(modelPath);
+                        return env.fromModel(modelPath);
                     }
 
                     @Override
                     public Model from(ModelDescriptor modelDescriptor) {
-                        return env.from(modelDescriptor);
+                        return env.fromModel(modelDescriptor);
                     }
                 });
     }
@@ -124,10 +124,10 @@ public class TableApiTestStep implements TestStep {
         /** See {@link TableEnvironment#sqlQuery(String)}. */
         Table sqlQuery(String query);
 
-        /** See {@link TableEnvironment#fromModelPath(String)}. */
+        /** See {@link TableEnvironment#fromModel(String)}. */
         Model fromModel(String modelPath);
 
-        /** See {@link TableEnvironment#from(ModelDescriptor)}. */
+        /** See {@link TableEnvironment#fromModel(ModelDescriptor)}. */
         Model from(ModelDescriptor modelDescriptor);
     }
 }

@@ -1188,13 +1188,13 @@ public interface TableEnvironment {
      * <p>Example:
      *
      * <pre>{@code
-     * Model model = tableEnv.fromModelPath("my_model");
+     * Model model = tableEnv.fromModel("my_model");
      * }</pre>
      *
      * @param modelPath The path of the model in the catalog.
      * @return The {@link Model} object describing the model resource.
      */
-    Model fromModelPath(String modelPath);
+    Model fromModel(String modelPath);
 
     /**
      * Returns a {@link Model} object that is backed by the specified {@link ModelDescriptor}.
@@ -1216,7 +1216,7 @@ public interface TableEnvironment {
      * @param descriptor The {@link ModelDescriptor} describing the model resource.
      * @return The {@link Model} object representing the model resource.
      */
-    Model from(ModelDescriptor descriptor);
+    Model fromModel(ModelDescriptor descriptor);
 
     /**
      * Gets the names of all catalogs registered in this environment.

@@ -54,7 +54,7 @@ import static org.apache.flink.table.types.logical.LogicalTypeFamily.CHARACTER_S
 public abstract class FunctionCallUtil {
 
     private static final String CONFIG_ERROR_MESSAGE =
-            "Config parameter should be a MAP data type consisting String literals.";
+            "Config parameter should be a MAP data type consisting of String literals.";
 
     /** A field used as an equal condition when querying content from a dimension table. */
     @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")

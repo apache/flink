@@ -20,6 +20,7 @@ package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.ExecutionConfigOptions.AsyncOutputMode;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.QueryOperation;
@@ -1130,6 +1131,12 @@ public class QueryOperationTestPrograms {
                     .setupTableSource(SIMPLE_FEATURES_SOURCE)
                     .setupModel(SYNC_MODEL)
                     .setupTableSink(SIMPLE_SINK)
+                    .runSql(
+                            "SELECT `$$T_FUNC`.`id`, `$$T_FUNC`.`feature`, `$$T_FUNC`.`category` FROM TABLE(\n"
+                                    + "    ML_PREDICT((\n"
+                                    + "        SELECT `$$T_SOURCE`.`id`, `$$T_SOURCE`.`feature` FROM `default_catalog`.`default_database`.`features` $$T_SOURCE\n"
+                                    + "    ), MODEL `default_catalog`.`default_database`.`chatgpt`, DESCRIPTOR(`feature`), DEFAULT)\n"
+                                    + ") $$T_FUNC")
                     .runTableApi(
                             env ->
                                     env.fromModel("chatgpt")
@@ -1145,18 +1152,20 @@ public class QueryOperationTestPrograms {
                     .setupTableSink(SIMPLE_SINK)
                     .setupConfig(
                             ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_OUTPUT_MODE,
-                            ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED)
+                            AsyncOutputMode.ALLOW_UNORDERED)
+                    .runSql(
+                            "SELECT `$$T_FUNC`.`id`, `$$T_FUNC`.`feature`, `$$T_FUNC`.`category` FROM TABLE(\n"
+                                    + "    ML_PREDICT((\n"
+                                    + "        SELECT `$$T_SOURCE`.`id`, `$$T_SOURCE`.`feature` FROM `default_catalog`.`default_database`.`features` $$T_SOURCE\n"
+                                    + "    ), MODEL `default_catalog`.`default_database`.`chatgpt`, DESCRIPTOR(`feature`), MAP['async', 'true'])\n"
+                                    + ") $$T_FUNC")
                     .runTableApi(
                             env ->
                                     env.fromModel("chatgpt")
                                             .predict(
                                                     env.from("features"),
                                                     ColumnList.of("feature"),
-                                                    Map.of(
-                                                            "async",
-                                                            "true",
-                                                            "max-concurrent-operations",
-                                                            "10")),
+                                                    Map.of("async", "true")),
                             "sink")
                     .build();
 
@@ -1205,6 +1214,12 @@ public class QueryOperationTestPrograms {
                     .setupConfig(
                             ExecutionConfigOptions.TABLE_EXEC_ASYNC_ML_PREDICT_OUTPUT_MODE,
                             ExecutionConfigOptions.AsyncOutputMode.ALLOW_UNORDERED)
+                    .runSql(
+                            "SELECT `$$T_FUNC`.`id`, `$$T_FUNC`.`feature`, `$$T_FUNC`.`category` FROM TABLE(\n"
+                                    + "    ML_PREDICT((\n"
+                                    + "        SELECT `$$T_SOURCE`.`id`, `$$T_SOURCE`.`feature` FROM `default_catalog`.`default_database`.`features` $$T_SOURCE\n"
+                                    + "    ), MODEL `default_catalog`.`default_database`.`chatgpt`, DESCRIPTOR(`feature`), MAP['async', 'true'])\n"
+                                    + ") $$T_FUNC")
                     .runTableApi(
                             env ->
                                     env.fromCall(

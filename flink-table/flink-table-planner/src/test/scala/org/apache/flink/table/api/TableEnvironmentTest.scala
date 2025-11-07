@@ -3252,7 +3252,7 @@ class TableEnvironmentTest {
 
   @Test
   def testGetNonExistModel(): Unit = {
-    assertThatThrownBy(() => tableEnv.fromModelPath("MyModel"))
+    assertThatThrownBy(() => tableEnv.fromModel("MyModel"))
       .hasMessageContaining("Model `MyModel` was not found")
       .isInstanceOf[ValidationException]
   }
@@ -3269,7 +3269,7 @@ class TableEnvironmentTest {
         .inputSchema(inputSchema)
         .outputSchema(outputSchema)
         .build())
-    assertThat(tableEnv.fromModelPath("MyModel")).isInstanceOf(classOf[ModelImpl])
+    assertThat(tableEnv.fromModel("MyModel")).isInstanceOf(classOf[ModelImpl])
   }
 
   @Test

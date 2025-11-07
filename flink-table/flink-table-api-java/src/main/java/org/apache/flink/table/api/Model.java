@@ -47,7 +47,7 @@ import java.util.Map;
  * <p>Example usage:
  *
  * <pre>{@code
- * Model model = tableEnv.fromModelPath("my_model");
+ * Model model = tableEnv.fromModel("my_model");
  *
  * // Simple prediction
  * Table predictions = model.predict(inputTable, ColumnList.of("feature1", "feature2"));

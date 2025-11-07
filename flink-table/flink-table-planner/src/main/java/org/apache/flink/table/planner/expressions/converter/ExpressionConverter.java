@@ -50,7 +50,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimeType;
-import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.ColumnList;
 
 import org.apache.calcite.avatica.util.ByteString;
@@ -309,8 +308,10 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
                         flinkContext.getClassLoader(),
                         contextResolvedModel.isTemporary());
         final LogicalType modelOutputType =
-                DataTypeUtils.fromResolvedSchemaPreservingTimeAttributes(
-                                contextResolvedModel.getResolvedModel().getResolvedOutputSchema())
+                contextResolvedModel
+                        .getResolvedModel()
+                        .getResolvedOutputSchema()
+                        .toPhysicalRowDataType()
                         .getLogicalType();
         final RelDataType modelOutputRelDataType =
                 typeFactory.buildRelNodeRowType((RowType) modelOutputType);

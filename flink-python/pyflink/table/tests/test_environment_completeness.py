@@ -41,7 +41,7 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTest
             'getCompletionHints',
             'fromValues',
             'fromCall',
-            'fromModelPath',
+            'fromModel',
             # See FLINK-25986
             'loadPlan',
             'compilePlanSql',

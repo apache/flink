@@ -18,11 +18,16 @@
 
 package org.apache.flink.table.test.program;
 
+import org.apache.flink.table.api.Model;
+import org.apache.flink.table.api.ModelDescriptor;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.expressions.DefaultSqlFactory;
+import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.test.program.TableApiTestStep.TableEnvAccessor;
+import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.util.Preconditions;
 
 import java.util.function.Function;
@@ -80,9 +85,7 @@ public final class FailingTableApiTestStep implements TestStep {
 
                     @Override
                     public Table fromCall(
-                            Class<? extends org.apache.flink.table.functions.UserDefinedFunction>
-                                    function,
-                            Object... arguments) {
+                            Class<? extends UserDefinedFunction> function, Object... arguments) {
                         return env.fromCall(function, arguments);
                     }
 
@@ -92,9 +95,7 @@ public final class FailingTableApiTestStep implements TestStep {
                     }
 
                     @Override
-                    public Table fromValues(
-                            org.apache.flink.table.types.AbstractDataType<?> dataType,
-                            Object... values) {
+                    public Table fromValues(AbstractDataType<?> dataType, Object... values) {
                         return env.fromValues(dataType, values);
                     }
 
@@ -104,14 +105,13 @@ public final class FailingTableApiTestStep implements TestStep {
                     }
 
                     @Override
-                    public org.apache.flink.table.api.Model fromModel(String modelPath) {
-                        return env.fromModelPath(modelPath);
+                    public Model fromModel(String modelPath) {
+                        return env.fromModel(modelPath);
                     }
 
                     @Override
-                    public org.apache.flink.table.api.Model from(
-                            org.apache.flink.table.api.ModelDescriptor modelDescriptor) {
-                        return env.from(modelDescriptor);
+                    public Model from(ModelDescriptor modelDescriptor) {
+                        return env.fromModel(modelDescriptor);
                     }
                 });
     }
@@ -131,9 +131,7 @@ public final class FailingTableApiTestStep implements TestStep {
                             final Table table = toTable(env);
                             final String query =
                                     table.getQueryOperation()
-                                            .asSerializableString(
-                                                    org.apache.flink.table.expressions
-                                                            .DefaultSqlFactory.INSTANCE);
+                                            .asSerializableString(DefaultSqlFactory.INSTANCE);
                             env.executeSql(String.format("INSERT INTO %s %s", sinkName, query))
                                     .await();
                         })

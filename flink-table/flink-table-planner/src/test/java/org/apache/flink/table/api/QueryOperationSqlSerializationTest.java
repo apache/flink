@@ -70,7 +70,10 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
                 QueryOperationTestPrograms.ACCESSING_NESTED_COLUMN,
                 QueryOperationTestPrograms.ROW_SEMANTIC_TABLE_PTF,
                 QueryOperationTestPrograms.SET_SEMANTIC_TABLE_PTF,
-                QueryOperationTestPrograms.INLINE_FUNCTION_SERIALIZATION);
+                QueryOperationTestPrograms.INLINE_FUNCTION_SERIALIZATION,
+                QueryOperationTestPrograms.ML_PREDICT_MODEL_API,
+                QueryOperationTestPrograms.ASYNC_ML_PREDICT_MODEL_API,
+                QueryOperationTestPrograms.ASYNC_ML_PREDICT_TABLE_API_MAP_EXPRESSION_CONFIG);
     }
 
     @ParameterizedTest
@@ -139,6 +142,7 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
         final Map<String, String> connectorOptions = new HashMap<>();
         connectorOptions.put("connector", "values");
         program.getSetupSourceTestSteps().forEach(s -> s.apply(env, connectorOptions));
+        program.getSetupModelTestSteps().forEach(s -> s.apply(env, Map.of("provider", "values")));
         program.getSetupSinkTestSteps().forEach(s -> s.apply(env, connectorOptions));
         program.getSetupFunctionTestSteps().forEach(f -> f.apply(env));
         program.getSetupSqlTestSteps().forEach(s -> s.apply(env));
@@ -149,6 +153,7 @@ public class QueryOperationSqlSerializationTest implements TableTestProgramRunne
     public EnumSet<TestKind> supportedSetupSteps() {
         return EnumSet.of(
                 TestKind.CONFIG,
+                TestKind.MODEL,
                 TestKind.SQL,
                 TestKind.FUNCTION,
                 TestKind.SOURCE_WITH_DATA,
