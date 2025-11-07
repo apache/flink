@@ -4448,7 +4448,8 @@ class CheckpointCoordinatorTest {
                             } catch (Exception e) {
                                 throw new RuntimeException(e);
                             }
-                        });
+                        },
+                        EXECUTOR_RESOURCE.getExecutor());
 
         assertThat(tracker.getReportStartedFuture().get(TIMEOUT_SECONDS, TimeUnit.SECONDS))
                 .as("reportCompletedCheckpoint should be started soon when checkpoint is acked.")
