@@ -72,9 +72,21 @@ abstract class RemoteCalcSplitRuleBase[T](
       callFinder)
 
     val splitComponents = split(program, splitter)
+
+    val topCalcProjects = splitComponents.topCalcProjects.map {
+      node: RexNode => {
+        val idx = extractedRexNodes.indexOf(node)
+        if (idx >= 0) {
+          new RexInputRef(extractedFunctionOffset + idx, node.getType)
+        } else {
+          node
+        }
+      }
+    }
+
     val accessedFields =
       extractRefInputFields(
-        splitComponents.topCalcProjects,
+        topCalcProjects,
         splitComponents.topCalcCondition,
         extractedFunctionOffset)
 
@@ -107,7 +119,7 @@ abstract class RemoteCalcSplitRuleBase[T](
       bottomCalc,
       RexProgram.create(
         bottomCalc.getRowType,
-        splitComponents.topCalcProjects.map(_.accept(inputRewriter)),
+        topCalcProjects.map(_.accept(inputRewriter)),
         splitComponents.topCalcCondition.map(_.accept(inputRewriter)).orNull,
         calc.getRowType,
         rexBuilder
