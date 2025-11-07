@@ -74,14 +74,15 @@ abstract class RemoteCalcSplitRuleBase[T](
     val splitComponents = split(program, splitter)
 
     val topCalcProjects = splitComponents.topCalcProjects.map {
-      node: RexNode => {
-        val idx = extractedRexNodes.indexOf(node)
-        if (idx >= 0) {
-          new RexInputRef(extractedFunctionOffset + idx, node.getType)
-        } else {
-          node
+      node: RexNode =>
+        {
+          val idx = extractedRexNodes.indexOf(node)
+          if (idx >= 0) {
+            new RexInputRef(extractedFunctionOffset + idx, node.getType)
+          } else {
+            node
+          }
         }
-      }
     }
 
     val accessedFields =
