@@ -42,9 +42,9 @@ Currently, Flink distinguishes between the following kinds of functions:
 - *Scalar functions* map scalar values to a new scalar value.
 - *Asynchronous scalar functions* asynchronously map scalar values to a new scalar value.
 - *Table functions* map scalar values to new rows.
+- *Async Table functions* asynchronously map scalar values to new rows and can be used for table sources that perform a lookup.
 - *Aggregate functions* map scalar values of multiple rows to a new scalar value.
 - *Table aggregate functions* map scalar values of multiple rows to new rows.
-- *Async table functions* are special functions for table sources that perform a lookup.
 - *Process table functions* map tables to new rows. Enabling user-defined operators with state and timers.
 
 The following example shows how to create a simple scalar function and how to call the function in both Table API and SQL.
@@ -1273,6 +1273,90 @@ env.sqlQuery(
 If you intend to implement functions in Scala, do not implement a table function as a Scala `object`. Scala `object`s are singletons and will cause concurrency issues.
 
 If you intend to implement or call functions in Python, please refer to the [Python Table Functions]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-functions) documentation for more details.
+
+{{< top >}}
+
+Asynchronous Table Functions
+----------------
+
+Similar to `AsyncScalarFunction`, there also exists a `AsyncTableFunction` for returning multiple row results rather than a single scalar value. Similarly, this is most useful when interacting with external systems (for example when enriching stream events with data stored in a database).
+
+Asynchronous interaction with an external system means that a single function instance can handle many requests concurrently and receive the responses concurrently. That way, the waiting time can be overlaid with sending other requests and receiving responses. At the very least, the waiting time is amortized over multiple requests. This leads in most cases to much higher streaming throughput.
+
+#### Defining an AsyncTableFunction
+
+A user-defined asynchronous table function maps zero, one, or multiple scalar values to zero, one, or multiple Rows. Any data type listed in the [data types section]({{< ref "docs/dev/table/types" >}}) can be used as a parameter or return type of an evaluation method.
+
+In order to define an asynchronous table function, extend the base class `AsyncTableFunction` in `org.apache.flink.table.functions` and implement one or more evaluation methods named `eval(...)`.  The first argument must be a `CompletableFuture<...>` which is used to return the result, with subsequent arguments being the parameters passed to the function.
+
+The number of outstanding calls to `eval` may be configured by [`table.exec.async-table.max-concurrent-operations`]({{< ref "docs/dev/table/config#table-exec-async-table-max-concurrent-operations" >}}).
+
+#### Asynchronous Semantics
+While calls to an `AsyncTableFunction` may be completed out of the original input order, to maintain correct semantics, the outputs of the function are guaranteed to maintain that input order to downstream components of the query. The data itself could reveal completion order (e.g. by containing fetch timestamps), so the user should consider whether this is acceptable for their use-case.
+
+#### Error Handling
+The primary way for a user to indicate an error is to call `completableFuture.completeExceptionally(throwable)`. Similarly, if an exception is encountered by the system when invoking `eval`, that will also result in an error. When an error occurs, the system will consider the retry strategy, configured by [`table.exec.async-table.retry-strategy`]({{< ref "docs/dev/table/config#table-exec-async-table-retry-strategy" >}}). If this is `NO_RETRY`, the job is failed. If it is set to `FIXED_DELAY`, a period of [`table.exec.async-table.retry-delay`]({{< ref "docs/dev/table/config#table-exec-async-table-retry-delay" >}}) will be waited, and the function call will be retried. If there have been [`table.exec.async-table.max-attempts`]({{< ref "docs/dev/table/config#table-exec-async-table-max-attempts" >}}) failed attempts or if the timeout [`table.exec.async-table.timeout`]({{< ref "docs/dev/table/config#table-exec-async-table-timeout" >}}) expires (including all retry attempts), the job will fail.
+
+The following example shows how to do work on a thread pool in the background, though any libraries exposing an async interface may be directly used to complete the `CompletableFuture` from a callback. See the [Implementation Guide](#implementation-guide) for more details.
+
+```java
+import org.apache.flink.table.api.*;
+import org.apache.flink.table.functions.AsyncTableFunction;
+
+import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+
+import static org.apache.flink.table.api.Expressions.*;
+
+public static class BackgroundFunction extends AsyncTableFunction<Long> {
+    private Executor executor;
+
+    @Override
+    public void open(FunctionContext context) {
+        executor = Executors.newFixedThreadPool(10);
+    }
+
+    public void eval(CompletableFuture<Collection<Long>> future, Integer waitMax) {
+        executor.execute(() -> {
+            ArrayList<Long> result = new ArrayList<>();
+            long sleepTime = new Random().nextInt(waitMax);
+            try {
+                Thread.sleep(sleepTime);
+            } catch (InterruptedException e) {}
+            if (sleepTime < 1000) {
+                result.add(1L);
+                result.add(2L);
+            } else {
+                result.add(3L);
+            }
+            future.complete(result);
+        });
+    }
+}
+
+TableEnvironment env = TableEnvironment.create(...);
+env.getConfig().set("table.exec.async-table.max-concurrent-operations", "5");
+env.getConfig().set("table.exec.async-table.timeout", "1m");
+
+// call function "inline" without registration in Table API
+env.from("MyTable")
+        .joinLateral(call(BackgroundFunction.class, $("myField")))
+        .select($("*"))
+
+// register function
+env.createTemporarySystemFunction("BackgroundFunction", BackgroundFunction.class);
+
+// call registered function in Table API
+env.from("MyTable")
+        .joinLateral(call("BackgroundFunction", $("myField")))
+        .select($("*"))
+
+// call registered function in SQL
+env.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(BackgroundFunction(myField))");
+
+```
 
 {{< top >}}
 
