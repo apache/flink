@@ -30,7 +30,6 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -40,10 +39,10 @@ import static org.apache.flink.table.planner.plan.utils.DeltaJoinUtil.isFilterOn
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link DeltaJoinUtil}. */
-public class DeltaJoinUtilTest {
+class DeltaJoinUtilTest {
 
     @Test
-    public void testIsFilterOnOneSetOfUpsertKeys() {
+    void testIsFilterOnOneSetOfUpsertKeys() {
         FlinkTypeFactory typeFactory =
                 new FlinkTypeFactory(
                         Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
@@ -66,28 +65,19 @@ public class DeltaJoinUtilTest {
                         rexBuilder.makeInputRef(allFieldTypes.get(0), 0),
                         rexBuilder.makeLiteral("jim", allFieldTypes.get(0)));
 
-        assertThat(isFilterOnOneSetOfUpsertKeys(filter, buildUpsertKeys(ImmutableBitSet.of(0))))
-                .isTrue();
-        assertThat(isFilterOnOneSetOfUpsertKeys(filter, buildUpsertKeys(ImmutableBitSet.of(2))))
-                .isFalse();
-        assertThat(isFilterOnOneSetOfUpsertKeys(filter, buildUpsertKeys(ImmutableBitSet.of(0, 1))))
-                .isTrue();
-        assertThat(isFilterOnOneSetOfUpsertKeys(filter, buildUpsertKeys(ImmutableBitSet.of(1, 2))))
+        assertThat(isFilterOnOneSetOfUpsertKeys(filter, Set.of(ImmutableBitSet.of(0)))).isTrue();
+        assertThat(isFilterOnOneSetOfUpsertKeys(filter, Set.of(ImmutableBitSet.of(2)))).isFalse();
+        assertThat(isFilterOnOneSetOfUpsertKeys(filter, Set.of(ImmutableBitSet.of(0, 1)))).isTrue();
+        assertThat(isFilterOnOneSetOfUpsertKeys(filter, Set.of(ImmutableBitSet.of(1, 2))))
                 .isFalse();
         assertThat(
                         isFilterOnOneSetOfUpsertKeys(
-                                filter,
-                                buildUpsertKeys(ImmutableBitSet.of(1), ImmutableBitSet.of(2))))
+                                filter, Set.of(ImmutableBitSet.of(1), ImmutableBitSet.of(2))))
                 .isFalse();
         assertThat(
                         isFilterOnOneSetOfUpsertKeys(
-                                filter,
-                                buildUpsertKeys(ImmutableBitSet.of(1), ImmutableBitSet.of(0))))
+                                filter, Set.of(ImmutableBitSet.of(1), ImmutableBitSet.of(0))))
                 .isTrue();
         assertThat(isFilterOnOneSetOfUpsertKeys(filter, null)).isFalse();
-    }
-
-    private Set<ImmutableBitSet> buildUpsertKeys(ImmutableBitSet... upsertKeys) {
-        return Arrays.stream(upsertKeys).collect(Collectors.toSet());
     }
 }
