@@ -158,13 +158,17 @@ public class TableConfigOptions {
                                             + "schema are selected and nested fields are retained.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    public static final ConfigOption<Boolean> LEGACY_EXTENDED_ROW_STRUCT_KIND =
+    public static final ConfigOption<Boolean> LEGACY_NESTED_ROW_NULLABILITY =
             key("table.legacy-nested-row-nullability")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Configures the default struct kind for rows processed by ExtendedSqlRowTypeNameSpec."
-                                    + " By default it uses PEEK_FIELDS_NO_EXPAND, legacy behavior uses FULLY_QUALIFIED.");
+                            "Before Flink 2.2, row types defined in SQL "
+                                    + "e.g. `SELECT CAST(f AS ROW<i NOT NULL>)` did ignore the `NOT NULL` constraint. "
+                                    + "This was more aligned with the SQL standard but caused many type inconsistencies "
+                                    + "and cryptic error message when working on nested data. "
+                                    + "For example, it prevented using rows in computed columns or join keys. "
+                                    + "The new behavior takes the nullability into consideration.");
 
     // ------------------------------------------------------------------------------------------
     // Options for plan handling

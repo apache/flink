@@ -59,8 +59,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -230,32 +228,28 @@ class FlinkDDLDataTypeTest {
                         nullable(
                                 FIXTURE.createStructType(
                                         StructKind.PEEK_FIELDS_NO_EXPAND,
-                                        Collections.singletonList(nullable(FIXTURE.intType)),
-                                        Collections.singletonList("f0"))),
+                                        List.of(nullable(FIXTURE.intType)),
+                                        List.of("f0"))),
                         "ROW< `f0` INTEGER >"),
                 createArgumentsTestItem(
                         "ROW(`f0` INT)",
                         nullable(
                                 FIXTURE.createStructType(
                                         StructKind.PEEK_FIELDS_NO_EXPAND,
-                                        Collections.singletonList(nullable(FIXTURE.intType)),
-                                        Collections.singletonList("f0"))),
+                                        List.of(nullable(FIXTURE.intType)),
+                                        List.of("f0"))),
                         "ROW(`f0` INTEGER)"),
                 createArgumentsTestItem(
                         "ROW<>",
                         nullable(
                                 FIXTURE.createStructType(
-                                        StructKind.PEEK_FIELDS_NO_EXPAND,
-                                        Collections.emptyList(),
-                                        Collections.emptyList())),
+                                        StructKind.PEEK_FIELDS_NO_EXPAND, List.of(), List.of())),
                         "ROW<>"),
                 createArgumentsTestItem(
                         "ROW()",
                         nullable(
                                 FIXTURE.createStructType(
-                                        StructKind.PEEK_FIELDS_NO_EXPAND,
-                                        Collections.emptyList(),
-                                        Collections.emptyList())),
+                                        StructKind.PEEK_FIELDS_NO_EXPAND, List.of(), List.of())),
                         "ROW()"),
                 createArgumentsTestItem(
                         "ROW<f0 INT NOT NULL 'This is a comment.', "
@@ -680,16 +674,15 @@ class FlinkDDLDataTypeTest {
         }
 
         private static Map<String, Object> buildDefaultOptions() {
-            final Map<String, Object> m = new HashMap<>();
-            m.put("quoting", Quoting.BACK_TICK);
-            m.put("quotedCasing", Casing.UNCHANGED);
-            m.put("unquotedCasing", Casing.UNCHANGED);
-            m.put("caseSensitive", true);
-            m.put("enableTypeCoercion", false);
-            m.put("conformance", SqlConformanceEnum.DEFAULT);
-            m.put("operatorTable", SqlStdOperatorTable.instance());
-            m.put("parserFactory", FlinkSqlParserImpl.FACTORY);
-            return Collections.unmodifiableMap(m);
+            return Map.ofEntries(
+                    Map.entry("quoting", Quoting.BACK_TICK),
+                    Map.entry("quotedCasing", Casing.UNCHANGED),
+                    Map.entry("unquotedCasing", Casing.UNCHANGED),
+                    Map.entry("caseSensitive", true),
+                    Map.entry("enableTypeCoercion", false),
+                    Map.entry("conformance", SqlConformanceEnum.DEFAULT),
+                    Map.entry("operatorTable", SqlStdOperatorTable.instance()),
+                    Map.entry("parserFactory", FlinkSqlParserImpl.FACTORY));
         }
     }
 }

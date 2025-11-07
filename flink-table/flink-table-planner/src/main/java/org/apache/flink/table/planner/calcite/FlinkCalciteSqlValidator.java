@@ -128,7 +128,7 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
                 typeFactory,
                 config,
                 ShortcutUtils.unwrapTableConfig(relOptCluster)
-                        .get(TableConfigOptions.LEGACY_EXTENDED_ROW_STRUCT_KIND));
+                        .get(TableConfigOptions.LEGACY_NESTED_ROW_NULLABILITY));
         this.relOptCluster = relOptCluster;
         this.toRelContext = toRelcontext;
         this.frameworkConfig = frameworkConfig;
