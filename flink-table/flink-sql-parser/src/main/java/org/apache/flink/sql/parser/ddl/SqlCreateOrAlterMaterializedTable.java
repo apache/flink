@@ -26,7 +26,6 @@ import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
-import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.SqlKind;
@@ -36,7 +35,6 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
 
 import javax.annotation.Nullable;
 
@@ -44,37 +42,13 @@ import java.util.List;
 import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
+import java.util.Collections;
 
 /** CREATE [OR ALTER] MATERIALIZED TABLE DDL sql call. */
-public class SqlCreateOrAlterMaterializedTable extends SqlCreate implements ExtendedSqlNode {
-
-    public static final SqlSpecialOperator CREATE_OPERATOR =
-            new SqlSpecialOperator("CREATE MATERIALIZED TABLE", SqlKind.CREATE_TABLE);
+public class SqlCreateOrAlterMaterializedTable extends SqlCreateMaterializedTable  {
 
     public static final SqlSpecialOperator CREATE_OR_ALTER_OPERATOR =
             new SqlSpecialOperator("CREATE OR ALTER MATERIALIZED TABLE", SqlKind.OTHER_DDL);
-
-    private final SqlIdentifier tableName;
-
-    private final SqlNodeList columnList;
-
-    private final List<SqlTableConstraint> tableConstraints;
-
-    private final @Nullable SqlCharStringLiteral comment;
-
-    private final @Nullable SqlDistribution distribution;
-
-    private final SqlNodeList partitionKeyList;
-
-    private final SqlWatermark watermark;
-
-    private final SqlNodeList propertyList;
-
-    private final @Nullable SqlIntervalLiteral freshness;
-
-    private final @Nullable SqlRefreshMode refreshMode;
-
-    private final SqlNode asQuery;
 
     private final boolean isOrAlter;
 
@@ -92,20 +66,20 @@ public class SqlCreateOrAlterMaterializedTable extends SqlCreate implements Exte
             @Nullable SqlRefreshMode refreshMode,
             SqlNode asQuery,
             boolean isOrAlter) {
-        super(isOrAlter ? CREATE_OR_ALTER_OPERATOR : CREATE_OPERATOR, pos, false, false);
-        this.tableName = requireNonNull(tableName, "tableName should not be null");
-        this.columnList = columnList;
-        this.tableConstraints = tableConstraints;
-        this.watermark = watermark;
-        this.comment = comment;
-        this.tableConstraint = tableConstraint;
-        this.distribution = distribution;
-        this.partitionKeyList =
-                requireNonNull(partitionKeyList, "partitionKeyList should not be null");
-        this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
-        this.freshness = freshness;
-        this.refreshMode = refreshMode;
-        this.asQuery = requireNonNull(asQuery, "asQuery should not be null");
+        super(
+                isOrAlter ? CREATE_OR_ALTER_OPERATOR : CREATE_OPERATOR,
+                pos,
+                tableName,
+                columnList,
+                tableConstraint,
+                watermark,
+                comment,
+                distribution,
+                partitionKeyList,
+                propertyList,
+                freshness,
+                refreshMode,
+                asQuery);
         this.isOrAlter = isOrAlter;
     }
 
@@ -122,60 +96,12 @@ public class SqlCreateOrAlterMaterializedTable extends SqlCreate implements Exte
                 new SqlNodeList(tableConstraints, SqlParserPos.ZERO),
                 watermark,
                 comment,
+                tableConstraint,
                 partitionKeyList,
                 propertyList,
                 freshness,
+                refreshMode,
                 asQuery);
-    }
-
-    public SqlIdentifier getTableName() {
-        return tableName;
-    }
-
-    public String[] fullTableName() {
-        return tableName.names.toArray(new String[0]);
-    }
-
-    public SqlNodeList getColumnList() {
-        return columnList;
-    }
-
-    public List<SqlTableConstraint> getTableConstraints() {
-        return tableConstraints;
-    }
-
-    public Optional<SqlWatermark> getWatermark() {
-        return Optional.ofNullable(watermark);
-    }
-
-    public Optional<SqlCharStringLiteral> getComment() {
-        return Optional.ofNullable(comment);
-    }
-
-    public @Nullable SqlDistribution getDistribution() {
-        return distribution;
-    }
-
-    public SqlNodeList getPartitionKeyList() {
-        return partitionKeyList;
-    }
-
-    public SqlNodeList getPropertyList() {
-        return propertyList;
-    }
-
-    @Nullable
-    public SqlIntervalLiteral getFreshness() {
-        return freshness;
-    }
-
-    @Nullable
-    public SqlRefreshMode getRefreshMode() {
-        return refreshMode;
-    }
-
-    public SqlNode getAsQuery() {
-        return asQuery;
     }
 
     /** Returns the column constraints plus the table constraints. */
@@ -208,37 +134,53 @@ public class SqlCreateOrAlterMaterializedTable extends SqlCreate implements Exte
             writer.keyword("OR ALTER");
         }
         writer.keyword("MATERIALIZED TABLE");
-        tableName.unparse(writer, leftPrec, rightPrec);
+        getTableName().unparse(writer, leftPrec, rightPrec);
 
-        if (!columnList.isEmpty() || !tableConstraints.isEmpty() || watermark != null) {
-            SqlUnparseUtils.unparseTableSchema(
-                    writer, leftPrec, rightPrec, columnList, tableConstraints, watermark);
-        }
+        // FIXME: we need to update this
+//        if (!columnList.isEmpty() || !tableConstraints.isEmpty() || watermark != null) {
+//            SqlUnparseUtils.unparseTableSchema(
+//                    writer, leftPrec, rightPrec, columnList, tableConstraints, watermark);
+//        }
 
-        if (comment != null) {
+        getTableConstraint()
+                .ifPresent(
+                        tableConstraint -> {
+                            writer.newlineAndIndent();
+                            SqlUnparseUtils.unparseTableSchema(
+                                    writer,
+                                    leftPrec,
+                                    rightPrec,
+                                    SqlNodeList.EMPTY,
+                                    Collections.singletonList(tableConstraint),
+                                    null);
+                        });
+
+        getComment()
+                .ifPresent(
+                        comment -> {
+                            writer.newlineAndIndent();
+                            writer.keyword("COMMENT");
+                            comment.unparse(writer, leftPrec, rightPrec);
+                        });
+
+        if (getDistribution() != null) {
             writer.newlineAndIndent();
-            writer.keyword("COMMENT");
-            comment.unparse(writer, leftPrec, rightPrec);
+            getDistribution().unparse(writer, leftPrec, rightPrec);
         }
 
-        if (distribution != null) {
-            writer.newlineAndIndent();
-            distribution.unparse(writer, leftPrec, rightPrec);
-        }
-
-        if (!partitionKeyList.isEmpty()) {
+        if (!getPartitionKeyList().isEmpty()) {
             writer.newlineAndIndent();
             writer.keyword("PARTITIONED BY");
             SqlWriter.Frame partitionedByFrame = writer.startList("(", ")");
-            partitionKeyList.unparse(writer, leftPrec, rightPrec);
+            getPartitionKeyList().unparse(writer, leftPrec, rightPrec);
             writer.endList(partitionedByFrame);
         }
 
-        if (!propertyList.isEmpty()) {
+        if (!getPropertyList().isEmpty()) {
             writer.newlineAndIndent();
             writer.keyword("WITH");
             SqlWriter.Frame withFrame = writer.startList("(", ")");
-            for (SqlNode property : propertyList) {
+            for (SqlNode property : getPropertyList()) {
                 SqlUnparseUtils.printIndent(writer);
                 property.unparse(writer, leftPrec, rightPrec);
             }
@@ -246,23 +188,23 @@ public class SqlCreateOrAlterMaterializedTable extends SqlCreate implements Exte
             writer.endList(withFrame);
         }
 
-        if (freshness != null) {
+        if (getFreshness() != null) {
             writer.newlineAndIndent();
             writer.keyword("FRESHNESS");
             writer.keyword("=");
-            freshness.unparse(writer, leftPrec, rightPrec);
+            getFreshness().unparse(writer, leftPrec, rightPrec);
         }
 
-        if (refreshMode != null) {
+        if (getRefreshMode() != null) {
             writer.newlineAndIndent();
             writer.keyword("REFRESH_MODE");
             writer.keyword("=");
-            writer.keyword(refreshMode.name());
+            getRefreshMode().unparse(writer, leftPrec, rightPrec);
         }
 
         writer.newlineAndIndent();
         writer.keyword("AS");
         writer.newlineAndIndent();
-        asQuery.unparse(writer, leftPrec, rightPrec);
+        getAsQuery().unparse(writer, leftPrec, rightPrec);
     }
 }
