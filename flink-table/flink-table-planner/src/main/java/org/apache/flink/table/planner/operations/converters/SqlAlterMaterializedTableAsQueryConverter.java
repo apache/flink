@@ -83,7 +83,7 @@ public class SqlAlterMaterializedTableAsQueryConverter
             ResolvedCatalogMaterializedTable oldTable,
             List<Column> addedColumns,
             String originalQuery,
-            String definitionQuery) {
+            String expandedQuery) {
         Schema.Builder newSchemaBuilder =
                 Schema.newBuilder().fromResolvedSchema(oldTable.getResolvedSchema());
         addedColumns.forEach(col -> newSchemaBuilder.column(col.getName(), col.getDataType()));
@@ -92,7 +92,7 @@ public class SqlAlterMaterializedTableAsQueryConverter
                 oldTable,
                 builder -> {
                     builder.schema(newSchemaBuilder.build());
-                    builder.originalQuery(originalQuery).expandedQuery(definitionQuery);
+                    builder.originalQuery(originalQuery).expandedQuery(expandedQuery);
                 });
     }
 }

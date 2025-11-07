@@ -155,8 +155,8 @@ class CatalogBaseTableResolutionTest {
             new ContinuousRefreshHandler(
                     "remote", "StandaloneClusterId", JobID.generate().toHexString());
 
-    private static final String ORIGINAL_QUERY = "SELECT id, region, county FROM T";
-    private static final String EXPANDED_QUERY =
+    private static final String DEFAULT_ORIGINAL_QUERY = "SELECT id, region, county FROM T";
+    private static final String DEFAULT_EXPANDED_QUERY =
             String.format(
                     "SELECT id, region, county FROM %s.%s.T", DEFAULT_CATALOG, DEFAULT_DATABASE);
 
@@ -248,8 +248,10 @@ class CatalogBaseTableResolutionTest {
                 .isEqualTo(RESOLVED_MATERIALIZED_TABLE_SCHEMA);
         assertThat(resolvedCatalogMaterializedTable.getDefinitionFreshness())
                 .isEqualTo(IntervalFreshness.ofSecond("30"));
-        assertThat(resolvedCatalogMaterializedTable.getOriginalQuery()).isEqualTo(ORIGINAL_QUERY);
-        assertThat(resolvedCatalogMaterializedTable.getExpandedQuery()).isEqualTo(EXPANDED_QUERY);
+        assertThat(resolvedCatalogMaterializedTable.getOriginalQuery())
+                .isEqualTo(DEFAULT_ORIGINAL_QUERY);
+        assertThat(resolvedCatalogMaterializedTable.getExpandedQuery())
+                .isEqualTo(DEFAULT_EXPANDED_QUERY);
         assertThat(resolvedCatalogMaterializedTable.getLogicalRefreshMode())
                 .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.CONTINUOUS);
         assertThat(resolvedCatalogMaterializedTable.getRefreshMode())
@@ -424,8 +426,8 @@ class CatalogBaseTableResolutionTest {
         properties.put("logical-refresh-mode", "CONTINUOUS");
         properties.put("refresh-mode", "CONTINUOUS");
         properties.put("refresh-status", "INITIALIZING");
-        properties.put("original-query", ORIGINAL_QUERY);
-        properties.put("expanded-query", EXPANDED_QUERY);
+        properties.put("original-query", DEFAULT_ORIGINAL_QUERY);
+        properties.put("expanded-query", DEFAULT_EXPANDED_QUERY);
 
         // put refresh handler
         properties.put(
@@ -440,19 +442,13 @@ class CatalogBaseTableResolutionTest {
         final String comment = "This is an example materialized table.";
         final List<String> partitionKeys = Arrays.asList("region", "county");
 
-        final String originalQuery = "SELECT id, region, county FROM T";
-        final String expandedQuery =
-                String.format(
-                        "SELECT id, region, county FROM %s.%s.T",
-                        DEFAULT_CATALOG, DEFAULT_DATABASE);
-
         CatalogMaterializedTable.Builder builder = CatalogMaterializedTable.newBuilder();
         return builder.schema(MATERIALIZED_TABLE_SCHEMA)
                 .comment(comment)
                 .partitionKeys(partitionKeys)
                 .options(Collections.emptyMap())
-                .originalQuery(originalQuery)
-                .expandedQuery(expandedQuery)
+                .originalQuery(DEFAULT_ORIGINAL_QUERY)
+                .expandedQuery(DEFAULT_EXPANDED_QUERY)
                 .freshness(IntervalFreshness.ofSecond("30"))
                 .logicalRefreshMode(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC)
                 .refreshMode(CatalogMaterializedTable.RefreshMode.CONTINUOUS)

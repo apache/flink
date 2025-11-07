@@ -28,7 +28,7 @@ import java.util.List;
 
 /** Operation to describe an ALTER MATERIALIZED TABLE AS query operation. */
 @Internal
-public class AlterMaterializedTableAsQueryOperation extends AlterMaterializedTableOperation {
+public class AlterMaterializedTableAsQueryOperation extends AlterMaterializedTableChangeOperation {
 
     private final List<MaterializedTableChange> tableChanges;
 
@@ -38,7 +38,7 @@ public class AlterMaterializedTableAsQueryOperation extends AlterMaterializedTab
             ObjectIdentifier tableIdentifier,
             List<MaterializedTableChange> tableChanges,
             CatalogMaterializedTable catalogMaterializedTable) {
-        super(tableIdentifier);
+        super(tableIdentifier, tableChanges, catalogMaterializedTable);
         this.tableChanges = tableChanges;
         this.catalogMaterializedTable = catalogMaterializedTable;
     }

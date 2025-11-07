@@ -41,13 +41,17 @@ class MaterializedTableStatementParserTest {
     private static final String CREATE_OR_ALTER_COMMAND = "CREATE OR ALTER ";
 
     @ParameterizedTest(name = "{index}: {0}")
-    @MethodSource("inputForCreateMaterializedTable")
-    void testCreateMaterializedTable(
+    @MethodSource("inputForMaterializedTable")
+    void testMaterializedTable(
             final String testName, final Map.Entry<String, String> sqlToExpected) {
         final String sql = sqlToExpected.getKey();
         final String expected = sqlToExpected.getValue();
-
         sql(sql).ok(expected);
+    }
+
+    private static Stream<Arguments> inputForMaterializedTable() {
+        return Stream.concat(
+                inputForCreateMaterializedTable(), inputForCreateOrAlterMaterializedTable());
     }
 
     @Test
@@ -369,15 +373,6 @@ class MaterializedTableStatementParserTest {
     void testDropTemporaryMaterializedTable() {
         final String sql = "DROP TEMPORARY ^MATERIALIZED^ TABLE tbl1";
         sql(sql).fails("DROP TEMPORARY MATERIALIZED TABLE is not supported.");
-    }
-
-    @ParameterizedTest(name = "{index}: {0}")
-    @MethodSource("inputForCreateOrAlterMaterializedTable")
-    void testCreateOrAlterMaterializedTable(Map.Entry<String, String> sqlToExpected) {
-        final String sql = sqlToExpected.getKey();
-        final String expected = sqlToExpected.getValue();
-
-        sql(sql).ok(expected);
     }
 
     public SqlParserFixture fixture() {
