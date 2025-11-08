@@ -562,6 +562,8 @@ under the License.
 										<exclude>mime.types</exclude>
 										<exclude>mozilla/**</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
+										<exclude>/LICENSE.txt</exclude>
+										<exclude>/LICENSE</exclude>
 									</excludes>
 								</filter>
 								<filter>
