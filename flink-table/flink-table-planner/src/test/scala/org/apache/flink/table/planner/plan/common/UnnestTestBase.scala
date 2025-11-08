@@ -21,7 +21,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 import org.apache.flink.table.types.AbstractDataType
 
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.{BeforeAll, BeforeEach, Test}
 
 import java.sql.Timestamp
 
@@ -32,6 +32,19 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
 
   protected def getTableTestUtil: TableTestUtil
 
+  @BeforeEach
+  def setupBeforeEach(): Unit = {
+    util.addTable("""
+                    |CREATE TABLE reproduce_unnest (
+                    | business_data ARRAY<STRING NOT NULL>,
+                    | nested ROW<`data` ARRAY<STRING NOT NULL>>,
+                    | nested_array ARRAY<ROW<`data` ARRAY<STRING NOT NULL>> NOT NULL>
+                    |) WITH (
+                    | 'connector' = 'COLLECTION',
+                    | 'is-bounded' = 'true'
+                    |)
+      """.stripMargin)
+  }
   @Test
   def testUnnestPrimitiveArrayFromTable(): Unit = {
     util.addTableSource[(Int, Array[Int], Array[Array[Int]])]("MyTable", 'a, 'b, 'c)
@@ -230,6 +243,42 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
                  |) subquery
                  |WHERE ordinality = 1
                  |""".stripMargin)
+  }
+
+  @Test
+  def testUnnestNullMismatchLeftJoin(): Unit = {
+    util.verifyRelPlan(
+      "select bd_name from reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name) ON true")
+  }
+
+  @Test
+  def testUnnestNullMismatchCrossJoin(): Unit = {
+    util.verifyRelPlan(
+      "select bd_name from reproduce_unnest CROSS JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name)")
+  }
+
+  @Test
+  def testUnnestNullMismatchNaturalJoin(): Unit = {
+    util.verifyRelPlan(
+      "select bd_name from reproduce_unnest NATURAL JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name)")
+  }
+
+  @Test
+  def testUnnestNullMismatchNaturalJoinOnNested(): Unit = {
+    util.verifyRelPlan(
+      "select bd_name from reproduce_unnest NATURAL JOIN UNNEST(reproduce_unnest.nested.data) AS exploded_bd(bd_name)")
+  }
+
+  @Test
+  def testUnnestNullMismatchLeftJoinOnNested(): Unit = {
+    util.verifyRelPlan(
+      "select bd_name from reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.nested.data) AS exploded_bd(bd_name) ON TRUE")
+  }
+
+  @Test
+  def testUnnestNullMismatchLeftJoinOnNestedArray(): Unit = {
+    util.verifyRelPlan(
+      "select bd_name from reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.nested_array[0].data) AS exploded_bd(bd_name) ON TRUE")
   }
 
   def verifyPlan(sql: String): Unit = {

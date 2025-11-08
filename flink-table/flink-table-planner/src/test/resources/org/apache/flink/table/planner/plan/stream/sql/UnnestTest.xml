@@ -217,6 +217,144 @@ Calc(select=[b, _1 AS id, _2 AS point])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testUnnestNullMismatchCrossJoin">
+    <Resource name="sql">
+      <![CDATA[select bd_name from reproduce_unnest CROSS JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(bd_name=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, reproduce_unnest, source: [CollectionTableSource(business_data, nested, nested_array)]]])
+   +- LogicalProject(bd_name=[$0])
+      +- Uncollect
+         +- LogicalProject(business_data=[$cor0.business_data])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[f0 AS bd_name])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.business_data)], correlate=[table($UNNEST_ROWS$1($cor0.business_data))], select=[business_data,nested,nested_array,f0], rowType=[RecordType(VARCHAR(2147483647) ARRAY business_data, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) nested, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) ARRAY nested_array, VARCHAR(2147483647) f0)], joinType=[INNER])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, reproduce_unnest, source: [CollectionTableSource(business_data, nested, nested_array)]]], fields=[business_data, nested, nested_array])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnnestNullMismatchLeftJoin">
+    <Resource name="sql">
+      <![CDATA[select bd_name from reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name) ON true]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(bd_name=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, reproduce_unnest, source: [CollectionTableSource(business_data, nested, nested_array)]]])
+   +- LogicalProject(bd_name=[$0])
+      +- Uncollect
+         +- LogicalProject(business_data=[$cor0.business_data])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[bd_name])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.business_data)], correlate=[table($UNNEST_ROWS$1($cor0.business_data))], select=[business_data,nested,nested_array,bd_name], rowType=[RecordType(VARCHAR(2147483647) ARRAY business_data, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) nested, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) ARRAY nested_array, VARCHAR(2147483647) bd_name)], joinType=[LEFT])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, reproduce_unnest, source: [CollectionTableSource(business_data, nested, nested_array)]]], fields=[business_data, nested, nested_array])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnnestNullMismatchLeftJoinOnNested">
+    <Resource name="sql">
+      <![CDATA[select bd_name from reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.nested.data) AS exploded_bd(bd_name) ON TRUE]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(bd_name=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{1}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, reproduce_unnest, source: [CollectionTableSource(business_data, nested, nested_array)]]])
+   +- LogicalProject(bd_name=[$0])
+      +- Uncollect
+         +- LogicalProject(data=[$cor0.nested.data])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[bd_name])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.nested.data)], correlate=[table($UNNEST_ROWS$1($cor0.nested.data))], select=[business_data,nested,nested_array,bd_name], rowType=[RecordType(VARCHAR(2147483647) ARRAY business_data, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) nested, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) ARRAY nested_array, VARCHAR(2147483647) bd_name)], joinType=[LEFT])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, reproduce_unnest, source: [CollectionTableSource(business_data, nested, nested_array)]]], fields=[business_data, nested, nested_array])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnnestNullMismatchLeftJoinOnNestedArray">
+    <Resource name="sql">
+      <![CDATA[select bd_name from reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.nested_array[0].data) AS exploded_bd(bd_name) ON TRUE]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(bd_name=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[left], requiredColumns=[{2}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, reproduce_unnest, source: [CollectionTableSource(business_data, nested, nested_array)]]])
+   +- LogicalProject(bd_name=[$0])
+      +- Uncollect
+         +- LogicalProject(EXPR$0=[ITEM($cor0.nested_array, 0).data])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[bd_name])
++- Correlate(invocation=[$UNNEST_ROWS$1(ITEM($cor0.nested_array, 0).data)], correlate=[table($UNNEST_ROWS$1(ITEM($cor0.nested_array, 0).data))], select=[business_data,nested,nested_array,bd_name], rowType=[RecordType(VARCHAR(2147483647) ARRAY business_data, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) nested, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) ARRAY nested_array, VARCHAR(2147483647) bd_name)], joinType=[LEFT])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, reproduce_unnest, source: [CollectionTableSource(business_data, nested, nested_array)]]], fields=[business_data, nested, nested_array])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnnestNullMismatchNaturalJoin">
+    <Resource name="sql">
+      <![CDATA[select bd_name from reproduce_unnest NATURAL JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(bd_name=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, reproduce_unnest, source: [CollectionTableSource(business_data, nested, nested_array)]]])
+   +- LogicalProject(bd_name=[$0])
+      +- Uncollect
+         +- LogicalProject(business_data=[$cor0.business_data])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[f0 AS bd_name])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.business_data)], correlate=[table($UNNEST_ROWS$1($cor0.business_data))], select=[business_data,nested,nested_array,f0], rowType=[RecordType(VARCHAR(2147483647) ARRAY business_data, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) nested, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) ARRAY nested_array, VARCHAR(2147483647) f0)], joinType=[INNER])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, reproduce_unnest, source: [CollectionTableSource(business_data, nested, nested_array)]]], fields=[business_data, nested, nested_array])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testUnnestNullMismatchNaturalJoinOnNested">
+    <Resource name="sql">
+      <![CDATA[select bd_name from reproduce_unnest NATURAL JOIN UNNEST(reproduce_unnest.nested.data) AS exploded_bd(bd_name)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(bd_name=[$3])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, reproduce_unnest, source: [CollectionTableSource(business_data, nested, nested_array)]]])
+   +- LogicalProject(bd_name=[$0])
+      +- Uncollect
+         +- LogicalProject(data=[$cor0.nested.data])
+            +- LogicalValues(tuples=[[{ 0 }]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[f0 AS bd_name])
++- Correlate(invocation=[$UNNEST_ROWS$1($cor0.nested.data)], correlate=[table($UNNEST_ROWS$1($cor0.nested.data))], select=[business_data,nested,nested_array,f0], rowType=[RecordType(VARCHAR(2147483647) ARRAY business_data, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) nested, RecordType:peek_no_expand(VARCHAR(2147483647) ARRAY data) ARRAY nested_array, VARCHAR(2147483647) f0)], joinType=[INNER])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, reproduce_unnest, source: [CollectionTableSource(business_data, nested, nested_array)]]], fields=[business_data, nested, nested_array])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testUnnestObjectArrayFromTableWithFilter">
     <Resource name="sql">
       <![CDATA[SELECT a, b, s, t FROM MyTable, UNNEST(MyTable.b) AS A (s, t) WHERE s > 13]]>
