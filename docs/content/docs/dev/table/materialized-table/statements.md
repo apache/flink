@@ -36,7 +36,11 @@ Flink SQL supports the following Materialized Table statements for now:
 ```
 CREATE MATERIALIZED TABLE [catalog_name.][db_name.]table_name
 
-[ ([ <table_constraint> ]) ]
+[(
+    { <physical_column_definition> | <metadata_column_definition> | <computed_column_definition> }[ , ...n]
+    [ <watermark_definition> ]
+    [ <table_constraint> ][ , ...n]
+)]
 
 [COMMENT table_comment]
 
@@ -50,8 +54,23 @@ CREATE MATERIALIZED TABLE [catalog_name.][db_name.]table_name
 
 AS <select_statement>
 
+<physical_column_definition>:
+  column_name column_type [ <column_constraint> ] [COMMENT column_comment]
+  
+<column_constraint>:
+  [CONSTRAINT constraint_name] PRIMARY KEY NOT ENFORCED
+
 <table_constraint>:
   [CONSTRAINT constraint_name] PRIMARY KEY (column_name, ...) NOT ENFORCED
+
+<metadata_column_definition>:
+  column_name column_type METADATA [ FROM metadata_key ] [ VIRTUAL ]
+
+<computed_column_definition>:
+  column_name AS computed_column_expression [COMMENT column_comment]
+
+<watermark_definition>:
+  WATERMARK FOR rowtime_column_name AS watermark_strategy_expression
 ```
 
 ## PRIMARY KEY
@@ -268,10 +287,24 @@ CREATE MATERIALIZED TABLE my_materialized_table_full
     GROUP BY
         p.ds, p.product_id, p.product_name
 ```
+And same materialized table with explicitly specified columns 
+
+```sql
+CREATE MATERIALIZED TABLE my_materialized_table_full (
+    ds, product_id, product_name, avg_sale_price, total_quantity)
+    ...
+```
+Order of columns doesn't necessary should be same as in query, Flink will do reordering if required
+i.e. this will be also valid
+```sql
+CREATE MATERIALIZED TABLE my_materialized_table_full (
+    product_id, product_name, ds, avg_sale_price, total_quantity)
+    ...
+```
 
 ## Limitations
 
-- Does not support explicitly specifying columns
+- Does not support explicitly specifying physical columns which are not used in a query 
 - Does not support referring to temporary tables, temporary views, or temporary functions in the select query
 
 # ALTER MATERIALIZED TABLE

@@ -351,7 +351,7 @@ public class MergeTableAsUtil {
                 String name = ((SqlIdentifier) identifier).getSimple();
                 if (!sourceSchemaCols.containsKey(name)) {
                     throw new ValidationException(
-                            String.format("Column '%s' not found in the source schema. ", name));
+                            String.format("Column '%s' not found in the source schema.", name));
                 }
 
                 sinkSchemaCols.put(name, sourceSchemaCols.get(name));

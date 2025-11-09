@@ -1406,7 +1406,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         checkAlterNonExistTable("alter table %s nonexistent drop watermark");
     }
 
-    @ParameterizedTest(name = "[{index}] {0}")
+    @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("provideCreateMaterializedTableTestCases")
     void createMaterializedTableWithVariousOptions(
             String testName,
@@ -1429,7 +1429,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         return Stream.of(
                 Arguments.of(
                         "with refresh mode continuous",
-                        "CREATE MATERIALIZED TABLE users_shops ("
+                        "CREATE MATERIALIZED TABLE users_shops (shop_id int, user_id int,"
                                 + " PRIMARY KEY (user_id) not enforced)"
                                 + " WITH(\n"
                                 + "   'format' = 'debezium-json'\n"
@@ -1439,14 +1439,14 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                 + " AS SELECT 1 as shop_id, 2 as user_id ",
                         "CREATE MATERIALIZED TABLE: (materializedTable: "
                                 + "[ResolvedCatalogMaterializedTable{origin=DefaultCatalogMaterializedTable{schema=(\n"
-                                + "  `shop_id` INT NOT NULL,\n"
+                                + "  `shop_id` INT,\n"
                                 + "  `user_id` INT NOT NULL,\n"
                                 + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
                                 + "), comment='null', distribution=null, partitionKeys=[], "
                                 + "options={format=debezium-json}, snapshot=null, definitionQuery='SELECT 1 AS `shop_id`, 2 AS `user_id`', "
                                 + "freshness=INTERVAL '30' SECOND, logicalRefreshMode=CONTINUOUS, refreshMode=CONTINUOUS, "
                                 + "refreshStatus=INITIALIZING, refreshHandlerDescription='null', serializedRefreshHandler=null}, resolvedSchema=(\n"
-                                + "  `shop_id` INT NOT NULL,\n"
+                                + "  `shop_id` INT,\n"
                                 + "  `user_id` INT NOT NULL,\n"
                                 + "  CONSTRAINT `PK_user_id` PRIMARY KEY (`user_id`) NOT ENFORCED\n"
                                 + ")}], identifier: [`builtin`.`default`.`users_shops`])",

@@ -39,7 +39,8 @@ class MaterializedTableStatementParserTest {
 
     @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("inputForCreateMaterializedTable")
-    void testCreateMaterializedTable(Map.Entry<String, String> sqlToExpected) {
+    void testCreateMaterializedTable(
+            final String testName, final Map.Entry<String, String> sqlToExpected) {
         final String sql = sqlToExpected.getKey();
         final String expected = sqlToExpected.getValue();
 
@@ -373,17 +374,23 @@ class MaterializedTableStatementParserTest {
 
     private static Stream<Arguments> inputForCreateMaterializedTable() {
         return Stream.of(
-                Arguments.of(fullExample()),
-                Arguments.of(withoutTableConstraint()),
-                Arguments.of(withPrimaryKey()),
-                Arguments.of(withoutFreshness()));
+                Arguments.of("Full example", fullExample()),
+                Arguments.of("With columns", withColumns()),
+                Arguments.of("With columns and watermarks", withColumnsAndWatermark()),
+                Arguments.of("Without table constraint", withoutTableConstraint()),
+                Arguments.of("With primary key", withPrimaryKey()),
+                Arguments.of("Without freshness", withoutFreshness()),
+                Arguments.of("With column identifiers only", withColumnsIdentifiersOnly()));
     }
 
     private static Map.Entry<String, String> fullExample() {
         return new AbstractMap.SimpleEntry<>(
                 "CREATE MATERIALIZED TABLE tbl1\n"
                         + "(\n"
-                        + "   PRIMARY KEY (a, b)\n"
+                        + "  ts timestamp(3),\n"
+                        + "  id varchar,\n"
+                        + "  watermark FOR ts AS ts - interval '3' second,\n"
+                        + "  PRIMARY KEY (id)\n"
                         + ")\n"
                         + "COMMENT 'table comment'\n"
                         + "DISTRIBUTED BY HASH (a) INTO 4 BUCKETS\n"
@@ -394,9 +401,11 @@ class MaterializedTableStatementParserTest {
                         + ")\n"
                         + "FRESHNESS = INTERVAL '3' MINUTES\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                "CREATE MATERIALIZED TABLE `TBL1`\n"
-                        + "(\n"
-                        + "  PRIMARY KEY (`A`, `B`)\n"
+                "CREATE MATERIALIZED TABLE `TBL1` (\n"
+                        + "  `TS` TIMESTAMP(3),\n"
+                        + "  `ID` VARCHAR,\n"
+                        + "  PRIMARY KEY (`ID`),\n"
+                        + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n"
                         + ")\n"
                         + "COMMENT 'table comment'\n"
                         + "DISTRIBUTED BY HASH(`A`) INTO 4 BUCKETS\n"
@@ -421,8 +430,7 @@ class MaterializedTableStatementParserTest {
                         + "FRESHNESS = INTERVAL '3' MINUTE\n"
                         + "REFRESH_MODE = FULL\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                "CREATE MATERIALIZED TABLE `TBL1`\n"
-                        + "(\n"
+                "CREATE MATERIALIZED TABLE `TBL1` (\n"
                         + "  PRIMARY KEY (`A`, `B`)\n"
                         + ")\n"
                         + "COMMENT 'table comment'\n"
@@ -460,14 +468,114 @@ class MaterializedTableStatementParserTest {
                         + "  'kafka.topic' = 'log.test'\n"
                         + ")\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                "CREATE MATERIALIZED TABLE `TBL1`\n"
-                        + "(\n"
+                "CREATE MATERIALIZED TABLE `TBL1` (\n"
                         + "  PRIMARY KEY (`A`, `B`)\n"
                         + ")\n"
                         + "WITH (\n"
                         + "  'group.id' = 'latest',\n"
                         + "  'kafka.topic' = 'log.test'\n"
                         + ")\n"
+                        + "AS\n"
+                        + "SELECT `A`, `B`, `H`, `T` AS `M`\n"
+                        + "FROM `SOURCE`");
+    }
+
+    private static Map.Entry<String, String> withColumns() {
+        return new AbstractMap.SimpleEntry<>(
+                "CREATE MATERIALIZED TABLE tbl1\n"
+                        + "(\n"
+                        + "  a INT, b STRING, h INT, m INT\n"
+                        + ")\n"
+                        + "COMMENT 'table comment'\n"
+                        + "DISTRIBUTED BY HASH (a) INTO 4 BUCKETS\n"
+                        + "PARTITIONED BY (a, h)\n"
+                        + "WITH (\n"
+                        + "  'group.id' = 'latest', \n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
+                        + "AS SELECT a, b, h, t m FROM source",
+                "CREATE MATERIALIZED TABLE `TBL1` (\n"
+                        + "  `A` INTEGER,\n"
+                        + "  `B` STRING,\n"
+                        + "  `H` INTEGER,\n"
+                        + "  `M` INTEGER\n"
+                        + ")\n"
+                        + "COMMENT 'table comment'\n"
+                        + "DISTRIBUTED BY HASH(`A`) INTO 4 BUCKETS\n"
+                        + "PARTITIONED BY (`A`, `H`)\n"
+                        + "WITH (\n"
+                        + "  'group.id' = 'latest',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
+                        + "AS\n"
+                        + "SELECT `A`, `B`, `H`, `T` AS `M`\n"
+                        + "FROM `SOURCE`");
+    }
+
+    private static Map.Entry<String, String> withColumnsAndWatermark() {
+        return new AbstractMap.SimpleEntry<>(
+                "CREATE MATERIALIZED TABLE tbl1\n"
+                        + "(\n"
+                        + "  ts timestamp(3),\n"
+                        + "  id varchar,\n"
+                        + "  watermark FOR ts AS ts - interval '3' second\n"
+                        + ")\n"
+                        + "COMMENT 'table comment'\n"
+                        + "DISTRIBUTED BY HASH (a) INTO 4 BUCKETS\n"
+                        + "PARTITIONED BY (a, h)\n"
+                        + "WITH (\n"
+                        + "  'group.id' = 'latest', \n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
+                        + "AS SELECT a, b, h, t m FROM source",
+                "CREATE MATERIALIZED TABLE `TBL1` (\n"
+                        + "  `TS` TIMESTAMP(3),\n"
+                        + "  `ID` VARCHAR,\n"
+                        + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n"
+                        + ")\n"
+                        + "COMMENT 'table comment'\n"
+                        + "DISTRIBUTED BY HASH(`A`) INTO 4 BUCKETS\n"
+                        + "PARTITIONED BY (`A`, `H`)\n"
+                        + "WITH (\n"
+                        + "  'group.id' = 'latest',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
+                        + "AS\n"
+                        + "SELECT `A`, `B`, `H`, `T` AS `M`\n"
+                        + "FROM `SOURCE`");
+    }
+
+    private static Map.Entry<String, String> withColumnsIdentifiersOnly() {
+        return new AbstractMap.SimpleEntry<>(
+                "CREATE MATERIALIZED TABLE tbl1\n"
+                        + "(a, b, h, m)\n"
+                        + "COMMENT 'table comment'\n"
+                        + "DISTRIBUTED BY HASH (a) INTO 4 BUCKETS\n"
+                        + "PARTITIONED BY (a, h)\n"
+                        + "WITH (\n"
+                        + "  'group.id' = 'latest', \n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
+                        + "AS SELECT a, b, h, t m FROM source",
+                "CREATE MATERIALIZED TABLE `TBL1` (\n"
+                        + "  `A`,\n"
+                        + "  `B`,\n"
+                        + "  `H`,\n"
+                        + "  `M`\n"
+                        + ")\n"
+                        + "COMMENT 'table comment'\n"
+                        + "DISTRIBUTED BY HASH(`A`) INTO 4 BUCKETS\n"
+                        + "PARTITIONED BY (`A`, `H`)\n"
+                        + "WITH (\n"
+                        + "  'group.id' = 'latest',\n"
+                        + "  'kafka.topic' = 'log.test'\n"
+                        + ")\n"
+                        + "FRESHNESS = INTERVAL '3' MINUTE\n"
                         + "AS\n"
                         + "SELECT `A`, `B`, `H`, `T` AS `M`\n"
                         + "FROM `SOURCE`");

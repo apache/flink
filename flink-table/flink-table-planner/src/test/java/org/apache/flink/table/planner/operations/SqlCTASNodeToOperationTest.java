@@ -48,13 +48,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test base for testing convert CREATE TABLE AS statement to operation. */
-public class SqlCTASNodeToOperationTest extends SqlNodeToOperationConversionTestBase {
+class SqlCTASNodeToOperationTest extends SqlNodeToOperationConversionTestBase {
 
     private static final Map<String, String> TABLE_OPTIONS =
             Map.of("connector", TestSimpleDynamicTableSourceFactory.IDENTIFIER());
 
     @Test
-    public void testCreateTableAsWithNotFoundColumnIdentifiers() {
+    void testCreateTableAsWithNotFoundColumnIdentifiers() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(
@@ -76,7 +76,7 @@ public class SqlCTASNodeToOperationTest extends SqlNodeToOperationConversionTest
     }
 
     @Test
-    public void testCreateTableAsWithMismatchIdentifiersLength() {
+    void testCreateTableAsWithMismatchIdentifiersLength() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(
@@ -100,7 +100,7 @@ public class SqlCTASNodeToOperationTest extends SqlNodeToOperationConversionTest
     }
 
     @Test
-    public void testCreateTableAsWithColumns() {
+    void testCreateTableAsWithColumns() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(
@@ -142,7 +142,7 @@ public class SqlCTASNodeToOperationTest extends SqlNodeToOperationConversionTest
     }
 
     @Test
-    public void testCreateTableAsWithColumnsOverridden() {
+    void testCreateTableAsWithColumnsOverridden() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(
@@ -181,7 +181,7 @@ public class SqlCTASNodeToOperationTest extends SqlNodeToOperationConversionTest
     }
 
     @Test
-    public void testCreateTableAsWithOverriddenVirtualMetadataColumnsNotAllowed() {
+    void testCreateTableAsWithOverriddenVirtualMetadataColumnsNotAllowed() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(
@@ -207,7 +207,7 @@ public class SqlCTASNodeToOperationTest extends SqlNodeToOperationConversionTest
     }
 
     @Test
-    public void testCreateTableAsWithOverriddenComputedColumnsNotAllowed() {
+    void testCreateTableAsWithOverriddenComputedColumnsNotAllowed() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(
@@ -231,7 +231,7 @@ public class SqlCTASNodeToOperationTest extends SqlNodeToOperationConversionTest
     }
 
     @Test
-    public void testCreateTableAsWithPrimaryAndPartitionKey() {
+    void testCreateTableAsWithPrimaryAndPartitionKey() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(
@@ -266,7 +266,7 @@ public class SqlCTASNodeToOperationTest extends SqlNodeToOperationConversionTest
     }
 
     @Test
-    public void testCreateTableAsWithWatermark() {
+    void testCreateTableAsWithWatermark() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(
@@ -301,7 +301,7 @@ public class SqlCTASNodeToOperationTest extends SqlNodeToOperationConversionTest
     }
 
     @Test
-    public void testCreateTableAsWithNotNullColumnsAreNotAllowed() {
+    void testCreateTableAsWithNotNullColumnsAreNotAllowed() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(
@@ -323,7 +323,7 @@ public class SqlCTASNodeToOperationTest extends SqlNodeToOperationConversionTest
     }
 
     @Test
-    public void testCreateTableAsWithIncompatibleImplicitCastTypes() {
+    void testCreateTableAsWithIncompatibleImplicitCastTypes() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(
@@ -348,7 +348,7 @@ public class SqlCTASNodeToOperationTest extends SqlNodeToOperationConversionTest
     }
 
     @Test
-    public void testMergingCreateTableAsWithDistribution() {
+    void testMergingCreateTableAsWithDistribution() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(
@@ -388,7 +388,7 @@ public class SqlCTASNodeToOperationTest extends SqlNodeToOperationConversionTest
     }
 
     @Test
-    public void testMergingCreateTableAsWitEmptyDistribution() {
+    void testMergingCreateTableAsWitEmptyDistribution() {
         CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(
