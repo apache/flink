@@ -36,7 +36,11 @@ Flink SQL 目前支持以下物化表操作：
 ```
 CREATE MATERIALIZED TABLE [catalog_name.][db_name.]table_name
 
-[ ([ <table_constraint> ]) ]
+[(
+    { <physical_column_definition> | <metadata_column_definition> | <computed_column_definition> }[ , ...n]
+    [ <watermark_definition> ]
+    [ <table_constraint> ][ , ...n]
+)]
 
 [COMMENT table_comment]
 
@@ -44,14 +48,29 @@ CREATE MATERIALIZED TABLE [catalog_name.][db_name.]table_name
 
 [WITH (key1=val1, key2=val2, ...)]
 
-FRESHNESS = INTERVAL '<num>' { SECOND | MINUTE | HOUR | DAY }
+[FRESHNESS = INTERVAL '<num>' { SECOND[S] | MINUTE[S] | HOUR[S] | DAY[S] }]
 
 [REFRESH_MODE = { CONTINUOUS | FULL }]
 
 AS <select_statement>
 
+<physical_column_definition>:
+  column_name column_type [ <column_constraint> ] [COMMENT column_comment]
+  
+<column_constraint>:
+  [CONSTRAINT constraint_name] PRIMARY KEY NOT ENFORCED
+
 <table_constraint>:
   [CONSTRAINT constraint_name] PRIMARY KEY (column_name, ...) NOT ENFORCED
+
+<metadata_column_definition>:
+  column_name column_type METADATA [ FROM metadata_key ] [ VIRTUAL ]
+
+<computed_column_definition>:
+  column_name AS computed_column_expression [COMMENT column_comment]
+
+<watermark_definition>:
+  WATERMARK FOR rowtime_column_name AS watermark_strategy_expression
 ```
 
 ## PRIMARY KEY
@@ -270,9 +289,32 @@ CREATE MATERIALIZED TABLE my_materialized_table_full
     GROUP BY
         p.ds, p.product_id, p.product_name
 ```
+And same materialized table with explicitly specified columns
+
+```sql
+CREATE MATERIALIZED TABLE my_materialized_table_full (
+    ds, product_id, product_name, avg_sale_price, total_quantity)
+    ...
+```
+The order of the columns doesn't need to be the same as in the query,
+Flink will do reordering if required  i.e. this will be also valid
+```sql
+CREATE MATERIALIZED TABLE my_materialized_table_full (
+    product_id, product_name, ds, avg_sale_price, total_quantity)
+    ...
+```
+Another way of doing this is putting name and data type
+```sql
+CREATE MATERIALIZED TABLE my_materialized_table_full (
+    ds STRING, product_id STRING, product_name STRING, avg_sale_price DOUBLE, total_quantity BIGINT)
+    ...
+```
+It might happen that types of columns are not the same, in that case implicit casts will be applied. 
+If for some of the combinations implicit cast is not supported then there will be validation error thrown. 
+Also, it is worth to note that reordering can also be done here. 
 
 ## 限制
-- 不支持显式指定列名
+- Does not support explicitly specifying physical columns which are not used in the query
 - 不支持在 select 查询语句中引用临时表、临时视图或临时函数
 
 # ALTER MATERIALIZED TABLE

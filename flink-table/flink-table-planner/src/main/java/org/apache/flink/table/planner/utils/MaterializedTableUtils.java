@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.IntervalFreshness;
 
@@ -61,24 +61,23 @@ public class MaterializedTableUtils {
         }
     }
 
-    public static CatalogMaterializedTable.LogicalRefreshMode deriveLogicalRefreshMode(
-            SqlRefreshMode sqlRefreshMode) {
+    public static LogicalRefreshMode deriveLogicalRefreshMode(SqlRefreshMode sqlRefreshMode) {
         if (sqlRefreshMode == null) {
-            return CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC;
+            return LogicalRefreshMode.AUTOMATIC;
         }
 
         switch (sqlRefreshMode) {
             case FULL:
-                return CatalogMaterializedTable.LogicalRefreshMode.FULL;
+                return LogicalRefreshMode.FULL;
             case CONTINUOUS:
-                return CatalogMaterializedTable.LogicalRefreshMode.CONTINUOUS;
+                return LogicalRefreshMode.CONTINUOUS;
             default:
                 throw new ValidationException(
                         String.format("Unsupported logical refresh mode: %s.", sqlRefreshMode));
         }
     }
 
-    public static RefreshMode fromSqltoRefreshMode(SqlRefreshMode sqlRefreshMode) {
+    public static RefreshMode fromSqlToRefreshMode(SqlRefreshMode sqlRefreshMode) {
         switch (sqlRefreshMode) {
             case FULL:
                 return RefreshMode.FULL;
@@ -86,6 +85,21 @@ public class MaterializedTableUtils {
                 return RefreshMode.CONTINUOUS;
             default:
                 throw new IllegalArgumentException("Unknown refresh mode: " + sqlRefreshMode);
+        }
+    }
+
+    public static RefreshMode fromLogicalRefreshModeToRefreshMode(
+            LogicalRefreshMode logicalRefreshMode) {
+        switch (logicalRefreshMode) {
+            case AUTOMATIC:
+                return null;
+            case FULL:
+                return RefreshMode.FULL;
+            case CONTINUOUS:
+                return RefreshMode.CONTINUOUS;
+            default:
+                throw new IllegalArgumentException(
+                        "Unknown logical refresh mode: " + logicalRefreshMode);
         }
     }
 }

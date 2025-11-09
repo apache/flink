@@ -45,7 +45,7 @@ import java.util.stream.Collectors;
 public abstract class AbstractCreateTableConverter<T extends SqlCreateTable>
         implements SqlNodeConverter<T> {
 
-    /** Context of create table converters while mering source and derived items. */
+    /** Context of create table converters while merging source and derived items. */
     protected interface MergeContext {
         Schema getMergedSchema(ResolvedSchema schemaToMerge);
 

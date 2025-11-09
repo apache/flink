@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations;
 
+import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.FunctionDescriptor;
 import org.apache.flink.table.api.Schema;
@@ -34,6 +35,7 @@ import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
@@ -50,8 +52,13 @@ import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableMap;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -62,11 +69,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for the materialized table statements for {@link SqlNodeToOperationConversion}. */
-public class SqlMaterializedTableNodeToOperationConverterTest
+class SqlMaterializedTableNodeToOperationConverterTest
         extends SqlNodeToOperationConversionTestBase {
 
     @BeforeEach
-    public void before() throws TableAlreadyExistException, DatabaseNotExistException {
+    void before() throws TableAlreadyExistException, DatabaseNotExistException {
         super.before();
         final ObjectPath path3 = new ObjectPath(catalogManager.getCurrentDatabase(), "t3");
         final Schema tableSchema =
@@ -284,7 +291,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                         + ")\n"
                         + "FRESHNESS = INTERVAL '30' SECOND\n"
                         + "REFRESH_MODE = FULL\n"
-                        + "AS SELECT a, f1, f2 FROM t1,LATERAL TABLE(myFunc(b)) as T(f1, f2)";
+                        + "AS SELECT a, f1, f2 FROM t1, LATERAL TABLE(myFunc(b)) as T(f1, f2)";
         Operation operation = parse(sql);
         assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
 
@@ -397,9 +404,8 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                         + "AS SELECT * FROM t1";
 
         assertThatThrownBy(() -> parse(sql))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Primary key validation failed: UNIQUE constraint is not supported yet.");
+                .isInstanceOf(SqlValidateException.class)
+                .hasMessageContaining("UNIQUE constraint is not supported yet");
 
         // test primary key not defined in source table
         final String sql2 =
@@ -412,7 +418,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         assertThatThrownBy(() -> parse(sql2))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Primary key column 'e' not defined in the query schema. Available columns: ['a', 'b', 'c', 'd'].");
+                        "Primary key column 'e' is not defined in the schema at line 2, column 31");
 
         // test primary key with nullable source column
         final String sql3 =
@@ -424,7 +430,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
 
         assertThatThrownBy(() -> parse(sql3))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Could not create a PRIMARY KEY with nullable column 'd'.");
+                .hasMessageContaining("Invalid primary key 'ct1'. Column 'd' is nullable.");
     }
 
     @Test
@@ -438,7 +444,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         assertThatThrownBy(() -> parse(sql))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Partition column 'e' not defined in the query schema. Available columns: ['a', 'b', 'c', 'd'].");
+                        "Partition column 'e' not defined in the query schema. Available columns: ['a', 'b', 'c', 'd']");
 
         final String sql2 =
                 "CREATE MATERIALIZED TABLE mtbl1\n"
@@ -516,6 +522,65 @@ public class SqlMaterializedTableNodeToOperationConverterTest
                         "Materialized table freshness only support SECOND, MINUTE, HOUR, DAY as the time unit.");
     }
 
+    @ParameterizedTest
+    @MethodSource("testDataForCreateMaterializedTableFailedCase")
+    void createMaterializedTableFailedCase(String sql, String expectedErrorMsg) {
+        assertThatThrownBy(() -> parse(sql))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(expectedErrorMsg);
+    }
+
+    @ParameterizedTest
+    @MethodSource("testDataWithDifferentSchemasSuccessCase")
+    void createMaterializedTableSuccessCase(String sql, ResolvedSchema expected) {
+        CreateMaterializedTableOperation operation = (CreateMaterializedTableOperation) parse(sql);
+        assertThat(operation.getCatalogMaterializedTable().getResolvedSchema()).isEqualTo(expected);
+    }
+
+    @Test
+    void createMaterializedTableWithWatermark() {
+        final String sql =
+                "CREATE MATERIALIZED TABLE users_shops (watermark for ts as ts - interval '2' second)"
+                        + " FRESHNESS = INTERVAL '30' SECOND"
+                        + " AS SELECT 1 as shop_id, 2 as user_id, cast(current_timestamp as timestamp(3)) ts";
+        CreateMaterializedTableOperation operation = (CreateMaterializedTableOperation) parse(sql);
+        ResolvedSchema schema = operation.getCatalogMaterializedTable().getResolvedSchema();
+        assertThat(schema.getColumns())
+                .containsExactly(
+                        Column.physical("shop_id", DataTypes.INT().notNull()),
+                        Column.physical("user_id", DataTypes.INT().notNull()),
+                        Column.physical("ts", DataTypes.TIMESTAMP(3).notNull()));
+
+        assertThat(schema.getWatermarkSpecs()).hasSize(1);
+        WatermarkSpec watermarkSpec = schema.getWatermarkSpecs().get(0);
+        assertThat(watermarkSpec.getWatermarkExpression())
+                .hasToString("`ts` - INTERVAL '2' SECOND");
+        assertThat(schema.getPrimaryKey()).isEmpty();
+        assertThat(schema.getIndexes()).isEmpty();
+    }
+
+    @Test
+    void createMaterializedTableWithWatermarkUsingColumnFromCreatePart() {
+        final String sql =
+                "CREATE MATERIALIZED TABLE users_shops (ts TIMESTAMP(3), watermark for ts as ts - interval '2' second)"
+                        + " FRESHNESS = INTERVAL '30' SECOND"
+                        + " AS SELECT current_timestamp() as ts, 1 as shop_id, 2 as user_id";
+        CreateMaterializedTableOperation operation = (CreateMaterializedTableOperation) parse(sql);
+        ResolvedSchema schema = operation.getCatalogMaterializedTable().getResolvedSchema();
+        assertThat(schema.getColumns())
+                .containsExactly(
+                        Column.physical("ts", DataTypes.TIMESTAMP(3)),
+                        Column.physical("shop_id", DataTypes.INT().notNull()),
+                        Column.physical("user_id", DataTypes.INT().notNull()));
+
+        assertThat(schema.getWatermarkSpecs()).hasSize(1);
+        WatermarkSpec watermarkSpec = schema.getWatermarkSpecs().get(0);
+        assertThat(watermarkSpec.getWatermarkExpression())
+                .hasToString("`ts` - INTERVAL '2' SECOND");
+        assertThat(schema.getPrimaryKey()).isEmpty();
+        assertThat(schema.getIndexes()).isEmpty();
+    }
+
     @Test
     void testAlterMaterializedTableRefreshOperationWithPartitionSpec() {
         final String sql =
@@ -531,7 +596,7 @@ public class SqlMaterializedTableNodeToOperationConverterTest
     }
 
     @Test
-    public void testAlterMaterializedTableRefreshOperationWithoutPartitionSpec() {
+    void testAlterMaterializedTableRefreshOperationWithoutPartitionSpec() {
         final String sql = "ALTER MATERIALIZED TABLE mtbl1 REFRESH";
 
         Operation operation = parse(sql);
@@ -645,49 +710,6 @@ public class SqlMaterializedTableNodeToOperationConverterTest
     }
 
     @Test
-    void testAlterMaterializedTableAsQueryWithUnsupportedColumnChange() {
-        // 1. delete existing column
-        String sql1 = "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b FROM t3";
-        assertThatThrownBy(() -> parse(sql1))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Failed to modify query because drop column is unsupported. When modifying a query, you can only append new columns at the end of original schema. The original schema has 4 columns, but the newly derived schema from the query has 2 columns.");
-        // 2. swap column position
-        String sql2 = "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, d, c FROM t3";
-        assertThatThrownBy(() -> parse(sql2))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "When modifying the query of a materialized table, currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
-                                + "Column mismatch at position 2: Original column is [`c` INT], but new column is [`d` STRING].");
-        // 3. change existing column type
-        String sql3 =
-                "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, cast(d as int) as d FROM t3";
-        assertThatThrownBy(() -> parse(sql3))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "When modifying the query of a materialized table, currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
-                                + "Column mismatch at position 3: Original column is [`d` STRING], but new column is [`d` INT].");
-        // 4. change existing column nullability
-        String sql4 =
-                "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, cast('d' as string) as d FROM t3";
-        assertThatThrownBy(() -> parse(sql4))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "When modifying the query of a materialized table, currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
-                                + "Column mismatch at position 3: Original column is [`d` STRING], but new column is [`d` STRING NOT NULL].");
-    }
-
-    @Test
-    void testAlterAlterMaterializedTableAsQueryWithCatalogTable() {
-        // t1 is a CatalogTable not a Materialized Table
-        final String sql = "ALTER MATERIALIZED TABLE t1 AS SELECT * FROM t1";
-        assertThatThrownBy(() -> parse(sql))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Only materialized tables support modifying the definition query.");
-    }
-
-    @Test
     void testDropMaterializedTable() {
         final String sql = "DROP MATERIALIZED TABLE mtbl1";
         Operation operation = parse(sql);
@@ -705,5 +727,154 @@ public class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(operation2.asSummaryString())
                 .isEqualTo(
                         "DROP MATERIALIZED TABLE: (identifier: [`builtin`.`default`.`mtbl1`], IfExists: [true])");
+    }
+
+    private static Collection<Arguments> testDataForCreateMaterializedTableFailedCase() {
+        final Collection<Arguments> list = new ArrayList<>();
+        list.addAll(create());
+        list.addAll(alter());
+        return list;
+    }
+
+    private static Collection<Arguments> alter() {
+        return List.of(
+                Arguments.of(
+                        "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b FROM t3",
+                        "Failed to modify query because drop column is unsupported. When modifying "
+                                + "a query, you can only append new columns at the end of original "
+                                + "schema. The original schema has 4 columns, but the newly derived "
+                                + "schema from the query has 2 columns."),
+                Arguments.of(
+                        "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, d, c FROM t3",
+                        "When modifying the query of a materialized table, currently only support "
+                                + "appending columns at the end of original schema, dropping, "
+                                + "renaming, and reordering columns are not supported.\n"
+                                + "Column mismatch at position 2: Original column is [`c` INT], "
+                                + "but new column is [`d` STRING]."),
+                Arguments.of(
+                        "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, CAST(d AS INT) AS d FROM t3",
+                        "When modifying the query of a materialized table, currently only support "
+                                + "appending columns at the end of original schema, dropping, "
+                                + "renaming, and reordering columns are not supported.\n"
+                                + "Column mismatch at position 3: Original column is [`d` STRING], "
+                                + "but new column is [`d` INT]."),
+                Arguments.of(
+                        "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, CAST('d' AS STRING) AS d FROM t3",
+                        "When modifying the query of a materialized table, currently only support "
+                                + "appending columns at the end of original schema, dropping, "
+                                + "renaming, and reordering columns are not supported.\n"
+                                + "Column mismatch at position 3: Original column is [`d` STRING], "
+                                + "but new column is [`d` STRING NOT NULL]."),
+                Arguments.of(
+                        "ALTER MATERIALIZED TABLE t1 AS SELECT * FROM t1",
+                        "Only materialized tables support modifying the definition query."));
+    }
+
+    private static Collection<Arguments> create() {
+        return List.of(
+                Arguments.of(
+                        "CREATE MATERIALIZED TABLE users_shops (shop_id)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        "The number of columns in the column list must match the number of columns in the source schema."),
+                Arguments.of(
+                        "CREATE MATERIALIZED TABLE users_shops (id, name, address)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        "The number of columns in the column list must match the number of columns in the source schema."),
+                Arguments.of(
+                        "CREATE MATERIALIZED TABLE users_shops (id, name)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        "Column 'id' not found in the source schema."),
+                Arguments.of(
+                        "CREATE MATERIALIZED TABLE users_shops (shop_id STRING, user_id STRING)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        "Incompatible types for sink column 'shop_id' at position 0. The source column has type 'INT NOT NULL', "
+                                + "while the target column has type 'STRING'."),
+                Arguments.of(
+                        "CREATE MATERIALIZED TABLE users_shops (shop_id INT, WATERMARK FOR ts AS `ts` - INTERVAL '5' SECOND)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        "The rowtime attribute field 'ts' is not defined in the table schema, at line 1, column 67\n"
+                                + "Available fields: ['shop_id', 'user_id']"),
+                Arguments.of(
+                        "CREATE MATERIALIZED TABLE users_shops (shop_id INT, user_id INT, PRIMARY KEY(id) NOT ENFORCED)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        "Primary key column 'id' is not defined in the schema at line 1, column 78"),
+                Arguments.of(
+                        "CREATE MATERIALIZED TABLE users_shops (WATERMARK FOR ts AS ts - INTERVAL '2' SECOND)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        "The rowtime attribute field 'ts' is not defined in the table schema, at line 1, column 54\n"
+                                + "Available fields: ['shop_id', 'user_id']"),
+                Arguments.of(
+                        "CREATE MATERIALIZED TABLE users_shops (a INT, b INT)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        "Invalid as physical column 'a' is defined in the DDL, but is not used in a query column."),
+                Arguments.of(
+                        "CREATE MATERIALIZED TABLE users_shops (shop_id INT, b INT)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        "Invalid as physical column 'b' is defined in the DDL, but is not used in a query column."));
+    }
+
+    private static Collection<Arguments> testDataWithDifferentSchemasSuccessCase() {
+        return List.of(
+                Arguments.of(
+                        "CREATE MATERIALIZED TABLE users_shops (shop_id, user_id)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        ResolvedSchema.of(
+                                Column.physical("shop_id", DataTypes.INT().notNull()),
+                                Column.physical("user_id", DataTypes.INT().notNull()))),
+                Arguments.of(
+                        "CREATE MATERIALIZED TABLE users_shops"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT CAST(1 AS DOUBLE) AS shop_id, CAST(2 AS STRING) AS user_id",
+                        ResolvedSchema.of(
+                                Column.physical("shop_id", DataTypes.DOUBLE().notNull()),
+                                Column.physical("user_id", DataTypes.STRING().notNull()))),
+                Arguments.of(
+                        "CREATE MATERIALIZED TABLE users_shops (user_id, shop_id)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        ResolvedSchema.of(
+                                Column.physical("user_id", DataTypes.INT().notNull()),
+                                Column.physical("shop_id", DataTypes.INT().notNull()))),
+                Arguments.of(
+                        "CREATE MATERIALIZED TABLE users_shops (user_id INT, shop_id BIGINT)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        ResolvedSchema.of(
+                                Column.physical("shop_id", DataTypes.BIGINT()),
+                                Column.physical("user_id", DataTypes.INT()))),
+                Arguments.of(
+                        "CREATE MATERIALIZED TABLE users_shops (user_id INT, shop_id BIGINT, PRIMARY KEY(user_id) NOT ENFORCED)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        new ResolvedSchema(
+                                List.of(
+                                        Column.physical("shop_id", DataTypes.BIGINT()),
+                                        Column.physical("user_id", DataTypes.INT().notNull())),
+                                List.of(),
+                                org.apache.flink.table.catalog.UniqueConstraint.primaryKey(
+                                        "PK_user_id", List.of("user_id")),
+                                List.of())),
+                Arguments.of(
+                        "CREATE MATERIALIZED TABLE users_shops (PRIMARY KEY(user_id) NOT ENFORCED)"
+                                + " FRESHNESS = INTERVAL '30' SECOND"
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        new ResolvedSchema(
+                                List.of(
+                                        Column.physical("shop_id", DataTypes.INT().notNull()),
+                                        Column.physical("user_id", DataTypes.INT().notNull())),
+                                List.of(),
+                                org.apache.flink.table.catalog.UniqueConstraint.primaryKey(
+                                        "PK_user_id", List.of("user_id")),
+                                List.of())));
     }
 }

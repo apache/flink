@@ -1859,13 +1859,17 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
     final SqlParserPos startPos = s.pos();
     SqlIdentifier tableName;
     SqlCharStringLiteral comment = null;
-    SqlTableConstraint constraint = null;
+    List<SqlTableConstraint> constraints = new ArrayList<SqlTableConstraint>();
+    SqlWatermark watermark = null;
+    SqlNodeList columnList = SqlNodeList.EMPTY;
     SqlDistribution distribution = null;
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNode freshness = null;
     SqlLiteral refreshMode = null;
     SqlNode asQuery = null;
+    SqlParserPos pos = startPos;
+    boolean isColumnsIdentifiersOnly = false;
 }
 {
     <MATERIALIZED>
@@ -1884,8 +1888,14 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
     <TABLE>
     tableName = CompoundIdentifier()
     [
-        <LPAREN>
-        constraint = TableConstraint()
+        <LPAREN> { pos = getPos(); TableCreationContext ctx = new TableCreationContext();}
+            TableColumnsOrIdentifiers(pos, ctx) {
+                pos = pos.plus(getPos());
+                isColumnsIdentifiersOnly = ctx.isColumnsIdentifiersOnly();
+                columnList = new SqlNodeList(ctx.columnList, pos);
+                constraints = ctx.constraints;
+                watermark = ctx.watermark;
+            }
         <RPAREN>
     ]
     [
@@ -1939,7 +1949,9 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
         return new SqlCreateMaterializedTable(
             startPos.plus(getPos()),
             tableName,
-            constraint,
+            columnList,
+            constraints,
+            watermark,
             comment,
             distribution,
             partitionColumns,

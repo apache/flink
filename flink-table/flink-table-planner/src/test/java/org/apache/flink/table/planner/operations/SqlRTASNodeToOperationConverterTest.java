@@ -46,10 +46,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test base for testing convert [CREATE OR] REPLACE TABLE AS statement to operation. */
-public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConversionTestBase {
+class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConversionTestBase {
 
     @Test
-    public void testReplaceTableAs() {
+    void testReplaceTableAs() {
         String tableName = "replace_table";
         String tableComment = "test table comment 表描述";
         String sql =
@@ -62,7 +62,7 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
     }
 
     @Test
-    public void testReplaceTableAsWithOrderingColumns() {
+    void testReplaceTableAsWithOrderingColumns() {
         String tableName = "replace_table";
         String sql =
                 "REPLACE TABLE "
@@ -78,7 +78,7 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
     }
 
     @Test
-    public void testReplaceTableAsWithNotFoundColumnIdentifiers() {
+    void testReplaceTableAsWithNotFoundColumnIdentifiers() {
         String tableName = "replace_table";
         String sql =
                 "REPLACE TABLE "
@@ -91,7 +91,7 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
     }
 
     @Test
-    public void testReplaceTableAsWithMismatchIdentifiersLength() {
+    void testReplaceTableAsWithMismatchIdentifiersLength() {
         String tableName = "replace_table";
         String sql =
                 "REPLACE TABLE "
@@ -106,7 +106,7 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
     }
 
     @Test
-    public void testCreateOrReplaceTableAs() {
+    void testCreateOrReplaceTableAs() {
         String tableName = "create_or_replace_table";
         String sql =
                 "CREATE OR REPLACE TABLE "
@@ -116,7 +116,7 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
     }
 
     @Test
-    public void testCreateOrReplaceTableAsWithColumns() {
+    void testCreateOrReplaceTableAsWithColumns() {
         String tableName = "create_or_replace_table";
         String sql =
                 "CREATE OR REPLACE TABLE "
@@ -136,7 +136,7 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
     }
 
     @Test
-    public void testCreateOrReplaceTableAsWithColumnsOverridden() {
+    void testCreateOrReplaceTableAsWithColumnsOverridden() {
         String tableName = "create_or_replace_table";
         String sql =
                 "CREATE OR REPLACE TABLE "
@@ -157,7 +157,7 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
     }
 
     @Test
-    public void testCreateOrReplaceTableAsWithNotNullColumnsAreNotAllowed() {
+    void testCreateOrReplaceTableAsWithNotNullColumnsAreNotAllowed() {
         String tableName = "create_or_replace_table";
         String sql =
                 "CREATE OR REPLACE TABLE "
@@ -171,7 +171,7 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
     }
 
     @Test
-    public void testCreateOrReplaceTableAsWithOverriddenVirtualMetadataColumnsNotAllowed() {
+    void testCreateOrReplaceTableAsWithOverriddenVirtualMetadataColumnsNotAllowed() {
         String tableName = "create_or_replace_table";
         String sql =
                 "CREATE OR REPLACE TABLE "
@@ -188,7 +188,7 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
     }
 
     @Test
-    public void testCreateOrReplaceTableAsWithOverriddenComputedColumnsNotAllowed() {
+    void testCreateOrReplaceTableAsWithOverriddenComputedColumnsNotAllowed() {
         String tableName = "create_or_replace_table";
         String sql =
                 "CREATE OR REPLACE TABLE "
@@ -204,7 +204,7 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
     }
 
     @Test
-    public void testCreateOrReplaceTableAsWithIncompatibleImplicitCastTypes() {
+    void testCreateOrReplaceTableAsWithIncompatibleImplicitCastTypes() {
         String tableName = "create_or_replace_table";
         String sql =
                 "CREATE OR REPLACE TABLE "
@@ -221,7 +221,7 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
     }
 
     @Test
-    public void testCreateOrReplaceTableAsWithDistribution() {
+    void testCreateOrReplaceTableAsWithDistribution() {
         String tableName = "create_or_replace_table";
         String sql =
                 "CREATE OR REPLACE TABLE "
@@ -240,7 +240,7 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
     }
 
     @Test
-    public void testCreateOrReplaceTableAsWithPrimaryKey() {
+    void testCreateOrReplaceTableAsWithPrimaryKey() {
         String tableName = "create_or_replace_table";
         String sql =
                 "CREATE OR REPLACE TABLE "
@@ -260,7 +260,7 @@ public class SqlRTASNodeToOperationConverterTest extends SqlNodeToOperationConve
     }
 
     @Test
-    public void testCreateOrReplaceTableAsWithWatermark() {
+    void testCreateOrReplaceTableAsWithWatermark() {
         String tableName = "create_or_replace_table";
         String sql =
                 "CREATE OR REPLACE TABLE "
