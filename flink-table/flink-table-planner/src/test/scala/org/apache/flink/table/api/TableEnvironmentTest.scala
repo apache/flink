@@ -24,7 +24,7 @@ import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
 import org.apache.flink.sql.parser.error.SqlValidateException
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
 import org.apache.flink.table.api.bridge.scala._
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.api.internal.{ModelImpl, TableEnvironmentInternal}
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactoryContextImpl}
 import org.apache.flink.table.functions.TestGenericUDF
@@ -3248,6 +3248,28 @@ class TableEnvironmentTest {
       ResolvedSchema.of(Column.physical("model name", DataTypes.STRING())),
       tableResult3.getResolvedSchema)
     checkData(util.Arrays.asList(Row.of("your_model")).iterator(), tableResult3.collect())
+  }
+
+  @Test
+  def testGetNonExistModel(): Unit = {
+    assertThatThrownBy(() => tableEnv.fromModel("MyModel"))
+      .hasMessageContaining("Model `MyModel` was not found")
+      .isInstanceOf[ValidationException]
+  }
+
+  @Test
+  def testGetModel(): Unit = {
+    val inputSchema = Schema.newBuilder().column("feature", DataTypes.STRING()).build()
+
+    val outputSchema = Schema.newBuilder().column("response", DataTypes.DOUBLE()).build()
+    tableEnv.createModel(
+      "MyModel",
+      ModelDescriptor
+        .forProvider("openai")
+        .inputSchema(inputSchema)
+        .outputSchema(outputSchema)
+        .build())
+    assertThat(tableEnv.fromModel("MyModel")).isInstanceOf(classOf[ModelImpl])
   }
 
   @Test

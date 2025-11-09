@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.planner.runtime.stream.table;
 
+import org.apache.flink.table.api.Model;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.planner.factories.TestValuesModelFactory;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMLPredictTableFunction;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
+import org.apache.flink.types.ColumnList;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 
@@ -154,6 +157,23 @@ public class MLPredictITCase extends StreamingTestBase {
 
         assertThatList(result)
                 .containsExactlyInAnyOrder(Row.of(1L, "x1", 1, "z1"), Row.of(2L, "x2", 2, "z2"));
+    }
+
+    @Test
+    public void testPredictTableApiWithView() {
+        Model model = tEnv().fromModel("m1");
+        Table table = tEnv().from("src");
+        tEnv().createView("view_src", model.predict(table, ColumnList.of("id")));
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        tEnv().executeSql("select * from view_src").collect());
+        assertThatList(results)
+                .containsExactlyInAnyOrder(
+                        Row.of(1L, 12, "Julian", "x1", 1, "z1"),
+                        Row.of(2L, 15, "Hello", "x2", 2, "z2"),
+                        Row.of(3L, 15, "Fabian", "x3", 3, "z3"),
+                        Row.of(8L, 11, "Hello world", "x8", 8, "z8"),
+                        Row.of(9L, 12, "Hello world!", "x9", 9, "z9"));
     }
 
     private void createScanTable(String tableName, List<Row> data) {

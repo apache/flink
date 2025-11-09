@@ -547,7 +547,6 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                         dataStreamQueryOperation.getResolvedSchema(),
                         dataStreamQueryOperation.getIdentifier());
             }
-
             throw new TableException("Unknown table operation: " + other);
         }
 

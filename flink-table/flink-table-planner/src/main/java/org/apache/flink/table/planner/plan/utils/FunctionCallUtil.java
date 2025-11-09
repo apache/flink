@@ -35,9 +35,11 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSub
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlKind;
 
 import java.util.HashMap;
 import java.util.List;
@@ -45,9 +47,14 @@ import java.util.Map;
 import java.util.Objects;
 
 import static org.apache.calcite.sql.SqlKind.MAP_VALUE_CONSTRUCTOR;
+import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
+import static org.apache.flink.table.types.logical.LogicalTypeFamily.CHARACTER_STRING;
 
 /** Common utils for function call, e.g. ML_PREDICT and Lookup Join. */
 public abstract class FunctionCallUtil {
+
+    private static final String CONFIG_ERROR_MESSAGE =
+            "Config parameter should be a MAP data type consisting of String literals.";
 
     /** A field used as an equal condition when querying content from a dimension table. */
     @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
@@ -225,16 +232,39 @@ public abstract class FunctionCallUtil {
         for (int i = 0; i < mapConstructor.getOperands().size(); i += 2) {
             RexNode keyNode = mapConstructor.getOperands().get(i);
             RexNode valueNode = mapConstructor.getOperands().get(i + 1);
-            // Both key and value should be string literals
-            if (!(keyNode instanceof RexLiteral) || !(valueNode instanceof RexLiteral)) {
-                throw new ValidationException(
-                        "Config parameter should be a MAP data type consisting String literals.");
-            }
-            String key = RexLiteral.stringValue(keyNode);
-            String value = RexLiteral.stringValue(valueNode);
+            String key = getStringLiteral(keyNode);
+            String value = getStringLiteral(valueNode);
             reducedConfig.put(key, value);
         }
         return reducedConfig;
+    }
+
+    private static String getStringLiteral(RexNode node) {
+        // Cast from string to string is used when Expressions.lit(Map(...)) is used as config map
+        // from table api
+        if (node instanceof RexCall && node.getKind() == SqlKind.CAST) {
+            final RexCall castCall = (RexCall) node;
+            // Unwrap CAST if present
+            final RexNode castOperand = castCall.getOperands().get(0);
+            if (!(castOperand instanceof RexLiteral)) {
+                throw new ValidationException(CONFIG_ERROR_MESSAGE);
+            }
+            final RelDataType operandType = castOperand.getType();
+            if (!toLogicalType(operandType).is(CHARACTER_STRING)) {
+                throw new ValidationException(CONFIG_ERROR_MESSAGE);
+            }
+            final RelDataType castType = castCall.getType();
+            if (!toLogicalType(castType).is(CHARACTER_STRING)) {
+                throw new ValidationException(CONFIG_ERROR_MESSAGE);
+            }
+            return RexLiteral.stringValue(castOperand);
+        }
+        // Both key and value should be string literals
+        if (!(node instanceof RexLiteral)) {
+            throw new ValidationException(CONFIG_ERROR_MESSAGE);
+        }
+
+        return RexLiteral.stringValue(node);
     }
 
     public static String explainFunctionParam(FunctionParam param, List<String> fieldNames) {

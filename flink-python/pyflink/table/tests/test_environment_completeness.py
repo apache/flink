@@ -16,8 +16,9 @@
 # limitations under the License.
 ################################################################################
 
-from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, PyFlinkTestCase
 from pyflink.table import TableEnvironment
+from pyflink.testing.test_case_utils import PythonAPICompletenessTestCase, \
+    PyFlinkTestCase
 
 
 class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCase):
@@ -40,6 +41,7 @@ class EnvironmentAPICompletenessTests(PythonAPICompletenessTestCase, PyFlinkTest
             'getCompletionHints',
             'fromValues',
             'fromCall',
+            'fromModel',
             # See FLINK-25986
             'loadPlan',
             'compilePlanSql',

@@ -28,6 +28,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionUtils;
+import org.apache.flink.table.expressions.ModelReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
@@ -38,6 +39,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
+import org.apache.flink.table.functions.ModelSemantics;
 import org.apache.flink.table.functions.ScalarFunctionDefinition;
 import org.apache.flink.table.functions.TableAggregateFunctionDefinition;
 import org.apache.flink.table.functions.TableFunctionDefinition;
@@ -652,6 +654,22 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
         }
 
         @Override
+        public Optional<ModelSemantics> getModelSemantics(int pos) {
+            final StaticArgument staticArg =
+                    Optional.ofNullable(staticArguments).map(args -> args.get(pos)).orElse(null);
+            if (staticArg == null || !staticArg.is(StaticArgumentTrait.MODEL)) {
+                return Optional.empty();
+            }
+            final ResolvedExpression arg = getArgument(pos);
+            if (!(arg instanceof ModelReferenceExpression)) {
+                return Optional.empty();
+            }
+            final ModelReferenceExpression modelRef = (ModelReferenceExpression) arg;
+            final ModelSemantics semantics = new TableApiModelSemantics(modelRef);
+            return Optional.of(semantics);
+        }
+
+        @Override
         public String getName() {
             return functionName;
         }
@@ -730,6 +748,25 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
         @Override
         public Optional<ChangelogMode> changelogMode() {
             return Optional.empty();
+        }
+    }
+
+    private static class TableApiModelSemantics implements ModelSemantics {
+
+        private final ModelReferenceExpression modelRef;
+
+        private TableApiModelSemantics(ModelReferenceExpression modelRef) {
+            this.modelRef = modelRef;
+        }
+
+        @Override
+        public DataType inputDataType() {
+            return modelRef.getInputDataType();
+        }
+
+        @Override
+        public DataType outputDataType() {
+            return modelRef.getOutputDataType();
         }
     }
 }

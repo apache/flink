@@ -33,6 +33,7 @@ import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.ExplainFormat;
 import org.apache.flink.table.api.Expressions;
 import org.apache.flink.table.api.FunctionDescriptor;
+import org.apache.flink.table.api.Model;
 import org.apache.flink.table.api.ModelDescriptor;
 import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.ResultKind;
@@ -55,12 +56,14 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.catalog.CatalogStoreHolder;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ContextResolvedModel;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.QueryOperationCatalogView;
+import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.StagedTable;
@@ -77,6 +80,7 @@ import org.apache.flink.table.execution.StagingSinkJobStatusHook;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.expressions.ModelReferenceExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
 import org.apache.flink.table.factories.CatalogStoreFactory;
@@ -680,6 +684,29 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         tableReferenceChecker.check(arguments);
         return createTable(
                 operationTreeBuilder.tableFunction(Expressions.call(function, arguments)));
+    }
+
+    @Override
+    public Model fromModel(String modelPath) {
+        UnresolvedIdentifier unresolvedIdentifier = getParser().parseIdentifier(modelPath);
+        ObjectIdentifier modelIdentifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
+        return catalogManager
+                .getModel(modelIdentifier)
+                .map(this::createModel)
+                .orElseThrow(
+                        () ->
+                                new ValidationException(
+                                        String.format(
+                                                "Model %s was not found.", unresolvedIdentifier)));
+    }
+
+    @Override
+    public Model fromModel(ModelDescriptor descriptor) {
+        Preconditions.checkNotNull(descriptor, "Model descriptor must not be null.");
+
+        final ResolvedCatalogModel resolvedCatalogModel =
+                catalogManager.resolveCatalogModel(descriptor.toCatalogModel());
+        return createModel(ContextResolvedModel.anonymous(resolvedCatalogModel));
     }
 
     private Optional<SourceQueryOperation> scanInternal(UnresolvedIdentifier identifier) {
@@ -1487,6 +1514,10 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 functionCatalog.asLookup(getParser()::parseIdentifier));
     }
 
+    public ModelImpl createModel(ContextResolvedModel model) {
+        return ModelImpl.createModel(this, model);
+    }
+
     @Override
     public String explainPlan(InternalPlan compiledPlan, ExplainDetail... extraDetails) {
         return planner.explainPlan(compiledPlan, extraDetails);
@@ -1528,6 +1559,17 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     && tableRef.getTableEnvironment() != TableEnvironmentImpl.this) {
                 throw new ValidationException(
                         "All table references must use the same TableEnvironment.");
+            }
+            return null;
+        }
+
+        @Override
+        public Void visit(ModelReferenceExpression modelRef) {
+            super.visit(modelRef);
+            if (modelRef.getTableEnvironment() != null
+                    && modelRef.getTableEnvironment() != TableEnvironmentImpl.this) {
+                throw new ValidationException(
+                        "All model references must use the same TableEnvironment.");
             }
             return null;
         }

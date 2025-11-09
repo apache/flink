@@ -19,6 +19,8 @@
 package org.apache.flink.table.planner.expressions.converter;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.Catalog;
+import org.apache.flink.table.catalog.ContextResolvedModel;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.expressions.CallExpression;
@@ -26,18 +28,27 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ExpressionVisitor;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
+import org.apache.flink.table.expressions.ModelReferenceExpression;
 import org.apache.flink.table.expressions.NestedFieldReferenceExpression;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
+import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.factories.ModelProviderFactory;
+import org.apache.flink.table.ml.ModelProvider;
+import org.apache.flink.table.module.Module;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexFieldVariable;
+import org.apache.flink.table.planner.calcite.RexModelCall;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule.ConvertContext;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.TimeType;
 import org.apache.flink.types.ColumnList;
 
@@ -69,6 +80,7 @@ import static org.apache.flink.table.planner.typeutils.SymbolUtil.commonToCalcit
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
 import static org.apache.flink.table.planner.utils.TimestampStringUtils.fromLocalDateTime;
 import static org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType;
+import static org.apache.flink.util.OptionalUtils.firstPresent;
 
 /** Visit expression to generator {@link RexNode}. */
 public class ExpressionConverter implements ExpressionVisitor<RexNode> {
@@ -256,10 +268,55 @@ public class ExpressionConverter implements ExpressionVisitor<RexNode> {
                     local.getName(),
                     typeFactory.createFieldTypeFromLogicalType(
                             fromDataTypeToLogicalType(local.getOutputDataType())));
+        } else if (other instanceof ModelReferenceExpression) {
+            return visit((ModelReferenceExpression) other);
         } else {
             throw new UnsupportedOperationException(
                     other.getClass().getSimpleName() + ":" + other.toString());
         }
+    }
+
+    public RexNode visit(ModelReferenceExpression modelRef) {
+        final ContextResolvedModel contextResolvedModel = modelRef.getModel();
+        final FlinkContext flinkContext = ShortcutUtils.unwrapContext(relBuilder);
+
+        final Optional<ModelProviderFactory> factoryFromCatalog =
+                contextResolvedModel
+                        .getCatalog()
+                        .flatMap(Catalog::getFactory)
+                        .map(
+                                f ->
+                                        f instanceof ModelProviderFactory
+                                                ? (ModelProviderFactory) f
+                                                : null);
+
+        final Optional<ModelProviderFactory> factoryFromModule =
+                flinkContext.getModuleManager().getFactory(Module::getModelProviderFactory);
+
+        // Since the catalog is more specific, we give it
+        // precedence over a factory provided by any
+        // modules.
+        final ModelProviderFactory factory =
+                firstPresent(factoryFromCatalog, factoryFromModule).orElse(null);
+
+        final ModelProvider modelProvider =
+                FactoryUtil.createModelProvider(
+                        factory,
+                        contextResolvedModel.getIdentifier(),
+                        contextResolvedModel.getResolvedModel(),
+                        flinkContext.getTableConfig(),
+                        flinkContext.getClassLoader(),
+                        contextResolvedModel.isTemporary());
+        final LogicalType modelOutputType =
+                contextResolvedModel
+                        .getResolvedModel()
+                        .getResolvedOutputSchema()
+                        .toPhysicalRowDataType()
+                        .getLogicalType();
+        final RelDataType modelOutputRelDataType =
+                typeFactory.buildRelNodeRowType((RowType) modelOutputType);
+
+        return new RexModelCall(modelOutputRelDataType, contextResolvedModel, modelProvider);
     }
 
     public static List<RexNode> toRexNodes(ConvertContext context, List<Expression> expr) {
