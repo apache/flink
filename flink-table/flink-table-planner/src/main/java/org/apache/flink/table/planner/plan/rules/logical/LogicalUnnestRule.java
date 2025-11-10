@@ -108,7 +108,7 @@ public class LogicalUnnestRule extends RelRule<LogicalUnnestRule.LogicalUnnestRu
         if (relNode instanceof LogicalProject) {
             final LogicalProject logicalProject =
                     correlate.getJoinType() == JoinRelType.LEFT
-                            ? getLogicalProjectWithAdjustNullability((LogicalProject) relNode)
+                            ? getLogicalProjectWithAdjustedNullability((LogicalProject) relNode)
                             : (LogicalProject) relNode;
             return logicalProject.copy(
                     logicalProject.getTraitSet(),
@@ -169,9 +169,9 @@ public class LogicalUnnestRule extends RelRule<LogicalUnnestRule.LogicalUnnestRu
 
     /**
      * If unnesting type is {@code NOT NULL} however at the same time {@code LEFT JOIN} makes it
-     * nullable, this method adjust nullability by inserting extra {@code CAST}.
+     * nullable, this method adjusts nullability by inserting extra {@code CAST}.
      */
-    private LogicalProject getLogicalProjectWithAdjustNullability(LogicalProject logicalProject) {
+    private LogicalProject getLogicalProjectWithAdjustedNullability(LogicalProject logicalProject) {
         final RelOptCluster cluster = logicalProject.getCluster();
         FlinkTypeFactory typeFactory = (FlinkTypeFactory) cluster.getTypeFactory();
         RexBuilder rexBuilder = cluster.getRexBuilder();
