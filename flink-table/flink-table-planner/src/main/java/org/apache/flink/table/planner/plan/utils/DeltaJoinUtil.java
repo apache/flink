@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.utils;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.catalog.Index;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -335,12 +336,14 @@ public class DeltaJoinUtil {
         return isFilterOnOneSetOfUpsertKeys(nonEquiCond.get(), upsertKeys);
     }
 
-    private static boolean isFilterOnOneSetOfUpsertKeys(
+    @VisibleForTesting
+    protected static boolean isFilterOnOneSetOfUpsertKeys(
             RexNode filter, @Nullable Set<ImmutableBitSet> upsertKeys) {
         ImmutableBitSet fieldRefIndices =
                 ImmutableBitSet.of(
                         RexNodeExtractor.extractRefInputFields(Collections.singletonList(filter)));
-        return upsertKeys.stream().anyMatch(uk -> uk.contains(fieldRefIndices));
+        return upsertKeys != null
+                && upsertKeys.stream().anyMatch(uk -> uk.contains(fieldRefIndices));
     }
 
     private static boolean areAllJoinTableScansSupported(StreamPhysicalJoin join) {
