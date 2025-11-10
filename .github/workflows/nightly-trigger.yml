@@ -31,6 +31,7 @@ jobs:
       matrix:
         branch:
           - master
+          - release-2.2
           - release-2.1
           - release-2.0
           - release-1.20
