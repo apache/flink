@@ -26,19 +26,19 @@ under the License.
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Flink SQL provides the `VECTOR_SEARCH` table-valued function (TVF) to perform vector search in SQL queries. This function allows you to search similar rows according to the high-dimension vectors.
+Flink SQL provides the `VECTOR_SEARCH` table-valued function (TVF) to perform a vector search in SQL queries. This function allows you to search similar rows according to the high-dimension vectors.
 
 ## VECTOR_SEARCH Function
 
-The `VECTOR_SEARCH` uses a processing-time attribute to correlate rows to the latest version of data in an external table. It's very similar to lookup join in Flink SQL, however, the difference is 
-`VECTOR_SEARCH` uses the input data vector to compare the similarity among data in the external table and return the top-k most similar rows.
+The `VECTOR_SEARCH` uses a processing-time attribute to correlate rows to the latest version of data in an external table. It's very similar to a lookup join in Flink SQL, however, the difference is 
+`VECTOR_SEARCH` uses the input data vector to compare the similarity with data in the external table and return the top-k most similar rows.
 
 ### Syntax
 
 ```sql
 SELECT * 
 FROM input_table, LATERAL TABLE(VECTOR_SEARCH(
-   TABLE vecotr_table, 
+   TABLE vector_table, 
    input_table.vector_column, 
    DESCRIPTOR(index_column),
    top_k,
@@ -49,9 +49,9 @@ FROM input_table, LATERAL TABLE(VECTOR_SEARCH(
 ### Parameters
 
 - `input_table`: The input table containing the data to be processed
-- `vector_table`: The name of external table that allows to search via vector
-- `vector_column`: The name of the columns in the input table, its type should be FLOAT ARRAY or DOUBLE ARRAY
-- `index_column`: A descriptor specifying which columns from the vector table should be used to compare the similarity with the input data
+- `vector_table`: The name of external table that allows searching via vector
+- `vector_column`: The name of the column in the input table, its type should be FLOAT ARRAY or DOUBLE ARRAY
+- `index_column`: A descriptor specifying which column from the vector table should be used to compare the similarity with the input data
 - `top_k`: The number of top-k most similar rows to return
 - `config`: (Optional) A map of configuration options for the vector search
 
@@ -59,7 +59,7 @@ FROM input_table, LATERAL TABLE(VECTOR_SEARCH(
 
 The following configuration options can be specified in the config map:
 
-{{< generated/ml_predict_runtime_config_configuration >}}
+{{< generated/vector_search_runtime_config_configuration >}}
 
 ### Example
 
@@ -111,5 +111,6 @@ The output table contains all columns from the input table, the vector search ta
 
 1. The implementation of the vector table must implement interface `org.apache.flink.table.connector.source.VectorSearchTableSource`. Please refer to [Vector Search Table Source]({{< ref "/docs/dev/table/sourcesSinks" >}}#vector-search-table-source) for details.
 2. `VECTOR_SEARCH` only supports to consume append-only tables.
+3. `VECTOR_SEARCH` does not require the `LATERAL` keyword when the function call has no correlation with other tables. For example, if the search column is a constant or literal value, `LATERAL` can be omitted.
 
 {{< top >}} 

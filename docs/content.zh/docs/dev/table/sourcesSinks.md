@@ -195,6 +195,9 @@ A `VectorSearchTableSource` searches an external storage system using an input v
 can determine which algorithm to use to calculate the similarity between the input data and data stored in the external system. In general, most
 vector databases support using Euclidean distance or Cosine distance to calculate similarity.
 
+Compared to `ScanTableSource`, the source does not have to read the entire table and can lazily fetch individual
+values from a (possibly continuously changing) external table when necessary.
+
 Compared to `ScanTableSource`, a `VectorSearchTableSource` currently only supports emitting insert-only changes.
 
 Compared to `LookupTableSource`, a `VectorSearchTableSource` does not use equality to determine whether a row matches.

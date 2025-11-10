@@ -174,7 +174,7 @@ When reading a dynamic table, the content can either be considered as:
 - A continuously changing or very large external table whose content is usually never read entirely
   but queried for individual values when necessary. This is represented by the `LookupTableSource`
   interface.
-- A table that supports to search via vector. This is represented by the `VectorSearchTableSource` interface.
+- A table that supports searching via vector. This is represented by the `VectorSearchTableSource` interface.
 
 A class can implement all of these interfaces at the same time. The planner decides about their usage depending
 on the specified query.
@@ -229,6 +229,9 @@ will be called with values for the given lookup keys during runtime.
 A `VectorSearchTableSource` searches an external storage system using an input vector and returns the most similar top-K rows during runtime. Users 
 can determine which algorithm to use to calculate the similarity between the input data and data stored in the external system. In general, most 
 vector databases support using Euclidean distance or Cosine distance to calculate similarity.
+
+Compared to `ScanTableSource`, the source does not have to read the entire table and can lazily fetch individual
+values from a (possibly continuously changing) external table when necessary.
 
 Compared to `ScanTableSource`, a `VectorSearchTableSource` currently only supports emitting insert-only changes.
 
