@@ -248,37 +248,37 @@ abstract class UnnestTestBase(withExecPlan: Boolean) extends TableTestBase {
   @Test
   def testUnnestNullMismatchLeftJoin(): Unit = {
     util.verifyRelPlan(
-      "select bd_name from reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name) ON true")
+      "SELECT bd_name FROM reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name) ON TRUE")
   }
 
   @Test
   def testUnnestNullMismatchCrossJoin(): Unit = {
     util.verifyRelPlan(
-      "select bd_name from reproduce_unnest CROSS JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name)")
+      "SELECT bd_name FROM reproduce_unnest CROSS JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name)")
   }
 
   @Test
   def testUnnestNullMismatchNaturalJoin(): Unit = {
     util.verifyRelPlan(
-      "select bd_name from reproduce_unnest NATURAL JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name)")
+      "SELECT bd_name FROM reproduce_unnest NATURAL JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name)")
   }
 
   @Test
   def testUnnestNullMismatchNaturalJoinOnNested(): Unit = {
     util.verifyRelPlan(
-      "select bd_name from reproduce_unnest NATURAL JOIN UNNEST(reproduce_unnest.nested.data) AS exploded_bd(bd_name)")
+      "SELECT bd_name FROM reproduce_unnest NATURAL JOIN UNNEST(reproduce_unnest.nested.data) AS exploded_bd(bd_name)")
   }
 
   @Test
   def testUnnestNullMismatchLeftJoinOnNested(): Unit = {
     util.verifyRelPlan(
-      "select bd_name from reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.nested.data) AS exploded_bd(bd_name) ON TRUE")
+      "SELECT bd_name FROM reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.nested.data) AS exploded_bd(bd_name) ON TRUE")
   }
 
   @Test
   def testUnnestNullMismatchLeftJoinOnNestedArray(): Unit = {
     util.verifyRelPlan(
-      "select bd_name from reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.nested_array[0].data) AS exploded_bd(bd_name) ON TRUE")
+      "SELECT bd_name FROM reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.nested_array[0].data) AS exploded_bd(bd_name) ON TRUE")
   }
 
   def verifyPlan(sql: String): Unit = {

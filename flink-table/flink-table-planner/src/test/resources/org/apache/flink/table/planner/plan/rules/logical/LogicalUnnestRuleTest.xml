@@ -236,7 +236,7 @@ LogicalProject(b=[$0], id=[$2], point=[$3])
   </TestCase>
   <TestCase name="testUnnestNullMismatchCrossJoin">
     <Resource name="sql">
-      <![CDATA[select bd_name from reproduce_unnest CROSS JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name)]]>
+      <![CDATA[SELECT bd_name FROM reproduce_unnest CROSS JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name)]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -261,7 +261,7 @@ LogicalProject(bd_name=[$3])
   </TestCase>
   <TestCase name="testUnnestNullMismatchLeftJoin">
     <Resource name="sql">
-      <![CDATA[select bd_name from reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name) ON true]]>
+      <![CDATA[SELECT bd_name FROM reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name) ON TRUE]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -286,7 +286,7 @@ LogicalProject(bd_name=[$3])
   </TestCase>
   <TestCase name="testUnnestNullMismatchLeftJoinOnNested">
     <Resource name="sql">
-      <![CDATA[select bd_name from reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.nested.data) AS exploded_bd(bd_name) ON TRUE]]>
+      <![CDATA[SELECT bd_name FROM reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.nested.data) AS exploded_bd(bd_name) ON TRUE]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -311,7 +311,7 @@ LogicalProject(bd_name=[$3])
   </TestCase>
   <TestCase name="testUnnestNullMismatchLeftJoinOnNestedArray">
     <Resource name="sql">
-      <![CDATA[select bd_name from reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.nested_array[0].data) AS exploded_bd(bd_name) ON TRUE]]>
+      <![CDATA[SELECT bd_name FROM reproduce_unnest LEFT JOIN UNNEST(reproduce_unnest.nested_array[0].data) AS exploded_bd(bd_name) ON TRUE]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -336,7 +336,7 @@ LogicalProject(bd_name=[$3])
   </TestCase>
   <TestCase name="testUnnestNullMismatchNaturalJoin">
     <Resource name="sql">
-      <![CDATA[select bd_name from reproduce_unnest NATURAL JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name)]]>
+      <![CDATA[SELECT bd_name FROM reproduce_unnest NATURAL JOIN UNNEST(reproduce_unnest.business_data) AS exploded_bd(bd_name)]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -361,7 +361,7 @@ LogicalProject(bd_name=[$3])
   </TestCase>
   <TestCase name="testUnnestNullMismatchNaturalJoinOnNested">
     <Resource name="sql">
-      <![CDATA[select bd_name from reproduce_unnest NATURAL JOIN UNNEST(reproduce_unnest.nested.data) AS exploded_bd(bd_name)]]>
+      <![CDATA[SELECT bd_name FROM reproduce_unnest NATURAL JOIN UNNEST(reproduce_unnest.nested.data) AS exploded_bd(bd_name)]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
