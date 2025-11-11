@@ -1866,7 +1866,7 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
     SqlNodeList partitionColumns = SqlNodeList.EMPTY;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNode freshness = null;
-    SqlLiteral refreshMode = null;
+    SqlRefreshMode refreshMode = null;
     SqlNode asQuery = null;
     SqlParserPos pos = startPos;
     boolean isColumnsIdentifiersOnly = false;
@@ -1934,12 +1934,12 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
         (
             <FULL>
             {
-                refreshMode = SqlRefreshMode.FULL.symbol(getPos());
+                refreshMode = SqlRefreshMode.FULL;
             }
             |
             <CONTINUOUS>
             {
-                refreshMode = SqlRefreshMode.CONTINUOUS.symbol(getPos());
+                refreshMode = SqlRefreshMode.CONTINUOUS;
             }
         )
     ]

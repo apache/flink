@@ -29,7 +29,6 @@ import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
@@ -69,7 +68,7 @@ public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSql
 
     private final @Nullable SqlIntervalLiteral freshness;
 
-    private final @Nullable SqlLiteral refreshMode;
+    private final @Nullable SqlRefreshMode refreshMode;
 
     private final SqlNode asQuery;
 
@@ -84,7 +83,7 @@ public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSql
             SqlNodeList partitionKeyList,
             SqlNodeList propertyList,
             @Nullable SqlIntervalLiteral freshness,
-            @Nullable SqlLiteral refreshMode,
+            @Nullable SqlRefreshMode refreshMode,
             SqlNode asQuery) {
         super(OPERATOR, pos, false, false);
         this.tableName = requireNonNull(tableName, "tableName should not be null");
@@ -162,7 +161,7 @@ public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSql
     }
 
     @Nullable
-    public SqlLiteral getRefreshMode() {
+    public SqlRefreshMode getRefreshMode() {
         return refreshMode;
     }
 
@@ -241,7 +240,7 @@ public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSql
             writer.newlineAndIndent();
             writer.keyword("REFRESH_MODE");
             writer.keyword("=");
-            refreshMode.unparse(writer, leftPrec, rightPrec);
+            writer.keyword(refreshMode.name());
         }
 
         writer.newlineAndIndent();
