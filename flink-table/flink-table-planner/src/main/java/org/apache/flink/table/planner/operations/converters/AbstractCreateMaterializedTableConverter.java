@@ -54,7 +54,7 @@ import static org.apache.flink.table.api.config.MaterializedTableConfigOptions.P
  */
 public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCreateMaterializedTable>
         implements SqlNodeConverter<T> {
-    /** Context of create table converters while mering source and derived items. */
+    /** Context of create table converters while merging source and derived items. */
     protected interface MergeContext {
         Schema getMergedSchema();
 
@@ -114,14 +114,8 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
         return MaterializedTableUtils.deriveLogicalRefreshMode(sqlRefreshMode);
     }
 
-    protected final RefreshMode getDerivedRefreshMode(
-            LogicalRefreshMode logicalRefreshMode, IntervalFreshness intervalFreshness) {
-        final RefreshMode refreshMode =
-                MaterializedTableUtils.fromLogicalRefreshModeToRefreshMode(logicalRefreshMode);
-        if (CatalogMaterializedTable.RefreshMode.FULL == refreshMode && intervalFreshness != null) {
-            IntervalFreshness.validateFreshnessForCron(intervalFreshness);
-        }
-        return refreshMode;
+    protected final RefreshMode getDerivedRefreshMode(LogicalRefreshMode logicalRefreshMode) {
+        return MaterializedTableUtils.fromLogicalRefreshModeToRefreshMode(logicalRefreshMode);
     }
 
     protected final String getDerivedDefinitionQuery(
@@ -151,8 +145,7 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
         final IntervalFreshness intervalFreshness = getDerivedFreshness(sqlCreateMaterializedTable);
         final LogicalRefreshMode logicalRefreshMode =
                 getDerivedLogicalRefreshMode(sqlCreateMaterializedTable);
-        final RefreshMode refreshMode =
-                getDerivedRefreshMode(logicalRefreshMode, intervalFreshness);
+        final RefreshMode refreshMode = getDerivedRefreshMode(logicalRefreshMode);
         return context.getCatalogManager()
                 .resolveCatalogMaterializedTable(
                         CatalogMaterializedTable.newBuilder()
