@@ -76,9 +76,9 @@ public class SqlCreateMaterializedTableConverter
                     SqlRegularColumn physicalColumn = (SqlRegularColumn) column;
                     if (!querySchemaColumnNames.contains(physicalColumn.getName().getSimple())) {
                         throw new ValidationException(
-                                "Physical columns defined in DDL must be used in query. Defined in DDL and not used in a query column '"
-                                        + physicalColumn.getName().getSimple()
-                                        + "'");
+                                String.format(
+                                        "Invalid as physical column '%s' is defined in the DDL, but is not used in a query column.",
+                                        physicalColumn.getName().getSimple()));
                     }
                 }
                 if (sqlCreateMaterializedTable.isSchemaWithColumnsIdentifiersOnly()) {

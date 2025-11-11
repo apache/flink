@@ -48,6 +48,15 @@ class MaterializedTableStatementParserTest {
     }
 
     @Test
+    void testCreateMaterializedTableWithWrongSchema() {
+        final String sql =
+                "CREATE MATERIALIZED TABLE tbl1\n"
+                        + "(a, b ^STRING^)\n"
+                        + "AS SELECT a, b, h, t m FROM source";
+        sql(sql).fails("(?s).*Encountered \"STRING\" at line 2, column 7.*");
+    }
+
+    @Test
     void testCreateMaterializedTableWithUnsupportedFreshnessInterval() {
         final String sql =
                 "CREATE MATERIALIZED TABLE tbl1\n"

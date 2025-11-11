@@ -752,14 +752,14 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "Column mismatch at position 2: Original column is [`c` INT], "
                                 + "but new column is [`d` STRING]."),
                 Arguments.of(
-                        "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, cast(d as int) as d FROM t3",
+                        "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, CAST(d AS INT) AS d FROM t3",
                         "When modifying the query of a materialized table, currently only support "
                                 + "appending columns at the end of original schema, dropping, "
                                 + "renaming, and reordering columns are not supported.\n"
                                 + "Column mismatch at position 3: Original column is [`d` STRING], "
                                 + "but new column is [`d` INT]."),
                 Arguments.of(
-                        "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, cast('d' as string) as d FROM t3",
+                        "ALTER MATERIALIZED TABLE base_mtbl AS SELECT a, b, c, CAST('d' AS STRING) AS d FROM t3",
                         "When modifying the query of a materialized table, currently only support "
                                 + "appending columns at the end of original schema, dropping, "
                                 + "renaming, and reordering columns are not supported.\n"
@@ -775,51 +775,51 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 Arguments.of(
                         "CREATE MATERIALIZED TABLE users_shops (shop_id)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
-                                + " AS SELECT 1 as shop_id, 2 as user_id",
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         "The number of columns in the column list must match the number of columns in the source schema."),
                 Arguments.of(
                         "CREATE MATERIALIZED TABLE users_shops (id, name, address)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
-                                + " AS SELECT 1 as shop_id, 2 as user_id",
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         "The number of columns in the column list must match the number of columns in the source schema."),
                 Arguments.of(
                         "CREATE MATERIALIZED TABLE users_shops (id, name)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
-                                + " AS SELECT 1 as shop_id, 2 as user_id",
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         "Column 'id' not found in the source schema."),
                 Arguments.of(
                         "CREATE MATERIALIZED TABLE users_shops (shop_id STRING, user_id STRING)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
-                                + " AS SELECT 1 as shop_id, 2 as user_id",
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         "Incompatible types for sink column 'shop_id' at position 0. The source column has type 'INT NOT NULL', "
                                 + "while the target column has type 'STRING'."),
                 Arguments.of(
-                        "CREATE MATERIALIZED TABLE users_shops (shop_id INT, watermark FOR ts as `ts` - interval '5' second)"
+                        "CREATE MATERIALIZED TABLE users_shops (shop_id INT, WATERMARK FOR ts AS `ts` - INTERVAL '5' SECOND)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
-                                + " AS SELECT 1 as shop_id, 2 as user_id",
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         "The rowtime attribute field 'ts' is not defined in the table schema, at line 1, column 67\n"
                                 + "Available fields: ['shop_id', 'user_id']"),
                 Arguments.of(
                         "CREATE MATERIALIZED TABLE users_shops (shop_id INT, user_id INT, PRIMARY KEY(id) NOT ENFORCED)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
-                                + " AS SELECT 1 as shop_id, 2 as user_id",
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         "Primary key column 'id' is not defined in the schema at line 1, column 78"),
                 Arguments.of(
-                        "CREATE MATERIALIZED TABLE users_shops (watermark for ts as ts - interval '2' second)"
+                        "CREATE MATERIALIZED TABLE users_shops (WATERMARK FOR ts AS ts - INTERVAL '2' SECOND)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
-                                + " AS SELECT 1 as shop_id, 2 as user_id",
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         "The rowtime attribute field 'ts' is not defined in the table schema, at line 1, column 54\n"
                                 + "Available fields: ['shop_id', 'user_id']"),
                 Arguments.of(
-                        "CREATE MATERIALIZED TABLE users_shops (a int, b int)"
+                        "CREATE MATERIALIZED TABLE users_shops (a INT, b INT)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
-                                + " AS SELECT 1 as shop_id, 2 as user_id",
-                        "Physical columns defined in DDL must be used in query. Defined in DDL and not used in a query column 'a'"),
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        "Invalid as physical column 'a' is defined in the DDL, but is not used in a query column."),
                 Arguments.of(
-                        "CREATE MATERIALIZED TABLE users_shops (shop_id int, b int)"
+                        "CREATE MATERIALIZED TABLE users_shops (shop_id INT, b INT)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
-                                + " AS SELECT 1 as shop_id, 2 as user_id",
-                        "Physical columns defined in DDL must be used in query. Defined in DDL and not used in a query column 'b'"));
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
+                        "Invalid as physical column 'b' is defined in the DDL, but is not used in a query column."));
     }
 
     private static Collection<Arguments> testDataWithDifferentSchemasSuccessCase() {
@@ -827,35 +827,35 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 Arguments.of(
                         "CREATE MATERIALIZED TABLE users_shops (shop_id, user_id)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
-                                + " AS SELECT 1 as shop_id, 2 as user_id",
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         ResolvedSchema.of(
                                 Column.physical("shop_id", DataTypes.INT().notNull()),
                                 Column.physical("user_id", DataTypes.INT().notNull()))),
                 Arguments.of(
                         "CREATE MATERIALIZED TABLE users_shops"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
-                                + " AS SELECT CAST(1 AS DOUBLE) as shop_id, CAST(2 AS STRING) as user_id",
+                                + " AS SELECT CAST(1 AS DOUBLE) AS shop_id, CAST(2 AS STRING) AS user_id",
                         ResolvedSchema.of(
                                 Column.physical("shop_id", DataTypes.DOUBLE().notNull()),
                                 Column.physical("user_id", DataTypes.STRING().notNull()))),
                 Arguments.of(
                         "CREATE MATERIALIZED TABLE users_shops (user_id, shop_id)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
-                                + " AS SELECT 1 as shop_id, 2 as user_id",
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         ResolvedSchema.of(
                                 Column.physical("user_id", DataTypes.INT().notNull()),
                                 Column.physical("shop_id", DataTypes.INT().notNull()))),
                 Arguments.of(
                         "CREATE MATERIALIZED TABLE users_shops (user_id INT, shop_id BIGINT)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
-                                + " AS SELECT 1 as shop_id, 2 as user_id",
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         ResolvedSchema.of(
                                 Column.physical("shop_id", DataTypes.BIGINT()),
                                 Column.physical("user_id", DataTypes.INT()))),
                 Arguments.of(
-                        "CREATE MATERIALIZED TABLE users_shops (user_id INT, shop_id BIGINT, primary key(user_id) not enforced)"
+                        "CREATE MATERIALIZED TABLE users_shops (user_id INT, shop_id BIGINT, PRIMARY KEY(user_id) NOT ENFORCED)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
-                                + " AS SELECT 1 as shop_id, 2 as user_id",
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         new ResolvedSchema(
                                 List.of(
                                         Column.physical("shop_id", DataTypes.BIGINT()),
@@ -865,9 +865,9 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                         "PK_user_id", List.of("user_id")),
                                 List.of())),
                 Arguments.of(
-                        "CREATE MATERIALIZED TABLE users_shops (primary key(user_id) not enforced)"
+                        "CREATE MATERIALIZED TABLE users_shops (PRIMARY KEY(user_id) NOT ENFORCED)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
-                                + " AS SELECT 1 as shop_id, 2 as user_id",
+                                + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         new ResolvedSchema(
                                 List.of(
                                         Column.physical("shop_id", DataTypes.INT().notNull()),

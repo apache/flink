@@ -296,8 +296,8 @@ CREATE MATERIALIZED TABLE my_materialized_table_full (
     ds, product_id, product_name, avg_sale_price, total_quantity)
     ...
 ```
-Order of columns doesn't necessary should be same as in query, Flink will do reordering if required
-i.e. this will be also valid
+The order of the columns doesn't need to be the same as in the query,
+Flink will do reordering if required  i.e. this will be also valid
 ```sql
 CREATE MATERIALIZED TABLE my_materialized_table_full (
     product_id, product_name, ds, avg_sale_price, total_quantity)
@@ -305,7 +305,7 @@ CREATE MATERIALIZED TABLE my_materialized_table_full (
 ```
 
 ## 限制
-- Does not support explicitly specifying physical columns which are not used in a query
+- Does not support explicitly specifying physical columns which are not used in the query
 - 不支持在 select 查询语句中引用临时表、临时视图或临时函数
 
 # ALTER MATERIALIZED TABLE

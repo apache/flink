@@ -73,8 +73,7 @@ public class SqlConstraintValidator {
 
             // rewrite primary key's nullability to false
             // e.g. CREATE TABLE tbl (`a` STRING PRIMARY KEY NOT ENFORCED, ...) or
-            // CREATE TABLE tbl (`a` STRING, PRIMARY KEY(`a`) NOT ENFORCED) will change
-            // `a`
+            // CREATE TABLE tbl (`a` STRING, PRIMARY KEY(`a`) NOT ENFORCED) will change `a`
             // to STRING NOT NULL
             for (SqlNode column : columnList) {
                 SqlTableColumn tableColumn = (SqlTableColumn) column;
