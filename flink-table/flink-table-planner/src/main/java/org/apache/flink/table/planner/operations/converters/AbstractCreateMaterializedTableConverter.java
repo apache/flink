@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateMaterializedTable;
-import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
@@ -106,12 +105,8 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
     }
 
     protected final LogicalRefreshMode getDerivedLogicalRefreshMode(T sqlCreateMaterializedTable) {
-        SqlRefreshMode sqlRefreshMode =
-                Optional.ofNullable(sqlCreateMaterializedTable.getRefreshMode())
-                        .map(mode -> mode.getValueAs(SqlRefreshMode.class))
-                        .orElse(null);
-
-        return MaterializedTableUtils.deriveLogicalRefreshMode(sqlRefreshMode);
+        return MaterializedTableUtils.deriveLogicalRefreshMode(
+                sqlCreateMaterializedTable.getRefreshMode());
     }
 
     protected final RefreshMode getDerivedRefreshMode(LogicalRefreshMode logicalRefreshMode) {
