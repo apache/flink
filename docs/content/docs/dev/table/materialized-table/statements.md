@@ -301,6 +301,15 @@ CREATE MATERIALIZED TABLE my_materialized_table_full (
     product_id, product_name, ds, avg_sale_price, total_quantity)
     ...
 ```
+Another way of doing this is putting name and data type
+```sql
+CREATE MATERIALIZED TABLE my_materialized_table_full (
+    ds STRING, product_id STRING, product_name STRING, avg_sale_price DOUBLE, total_quantity BIGINT)
+    ...
+```
+It might happen that types of columns are not the same, in that case implicit casts will be applied.
+If for some of the combinations implicit cast is not supported then there will be validation error thrown.
+Also, it is worth to note that reordering can also be done here.
 
 ## Limitations
 
