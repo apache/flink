@@ -2861,6 +2861,7 @@ SqlNode SqlRichExplain() :
     <EXPLAIN>
     )
     (
+        LOOKAHEAD(2)
         stmt = SqlReplaceTable()
         |
         stmt = SqlStatementSet()
