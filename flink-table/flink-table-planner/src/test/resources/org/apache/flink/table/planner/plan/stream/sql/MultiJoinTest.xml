@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testAggregationAndGroupingWithMultiJoin">
+  <TestCase name="testAggregationAndGroupingWithMultiJoinNoCommonJoinKey">
     <Resource name="sql">
       <![CDATA[SELECT u.user_id, u.name, pc.category_name, COUNT(DISTINCT o.order_id) as order_count, SUM(oi.quantity) as total_items, SUM(oi.quantity * oi.unit_price) as total_value, AVG(oi.unit_price) as avg_item_price, MAX(p.price) as max_payment, MIN(p.price) as min_payment, COUNT(CASE WHEN oi.quantity > 5 THEN 1 END) as bulk_orders FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN OrderItems oi ON o.order_id = oi.order_id LEFT JOIN ProductCategories pc ON oi.product_name = pc.category_id LEFT JOIN Payments p ON u.user_id = p.user_id GROUP BY u.user_id, u.name, pc.category_name HAVING COUNT(DISTINCT o.order_id) > 0]]>
     </Resource>
@@ -156,7 +156,7 @@ Calc(select=[user_id, name, order_id, dept_name, project_name, budget])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testComplexCTEWithMultiJoin">
+  <TestCase name="testComplexCTEWithMultiJoinNoCommonJoinKey">
     <Resource name="sql">
       <![CDATA[WITH user_orders AS (  SELECT u.user_id, u.name, o.order_id, o.product, p.payment_id, p.price   FROM Users u   LEFT JOIN Orders o ON u.user_id = o.user_id   LEFT JOIN Payments p ON u.user_id = p.user_id), order_details AS (  SELECT uo.*, os.status_name, os.is_final, pm.method_name, pm.processing_fee   FROM user_orders uo   LEFT JOIN OrderStatus os ON uo.order_id = os.status_id   LEFT JOIN PaymentMethods pm ON uo.payment_id = pm.method_id), final_summary AS (  SELECT     user_id,     name,     COUNT(order_id) as total_orders,     SUM(price) as total_spent,     AVG(price) as avg_order_value,     COUNT(CASE WHEN is_final = true THEN 1 END) as completed_orders   FROM order_details   GROUP BY user_id, name) SELECT * FROM final_summary]]>
     </Resource>
@@ -271,7 +271,7 @@ MultiJoin(commonJoinKey=[common_id], joinTypes=[LEFT, LEFT, LEFT, LEFT, LEFT], i
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testComplexCommonJoinKeyMissingProjection">
+  <TestCase name="testComplexCommonJoinKeyMissingProjectionNoCommonJoinKey">
     <Resource name="sql">
       <![CDATA[SELECT *
     FROM Assignments assignments
@@ -312,7 +312,7 @@ MultiJoin(commonJoinKey=[user_id], joinTypes=[LEFT], inputUniqueKeys=[noUniqueKe
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testComplexConditionalLogicWithMultiJoin">
+  <TestCase name="testComplexConditionalLogicWithMultiJoinNoCommonJoinKey">
     <Resource name="sql">
       <![CDATA[SELECT u.user_id, o.order_id, p.payment_id, pc.category_name, CASE   WHEN pc.is_premium = true AND p.price > 1000 THEN 'High-Value Premium'   WHEN pc.is_premium = true THEN 'Premium'   WHEN p.price > 500 THEN 'Standard High-Value'   ELSE 'Standard' END AS product_tier, CASE   WHEN pr.rating >= 4 AND pr.is_verified = true THEN 'Highly Recommended'   WHEN pr.rating >= 3 THEN 'Recommended'   WHEN pr.rating >= 2 THEN 'Average'   ELSE 'Not Recommended' END AS recommendation_status, CASE   WHEN pc.discount_rate > 0.2 THEN p.price * (1 - pc.discount_rate)   ELSE p.price END AS final_price FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN Payments p ON u.user_id = p.user_id LEFT JOIN ProductCategories pc ON o.product = pc.category_id LEFT JOIN ProductReviews pr ON o.product = pr.product_id]]>
     </Resource>
@@ -357,7 +357,7 @@ Calc(select=[user_id, order_id, payment_id, category_name, CASE(AND(is_premium, 
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testComplexNestedCTEWithAggregationAndFunctions">
+  <TestCase name="testComplexNestedCTEWithAggregationAndFunctionsMultiJoinChainExpected">
     <Resource name="sql">
       <![CDATA[WITH base_orders AS (  SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price   FROM Users u   INNER JOIN Orders o ON u.user_id = o.user_id   INNER JOIN Payments p ON u.user_id = p.user_id), enriched_orders AS (  SELECT     bo.*,     om.metric_type,     om.metric_value,     CASE       WHEN bo.price > 1000 THEN 'Premium'       WHEN bo.price > 500 THEN 'Standard'       ELSE 'Basic'     END as order_tier   FROM base_orders bo   LEFT JOIN OrderMetrics om ON bo.order_id = om.order_id), aggregated_metrics AS (  SELECT     user_id,     name,     COUNT(DISTINCT order_id) as total_orders,     SUM(price) as total_spent,     AVG(price) as avg_order_value,     MAX(metric_value) as max_metric,     MIN(metric_value) as min_metric,     COUNT(CASE WHEN order_tier = 'Premium' THEN 1 END) as premium_orders   FROM enriched_orders   GROUP BY user_id, name) SELECT   user_id,   UPPER(name) as user_name,   total_orders,   ROUND(total_spent, 2) as total_spent_rounded,   ROUND(avg_order_value, 2) as avg_order_value_rounded,   CONCAT('User: ', name, ' has ', CAST(total_orders AS STRING), ' orders') as summary,   CASE     WHEN total_orders > 10 THEN 'Frequent Customer'     WHEN total_orders > 5 THEN 'Regular Customer'     ELSE 'Occasional Customer'   END as customer_type FROM aggregated_metrics WHERE total_spent > 0]]>
     </Resource>
@@ -574,7 +574,7 @@ Calc(select=[user_id, name, order_id, payment_id, location])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testFourWayJoinNoCommonJoinKeyRelPlan">
+  <TestCase name="testFourWayJoinRelPlanNoCommonJoinKey">
     <Resource name="sql">
       <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN LookupTable ON u.name = LookupTable.name LEFT JOIN Payments p ON u.user_id = p.user_id LEFT JOIN Shipments s ON o.user_id = s.user_id]]>
     </Resource>
@@ -619,7 +619,40 @@ Calc(select=[user_id, name, order_id, payment_id, location])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testFourWayJoinNoCommonJoinKeyWithFunctionInCondition">
+  <TestCase name="testFourWayJoinTransitiveCommonJoinKeyRelPlan">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN Payments p ON o.user_id = p.user_id LEFT JOIN Shipments s ON p.user_id = s.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
++- LogicalJoin(condition=[=($8, $10)], joinType=[left])
+   :- LogicalJoin(condition=[=($4, $8)], joinType=[left])
+   :  :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
+   :  :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id, name, order_id, payment_id, location])
++- MultiJoin(commonJoinKey=[user_id], joinTypes=[LEFT, LEFT, LEFT], inputUniqueKeys=[(user_id), (order_id), (payment_id), noUniqueKey], joinConditions=[=(user_id, user_id0), =(user_id0, user_id1), =(user_id1, user_id2)], select=[user_id,name,order_id,user_id0,payment_id,user_id1,location,user_id2], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id1, VARCHAR(2147483647) location, VARCHAR(2147483647) user_id2)])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- ChangelogNormalize(key=[user_id])
+   :     +- Exchange(distribution=[hash[user_id]])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id, name], metadata=[]]], fields=[user_id, name])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id], metadata=[]]], fields=[payment_id, user_id])
+   +- Exchange(distribution=[hash[user_id]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Shipments]], fields=[location, user_id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFourWayJoinWithFunctionInConditionMultiJoinChainExpected">
     <Resource name="sql">
       <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON o.user_id = u.user_id LEFT JOIN Payments p ON u.user_id = p.user_id      AND UPPER(u.name) = UPPER(p.payment_id)      AND (FLOOR(u.cash) >= FLOOR(p.price) OR p.price < 0) LEFT JOIN Shipments s ON p.payment_id = s.location ]]>
     </Resource>
@@ -661,39 +694,6 @@ MultiJoin(commonJoinKey=[payment_id], joinTypes=[LEFT], inputUniqueKeys=[noUniqu
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testFourWayJoinTransitiveCommonJoinKeyRelPlan">
-    <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN Payments p ON o.user_id = p.user_id LEFT JOIN Shipments s ON p.user_id = s.user_id]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6], location=[$9])
-+- LogicalJoin(condition=[=($8, $10)], joinType=[left])
-   :- LogicalJoin(condition=[=($4, $8)], joinType=[left])
-   :  :- LogicalJoin(condition=[=($0, $4)], joinType=[left])
-   :  :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
-   :  :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[user_id, name, order_id, payment_id, location])
-+- MultiJoin(commonJoinKey=[user_id], joinTypes=[LEFT, LEFT, LEFT], inputUniqueKeys=[(user_id), (order_id), (payment_id), noUniqueKey], joinConditions=[=(user_id, user_id0), =(user_id0, user_id1), =(user_id1, user_id2)], select=[user_id,name,order_id,user_id0,payment_id,user_id1,location,user_id2], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id1, VARCHAR(2147483647) location, VARCHAR(2147483647) user_id2)])
-   :- Exchange(distribution=[hash[user_id]])
-   :  +- ChangelogNormalize(key=[user_id])
-   :     +- Exchange(distribution=[hash[user_id]])
-   :        +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id, name], metadata=[]]], fields=[user_id, name])
-   :- Exchange(distribution=[hash[user_id]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
-   :- Exchange(distribution=[hash[user_id]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id], metadata=[]]], fields=[payment_id, user_id])
-   +- Exchange(distribution=[hash[user_id]])
-      +- TableSourceScan(table=[[default_catalog, default_database, Shipments]], fields=[location, user_id])
-]]>
-    </Resource>
-  </TestCase>
   <TestCase name="testFullOuterNotSupported">
     <Resource name="sql">
       <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id FROM Users u FULL OUTER JOIN Orders o ON u.user_id = o.user_id FULL OUTER JOIN Payments p ON o.user_id = p.user_id]]>
@@ -725,7 +725,7 @@ Calc(select=[user_id, name, order_id, payment_id])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testFunctionAndExpressionWithMultiJoin">
+  <TestCase name="testFunctionAndExpressionWithMultiJoinNoCommonJoinKey">
     <Resource name="sql">
       <![CDATA[SELECT u.user_id, UPPER(u.name) as user_name_upper, LOWER(o.product) as product_lower, CONCAT(u.name, ' - ', o.product) as user_product, SUBSTRING(pd.description, 1, 50) as description_preview, CHAR_LENGTH(pd.description) as description_length, FLOOR(p.price / 100.0) * 100 as price_rounded, CASE   WHEN p.price > 1000 THEN 'High'   WHEN p.price > 500 THEN 'Medium'   ELSE 'Low' END as price_tier, REGEXP_REPLACE(pd.tags, ',', ' | ') as formatted_tags, TO_TIMESTAMP_LTZ(pd.created_date, 3) as product_created, COALESCE(up.preferred_category, 'None') as user_preference, CASE   WHEN up.notification_level = 'HIGH' THEN 'Frequent Updates'   WHEN up.notification_level = 'MEDIUM' THEN 'Daily Updates'   ELSE 'Weekly Updates' END as notification_frequency FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN Payments p ON u.user_id = p.user_id LEFT JOIN ProductDetails pd ON o.product = pd.product_id LEFT JOIN UserPreferences up ON u.user_id = up.user_id]]>
     </Resource>
@@ -772,7 +772,7 @@ Calc(select=[user_id, UPPER(name) AS user_name_upper, LOWER(product) AS product_
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testFunctionAndExpressionWithMultiJoinV2">
+  <TestCase name="testFunctionAndExpressionWithMultiJoinNoCommonJoinKeyV2">
     <Resource name="sql">
       <![CDATA[SELECT   u.user_id,   u.name,   o.order_id,   pd.product_name,   pd.price,   ROUND(pd.price * 1.1, 2) AS price_with_tax,   CONCAT('Product: ', pd.product_name) AS product_description,   CHAR_LENGTH(r.review_text) AS review_length,   UPPER(SUBSTRING(r.review_text, 1, 10)) AS review_preview,   CASE     WHEN r.rating >= 4 THEN 'High Rating'     WHEN r.rating >= 3 THEN 'Medium Rating'     ELSE 'Low Rating'   END AS rating_category,   TIMESTAMPDIFF(DAY, pd.created_date, CURRENT_DATE) AS days_since_created FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN ProductDetails pd ON o.product = pd.product_id LEFT JOIN Reviews r ON pd.product_id = r.product_id]]>
     </Resource>
@@ -840,7 +840,7 @@ Calc(select=[id, val, price])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinConditionHasNestedFields">
+  <TestCase name="testJoinConditionHasNestedFieldsMultiJoinChainExpected">
     <Resource name="sql">
       <![CDATA[SELECT   d.developer_id,   d.person.info.name AS developer_name,   s.ticket_id,   s.reporter.info.priority AS ticket_priority,   f.feedback_id,   f.author.info.rating AS feedback_rating,   sub.sub_id,   sub.subscriber.info.plan AS subscription_plan FROM Developers AS d LEFT JOIN SupportTickets AS s   ON d.person.info.id = s.reporter.info.id LEFT JOIN Feedback AS f   ON d.person.info.id = f.author.info.id LEFT JOIN Subscriptions AS sub   ON d.person.info.id = sub.subscriber.info.id]]>
     </Resource>
@@ -943,7 +943,7 @@ Calc(select=[user_id, order_id, product, price, location])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testJoinWithNestedSubquery">
+  <TestCase name="testJoinWithNestedSubqueryMultiJoinChainExpected">
     <Resource name="sql">
       <![CDATA[SELECT * FROM Users u JOIN (    SELECT o.user_id, o.order_id, p.payment_id, p.price     FROM Orders o     JOIN (        SELECT payment_id, user_id, price         FROM Payments         WHERE price > 100    ) AS p     ON o.user_id = p.user_id) AS op ON u.user_id = op.user_id]]>
     </Resource>
@@ -1338,7 +1338,34 @@ Calc(select=[user_id, name, order_id, payment_id])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testThreeWayInnerJoinNoCommonJoinKeyRelPlan">
+  <TestCase name="testThreeWayInnerJoinRelPlan">
+    <Resource name="sql">
+      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id = o.user_id INNER JOIN Payments p ON u.user_id = p.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id, name, order_id, payment_id])
++- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id), (order_id), (payment_id)], joinConditions=[=(user_id, user_id0), =(user_id, user_id1)], select=[user_id,name,order_id,user_id0,payment_id,user_id1], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id1)])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id, name], metadata=[]]], fields=[user_id, name])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
+   +- Exchange(distribution=[hash[user_id]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id], metadata=[]]], fields=[payment_id, user_id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testThreeWayInnerJoinRelPlanNoCommonJoinKey">
     <Resource name="sql">
       <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id = o.user_id INNER JOIN Payments p ON u.cash = p.price]]>
     </Resource>
@@ -1367,33 +1394,6 @@ Calc(select=[user_id, name, order_id, payment_id])
    :           +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
    +- Exchange(distribution=[hash[price]])
       +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, price], metadata=[]]], fields=[payment_id, price])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testThreeWayInnerJoinRelPlan">
-    <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id = o.user_id INNER JOIN Payments p ON u.user_id = p.user_id]]>
-    </Resource>
-    <Resource name="ast">
-      <![CDATA[
-LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
-+- LogicalJoin(condition=[=($0, $8)], joinType=[inner])
-   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
-   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]])
-   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]])
-]]>
-    </Resource>
-    <Resource name="optimized rel plan">
-      <![CDATA[
-Calc(select=[user_id, name, order_id, payment_id])
-+- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id), (order_id), (payment_id)], joinConditions=[=(user_id, user_id0), =(user_id, user_id1)], select=[user_id,name,order_id,user_id0,payment_id,user_id1], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id1)])
-   :- Exchange(distribution=[hash[user_id]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id, name], metadata=[]]], fields=[user_id, name])
-   :- Exchange(distribution=[hash[user_id]])
-   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
-   +- Exchange(distribution=[hash[user_id]])
-      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id], metadata=[]]], fields=[payment_id, user_id])
 ]]>
     </Resource>
   </TestCase>
@@ -1451,7 +1451,7 @@ Calc(select=[user_id, name, order_id, payment_id])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testThreeWayJoinNoJoinKeyExecPlan">
+  <TestCase name="testThreeWayJoinExecPlanNoCommonJoinKey">
     <Resource name="sql">
       <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON TRUE INNER JOIN Payments p ON TRUE ]]>
     </Resource>
@@ -1766,7 +1766,7 @@ MultiJoin(commonJoinKey=[user_id], joinTypes=[LEFT], inputUniqueKeys=[noUniqueKe
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testWithCastCommonJoinKeyToInteger">
+  <TestCase name="testWithCastCommonJoinKeyToIntegerMultiJoinChainExpected">
     <Resource name="sql">
       <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON o.user_id = u.user_id LEFT JOIN Payments p ON CAST(u.user_id as INTEGER) = CAST(p.user_id as INTEGER)LEFT JOIN Shipments s ON u.user_id = s.user_id]]>
     </Resource>
@@ -1842,7 +1842,7 @@ Calc(select=[user_id, name, order_id, payment_id, location])
 ]]>
     </Resource>
   </TestCase>
-  <TestCase name="testWithExpressionInJoinCondition">
+  <TestCase name="testWithExpressionInJoinConditionMultiJoinChainExpected">
     <Resource name="sql">
       <![CDATA[SELECT   p.product_id,   (p.price - p.discount) AS net_price,   s.quantity,   pr.promo_text FROM Products AS p LEFT JOIN Sales AS s   ON (p.price - p.discount) = s.product_key LEFT JOIN Promotions AS pr   ON (p.price - p.discount) = pr.product_key WHERE (p.price - p.discount) > 100]]>
     </Resource>

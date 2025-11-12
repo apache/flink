@@ -189,7 +189,7 @@ public class MultiJoinTest extends TableTestBase {
 
     @Test
     @Tag("no-common-join-key")
-    void testThreeWayInnerJoinNoCommonJoinKeyRelPlan() {
+    void testThreeWayInnerJoinRelPlanNoCommonJoinKey() {
         util.verifyRelPlan(
                 "SELECT u.user_id, u.name, o.order_id, p.payment_id "
                         + "FROM Users u "
@@ -289,7 +289,7 @@ public class MultiJoinTest extends TableTestBase {
 
     @Test
     @Tag("no-common-join-key")
-    void testThreeWayJoinNoJoinKeyExecPlan() {
+    void testThreeWayJoinExecPlanNoCommonJoinKey() {
         util.verifyExecPlan(
                 "SELECT u.user_id, u.name, o.order_id, p.payment_id "
                         + "FROM Users u "
@@ -299,7 +299,7 @@ public class MultiJoinTest extends TableTestBase {
 
     @Test
     @Tag("no-common-join-key")
-    void testFourWayJoinNoCommonJoinKeyRelPlan() {
+    void testFourWayJoinRelPlanNoCommonJoinKey() {
         util.verifyRelPlan(
                 "SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location "
                         + "FROM Users u "
@@ -702,8 +702,8 @@ public class MultiJoinTest extends TableTestBase {
      * a single MultiJoin node initially.
      */
     @Test
-    @Tag("expected-multijoin-chain")
-    void testFourWayJoinNoCommonJoinKeyWithFunctionInCondition() {
+    @Tag("multijoin-chain-expected")
+    void testFourWayJoinWithFunctionInConditionMultiJoinChainExpected() {
         util.verifyRelPlan(
                 "SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location "
                         + "FROM Users u "
@@ -720,7 +720,7 @@ public class MultiJoinTest extends TableTestBase {
      */
     @Test
     @Tag("no-common-join-key")
-    void testComplexCommonJoinKeyMissingProjection() {
+    void testComplexCommonJoinKeyMissingProjectionNoCommonJoinKey() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE Assignments ("
@@ -812,7 +812,7 @@ public class MultiJoinTest extends TableTestBase {
 
     @Test
     @Tag("no-common-join-key")
-    void testComplexConditionalLogicWithMultiJoin() {
+    void testComplexConditionalLogicWithMultiJoinNoCommonJoinKey() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE ProductCategories ("
@@ -862,7 +862,7 @@ public class MultiJoinTest extends TableTestBase {
 
     @Test
     @Tag("no-common-join-key")
-    void testComplexCTEWithMultiJoin() {
+    void testComplexCTEWithMultiJoinNoCommonJoinKey() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE OrderStatus ("
@@ -908,7 +908,7 @@ public class MultiJoinTest extends TableTestBase {
 
     @Test
     @Tag("no-common-join-key")
-    void testAggregationAndGroupingWithMultiJoin() {
+    void testAggregationAndGroupingWithMultiJoinNoCommonJoinKey() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE OrderItems ("
@@ -950,7 +950,7 @@ public class MultiJoinTest extends TableTestBase {
 
     @Test
     @Tag("no-common-join-key")
-    void testFunctionAndExpressionWithMultiJoin() {
+    void testFunctionAndExpressionWithMultiJoinNoCommonJoinKey() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE ProductDetails ("
@@ -1005,8 +1005,8 @@ public class MultiJoinTest extends TableTestBase {
      * Therefore, in this test, each Join is still converted to a MultiJoin individually.
      */
     @Test
-    @Tag("expected-multijoin-chain")
-    void testJoinConditionHasNestedFields() {
+    @Tag("multijoin-chain-expected")
+    void testJoinConditionHasNestedFieldsMultiJoinChainExpected() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE Developers ("
@@ -1059,8 +1059,8 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
-    @Tag("expected-multijoin-chain")
-    void testComplexNestedCTEWithAggregationAndFunctions() {
+    @Tag("multijoin-chain-expected")
+    void testComplexNestedCTEWithAggregationAndFunctionsMultiJoinChainExpected() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE OrderMetrics ("
@@ -1133,8 +1133,8 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
-    @Tag("expected-multijoin-chain")
-    void testJoinWithNestedSubquery() {
+    @Tag("multijoin-chain-expected")
+    void testJoinWithNestedSubqueryMultiJoinChainExpected() {
         util.verifyRelPlan(
                 "SELECT * "
                         + "FROM Users u "
@@ -1205,8 +1205,8 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
-    @Tag("expected-multijoin-chain")
-    void testWithCastCommonJoinKeyToInteger() {
+    @Tag("multijoin-chain-expected")
+    void testWithCastCommonJoinKeyToIntegerMultiJoinChainExpected() {
         util.verifyRelPlan(
                 "SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location "
                         + "FROM Users u "
@@ -1273,8 +1273,8 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
-    @Tag("expected-multijoin-chain")
-    void testWithExpressionInJoinCondition() {
+    @Tag("multijoin-chain-expected")
+    void testWithExpressionInJoinConditionMultiJoinChainExpected() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE Products ("
@@ -1315,7 +1315,7 @@ public class MultiJoinTest extends TableTestBase {
 
     @Test
     @Tag("no-common-join-key")
-    void testFunctionAndExpressionWithMultiJoinV2() {
+    void testFunctionAndExpressionWithMultiJoinNoCommonJoinKeyV2() {
         util.tableEnv()
                 .executeSql(
                         "CREATE TABLE ProductDetails ("
