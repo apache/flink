@@ -30,14 +30,15 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.RecoveredInputChannel;
 
+import javax.annotation.Nonnull;
+
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.checkpoint.channel.ChannelStateByteBuffer.wrap;
+import static org.apache.flink.util.Preconditions.checkState;
 
 interface RecoveredChannelStateHandler<Info, Context> extends AutoCloseable {
     class BufferWithContext<Context> {
@@ -71,8 +72,7 @@ class InputChannelRecoveredStateHandler
 
     private final InflightDataRescalingDescriptor channelMapping;
 
-    private final Map<InputChannelInfo, List<RecoveredInputChannel>> rescaledChannels =
-            new HashMap<>();
+    private final Map<InputChannelInfo, RecoveredInputChannel> rescaledChannels = new HashMap<>();
     private final Map<Integer, RescaleMappings> oldToNewMappings = new HashMap<>();
 
     InputChannelRecoveredStateHandler(
@@ -85,7 +85,7 @@ class InputChannelRecoveredStateHandler
     public BufferWithContext<Buffer> getBuffer(InputChannelInfo channelInfo)
             throws IOException, InterruptedException {
         // request the buffer from any mapped channel as they all will receive the same buffer
-        RecoveredInputChannel channel = getMappedChannels(channelInfo).get(0);
+        RecoveredInputChannel channel = getMappedChannels(channelInfo);
         Buffer buffer = channel.requestBufferBlocking();
         return new BufferWithContext<>(wrap(buffer), buffer);
     }
@@ -99,14 +99,13 @@ class InputChannelRecoveredStateHandler
         Buffer buffer = bufferWithContext.context;
         try {
             if (buffer.readableBytes() > 0) {
-                for (final RecoveredInputChannel channel : getMappedChannels(channelInfo)) {
-                    channel.onRecoveredStateBuffer(
-                            EventSerializer.toBuffer(
-                                    new SubtaskConnectionDescriptor(
-                                            oldSubtaskIndex, channelInfo.getInputChannelIdx()),
-                                    false));
-                    channel.onRecoveredStateBuffer(buffer.retainBuffer());
-                }
+                RecoveredInputChannel channel = getMappedChannels(channelInfo);
+                channel.onRecoveredStateBuffer(
+                        EventSerializer.toBuffer(
+                                new SubtaskConnectionDescriptor(
+                                        oldSubtaskIndex, channelInfo.getInputChannelIdx()),
+                                false));
+                channel.onRecoveredStateBuffer(buffer.retainBuffer());
             }
         } finally {
             buffer.recycleBuffer();
@@ -130,26 +129,21 @@ class InputChannelRecoveredStateHandler
         return (RecoveredInputChannel) inputChannel;
     }
 
-    private List<RecoveredInputChannel> getMappedChannels(InputChannelInfo channelInfo) {
+    private RecoveredInputChannel getMappedChannels(InputChannelInfo channelInfo) {
         return rescaledChannels.computeIfAbsent(channelInfo, this::calculateMapping);
     }
 
-    private List<RecoveredInputChannel> calculateMapping(InputChannelInfo info) {
+    @Nonnull
+    private RecoveredInputChannel calculateMapping(InputChannelInfo info) {
         final RescaleMappings oldToNewMapping =
                 oldToNewMappings.computeIfAbsent(
                         info.getGateIdx(), idx -> channelMapping.getChannelMapping(idx).invert());
-        final List<RecoveredInputChannel> channels =
-                Arrays.stream(oldToNewMapping.getMappedIndexes(info.getInputChannelIdx()))
-                        .mapToObj(newChannelIndex -> getChannel(info.getGateIdx(), newChannelIndex))
-                        .collect(Collectors.toList());
-        if (channels.isEmpty()) {
-            throw new IllegalStateException(
-                    "Recovered a buffer from old "
-                            + info
-                            + " that has no mapping in "
-                            + channelMapping.getChannelMapping(info.getGateIdx()));
-        }
-        return channels;
+        int[] mappedIndexes = oldToNewMapping.getMappedIndexes(info.getInputChannelIdx());
+        checkState(
+                mappedIndexes.length == 1,
+                "One buffer is only distributed to one target InputChannel since "
+                        + "one buffer is expected to be processed once by the same task.");
+        return getChannel(info.getGateIdx(), mappedIndexes[0]);
     }
 }
 

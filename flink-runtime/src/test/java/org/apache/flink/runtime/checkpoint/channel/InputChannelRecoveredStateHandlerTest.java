@@ -32,7 +32,10 @@ import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;
 
+import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.mappings;
+import static org.apache.flink.runtime.checkpoint.InflightDataRescalingDescriptorUtil.to;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test of different implementation of {@link InputChannelRecoveredStateHandler}. */
 class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandlerTest {
@@ -75,6 +78,44 @@ class InputChannelRecoveredStateHandlerTest extends RecoveredChannelStateHandler
                                             .InflightDataGateOrPartitionRescalingDescriptor
                                             .MappingType.IDENTITY)
                         }));
+    }
+
+    private InputChannelRecoveredStateHandler buildMultiChannelHandler() {
+        // Setup multi-channel scenario to trigger distribution constraint validation
+        SingleInputGate multiChannelGate =
+                new SingleInputGateBuilder()
+                        .setNumberOfChannels(2)
+                        .setChannelFactory(InputChannelBuilder::buildLocalRecoveredChannel)
+                        .setSegmentProvider(networkBufferPool)
+                        .build();
+
+        return new InputChannelRecoveredStateHandler(
+                new InputGate[] {multiChannelGate},
+                new InflightDataRescalingDescriptor(
+                        new InflightDataRescalingDescriptor
+                                        .InflightDataGateOrPartitionRescalingDescriptor[] {
+                            new InflightDataRescalingDescriptor
+                                    .InflightDataGateOrPartitionRescalingDescriptor(
+                                    new int[] {2},
+                                    // Force 1:many mapping after inversion
+                                    mappings(to(0), to(0)),
+                                    new HashSet<>(),
+                                    InflightDataRescalingDescriptor
+                                            .InflightDataGateOrPartitionRescalingDescriptor
+                                            .MappingType.RESCALING)
+                        }));
+    }
+
+    @Test
+    void testBufferDistributedToMultipleInputChannelsThrowsException() throws Exception {
+        // Test constraint that prevents buffer distribution to multiple channels
+        try (InputChannelRecoveredStateHandler handler = buildMultiChannelHandler()) {
+            assertThatThrownBy(() -> handler.getBuffer(channelInfo))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining(
+                            "One buffer is only distributed to one target InputChannel since "
+                                    + "one buffer is expected to be processed once by the same task.");
+        }
     }
 
     @Test
