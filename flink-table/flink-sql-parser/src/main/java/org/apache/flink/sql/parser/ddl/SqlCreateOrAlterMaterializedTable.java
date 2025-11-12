@@ -199,7 +199,7 @@ public class SqlCreateOrAlterMaterializedTable extends SqlCreateMaterializedTabl
             writer.newlineAndIndent();
             writer.keyword("REFRESH_MODE");
             writer.keyword("=");
-            getRefreshMode().unparse(writer, leftPrec, rightPrec);
+            writer.keyword(getRefreshMode().name());
         }
 
         writer.newlineAndIndent();

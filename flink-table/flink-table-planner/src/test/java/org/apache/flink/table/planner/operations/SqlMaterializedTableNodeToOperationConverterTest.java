@@ -155,8 +155,10 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         .logicalRefreshMode(CatalogMaterializedTable.LogicalRefreshMode.FULL)
                         .refreshMode(RefreshMode.FULL)
                         .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
-                        .originalQuery("SELECT *\n" + "FROM `t1`")
-                        .expandedQuery("SELECT *\n" + "FROM `builtin`.`default`.`t1`")
+                        .originalQuery("SELECT *\nFROM `t1`")
+                        .expandedQuery(
+                                "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
+                                        + "FROM `builtin`.`default`.`t1` AS `t1`")
                         .build();
 
         final IntervalFreshness resolvedFreshness = materializedTable.getDefinitionFreshness();
@@ -208,7 +210,9 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         .refreshMode(RefreshMode.FULL)
                         .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
                         .originalQuery("SELECT *\nFROM `t1`")
-                        .expandedQuery("SELECT *\nFROM `builtin`.`default`.`t1`")
+                        .expandedQuery(
+                                "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
+                                        + "FROM `builtin`.`default`.`t1` AS `t1`")
                         .build();
 
         // The resolved freshness should default to 1 minute
@@ -259,7 +263,9 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         .logicalRefreshMode(LogicalRefreshMode.AUTOMATIC)
                         .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
                         .originalQuery("SELECT *\nFROM `t1`")
-                        .expandedQuery("SELECT *\nFROM `builtin`.`default`.`t1`")
+                        .expandedQuery(
+                                "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
+                                        + "FROM `builtin`.`default`.`t1` AS `t1`")
                         .build();
 
         final IntervalFreshness resolvedFreshness = materializedTable.getDefinitionFreshness();
@@ -298,7 +304,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(createOperation.getCatalogMaterializedTable().getExpandedQuery())
                 .isEqualTo(
                         "SELECT `t1`.`a`, `T`.`f1`, `T`.`f2`\n"
-                                + "FROM `builtin`.`default`.`t1`,\n"
+                                + "FROM `builtin`.`default`.`t1` AS `t1`,\n"
                                 + "LATERAL TABLE(`builtin`.`default`.`myFunc`(`b`)) AS `T` (`f1`, `f2`)");
     }
 
@@ -747,7 +753,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
 
         CreateMaterializedTableOperation op = (CreateMaterializedTableOperation) operation;
-        CatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
+        ResolvedCatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
         assertThat(materializedTable).isInstanceOf(ResolvedCatalogMaterializedTable.class);
 
         Map<String, String> options = new HashMap<>();
@@ -770,12 +776,13 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         .logicalRefreshMode(CatalogMaterializedTable.LogicalRefreshMode.FULL)
                         .refreshMode(CatalogMaterializedTable.RefreshMode.FULL)
                         .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
-                        .originalQuery("SELECT *\n" + "FROM `t1`")
-                        .expandedQuery("SELECT *\n" + "FROM `builtin`.`default`.`t1`")
+                        .originalQuery("SELECT *\nFROM `t1`")
+                        .expandedQuery(
+                                "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
+                                        + "FROM `builtin`.`default`.`t1` AS `t1`")
                         .build();
 
-        assertThat(((ResolvedCatalogMaterializedTable) materializedTable).getOrigin())
-                .isEqualTo(expected);
+        assertThat(materializedTable.getOrigin()).isEqualTo(expected);
     }
 
     @Test
@@ -808,11 +815,11 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                         Column.physical("f", DataTypes.VARCHAR(Integer.MAX_VALUE))),
                                 TableChange.modifyDefinitionQuery(
                                         "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
-                                                + "FROM `builtin`.`default`.`t3`")));
+                                                + "FROM `builtin`.`default`.`t3` AS `t3`")));
         assertThat(operation.asSummaryString())
                 .isEqualTo(
                         "ALTER MATERIALIZED TABLE builtin.default.base_mtbl AS SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
-                                + "FROM `builtin`.`default`.`t3`");
+                                + "FROM `builtin`.`default`.`t3` AS `t3`");
 
         // new table only difference schema & definition query with old table.
         CatalogMaterializedTable oldTable =

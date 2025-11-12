@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.Column;
@@ -82,14 +83,18 @@ public class MaterializedTableUtils {
         }
     }
 
-    public static RefreshMode fromSqlToRefreshMode(SqlRefreshMode sqlRefreshMode) {
-        switch (sqlRefreshMode) {
+    public static RefreshMode fromLogicalRefreshModeToRefreshMode(
+            LogicalRefreshMode logicalRefreshMode) {
+        switch (logicalRefreshMode) {
+            case AUTOMATIC:
+                return null;
             case FULL:
                 return RefreshMode.FULL;
             case CONTINUOUS:
                 return RefreshMode.CONTINUOUS;
             default:
-                throw new IllegalArgumentException("Unknown refresh mode: " + sqlRefreshMode);
+                throw new IllegalArgumentException(
+                        "Unknown logical refresh mode: " + logicalRefreshMode);
         }
     }
 
