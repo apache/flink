@@ -34,22 +34,40 @@ public final class SourceTestStep extends TableTestStep {
     public final List<Row> dataBeforeRestore;
     public final List<Row> dataAfterRestore;
 
+    public final boolean treatDataBeforeRestoreAsConsumedData;
+
     SourceTestStep(
             String name,
             List<String> schemaComponents,
             @Nullable TableDistribution distribution,
             List<String> partitionKeys,
             Map<String, String> options,
+            List<List<String>> indexes,
             List<Row> dataBeforeRestore,
-            List<Row> dataAfterRestore) {
-        super(name, schemaComponents, distribution, partitionKeys, options);
+            List<Row> dataAfterRestore,
+            boolean treatDataBeforeRestoreAsConsumedData) {
+        super(name, schemaComponents, distribution, partitionKeys, options, indexes);
         this.dataBeforeRestore = dataBeforeRestore;
         this.dataAfterRestore = dataAfterRestore;
+        this.treatDataBeforeRestoreAsConsumedData = treatDataBeforeRestoreAsConsumedData;
     }
 
     /** Builder for creating a {@link SourceTestStep}. */
     public static Builder newBuilder(String name) {
         return new Builder(name);
+    }
+
+    public SourceTestStep withNewOptions(Map<String, String> newOptions) {
+        return new SourceTestStep(
+                name,
+                schemaComponents,
+                distribution,
+                partitionKeys,
+                newOptions,
+                indexes,
+                dataBeforeRestore,
+                dataAfterRestore,
+                treatDataBeforeRestoreAsConsumedData);
     }
 
     @Override
@@ -66,6 +84,8 @@ public final class SourceTestStep extends TableTestStep {
 
         private final List<Row> dataBeforeRestore = new ArrayList<>();
         private final List<Row> dataAfterRestore = new ArrayList<>();
+        private final List<List<String>> indexes = new ArrayList<>();
+        private boolean treatDataBeforeRestoreAsConsumedData = false;
 
         private Builder(String name) {
             super(name);
@@ -85,6 +105,16 @@ public final class SourceTestStep extends TableTestStep {
             return this;
         }
 
+        public Builder addIndex(String... index) {
+            this.indexes.add(Arrays.asList(index));
+            return this;
+        }
+
+        public Builder treatDataBeforeRestoreAsConsumedData() {
+            this.treatDataBeforeRestoreAsConsumedData = true;
+            return this;
+        }
+
         public SourceTestStep build() {
             return new SourceTestStep(
                     name,
@@ -92,8 +122,10 @@ public final class SourceTestStep extends TableTestStep {
                     distribution,
                     partitionKeys,
                     options,
+                    indexes,
                     dataBeforeRestore,
-                    dataAfterRestore);
+                    dataAfterRestore,
+                    treatDataBeforeRestoreAsConsumedData);
         }
     }
 }

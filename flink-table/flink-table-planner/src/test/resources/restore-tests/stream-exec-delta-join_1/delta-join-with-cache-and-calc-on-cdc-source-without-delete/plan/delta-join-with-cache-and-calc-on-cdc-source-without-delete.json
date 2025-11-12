@@ -1,0 +1,669 @@
+{
+  "flinkVersion" : "2.2",
+  "nodes" : [ {
+    "id" : 79,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`leftSrc`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a1",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "a0",
+              "dataType" : "DOUBLE NOT NULL"
+            }, {
+              "name" : "a2",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_a1_a0",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "a1", "a0" ]
+            },
+            "indexes" : [ {
+              "name" : "INDEX_a1",
+              "columns" : [ "a1" ]
+            } ]
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "FilterPushDown",
+        "predicates" : [ ]
+      } ]
+    },
+    "outputType" : "ROW<`a1` INT NOT NULL, `a0` DOUBLE NOT NULL, `a2` VARCHAR(2147483647)>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, leftSrc, filter=[]]], fields=[a1, a0, a2])"
+  }, {
+    "id" : 80,
+    "type" : "stream-exec-drop-update-before_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a1` INT NOT NULL, `a0` DOUBLE NOT NULL, `a2` VARCHAR(2147483647)>",
+    "description" : "DropUpdateBefore"
+  }, {
+    "id" : 81,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "DOUBLE NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "internalName" : "$CONCAT$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 2,
+        "type" : "VARCHAR(2147483647)"
+      }, {
+        "kind" : "LITERAL",
+        "value" : "-s",
+        "type" : "CHAR(2) NOT NULL"
+      } ],
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "condition" : {
+      "kind" : "CALL",
+      "syntax" : "INTERNAL",
+      "internalName" : "$SEARCH$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "DOUBLE NOT NULL"
+      }, {
+        "kind" : "LITERAL",
+        "sarg" : {
+          "ranges" : [ {
+            "lower" : {
+              "value" : "1.0",
+              "boundType" : "CLOSED"
+            },
+            "upper" : {
+              "value" : "1.0",
+              "boundType" : "CLOSED"
+            }
+          }, {
+            "lower" : {
+              "value" : "2.0",
+              "boundType" : "CLOSED"
+            },
+            "upper" : {
+              "value" : "2.0",
+              "boundType" : "CLOSED"
+            }
+          } ],
+          "nullAs" : "UNKNOWN"
+        },
+        "type" : "DOUBLE NOT NULL"
+      } ],
+      "type" : "BOOLEAN NOT NULL"
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a0` DOUBLE NOT NULL, `a1` INT NOT NULL, `new_a2` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[a0, a1, CONCAT(a2, '-s') AS new_a2], where=[SEARCH(a0, Sarg[1.0, 2.0])])"
+  }, {
+    "id" : 82,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a0` DOUBLE NOT NULL, `a1` INT NOT NULL, `new_a2` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[a1]])"
+  }, {
+    "id" : 83,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`rightSrc`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "b0",
+              "dataType" : "DOUBLE NOT NULL"
+            }, {
+              "name" : "b2",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "b1",
+              "dataType" : "INT NOT NULL"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_b0_b1",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "b0", "b1" ]
+            },
+            "indexes" : [ {
+              "name" : "INDEX_b1",
+              "columns" : [ "b1" ]
+            } ]
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "FilterPushDown",
+        "predicates" : [ ]
+      } ]
+    },
+    "outputType" : "ROW<`b0` DOUBLE NOT NULL, `b2` VARCHAR(2147483647), `b1` INT NOT NULL>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, rightSrc, filter=[]]], fields=[b0, b2, b1])"
+  }, {
+    "id" : 84,
+    "type" : "stream-exec-drop-update-before_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b0` DOUBLE NOT NULL, `b2` VARCHAR(2147483647), `b1` INT NOT NULL>",
+    "description" : "DropUpdateBefore"
+  }, {
+    "id" : 85,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "DOUBLE NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "CALL",
+      "internalName" : "$CONCAT$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "VARCHAR(2147483647)"
+      }, {
+        "kind" : "LITERAL",
+        "value" : "-s",
+        "type" : "CHAR(2) NOT NULL"
+      } ],
+      "type" : "VARCHAR(2147483647)"
+    } ],
+    "condition" : {
+      "kind" : "CALL",
+      "syntax" : "INTERNAL",
+      "internalName" : "$SEARCH$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "DOUBLE NOT NULL"
+      }, {
+        "kind" : "LITERAL",
+        "sarg" : {
+          "ranges" : [ {
+            "lower" : {
+              "value" : "2.0",
+              "boundType" : "CLOSED"
+            },
+            "upper" : {
+              "value" : "2.0",
+              "boundType" : "CLOSED"
+            }
+          }, {
+            "lower" : {
+              "value" : "3.0",
+              "boundType" : "CLOSED"
+            },
+            "upper" : {
+              "value" : "3.0",
+              "boundType" : "CLOSED"
+            }
+          } ],
+          "nullAs" : "UNKNOWN"
+        },
+        "type" : "DOUBLE NOT NULL"
+      } ],
+      "type" : "BOOLEAN NOT NULL"
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b0` DOUBLE NOT NULL, `b1` INT NOT NULL, `new_b2` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[b0, b1, CONCAT(b2, '-s') AS new_b2], where=[SEARCH(b0, Sarg[2.0, 3.0])])"
+  }, {
+    "id" : 86,
+    "type" : "stream-exec-exchange_1",
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "HASH",
+        "keys" : [ 1 ]
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`b0` DOUBLE NOT NULL, `b1` INT NOT NULL, `new_b2` VARCHAR(2147483647)>",
+    "description" : "Exchange(distribution=[hash[b1]])"
+  }, {
+    "id" : 87,
+    "type" : "stream-exec-delta-join_1",
+    "configuration" : {
+      "table.exec.async-lookup.buffer-capacity" : "100",
+      "table.exec.async-lookup.timeout" : "3 min"
+    },
+    "joinType" : "INNER",
+    "leftJoinKeys" : [ 1 ],
+    "leftUpsertKey" : [ 0, 1 ],
+    "lookupRightTableJoinSpec" : {
+      "lookupTable" : {
+        "lookupTableSource" : {
+          "table" : {
+            "identifier" : "`default_catalog`.`default_database`.`rightSrc`",
+            "resolvedTable" : {
+              "schema" : {
+                "columns" : [ {
+                  "name" : "b0",
+                  "dataType" : "DOUBLE NOT NULL"
+                }, {
+                  "name" : "b2",
+                  "dataType" : "VARCHAR(2147483647)"
+                }, {
+                  "name" : "b1",
+                  "dataType" : "INT NOT NULL"
+                } ],
+                "primaryKey" : {
+                  "name" : "PK_b0_b1",
+                  "type" : "PRIMARY_KEY",
+                  "columns" : [ "b0", "b1" ]
+                },
+                "indexes" : [ {
+                  "name" : "INDEX_b1",
+                  "columns" : [ "b1" ]
+                } ]
+              }
+            }
+          },
+          "abilities" : [ {
+            "type" : "FilterPushDown",
+            "predicates" : [ ]
+          } ]
+        },
+        "outputType" : "ROW<`b0` DOUBLE NOT NULL, `b2` VARCHAR(2147483647), `b1` INT NOT NULL> NOT NULL"
+      },
+      "lookupKeys" : {
+        "2" : {
+          "type" : "FieldRef",
+          "index" : 1
+        }
+      },
+      "remainingCondition" : null,
+      "projectionOnTemporalTable" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "DOUBLE NOT NULL"
+      }, {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 2,
+        "type" : "INT NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "internalName" : "$CONCAT$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 1,
+          "type" : "VARCHAR(2147483647)"
+        }, {
+          "kind" : "LITERAL",
+          "value" : "-s",
+          "type" : "CHAR(2) NOT NULL"
+        } ],
+        "type" : "VARCHAR(2147483647)"
+      } ],
+      "filterOnTemporalTable" : {
+        "kind" : "CALL",
+        "syntax" : "INTERNAL",
+        "internalName" : "$SEARCH$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 0,
+          "type" : "DOUBLE NOT NULL"
+        }, {
+          "kind" : "LITERAL",
+          "sarg" : {
+            "ranges" : [ {
+              "lower" : {
+                "value" : "2.0",
+                "boundType" : "CLOSED"
+              },
+              "upper" : {
+                "value" : "2.0",
+                "boundType" : "CLOSED"
+              }
+            }, {
+              "lower" : {
+                "value" : "3.0",
+                "boundType" : "CLOSED"
+              },
+              "upper" : {
+                "value" : "3.0",
+                "boundType" : "CLOSED"
+              }
+            } ],
+            "nullAs" : "UNKNOWN"
+          },
+          "type" : "DOUBLE NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      }
+    },
+    "rightJoinKeys" : [ 1 ],
+    "rightUpsertKey" : [ 0, 1 ],
+    "lookupLeftTableJoinSpec" : {
+      "lookupTable" : {
+        "lookupTableSource" : {
+          "table" : {
+            "identifier" : "`default_catalog`.`default_database`.`leftSrc`",
+            "resolvedTable" : {
+              "schema" : {
+                "columns" : [ {
+                  "name" : "a1",
+                  "dataType" : "INT NOT NULL"
+                }, {
+                  "name" : "a0",
+                  "dataType" : "DOUBLE NOT NULL"
+                }, {
+                  "name" : "a2",
+                  "dataType" : "VARCHAR(2147483647)"
+                } ],
+                "primaryKey" : {
+                  "name" : "PK_a1_a0",
+                  "type" : "PRIMARY_KEY",
+                  "columns" : [ "a1", "a0" ]
+                },
+                "indexes" : [ {
+                  "name" : "INDEX_a1",
+                  "columns" : [ "a1" ]
+                } ]
+              }
+            }
+          },
+          "abilities" : [ {
+            "type" : "FilterPushDown",
+            "predicates" : [ ]
+          } ]
+        },
+        "outputType" : "ROW<`a1` INT NOT NULL, `a0` DOUBLE NOT NULL, `a2` VARCHAR(2147483647)> NOT NULL"
+      },
+      "lookupKeys" : {
+        "0" : {
+          "type" : "FieldRef",
+          "index" : 1
+        }
+      },
+      "remainingCondition" : null,
+      "projectionOnTemporalTable" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "DOUBLE NOT NULL"
+      }, {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "INT NOT NULL"
+      }, {
+        "kind" : "CALL",
+        "internalName" : "$CONCAT$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 2,
+          "type" : "VARCHAR(2147483647)"
+        }, {
+          "kind" : "LITERAL",
+          "value" : "-s",
+          "type" : "CHAR(2) NOT NULL"
+        } ],
+        "type" : "VARCHAR(2147483647)"
+      } ],
+      "filterOnTemporalTable" : {
+        "kind" : "CALL",
+        "syntax" : "INTERNAL",
+        "internalName" : "$SEARCH$1",
+        "operands" : [ {
+          "kind" : "INPUT_REF",
+          "inputIndex" : 1,
+          "type" : "DOUBLE NOT NULL"
+        }, {
+          "kind" : "LITERAL",
+          "sarg" : {
+            "ranges" : [ {
+              "lower" : {
+                "value" : "1.0",
+                "boundType" : "CLOSED"
+              },
+              "upper" : {
+                "value" : "1.0",
+                "boundType" : "CLOSED"
+              }
+            }, {
+              "lower" : {
+                "value" : "2.0",
+                "boundType" : "CLOSED"
+              },
+              "upper" : {
+                "value" : "2.0",
+                "boundType" : "CLOSED"
+              }
+            } ],
+            "nullAs" : "UNKNOWN"
+          },
+          "type" : "DOUBLE NOT NULL"
+        } ],
+        "type" : "BOOLEAN NOT NULL"
+      }
+    },
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    }, {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a0` DOUBLE NOT NULL, `a1` INT NOT NULL, `new_a2` VARCHAR(2147483647), `b0` DOUBLE NOT NULL, `b1` INT NOT NULL, `new_b2` VARCHAR(2147483647)>",
+    "description" : "DeltaJoin(joinType=[InnerJoin], where=[(a1 = b1)], select=[a0, a1, new_a2, b0, b1, new_b2])",
+    "asyncOptions" : {
+      "capacity " : 100,
+      "timeout" : 180000,
+      "is-key-ordered" : true,
+      "output-mode" : "ORDERED"
+    }
+  }, {
+    "id" : 88,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 1,
+      "type" : "INT NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "DOUBLE NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 2,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 3,
+      "type" : "DOUBLE NOT NULL"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 5,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 4,
+      "type" : "INT NOT NULL"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a1` INT NOT NULL, `a0` DOUBLE NOT NULL, `new_a2` VARCHAR(2147483647), `b0` DOUBLE NOT NULL, `new_b2` VARCHAR(2147483647), `b1` INT NOT NULL>",
+    "description" : "Calc(select=[a1, a0, new_a2, b0, new_b2, b1])"
+  }, {
+    "id" : 89,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`snk`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a1",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "a0",
+              "dataType" : "DOUBLE NOT NULL"
+            }, {
+              "name" : "a2",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "b0",
+              "dataType" : "DOUBLE NOT NULL"
+            }, {
+              "name" : "b2",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "b1",
+              "dataType" : "INT NOT NULL"
+            } ],
+            "primaryKey" : {
+              "name" : "PK_a0_b0_a1_b1",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "a0", "b0", "a1", "b1" ]
+            }
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_AFTER" ],
+    "upsertMaterializeStrategy" : "MAP",
+    "inputUpsertKey" : [ 0, 1, 3, 5 ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`a1` INT NOT NULL, `a0` DOUBLE NOT NULL, `new_a2` VARCHAR(2147483647), `b0` DOUBLE NOT NULL, `new_b2` VARCHAR(2147483647), `b1` INT NOT NULL>",
+    "description" : "Sink(table=[default_catalog.default_database.snk], fields=[a1, a0, new_a2, b0, new_b2, b1])"
+  } ],
+  "edges" : [ {
+    "source" : 79,
+    "target" : 80,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 80,
+    "target" : 81,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 81,
+    "target" : 82,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 83,
+    "target" : 84,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 84,
+    "target" : 85,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 85,
+    "target" : 86,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 82,
+    "target" : 87,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 86,
+    "target" : 87,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 87,
+    "target" : 88,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 88,
+    "target" : 89,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}

@@ -319,12 +319,32 @@ public class TableTestProgram {
         }
 
         /**
+         * Setup steps for each table source.
+         *
+         * <p>Use {@link SourceTestStep.Builder} to construct this step.
+         */
+        public Builder setupTableSources(List<SourceTestStep> sourceTestSteps) {
+            setupSteps.addAll(sourceTestSteps);
+            return this;
+        }
+
+        /**
          * Setup step for a table sink.
          *
          * <p>Use {@link SinkTestStep.Builder} to construct this step.
          */
         public Builder setupTableSink(SinkTestStep sinkTestStep) {
             setupSteps.add(sinkTestStep);
+            return this;
+        }
+
+        /**
+         * Setup steps for each table sink.
+         *
+         * <p>Use {@link SinkTestStep.Builder} to construct this step.
+         */
+        public Builder setupTableSinks(List<SinkTestStep> sinkTestSteps) {
+            setupSteps.addAll(sinkTestSteps);
             return this;
         }
 
