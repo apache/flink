@@ -83,7 +83,7 @@ class SpillingThreadTest {
     void testMergeChannelListDivideByZero(int maxFanIn, int channelCount) throws Exception {
         // Set up supporting memory allocations, etc.
         DummyInvokable owner = new DummyInvokable();
-        List<MemorySegment> sortReadMemory = memoryManager.allocatePages(owner, 5);
+        List<MemorySegment> sortReadMemory = memoryManager.allocatePages(owner, maxFanIn);
         List<MemorySegment> writeMemory = memoryManager.allocatePages(owner, 5);
 
         SpillChannelManager channelManager = new SpillChannelManager();
@@ -107,30 +107,41 @@ class SpillingThreadTest {
     }
 
     /**
-     * Provides test cases for problematic maxFanIn and channelIDs.size() combinations that align
-     * with configuration values where the channelIDs.size() greater than or equal to some power of
-     * the maxFanIn value:
+     * Provides test cases for problematic maxFanIn and channelIDs.size() combinations.
      *
-     * <p>(channelSize) >= (maxFanIn^3)
+     * <p>The divide-by-zero occurs when channelIDs.size() equals a power of maxFanIn. This can
+     * happen in two scenarios:
      *
-     * <p>(channelSize) >= (maxFanIn^5)
+     * <ul>
+     *   <li>Exact powers: channelIDs.size() == maxFanIn^n - triggers divide-by-zero in first
+     *       iteration
+     *   <li>Greater than powers: channelIDs.size() > maxFanIn^n - may reduce to an exact power in a
+     *       later iteration, triggering divide-by-zero
+     * </ul>
      *
-     * <p>...
+     * <p>For example, with maxFanIn=18:
+     *
+     * <ul>
+     *   <li>5832 (18^3) triggers divide-by-zero immediately
+     *   <li>7055 reduces to 5832 in first iteration, then triggers divide-by-zero in second
+     *       iteration
+     * </ul>
      */
     private static Stream<Arguments> maxFanInChannelCountConfigurations() {
         return Stream.of(
-                // maxFanIn = 5, channelIDs.size() = 125 (5^3)
-                Arguments.of(5, 125),
-                // maxFanIn = 6, channelIDs.size() = 216 (6^3)
-                Arguments.of(6, 216),
-                // maxFanIn = 18, channelIDs.size() = 5832 (18^3)
-                Arguments.of(18, 5832),
-                // maxFanIn = 25, channelIDs.size() = 15625 (25^3)
-                Arguments.of(25, 15625),
-                // maxFanIn = 36, channelIDs.size() = 46656 (36^3)
-                Arguments.of(36, 46656),
-                // maxFanIn = 7, channelIDs.size() = 16807 (7^5)
-                Arguments.of(7, 16807));
+                // Original repro (7055 > 18^3)
+                Arguments.of(18, 7055),
+                // Exact powers (trigger divide-by-zero in first iteration)
+                Arguments.of(5, (int) Math.pow(5, 3)),
+                Arguments.of(6, (int) Math.pow(6, 3)),
+                Arguments.of(18, (int) Math.pow(18, 3)),
+                Arguments.of(25, (int) Math.pow(25, 3)),
+                Arguments.of(36, (int) Math.pow(36, 3)),
+                Arguments.of(7, (int) Math.pow(7, 5)),
+                // Greater than powers (later iterates reduce to exact power)
+                Arguments.of(18, (int) Math.pow(18, 3) + 1),
+                Arguments.of(5, (int) Math.pow(5, 3) + 1),
+                Arguments.of(6, (int) Math.pow(6, 3) + 1));
     }
 
     /**
