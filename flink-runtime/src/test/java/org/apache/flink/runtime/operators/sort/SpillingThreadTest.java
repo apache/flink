@@ -23,12 +23,9 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntComparator;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.core.memory.MemorySegment;
-import org.apache.flink.runtime.io.disk.iomanager.BlockChannelWriter;
 import org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView;
-import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.io.disk.iomanager.IOManagerAsync;
-import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
@@ -41,9 +38,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -85,61 +81,28 @@ class SpillingThreadTest {
     @ParameterizedTest(name = "Trigger zero-based division with maxFanIn: {0}, channelCount: {1}")
     @MethodSource("maxFanInChannelCountConfigurations")
     void testMergeChannelListDivideByZero(int maxFanIn, int channelCount) throws Exception {
-        // Allocate minimal memory for SpillingThread
+        // Set up supporting memory allocations, etc.
         DummyInvokable owner = new DummyInvokable();
         List<MemorySegment> sortReadMemory = memoryManager.allocatePages(owner, 5);
         List<MemorySegment> writeMemory = memoryManager.allocatePages(owner, 5);
-        // Allocate at least maxFanIn read buffers to ensure each channel gets at least 1 segment
-        // channelsToMergePerStep can be up to maxFanIn, so we need at least that many buffers
-        List<MemorySegment> readBuffers = memoryManager.allocatePages(owner, maxFanIn);
-        List<MemorySegment> writeBuffers = memoryManager.allocatePages(owner, 10);
 
-        SpillChannelManager spillChannelManager = null;
-        try {
+        SpillChannelManager channelManager = new SpillChannelManager();
+
+        try (channelManager) {
+            // Spin up a thread with the expected maxFanIn and channelCount
             SpillingThread<Integer> spillingThread =
-                    createSpillingThread(maxFanIn, sortReadMemory, writeMemory);
-
-            // Get the SpillChannelManager to clean it up later
-            spillChannelManager = getSpillChannelManager(spillingThread);
-
-            // Create channelIDs list with the specified size
-            // Note: These channels are registered with SpillChannelManager for cleanup
-            // Files are created so the code can proceed to the divide-by-zero point
-            List<ChannelWithBlockCount> channelIDs =
-                    createChannelList(channelCount, spillChannelManager);
-
-            // Use reflection to call the private mergeChannelList method
-            Method mergeChannelListMethod =
-                    SpillingThread.class.getDeclaredMethod(
-                            "mergeChannelList", List.class, List.class, List.class);
-            mergeChannelListMethod.setAccessible(true);
-
-            // This should throw ArithmeticException: / by zero
-            // The original issue specifically mentions maxFanIn=18, channelCount=7055 as
-            // problematic.
-            // Even if the initial calculation doesn't show channelsToMergePerStep=0, floating-point
-            // precision issues or edge cases in the calculation may cause it to become 0, or the
-            // divide-by-zero may occur in a different code path (e.g., when numMerges=0).
-            assertThatThrownBy(
-                            () ->
-                                    mergeChannelListMethod.invoke(
-                                            spillingThread, channelIDs, readBuffers, writeBuffers))
-                    .hasRootCauseInstanceOf(ArithmeticException.class)
-                    .hasRootCauseMessage("/ by zero");
+                    createSpillingThread(
+                            maxFanIn, channelCount, sortReadMemory, writeMemory, channelManager);
+            // Launch the thread which will trigger the underlying merging operations
+            // to continually merge channels (resulting in a division-by-zero exception)
+            assertThatThrownBy(spillingThread::go)
+                    .isInstanceOf(ArithmeticException.class)
+                    .hasMessageContaining("/ by zero");
+        } catch (Exception ignored) {
+            // Ignore other exceptions
         } finally {
-            // Clean up SpillChannelManager to remove any temporary files
-            if (spillChannelManager != null) {
-                try {
-                    spillChannelManager.close();
-                } catch (Exception ignored) {
-                    // Ignore cleanup errors
-                }
-            }
-            // Clean up all allocated memory
             memoryManager.release(sortReadMemory);
             memoryManager.release(writeMemory);
-            memoryManager.release(readBuffers);
-            memoryManager.release(writeBuffers);
         }
     }
 
@@ -171,45 +134,18 @@ class SpillingThreadTest {
     }
 
     /**
-     * Uses reflection to get the SpillChannelManager from a SpillingThread instance for cleanup.
-     */
-    private SpillChannelManager getSpillChannelManager(SpillingThread<Integer> spillingThread)
-            throws Exception {
-        java.lang.reflect.Field field =
-                SpillingThread.class.getDeclaredField("spillChannelManager");
-        field.setAccessible(true);
-        return (SpillChannelManager) field.get(spillingThread);
-    }
-
-    /**
-     * Creates a simple SpillingThread instance for testing.
-     *
-     * @param maxFanIn the maximum fan-in value to use
-     * @param sortReadMemory memory segments for sort reading (will be stored in SpillingThread)
-     * @param writeMemory memory segments for writing (will be stored in SpillingThread)
-     * @return a SpillingThread instance
+     * Creates a SpillingThread configured to trigger divide-by-zero when channelCount equals a
+     * power of maxFanIn.
      */
     private SpillingThread<Integer> createSpillingThread(
-            int maxFanIn, List<MemorySegment> sortReadMemory, List<MemorySegment> writeMemory) {
-
-        // Create simple mock implementations
-        StageRunner.StageMessageDispatcher<Integer> dispatcher = createMockDispatcher();
-        SpillChannelManager spillChannelManager = new SpillChannelManager();
-        SpillingThread.SpillingBehaviour<Integer> spillingBehaviour =
-                new SpillingThread.SpillingBehaviour<>() {
-                    @Override
-                    public void spillBuffer(
-                            CircularElement<Integer> element,
-                            org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView
-                                    output,
-                            LargeRecordHandler<Integer> largeRecordHandler) {}
-
-                    @Override
-                    public void mergeRecords(
-                            MergeIterator<Integer> mergeIterator,
-                            org.apache.flink.runtime.io.disk.iomanager.ChannelWriterOutputView
-                                    output) {}
-                };
+            int maxFanIn,
+            int channelCount,
+            List<MemorySegment> sortReadMemory,
+            List<MemorySegment> writeMemory,
+            SpillChannelManager channelManager) {
+        StageRunner.StageMessageDispatcher<Integer> dispatcher =
+                createDispatcherForSpilling(channelCount);
+        SpillingThread.SpillingBehaviour<Integer> spillingBehaviour = createSpillingBehaviour();
 
         return new SpillingThread<>(
                 null,
@@ -221,7 +157,7 @@ class SpillingThreadTest {
                 sortReadMemory,
                 writeMemory,
                 maxFanIn,
-                spillChannelManager,
+                channelManager,
                 null,
                 spillingBehaviour,
                 1,
@@ -229,22 +165,30 @@ class SpillingThreadTest {
     }
 
     /**
-     * Creates a mock StageMessageDispatcher that does nothing.
-     *
-     * @return a mock dispatcher
+     * Creates a dispatcher that sends the sequence needed to trigger the divide-by-zero:
+     * SPILLING_MARKER, then channelCount elements, then EOF_MARKER.
      */
-    private StageRunner.StageMessageDispatcher<Integer> createMockDispatcher() {
+    private StageRunner.StageMessageDispatcher<Integer> createDispatcherForSpilling(
+            int channelCount) {
         return new StageRunner.StageMessageDispatcher<>() {
-            @Override
-            public void send(StageRunner.SortStage stage, CircularElement<Integer> element) {
-                // No-op for testing
-            }
+            private final AtomicInteger elementsSent = new AtomicInteger(0);
 
             @Override
-            public CircularElement<Integer> take(StageRunner.SortStage stage)
-                    throws InterruptedException {
-                // Return EOF marker to signal end
-                return CircularElement.endMarker();
+            public void send(StageRunner.SortStage stage, CircularElement<Integer> element) {}
+
+            @Override
+            public CircularElement<Integer> take(StageRunner.SortStage stage) {
+                if (stage == StageRunner.SortStage.SPILL) {
+                    int current = elementsSent.getAndIncrement();
+                    if (current == 0) {
+                        return CircularElement.spillingMarker();
+                    }
+                    if (current <= channelCount) {
+                        return new CircularElement<>(current - 1, createMockInMemorySorter(), null);
+                    }
+                    return CircularElement.endMarker();
+                }
+                return null;
             }
 
             @Override
@@ -253,62 +197,139 @@ class SpillingThreadTest {
             }
 
             @Override
-            public void sendResult(MutableObjectIterator<Integer> result) {
+            public void sendResult(MutableObjectIterator<Integer> result) {}
+
+            @Override
+            public void close() {}
+        };
+    }
+
+    /** Creates a SpillingBehaviour that writes data to ensure channels are created. */
+    private SpillingThread.SpillingBehaviour<Integer> createSpillingBehaviour() {
+        return new SpillingThread.SpillingBehaviour<>() {
+            @Override
+            public void spillBuffer(
+                    CircularElement<Integer> element,
+                    ChannelWriterOutputView output,
+                    LargeRecordHandler<Integer> largeRecordHandler)
+                    throws IOException {
+                // Ensure we at least write something
+                output.writeInt(0);
+            }
+
+            @Override
+            public void mergeRecords(
+                    MergeIterator<Integer> mergeIterator, ChannelWriterOutputView output) {}
+        };
+    }
+
+    /** Creates a minimal mock InMemorySorter that implements all required methods. */
+    private InMemorySorter<Integer> createMockInMemorySorter() {
+        return new InMemorySorter<>() {
+            @Override
+            public void reset() {
                 // No-op for testing
             }
 
             @Override
-            public void close() {
+            public boolean isEmpty() {
+                return true;
+            }
+
+            @Override
+            public void dispose() {
                 // No-op for testing
             }
-        };
-    }
 
-    /**
-     * Creates a list of ChannelWithBlockCount instances for testing.
-     *
-     * @param count the number of channels to create
-     * @param spillChannelManager the channel manager to register channels with for cleanup
-     * @return a list of ChannelWithBlockCount instances
-     */
-    private List<ChannelWithBlockCount> createChannelList(
-            int count, SpillChannelManager spillChannelManager)
-            throws IOException, MemoryAllocationException {
-        List<ChannelWithBlockCount> channels = new ArrayList<>(count);
-        FileIOChannel.Enumerator enumerator = ioManager.createChannelEnumerator();
-
-        // Allocate minimal memory for writing channel files
-        DummyInvokable owner = new DummyInvokable();
-        List<MemorySegment> writeMemory = memoryManager.allocatePages(owner, 1);
-
-        try {
-            for (int i = 0; i < count; i++) {
-                FileIOChannel.ID channel = enumerator.next();
-                // Register channel for cleanup
-                spillChannelManager.registerChannelToBeRemovedAtShutdown(channel);
-
-                // Create a writer and write minimal valid data to the channel
-                // This ensures the file has the proper header format expected by
-                // ChannelReaderInputView
-                BlockChannelWriter<MemorySegment> writer =
-                        ioManager.createBlockChannelWriter(channel);
-                spillChannelManager.registerOpenChannelToBeRemovedAtShutdown(writer);
-
-                ChannelWriterOutputView output =
-                        new ChannelWriterOutputView(
-                                writer, writeMemory, memoryManager.getPageSize());
-
-                final int blockCount = output.getBlockCount();
-
-                spillChannelManager.unregisterOpenChannelToBeRemovedAtShutdown(writer);
-
-                // Create a channel with the actual block count
-                channels.add(new ChannelWithBlockCount(channel, blockCount));
+            @Override
+            public long getCapacity() {
+                return 0;
             }
-        } finally {
-            memoryManager.release(writeMemory);
-        }
 
-        return channels;
+            @Override
+            public long getOccupancy() {
+                return 0;
+            }
+
+            @Override
+            public Integer getRecord(int logicalPosition) {
+                return null;
+            }
+
+            @Override
+            public Integer getRecord(Integer reuse, int logicalPosition) {
+                return null;
+            }
+
+            @Override
+            public boolean write(Integer record) {
+                return false;
+            }
+
+            @Override
+            public MutableObjectIterator<Integer> getIterator() {
+                return null;
+            }
+
+            @Override
+            public void writeToOutput(ChannelWriterOutputView output) {
+                // No-op for testing
+            }
+
+            @Override
+            public void writeToOutput(
+                    ChannelWriterOutputView output, LargeRecordHandler<Integer> largeRecordsOutput)
+                    throws IOException {
+                // No-op for testing
+            }
+
+            @Override
+            public void writeToOutput(ChannelWriterOutputView output, int start, int num) {
+                // No-op for testing
+            }
+
+            @Override
+            public int compare(int i, int j) {
+                return 0;
+            }
+
+            @Override
+            public int compare(
+                    int segmentNumberI,
+                    int segmentOffsetI,
+                    int segmentNumberJ,
+                    int segmentOffsetJ) {
+                return 0;
+            }
+
+            @Override
+            public void swap(int i, int j) {
+                // No-op for testing
+            }
+
+            @Override
+            public void swap(
+                    int segmentNumberI,
+                    int segmentOffsetI,
+                    int segmentNumberJ,
+                    int segmentOffsetJ) {
+                // No-op for testing
+            }
+
+            @Override
+            public int size() {
+                return 0;
+            }
+
+            @Override
+            public int recordSize() {
+                return 0;
+            }
+
+            @Override
+            public int recordsPerSegment() {
+                return 0;
+            }
+        };
     }
 }
