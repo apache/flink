@@ -116,18 +116,20 @@ public class ShowCreateUtil {
     public static String buildShowCreateMaterializedTableRow(
             ResolvedCatalogMaterializedTable table,
             ObjectIdentifier tableIdentifier,
-            boolean isTemporary) {
+            boolean isTemporary,
+            SqlFactory sqlFactory) {
         validateTableKind(table, tableIdentifier, TableKind.MATERIALIZED_TABLE);
-        Optional<String> primaryKeys = extractFormattedPrimaryKey(table, PRINT_INDENT);
         StringBuilder sb =
                 new StringBuilder()
                         .append(
                                 buildCreateFormattedPrefix(
-                                        "MATERIALIZED TABLE",
-                                        isTemporary,
-                                        tableIdentifier,
-                                        primaryKeys.isPresent()));
-        primaryKeys.ifPresent(s -> sb.append(s).append("\n)\n"));
+                                        "MATERIALIZED TABLE", isTemporary, tableIdentifier, true));
+        sb.append(extractFormattedColumns(table, PRINT_INDENT));
+        extractFormattedWatermarkSpecs(table, PRINT_INDENT, sqlFactory)
+                .ifPresent(watermarkSpecs -> sb.append(",\n").append(watermarkSpecs));
+        extractFormattedPrimaryKey(table, PRINT_INDENT)
+                .ifPresent(pk -> sb.append(",\n").append(pk));
+        sb.append("\n)\n");
         extractComment(table).ifPresent(c -> sb.append(formatComment(c)).append("\n"));
         table.getDistribution()
                 .map(TableDistribution::toString)

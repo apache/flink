@@ -55,7 +55,10 @@ public class ShowCreateMaterializedTableOperation implements ShowOperation {
                                                         tableIdentifier.asSerializableString())));
         String resultRow =
                 ShowCreateUtil.buildShowCreateMaterializedTableRow(
-                        table.getResolvedTable(), tableIdentifier, table.isTemporary());
+                        table.getResolvedTable(),
+                        tableIdentifier,
+                        table.isTemporary(),
+                        ctx.getCatalogManager().getSqlFactory());
 
         return buildStringArrayResult("result", new String[] {resultRow});
     }
