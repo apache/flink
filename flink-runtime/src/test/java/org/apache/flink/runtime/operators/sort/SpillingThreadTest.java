@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.operators.sort;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntComparator;
@@ -30,7 +33,6 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.util.MutableObjectIterator;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -41,9 +43,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SpillingThreadTest {
 
@@ -107,25 +106,9 @@ class SpillingThreadTest {
     }
 
     /**
-     * Provides test cases for problematic maxFanIn and channelIDs.size() combinations.
-     *
-     * <p>The divide-by-zero occurs when channelIDs.size() equals a power of maxFanIn. This can
-     * happen in two scenarios:
-     *
-     * <ul>
-     *   <li>Exact powers: channelIDs.size() == maxFanIn^n - triggers divide-by-zero in first
-     *       iteration
-     *   <li>Greater than powers: channelIDs.size() > maxFanIn^n - may reduce to an exact power in a
-     *       later iteration, triggering divide-by-zero
-     * </ul>
-     *
-     * <p>For example, with maxFanIn=18:
-     *
-     * <ul>
-     *   <li>5832 (18^3) triggers divide-by-zero immediately
-     *   <li>7055 reduces to 5832 in first iteration, then triggers divide-by-zero in second
-     *       iteration
-     * </ul>
+     * Provides test cases for problematic maxFanIn and channelIDs.size() combinations (namely those
+     * that could result in a floating-point based miscalculation that can occur when the channel
+     * count is greater than or equal to a power of maxFanIn (channelCount ≥ maxFanIn<sup>i</sup>).
      */
     private static Stream<Arguments> maxFanInChannelCountConfigurations() {
         return Stream.of(
