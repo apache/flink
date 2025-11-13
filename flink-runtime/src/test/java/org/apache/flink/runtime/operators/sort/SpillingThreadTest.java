@@ -18,9 +18,6 @@
 
 package org.apache.flink.runtime.operators.sort;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntComparator;
@@ -33,6 +30,7 @@ import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.memory.MemoryManagerBuilder;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.util.MutableObjectIterator;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -43,6 +41,9 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 class SpillingThreadTest {
 
@@ -77,9 +78,11 @@ class SpillingThreadTest {
         }
     }
 
-    @ParameterizedTest(name = "Trigger zero-based division with maxFanIn: {0}, channelCount: {1}")
+    @ParameterizedTest(
+            name =
+                    "Validate floating-point safety during channel merge computation : {0}, channelCount: {1}")
     @MethodSource("maxFanInChannelCountConfigurations")
-    void testMergeChannelListDivideByZero(int maxFanIn, int channelCount) throws Exception {
+    void testMergeChannelListDivideByZeroSafety(int maxFanIn, int channelCount) throws Exception {
         // Set up supporting memory allocations, etc.
         DummyInvokable owner = new DummyInvokable();
         List<MemorySegment> sortReadMemory = memoryManager.allocatePages(owner, maxFanIn);
@@ -92,11 +95,8 @@ class SpillingThreadTest {
             SpillingThread<Integer> spillingThread =
                     createSpillingThread(
                             maxFanIn, channelCount, sortReadMemory, writeMemory, channelManager);
-            // Launch the thread which will trigger the underlying merging operations
-            // to continually merge channels (resulting in a division-by-zero exception)
-            assertThatThrownBy(spillingThread::go)
-                    .isInstanceOf(ArithmeticException.class)
-                    .hasMessageContaining("/ by zero");
+            // Verify that no ArithmeticException is thrown (division by zero)
+            assertDoesNotThrow(spillingThread::go);
         } catch (Exception ignored) {
             // Ignore other exceptions
         } finally {
@@ -213,7 +213,15 @@ class SpillingThreadTest {
 
             @Override
             public void mergeRecords(
-                    MergeIterator<Integer> mergeIterator, ChannelWriterOutputView output) {}
+                    MergeIterator<Integer> mergeIterator, ChannelWriterOutputView output)
+                    throws IOException {
+                // Iterate through merged records and write them to the output
+                // This ensures merged channels contain data and can be read in later iterations
+                Integer record;
+                while ((record = mergeIterator.next()) != null) {
+                    serializer.serialize(record, output);
+                }
+            }
         };
     }
 
