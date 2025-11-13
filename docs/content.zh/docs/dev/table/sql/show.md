@@ -39,6 +39,8 @@ SHOW CREATE 语句用于打印给定对象的创建 DDL 语句。当前的 SHOW 
 - SHOW CURRENT DATABASE
 - SHOW TABLES
 - SHOW CREATE TABLE
+- SHOW MATERIALIZED TABLES
+- SHOW CREATE MATERIALIZED TABLE
 - SHOW COLUMNS
 - SHOW PARTITIONS
 - SHOW PROCEDURES
@@ -974,6 +976,29 @@ The syntax of sql pattern in `LIKE` clause is the same as that of `MySQL` dialec
 ```sql
 SHOW CREATE VIEW [catalog_name.][db_name.]view_name
 ```
+
+## SHOW MATERIALIZED TABLES
+
+```sql
+SHOW MATERIALIZED TABLES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE <sql_like_pattern> ]
+```
+
+Show all materialized tables for an optionally specified database. If no database is specified then the materialized tables are returned from the current database. Additionally, the output of this statement may be filtered by an optional matching pattern.
+
+**LIKE**
+Show all materialized tables with given materialized table name and optional `LIKE` clause, whose name is similar to the `<sql_like_pattern>`.
+
+The syntax of sql pattern in `LIKE` clause is the same as that of `MySQL` dialect.
+* `%` matches any number of characters, including zero characters, `\%` matches one `%` character.
+* `_` matches exactly one character, `\_` matches one `_` character.
+
+## SHOW CREATE MATERIALIZED TABLE
+
+```sql
+SHOW CREATE MATERIALIZED TABLE [catalog_name.][db_name.]materialized_table_name
+```
+
+Show create materialized table statement for specified materialized table.
 
 展示创建指定视图的 create 语句。
 
