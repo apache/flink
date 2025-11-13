@@ -72,6 +72,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SqlMaterializedTableNodeToOperationConverterTest
         extends SqlNodeToOperationConversionTestBase {
 
+    private static final String CREATE_COMMAND = "CREATE ";
+    private static final String CREATE_OR_ALTER_COMMAND = "CREATE OR ALTER ";
+
     @BeforeEach
     void before() throws TableAlreadyExistException, DatabaseNotExistException {
         super.before();
@@ -733,7 +736,6 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         "DROP MATERIALIZED TABLE: (identifier: [`builtin`.`default`.`mtbl1`], IfExists: [true])");
     }
 
-    // TODO: Check if needed
     @Test
     void testCreateOrAlterMaterializedTable() {
         final String sql =
@@ -953,37 +955,49 @@ class SqlMaterializedTableNodeToOperationConverterTest
     }
 
     private static Collection<Arguments> testDataWithDifferentSchemasSuccessCase() {
+        final Collection<Arguments> list = new ArrayList<>();
+        list.addAll(createOrAlter(CREATE_COMMAND));
+        list.addAll(createOrAlter(CREATE_OR_ALTER_COMMAND));
+        return list;
+    }
+
+    private static List<Arguments> createOrAlter(final String command) {
         return List.of(
                 Arguments.of(
-                        "CREATE MATERIALIZED TABLE users_shops (shop_id, user_id)"
+                        command
+                                + "MATERIALIZED TABLE users_shops (shop_id, user_id)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         ResolvedSchema.of(
                                 Column.physical("shop_id", DataTypes.INT().notNull()),
                                 Column.physical("user_id", DataTypes.INT().notNull()))),
                 Arguments.of(
-                        "CREATE MATERIALIZED TABLE users_shops"
+                        command
+                                + "MATERIALIZED TABLE users_shops"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
                                 + " AS SELECT CAST(1 AS DOUBLE) AS shop_id, CAST(2 AS STRING) AS user_id",
                         ResolvedSchema.of(
                                 Column.physical("shop_id", DataTypes.DOUBLE().notNull()),
                                 Column.physical("user_id", DataTypes.STRING().notNull()))),
                 Arguments.of(
-                        "CREATE MATERIALIZED TABLE users_shops (user_id, shop_id)"
+                        command
+                                + "MATERIALIZED TABLE users_shops (user_id, shop_id)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         ResolvedSchema.of(
                                 Column.physical("user_id", DataTypes.INT().notNull()),
                                 Column.physical("shop_id", DataTypes.INT().notNull()))),
                 Arguments.of(
-                        "CREATE MATERIALIZED TABLE users_shops (user_id INT, shop_id BIGINT)"
+                        command
+                                + "MATERIALIZED TABLE users_shops (user_id INT, shop_id BIGINT)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         ResolvedSchema.of(
                                 Column.physical("shop_id", DataTypes.BIGINT()),
                                 Column.physical("user_id", DataTypes.INT()))),
                 Arguments.of(
-                        "CREATE MATERIALIZED TABLE users_shops (user_id INT, shop_id BIGINT, PRIMARY KEY(user_id) NOT ENFORCED)"
+                        command
+                                + "MATERIALIZED TABLE users_shops (user_id INT, shop_id BIGINT, PRIMARY KEY(user_id) NOT ENFORCED)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         new ResolvedSchema(
@@ -995,7 +1009,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                         "PK_user_id", List.of("user_id")),
                                 List.of())),
                 Arguments.of(
-                        "CREATE MATERIALIZED TABLE users_shops (PRIMARY KEY(user_id) NOT ENFORCED)"
+                        command
+                                + "MATERIALIZED TABLE users_shops (PRIMARY KEY(user_id) NOT ENFORCED)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",
                         new ResolvedSchema(

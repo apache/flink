@@ -18,7 +18,10 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.ExtendedSqlNode;
+import org.apache.flink.sql.parser.SqlConstraintValidator;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
+import org.apache.flink.sql.parser.error.SqlValidateException;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlCreate;
@@ -40,20 +43,24 @@ import java.util.Optional;
 import static java.util.Objects.requireNonNull;
 
 /** CREATE MATERIALIZED TABLE DDL sql call. */
-public class SqlCreateMaterializedTable extends SqlCreate {
+public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSqlNode {
 
     public static final SqlSpecialOperator CREATE_OPERATOR =
             new SqlSpecialOperator("CREATE MATERIALIZED TABLE", SqlKind.CREATE_TABLE);
 
     private final SqlIdentifier tableName;
 
-    private final @Nullable SqlTableConstraint tableConstraint;
+    private final SqlNodeList columnList;
+
+    private final List<SqlTableConstraint> tableConstraints;
 
     private final @Nullable SqlCharStringLiteral comment;
 
     private final @Nullable SqlDistribution distribution;
 
     private final SqlNodeList partitionKeyList;
+
+    private final SqlWatermark watermark;
 
     private final SqlNodeList propertyList;
 
@@ -67,7 +74,9 @@ public class SqlCreateMaterializedTable extends SqlCreate {
             SqlSpecialOperator operator,
             SqlParserPos pos,
             SqlIdentifier tableName,
-            @Nullable SqlTableConstraint tableConstraint,
+            SqlNodeList columnList,
+            List<SqlTableConstraint> tableConstraints,
+            SqlWatermark watermark,
             @Nullable SqlCharStringLiteral comment,
             @Nullable SqlDistribution distribution,
             SqlNodeList partitionKeyList,
@@ -77,8 +86,10 @@ public class SqlCreateMaterializedTable extends SqlCreate {
             SqlNode asQuery) {
         super(operator, pos, false, false);
         this.tableName = requireNonNull(tableName, "tableName should not be null");
+        this.columnList = columnList;
+        this.tableConstraints = tableConstraints;
+        this.watermark = watermark;
         this.comment = comment;
-        this.tableConstraint = tableConstraint;
         this.distribution = distribution;
         this.partitionKeyList =
                 requireNonNull(partitionKeyList, "partitionKeyList should not be null");
@@ -97,8 +108,10 @@ public class SqlCreateMaterializedTable extends SqlCreate {
     public List<SqlNode> getOperandList() {
         return ImmutableNullableList.of(
                 tableName,
+                columnList,
+                new SqlNodeList(tableConstraints, SqlParserPos.ZERO),
+                watermark,
                 comment,
-                tableConstraint,
                 partitionKeyList,
                 propertyList,
                 freshness,
@@ -113,12 +126,20 @@ public class SqlCreateMaterializedTable extends SqlCreate {
         return tableName.names.toArray(new String[0]);
     }
 
-    public Optional<SqlCharStringLiteral> getComment() {
-        return Optional.ofNullable(comment);
+    public SqlNodeList getColumnList() {
+        return columnList;
     }
 
-    public Optional<SqlTableConstraint> getTableConstraint() {
-        return Optional.ofNullable(tableConstraint);
+    public List<SqlTableConstraint> getTableConstraints() {
+        return tableConstraints;
+    }
+
+    public Optional<SqlWatermark> getWatermark() {
+        return Optional.ofNullable(watermark);
+    }
+
+    public Optional<SqlCharStringLiteral> getComment() {
+        return Optional.ofNullable(comment);
     }
 
     public @Nullable SqlDistribution getDistribution() {
@@ -145,5 +166,24 @@ public class SqlCreateMaterializedTable extends SqlCreate {
 
     public SqlNode getAsQuery() {
         return asQuery;
+    }
+
+    /** Returns the column constraints plus the table constraints. */
+    public List<SqlTableConstraint> getFullConstraints() {
+        return SqlConstraintValidator.getFullConstraints(tableConstraints, columnList);
+    }
+
+    @Override
+    public void validate() throws SqlValidateException {
+        if (!isSchemaWithColumnsIdentifiersOnly()) {
+            SqlConstraintValidator.validateAndChangeColumnNullability(tableConstraints, columnList);
+        }
+    }
+
+    public boolean isSchemaWithColumnsIdentifiersOnly() {
+        // CREATE MATERIALIZED TABLE supports passing only column identifiers in the column list. If
+        // the first column in the list is an identifier, then we assume the rest of the
+        // columns are identifiers as well.
+        return !getColumnList().isEmpty() && getColumnList().get(0) instanceof SqlIdentifier;
     }
 }

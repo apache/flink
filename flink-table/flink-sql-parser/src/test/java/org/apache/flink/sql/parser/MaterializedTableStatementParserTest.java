@@ -392,22 +392,31 @@ class MaterializedTableStatementParserTest {
         return Stream.of(
                 Arguments.of("Full example", fullExample(CREATE_COMMAND)),
                 Arguments.of("With columns", withColumns(CREATE_COMMAND)),
-                Arguments.of("With columns and watermarks", withColumnsAndWatermark(CREATE_COMMAND)),
+                Arguments.of(
+                        "With columns and watermarks", withColumnsAndWatermark(CREATE_COMMAND)),
                 Arguments.of("Without table constraint", withoutTableConstraint(CREATE_COMMAND)),
                 Arguments.of("With primary key", withPrimaryKey(CREATE_COMMAND)),
                 Arguments.of("Without freshness", withoutFreshness(CREATE_COMMAND)),
-                Arguments.of("With column identifiers only", withColumnsIdentifiersOnly(CREATE_COMMAND)));
+                Arguments.of(
+                        "With column identifiers only",
+                        withColumnsIdentifiersOnly(CREATE_COMMAND)));
     }
 
     private static Stream<Arguments> inputForCreateOrAlterMaterializedTable() {
         return Stream.of(
                 Arguments.of("Full example", fullExample(CREATE_OR_ALTER_COMMAND)),
                 Arguments.of("With columns", withColumns(CREATE_OR_ALTER_COMMAND)),
-                Arguments.of("With columns and watermarks", withColumnsAndWatermark(CREATE_OR_ALTER_COMMAND)),
-                Arguments.of("Without table constraint", withoutTableConstraint(CREATE_OR_ALTER_COMMAND)),
+                Arguments.of(
+                        "With columns and watermarks",
+                        withColumnsAndWatermark(CREATE_OR_ALTER_COMMAND)),
+                Arguments.of(
+                        "Without table constraint",
+                        withoutTableConstraint(CREATE_OR_ALTER_COMMAND)),
                 Arguments.of("With primary key", withPrimaryKey(CREATE_OR_ALTER_COMMAND)),
                 Arguments.of("Without freshness", withoutFreshness(CREATE_OR_ALTER_COMMAND)),
-                Arguments.of("With column identifiers only", withColumnsIdentifiersOnly(CREATE_OR_ALTER_COMMAND)));
+                Arguments.of(
+                        "With column identifiers only",
+                        withColumnsIdentifiersOnly(CREATE_OR_ALTER_COMMAND)));
     }
 
     private static Map.Entry<String, String> fullExample(final String command) {
@@ -492,8 +501,8 @@ class MaterializedTableStatementParserTest {
 
     private static Map.Entry<String, String> withoutFreshness(final String command) {
         return new AbstractMap.SimpleEntry<>(
-                command +
-                        "MATERIALIZED TABLE tbl1\n"
+                command
+                        + "MATERIALIZED TABLE tbl1\n"
                         + "(\n"
                         + "   PRIMARY KEY (a, b)\n"
                         + ")\n"
@@ -502,8 +511,8 @@ class MaterializedTableStatementParserTest {
                         + "  'kafka.topic' = 'log.test'\n"
                         + ")\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                command +
-                        "MATERIALIZED TABLE `TBL1` (\n"
+                command
+                        + "MATERIALIZED TABLE `TBL1` (\n"
                         + "  PRIMARY KEY (`A`, `B`)\n"
                         + ")\n"
                         + "WITH (\n"
@@ -517,8 +526,8 @@ class MaterializedTableStatementParserTest {
 
     private static Map.Entry<String, String> withColumns(final String command) {
         return new AbstractMap.SimpleEntry<>(
-                command +
-                        "MATERIALIZED TABLE tbl1\n"
+                command
+                        + "MATERIALIZED TABLE tbl1\n"
                         + "(\n"
                         + "  a INT, b STRING, h INT, m INT\n"
                         + ")\n"
@@ -531,8 +540,8 @@ class MaterializedTableStatementParserTest {
                         + ")\n"
                         + "FRESHNESS = INTERVAL '3' MINUTE\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                command +
-                        "MATERIALIZED TABLE `TBL1` (\n"
+                command
+                        + "MATERIALIZED TABLE `TBL1` (\n"
                         + "  `A` INTEGER,\n"
                         + "  `B` STRING,\n"
                         + "  `H` INTEGER,\n"
@@ -553,8 +562,8 @@ class MaterializedTableStatementParserTest {
 
     private static Map.Entry<String, String> withColumnsAndWatermark(final String command) {
         return new AbstractMap.SimpleEntry<>(
-                command +
-                        "MATERIALIZED TABLE tbl1\n"
+                command
+                        + "MATERIALIZED TABLE tbl1\n"
                         + "(\n"
                         + "  ts timestamp(3),\n"
                         + "  id varchar,\n"
@@ -569,8 +578,8 @@ class MaterializedTableStatementParserTest {
                         + ")\n"
                         + "FRESHNESS = INTERVAL '3' MINUTE\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                command +
-                        "MATERIALIZED TABLE `TBL1` (\n"
+                command
+                        + "MATERIALIZED TABLE `TBL1` (\n"
                         + "  `TS` TIMESTAMP(3),\n"
                         + "  `ID` VARCHAR,\n"
                         + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n"
@@ -590,8 +599,8 @@ class MaterializedTableStatementParserTest {
 
     private static Map.Entry<String, String> withColumnsIdentifiersOnly(final String command) {
         return new AbstractMap.SimpleEntry<>(
-                command +
-                        "MATERIALIZED TABLE tbl1\n"
+                command
+                        + "MATERIALIZED TABLE tbl1\n"
                         + "(a, b, h, m)\n"
                         + "COMMENT 'table comment'\n"
                         + "DISTRIBUTED BY HASH (a) INTO 4 BUCKETS\n"
@@ -602,8 +611,8 @@ class MaterializedTableStatementParserTest {
                         + ")\n"
                         + "FRESHNESS = INTERVAL '3' MINUTE\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                command +
-                        "MATERIALIZED TABLE `TBL1` (\n"
+                command
+                        + "MATERIALIZED TABLE `TBL1` (\n"
                         + "  `A`,\n"
                         + "  `B`,\n"
                         + "  `H`,\n"

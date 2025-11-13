@@ -18,12 +18,8 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.ExtendedSqlNode;
-import org.apache.flink.sql.parser.SqlConstraintValidator;
-import org.apache.flink.sql.parser.ExtendedSqlNode;
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
-import org.apache.flink.sql.parser.error.SqlValidateException;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -39,13 +35,9 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import javax.annotation.Nullable;
 
 import java.util.List;
-import java.util.Optional;
-
-import static java.util.Objects.requireNonNull;
-import java.util.Collections;
 
 /** CREATE [OR ALTER] MATERIALIZED TABLE DDL sql call. */
-public class SqlCreateOrAlterMaterializedTable extends SqlCreateMaterializedTable  {
+public class SqlCreateOrAlterMaterializedTable extends SqlCreateMaterializedTable {
 
     public static final SqlSpecialOperator CREATE_OR_ALTER_OPERATOR =
             new SqlSpecialOperator("CREATE OR ALTER MATERIALIZED TABLE", SqlKind.OTHER_DDL);
@@ -71,7 +63,7 @@ public class SqlCreateOrAlterMaterializedTable extends SqlCreateMaterializedTabl
                 pos,
                 tableName,
                 columnList,
-                tableConstraint,
+                tableConstraints,
                 watermark,
                 comment,
                 distribution,
@@ -88,41 +80,6 @@ public class SqlCreateOrAlterMaterializedTable extends SqlCreateMaterializedTabl
         return isOrAlter ? CREATE_OR_ALTER_OPERATOR : CREATE_OPERATOR;
     }
 
-    @Override
-    public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(
-                tableName,
-                columnList,
-                new SqlNodeList(tableConstraints, SqlParserPos.ZERO),
-                watermark,
-                comment,
-                tableConstraint,
-                partitionKeyList,
-                propertyList,
-                freshness,
-                refreshMode,
-                asQuery);
-    }
-
-    /** Returns the column constraints plus the table constraints. */
-    public List<SqlTableConstraint> getFullConstraints() {
-        return SqlConstraintValidator.getFullConstraints(tableConstraints, columnList);
-    }
-
-    @Override
-    public void validate() throws SqlValidateException {
-        if (!isSchemaWithColumnsIdentifiersOnly()) {
-            SqlConstraintValidator.validateAndChangeColumnNullability(tableConstraints, columnList);
-        }
-    }
-
-    public boolean isSchemaWithColumnsIdentifiersOnly() {
-        // CREATE MATERIALIZED TABLE supports passing only column identifiers in the column list. If
-        // the first column in the list is an identifier, then we assume the rest of the
-        // columns are identifiers as well.
-        return !getColumnList().isEmpty() && getColumnList().get(0) instanceof SqlIdentifier;
-    }
-
     public boolean isOrAlter() {
         return isOrAlter;
     }
@@ -136,24 +93,17 @@ public class SqlCreateOrAlterMaterializedTable extends SqlCreateMaterializedTabl
         writer.keyword("MATERIALIZED TABLE");
         getTableName().unparse(writer, leftPrec, rightPrec);
 
-        // FIXME: we need to update this
-//        if (!columnList.isEmpty() || !tableConstraints.isEmpty() || watermark != null) {
-//            SqlUnparseUtils.unparseTableSchema(
-//                    writer, leftPrec, rightPrec, columnList, tableConstraints, watermark);
-//        }
-
-        getTableConstraint()
-                .ifPresent(
-                        tableConstraint -> {
-                            writer.newlineAndIndent();
-                            SqlUnparseUtils.unparseTableSchema(
-                                    writer,
-                                    leftPrec,
-                                    rightPrec,
-                                    SqlNodeList.EMPTY,
-                                    Collections.singletonList(tableConstraint),
-                                    null);
-                        });
+        if (!getColumnList().isEmpty()
+                || !getTableConstraints().isEmpty()
+                || getWatermark().isPresent()) {
+            SqlUnparseUtils.unparseTableSchema(
+                    writer,
+                    leftPrec,
+                    rightPrec,
+                    getColumnList(),
+                    getTableConstraints(),
+                    getWatermark().orElse(null));
+        }
 
         getComment()
                 .ifPresent(
