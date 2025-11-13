@@ -87,6 +87,7 @@ For some reason Hugo will only allow linking to the
 release notes if there is a leading '/' and file extension.
 -->
 See the release notes for
+[Flink 2.2]({{< ref "/release-notes/flink-2.2.md" >}}),
 [Flink 2.1]({{< ref "/release-notes/flink-2.1.md" >}}),
 [Flink 2.0]({{< ref "/release-notes/flink-2.0.md" >}}),
 [Flink 1.20]({{< ref "/release-notes/flink-1.20.md" >}}),
