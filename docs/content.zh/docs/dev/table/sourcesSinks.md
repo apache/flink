@@ -191,20 +191,17 @@ Flink 会对工厂类逐个进行检查，确保其“标识符”是全局唯�
 
 #### Vector Search Table Source
 
-A `VectorSearchTableSource` searches an external storage system using an input vector and returns the most similar top-K rows during runtime. Users
-can determine which algorithm to use to calculate the similarity between the input data and data stored in the external system. In general, most
-vector databases support using Euclidean distance or Cosine distance to calculate similarity.
+在运行期间, `VectorSearchTableSource` 会使用一个输入向量来搜索外部存储系统，并返回最相似的 Top-K 行。用户可以决定使用何种算法来计算输入数据与外部系统中存储的数据之间的相似度。总的来说，大多数向量数据库支持使用欧几里得距离（Euclidean distance）或余弦距离（Cosine distance）来计算相似度。
 
-Compared to `ScanTableSource`, the source does not have to read the entire table and can lazily fetch individual
-values from a (possibly continuously changing) external table when necessary.
+与 `ScanTableSource` 相比，该源无需读取整个表，并可以在需要时从一个(可能在持续变化的)外部表中惰性获取(lazily fetch)单个值。
 
-Compared to `ScanTableSource`, a `VectorSearchTableSource` currently only supports emitting insert-only changes.
+与 `ScanTableSource` 相比，`VectorSearchTableSource` 目前仅支持 insert-only 数据流。
 
-Compared to `LookupTableSource`, a `VectorSearchTableSource` does not use equality to determine whether a row matches.
+与 `LookupTableSource` 相比，`VectorSearchTableSource` 不会使用等值（equality）来判断行是否匹配。
 
-Further abilities are not supported. See the documentation of `org.apache.flink.table.connector.source.VectorSearchTableSource` for more information.
+目前不支持其他更进一步的功能。更多信息请参阅 `org.apache.flink.table.connector.source.VectorSearchTableSource` 的文档。
 
-The runtime implementation of a `VectorSearchTableSource` is a `TableFunction` or `AsyncTableFunction`. The function will be called with the given vector values during runtime.
+`VectorSearchTableSource` 的运行时实现是一个 `TableFunction` 或 `AsyncTableFunction`。在运行时，算子会根据给定的向量值调用该函数。
 
 <a name="source-abilities"></a>
 
