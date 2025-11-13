@@ -1,5 +1,5 @@
 ---
-title: "Vector Search"
+title: "向量搜素"
 weight: 7
 type: docs
 ---
@@ -22,22 +22,20 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Vector Search
+# 向量搜索
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Flink SQL provides the `VECTOR_SEARCH` table-valued function (TVF) to perform a vector search in SQL queries. This function allows you to search similar rows according to the high-dimension vectors.
+Flink SQL 提供了 `VECTOR_SEARCH` 表值函数 (TVF) 来在 SQL 查询中执行向量搜索。该函数允许您根据高维向量搜索相似的行。
 
-## VECTOR_SEARCH Function
+## VECTOR_SEARCH 函数
 
-The `VECTOR_SEARCH` uses a processing-time attribute to correlate rows to the latest version of data in an external table. It's very similar to a lookup join in Flink SQL, however, the difference is
-`VECTOR_SEARCH` uses the input data vector to compare the similarity with data in the external table and return the top-k most similar rows.
+`VECTOR_SEARCH` 使用处理时间属性 (processing-time attribute) 将行与外部表中的最新版本数据关联起来。它与 Flink SQL 中的 lookup-join 非常相似，但区别在于 `VECTOR_SEARCH` 使用输入数据向量与外部表中的数据比较相似度，并返回 top-k 个最相似的行。
 
-### Syntax
+### 语法
 
 ```sql
-SELECT * 
-FROM input_table, LATERAL TABLE(VECTOR_SEARCH(
+SELECT * FROM input_table, LATERAL TABLE(VECTOR_SEARCH(
    TABLE vector_table, 
    input_table.vector_column, 
    DESCRIPTOR(index_column),
@@ -46,25 +44,25 @@ FROM input_table, LATERAL TABLE(VECTOR_SEARCH(
    ))
 ```
 
-### Parameters
+### 参数
 
-- `input_table`: The input table containing the data to be processed
-- `vector_table`: The name of external table that allows searching via vector
-- `vector_column`: The name of the column in the input table, its type should be FLOAT ARRAY or DOUBLE ARRAY
-- `index_column`: A descriptor specifying which column from the vector table should be used to compare the similarity with the input data
-- `top_k`: The number of top-k most similar rows to return
-- `config`: (Optional) A map of configuration options for the vector search
+* `input_table`: 包含待处理数据的输入表。
+* `vector_table`: 允许通过向量进行搜索的外部表的名称。
+* `vector_column`: 输入表中的列名，其类型应为 FLOAT ARRAY 或 DOUBLE ARRAY。
+* `index_column`: 一个描述符 (descriptor)，指定应使用向量表 (vector_table) 中的哪一列与输入数据进行相似度比较。
+* `top_k`: 要返回的 top-k 个最相似行的数量。
+* `config`: (可选) 用于向量搜索的配置选项。
 
-### Configuration Options
+### 配置选项
 
-The following configuration options can be specified in the config map:
+可以在 config map 中指定以下配置选项：
 
 {{< generated/vector_search_runtime_config_configuration >}}
 
-### Example
+### 示例
 
 ```sql
--- Basic usage
+-- 基本用法
 SELECT * FROM 
 input_table, LATERAL TABLE(VECTOR_SEARCH(
   TABLE vector_table,
@@ -73,7 +71,7 @@ input_table, LATERAL TABLE(VECTOR_SEARCH(
   10
 ));
 
--- With configuration options
+-- 带配置选项
 SELECT * FROM 
 input_table, LATERAL TABLE(VECTOR_SEARCH(
   TABLE vector_table,
@@ -83,7 +81,7 @@ input_table, LATERAL TABLE(VECTOR_SEARCH(
   MAP['async', 'true', 'timeout', '100s']
 ));
 
--- Using named parameters
+-- 使用命名参数
 SELECT * FROM 
 input_table, LATERAL TABLE(VECTOR_SEARCH(
   SEARCH_TABLE => TABLE vector_table,
@@ -93,24 +91,23 @@ input_table, LATERAL TABLE(VECTOR_SEARCH(
   CONFIG => MAP['async', 'true', 'timeout', '100s']
 ));
 
--- Searching with contant value
-SELECT * 
-FROM TABLE(VECTOR_SEARCH(
+-- 使用常量值搜索
+SELECT * FROM TABLE(VECTOR_SEARCH(
   TABLE vector_table,
   ARRAY[10, 20],
   DESCRIPTOR(index_column),
-  10,
+  10
 ));
 ```
 
-### Output
+### 输出
 
-The output table contains all columns from the input table, the vector search table columns and a column named `score` to indicate the similarity between the input row and matched row.
+输出表包含输入表的所有列、向量搜索表 (vector search table) 的列，以及一个名为 `score` 的列，用于表示输入行与匹配行之间的相似度。
 
-### Notes
+### 注意事项
 
-1. The implementation of the vector table must implement interface `org.apache.flink.table.connector.source.VectorSearchTableSource`. Please refer to [Vector Search Table Source]({{< ref "/docs/dev/table/sourcesSinks" >}}#vector-search-table-source) for details.
-2. `VECTOR_SEARCH` only supports to consume append-only tables.
-3. `VECTOR_SEARCH` does not require the `LATERAL` keyword when the function call has no correlation with other tables. For example, if the search column is a constant or literal value, `LATERAL` can be omitted.
+1.  向量表 (vector table) 的实现必须实现 `org.apache.flink.table.connector.source.VectorSearchTableSource` 接口。详情请参阅 [Vector Search Table Source]({{< ref "/docs/dev/table/sourcesSinks" >}}#vector-search-table-source)。
+2.  `VECTOR_SEARCH` 仅支持读取仅 append-only 表。
+3.  当函数调用与其它表没有关联时，`VECTOR_SEARCH` 不需要 `LATERAL` 关键字。例如，如果搜索列是一个常量或字面值 (literal value)，`LATERAL` 可以被省略。
 
-{{< top >}} 
+{{< top >}}
