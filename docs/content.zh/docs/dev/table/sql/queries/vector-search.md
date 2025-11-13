@@ -51,7 +51,7 @@ SELECT * FROM input_table, LATERAL TABLE(VECTOR_SEARCH(
 * `vector_column`: 输入表中的列名，其类型应为 FLOAT ARRAY 或 DOUBLE ARRAY。
 * `index_column`: 一个描述符 (descriptor)，指定应使用向量表 (vector_table) 中的哪一列与输入数据进行相似度比较。
 * `top_k`: 要返回的 top-k 个最相似行的数量。
-* `config`: (可选) 用于向量搜索的配置选项 Map。
+* `config`: (可选) 用于向量搜索的配置选项。
 
 ### 配置选项
 
@@ -106,7 +106,7 @@ SELECT * FROM TABLE(VECTOR_SEARCH(
 
 ### 注意事项
 
-1.  向量表 (vector table) 的实现必须实现 `org.apache.flink.table.connector.source.VectorSearchTableSource` 接口。详情请参阅 [Vector Search Table Source]({{\< ref "/docs/dev/table/sourcesSinks" \>}}\#vector-search-table-source)。
+1.  向量表 (vector table) 的实现必须实现 `org.apache.flink.table.connector.source.VectorSearchTableSource` 接口。详情请参阅 [Vector Search Table Source]({{< ref "/docs/dev/table/sourcesSinks" >}}#vector-search-table-source)。
 2.  `VECTOR_SEARCH` 仅支持读取仅 append-only 表。
 3.  当函数调用与其它表没有关联时，`VECTOR_SEARCH` 不需要 `LATERAL` 关键字。例如，如果搜索列是一个常量或字面值 (literal value)，`LATERAL` 可以被省略。
 

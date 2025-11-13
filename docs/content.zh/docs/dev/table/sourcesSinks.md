@@ -201,7 +201,7 @@ Flink 会对工厂类逐个进行检查，确保其“标识符”是全局唯�
 
 目前不支持其他更进一步的功能。更多信息请参阅 `org.apache.flink.table.connector.source.VectorSearchTableSource` 的文档。
 
-`VectorSearchTableSource` 的运行时实现是一个 `TableFunction` 或 `AsyncTableFunction`。在运行时，该函数会使用给定的向量值被调用。
+`VectorSearchTableSource` 的运行时实现是一个 `TableFunction` 或 `AsyncTableFunction`。在运行时，算子会根据给定的向量值调用该函数。
 
 <a name="source-abilities"></a>
 
