@@ -325,7 +325,7 @@ class ShowCreateUtilTest {
                                 IntervalFreshness.ofMinute("3"),
                                 RefreshMode.FULL,
                                 "SELECT id, name FROM tbl_a",
-                                "SELECT id, name FROM tbl_a"),
+                                "SELECT id, name FROM `catalogName`.`dbName`.`tbl_a`"),
                         "CREATE MATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
                                 + "  `id` INT,\n"
                                 + "  `name` VARCHAR(2147483647)\n"
@@ -335,7 +335,29 @@ class ShowCreateUtilTest {
                                 + "PARTITIONED BY (`id`)\n"
                                 + "FRESHNESS = INTERVAL '3' MINUTE\n"
                                 + "REFRESH_MODE = FULL\n"
-                                + "AS SELECT id, name FROM tbl_a\n"));
+                                + "AS SELECT id, name FROM `catalogName`.`dbName`.`tbl_a`\n"));
+
+        argList.add(
+                Arguments.of(
+                        createResolvedMaterialized(
+                                TWO_COLUMNS_SCHEMA,
+                                "Materialized table comment",
+                                List.of("id"),
+                                TableDistribution.of(TableDistribution.Kind.HASH, 5, List.of("id")),
+                                IntervalFreshness.ofMinute("3"),
+                                RefreshMode.FULL,
+                                "SELECT * FROM tbl_a",
+                                "SELECT id, name FROM `catalogName`.`dbName`.`tbl_a`"),
+                        "CREATE MATERIALIZED TABLE `catalogName`.`dbName`.`materializedTableName` (\n"
+                                + "  `id` INT,\n"
+                                + "  `name` VARCHAR(2147483647)\n"
+                                + ")\n"
+                                + "COMMENT 'Materialized table comment'\n"
+                                + "DISTRIBUTED BY HASH(`id`) INTO 5 BUCKETS\n"
+                                + "PARTITIONED BY (`id`)\n"
+                                + "FRESHNESS = INTERVAL '3' MINUTE\n"
+                                + "REFRESH_MODE = FULL\n"
+                                + "AS SELECT id, name FROM `catalogName`.`dbName`.`tbl_a`\n"));
 
         return argList;
     }

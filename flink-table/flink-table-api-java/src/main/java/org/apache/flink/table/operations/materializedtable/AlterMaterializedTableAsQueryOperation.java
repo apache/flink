@@ -30,25 +30,11 @@ import java.util.List;
 @Internal
 public class AlterMaterializedTableAsQueryOperation extends AlterMaterializedTableChangeOperation {
 
-    private final List<MaterializedTableChange> tableChanges;
-
-    private final CatalogMaterializedTable catalogMaterializedTable;
-
     public AlterMaterializedTableAsQueryOperation(
             ObjectIdentifier tableIdentifier,
             List<MaterializedTableChange> tableChanges,
             CatalogMaterializedTable catalogMaterializedTable) {
         super(tableIdentifier, tableChanges, catalogMaterializedTable);
-        this.tableChanges = tableChanges;
-        this.catalogMaterializedTable = catalogMaterializedTable;
-    }
-
-    public List<MaterializedTableChange> getTableChanges() {
-        return tableChanges;
-    }
-
-    public CatalogMaterializedTable getCatalogMaterializedTable() {
-        return catalogMaterializedTable;
     }
 
     @Override
@@ -61,6 +47,7 @@ public class AlterMaterializedTableAsQueryOperation extends AlterMaterializedTab
     public String asSummaryString() {
         return String.format(
                 "ALTER MATERIALIZED TABLE %s AS %s",
-                tableIdentifier.asSummaryString(), catalogMaterializedTable.getExpandedQuery());
+                tableIdentifier.asSummaryString(),
+                getCatalogMaterializedTable().getExpandedQuery());
     }
 }
