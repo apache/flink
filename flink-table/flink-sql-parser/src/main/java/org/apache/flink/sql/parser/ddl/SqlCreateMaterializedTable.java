@@ -30,7 +30,6 @@ import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
@@ -97,11 +96,6 @@ public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSql
         this.freshness = freshness;
         this.refreshMode = refreshMode;
         this.asQuery = requireNonNull(asQuery, "asQuery should not be null");
-    }
-
-    @Override
-    public SqlOperator getOperator() {
-        return CREATE_OPERATOR;
     }
 
     @Override

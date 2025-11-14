@@ -62,33 +62,63 @@ public class SqlCreateOrAlterMaterializedTableConverter
             ConvertContext context) {
         final ObjectIdentifier identifier =
                 this.getIdentifier(sqlCreateOrAlterMaterializedTable, context);
-        return sqlCreateOrAlterMaterializedTable.isOrAlter() && tableExists(context, identifier)
-                ? handleAlter(sqlCreateOrAlterMaterializedTable, context)
-                : handleCreate(sqlCreateOrAlterMaterializedTable, context, identifier);
+
+        if (createOrAlterOperation(sqlCreateOrAlterMaterializedTable)) {
+            return handleCreateOrAlter(sqlCreateOrAlterMaterializedTable, context, identifier);
+        }
+        return handleCreate(sqlCreateOrAlterMaterializedTable, context, identifier);
+    }
+
+    private Operation handleCreateOrAlter(
+            final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterMaterializedTable,
+            final ConvertContext context,
+            final ObjectIdentifier identifier) {
+        final Optional<ResolvedCatalogBaseTable<?>> resolvedBaseTable =
+                context.getCatalogManager().getCatalogBaseTable(identifier);
+        return resolvedBaseTable
+                .map(
+                        oldBaseTable -> {
+                            if (oldBaseTable.getTableKind() != TableKind.MATERIALIZED_TABLE) {
+                                throw new ValidationException(
+                                        String.format(
+                                                "Table %s is not a materialized table. Only materialized table support create or alter operation.",
+                                                identifier.asSummaryString()));
+                            }
+                            return handleAlter(
+                                    sqlCreateOrAlterMaterializedTable,
+                                    (ResolvedCatalogMaterializedTable) oldBaseTable,
+                                    context,
+                                    identifier);
+                        })
+                .orElseGet(
+                        () -> handleCreate(sqlCreateOrAlterMaterializedTable, context, identifier));
+    }
+
+    private static boolean createOrAlterOperation(
+            final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterMaterializedTable) {
+        return sqlCreateOrAlterMaterializedTable.getOperator()
+                == SqlCreateOrAlterMaterializedTable.CREATE_OR_ALTER_OPERATOR;
     }
 
     private Operation handleAlter(
-            SqlCreateOrAlterMaterializedTable sqlCreateOrAlterMaterializedTable,
-            ConvertContext context) {
-        final ObjectIdentifier identifier =
-                this.getIdentifier(sqlCreateOrAlterMaterializedTable, context);
-        final ResolvedCatalogMaterializedTable oldTable =
-                getExistingResolvedMaterializedTable(context, identifier);
-
+            final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterMaterializedTable,
+            final ResolvedCatalogMaterializedTable oldMaterializedTable,
+            final ConvertContext context,
+            final ObjectIdentifier identifier) {
         final CatalogMaterializedTable newTable =
                 buildNewCatalogMaterializedTableFromOldTable(
-                        oldTable, sqlCreateOrAlterMaterializedTable, context);
+                        oldMaterializedTable, sqlCreateOrAlterMaterializedTable, context);
 
         List<MaterializedTableChange> tableChanges =
-                buildTableChanges(sqlCreateOrAlterMaterializedTable, oldTable, context);
+                buildTableChanges(sqlCreateOrAlterMaterializedTable, oldMaterializedTable, context);
 
         return new AlterMaterializedTableAsQueryOperation(identifier, tableChanges, newTable);
     }
 
     private Operation handleCreate(
-            SqlCreateOrAlterMaterializedTable sqlCreateOrAlterMaterializedTable,
-            ConvertContext context,
-            ObjectIdentifier identifier) {
+            final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterMaterializedTable,
+            final ConvertContext context,
+            final ObjectIdentifier identifier) {
         final ResolvedCatalogMaterializedTable resolvedCatalogMaterializedTable =
                 this.getResolvedCatalogMaterializedTable(
                         sqlCreateOrAlterMaterializedTable, context);
@@ -97,16 +127,15 @@ public class SqlCreateOrAlterMaterializedTableConverter
     }
 
     private List<MaterializedTableChange> buildTableChanges(
-            SqlCreateOrAlterMaterializedTable sqlCreateOrAlterMaterializedTable,
-            ResolvedCatalogMaterializedTable oldTable,
-            ConvertContext context) {
+            final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterMaterializedTable,
+            final ResolvedCatalogMaterializedTable oldTable,
+            final ConvertContext context) {
         List<MaterializedTableChange> changes = new ArrayList<>();
         final MergeContext mergeContext =
                 this.getMergeContext(sqlCreateOrAlterMaterializedTable, context);
 
-        // Extract new columns
-        ResolvedSchema oldSchema = oldTable.getResolvedSchema();
-        List<Column> newColumns =
+        final ResolvedSchema oldSchema = oldTable.getResolvedSchema();
+        final List<Column> newColumns =
                 MaterializedTableUtils.validateAndExtractNewColumns(
                         oldSchema, mergeContext.getMergedQuerySchema());
 
@@ -116,33 +145,18 @@ public class SqlCreateOrAlterMaterializedTableConverter
         return changes;
     }
 
-    private ResolvedCatalogMaterializedTable getExistingResolvedMaterializedTable(
-            ConvertContext context, ObjectIdentifier identifier) {
-        ResolvedCatalogBaseTable<?> baseTable =
-                context.getCatalogManager().getTableOrError(identifier).getResolvedTable();
-        if (TableKind.MATERIALIZED_TABLE != baseTable.getTableKind()) {
-            throw new ValidationException(
-                    "Only materialized table support modify definition query.");
-        }
-        return (ResolvedCatalogMaterializedTable) baseTable;
-    }
-
-    private boolean tableExists(ConvertContext context, ObjectIdentifier identifier) {
-        return context.getCatalogManager().getTable(identifier).isPresent();
-    }
-
     private CatalogMaterializedTable buildNewCatalogMaterializedTableFromOldTable(
-            ResolvedCatalogMaterializedTable oldTable,
-            SqlCreateOrAlterMaterializedTable sqlCreateOrAlterMaterializedTable,
-            ConvertContext context) {
-        Schema.Builder schemaBuilder =
-                Schema.newBuilder().fromResolvedSchema(oldTable.getResolvedSchema());
+            final ResolvedCatalogMaterializedTable oldMaterializedTable,
+            final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterMaterializedTable,
+            final ConvertContext context) {
+        final Schema.Builder schemaBuilder =
+                Schema.newBuilder().fromResolvedSchema(oldMaterializedTable.getResolvedSchema());
 
         // Add new columns if this is an alter operation
-        ResolvedSchema oldSchema = oldTable.getResolvedSchema();
+        final ResolvedSchema oldSchema = oldMaterializedTable.getResolvedSchema();
         final MergeContext mergeContext =
                 this.getMergeContext(sqlCreateOrAlterMaterializedTable, context);
-        List<Column> newColumns =
+        final List<Column> newColumns =
                 MaterializedTableUtils.validateAndExtractNewColumns(
                         oldSchema, mergeContext.getMergedQuerySchema());
         newColumns.forEach(col -> schemaBuilder.column(col.getName(), col.getDataType()));
@@ -168,9 +182,11 @@ public class SqlCreateOrAlterMaterializedTableConverter
                         .refreshMode(refreshMode)
                         .refreshStatus(RefreshStatus.INITIALIZING);
 
-        // Preserve refresh handler from old table
-        oldTable.getRefreshHandlerDescription().ifPresent(builder::refreshHandlerDescription);
-        builder.serializedRefreshHandler(oldTable.getSerializedRefreshHandler());
+        // Preserve refresh handler from old materialized table
+        oldMaterializedTable
+                .getRefreshHandlerDescription()
+                .ifPresent(builder::refreshHandlerDescription);
+        builder.serializedRefreshHandler(oldMaterializedTable.getSerializedRefreshHandler());
 
         return builder.build();
     }
@@ -244,7 +260,7 @@ public class SqlCreateOrAlterMaterializedTableConverter
 
             @Override
             public String getMergedOriginalQuery() {
-                return originalQuery;
+                return this.originalQuery;
             }
 
             @Override
@@ -255,7 +271,7 @@ public class SqlCreateOrAlterMaterializedTableConverter
 
             @Override
             public ResolvedSchema getMergedQuerySchema() {
-                return querySchema;
+                return this.querySchema;
             }
         };
     }

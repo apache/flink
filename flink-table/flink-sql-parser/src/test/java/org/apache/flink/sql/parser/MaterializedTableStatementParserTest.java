@@ -18,9 +18,10 @@
 
 package org.apache.flink.sql.parser;
 
-import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 import org.apache.calcite.sql.parser.SqlParserFixture;
+import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -31,14 +32,12 @@ import java.util.AbstractMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
-
 /** Sql parser test for materialized related syntax. * */
 @Execution(CONCURRENT)
 class MaterializedTableStatementParserTest {
 
-    private static final String CREATE_COMMAND = "CREATE ";
-    private static final String CREATE_OR_ALTER_COMMAND = "CREATE OR ALTER ";
+    private static final String CREATE_OPERATOR = "CREATE ";
+    private static final String CREATE_OR_ALTER_OPERATOR = "CREATE OR ALTER ";
 
     @ParameterizedTest(name = "{index}: {0}")
     @MethodSource("inputForMaterializedTable")
@@ -390,33 +389,33 @@ class MaterializedTableStatementParserTest {
 
     private static Stream<Arguments> inputForCreateMaterializedTable() {
         return Stream.of(
-                Arguments.of("Full example", fullExample(CREATE_COMMAND)),
-                Arguments.of("With columns", withColumns(CREATE_COMMAND)),
+                Arguments.of("Full example", fullExample(CREATE_OPERATOR)),
+                Arguments.of("With columns", withColumns(CREATE_OPERATOR)),
                 Arguments.of(
-                        "With columns and watermarks", withColumnsAndWatermark(CREATE_COMMAND)),
-                Arguments.of("Without table constraint", withoutTableConstraint(CREATE_COMMAND)),
-                Arguments.of("With primary key", withPrimaryKey(CREATE_COMMAND)),
-                Arguments.of("Without freshness", withoutFreshness(CREATE_COMMAND)),
+                        "With columns and watermarks", withColumnsAndWatermark(CREATE_OPERATOR)),
+                Arguments.of("Without table constraint", withoutTableConstraint(CREATE_OPERATOR)),
+                Arguments.of("With primary key", withPrimaryKey(CREATE_OPERATOR)),
+                Arguments.of("Without freshness", withoutFreshness(CREATE_OPERATOR)),
                 Arguments.of(
                         "With column identifiers only",
-                        withColumnsIdentifiersOnly(CREATE_COMMAND)));
+                        withColumnsIdentifiersOnly(CREATE_OPERATOR)));
     }
 
     private static Stream<Arguments> inputForCreateOrAlterMaterializedTable() {
         return Stream.of(
-                Arguments.of("Full example", fullExample(CREATE_OR_ALTER_COMMAND)),
-                Arguments.of("With columns", withColumns(CREATE_OR_ALTER_COMMAND)),
+                Arguments.of("Full example", fullExample(CREATE_OR_ALTER_OPERATOR)),
+                Arguments.of("With columns", withColumns(CREATE_OR_ALTER_OPERATOR)),
                 Arguments.of(
                         "With columns and watermarks",
-                        withColumnsAndWatermark(CREATE_OR_ALTER_COMMAND)),
+                        withColumnsAndWatermark(CREATE_OR_ALTER_OPERATOR)),
                 Arguments.of(
                         "Without table constraint",
-                        withoutTableConstraint(CREATE_OR_ALTER_COMMAND)),
-                Arguments.of("With primary key", withPrimaryKey(CREATE_OR_ALTER_COMMAND)),
-                Arguments.of("Without freshness", withoutFreshness(CREATE_OR_ALTER_COMMAND)),
+                        withoutTableConstraint(CREATE_OR_ALTER_OPERATOR)),
+                Arguments.of("With primary key", withPrimaryKey(CREATE_OR_ALTER_OPERATOR)),
+                Arguments.of("Without freshness", withoutFreshness(CREATE_OR_ALTER_OPERATOR)),
                 Arguments.of(
                         "With column identifiers only",
-                        withColumnsIdentifiersOnly(CREATE_OR_ALTER_COMMAND)));
+                        withColumnsIdentifiersOnly(CREATE_OR_ALTER_OPERATOR)));
     }
 
     private static Map.Entry<String, String> fullExample(final String command) {

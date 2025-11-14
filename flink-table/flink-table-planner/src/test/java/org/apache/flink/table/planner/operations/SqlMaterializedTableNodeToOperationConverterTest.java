@@ -72,8 +72,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SqlMaterializedTableNodeToOperationConverterTest
         extends SqlNodeToOperationConversionTestBase {
 
-    private static final String CREATE_COMMAND = "CREATE ";
-    private static final String CREATE_OR_ALTER_COMMAND = "CREATE OR ALTER ";
+    private static final String CREATE_OPERATOR = "CREATE ";
+    private static final String CREATE_OR_ALTER_OPERATOR = "CREATE OR ALTER ";
 
     @BeforeEach
     void before() throws TableAlreadyExistException, DatabaseNotExistException {
@@ -956,8 +956,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
     private static Collection<Arguments> testDataWithDifferentSchemasSuccessCase() {
         final Collection<Arguments> list = new ArrayList<>();
-        list.addAll(createOrAlter(CREATE_COMMAND));
-        list.addAll(createOrAlter(CREATE_OR_ALTER_COMMAND));
+        list.addAll(createOrAlter(CREATE_OPERATOR));
+        list.addAll(createOrAlter(CREATE_OR_ALTER_OPERATOR));
         return list;
     }
 
