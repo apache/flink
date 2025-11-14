@@ -368,3 +368,57 @@ FROM TenantKafka t
          LEFT JOIN InventoryKafka i ON t.tenant_id = i.tenant_id AND ...;
 ```
 
+## Delta Joins
+
+In streaming jobs, regular joins keep all historical data from both inputs to ensure accuracy. Over time, this causes the state to grow continuously, increasing resource usage and impacting stability. 
+
+To mitigate these challenges, Flink introduces the delta join operator. The key idea is to replace the large state maintained by regular joins with a bidirectional lookup-based join that directly reuses data from the source tables. Compared to traditional regular joins, delta joins substantially reduce state size, enhances job stability, and lowers overall resource consumption.
+
+This feature is enabled by default. A regular join will be automatically optimized into a delta join when all the following conditions are met:
+
+1. The SQL pattern satisfies the optimization criteria. For details, please refer to [Supported Features and Limitations]({{< ref "docs/dev/table/tuning" >}}#supported-features-and-limitations)
+2. The external storage system of the source table provides index information for fast querying for delta joins. Currently, [Apache Fluss(Incubating)](https://fluss.apache.org/blog/fluss-open-source/) has provided index information at the table level for Flink, allowing such tables to be used as source tables for delta joins. Please refer to the [Fluss documentation](https://fluss.apache.org/docs/0.8/engine-flink/delta-joins/#flink-version-support) for more details.
+
+### Working Principle
+
+In Flink, regular joins store all incoming records from both input sides in the state to ensure that corresponding records can be matched correctly when data arrives from the opposite side.
+
+In contrast, delta joins leverage the indexing capabilities of external storage systems. Instead of performing state lookups, delta joins issue efficient index-based queries directly against the external storage to retrieve matching records. This approach eliminates redundant data storage between the Flink state and the external system.
+
+{{< img src="/fig/table-streaming/delta_join.png" width="70%" height="70%" >}}
+
+### Important Configurations
+
+Delta join optimization is enabled by default. You can disable this feature manually by setting the following configuration:
+
+```sql
+SET 'table.optimizer.delta-join.strategy' = 'NONE';
+```
+
+Please see [Configuration]({{< ref "docs/dev/table/config" >}}#optimizer-options) page for more details.
+
+To fine-tune the performance of delta joins, you can also configure the following parameters:
+
+- `table.exec.delta-join.cache-enabled`
+- `table.exec.delta-join.left.cache-size`
+- `table.exec.delta-join.right.cache-size`
+
+Please see [Configuration]({{< ref "docs/dev/table/config" >}}#execution-options) page for more details.
+
+### Supported Features and Limitations
+
+Delta joins are continuously evolving, and supports the following features currently.
+
+1. Support for **INSERT-only** tables as source tables.
+2. Support for **CDC** tables without **DELETE operations** as source tables.
+3. Support for **projection** and **filter** operations between the source and the delta join.
+4. Support for **caching** within the delta join operator.
+
+However, Delta Joins also have several **limitations**. Jobs containing any of the following conditions cannot be optimized into a delta join:
+
+1. The **index key** of the table must be included in the join’s **equivalence conditions**.
+2. Only **INNER JOIN** is currently supported.
+3. The **downstream operator** must be able to handle **duplicate changes**, such as a sink operating in **UPSERT mode** without `upsertMaterialize`.
+4. When consuming a **CDC stream**, the **join key** must be part of the **primary key**.
+5. When consuming a **CDC stream**, all **filters** must be applied on the **upsert key**.
+6. **Non-deterministic functions** are not allowed in filters or projections.
