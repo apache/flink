@@ -2735,6 +2735,114 @@ result = t.select(col('a'), col('c')) \
 
 {{< query_state_warning >}}
 
+### Model Inference
+
+{{< label Streaming >}}
+
+The Table API supports model inference operations that allow you to integrate machine learning models directly into your data processing pipelines. You can create models with specific providers (like OpenAI) and use them to make predictions on your data.
+
+#### Creating and Using Models
+
+Models are created using `ModelDescriptor` which specifies the provider, input/output schemas, and configuration options. Once created, you can use the model to make predictions on tables.
+
+{{< tabs "model-inference" >}}
+{{< tab "Java" >}}
+
+```java
+// 1. Set up the local environment
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
+TableEnvironment tEnv = TableEnvironment.create(settings);
+
+// 2. Create a source table from in-memory data
+Table myTable = tEnv.fromValues(
+    ROW(FIELD("text", STRING())),
+    row("Hello"),
+    row("Machine Learning"),
+    row("Good morning")
+);
+
+// 3. Create model
+tEnv.createModel(
+    "my_model",
+    ModelDescriptor.forProvider("openai")
+        .inputSchema(Schema.newBuilder().column("input", STRING()).build())
+        .outputSchema(Schema.newBuilder().column("output", STRING()).build())
+        .option("endpoint", "https://api.openai.com/v1/chat/completions")
+        .option("model", "gpt-4.1")
+        .option("system-prompt", "translate to chinese")
+        .option("api-key", "<your-openai-api-key-here>")
+        .build()
+);
+
+Model model = tEnv.fromModel("my_model");
+
+// 4. Use the model to make predictions
+Table predictResult = model.predict(myTable, ColumnList.of("text"));
+
+// 5. Async prediction example
+Table asyncPredictResult = model.predict(
+    myTable, 
+    ColumnList.of("text"), 
+    Map.of("async", "true")
+);
+```
+
+{{< /tab >}}
+{{< tab "Scala" >}}
+
+```scala
+// 1. Set up the local environment
+val settings = EnvironmentSettings.inStreamingMode()
+val tEnv = TableEnvironment.create(settings)
+
+// 2. Create a source table from in-memory data
+val myTable: Table = tEnv.fromValues(
+    ROW(FIELD("text", STRING())),
+    row("Hello"),
+    row("Machine Learning"),
+    row("Good morning")
+)
+
+// 3. Create model
+tEnv.createModel(
+    "my_model",
+    ModelDescriptor.forProvider("openai")
+        .inputSchema(Schema.newBuilder().column("input", STRING()).build())
+        .outputSchema(Schema.newBuilder().column("output", STRING()).build())
+        .option("endpoint", "https://api.openai.com/v1/chat/completions")
+        .option("model", "gpt-4.1")
+        .option("system-prompt", "translate to chinese")
+        .option("api-key", "<your-openai-api-key-here>")
+        .build()
+)
+
+val model = tEnv.fromModel("my_model")
+
+// 4. Use the model to make predictions
+val predictResult = model.predict(myTable, ColumnList.of("text"))
+
+// 5. Async prediction example
+val asyncPredictResult = model.predict(
+    myTable, 
+    ColumnList.of("text"), 
+    Map("async" -> "true").asJava
+)
+```
+
+{{< /tab >}}
+{{< tab "Python" >}}
+
+```python
+# Not yet supported in Python Table API
+```
+
+{{< /tab >}}
+{{< /tabs >}}
+
+The model inference operation supports both synchronous and asynchronous prediction modes. Asynchronous predictions can improve throughput for models with high latency by allowing concurrent requests.
+
+{{< top >}}
+
 Data Types
 ----------
 
