@@ -99,7 +99,7 @@ class MemorySize(object):
         return self._j_memory_size.compareTo(other._j_memory_size) == -1
 
     def __le__(self, other: 'MemorySize'):
-        return self.__eq__(other) and self.__lt__(other)
+        return self.__eq__(other) or self.__lt__(other)
 
     def __str__(self):
         return self._j_memory_size.toString()
