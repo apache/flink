@@ -18,10 +18,9 @@
 
 package org.apache.flink.sql.parser;
 
-import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
+import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 
 import org.apache.calcite.sql.parser.SqlParserFixture;
-import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -31,6 +30,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.AbstractMap;
 import java.util.Map;
 import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Sql parser test for materialized related syntax. * */
 @Execution(CONCURRENT)

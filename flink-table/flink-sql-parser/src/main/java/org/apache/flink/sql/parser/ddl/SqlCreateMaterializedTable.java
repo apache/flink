@@ -20,6 +20,7 @@ package org.apache.flink.sql.parser.ddl;
 
 import org.apache.flink.sql.parser.ExtendedSqlNode;
 import org.apache.flink.sql.parser.SqlConstraintValidator;
+import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
@@ -30,7 +31,9 @@ import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
+import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
@@ -53,13 +56,13 @@ public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSql
 
     private final List<SqlTableConstraint> tableConstraints;
 
+    private final SqlWatermark watermark;
+
     private final @Nullable SqlCharStringLiteral comment;
 
     private final @Nullable SqlDistribution distribution;
 
     private final SqlNodeList partitionKeyList;
-
-    private final SqlWatermark watermark;
 
     private final SqlNodeList propertyList;
 
@@ -178,6 +181,70 @@ public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSql
         // CREATE MATERIALIZED TABLE supports passing only column identifiers in the column list. If
         // the first column in the list is an identifier, then we assume the rest of the
         // columns are identifiers as well.
-        return !getColumnList().isEmpty() && getColumnList().get(0) instanceof SqlIdentifier;
+        return !columnList.isEmpty() && columnList.get(0) instanceof SqlIdentifier;
+    }
+
+    protected void unparseMaterializedTableAs(
+            final SqlOperator operation,
+            final SqlWriter writer,
+            final int leftPrec,
+            final int rightPrec) {
+        writer.keyword(operation.getName());
+        tableName.unparse(writer, leftPrec, rightPrec);
+
+        if (!columnList.isEmpty() || !tableConstraints.isEmpty() || watermark != null) {
+            SqlUnparseUtils.unparseTableSchema(
+                    writer, leftPrec, rightPrec, columnList, tableConstraints, watermark);
+        }
+
+        if (comment != null) {
+            writer.newlineAndIndent();
+            writer.keyword("COMMENT");
+            comment.unparse(writer, leftPrec, rightPrec);
+        }
+
+        if (distribution != null) {
+            writer.newlineAndIndent();
+            distribution.unparse(writer, leftPrec, rightPrec);
+        }
+
+        if (!partitionKeyList.isEmpty()) {
+            writer.newlineAndIndent();
+            writer.keyword("PARTITIONED BY");
+            SqlWriter.Frame partitionedByFrame = writer.startList("(", ")");
+            partitionKeyList.unparse(writer, leftPrec, rightPrec);
+            writer.endList(partitionedByFrame);
+        }
+
+        if (!propertyList.isEmpty()) {
+            writer.newlineAndIndent();
+            writer.keyword("WITH");
+            SqlWriter.Frame withFrame = writer.startList("(", ")");
+            for (SqlNode property : propertyList) {
+                SqlUnparseUtils.printIndent(writer);
+                property.unparse(writer, leftPrec, rightPrec);
+            }
+            writer.newlineAndIndent();
+            writer.endList(withFrame);
+        }
+
+        if (freshness != null) {
+            writer.newlineAndIndent();
+            writer.keyword("FRESHNESS");
+            writer.keyword("=");
+            freshness.unparse(writer, leftPrec, rightPrec);
+        }
+
+        if (refreshMode != null) {
+            writer.newlineAndIndent();
+            writer.keyword("REFRESH_MODE");
+            writer.keyword("=");
+            writer.keyword(refreshMode.name());
+        }
+
+        writer.newlineAndIndent();
+        writer.keyword("AS");
+        writer.newlineAndIndent();
+        asQuery.unparse(writer, leftPrec, rightPrec);
     }
 }

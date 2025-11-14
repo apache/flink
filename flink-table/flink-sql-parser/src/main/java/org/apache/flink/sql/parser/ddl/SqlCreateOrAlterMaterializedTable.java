@@ -18,7 +18,6 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
@@ -73,75 +72,6 @@ public class SqlCreateOrAlterMaterializedTable extends SqlCreateMaterializedTabl
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("CREATE");
-        if (getOperator() == CREATE_OR_ALTER_OPERATOR) {
-            writer.keyword("OR ALTER");
-        }
-        writer.keyword("MATERIALIZED TABLE");
-        getTableName().unparse(writer, leftPrec, rightPrec);
-
-        if (!getColumnList().isEmpty()
-                || !getTableConstraints().isEmpty()
-                || getWatermark().isPresent()) {
-            SqlUnparseUtils.unparseTableSchema(
-                    writer,
-                    leftPrec,
-                    rightPrec,
-                    getColumnList(),
-                    getTableConstraints(),
-                    getWatermark().orElse(null));
-        }
-
-        getComment()
-                .ifPresent(
-                        comment -> {
-                            writer.newlineAndIndent();
-                            writer.keyword("COMMENT");
-                            comment.unparse(writer, leftPrec, rightPrec);
-                        });
-
-        if (getDistribution() != null) {
-            writer.newlineAndIndent();
-            getDistribution().unparse(writer, leftPrec, rightPrec);
-        }
-
-        if (!getPartitionKeyList().isEmpty()) {
-            writer.newlineAndIndent();
-            writer.keyword("PARTITIONED BY");
-            SqlWriter.Frame partitionedByFrame = writer.startList("(", ")");
-            getPartitionKeyList().unparse(writer, leftPrec, rightPrec);
-            writer.endList(partitionedByFrame);
-        }
-
-        if (!getPropertyList().isEmpty()) {
-            writer.newlineAndIndent();
-            writer.keyword("WITH");
-            SqlWriter.Frame withFrame = writer.startList("(", ")");
-            for (SqlNode property : getPropertyList()) {
-                SqlUnparseUtils.printIndent(writer);
-                property.unparse(writer, leftPrec, rightPrec);
-            }
-            writer.newlineAndIndent();
-            writer.endList(withFrame);
-        }
-
-        if (getFreshness() != null) {
-            writer.newlineAndIndent();
-            writer.keyword("FRESHNESS");
-            writer.keyword("=");
-            getFreshness().unparse(writer, leftPrec, rightPrec);
-        }
-
-        if (getRefreshMode() != null) {
-            writer.newlineAndIndent();
-            writer.keyword("REFRESH_MODE");
-            writer.keyword("=");
-            writer.keyword(getRefreshMode().name());
-        }
-
-        writer.newlineAndIndent();
-        writer.keyword("AS");
-        writer.newlineAndIndent();
-        getAsQuery().unparse(writer, leftPrec, rightPrec);
+        this.unparseMaterializedTableAs(getOperator(), writer, leftPrec, rightPrec);
     }
 }
