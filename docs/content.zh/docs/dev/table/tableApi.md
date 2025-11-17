@@ -2739,7 +2739,7 @@ result = t.select(col('a'), col('c')) \
 
 {{< label Streaming >}}
 
-Table API 支持模型推理操作，允许你将机器学习模型直接集成到数据处理管道中。你可以使用特定的提供者（如 OpenAI）创建模型，并使用它们对数据进行预测。
+Table API 支持模型推理操作，允许你将机器学习模型直接集成到数据处理管道中。你可以使用特定的提供者创建模型，并使用它们对数据进行推理。
 
 #### 创建和使用模型
 
@@ -2776,7 +2776,7 @@ tEnv.createModel(
 
 Model model = tEnv.fromModel("my_model");
 
-// 4. 使用模型进行预测
+// 4. 使用模型把文本翻译成中文
 Table predictResult = model.predict(myTable, ColumnList.of("text"));
 
 // 5. 异步预测示例
@@ -2818,7 +2818,7 @@ tEnv.createModel(
 
 val model = tEnv.fromModel("my_model")
 
-// 4. 使用模型进行预测
+// 4. 使用模型把文本翻译成中文
 val predictResult = model.predict(myTable, ColumnList.of("text"))
 
 // 5. 异步预测示例
@@ -2839,7 +2839,7 @@ val asyncPredictResult = model.predict(
 {{< /tab >}}
 {{< /tabs >}}
 
-模型推理操作支持同步和异步预测模式。异步预测可以通过允许并发请求来提高高延迟模型的吞吐量。
+模型推理操作支持同步和异步预测模式 (需要底层接口 `ModelProvider`支持)。默认情况下, Planner使用异步预测。这可以通过允许并发请求来提高高延迟模型的吞吐量。
 
 {{< top >}}
 

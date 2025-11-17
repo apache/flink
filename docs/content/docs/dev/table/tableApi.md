@@ -2739,7 +2739,7 @@ result = t.select(col('a'), col('c')) \
 
 {{< label Streaming >}}
 
-The Table API supports model inference operations that allow you to integrate machine learning models directly into your data processing pipelines. You can create models with specific providers (like OpenAI) and use them to make predictions on your data.
+The Table API supports model inference operations that allow you to integrate machine learning models directly into your data processing pipelines. You can create models with specific providers and use them to make inference on your data.
 
 #### Creating and Using Models
 
@@ -2769,14 +2769,14 @@ tEnv.createModel(
         .outputSchema(Schema.newBuilder().column("output", STRING()).build())
         .option("endpoint", "https://api.openai.com/v1/chat/completions")
         .option("model", "gpt-4.1")
-        .option("system-prompt", "translate to chinese")
+        .option("system-prompt", "translate text to Chinese")
         .option("api-key", "<your-openai-api-key-here>")
         .build()
 );
 
 Model model = tEnv.fromModel("my_model");
 
-// 4. Use the model to make predictions
+// 4. Use the model to translate text to Chinese
 Table predictResult = model.predict(myTable, ColumnList.of("text"));
 
 // 5. Async prediction example
@@ -2818,7 +2818,7 @@ tEnv.createModel(
 
 val model = tEnv.fromModel("my_model")
 
-// 4. Use the model to make predictions
+// 4. Use the model to translate text to Chinese
 val predictResult = model.predict(myTable, ColumnList.of("text"))
 
 // 5. Async prediction example
@@ -2839,7 +2839,8 @@ val asyncPredictResult = model.predict(
 {{< /tab >}}
 {{< /tabs >}}
 
-The model inference operation supports both synchronous and asynchronous prediction modes. Asynchronous predictions can improve throughput for models with high latency by allowing concurrent requests.
+Model inference supports both synchronous and asynchronous prediction modes (when supported by the underlying `ModelProvider` interface). 
+By default, the planner uses asynchronous mode to maximize throughput for high-latency models by processing multiple requests concurrently.
 
 {{< top >}}
 
