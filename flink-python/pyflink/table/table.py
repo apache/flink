@@ -33,6 +33,8 @@ from pyflink.table.table_result import TableResult
 from pyflink.table.table_schema import TableSchema
 from pyflink.table.catalog import ResolvedSchema
 from pyflink.table.types import create_arrow_schema
+from pyflink.table.types import TinyIntType, SmallIntType, IntType, BigIntType, \
+    FloatType, DoubleType, TimestampType
 from pyflink.table.udf import UserDefinedScalarFunctionWrapper, \
     UserDefinedAggregateFunctionWrapper, UserDefinedTableFunctionWrapper
 from pyflink.table.utils import tz_convert_from_internal, to_expression_jarray
@@ -953,13 +955,50 @@ class Table(object):
                 self.get_schema().to_row_data_type(),
                 timezone)
             import pyarrow as pa
-            table = pa.Table.from_batches(serializer.load_from_iterator(batches_iterator))
+            batches = list(serializer.load_from_iterator(batches_iterator))
+            table = pa.Table.from_batches(batches)
             pdf = table.to_pandas()
 
             schema = self.get_schema()
             for field_name in schema.get_field_names():
+                field_type = schema.get_field_data_type(field_name)
                 pdf[field_name] = tz_convert_from_internal(
-                    pdf[field_name], schema.get_field_data_type(field_name), timezone)
+                    pdf[field_name], field_type, timezone)
+            try:
+                import numpy as np
+                import pandas as pd
+                for field_name in schema.get_field_names():
+                    field_type = schema.get_field_data_type(field_name)
+                    s = pdf[field_name]
+                    if isinstance(field_type, TinyIntType):
+                        pdf[field_name] = s.astype(np.int8, copy=False)
+                    elif isinstance(field_type, SmallIntType):
+                        pdf[field_name] = s.astype(np.int16, copy=False)
+                    elif isinstance(field_type, IntType):
+                        pdf[field_name] = s.astype(np.int32, copy=False)
+                    elif isinstance(field_type, BigIntType):
+                        pdf[field_name] = s.astype(np.int64, copy=False)
+                    elif isinstance(field_type, FloatType):
+                        pdf[field_name] = s.astype(np.float32, copy=False)
+                    elif isinstance(field_type, DoubleType):
+                        pdf[field_name] = s.astype(np.float64, copy=False)
+                    elif isinstance(field_type, TimestampType):
+                        if field_type.precision == 0:
+                            unit = 'datetime64[s]'
+                        elif 1 <= field_type.precision <= 3:
+                            unit = 'datetime64[ms]'
+                        elif 4 <= field_type.precision <= 6:
+                            unit = 'datetime64[us]'
+                        else:
+                            unit = 'datetime64[ns]'
+                        try:
+                            pdf[field_name] = s.astype(unit, copy=False)
+                        except Exception:
+                            pdf[field_name] = pd.to_datetime(
+                                s, errors='ignore'
+                            ).astype(unit, copy=False)
+            except Exception:
+                pass
             return pdf
         else:
             import pandas as pd
