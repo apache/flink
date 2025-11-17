@@ -33,15 +33,15 @@ planning to upgrade your Flink version to 2.2.
 
 ##### [FLINK-38422](https://issues.apache.org/jira/browse/FLINK-38422)
 
-Apache Flink has initially integrated Large Language Model (LLM) capabilities, enabling semantic
-understanding and real-time processing of streaming data pipelines. This integration has been
-technically validated in scenarios such as log classification and real-time question-answering
-systems. However, the current architecture allows Flink to only use embedding models to convert
-unstructured data (e.g., text, images) into high-dimensional vector features, which are then
-persisted to downstream storage systems. It lacks real-time online querying and similarity analysis
-capabilities for vector spaces. The VECTOR_SEARCH function is provided in Flink 2.2 to enable users
-to perform streaming vector similarity searches and real-time context retrieval
-(e.g., Retrieval-Augmented Generation, RAG) directly within Flink.
+Apache Flink has supported leveraging LLM capabilities through the `ML_PREDICT` function in Flink SQL
+since version 2.1, enabling users to perform semantic analysis in a simple and efficient way. This
+integration has been technically validated in scenarios such as log classification and real-time
+question-answering systems. However, the current architecture allows Flink to only use embedding
+models to convert unstructured data (e.g., text, images) into high-dimensional vector features,
+which are then persisted to downstream storage systems. It lacks real-time online querying and
+similarity analysis capabilities for vector spaces. The VECTOR_SEARCH function is provided in Flink
+2.2 to enable users to perform streaming vector similarity searches and real-time context retrieval
+directly within Flink.
 
 See more details about the capabilities and usages of
 Flink's [Vector Search](https://nightlies.apache.org/flink/flink-docs-release-2.2/docs/dev/table/sql/queries/vector-search/).
@@ -50,10 +50,9 @@ Flink's [Vector Search](https://nightlies.apache.org/flink/flink-docs-release-2.
 
 ##### [FLINK-38104](https://issues.apache.org/jira/browse/FLINK-38104)
 
-Flink already expanded the `ML_PREDICT` table-valued function (TVF) to perform
-realtime model inference in SQL queries, applying machine learning models to data streams
-seamlessly. In Flink 2.2, we provide the table api for model related functions:
-ML_PREDICT and ML_EVALUATE.
+Apache Flink has supported leveraging LLM capabilities through the `ML_PREDICT` function in Flink SQL
+since version 2.1. In Flink 2.2, the Table API also supports model inference operations that allow 
+you to integrate machine learning models directly into your data processing pipelines. 
 
 #### Materialized Table
 
@@ -70,7 +69,7 @@ interface. This provides a formal extension point for customizable default logic
 users and vendors to implement "smart" default behaviors (e.g., inferring freshness from upstream tables).
 
 Besides this, users can use `DISTRIBUTED INTO` or`DISTRIBUTED INTO` to support bucketing concept
-for Materialized tables. And users can use `SHOW MATERIALIZED TABLES` to show all Materialized tables.
+for Materialized tables. Users can use `SHOW MATERIALIZED TABLES` to show all Materialized tables.
 
 #### SinkUpsertMaterializer V2
 
@@ -97,7 +96,7 @@ Flink's [Balanced Tasks Scheduling](https://nightlies.apache.org/flink/flink-doc
 ##### [FLINK-38229](https://issues.apache.org/jira/browse/FLINK-38229)
 
 Before Flink 2.2, HistoryServer supports only a quantity-based job archive retention policy and
-is insufficient for scenarios, such as: time-based retention or combined rules. Users can use
+is insufficient for scenarios, requiring time-based retention or combined rules. Users can use
 the new configuration `historyserver.archive.retained-ttl` combining with `historyserver.archive.retained-jobs`
 to fulfill more scenario requirements.
 
@@ -111,7 +110,7 @@ Flink jobs frequently exchange data with external systems, which consumes their 
 and CPU. When these resources are scarce, pulling data too aggressively can disrupt other workloads.
 In Flink 2.2, we introduce a RateLimiter interface to provide request rate limiting for Scan Sources
 and connector developers can integrate with rate limiting frameworks to implement their own read
-restriction strategies.
+restriction strategies. This feature is currently only available in the DataStream API.
 
 #### Balanced splits assignment
 
