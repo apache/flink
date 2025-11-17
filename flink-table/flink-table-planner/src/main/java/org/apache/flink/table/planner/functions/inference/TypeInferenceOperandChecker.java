@@ -19,10 +19,12 @@
 package org.apache.flink.table.planner.functions.inference;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.sql.parser.type.SqlRawTypeNameSpec;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.plan.schema.RawRelDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentCount;
 import org.apache.flink.table.types.inference.CallContext;
@@ -32,16 +34,20 @@ import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.TypeInference;
 import org.apache.flink.table.types.inference.TypeInferenceUtil;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.sql.SqlCallBinding;
+import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperandCountRange;
 import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlTypeNameSpec;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlOperandMetadata;
@@ -240,10 +246,28 @@ public final class TypeInferenceOperandChecker
 
     /** Adopted from {@link org.apache.calcite.sql.validate.implicit.AbstractTypeCoercion}. */
     private SqlNode castTo(SqlNode node, RelDataType type) {
-        return SqlStdOperatorTable.CAST.createCall(
-                SqlParserPos.ZERO,
-                node,
-                SqlTypeUtil.convertTypeToSpec(type).withNullable(type.isNullable()));
+        final SqlDataTypeSpec dataType;
+        if (type instanceof RawRelDataType) {
+            dataType = createRawDataTypeSpec((RawRelDataType) type);
+        } else {
+            dataType = SqlTypeUtil.convertTypeToSpec(type).withNullable(type.isNullable());
+        }
+
+        return SqlStdOperatorTable.CAST.createCall(SqlParserPos.ZERO, node, dataType);
+    }
+
+    private SqlDataTypeSpec createRawDataTypeSpec(RawRelDataType type) {
+        final RawType<?> rawType = type.getRawType();
+
+        SqlNode className =
+                SqlLiteral.createCharString(
+                        rawType.getOriginatingClass().getName(), SqlParserPos.ZERO);
+        SqlNode serializer =
+                SqlLiteral.createCharString(rawType.getSerializerString(), SqlParserPos.ZERO);
+
+        SqlTypeNameSpec rawSpec = new SqlRawTypeNameSpec(className, serializer, SqlParserPos.ZERO);
+
+        return new SqlDataTypeSpec(rawSpec, null, type.isNullable(), SqlParserPos.ZERO);
     }
 
     /** Adopted from {@link org.apache.calcite.sql.validate.implicit.AbstractTypeCoercion}. */
