@@ -22,7 +22,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.util.NoCommonJoinKeyException;
+import org.apache.flink.table.utils.NoCommonJoinKeyException;
 
 import javax.annotation.Nullable;
 

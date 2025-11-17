@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.plan.utils.IntervalJoinUtil;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.util.NoCommonJoinKeyException;
+import org.apache.flink.table.utils.NoCommonJoinKeyException;
 
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptUtil;
@@ -474,7 +474,7 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
                     new AttributeBasedJoinKeyExtractor(joinAttributeMap, combinedInputTypes);
             haveCommonJoinKey = keyExtractor.getCommonJoinKeyIndices(0).length > 0;
         } catch (NoCommonJoinKeyException ignored) {
-            // failed to instantiate common join key structures => haveCommonJoinKey is false
+            // failed to instantiate common join key structures => no common join key
         }
 
         return haveCommonJoinKey;

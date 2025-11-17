@@ -18,7 +18,29 @@ limitations under the License.
 <Root>
   <TestCase name="testAggregationAndGroupingWithMultiJoinNoCommonJoinKey">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, pc.category_name, COUNT(DISTINCT o.order_id) as order_count, SUM(oi.quantity) as total_items, SUM(oi.quantity * oi.unit_price) as total_value, AVG(oi.unit_price) as avg_item_price, MAX(p.price) as max_payment, MIN(p.price) as min_payment, COUNT(CASE WHEN oi.quantity > 5 THEN 1 END) as bulk_orders FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN OrderItems oi ON o.order_id = oi.order_id LEFT JOIN ProductCategories pc ON oi.product_name = pc.category_id LEFT JOIN Payments p ON u.user_id = p.user_id GROUP BY u.user_id, u.name, pc.category_name HAVING COUNT(DISTINCT o.order_id) > 0]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    pc.category_name,
+    COUNT(DISTINCT o.order_id) as order_count,
+    SUM(oi.quantity) as total_items,
+    SUM(oi.quantity * oi.unit_price) as total_value,
+    AVG(oi.unit_price) as avg_item_price,
+    MAX(p.price) as max_payment,
+    MIN(p.price) as min_payment,
+    COUNT(CASE WHEN oi.quantity > 5 THEN 1 END) as bulk_orders
+FROM Users u
+LEFT JOIN Orders o
+    ON u.user_id = o.user_id
+LEFT JOIN OrderItems oi
+    ON o.order_id = oi.order_id
+LEFT JOIN ProductCategories pc
+    ON oi.product_name = pc.category_id
+LEFT JOIN Payments p
+    ON u.user_id = p.user_id
+GROUP BY u.user_id, u.name, pc.category_name
+HAVING COUNT(DISTINCT o.order_id) > 0]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -74,7 +96,23 @@ Calc(select=[user_id, name, category_name, order_count, total_items, total_value
   </TestCase>
   <TestCase name="testAggregationAndGroupingWithMultiJoinV2">
     <Resource name="sql">
-      <![CDATA[SELECT   c.category_name,   COUNT(DISTINCT u.user_id) AS unique_users,   COUNT(s.sale_id) AS total_sales,   SUM(s.amount) AS total_revenue,   AVG(s.amount) AS avg_sale_amount,   MAX(s.amount) AS max_sale_amount FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN Categories c ON u.user_id = c.user_id AND o.product = c.category_id LEFT JOIN Sales s ON u.user_id = s.user_id GROUP BY c.category_name HAVING COUNT(s.sale_id) > 0]]>
+      <![CDATA[
+SELECT
+    c.category_name,
+    COUNT(DISTINCT u.user_id) AS unique_users,
+    COUNT(s.sale_id) AS total_sales,
+    SUM(s.amount) AS total_revenue,
+    AVG(s.amount) AS avg_sale_amount,
+    MAX(s.amount) AS max_sale_amount
+FROM Users u
+LEFT JOIN Orders o
+    ON u.user_id = o.user_id
+LEFT JOIN Categories c
+    ON u.user_id = c.user_id AND o.product = c.category_id
+LEFT JOIN Sales s
+    ON u.user_id = s.user_id
+GROUP BY c.category_name
+HAVING COUNT(s.sale_id) > 0]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -116,7 +154,31 @@ Calc(select=[category_name, unique_users, total_sales, total_revenue, avg_sale_a
   </TestCase>
   <TestCase name="testCTEWithMultiJoinV2">
     <Resource name="sql">
-      <![CDATA[WITH high_budget_depts AS (  SELECT dept_id, dept_name, budget   FROM Departments   WHERE budget > 600000), active_projects AS (  SELECT project_id, project_name, dept_id   FROM Projects   WHERE status = 'ACTIVE') SELECT   u.user_id,   u.name,   o.order_id,   hbd.dept_name,   ap.project_name,   hbd.budget FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN high_budget_depts hbd ON o.user_id = hbd.dept_id LEFT JOIN active_projects ap ON hbd.dept_id = ap.dept_id]]>
+      <![CDATA[
+WITH high_budget_depts AS (
+    SELECT dept_id, dept_name, budget
+    FROM Departments
+    WHERE budget > 600000
+),
+active_projects AS (
+    SELECT project_id, project_name, dept_id
+    FROM Projects
+    WHERE status = 'ACTIVE'
+)
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    hbd.dept_name,
+    ap.project_name,
+    hbd.budget
+FROM Users u
+LEFT JOIN Orders o
+    ON u.user_id = o.user_id
+LEFT JOIN high_budget_depts hbd
+    ON o.user_id = hbd.dept_id
+LEFT JOIN active_projects ap
+    ON hbd.dept_id = ap.dept_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -158,7 +220,35 @@ Calc(select=[user_id, name, order_id, dept_name, project_name, budget])
   </TestCase>
   <TestCase name="testComplexCTEWithMultiJoinNoCommonJoinKey">
     <Resource name="sql">
-      <![CDATA[WITH user_orders AS (  SELECT u.user_id, u.name, o.order_id, o.product, p.payment_id, p.price   FROM Users u   LEFT JOIN Orders o ON u.user_id = o.user_id   LEFT JOIN Payments p ON u.user_id = p.user_id), order_details AS (  SELECT uo.*, os.status_name, os.is_final, pm.method_name, pm.processing_fee   FROM user_orders uo   LEFT JOIN OrderStatus os ON uo.order_id = os.status_id   LEFT JOIN PaymentMethods pm ON uo.payment_id = pm.method_id), final_summary AS (  SELECT     user_id,     name,     COUNT(order_id) as total_orders,     SUM(price) as total_spent,     AVG(price) as avg_order_value,     COUNT(CASE WHEN is_final = true THEN 1 END) as completed_orders   FROM order_details   GROUP BY user_id, name) SELECT * FROM final_summary]]>
+      <![CDATA[
+WITH user_orders AS (
+    SELECT u.user_id, u.name, o.order_id, o.product, p.payment_id, p.price
+    FROM Users u
+    LEFT JOIN Orders o ON
+        u.user_id = o.user_id
+    LEFT JOIN Payments p
+        ON u.user_id = p.user_id
+),
+order_details AS (
+    SELECT uo.*, os.status_name, os.is_final, pm.method_name, pm.processing_fee
+    FROM user_orders uo
+    LEFT JOIN OrderStatus os
+        ON uo.order_id = os.status_id
+    LEFT JOIN PaymentMethods pm
+        ON uo.payment_id = pm.method_id
+),
+final_summary AS (
+    SELECT
+        user_id,
+        name,
+        COUNT(order_id) as total_orders,
+        SUM(price) as total_spent,
+        AVG(price) as avg_order_value,
+        COUNT(CASE WHEN is_final = true THEN 1 END) as completed_orders
+    FROM order_details
+    GROUP BY user_id, name
+)
+SELECT * FROM final_summary]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -211,22 +301,23 @@ GroupAggregate(groupBy=[user_id, name], select=[user_id, name, COUNT_RETRACT(ord
   </TestCase>
   <TestCase name="testComplexCommonJoinKey">
     <Resource name="sql">
-      <![CDATA[SELECT *
-    FROM Assignments assignments
-    LEFT JOIN Customers AS customer
-        ON assignments.user_id = customer.user_id
-        AND assignments.common_id = customer.common_id
-    LEFT JOIN Documents AS documents
-        ON assignments.detail_id = documents.detail_id
-        AND assignments.common_id = documents.common_id
-    LEFT JOIN PhaseDetails AS phase_details
-        ON documents.common_id = phase_details.common_id
-    LEFT JOIN Organizations AS organizations
-        ON customer.depart_num = organizations.org_id
-        AND customer.common_id = organizations.common_id
-    LEFT JOIN Customers AS creators
-        ON documents.creator_nm = creators.depart_num
-        AND documents.common_id = creators.common_id]]>
+      <![CDATA[
+SELECT *
+FROM Assignments assignments
+LEFT JOIN Customers AS customer
+    ON assignments.user_id = customer.user_id
+    AND assignments.common_id = customer.common_id
+LEFT JOIN Documents AS documents
+    ON assignments.detail_id = documents.detail_id
+    AND assignments.common_id = documents.common_id
+LEFT JOIN PhaseDetails AS phase_details
+    ON documents.common_id = phase_details.common_id
+LEFT JOIN Organizations AS organizations
+    ON customer.depart_num = organizations.org_id
+    AND customer.common_id = organizations.common_id
+LEFT JOIN Customers AS creators
+    ON documents.creator_nm = creators.depart_num
+    AND documents.common_id = creators.common_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -273,14 +364,14 @@ MultiJoin(commonJoinKey=[common_id], joinTypes=[LEFT, LEFT, LEFT, LEFT, LEFT], i
   </TestCase>
   <TestCase name="testComplexCommonJoinKeyMissingProjectionNoCommonJoinKey">
     <Resource name="sql">
-      <![CDATA[SELECT *
-    FROM Assignments assignments
-    LEFT JOIN Documents AS documents
-        ON assignments.detail_id = documents.detail_id
-        AND assignments.common_id = documents.common_id
-    LEFT JOIN Documents AS other_documents
-        ON assignments.user_id = other_documents.common_id
-]]>
+      <![CDATA[
+SELECT *
+FROM Assignments assignments
+LEFT JOIN Documents AS documents
+    ON assignments.detail_id = documents.detail_id
+    AND assignments.common_id = documents.common_id
+LEFT JOIN Documents AS other_documents
+    ON assignments.user_id = other_documents.common_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -314,7 +405,37 @@ MultiJoin(commonJoinKey=[user_id], joinTypes=[LEFT], inputUniqueKeys=[noUniqueKe
   </TestCase>
   <TestCase name="testComplexConditionalLogicWithMultiJoinNoCommonJoinKey">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, o.order_id, p.payment_id, pc.category_name, CASE   WHEN pc.is_premium = true AND p.price > 1000 THEN 'High-Value Premium'   WHEN pc.is_premium = true THEN 'Premium'   WHEN p.price > 500 THEN 'Standard High-Value'   ELSE 'Standard' END AS product_tier, CASE   WHEN pr.rating >= 4 AND pr.is_verified = true THEN 'Highly Recommended'   WHEN pr.rating >= 3 THEN 'Recommended'   WHEN pr.rating >= 2 THEN 'Average'   ELSE 'Not Recommended' END AS recommendation_status, CASE   WHEN pc.discount_rate > 0.2 THEN p.price * (1 - pc.discount_rate)   ELSE p.price END AS final_price FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN Payments p ON u.user_id = p.user_id LEFT JOIN ProductCategories pc ON o.product = pc.category_id LEFT JOIN ProductReviews pr ON o.product = pr.product_id]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    o.order_id,
+    p.payment_id,
+    pc.category_name,
+    CASE
+        WHEN pc.is_premium = true AND p.price > 1000 THEN 'High-Value Premium'
+        WHEN pc.is_premium = true THEN 'Premium'
+        WHEN p.price > 500 THEN 'Standard High-Value'
+        ELSE 'Standard'
+    END AS product_tier,
+    CASE
+        WHEN pr.rating >= 4 AND pr.is_verified = true THEN 'Highly Recommended'
+        WHEN pr.rating >= 3 THEN 'Recommended'
+        WHEN pr.rating >= 2 THEN 'Average'
+        ELSE 'Not Recommended'
+    END AS recommendation_status,
+    CASE
+        WHEN pc.discount_rate > 0.2 THEN p.price * (1 - pc.discount_rate)
+        ELSE p.price
+    END AS final_price
+FROM Users u
+LEFT JOIN Orders o
+    ON u.user_id = o.user_id
+LEFT JOIN Payments p
+    ON u.user_id = p.user_id
+LEFT JOIN ProductCategories pc
+    ON o.product = pc.category_id
+LEFT JOIN ProductReviews pr
+    ON o.product = pr.product_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -359,7 +480,56 @@ Calc(select=[user_id, order_id, payment_id, category_name, CASE(AND(is_premium, 
   </TestCase>
   <TestCase name="testComplexNestedCTEWithAggregationAndFunctionsMultiJoinChainExpected">
     <Resource name="sql">
-      <![CDATA[WITH base_orders AS (  SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price   FROM Users u   INNER JOIN Orders o ON u.user_id = o.user_id   INNER JOIN Payments p ON u.user_id = p.user_id), enriched_orders AS (  SELECT     bo.*,     om.metric_type,     om.metric_value,     CASE       WHEN bo.price > 1000 THEN 'Premium'       WHEN bo.price > 500 THEN 'Standard'       ELSE 'Basic'     END as order_tier   FROM base_orders bo   LEFT JOIN OrderMetrics om ON bo.order_id = om.order_id), aggregated_metrics AS (  SELECT     user_id,     name,     COUNT(DISTINCT order_id) as total_orders,     SUM(price) as total_spent,     AVG(price) as avg_order_value,     MAX(metric_value) as max_metric,     MIN(metric_value) as min_metric,     COUNT(CASE WHEN order_tier = 'Premium' THEN 1 END) as premium_orders   FROM enriched_orders   GROUP BY user_id, name) SELECT   user_id,   UPPER(name) as user_name,   total_orders,   ROUND(total_spent, 2) as total_spent_rounded,   ROUND(avg_order_value, 2) as avg_order_value_rounded,   CONCAT('User: ', name, ' has ', CAST(total_orders AS STRING), ' orders') as summary,   CASE     WHEN total_orders > 10 THEN 'Frequent Customer'     WHEN total_orders > 5 THEN 'Regular Customer'     ELSE 'Occasional Customer'   END as customer_type FROM aggregated_metrics WHERE total_spent > 0]]>
+      <![CDATA[
+WITH base_orders AS (
+    SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price
+    FROM Users u
+    INNER JOIN Orders o
+        ON u.user_id = o.user_id
+    INNER JOIN Payments p
+        ON u.user_id = p.user_id
+),
+enriched_orders AS (
+    SELECT
+        bo.*,
+        om.metric_type,
+        om.metric_value,
+        CASE
+            WHEN bo.price > 1000 THEN 'Premium'
+            WHEN bo.price > 500 THEN 'Standard'
+            ELSE 'Basic'
+        END as order_tier
+    FROM base_orders bo
+    LEFT JOIN OrderMetrics om
+        ON bo.order_id = om.order_id
+),
+aggregated_metrics AS (
+    SELECT
+        user_id,
+        name,
+        COUNT(DISTINCT order_id) as total_orders,
+        SUM(price) as total_spent,
+        AVG(price) as avg_order_value,
+        MAX(metric_value) as max_metric,
+        MIN(metric_value) as min_metric,
+        COUNT(CASE WHEN order_tier = 'Premium' THEN 1 END) as premium_orders
+    FROM enriched_orders
+    GROUP BY user_id, name
+)
+SELECT
+    user_id,
+    UPPER(name) as user_name,
+    total_orders,
+    ROUND(total_spent, 2) as total_spent_rounded,
+    ROUND(avg_order_value, 2) as avg_order_value_rounded,
+    CONCAT('User: ', name, ' has ', CAST(total_orders AS STRING), ' orders') as summary,
+    CASE
+        WHEN total_orders > 10 THEN 'Frequent Customer'
+        WHEN total_orders > 5 THEN 'Regular Customer'
+        ELSE 'Occasional Customer'
+    END as customer_type
+FROM aggregated_metrics
+WHERE total_spent > 0]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -405,7 +575,8 @@ Calc(select=[user_id, UPPER(name) AS user_name, total_orders, ROUND(total_spent,
   </TestCase>
   <TestCase name="testCrossJoinUnnestWithMultiJoinInsert">
     <Resource name="sql">
-      <![CDATA[INSERT INTO UnnestSink
+      <![CDATA[
+INSERT INTO UnnestSink
 (
     detail_id,
     element_data,
@@ -468,7 +639,21 @@ Sink(table=[default_catalog.default_database.UnnestSink], targetColumns=[[0],[1]
   </TestCase>
   <TestCase name="testFourWayComplexJoinExecPlan">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id INNER JOIN Payments p ON u.user_id = p.user_id AND (u.cash >= p.price OR p.price < 0) LEFT JOIN Shipments s ON p.user_id = s.user_id]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id,
+    s.location
+FROM Users u
+LEFT JOIN Orders o
+    ON u.user_id = o.user_id
+INNER JOIN Payments p
+    ON u.user_id = p.user_id
+    AND (u.cash >= p.price OR p.price < 0)
+LEFT JOIN Shipments s
+    ON p.user_id = s.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -543,7 +728,21 @@ Calc(select=[user_id, name, order_id, payment_id, location])
   </TestCase>
   <TestCase name="testFourWayComplexJoinRelPlan">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id INNER JOIN Payments p ON u.user_id = p.user_id AND (u.cash >= p.price OR p.price < 0) LEFT JOIN Shipments s ON p.user_id = s.user_id]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id,
+    s.location
+FROM Users u
+LEFT JOIN Orders o
+    ON u.user_id = o.user_id
+INNER JOIN Payments p
+    ON u.user_id = p.user_id
+    AND (u.cash >= p.price OR p.price < 0)
+LEFT JOIN Shipments s
+    ON p.user_id = s.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -576,7 +775,22 @@ Calc(select=[user_id, name, order_id, payment_id, location])
   </TestCase>
   <TestCase name="testFourWayJoinRelPlanNoCommonJoinKey">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN LookupTable ON u.name = LookupTable.name LEFT JOIN Payments p ON u.user_id = p.user_id LEFT JOIN Shipments s ON o.user_id = s.user_id]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id,
+    s.location
+FROM Users u
+LEFT JOIN Orders o
+    ON u.user_id = o.user_id
+LEFT JOIN LookupTable
+    ON u.name = LookupTable.name
+LEFT JOIN Payments p
+    ON u.user_id = p.user_id
+LEFT JOIN Shipments s
+    ON o.user_id = s.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -621,7 +835,20 @@ Calc(select=[user_id, name, order_id, payment_id, location])
   </TestCase>
   <TestCase name="testFourWayJoinTransitiveCommonJoinKeyRelPlan">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN Payments p ON o.user_id = p.user_id LEFT JOIN Shipments s ON p.user_id = s.user_id]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id,
+    s.location
+FROM Users u
+LEFT JOIN Orders o
+    ON u.user_id = o.user_id
+LEFT JOIN Payments p
+    ON o.user_id = p.user_id
+LEFT JOIN Shipments s
+    ON p.user_id = s.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -654,7 +881,22 @@ Calc(select=[user_id, name, order_id, payment_id, location])
   </TestCase>
   <TestCase name="testFourWayJoinWithFunctionInConditionMultiJoinChainExpected">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON o.user_id = u.user_id LEFT JOIN Payments p ON u.user_id = p.user_id      AND UPPER(u.name) = UPPER(p.payment_id)      AND (FLOOR(u.cash) >= FLOOR(p.price) OR p.price < 0) LEFT JOIN Shipments s ON p.payment_id = s.location ]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id,
+    s.location
+FROM Users u
+LEFT JOIN Orders o
+    ON o.user_id = u.user_id
+LEFT JOIN Payments p
+    ON u.user_id = p.user_id
+    AND UPPER(u.name) = UPPER(p.payment_id)
+    AND (FLOOR(u.cash) >= FLOOR(p.price) OR p.price < 0)
+LEFT JOIN Shipments s
+    ON p.payment_id = s.location]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -696,7 +938,17 @@ MultiJoin(commonJoinKey=[payment_id], joinTypes=[LEFT], inputUniqueKeys=[noUniqu
   </TestCase>
   <TestCase name="testFullOuterNotSupported">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id FROM Users u FULL OUTER JOIN Orders o ON u.user_id = o.user_id FULL OUTER JOIN Payments p ON o.user_id = p.user_id]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id
+FROM Users u
+FULL OUTER JOIN Orders o
+    ON u.user_id = o.user_id
+FULL OUTER JOIN Payments p
+    ON o.user_id = p.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -727,7 +979,37 @@ Calc(select=[user_id, name, order_id, payment_id])
   </TestCase>
   <TestCase name="testFunctionAndExpressionWithMultiJoinNoCommonJoinKey">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, UPPER(u.name) as user_name_upper, LOWER(o.product) as product_lower, CONCAT(u.name, ' - ', o.product) as user_product, SUBSTRING(pd.description, 1, 50) as description_preview, CHAR_LENGTH(pd.description) as description_length, FLOOR(p.price / 100.0) * 100 as price_rounded, CASE   WHEN p.price > 1000 THEN 'High'   WHEN p.price > 500 THEN 'Medium'   ELSE 'Low' END as price_tier, REGEXP_REPLACE(pd.tags, ',', ' | ') as formatted_tags, TO_TIMESTAMP_LTZ(pd.created_date, 3) as product_created, COALESCE(up.preferred_category, 'None') as user_preference, CASE   WHEN up.notification_level = 'HIGH' THEN 'Frequent Updates'   WHEN up.notification_level = 'MEDIUM' THEN 'Daily Updates'   ELSE 'Weekly Updates' END as notification_frequency FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN Payments p ON u.user_id = p.user_id LEFT JOIN ProductDetails pd ON o.product = pd.product_id LEFT JOIN UserPreferences up ON u.user_id = up.user_id]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    UPPER(u.name) as user_name_upper,
+    LOWER(o.product) as product_lower,
+    CONCAT(u.name, ' - ', o.product) as user_product,
+    SUBSTRING(pd.description, 1, 50) as description_preview,
+    CHAR_LENGTH(pd.description) as description_length,
+    FLOOR(p.price / 100.0) * 100 as price_rounded,
+    CASE
+        WHEN p.price > 1000 THEN 'High'
+        WHEN p.price > 500 THEN 'Medium'
+        ELSE 'Low'
+    END as price_tier,
+    REGEXP_REPLACE(pd.tags, ',', ' | ') as formatted_tags,
+    TO_TIMESTAMP_LTZ(pd.created_date, 3) as product_created,
+    COALESCE(up.preferred_category, 'None') as user_preference,
+    CASE
+        WHEN up.notification_level = 'HIGH' THEN 'Frequent Updates'
+        WHEN up.notification_level = 'MEDIUM' THEN 'Daily Updates'
+        ELSE 'Weekly Updates'
+    END as notification_frequency
+FROM Users u
+LEFT JOIN Orders o
+    ON u.user_id = o.user_id
+LEFT JOIN Payments p
+    ON u.user_id = p.user_id
+LEFT JOIN ProductDetails pd
+    ON o.product = pd.product_id
+LEFT JOIN UserPreferences up
+    ON u.user_id = up.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -774,7 +1056,30 @@ Calc(select=[user_id, UPPER(name) AS user_name_upper, LOWER(product) AS product_
   </TestCase>
   <TestCase name="testFunctionAndExpressionWithMultiJoinNoCommonJoinKeyV2">
     <Resource name="sql">
-      <![CDATA[SELECT   u.user_id,   u.name,   o.order_id,   pd.product_name,   pd.price,   ROUND(pd.price * 1.1, 2) AS price_with_tax,   CONCAT('Product: ', pd.product_name) AS product_description,   CHAR_LENGTH(r.review_text) AS review_length,   UPPER(SUBSTRING(r.review_text, 1, 10)) AS review_preview,   CASE     WHEN r.rating >= 4 THEN 'High Rating'     WHEN r.rating >= 3 THEN 'Medium Rating'     ELSE 'Low Rating'   END AS rating_category,   TIMESTAMPDIFF(DAY, pd.created_date, CURRENT_DATE) AS days_since_created FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN ProductDetails pd ON o.product = pd.product_id LEFT JOIN Reviews r ON pd.product_id = r.product_id]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    pd.product_name,
+    pd.price,
+    ROUND(pd.price * 1.1, 2) AS price_with_tax,
+    CONCAT('Product: ', pd.product_name) AS product_description,
+    CHAR_LENGTH(r.review_text) AS review_length,
+    UPPER(SUBSTRING(r.review_text, 1, 10)) AS review_preview,
+    CASE
+        WHEN r.rating >= 4 THEN 'High Rating'
+        WHEN r.rating >= 3 THEN 'Medium Rating'
+        ELSE 'Low Rating'
+    END AS rating_category,
+    TIMESTAMPDIFF(DAY, pd.created_date, CURRENT_DATE) AS days_since_created
+FROM Users u
+LEFT JOIN Orders o
+    ON u.user_id = o.user_id
+LEFT JOIN ProductDetails pd
+    ON o.product = pd.product_id
+LEFT JOIN Reviews r
+    ON pd.product_id = r.product_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -815,7 +1120,16 @@ Calc(select=[user_id, name, order_id, product_name, price, ROUND(*(price, 1.1), 
   </TestCase>
   <TestCase name="testIntervalJoinExcludedFromMultiJoin">
     <Resource name="sql">
-      <![CDATA[SELECT e1.id, e1.val, e2.price FROM EventTable1 e1 JOIN EventTable2 e2 ON e1.id = e2.id AND e1.`$rowtime` BETWEEN e2.`$rowtime` - INTERVAL '1' MINUTE AND e2.`$rowtime` + INTERVAL '1' MINUTE]]>
+      <![CDATA[
+SELECT
+    e1.id,
+    e1.val,
+    e2.price
+FROM EventTable1 e1
+JOIN EventTable2 e2
+    ON e1.id = e2.id
+    AND e1.`$rowtime` BETWEEN e2.`$rowtime` - INTERVAL '1' MINUTE
+    AND e2.`$rowtime` + INTERVAL '1' MINUTE]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -842,7 +1156,23 @@ Calc(select=[id, val, price])
   </TestCase>
   <TestCase name="testJoinConditionHasNestedFieldsMultiJoinChainExpected">
     <Resource name="sql">
-      <![CDATA[SELECT   d.developer_id,   d.person.info.name AS developer_name,   s.ticket_id,   s.reporter.info.priority AS ticket_priority,   f.feedback_id,   f.author.info.rating AS feedback_rating,   sub.sub_id,   sub.subscriber.info.plan AS subscription_plan FROM Developers AS d LEFT JOIN SupportTickets AS s   ON d.person.info.id = s.reporter.info.id LEFT JOIN Feedback AS f   ON d.person.info.id = f.author.info.id LEFT JOIN Subscriptions AS sub   ON d.person.info.id = sub.subscriber.info.id]]>
+      <![CDATA[
+SELECT
+    d.developer_id,
+    d.person.info.name AS developer_name,
+    s.ticket_id,
+    s.reporter.info.priority AS ticket_priority,
+    f.feedback_id,
+    f.author.info.rating AS feedback_rating,
+    sub.sub_id,
+    sub.subscriber.info.plan AS subscription_plan
+FROM Developers AS d
+LEFT JOIN SupportTickets AS s
+    ON d.person.info.id = s.reporter.info.id
+LEFT JOIN Feedback AS f
+    ON d.person.info.id = f.author.info.id
+LEFT JOIN Subscriptions AS sub
+    ON d.person.info.id = sub.subscriber.info.id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -900,7 +1230,15 @@ Calc(select=[developer_id, person.info.name AS developer_name, ticket_id, report
   </TestCase>
   <TestCase name="testJoinOfProjections">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, o.order_id, o.product, p.price, s.location FROM (SELECT user_id, name, cash FROM Users WHERE cash > 100) AS u JOIN (SELECT user_id, order_id, product FROM Orders WHERE product IS NOT NULL) AS o   ON u.user_id = o.user_id LEFT JOIN (SELECT user_id, price FROM Payments WHERE price > 50) AS p   ON u.user_id = p.user_id LEFT JOIN (SELECT user_id, location FROM Shipments WHERE location IS NOT NULL) AS s   ON u.user_id = s.user_id]]>
+      <![CDATA[
+SELECT u.user_id, o.order_id, o.product, p.price, s.location
+FROM (SELECT user_id, name, cash FROM Users WHERE cash > 100) AS u
+JOIN (SELECT user_id, order_id, product FROM Orders WHERE product IS NOT NULL) AS o
+    ON u.user_id = o.user_id
+LEFT JOIN (SELECT user_id, price FROM Payments WHERE price > 50) AS p
+    ON u.user_id = p.user_id
+LEFT JOIN (SELECT user_id, location FROM Shipments WHERE location IS NOT NULL) AS s
+    ON u.user_id = s.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -945,7 +1283,20 @@ Calc(select=[user_id, order_id, product, price, location])
   </TestCase>
   <TestCase name="testJoinWithNestedSubqueryMultiJoinChainExpected">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM Users u JOIN (    SELECT o.user_id, o.order_id, p.payment_id, p.price     FROM Orders o     JOIN (        SELECT payment_id, user_id, price         FROM Payments         WHERE price > 100    ) AS p     ON o.user_id = p.user_id) AS op ON u.user_id = op.user_id]]>
+      <![CDATA[
+SELECT *
+FROM Users u
+JOIN (
+    SELECT o.user_id, o.order_id, p.payment_id, p.price
+    FROM Orders o
+    JOIN (
+        SELECT payment_id, user_id, price
+        FROM Payments
+        WHERE price > 100
+    ) AS p
+    ON o.user_id = p.user_id
+) AS op
+ON u.user_id = op.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1013,7 +1364,26 @@ Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), _UTF-16LE'yyMMdd') AS day], cha
   </TestCase>
   <TestCase name="testPreservesUpsertKeyFourWayComplex">
     <Resource name="sql">
-      <![CDATA[INSERT INTO sink_four_way SELECT    u.user_id,    o.order_id,    o.user_id,    p.payment_id,    p.user_id,    u.name,    a.location FROM UsersPK u JOIN OrdersPK o  ON  u.user_id = o.user_id AND o.product IS NOT NULL JOIN PaymentsPK p  ON  u.user_id = p.user_id AND p.price >= 0 JOIN AddressPK a  ON  u.user_id = a.user_id AND a.location IS NOT NULL]]>
+      <![CDATA[
+INSERT INTO sink_four_way
+SELECT
+    u.user_id,
+    o.order_id,
+    o.user_id,
+    p.payment_id,
+    p.user_id,
+    u.name,
+    a.location
+FROM UsersPK u
+JOIN OrdersPK o
+    ON u.user_id = o.user_id
+    AND o.product IS NOT NULL
+JOIN PaymentsPK p
+    ON u.user_id = p.user_id
+    AND p.price >= 0
+JOIN AddressPK a
+    ON u.user_id = a.user_id
+    AND a.location IS NOT NULL]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1054,7 +1424,20 @@ Sink(table=[default_catalog.default_database.sink_four_way], fields=[user_id, or
   </TestCase>
   <TestCase name="testPreservesUpsertKeyThreeWayJoin">
     <Resource name="sql">
-      <![CDATA[INSERT INTO sink_three_way SELECT    o.user_id,    o.order_id,    p.user_id,    p.payment_id,    u.user_id,    u.description FROM UsersPK u JOIN OrdersPK o  ON  o.user_id = u.user_id JOIN PaymentsPK p  ON  o.user_id = p.user_id]]>
+      <![CDATA[
+INSERT INTO sink_three_way
+SELECT
+    o.user_id,
+    o.order_id,
+    p.user_id,
+    p.payment_id,
+    u.user_id,
+    u.description
+FROM UsersPK u
+JOIN OrdersPK o
+    ON o.user_id = u.user_id
+JOIN PaymentsPK p
+    ON o.user_id = p.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1083,7 +1466,16 @@ Sink(table=[default_catalog.default_database.sink_three_way], fields=[user_id, o
   </TestCase>
   <TestCase name="testPreservesUpsertKeyTwoWayInnerJoinOrders">
     <Resource name="sql">
-      <![CDATA[INSERT INTO sink_two_way SELECT    o.user_id,    o.order_id,    o.product,    u.region_id FROM UsersPK u INNER JOIN OrdersPK o   ON  u.user_id = o.user_id]]>
+      <![CDATA[
+INSERT INTO sink_two_way
+SELECT
+    o.user_id,
+    o.order_id,
+    o.product,
+    u.region_id
+FROM UsersPK u
+INNER JOIN OrdersPK o
+    ON u.user_id = o.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1108,7 +1500,16 @@ Sink(table=[default_catalog.default_database.sink_two_way], fields=[user_id, ord
   </TestCase>
   <TestCase name="testPreservesUpsertKeyTwoWayInnerJoinOrdersDoesNot">
     <Resource name="sql">
-      <![CDATA[INSERT INTO sink_two_way SELECT    o.user_id,    o.order_id,    o.product,    u.region_id FROM UsersPK u INNER JOIN OrdersSimplePK o   ON  u.user_id = o.user_id]]>
+      <![CDATA[
+INSERT INTO sink_two_way
+SELECT
+    o.user_id,
+    o.order_id,
+    o.product,
+    u.region_id
+FROM UsersPK u
+INNER JOIN OrdersSimplePK o
+    ON u.user_id = o.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1137,7 +1538,16 @@ Sink(table=[default_catalog.default_database.sink_two_way], fields=[user_id, ord
   </TestCase>
   <TestCase name="testPreservesUpsertKeyTwoWayLeftJoinOrders">
     <Resource name="sql">
-      <![CDATA[INSERT INTO sink_two_way SELECT    o.user_id,    o.order_id,    o.product,    u.region_id FROM OrdersPK o LEFT JOIN UsersPK u  ON  u.user_id = o.user_id]]>
+      <![CDATA[
+INSERT INTO sink_two_way
+SELECT
+    o.user_id,
+    o.order_id,
+    o.product,
+    u.region_id
+FROM OrdersPK o
+LEFT JOIN UsersPK u
+    ON u.user_id = o.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1162,7 +1572,20 @@ Sink(table=[default_catalog.default_database.sink_two_way], fields=[user_id, ord
   </TestCase>
   <TestCase name="testRegularJoinsAreMergedApartFromTemporalJoin">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, temporal.age FROM Users u INNER JOIN Orders o ON u.user_id = o.user_id INNER JOIN (  SELECT s.user_id, l.age   FROM StreamTable s   JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l   ON s.user_id = l.id) temporal ON u.user_id = temporal.user_id]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    temporal.age FROM Users u
+INNER JOIN Orders o
+    ON u.user_id = o.user_id
+INNER JOIN (
+    SELECT s.user_id, l.age
+    FROM StreamTable s
+    JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l
+        ON s.user_id = l.id
+) temporal ON u.user_id = temporal.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1197,7 +1620,17 @@ Calc(select=[user_id, name, order_id, age])
   </TestCase>
   <TestCase name="testRightJoinNotSupported">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id FROM Users u RIGHT JOIN Orders o ON u.user_id = o.user_id RIGHT JOIN Payments p ON o.user_id = p.user_id]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id
+FROM Users u
+RIGHT JOIN Orders o
+    ON u.user_id = o.user_id
+RIGHT JOIN Payments p
+    ON o.user_id = p.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1228,7 +1661,15 @@ Calc(select=[user_id, name, order_id, payment_id])
   </TestCase>
   <TestCase name="testSameTableMultipleAliases">
     <Resource name="sql">
-      <![CDATA[SELECT * FROM Users u LEFT JOIN Users u1 ON u.user_id = u1.user_id LEFT JOIN Users u2 ON u1.user_id = u2.user_id LEFT JOIN Users u3 ON u2.user_id = u3.user_id]]>
+      <![CDATA[
+SELECT *
+FROM Users u
+LEFT JOIN Users u1
+    ON u.user_id = u1.user_id
+LEFT JOIN Users u2
+    ON u1.user_id = u2.user_id
+LEFT JOIN Users u3
+    ON u2.user_id = u3.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1258,7 +1699,15 @@ MultiJoin(commonJoinKey=[user_id], joinTypes=[LEFT, LEFT, LEFT], inputUniqueKeys
   </TestCase>
   <TestCase name="testTemporalJoinExcludedFromMultiJoin">
     <Resource name="sql">
-      <![CDATA[SELECT s.user_id, s.amount, l.name, l.age FROM StreamTable s JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l ON s.user_id = l.id]]>
+      <![CDATA[
+SELECT
+    s.user_id,
+    s.amount,
+    l.name,
+    l.age
+FROM StreamTable s
+JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l
+    ON s.user_id = l.id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1281,7 +1730,17 @@ Calc(select=[user_id, amount, name, age])
   </TestCase>
   <TestCase name="testThreeWayInnerJoinExecPlan">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id = o.user_id INNER JOIN Payments p ON u.user_id = p.user_id]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id
+FROM Users u
+INNER JOIN Orders o
+    ON u.user_id = o.user_id
+INNER JOIN Payments p
+    ON u.user_id = p.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1340,7 +1799,17 @@ Calc(select=[user_id, name, order_id, payment_id])
   </TestCase>
   <TestCase name="testThreeWayInnerJoinRelPlan">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id = o.user_id INNER JOIN Payments p ON u.user_id = p.user_id]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id
+FROM Users u
+INNER JOIN Orders o
+    ON u.user_id = o.user_id
+INNER JOIN Payments p
+    ON u.user_id = p.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1367,7 +1836,17 @@ Calc(select=[user_id, name, order_id, payment_id])
   </TestCase>
   <TestCase name="testThreeWayInnerJoinRelPlanNoCommonJoinKey">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id = o.user_id INNER JOIN Payments p ON u.cash = p.price]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id
+FROM Users u
+INNER JOIN Orders o
+    ON u.user_id = o.user_id
+INNER JOIN Payments p
+    ON u.cash = p.price]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1399,7 +1878,18 @@ Calc(select=[user_id, name, order_id, payment_id])
   </TestCase>
   <TestCase name="testThreeWayInnerJoinWithSingleTttlHint">
     <Resource name="sql">
-      <![CDATA[SELECT /*+ STaTE_tTL(o='2d') */u.user_id, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id = o.user_id INNER JOIN Payments p ON u.user_id = p.user_id]]>
+      <![CDATA[
+SELECT
+    /*+ STaTE_tTL(o='2d') */
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id
+FROM Users u
+INNER JOIN Orders o
+    ON u.user_id = o.user_id
+INNER JOIN Payments p
+    ON u.user_id = p.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1426,7 +1916,18 @@ Calc(select=[user_id, name, order_id, payment_id])
   </TestCase>
   <TestCase name="testThreeWayInnerJoinWithTttlHints">
     <Resource name="sql">
-      <![CDATA[SELECT /*+ STATE_TTL(u='1d', o='2d', p='1h') */u.user_id, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id = o.user_id INNER JOIN Payments p ON u.user_id = p.user_id]]>
+      <![CDATA[
+SELECT
+    /*+ STATE_TTL(u='1d', o='2d', p='1h') */
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id
+FROM Users u
+INNER JOIN Orders o
+    ON u.user_id = o.user_id
+INNER JOIN Payments p
+    ON u.user_id = p.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1453,7 +1954,15 @@ Calc(select=[user_id, name, order_id, payment_id])
   </TestCase>
   <TestCase name="testThreeWayJoinExecPlanNoCommonJoinKey">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON TRUE INNER JOIN Payments p ON TRUE ]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id
+FROM Users u
+LEFT JOIN Orders o ON TRUE
+INNER JOIN Payments p ON TRUE]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1483,7 +1992,17 @@ MultiJoin(commonJoinKey=[noCommonJoinKey], joinTypes=[INNER], inputUniqueKeys=[n
   </TestCase>
   <TestCase name="testThreeWayJoinWithTimeAttributesMaterialization">
     <Resource name="sql">
-      <![CDATA[SELECT u.name, u.proctime, o.`$rowtime`, p.price FROM UsersWithProctime u JOIN OrdersWithRowtime o ON u.user_id = o.user_id JOIN Payments p ON u.user_id = p.user_id]]>
+      <![CDATA[
+SELECT
+    u.name,
+    u.proctime,
+    o.`$rowtime`,
+    p.price
+FROM UsersWithProctime u
+JOIN OrdersWithRowtime o
+    ON u.user_id = o.user_id
+JOIN Payments p
+    ON u.user_id = p.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1515,7 +2034,17 @@ Calc(select=[name, proctime, $rowtime, price])
   </TestCase>
   <TestCase name="testThreeWayLeftOuterJoinExecPlan">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN Payments p ON u.user_id = p.user_id]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id
+FROM Users u
+LEFT JOIN Orders o
+    ON u.user_id = o.user_id
+LEFT JOIN Payments p
+    ON u.user_id = p.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1574,7 +2103,17 @@ Calc(select=[user_id, name, order_id, payment_id])
   </TestCase>
   <TestCase name="testThreeWayLeftOuterJoinRelPlan">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN Payments p ON u.user_id = p.user_id]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id
+FROM Users u
+LEFT JOIN Orders o
+    ON u.user_id = o.user_id
+LEFT JOIN Payments p
+    ON u.user_id = p.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1601,7 +2140,18 @@ Calc(select=[user_id, name, order_id, payment_id])
   </TestCase>
   <TestCase name="testThreeWayLeftOuterJoinWithWhereClauseExecPlan">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN Payments p ON u.user_id = p.user_id WHERE u.name = 'Gus' AND p.price > 10]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id
+FROM Users u
+LEFT JOIN Orders o
+    ON u.user_id = o.user_id
+LEFT JOIN Payments p
+    ON u.user_id = p.user_id
+WHERE u.name = 'Gus' AND p.price > 10]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1674,7 +2224,18 @@ Calc(select=[user_id, CAST('Gus' AS VARCHAR(2147483647)) AS name, order_id, CAST
   </TestCase>
   <TestCase name="testThreeWayLeftOuterJoinWithWhereClauseRelPlan">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id FROM Users u LEFT JOIN Orders o ON u.user_id = o.user_id LEFT JOIN Payments p ON u.user_id = p.user_id WHERE u.name = 'Gus' AND p.price > 10]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id
+FROM Users u
+LEFT JOIN Orders o
+    ON u.user_id = o.user_id
+LEFT JOIN Payments p
+    ON u.user_id = p.user_id
+WHERE u.name = 'Gus' AND p.price > 10]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1706,7 +2267,26 @@ Calc(select=[user_id, CAST('Gus' AS VARCHAR(2147483647)) AS name, order_id, CAST
   </TestCase>
   <TestCase name="testTwoWayJoinWithRank">
     <Resource name="sql">
-      <![CDATA[WITH JoinedEvents as (SELECT e1.id as id, e1.val, e1.`$rowtime` as `$rowtime`, e2.price FROM EventTable1 e1 JOIN EventTable2 e2 ON e1.id = e2.id) SELECT id, val, `$rowtime` FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY `$rowtime` DESC) as ts FROM JoinedEvents) WHERE ts = 1]]>
+      <![CDATA[
+WITH JoinedEvents as (
+SELECT
+    e1.id as id,
+    e1.val,
+    e1.`$rowtime` as `$rowtime`,
+    e2.price
+FROM EventTable1 e1
+JOIN EventTable2 e2
+    ON e1.id = e2.id)
+SELECT
+    id,
+    val,
+    `$rowtime`
+FROM (
+    SELECT
+        *,
+        ROW_NUMBER() OVER (PARTITION BY id ORDER BY `$rowtime` DESC) as ts
+    FROM JoinedEvents)
+WHERE ts = 1]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1740,7 +2320,15 @@ Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=
   </TestCase>
   <TestCase name="testTwoWayJoinWithUnion">
     <Resource name="sql">
-      <![CDATA[WITH OrdersUnion as (SELECT * FROM Orders UNION ALL SELECT * FROM Orders2) SELECT * FROM OrdersUnion o LEFT JOIN Users u ON o.user_id = u.user_id]]>
+      <![CDATA[
+WITH OrdersUnion as (
+SELECT * FROM Orders
+UNION ALL
+SELECT * FROM Orders2
+)
+SELECT * FROM OrdersUnion o
+LEFT JOIN Users u
+    ON o.user_id = u.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1768,7 +2356,20 @@ MultiJoin(commonJoinKey=[user_id], joinTypes=[LEFT], inputUniqueKeys=[noUniqueKe
   </TestCase>
   <TestCase name="testWithCastCommonJoinKeyToIntegerMultiJoinChainExpected">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON o.user_id = u.user_id LEFT JOIN Payments p ON CAST(u.user_id as INTEGER) = CAST(p.user_id as INTEGER)LEFT JOIN Shipments s ON u.user_id = s.user_id]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id,
+    s.location
+FROM Users u
+LEFT JOIN Orders o
+    ON o.user_id = u.user_id
+LEFT JOIN Payments p
+    ON CAST(u.user_id as INTEGER) = CAST(p.user_id as INTEGER)
+LEFT JOIN Shipments s
+    ON u.user_id = s.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1811,7 +2412,20 @@ Calc(select=[user_id, name, order_id, payment_id, location])
   </TestCase>
   <TestCase name="testWithCastCommonJoinKeyToVarchar">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON o.user_id = u.user_id LEFT JOIN Payments p ON CAST(u.user_id as VARCHAR) = CAST(p.user_id as VARCHAR)LEFT JOIN Shipments s ON u.user_id = s.user_id]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id,
+    s.location
+FROM Users u
+LEFT JOIN Orders o
+    ON o.user_id = u.user_id
+LEFT JOIN Payments p
+    ON CAST(u.user_id as VARCHAR) = CAST(p.user_id as VARCHAR)
+LEFT JOIN Shipments s
+    ON u.user_id = s.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1844,7 +2458,18 @@ Calc(select=[user_id, name, order_id, payment_id, location])
   </TestCase>
   <TestCase name="testWithExpressionInJoinConditionMultiJoinChainExpected">
     <Resource name="sql">
-      <![CDATA[SELECT   p.product_id,   (p.price - p.discount) AS net_price,   s.quantity,   pr.promo_text FROM Products AS p LEFT JOIN Sales AS s   ON (p.price - p.discount) = s.product_key LEFT JOIN Promotions AS pr   ON (p.price - p.discount) = pr.product_key WHERE (p.price - p.discount) > 100]]>
+      <![CDATA[
+SELECT
+    p.product_id,
+    (p.price - p.discount) AS net_price,
+    s.quantity,
+    pr.promo_text
+FROM Products AS p
+LEFT JOIN Sales AS s
+    ON (p.price - p.discount) = s.product_key
+LEFT JOIN Promotions AS pr
+    ON (p.price - p.discount) = pr.product_key
+WHERE (p.price - p.discount) > 100]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1888,7 +2513,20 @@ Calc(select=[product_id, -(price, discount) AS net_price, quantity, promo_text])
   </TestCase>
   <TestCase name="testWithOrInJoinCondition">
     <Resource name="sql">
-      <![CDATA[SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location FROM Users u LEFT JOIN Orders o ON o.user_id = u.user_id LEFT JOIN Payments p ON u.user_id = p.user_id OR u.name = p.payment_id LEFT JOIN Shipments s ON p.user_id = s.user_id]]>
+      <![CDATA[
+SELECT
+    u.user_id,
+    u.name,
+    o.order_id,
+    p.payment_id,
+    s.location
+FROM Users u
+LEFT JOIN Orders o
+    ON o.user_id = u.user_id
+LEFT JOIN Payments p
+    ON u.user_id = p.user_id OR u.name = p.payment_id
+LEFT JOIN Shipments s
+    ON p.user_id = s.user_id]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[

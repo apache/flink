@@ -181,65 +181,109 @@ public class MultiJoinTest extends TableTestBase {
     @Test
     void testThreeWayInnerJoinRelPlan() {
         util.verifyRelPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id "
-                        + "FROM Users u "
-                        + "INNER JOIN Orders o ON u.user_id = o.user_id "
-                        + "INNER JOIN Payments p ON u.user_id = p.user_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id\n"
+                        + "FROM Users u\n"
+                        + "INNER JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "INNER JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id");
     }
 
     @Test
     @Tag("no-common-join-key")
     void testThreeWayInnerJoinRelPlanNoCommonJoinKey() {
         util.verifyRelPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id "
-                        + "FROM Users u "
-                        + "INNER JOIN Orders o ON u.user_id = o.user_id "
-                        + "INNER JOIN Payments p ON u.cash = p.price");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id\n"
+                        + "FROM Users u\n"
+                        + "INNER JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "INNER JOIN Payments p\n"
+                        + "    ON u.cash = p.price");
     }
 
     @Test
     void testThreeWayInnerJoinExecPlan() {
         util.verifyExecPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id "
-                        + "FROM Users u "
-                        + "INNER JOIN Orders o ON u.user_id = o.user_id "
-                        + "INNER JOIN Payments p ON u.user_id = p.user_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id\n"
+                        + "FROM Users u\n"
+                        + "INNER JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "INNER JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id");
     }
 
     @Test
     void testThreeWayLeftOuterJoinRelPlan() {
         util.verifyRelPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "LEFT JOIN Payments p ON u.user_id = p.user_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "LEFT JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id");
     }
 
     @Test
     void testThreeWayInnerJoinWithTttlHints() {
         util.verifyRelPlan(
-                "SELECT /*+ STATE_TTL(u='1d', o='2d', p='1h') */u.user_id, u.name, o.order_id, p.payment_id "
-                        + "FROM Users u "
-                        + "INNER JOIN Orders o ON u.user_id = o.user_id "
-                        + "INNER JOIN Payments p ON u.user_id = p.user_id");
+                "\nSELECT\n"
+                        + "    /*+ STATE_TTL(u='1d', o='2d', p='1h') */\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id\n"
+                        + "FROM Users u\n"
+                        + "INNER JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "INNER JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id");
     }
 
     @Test
     void testThreeWayInnerJoinWithSingleTttlHint() {
         util.verifyRelPlan(
-                "SELECT /*+ STaTE_tTL(o='2d') */u.user_id, u.name, o.order_id, p.payment_id "
-                        + "FROM Users u "
-                        + "INNER JOIN Orders o ON u.user_id = o.user_id "
-                        + "INNER JOIN Payments p ON u.user_id = p.user_id");
+                "\nSELECT\n"
+                        + "    /*+ STaTE_tTL(o='2d') */\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id\n"
+                        + "FROM Users u\n"
+                        + "INNER JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "INNER JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id");
     }
 
     @Test
     void testThreeWayLeftOuterJoinExecPlan() {
         util.verifyExecPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "LEFT JOIN Payments p ON u.user_id = p.user_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "LEFT JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id");
     }
 
     @Test
@@ -253,148 +297,236 @@ public class MultiJoinTest extends TableTestBase {
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,D')");
 
         util.verifyRelPlan(
-                "WITH OrdersUnion as ("
-                        + "SELECT * FROM Orders "
-                        + "UNION ALL "
-                        + "SELECT * FROM Orders2"
-                        + ") "
-                        + "SELECT * FROM OrdersUnion o "
-                        + "LEFT JOIN Users u "
-                        + "ON o.user_id = u.user_id");
+                "\nWITH OrdersUnion as (\n"
+                        + "SELECT * FROM Orders\n"
+                        + "UNION ALL\n"
+                        + "SELECT * FROM Orders2\n"
+                        + ")\n"
+                        + "SELECT * FROM OrdersUnion o\n"
+                        + "LEFT JOIN Users u\n"
+                        + "    ON o.user_id = u.user_id");
     }
 
     @Test
     void testTwoWayJoinWithRank() {
         util.verifyRelPlan(
-                "WITH JoinedEvents as ("
-                        + "SELECT e1.id as id, e1.val, e1.`$rowtime` as `$rowtime`, e2.price "
-                        + "FROM EventTable1 e1 "
-                        + "JOIN EventTable2 e2 ON e1.id = e2.id) "
-                        + "SELECT id, val, `$rowtime` FROM ("
-                        + "SELECT *, "
-                        + "ROW_NUMBER() OVER (PARTITION BY id ORDER BY `$rowtime` DESC) as ts "
-                        + "FROM JoinedEvents) "
+                "\nWITH JoinedEvents as (\n"
+                        + "SELECT\n"
+                        + "    e1.id as id,\n"
+                        + "    e1.val,\n"
+                        + "    e1.`$rowtime` as `$rowtime`,\n"
+                        + "    e2.price\n"
+                        + "FROM EventTable1 e1\n"
+                        + "JOIN EventTable2 e2\n"
+                        + "    ON e1.id = e2.id)\n"
+                        + "SELECT\n"
+                        + "    id,\n"
+                        + "    val,\n"
+                        + "    `$rowtime`\n"
+                        + "FROM (\n"
+                        + "    SELECT\n"
+                        + "        *,\n"
+                        + "        ROW_NUMBER() OVER (PARTITION BY id ORDER BY `$rowtime` DESC) as ts\n"
+                        + "    FROM JoinedEvents)\n"
                         + "WHERE ts = 1");
     }
 
     @Test
     void testFourWayComplexJoinRelPlan() {
         util.verifyRelPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "INNER JOIN Payments p ON u.user_id = p.user_id AND (u.cash >= p.price OR p.price < 0) "
-                        + "LEFT JOIN Shipments s ON p.user_id = s.user_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id,\n"
+                        + "    s.location\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "INNER JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id\n"
+                        + "    AND (u.cash >= p.price OR p.price < 0)\n"
+                        + "LEFT JOIN Shipments s\n"
+                        + "    ON p.user_id = s.user_id");
     }
 
     @Test
     @Tag("no-common-join-key")
     void testThreeWayJoinExecPlanNoCommonJoinKey() {
         util.verifyExecPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON TRUE "
-                        + "INNER JOIN Payments p ON TRUE ");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o ON TRUE\n"
+                        + "INNER JOIN Payments p ON TRUE");
     }
 
     @Test
     @Tag("no-common-join-key")
     void testFourWayJoinRelPlanNoCommonJoinKey() {
         util.verifyRelPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "LEFT JOIN LookupTable ON u.name = LookupTable.name "
-                        + "LEFT JOIN Payments p ON u.user_id = p.user_id "
-                        + "LEFT JOIN Shipments s ON o.user_id = s.user_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id,\n"
+                        + "    s.location\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "LEFT JOIN LookupTable\n"
+                        + "    ON u.name = LookupTable.name\n"
+                        + "LEFT JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id\n"
+                        + "LEFT JOIN Shipments s\n"
+                        + "    ON o.user_id = s.user_id");
     }
 
     @Test
     void testFourWayComplexJoinExecPlan() {
         util.verifyExecPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "INNER JOIN Payments p ON u.user_id = p.user_id AND (u.cash >= p.price OR p.price < 0) "
-                        + "LEFT JOIN Shipments s ON p.user_id = s.user_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id,\n"
+                        + "    s.location\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "INNER JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id\n"
+                        + "    AND (u.cash >= p.price OR p.price < 0)\n"
+                        + "LEFT JOIN Shipments s\n"
+                        + "    ON p.user_id = s.user_id");
     }
 
     @Test
     void testThreeWayInnerJoinExplain() {
         util.verifyExplain(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id "
-                        + "FROM Users u "
-                        + "INNER JOIN Orders o ON u.user_id = o.user_id "
-                        + "INNER JOIN Payments p ON u.user_id = p.user_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id\n"
+                        + "FROM Users u\n"
+                        + "INNER JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "INNER JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id");
     }
 
     @Test
     void testThreeWayLeftOuterJoinExplain() {
         util.verifyExplain(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "LEFT JOIN Payments p ON u.user_id = p.user_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "LEFT JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id");
     }
 
     @Test
     void testFourWayComplexJoinExplain() {
         util.verifyExplain(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "INNER JOIN Payments p ON u.user_id = p.user_id AND (u.cash >= p.price OR p.price < 0) "
-                        + "LEFT JOIN Shipments s ON p.user_id = s.user_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id,\n"
+                        + "    s.location\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "INNER JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id\n"
+                        + "    AND (u.cash >= p.price OR p.price < 0)\n"
+                        + "LEFT JOIN Shipments s\n"
+                        + "    ON p.user_id = s.user_id");
     }
 
     @Test
     void testTemporalJoinExcludedFromMultiJoin() {
         // Temporal joins should remain as lookup joins, not be merged into MultiJoin
         util.verifyRelPlan(
-                "SELECT s.user_id, s.amount, l.name, l.age "
-                        + "FROM StreamTable s "
-                        + "JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l "
-                        + "ON s.user_id = l.id");
+                "\nSELECT\n"
+                        + "    s.user_id,\n"
+                        + "    s.amount,\n"
+                        + "    l.name,\n"
+                        + "    l.age\n"
+                        + "FROM StreamTable s\n"
+                        + "JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l\n"
+                        + "    ON s.user_id = l.id");
     }
 
     @Test
     void testIntervalJoinExcludedFromMultiJoin() {
         // Interval joins (event-time and processing-time) should remain as interval joins
         util.verifyRelPlan(
-                "SELECT e1.id, e1.val, e2.price "
-                        + "FROM EventTable1 e1 "
-                        + "JOIN EventTable2 e2 ON e1.id = e2.id "
-                        + "AND e1.`$rowtime` BETWEEN e2.`$rowtime` - INTERVAL '1' MINUTE "
-                        + "AND e2.`$rowtime` + INTERVAL '1' MINUTE");
+                "\nSELECT\n"
+                        + "    e1.id,\n"
+                        + "    e1.val,\n"
+                        + "    e2.price\n"
+                        + "FROM EventTable1 e1\n"
+                        + "JOIN EventTable2 e2\n"
+                        + "    ON e1.id = e2.id\n"
+                        + "    AND e1.`$rowtime` BETWEEN e2.`$rowtime` - INTERVAL '1' MINUTE\n"
+                        + "    AND e2.`$rowtime` + INTERVAL '1' MINUTE");
     }
 
     @Test
     void testThreeWayLeftOuterJoinWithWhereClauseRelPlan() {
         util.verifyRelPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "LEFT JOIN Payments p ON u.user_id = p.user_id "
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "LEFT JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id\n"
                         + "WHERE u.name = 'Gus' AND p.price > 10");
     }
 
     @Test
     void testThreeWayLeftOuterJoinWithWhereClauseExecPlan() {
         util.verifyExecPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "LEFT JOIN Payments p ON u.user_id = p.user_id "
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "LEFT JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id\n"
                         + "WHERE u.name = 'Gus' AND p.price > 10");
     }
 
     @Test
     void testThreeWayLeftOuterJoinWithWhereClauseExplain() {
         util.verifyExplain(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "LEFT JOIN Payments p ON u.user_id = p.user_id "
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "LEFT JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id\n"
                         + "WHERE u.name = 'Gus' AND p.price > 10");
     }
 
@@ -402,53 +534,84 @@ public class MultiJoinTest extends TableTestBase {
     void testRegularJoinsAreMergedApartFromTemporalJoin() {
         // Regular joins should still be eligible for MultiJoin but not mixed with temporal joins
         util.verifyRelPlan(
-                "SELECT u.user_id, u.name, o.order_id, temporal.age "
-                        + "FROM Users u "
-                        + "INNER JOIN Orders o ON u.user_id = o.user_id "
-                        + "INNER JOIN ("
-                        + "  SELECT s.user_id, l.age "
-                        + "  FROM StreamTable s "
-                        + "  JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l "
-                        + "  ON s.user_id = l.id"
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    temporal.age "
+                        + "FROM Users u\n"
+                        + "INNER JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "INNER JOIN (\n"
+                        + "    SELECT s.user_id, l.age\n"
+                        + "    FROM StreamTable s\n"
+                        + "    JOIN LookupTable FOR SYSTEM_TIME AS OF s.proctime AS l\n"
+                        + "        ON s.user_id = l.id\n"
                         + ") temporal ON u.user_id = temporal.user_id");
     }
 
     @Test
     void testFourWayJoinTransitiveCommonJoinKeyRelPlan() {
         util.verifyRelPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "LEFT JOIN Payments p ON o.user_id = p.user_id "
-                        + "LEFT JOIN Shipments s ON p.user_id = s.user_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id,\n"
+                        + "    s.location\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "LEFT JOIN Payments p\n"
+                        + "    ON o.user_id = p.user_id\n"
+                        + "LEFT JOIN Shipments s\n"
+                        + "    ON p.user_id = s.user_id");
     }
 
     /* Update this to supported with FLINK-37973 https://issues.apache.org/jira/browse/FLINK-37973 */
     @Test
     void testRightJoinNotSupported() {
         util.verifyRelPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id "
-                        + "FROM Users u "
-                        + "RIGHT JOIN Orders o ON u.user_id = o.user_id "
-                        + "RIGHT JOIN Payments p ON o.user_id = p.user_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id\n"
+                        + "FROM Users u\n"
+                        + "RIGHT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "RIGHT JOIN Payments p\n"
+                        + "    ON o.user_id = p.user_id");
     }
 
     @Test
     void testFullOuterNotSupported() {
         util.verifyRelPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id "
-                        + "FROM Users u "
-                        + "FULL OUTER JOIN Orders o ON u.user_id = o.user_id "
-                        + "FULL OUTER JOIN Payments p ON o.user_id = p.user_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id\n"
+                        + "FROM Users u\n"
+                        + "FULL OUTER JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "FULL OUTER JOIN Payments p\n"
+                        + "    ON o.user_id = p.user_id");
     }
 
     @Test
     void testThreeWayJoinWithTimeAttributesMaterialization() {
         util.verifyRelPlan(
-                "SELECT u.name, u.proctime, o.`$rowtime`, p.price "
-                        + "FROM UsersWithProctime u "
-                        + "JOIN OrdersWithRowtime o ON u.user_id = o.user_id "
-                        + "JOIN Payments p ON u.user_id = p.user_id");
+                "\nSELECT\n"
+                        + "    u.name,\n"
+                        + "    u.proctime,\n"
+                        + "    o.`$rowtime`,\n"
+                        + "    p.price\n"
+                        + "FROM UsersWithProctime u\n"
+                        + "JOIN OrdersWithRowtime o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id");
     }
 
     @Test
@@ -467,15 +630,15 @@ public class MultiJoinTest extends TableTestBase {
                                 + ")");
 
         util.verifyRelPlanInsert(
-                "INSERT INTO sink_two_way "
-                        + "SELECT"
-                        + "    o.user_id,"
-                        + "    o.order_id,"
-                        + "    o.product,"
-                        + "    u.region_id "
-                        + "FROM OrdersPK o "
-                        + "LEFT JOIN UsersPK u"
-                        + "  ON  u.user_id = o.user_id");
+                "\nINSERT INTO sink_two_way\n"
+                        + "SELECT\n"
+                        + "    o.user_id,\n"
+                        + "    o.order_id,\n"
+                        + "    o.product,\n"
+                        + "    u.region_id\n"
+                        + "FROM OrdersPK o\n"
+                        + "LEFT JOIN UsersPK u\n"
+                        + "    ON u.user_id = o.user_id");
     }
 
     @Test
@@ -494,15 +657,15 @@ public class MultiJoinTest extends TableTestBase {
                                 + ")");
 
         util.verifyRelPlanInsert(
-                "INSERT INTO sink_two_way "
-                        + "SELECT"
-                        + "    o.user_id,"
-                        + "    o.order_id,"
-                        + "    o.product,"
-                        + "    u.region_id "
-                        + "FROM UsersPK u "
-                        + "INNER JOIN OrdersPK o "
-                        + "  ON  u.user_id = o.user_id");
+                "\nINSERT INTO sink_two_way\n"
+                        + "SELECT\n"
+                        + "    o.user_id,\n"
+                        + "    o.order_id,\n"
+                        + "    o.product,\n"
+                        + "    u.region_id\n"
+                        + "FROM UsersPK u\n"
+                        + "INNER JOIN OrdersPK o\n"
+                        + "    ON u.user_id = o.user_id");
     }
 
     @Test
@@ -530,15 +693,15 @@ public class MultiJoinTest extends TableTestBase {
                                 + ")");
 
         util.verifyRelPlanInsert(
-                "INSERT INTO sink_two_way "
-                        + "SELECT"
-                        + "    o.user_id,"
-                        + "    o.order_id,"
-                        + "    o.product,"
-                        + "    u.region_id "
-                        + "FROM UsersPK u "
-                        + "INNER JOIN OrdersSimplePK o "
-                        + "  ON  u.user_id = o.user_id");
+                "\nINSERT INTO sink_two_way\n"
+                        + "SELECT\n"
+                        + "    o.user_id,\n"
+                        + "    o.order_id,\n"
+                        + "    o.product,\n"
+                        + "    u.region_id\n"
+                        + "FROM UsersPK u\n"
+                        + "INNER JOIN OrdersSimplePK o\n"
+                        + "    ON u.user_id = o.user_id");
     }
 
     @Test
@@ -559,19 +722,19 @@ public class MultiJoinTest extends TableTestBase {
                                 + ")");
 
         util.verifyRelPlanInsert(
-                "INSERT INTO sink_three_way "
-                        + "SELECT"
-                        + "    o.user_id,"
-                        + "    o.order_id,"
-                        + "    p.user_id,"
-                        + "    p.payment_id,"
-                        + "    u.user_id,"
-                        + "    u.description "
-                        + "FROM UsersPK u "
-                        + "JOIN OrdersPK o"
-                        + "  ON  o.user_id = u.user_id "
-                        + "JOIN PaymentsPK p"
-                        + "  ON  o.user_id = p.user_id");
+                "\nINSERT INTO sink_three_way\n"
+                        + "SELECT\n"
+                        + "    o.user_id,\n"
+                        + "    o.order_id,\n"
+                        + "    p.user_id,\n"
+                        + "    p.payment_id,\n"
+                        + "    u.user_id,\n"
+                        + "    u.description\n"
+                        + "FROM UsersPK u\n"
+                        + "JOIN OrdersPK o\n"
+                        + "    ON o.user_id = u.user_id\n"
+                        + "JOIN PaymentsPK p\n"
+                        + "    ON o.user_id = p.user_id");
     }
 
     @Test
@@ -593,22 +756,25 @@ public class MultiJoinTest extends TableTestBase {
                                 + ")");
 
         util.verifyRelPlanInsert(
-                "INSERT INTO sink_four_way "
-                        + "SELECT"
-                        + "    u.user_id,"
-                        + "    o.order_id,"
-                        + "    o.user_id,"
-                        + "    p.payment_id,"
-                        + "    p.user_id,"
-                        + "    u.name,"
-                        + "    a.location "
-                        + "FROM UsersPK u "
-                        + "JOIN OrdersPK o"
-                        + "  ON  u.user_id = o.user_id AND o.product IS NOT NULL "
-                        + "JOIN PaymentsPK p"
-                        + "  ON  u.user_id = p.user_id AND p.price >= 0 "
-                        + "JOIN AddressPK a"
-                        + "  ON  u.user_id = a.user_id AND a.location IS NOT NULL");
+                "\nINSERT INTO sink_four_way\n"
+                        + "SELECT\n"
+                        + "    u.user_id,\n"
+                        + "    o.order_id,\n"
+                        + "    o.user_id,\n"
+                        + "    p.payment_id,\n"
+                        + "    p.user_id,\n"
+                        + "    u.name,\n"
+                        + "    a.location\n"
+                        + "FROM UsersPK u\n"
+                        + "JOIN OrdersPK o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "    AND o.product IS NOT NULL\n"
+                        + "JOIN PaymentsPK p\n"
+                        + "    ON u.user_id = p.user_id\n"
+                        + "    AND p.price >= 0\n"
+                        + "JOIN AddressPK a\n"
+                        + "    ON u.user_id = a.user_id\n"
+                        + "    AND a.location IS NOT NULL");
     }
 
     @Test
@@ -705,13 +871,21 @@ public class MultiJoinTest extends TableTestBase {
     @Tag("multijoin-chain-expected")
     void testFourWayJoinWithFunctionInConditionMultiJoinChainExpected() {
         util.verifyRelPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON o.user_id = u.user_id "
-                        + "LEFT JOIN Payments p ON u.user_id = p.user_id "
-                        + "     AND UPPER(u.name) = UPPER(p.payment_id) "
-                        + "     AND (FLOOR(u.cash) >= FLOOR(p.price) OR p.price < 0) "
-                        + "LEFT JOIN Shipments s ON p.payment_id = s.location ");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id,\n"
+                        + "    s.location\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON o.user_id = u.user_id\n"
+                        + "LEFT JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id\n"
+                        + "    AND UPPER(u.name) = UPPER(p.payment_id)\n"
+                        + "    AND (FLOOR(u.cash) >= FLOOR(p.price) OR p.price < 0)\n"
+                        + "LEFT JOIN Shipments s\n"
+                        + "    ON p.payment_id = s.location");
     }
 
     /*
@@ -739,13 +913,13 @@ public class MultiJoinTest extends TableTestBase {
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
 
         util.verifyRelPlan(
-                "SELECT *\n"
-                        + "    FROM Assignments assignments\n"
-                        + "    LEFT JOIN Documents AS documents\n"
-                        + "        ON assignments.detail_id = documents.detail_id\n"
-                        + "        AND assignments.common_id = documents.common_id\n"
-                        + "    LEFT JOIN Documents AS other_documents\n"
-                        + "        ON assignments.user_id = other_documents.common_id\n");
+                "\nSELECT *\n"
+                        + "FROM Assignments assignments\n"
+                        + "LEFT JOIN Documents AS documents\n"
+                        + "    ON assignments.detail_id = documents.detail_id\n"
+                        + "    AND assignments.common_id = documents.common_id\n"
+                        + "LEFT JOIN Documents AS other_documents\n"
+                        + "    ON assignments.user_id = other_documents.common_id");
     }
 
     @Test
@@ -792,22 +966,22 @@ public class MultiJoinTest extends TableTestBase {
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
 
         util.verifyExecPlan(
-                "SELECT *\n"
-                        + "    FROM Assignments assignments\n"
-                        + "    LEFT JOIN Customers AS customer\n"
-                        + "        ON assignments.user_id = customer.user_id\n"
-                        + "        AND assignments.common_id = customer.common_id\n"
-                        + "    LEFT JOIN Documents AS documents\n"
-                        + "        ON assignments.detail_id = documents.detail_id\n"
-                        + "        AND assignments.common_id = documents.common_id\n"
-                        + "    LEFT JOIN PhaseDetails AS phase_details\n"
-                        + "        ON documents.common_id = phase_details.common_id\n"
-                        + "    LEFT JOIN Organizations AS organizations\n"
-                        + "        ON customer.depart_num = organizations.org_id\n"
-                        + "        AND customer.common_id = organizations.common_id\n"
-                        + "    LEFT JOIN Customers AS creators\n"
-                        + "        ON documents.creator_nm = creators.depart_num\n"
-                        + "        AND documents.common_id = creators.common_id");
+                "\nSELECT *\n"
+                        + "FROM Assignments assignments\n"
+                        + "LEFT JOIN Customers AS customer\n"
+                        + "    ON assignments.user_id = customer.user_id\n"
+                        + "    AND assignments.common_id = customer.common_id\n"
+                        + "LEFT JOIN Documents AS documents\n"
+                        + "    ON assignments.detail_id = documents.detail_id\n"
+                        + "    AND assignments.common_id = documents.common_id\n"
+                        + "LEFT JOIN PhaseDetails AS phase_details\n"
+                        + "    ON documents.common_id = phase_details.common_id\n"
+                        + "LEFT JOIN Organizations AS organizations\n"
+                        + "    ON customer.depart_num = organizations.org_id\n"
+                        + "    AND customer.common_id = organizations.common_id\n"
+                        + "LEFT JOIN Customers AS creators\n"
+                        + "    ON documents.creator_nm = creators.depart_num\n"
+                        + "    AND documents.common_id = creators.common_id");
     }
 
     @Test
@@ -832,32 +1006,36 @@ public class MultiJoinTest extends TableTestBase {
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
 
         util.verifyRelPlan(
-                "SELECT "
-                        + "u.user_id, "
-                        + "o.order_id, "
-                        + "p.payment_id, "
-                        + "pc.category_name, "
-                        + "CASE "
-                        + "  WHEN pc.is_premium = true AND p.price > 1000 THEN 'High-Value Premium' "
-                        + "  WHEN pc.is_premium = true THEN 'Premium' "
-                        + "  WHEN p.price > 500 THEN 'Standard High-Value' "
-                        + "  ELSE 'Standard' "
-                        + "END AS product_tier, "
-                        + "CASE "
-                        + "  WHEN pr.rating >= 4 AND pr.is_verified = true THEN 'Highly Recommended' "
-                        + "  WHEN pr.rating >= 3 THEN 'Recommended' "
-                        + "  WHEN pr.rating >= 2 THEN 'Average' "
-                        + "  ELSE 'Not Recommended' "
-                        + "END AS recommendation_status, "
-                        + "CASE "
-                        + "  WHEN pc.discount_rate > 0.2 THEN p.price * (1 - pc.discount_rate) "
-                        + "  ELSE p.price "
-                        + "END AS final_price "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "LEFT JOIN Payments p ON u.user_id = p.user_id "
-                        + "LEFT JOIN ProductCategories pc ON o.product = pc.category_id "
-                        + "LEFT JOIN ProductReviews pr ON o.product = pr.product_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id,\n"
+                        + "    pc.category_name,\n"
+                        + "    CASE\n"
+                        + "        WHEN pc.is_premium = true AND p.price > 1000 THEN 'High-Value Premium'\n"
+                        + "        WHEN pc.is_premium = true THEN 'Premium'\n"
+                        + "        WHEN p.price > 500 THEN 'Standard High-Value'\n"
+                        + "        ELSE 'Standard'\n"
+                        + "    END AS product_tier,\n"
+                        + "    CASE\n"
+                        + "        WHEN pr.rating >= 4 AND pr.is_verified = true THEN 'Highly Recommended'\n"
+                        + "        WHEN pr.rating >= 3 THEN 'Recommended'\n"
+                        + "        WHEN pr.rating >= 2 THEN 'Average'\n"
+                        + "        ELSE 'Not Recommended'\n"
+                        + "    END AS recommendation_status,\n"
+                        + "    CASE\n"
+                        + "        WHEN pc.discount_rate > 0.2 THEN p.price * (1 - pc.discount_rate)\n"
+                        + "        ELSE p.price\n"
+                        + "    END AS final_price\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "LEFT JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id\n"
+                        + "LEFT JOIN ProductCategories pc\n"
+                        + "    ON o.product = pc.category_id\n"
+                        + "LEFT JOIN ProductReviews pr\n"
+                        + "    ON o.product = pr.product_id");
     }
 
     @Test
@@ -880,29 +1058,33 @@ public class MultiJoinTest extends TableTestBase {
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
 
         util.verifyRelPlan(
-                "WITH user_orders AS ("
-                        + "  SELECT u.user_id, u.name, o.order_id, o.product, p.payment_id, p.price "
-                        + "  FROM Users u "
-                        + "  LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "  LEFT JOIN Payments p ON u.user_id = p.user_id"
-                        + "), "
-                        + "order_details AS ("
-                        + "  SELECT uo.*, os.status_name, os.is_final, pm.method_name, pm.processing_fee "
-                        + "  FROM user_orders uo "
-                        + "  LEFT JOIN OrderStatus os ON uo.order_id = os.status_id "
-                        + "  LEFT JOIN PaymentMethods pm ON uo.payment_id = pm.method_id"
-                        + "), "
-                        + "final_summary AS ("
-                        + "  SELECT "
-                        + "    user_id, "
-                        + "    name, "
-                        + "    COUNT(order_id) as total_orders, "
-                        + "    SUM(price) as total_spent, "
-                        + "    AVG(price) as avg_order_value, "
-                        + "    COUNT(CASE WHEN is_final = true THEN 1 END) as completed_orders "
-                        + "  FROM order_details "
-                        + "  GROUP BY user_id, name"
-                        + ") "
+                "\nWITH user_orders AS (\n"
+                        + "    SELECT u.user_id, u.name, o.order_id, o.product, p.payment_id, p.price\n"
+                        + "    FROM Users u\n"
+                        + "    LEFT JOIN Orders o ON\n"
+                        + "        u.user_id = o.user_id\n"
+                        + "    LEFT JOIN Payments p\n"
+                        + "        ON u.user_id = p.user_id\n"
+                        + "),\n"
+                        + "order_details AS (\n"
+                        + "    SELECT uo.*, os.status_name, os.is_final, pm.method_name, pm.processing_fee\n"
+                        + "    FROM user_orders uo\n"
+                        + "    LEFT JOIN OrderStatus os\n"
+                        + "        ON uo.order_id = os.status_id\n"
+                        + "    LEFT JOIN PaymentMethods pm\n"
+                        + "        ON uo.payment_id = pm.method_id\n"
+                        + "),\n"
+                        + "final_summary AS (\n"
+                        + "    SELECT\n"
+                        + "        user_id,\n"
+                        + "        name,\n"
+                        + "        COUNT(order_id) as total_orders,\n"
+                        + "        SUM(price) as total_spent,\n"
+                        + "        AVG(price) as avg_order_value,\n"
+                        + "        COUNT(CASE WHEN is_final = true THEN 1 END) as completed_orders\n"
+                        + "    FROM order_details\n"
+                        + "    GROUP BY user_id, name\n"
+                        + ")\n"
                         + "SELECT * FROM final_summary");
     }
 
@@ -928,23 +1110,27 @@ public class MultiJoinTest extends TableTestBase {
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
 
         util.verifyRelPlan(
-                "SELECT "
-                        + "u.user_id, "
-                        + "u.name, "
-                        + "pc.category_name, "
-                        + "COUNT(DISTINCT o.order_id) as order_count, "
-                        + "SUM(oi.quantity) as total_items, "
-                        + "SUM(oi.quantity * oi.unit_price) as total_value, "
-                        + "AVG(oi.unit_price) as avg_item_price, "
-                        + "MAX(p.price) as max_payment, "
-                        + "MIN(p.price) as min_payment, "
-                        + "COUNT(CASE WHEN oi.quantity > 5 THEN 1 END) as bulk_orders "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "LEFT JOIN OrderItems oi ON o.order_id = oi.order_id "
-                        + "LEFT JOIN ProductCategories pc ON oi.product_name = pc.category_id "
-                        + "LEFT JOIN Payments p ON u.user_id = p.user_id "
-                        + "GROUP BY u.user_id, u.name, pc.category_name "
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    pc.category_name,\n"
+                        + "    COUNT(DISTINCT o.order_id) as order_count,\n"
+                        + "    SUM(oi.quantity) as total_items,\n"
+                        + "    SUM(oi.quantity * oi.unit_price) as total_value,\n"
+                        + "    AVG(oi.unit_price) as avg_item_price,\n"
+                        + "    MAX(p.price) as max_payment,\n"
+                        + "    MIN(p.price) as min_payment,\n"
+                        + "    COUNT(CASE WHEN oi.quantity > 5 THEN 1 END) as bulk_orders\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "LEFT JOIN OrderItems oi\n"
+                        + "    ON o.order_id = oi.order_id\n"
+                        + "LEFT JOIN ProductCategories pc\n"
+                        + "    ON oi.product_name = pc.category_id\n"
+                        + "LEFT JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id\n"
+                        + "GROUP BY u.user_id, u.name, pc.category_name\n"
                         + "HAVING COUNT(DISTINCT o.order_id) > 0");
     }
 
@@ -970,32 +1156,36 @@ public class MultiJoinTest extends TableTestBase {
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
 
         util.verifyRelPlan(
-                "SELECT "
-                        + "u.user_id, "
-                        + "UPPER(u.name) as user_name_upper, "
-                        + "LOWER(o.product) as product_lower, "
-                        + "CONCAT(u.name, ' - ', o.product) as user_product, "
-                        + "SUBSTRING(pd.description, 1, 50) as description_preview, "
-                        + "CHAR_LENGTH(pd.description) as description_length, "
-                        + "FLOOR(p.price / 100.0) * 100 as price_rounded, "
-                        + "CASE "
-                        + "  WHEN p.price > 1000 THEN 'High' "
-                        + "  WHEN p.price > 500 THEN 'Medium' "
-                        + "  ELSE 'Low' "
-                        + "END as price_tier, "
-                        + "REGEXP_REPLACE(pd.tags, ',', ' | ') as formatted_tags, "
-                        + "TO_TIMESTAMP_LTZ(pd.created_date, 3) as product_created, "
-                        + "COALESCE(up.preferred_category, 'None') as user_preference, "
-                        + "CASE "
-                        + "  WHEN up.notification_level = 'HIGH' THEN 'Frequent Updates' "
-                        + "  WHEN up.notification_level = 'MEDIUM' THEN 'Daily Updates' "
-                        + "  ELSE 'Weekly Updates' "
-                        + "END as notification_frequency "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "LEFT JOIN Payments p ON u.user_id = p.user_id "
-                        + "LEFT JOIN ProductDetails pd ON o.product = pd.product_id "
-                        + "LEFT JOIN UserPreferences up ON u.user_id = up.user_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    UPPER(u.name) as user_name_upper,\n"
+                        + "    LOWER(o.product) as product_lower,\n"
+                        + "    CONCAT(u.name, ' - ', o.product) as user_product,\n"
+                        + "    SUBSTRING(pd.description, 1, 50) as description_preview,\n"
+                        + "    CHAR_LENGTH(pd.description) as description_length,\n"
+                        + "    FLOOR(p.price / 100.0) * 100 as price_rounded,\n"
+                        + "    CASE\n"
+                        + "        WHEN p.price > 1000 THEN 'High'\n"
+                        + "        WHEN p.price > 500 THEN 'Medium'\n"
+                        + "        ELSE 'Low'\n"
+                        + "    END as price_tier,\n"
+                        + "    REGEXP_REPLACE(pd.tags, ',', ' | ') as formatted_tags,\n"
+                        + "    TO_TIMESTAMP_LTZ(pd.created_date, 3) as product_created,\n"
+                        + "    COALESCE(up.preferred_category, 'None') as user_preference,\n"
+                        + "    CASE\n"
+                        + "        WHEN up.notification_level = 'HIGH' THEN 'Frequent Updates'\n"
+                        + "        WHEN up.notification_level = 'MEDIUM' THEN 'Daily Updates'\n"
+                        + "        ELSE 'Weekly Updates'\n"
+                        + "    END as notification_frequency\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "LEFT JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id\n"
+                        + "LEFT JOIN ProductDetails pd\n"
+                        + "    ON o.product = pd.product_id\n"
+                        + "LEFT JOIN UserPreferences up\n"
+                        + "    ON u.user_id = up.user_id");
     }
 
     /*
@@ -1040,22 +1230,22 @@ public class MultiJoinTest extends TableTestBase {
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
 
         util.verifyRelPlan(
-                "SELECT "
-                        + "  d.developer_id, "
-                        + "  d.person.info.name AS developer_name, "
-                        + "  s.ticket_id, "
-                        + "  s.reporter.info.priority AS ticket_priority, "
-                        + "  f.feedback_id, "
-                        + "  f.author.info.rating AS feedback_rating, "
-                        + "  sub.sub_id, "
-                        + "  sub.subscriber.info.plan AS subscription_plan "
-                        + "FROM Developers AS d "
-                        + "LEFT JOIN SupportTickets AS s "
-                        + "  ON d.person.info.id = s.reporter.info.id "
-                        + "LEFT JOIN Feedback AS f "
-                        + "  ON d.person.info.id = f.author.info.id "
-                        + "LEFT JOIN Subscriptions AS sub "
-                        + "  ON d.person.info.id = sub.subscriber.info.id");
+                "\nSELECT\n"
+                        + "    d.developer_id,\n"
+                        + "    d.person.info.name AS developer_name,\n"
+                        + "    s.ticket_id,\n"
+                        + "    s.reporter.info.priority AS ticket_priority,\n"
+                        + "    f.feedback_id,\n"
+                        + "    f.author.info.rating AS feedback_rating,\n"
+                        + "    sub.sub_id,\n"
+                        + "    sub.subscriber.info.plan AS subscription_plan\n"
+                        + "FROM Developers AS d\n"
+                        + "LEFT JOIN SupportTickets AS s\n"
+                        + "    ON d.person.info.id = s.reporter.info.id\n"
+                        + "LEFT JOIN Feedback AS f\n"
+                        + "    ON d.person.info.id = f.author.info.id\n"
+                        + "LEFT JOIN Subscriptions AS sub\n"
+                        + "    ON d.person.info.id = sub.subscriber.info.id");
     }
 
     @Test
@@ -1071,83 +1261,86 @@ public class MultiJoinTest extends TableTestBase {
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
 
         util.verifyRelPlan(
-                "WITH base_orders AS ("
-                        + "  SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price "
-                        + "  FROM Users u "
-                        + "  INNER JOIN Orders o ON u.user_id = o.user_id "
-                        + "  INNER JOIN Payments p ON u.user_id = p.user_id"
-                        + "), "
-                        + "enriched_orders AS ("
-                        + "  SELECT "
-                        + "    bo.*, "
-                        + "    om.metric_type, "
-                        + "    om.metric_value, "
-                        + "    CASE "
-                        + "      WHEN bo.price > 1000 THEN 'Premium' "
-                        + "      WHEN bo.price > 500 THEN 'Standard' "
-                        + "      ELSE 'Basic' "
-                        + "    END as order_tier "
-                        + "  FROM base_orders bo "
-                        + "  LEFT JOIN OrderMetrics om ON bo.order_id = om.order_id"
-                        + "), "
-                        + "aggregated_metrics AS ("
-                        + "  SELECT "
-                        + "    user_id, "
-                        + "    name, "
-                        + "    COUNT(DISTINCT order_id) as total_orders, "
-                        + "    SUM(price) as total_spent, "
-                        + "    AVG(price) as avg_order_value, "
-                        + "    MAX(metric_value) as max_metric, "
-                        + "    MIN(metric_value) as min_metric, "
-                        + "    COUNT(CASE WHEN order_tier = 'Premium' THEN 1 END) as premium_orders "
-                        + "  FROM enriched_orders "
-                        + "  GROUP BY user_id, name"
-                        + ") "
-                        + "SELECT "
-                        + "  user_id, "
-                        + "  UPPER(name) as user_name, "
-                        + "  total_orders, "
-                        + "  ROUND(total_spent, 2) as total_spent_rounded, "
-                        + "  ROUND(avg_order_value, 2) as avg_order_value_rounded, "
-                        + "  CONCAT('User: ', name, ' has ', CAST(total_orders AS STRING), ' orders') as summary, "
-                        + "  CASE "
-                        + "    WHEN total_orders > 10 THEN 'Frequent Customer' "
-                        + "    WHEN total_orders > 5 THEN 'Regular Customer' "
-                        + "    ELSE 'Occasional Customer' "
-                        + "  END as customer_type "
-                        + "FROM aggregated_metrics "
+                "\nWITH base_orders AS (\n"
+                        + "    SELECT u.user_id, u.name, o.order_id, p.payment_id, p.price\n"
+                        + "    FROM Users u\n"
+                        + "    INNER JOIN Orders o\n"
+                        + "        ON u.user_id = o.user_id\n"
+                        + "    INNER JOIN Payments p\n"
+                        + "        ON u.user_id = p.user_id\n"
+                        + "),\n"
+                        + "enriched_orders AS (\n"
+                        + "    SELECT\n"
+                        + "        bo.*,\n"
+                        + "        om.metric_type,\n"
+                        + "        om.metric_value,\n"
+                        + "        CASE\n"
+                        + "            WHEN bo.price > 1000 THEN 'Premium'\n"
+                        + "            WHEN bo.price > 500 THEN 'Standard'\n"
+                        + "            ELSE 'Basic'\n"
+                        + "        END as order_tier\n"
+                        + "    FROM base_orders bo\n"
+                        + "    LEFT JOIN OrderMetrics om\n"
+                        + "        ON bo.order_id = om.order_id\n"
+                        + "),\n"
+                        + "aggregated_metrics AS (\n"
+                        + "    SELECT\n"
+                        + "        user_id,\n"
+                        + "        name,\n"
+                        + "        COUNT(DISTINCT order_id) as total_orders,\n"
+                        + "        SUM(price) as total_spent,\n"
+                        + "        AVG(price) as avg_order_value,\n"
+                        + "        MAX(metric_value) as max_metric,\n"
+                        + "        MIN(metric_value) as min_metric,\n"
+                        + "        COUNT(CASE WHEN order_tier = 'Premium' THEN 1 END) as premium_orders\n"
+                        + "    FROM enriched_orders\n"
+                        + "    GROUP BY user_id, name\n"
+                        + ")\n"
+                        + "SELECT\n"
+                        + "    user_id,\n"
+                        + "    UPPER(name) as user_name,\n"
+                        + "    total_orders,\n"
+                        + "    ROUND(total_spent, 2) as total_spent_rounded,\n"
+                        + "    ROUND(avg_order_value, 2) as avg_order_value_rounded,\n"
+                        + "    CONCAT('User: ', name, ' has ', CAST(total_orders AS STRING), ' orders') as summary,\n"
+                        + "    CASE\n"
+                        + "        WHEN total_orders > 10 THEN 'Frequent Customer'\n"
+                        + "        WHEN total_orders > 5 THEN 'Regular Customer'\n"
+                        + "        ELSE 'Occasional Customer'\n"
+                        + "    END as customer_type\n"
+                        + "FROM aggregated_metrics\n"
                         + "WHERE total_spent > 0");
     }
 
     @Test
     void testJoinOfProjections() {
         util.verifyRelPlan(
-                "SELECT u.user_id, o.order_id, o.product, p.price, s.location "
-                        + "FROM (SELECT user_id, name, cash FROM Users WHERE cash > 100) AS u "
-                        + "JOIN (SELECT user_id, order_id, product FROM Orders WHERE product IS NOT NULL) AS o "
-                        + "  ON u.user_id = o.user_id "
-                        + "LEFT JOIN (SELECT user_id, price FROM Payments WHERE price > 50) AS p "
-                        + "  ON u.user_id = p.user_id "
-                        + "LEFT JOIN (SELECT user_id, location FROM Shipments WHERE location IS NOT NULL) AS s "
-                        + "  ON u.user_id = s.user_id");
+                "\nSELECT u.user_id, o.order_id, o.product, p.price, s.location\n"
+                        + "FROM (SELECT user_id, name, cash FROM Users WHERE cash > 100) AS u\n"
+                        + "JOIN (SELECT user_id, order_id, product FROM Orders WHERE product IS NOT NULL) AS o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "LEFT JOIN (SELECT user_id, price FROM Payments WHERE price > 50) AS p\n"
+                        + "    ON u.user_id = p.user_id\n"
+                        + "LEFT JOIN (SELECT user_id, location FROM Shipments WHERE location IS NOT NULL) AS s\n"
+                        + "    ON u.user_id = s.user_id");
     }
 
     @Test
     @Tag("multijoin-chain-expected")
     void testJoinWithNestedSubqueryMultiJoinChainExpected() {
         util.verifyRelPlan(
-                "SELECT * "
-                        + "FROM Users u "
-                        + "JOIN ("
-                        + "    SELECT o.user_id, o.order_id, p.payment_id, p.price "
-                        + "    FROM Orders o "
-                        + "    JOIN ("
-                        + "        SELECT payment_id, user_id, price "
-                        + "        FROM Payments "
-                        + "        WHERE price > 100"
-                        + "    ) AS p "
-                        + "    ON o.user_id = p.user_id"
-                        + ") AS op "
+                "\nSELECT *\n"
+                        + "FROM Users u\n"
+                        + "JOIN (\n"
+                        + "    SELECT o.user_id, o.order_id, p.payment_id, p.price\n"
+                        + "    FROM Orders o\n"
+                        + "    JOIN (\n"
+                        + "        SELECT payment_id, user_id, price\n"
+                        + "        FROM Payments\n"
+                        + "        WHERE price > 100\n"
+                        + "    ) AS p\n"
+                        + "    ON o.user_id = p.user_id\n"
+                        + ") AS op\n"
                         + "ON u.user_id = op.user_id");
     }
 
@@ -1171,58 +1364,85 @@ public class MultiJoinTest extends TableTestBase {
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
 
         util.verifyRelPlan(
-                "WITH high_budget_depts AS ("
-                        + "  SELECT dept_id, dept_name, budget "
-                        + "  FROM Departments "
-                        + "  WHERE budget > 600000"
-                        + "), "
-                        + "active_projects AS ("
-                        + "  SELECT project_id, project_name, dept_id "
-                        + "  FROM Projects "
-                        + "  WHERE status = 'ACTIVE'"
-                        + ") "
-                        + "SELECT "
-                        + "  u.user_id, "
-                        + "  u.name, "
-                        + "  o.order_id, "
-                        + "  hbd.dept_name, "
-                        + "  ap.project_name, "
-                        + "  hbd.budget "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "LEFT JOIN high_budget_depts hbd ON o.user_id = hbd.dept_id "
-                        + "LEFT JOIN active_projects ap ON hbd.dept_id = ap.dept_id");
+                "\nWITH high_budget_depts AS (\n"
+                        + "    SELECT dept_id, dept_name, budget\n"
+                        + "    FROM Departments\n"
+                        + "    WHERE budget > 600000\n"
+                        + "),\n"
+                        + "active_projects AS (\n"
+                        + "    SELECT project_id, project_name, dept_id\n"
+                        + "    FROM Projects\n"
+                        + "    WHERE status = 'ACTIVE'\n"
+                        + ")\n"
+                        + "SELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    hbd.dept_name,\n"
+                        + "    ap.project_name,\n"
+                        + "    hbd.budget\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "LEFT JOIN high_budget_depts hbd\n"
+                        + "    ON o.user_id = hbd.dept_id\n"
+                        + "LEFT JOIN active_projects ap\n"
+                        + "    ON hbd.dept_id = ap.dept_id");
     }
 
     @Test
     void testWithOrInJoinCondition() {
         util.verifyRelPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON o.user_id = u.user_id "
-                        + "LEFT JOIN Payments p ON u.user_id = p.user_id OR u.name = p.payment_id "
-                        + "LEFT JOIN Shipments s ON p.user_id = s.user_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id,\n"
+                        + "    s.location\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON o.user_id = u.user_id\n"
+                        + "LEFT JOIN Payments p\n"
+                        + "    ON u.user_id = p.user_id OR u.name = p.payment_id\n"
+                        + "LEFT JOIN Shipments s\n"
+                        + "    ON p.user_id = s.user_id");
     }
 
     @Test
     @Tag("multijoin-chain-expected")
     void testWithCastCommonJoinKeyToIntegerMultiJoinChainExpected() {
         util.verifyRelPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON o.user_id = u.user_id "
-                        + "LEFT JOIN Payments p ON CAST(u.user_id as INTEGER) = CAST(p.user_id as INTEGER)"
-                        + "LEFT JOIN Shipments s ON u.user_id = s.user_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id,\n"
+                        + "    s.location\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON o.user_id = u.user_id\n"
+                        + "LEFT JOIN Payments p\n"
+                        + "    ON CAST(u.user_id as INTEGER) = CAST(p.user_id as INTEGER)\n"
+                        + "LEFT JOIN Shipments s\n"
+                        + "    ON u.user_id = s.user_id");
     }
 
     @Test
     void testWithCastCommonJoinKeyToVarchar() {
         util.verifyRelPlan(
-                "SELECT u.user_id, u.name, o.order_id, p.payment_id, s.location "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON o.user_id = u.user_id "
-                        + "LEFT JOIN Payments p ON CAST(u.user_id as VARCHAR) = CAST(p.user_id as VARCHAR)"
-                        + "LEFT JOIN Shipments s ON u.user_id = s.user_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    p.payment_id,\n"
+                        + "    s.location\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON o.user_id = u.user_id\n"
+                        + "LEFT JOIN Payments p\n"
+                        + "    ON CAST(u.user_id as VARCHAR) = CAST(p.user_id as VARCHAR)\n"
+                        + "LEFT JOIN Shipments s\n"
+                        + "    ON u.user_id = s.user_id");
     }
 
     @Test
@@ -1247,29 +1467,35 @@ public class MultiJoinTest extends TableTestBase {
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
 
         util.verifyRelPlan(
-                "SELECT "
-                        + "  c.category_name, "
-                        + "  COUNT(DISTINCT u.user_id) AS unique_users, "
-                        + "  COUNT(s.sale_id) AS total_sales, "
-                        + "  SUM(s.amount) AS total_revenue, "
-                        + "  AVG(s.amount) AS avg_sale_amount, "
-                        + "  MAX(s.amount) AS max_sale_amount "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "LEFT JOIN Categories c ON u.user_id = c.user_id AND o.product = c.category_id "
-                        + "LEFT JOIN Sales s ON u.user_id = s.user_id "
-                        + "GROUP BY c.category_name "
+                "\nSELECT\n"
+                        + "    c.category_name,\n"
+                        + "    COUNT(DISTINCT u.user_id) AS unique_users,\n"
+                        + "    COUNT(s.sale_id) AS total_sales,\n"
+                        + "    SUM(s.amount) AS total_revenue,\n"
+                        + "    AVG(s.amount) AS avg_sale_amount,\n"
+                        + "    MAX(s.amount) AS max_sale_amount\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "LEFT JOIN Categories c\n"
+                        + "    ON u.user_id = c.user_id AND o.product = c.category_id\n"
+                        + "LEFT JOIN Sales s\n"
+                        + "    ON u.user_id = s.user_id\n"
+                        + "GROUP BY c.category_name\n"
                         + "HAVING COUNT(s.sale_id) > 0");
     }
 
     @Test
     void testSameTableMultipleAliases() {
         util.verifyRelPlan(
-                "SELECT * "
-                        + "FROM Users u "
-                        + "LEFT JOIN Users u1 ON u.user_id = u1.user_id "
-                        + "LEFT JOIN Users u2 ON u1.user_id = u2.user_id "
-                        + "LEFT JOIN Users u3 ON u2.user_id = u3.user_id");
+                "\nSELECT *\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Users u1\n"
+                        + "    ON u.user_id = u1.user_id\n"
+                        + "LEFT JOIN Users u2\n"
+                        + "    ON u1.user_id = u2.user_id\n"
+                        + "LEFT JOIN Users u3\n"
+                        + "    ON u2.user_id = u3.user_id");
     }
 
     @Test
@@ -1300,16 +1526,16 @@ public class MultiJoinTest extends TableTestBase {
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
 
         util.verifyRelPlan(
-                "SELECT "
-                        + "  p.product_id, "
-                        + "  (p.price - p.discount) AS net_price, "
-                        + "  s.quantity, "
-                        + "  pr.promo_text "
-                        + "FROM Products AS p "
-                        + "LEFT JOIN Sales AS s "
-                        + "  ON (p.price - p.discount) = s.product_key "
-                        + "LEFT JOIN Promotions AS pr "
-                        + "  ON (p.price - p.discount) = pr.product_key "
+                "\nSELECT\n"
+                        + "    p.product_id,\n"
+                        + "    (p.price - p.discount) AS net_price,\n"
+                        + "    s.quantity,\n"
+                        + "    pr.promo_text\n"
+                        + "FROM Products AS p\n"
+                        + "LEFT JOIN Sales AS s\n"
+                        + "    ON (p.price - p.discount) = s.product_key\n"
+                        + "LEFT JOIN Promotions AS pr\n"
+                        + "    ON (p.price - p.discount) = pr.product_key\n"
                         + "WHERE (p.price - p.discount) > 100");
     }
 
@@ -1337,26 +1563,29 @@ public class MultiJoinTest extends TableTestBase {
                                 + ") WITH ('connector' = 'values', 'changelog-mode' = 'I,UA,D')");
 
         util.verifyRelPlan(
-                "SELECT "
-                        + "  u.user_id, "
-                        + "  u.name, "
-                        + "  o.order_id, "
-                        + "  pd.product_name, "
-                        + "  pd.price, "
-                        + "  ROUND(pd.price * 1.1, 2) AS price_with_tax, "
-                        + "  CONCAT('Product: ', pd.product_name) AS product_description, "
-                        + "  CHAR_LENGTH(r.review_text) AS review_length, "
-                        + "  UPPER(SUBSTRING(r.review_text, 1, 10)) AS review_preview, "
-                        + "  CASE "
-                        + "    WHEN r.rating >= 4 THEN 'High Rating' "
-                        + "    WHEN r.rating >= 3 THEN 'Medium Rating' "
-                        + "    ELSE 'Low Rating' "
-                        + "  END AS rating_category, "
-                        + "  TIMESTAMPDIFF(DAY, pd.created_date, CURRENT_DATE) AS days_since_created "
-                        + "FROM Users u "
-                        + "LEFT JOIN Orders o ON u.user_id = o.user_id "
-                        + "LEFT JOIN ProductDetails pd ON o.product = pd.product_id "
-                        + "LEFT JOIN Reviews r ON pd.product_id = r.product_id");
+                "\nSELECT\n"
+                        + "    u.user_id,\n"
+                        + "    u.name,\n"
+                        + "    o.order_id,\n"
+                        + "    pd.product_name,\n"
+                        + "    pd.price,\n"
+                        + "    ROUND(pd.price * 1.1, 2) AS price_with_tax,\n"
+                        + "    CONCAT('Product: ', pd.product_name) AS product_description,\n"
+                        + "    CHAR_LENGTH(r.review_text) AS review_length,\n"
+                        + "    UPPER(SUBSTRING(r.review_text, 1, 10)) AS review_preview,\n"
+                        + "    CASE\n"
+                        + "        WHEN r.rating >= 4 THEN 'High Rating'\n"
+                        + "        WHEN r.rating >= 3 THEN 'Medium Rating'\n"
+                        + "        ELSE 'Low Rating'\n"
+                        + "    END AS rating_category,\n"
+                        + "    TIMESTAMPDIFF(DAY, pd.created_date, CURRENT_DATE) AS days_since_created\n"
+                        + "FROM Users u\n"
+                        + "LEFT JOIN Orders o\n"
+                        + "    ON u.user_id = o.user_id\n"
+                        + "LEFT JOIN ProductDetails pd\n"
+                        + "    ON o.product = pd.product_id\n"
+                        + "LEFT JOIN Reviews r\n"
+                        + "    ON pd.product_id = r.product_id");
     }
 
     @Test
@@ -1372,7 +1601,7 @@ public class MultiJoinTest extends TableTestBase {
                                 + ") WITH ('connector' = 'values', 'sink-insert-only' = 'false')");
 
         util.verifyRelPlanInsert(
-                "INSERT INTO UnnestSink\n"
+                "\nINSERT INTO UnnestSink\n"
                         + "(\n"
                         + "    detail_id,\n"
                         + "    element_data,\n"

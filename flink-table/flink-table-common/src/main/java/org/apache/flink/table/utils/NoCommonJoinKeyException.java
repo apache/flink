@@ -16,8 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.util;
+package org.apache.flink.table.utils;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.FlinkRuntimeException;
+
+/** Thrown when a MultiJoin node has no common join key. */
+@Internal
 public class NoCommonJoinKeyException extends FlinkRuntimeException {
     private static final long serialVersionUID = 1L;
 
