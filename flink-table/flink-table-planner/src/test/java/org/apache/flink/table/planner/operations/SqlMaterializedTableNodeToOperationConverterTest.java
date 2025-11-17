@@ -72,8 +72,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class SqlMaterializedTableNodeToOperationConverterTest
         extends SqlNodeToOperationConversionTestBase {
 
-    private static final String CREATE_OPERATOR = "CREATE ";
-    private static final String CREATE_OR_ALTER_OPERATOR = "CREATE OR ALTER ";
+    private static final String CREATE_OPERATION = "CREATE ";
+    private static final String CREATE_OR_ALTER_OPERATION = "CREATE OR ALTER ";
 
     @BeforeEach
     void before() throws TableAlreadyExistException, DatabaseNotExistException {
@@ -956,15 +956,15 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
     private static Collection<Arguments> testDataWithDifferentSchemasSuccessCase() {
         final Collection<Arguments> list = new ArrayList<>();
-        list.addAll(createOrAlter(CREATE_OPERATOR));
-        list.addAll(createOrAlter(CREATE_OR_ALTER_OPERATOR));
+        list.addAll(createOrAlter(CREATE_OPERATION));
+        list.addAll(createOrAlter(CREATE_OR_ALTER_OPERATION));
         return list;
     }
 
-    private static List<Arguments> createOrAlter(final String command) {
+    private static List<Arguments> createOrAlter(final String operation) {
         return List.of(
                 Arguments.of(
-                        command
+                        operation
                                 + "MATERIALIZED TABLE users_shops (shop_id, user_id)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",
@@ -972,7 +972,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 Column.physical("shop_id", DataTypes.INT().notNull()),
                                 Column.physical("user_id", DataTypes.INT().notNull()))),
                 Arguments.of(
-                        command
+                        operation
                                 + "MATERIALIZED TABLE users_shops"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
                                 + " AS SELECT CAST(1 AS DOUBLE) AS shop_id, CAST(2 AS STRING) AS user_id",
@@ -980,7 +980,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 Column.physical("shop_id", DataTypes.DOUBLE().notNull()),
                                 Column.physical("user_id", DataTypes.STRING().notNull()))),
                 Arguments.of(
-                        command
+                        operation
                                 + "MATERIALIZED TABLE users_shops (user_id, shop_id)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",
@@ -988,7 +988,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 Column.physical("user_id", DataTypes.INT().notNull()),
                                 Column.physical("shop_id", DataTypes.INT().notNull()))),
                 Arguments.of(
-                        command
+                        operation
                                 + "MATERIALIZED TABLE users_shops (user_id INT, shop_id BIGINT)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",
@@ -996,7 +996,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 Column.physical("shop_id", DataTypes.BIGINT()),
                                 Column.physical("user_id", DataTypes.INT()))),
                 Arguments.of(
-                        command
+                        operation
                                 + "MATERIALIZED TABLE users_shops (user_id INT, shop_id BIGINT, PRIMARY KEY(user_id) NOT ENFORCED)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",
@@ -1009,7 +1009,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                         "PK_user_id", List.of("user_id")),
                                 List.of())),
                 Arguments.of(
-                        command
+                        operation
                                 + "MATERIALIZED TABLE users_shops (PRIMARY KEY(user_id) NOT ENFORCED)"
                                 + " FRESHNESS = INTERVAL '30' SECOND"
                                 + " AS SELECT 1 AS shop_id, 2 AS user_id",

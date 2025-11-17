@@ -232,18 +232,18 @@ CREATE MATERIALIZED TABLE my_materialized_table
 
 The `OR ALTER` clause provides create-or-update semantics:
 
-- **If the table does not exist**: Creates a new materialized table with the specified options
-- **If the table exists**: Modifies the query definition (behaves like `ALTER MATERIALIZED TABLE AS`)
+- **If the materialized table does not exist**: Creates a new materialized table with the specified options
+- **If the materialized table exists**: Modifies the query definition (behaves like `ALTER MATERIALIZED TABLE AS`)
 
-This is particularly useful in declarative deployment scenarios where you want to define the desired state without checking if the table already exists.
+This is particularly useful in declarative deployment scenarios where you want to define the desired state without checking if the materialized table already exists.
 
-**Behavior when table exists:**
+**Behavior when materialized table exists:**
 
 The operation updates the materialized table similarly to [ALTER MATERIALIZED TABLE AS](#as-select_statement-1):
 
 **Full mode:**
 1. Updates the schema and query definition
-2. The table is refreshed using the new query when the next refresh job is triggered
+2. The materialized table is refreshed using the new query when the next refresh job is triggered
 
 **Continuous mode:**
 1. Pauses the current running refresh job
@@ -338,7 +338,7 @@ Also, it is worth to note that reordering can also be done here.
 Create or alter a materialized table executed twice:
 
 ```sql
--- First execution: creates the table
+-- First execution: creates the materialized table
 CREATE OR ALTER MATERIALIZED TABLE my_materialized_table
     FRESHNESS = INTERVAL '10' SECOND
     AS
@@ -371,7 +371,7 @@ CREATE OR ALTER MATERIALIZED TABLE my_materialized_table
 ```
 
 <span class="label label-danger">Note</span>
-- When altering an existing table, schema evolution currently only supports adding `nullable` columns to the end of the original table's schema.
+- When altering an existing materialized table, schema evolution currently only supports adding `nullable` columns to the end of the original materialized table's schema.
 - In continuous mode, the new refresh job will not restore from the state of the original refresh job when altering.
 - All limitations from both CREATE and ALTER operations apply.
 
