@@ -18,7 +18,9 @@
 
 package org.apache.flink.table.planner.runtime.batch.sql;
 
+import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.types.Row;
@@ -99,6 +101,49 @@ class FunctionITCase extends BatchTestBase {
         testUserDefinedFunctionByUsingJar(functionDDL, dropFunctionDDL);
     }
 
+    @Test
+    void testOrderByScopeRawTypeCast() throws Exception {
+        final List<Row> sourceData = List.of(Row.of(1), Row.of(2), Row.of(3), Row.of(4), Row.of(5));
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+
+        tEnv().executeSql("CREATE TABLE Source(i INT) WITH ('connector' = 'COLLECTION')");
+        tEnv().executeSql("CREATE TABLE Sink(i INT) WITH ('connector' = 'COLLECTION')");
+
+        tEnv().createTemporarySystemFunction("CustomIntUdf", new CustomIntUdf());
+
+        tEnv().executeSql(
+                        "INSERT INTO Sink"
+                                + " SELECT i FROM Source"
+                                + " ORDER BY CustomIntUdf(NULL)")
+                .await();
+
+        assertThat(TestCollectionTableFactory.getResult()).hasSize(5);
+    }
+
+    @Test
+    void testHavingScopeRawTypeCast() throws Exception {
+        final List<Row> sourceData = List.of(Row.of(1), Row.of(2), Row.of(3), Row.of(4), Row.of(5));
+        TestCollectionTableFactory.reset();
+        TestCollectionTableFactory.initData(sourceData);
+
+        tEnv().executeSql("CREATE TABLE Source(i INT) WITH ('connector' = 'COLLECTION')");
+        tEnv().executeSql("CREATE TABLE Sink(i INT) WITH ('connector' = 'COLLECTION')");
+
+        tEnv().createTemporarySystemFunction("CustomIntUdf", new CustomIntUdf());
+
+        tEnv().executeSql(
+                        "INSERT INTO Sink"
+                                + " SELECT SUM(i) AS s FROM Source"
+                                + " HAVING CustomIntUdf(NULL) = 0")
+                .await();
+
+        assertThat(TestCollectionTableFactory.getResult())
+                .singleElement()
+                .asString()
+                .contains("15");
+    }
+
     private void testUserDefinedFunctionByUsingJar(String createFunctionDDL, String dropFunctionDDL)
             throws Exception {
         List<Row> sourceData =
@@ -123,7 +168,7 @@ class FunctionITCase extends BatchTestBase {
         Table t2 = tEnv().sqlQuery(query);
         t2.executeInsert("t2").await();
 
-        List<Row> result = TestCollectionTableFactory.RESULT();
+        List<Row> result = TestCollectionTableFactory.getResult();
         List<Row> expected =
                 Arrays.asList(
                         Row.of(1, "jark"),
@@ -138,5 +183,22 @@ class FunctionITCase extends BatchTestBase {
 
         // delete the function
         tEnv().executeSql(dropFunctionDDL);
+    }
+
+    // ----- Test types / UDF -----
+
+    @DataTypeHint(value = "RAW", bridgedTo = CustomInt.class)
+    public static class CustomInt {
+        public Integer value;
+
+        public CustomInt(Integer v) {
+            this.value = v;
+        }
+    }
+
+    public static class CustomIntUdf extends ScalarFunction {
+        public Integer eval(CustomInt v) {
+            return 0;
+        }
     }
 }
