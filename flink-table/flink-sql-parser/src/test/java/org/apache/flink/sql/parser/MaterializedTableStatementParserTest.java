@@ -458,9 +458,9 @@ class MaterializedTableStatementParserTest {
                         + "FROM `SOURCE`");
     }
 
-    private static Map.Entry<String, String> withPrimaryKey(final String command) {
+    private static Map.Entry<String, String> withPrimaryKey(final String operation) {
         return new AbstractMap.SimpleEntry<>(
-                command
+                operation
                         + "MATERIALIZED TABLE tbl1\n"
                         + "(\n"
                         + "   PRIMARY KEY (a, b)\n"
@@ -469,7 +469,7 @@ class MaterializedTableStatementParserTest {
                         + "FRESHNESS = INTERVAL '3' MINUTE\n"
                         + "REFRESH_MODE = FULL\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                command
+                operation
                         + "MATERIALIZED TABLE `TBL1` (\n"
                         + "  PRIMARY KEY (`A`, `B`)\n"
                         + ")\n"
@@ -481,15 +481,15 @@ class MaterializedTableStatementParserTest {
                         + "FROM `SOURCE`");
     }
 
-    private static Map.Entry<String, String> withoutTableConstraint(final String command) {
+    private static Map.Entry<String, String> withoutTableConstraint(final String operation) {
         return new AbstractMap.SimpleEntry<>(
-                command
+                operation
                         + "MATERIALIZED TABLE tbl1\n"
                         + "COMMENT 'table comment'\n"
                         + "FRESHNESS = INTERVAL '3' DAYS\n"
                         + "REFRESH_MODE = FULL\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                command
+                operation
                         + "MATERIALIZED TABLE `TBL1`\n"
                         + "COMMENT 'table comment'\n"
                         + "FRESHNESS = INTERVAL '3' DAY\n"
@@ -524,9 +524,9 @@ class MaterializedTableStatementParserTest {
                         + "FROM `SOURCE`");
     }
 
-    private static Map.Entry<String, String> withColumns(final String command) {
+    private static Map.Entry<String, String> withColumns(final String operation) {
         return new AbstractMap.SimpleEntry<>(
-                command
+                operation
                         + "MATERIALIZED TABLE tbl1\n"
                         + "(\n"
                         + "  a INT, b STRING, h INT, m INT\n"
@@ -540,7 +540,7 @@ class MaterializedTableStatementParserTest {
                         + ")\n"
                         + "FRESHNESS = INTERVAL '3' MINUTE\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                command
+                operation
                         + "MATERIALIZED TABLE `TBL1` (\n"
                         + "  `A` INTEGER,\n"
                         + "  `B` STRING,\n"
@@ -560,9 +560,9 @@ class MaterializedTableStatementParserTest {
                         + "FROM `SOURCE`");
     }
 
-    private static Map.Entry<String, String> withColumnsAndWatermark(final String command) {
+    private static Map.Entry<String, String> withColumnsAndWatermark(final String operation) {
         return new AbstractMap.SimpleEntry<>(
-                command
+                operation
                         + "MATERIALIZED TABLE tbl1\n"
                         + "(\n"
                         + "  ts timestamp(3),\n"
@@ -578,7 +578,7 @@ class MaterializedTableStatementParserTest {
                         + ")\n"
                         + "FRESHNESS = INTERVAL '3' MINUTE\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                command
+                operation
                         + "MATERIALIZED TABLE `TBL1` (\n"
                         + "  `TS` TIMESTAMP(3),\n"
                         + "  `ID` VARCHAR,\n"
@@ -597,9 +597,9 @@ class MaterializedTableStatementParserTest {
                         + "FROM `SOURCE`");
     }
 
-    private static Map.Entry<String, String> withColumnsIdentifiersOnly(final String command) {
+    private static Map.Entry<String, String> withColumnsIdentifiersOnly(final String operation) {
         return new AbstractMap.SimpleEntry<>(
-                command
+                operation
                         + "MATERIALIZED TABLE tbl1\n"
                         + "(a, b, h, m)\n"
                         + "COMMENT 'table comment'\n"
@@ -611,7 +611,7 @@ class MaterializedTableStatementParserTest {
                         + ")\n"
                         + "FRESHNESS = INTERVAL '3' MINUTE\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                command
+                operation
                         + "MATERIALIZED TABLE `TBL1` (\n"
                         + "  `A`,\n"
                         + "  `B`,\n"
