@@ -32,8 +32,13 @@ public class DefaultSourceLineageVertex implements SourceLineageVertex {
     private List<LineageDataset> lineageDatasets;
 
     public DefaultSourceLineageVertex(Boundedness boundedness) {
-        this.lineageDatasets = new ArrayList<>();
+        this(boundedness, new ArrayList<>());
+    }
+
+    public DefaultSourceLineageVertex(
+            Boundedness boundedness, List<LineageDataset> lineageDatasets) {
         this.boundedness = boundedness;
+        this.lineageDatasets = lineageDatasets;
     }
 
     public void addDataset(LineageDataset lineageDataset) {

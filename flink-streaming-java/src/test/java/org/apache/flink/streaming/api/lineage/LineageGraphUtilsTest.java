@@ -194,9 +194,7 @@ class LineageGraphUtilsTest {
             LineageDataset lineageDataset =
                     new DefaultLineageDataset(
                             SINK_DATASET_NAME, SINK_DATASET_NAMESPACE, new HashMap<>());
-            DefaultLineageVertex lineageVertex = new DefaultLineageVertex();
-            lineageVertex.addLineageDataset(lineageDataset);
-            return lineageVertex;
+            return LineageUtils.lineageVertexOf(lineageDataset);
         }
     }
 
@@ -212,10 +210,7 @@ class LineageGraphUtilsTest {
             LineageDataset lineageDataset =
                     new DefaultLineageDataset(
                             SOURCE_DATASET_NAME, SOURCE_DATASET_NAMESPACE, new HashMap<>());
-            DefaultSourceLineageVertex lineageVertex =
-                    new DefaultSourceLineageVertex(Boundedness.BOUNDED);
-            lineageVertex.addDataset(lineageDataset);
-            return lineageVertex;
+            return LineageUtils.sourceLineageVertexOf(Boundedness.BOUNDED, lineageDataset);
         }
     }
 

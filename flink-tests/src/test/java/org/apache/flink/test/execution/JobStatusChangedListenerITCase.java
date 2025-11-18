@@ -37,10 +37,10 @@ import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.lineage.DefaultLineageDataset;
-import org.apache.flink.streaming.api.lineage.DefaultLineageVertex;
 import org.apache.flink.streaming.api.lineage.DefaultSourceLineageVertex;
 import org.apache.flink.streaming.api.lineage.LineageDataset;
 import org.apache.flink.streaming.api.lineage.LineageGraph;
+import org.apache.flink.streaming.api.lineage.LineageUtils;
 import org.apache.flink.streaming.api.lineage.LineageVertex;
 import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
 import org.apache.flink.streaming.runtime.execution.DefaultJobCreatedEvent;
@@ -322,9 +322,7 @@ public class JobStatusChangedListenerITCase extends TestLogger {
             LineageDataset lineageDataset =
                     new DefaultLineageDataset(
                             SINK_DATASET_NAME, SINK_DATASET_NAMESPACE, new HashMap<>());
-            DefaultLineageVertex lineageVertex = new DefaultLineageVertex();
-            lineageVertex.addLineageDataset(lineageDataset);
-            return lineageVertex;
+            return LineageUtils.lineageVertexOf(lineageDataset);
         }
     }
 }
