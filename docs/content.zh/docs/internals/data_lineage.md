@@ -53,19 +53,4 @@ public interface LineageVertexProvider {
 
 接口详细信息请参考 [FLIP-314](https://cwiki.apache.org/confluence/display/FLINK/FLIP-314%3A+Support+Customized+Job+Lineage+Listener).
 
-# Naming Conventions
-对于每个 Lineage Dataset，我们需要定义它自己的名称和命名空间，以区分 Flink 应用程序连接器中使用的不同数据存储和相应实例。
-
-| Data Store | Connector Type  | Namespace                              | Name                                                     | 
-|------------|-----------------|----------------------------------------|----------------------------------------------------------|
-| Kafka      | Kafka Connector | kafka://{bootstrap server host}:{port} | topic                                                    |
-| MySQL      | JDBC Connector  | mysql://{host}:{port}                  | {database}.{table}                                       | 
-| Sql Server | JDBC Connector  | sqlserver://{host}:{port}              | {database}.{table}                                       | 
-| Postgres   | JDBC Connector  | postgres://{host}:{port}               | {database}.{schema}.{table}                              | 
-| Oracle     | JDBC Connector  | oracle://{host}:{port}                 | {serviceName}.{schema}.{table} or {sid}.{schema}.{table} | 
-| Trino      | JDBC Connector  | trino://{host}:{port}                  | {catalog}.{schema}.{table}                               | 
-| OceanBase  | JDBC Connector  | oceanbase://{host}:{port}              | {database}.{table}                                       | 
-| DB2        | JDBC Connector  | db2://{host}:{port}                    | {database}.{table}                                       | 
-| CrateDB    | JDBC Connector  | cratedb://{host}:{port}                | {database}.{table}                                       | 
-
-如果您想为此处未列出的 Flink 连接器的血统集成做出贡献，请在Flink连接器的代码库中完成开发，然后更新上表。
+{{< top >}}

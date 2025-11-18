@@ -56,19 +56,4 @@ public interface LineageVertexProvider {
 
 For the interface details, please refer to [FLIP-314](https://cwiki.apache.org/confluence/display/FLINK/FLIP-314%3A+Support+Customized+Job+Lineage+Listener).
 
-# Naming Conventions
-For each of the Lineage Dataset, we need to define its name and namespace, to distinguish different data stores and corresponding dynamic table associated with a Flink connector. 
-
-| Data Store | Connector Type  | Namespace                              | Name                                                     | 
-|------------|-----------------|----------------------------------------|----------------------------------------------------------|
-| Kafka      | Kafka Connector | kafka://{bootstrap server host}:{port} | topic                                                    |
-| MySQL      | JDBC Connector  | mysql://{host}:{port}                  | {database}.{table}                                       | 
-| Sql Server | JDBC Connector  | sqlserver://{host}:{port}              | {database}.{table}                                       | 
-| Postgres   | JDBC Connector  | postgres://{host}:{port}               | {database}.{schema}.{table}                              | 
-| Oracle     | JDBC Connector  | oracle://{host}:{port}                 | {serviceName}.{schema}.{table} or {sid}.{schema}.{table} | 
-| Trino      | JDBC Connector  | trino://{host}:{port}                  | {catalog}.{schema}.{table}                               | 
-| OceanBase  | JDBC Connector  | oceanbase://{host}:{port}              | {database}.{table}                                       | 
-| DB2        | JDBC Connector  | db2://{host}:{port}                    | {database}.{table}                                       | 
-| CrateDB    | JDBC Connector  | cratedb://{host}:{port}                | {database}.{table}                                       | 
-
-If you would like to contribute to lineage integration with Flink Connectors that are not listed here, please finish the development in the connector repository and then update the table above.
+{{< top >}}
