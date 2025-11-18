@@ -28,8 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWatermarkAs
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType;
 import org.apache.flink.table.planner.plan.utils.TemporalTableJoinUtil;
 
-import org.apache.flink.shaded.curator5.org.apache.curator.shaded.com.google.common.collect.Lists;
-
+import com.google.common.collect.Lists;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
