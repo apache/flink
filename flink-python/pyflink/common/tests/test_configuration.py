@@ -188,3 +188,7 @@ class ConfigurationTests(PyFlinkTestCase):
         expected_result = ['jar1', 'jar2', 'jar3']
         result = Configuration.parse_list_value(value)
         self.assertEqual(result, expected_result)
+
+    def test_from_dict(self):
+        map = {'key': 'value'}
+        self.assertEqual(Configuration.from_dict(map).get_string('key', ''), 'value')
