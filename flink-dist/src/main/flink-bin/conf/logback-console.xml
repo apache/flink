@@ -64,4 +64,6 @@
 
     <!-- Suppress the irrelevant (wrong) warnings from the Netty channel handler -->
     <logger name="org.jboss.netty.channel.DefaultChannelPipeline" level="ERROR"/>
+
+    <logger name="PythonWorker" level="ALL"/>
 </configuration>

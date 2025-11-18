@@ -42,6 +42,7 @@ from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction, \
     SecondColumnTimestampAssigner
 from pyflink.java_gateway import get_gateway
 from pyflink.metrics import Counter, Meter, Distribution
+from pyflink.pyflink_gateway_server import get_log_dir, prepare_environment_variables
 from pyflink.testing.test_case_utils import (PyFlinkBatchTestCase, PyFlinkStreamingTestCase,
                                              PyFlinkTestCase)
 from pyflink.util.java_utils import get_j_env_configuration
@@ -1314,7 +1315,11 @@ class EmbeddedDataStreamBatchTests(DataStreamBatchTests, PyFlinkBatchTestCase):
 class CommonDataStreamTests(PyFlinkTestCase):
     def setUp(self) -> None:
         super(CommonDataStreamTests, self).setUp()
-        self.env = StreamExecutionEnvironment.get_execution_environment()
+        self.env = StreamExecutionEnvironment.get_execution_environment(Configuration.from_dict(
+            {
+                'python.default.logging.level': 'DEBUG',
+                'python.logging.level.overrides': f'{__name__}: INFO'
+            }))
         self.env.set_parallelism(2)
         self.env.set_runtime_mode(RuntimeExecutionMode.STREAMING)
         config = get_j_env_configuration(self.env._j_stream_execution_environment)
@@ -1650,6 +1655,51 @@ class CommonDataStreamTests(PyFlinkTestCase):
         results = self.test_sink.get_results(True)
         expected = ['c', 'c', 'b']
         self.assert_equals_sorted(expected, results)
+
+    def test_logging_msg(self):
+        import logging
+        logger = logging.getLogger(__name__)
+
+        root_logger = logging.getLogger()
+
+        def log_function(e):
+            root_logger.debug(f'root: input is {e}')
+            logger.info(f'info: input is {e}')
+            logger.debug(f'debug: input is {e}')
+            return e
+        ds = self.env.from_collection(
+            [('a', 0)],
+            type_info=Types.ROW([Types.STRING(), Types.INT()])
+        ).map(log_function)
+        with ds.execute_and_collect() as results:
+            actual = [result for result in results]
+            self.assert_equals_sorted([Row(f0='a', f1=0)], actual)
+
+        # get the log file
+        env = dict(os.environ)
+        prepare_environment_variables(env)
+        log_dir = get_log_dir(env)
+        files = [os.path.join(log_dir, x) for x in os.listdir(log_dir)
+                 if 'python' in x and x.endswith('.log')]
+        if len(files) != 1:
+            raise Exception(f"log file number is not 1, but {len(files)}: {files}")
+
+        # search logs in the log file
+        find_root_debug_level_msg = False
+        find_any_internal_info_msg = False
+        with open(files[0], 'r', encoding='utf-8') as f:
+            for line in f:
+                if 'debug: input is' in line:
+                    raise Exception(f'Unexpected msg: {line}')
+                if 'root: input is' in line:
+                    find_root_debug_level_msg = True
+                if 'info: input is' in line:
+                    find_any_internal_info_msg = True
+
+        if not find_root_debug_level_msg:
+            raise Exception('external log debug-level msg not found')
+        if not find_any_internal_info_msg:
+            raise Exception('debug msg not found')
 
 
 class MyKeySelector(KeySelector):
