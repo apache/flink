@@ -120,6 +120,16 @@ public class ResolvedCatalogMaterializedTable
     }
 
     @Override
+    public String getOriginalQuery() {
+        return origin.getOriginalQuery();
+    }
+
+    @Override
+    public String getExpandedQuery() {
+        return origin.getExpandedQuery();
+    }
+
+    @Override
     public CatalogMaterializedTable getOrigin() {
         return origin;
     }
@@ -127,11 +137,6 @@ public class ResolvedCatalogMaterializedTable
     @Override
     public ResolvedSchema getResolvedSchema() {
         return resolvedSchema;
-    }
-
-    @Override
-    public String getDefinitionQuery() {
-        return origin.getDefinitionQuery();
     }
 
     @Override

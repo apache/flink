@@ -142,7 +142,7 @@ public class ShowCreateUtil {
                 .append("\n")
                 .append(extractRefreshMode(table))
                 .append("\n");
-        sb.append("AS ").append(table.getDefinitionQuery()).append('\n');
+        sb.append("AS ").append(table.getExpandedQuery()).append('\n');
         return sb.toString();
     }
 

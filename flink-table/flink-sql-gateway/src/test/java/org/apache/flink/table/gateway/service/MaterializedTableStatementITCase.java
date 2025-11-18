@@ -1268,7 +1268,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isEqualTo(
                         Collections.singletonList(
                                 Column.physical("order_amount_sum", DataTypes.INT())));
-        assertThat(newTable.getDefinitionQuery())
+        assertThat(newTable.getExpandedQuery())
                 .isEqualTo(
                         String.format(
                                 "SELECT `tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`, COUNT(`tmp`.`order_id`) AS `order_cnt`, SUM(`tmp`.`order_amount`) AS `order_amount_sum`\n"
@@ -1342,7 +1342,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                                         TEST_DEFAULT_DATABASE,
                                         "users_shops"));
 
-        assertThat(newTable.getDefinitionQuery()).isEqualTo(oldTable.getDefinitionQuery());
+        assertThat(newTable.getExpandedQuery()).isEqualTo(oldTable.getExpandedQuery());
 
         // the refresh handler in full mode should be the same as the old one
         assertThat(oldTable.getSerializedRefreshHandler())
@@ -1408,7 +1408,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isEqualTo(
                         Collections.singletonList(
                                 Column.physical("order_amount_sum", DataTypes.INT())));
-        assertThat(newTable.getDefinitionQuery())
+        assertThat(newTable.getExpandedQuery())
                 .isEqualTo(
                         String.format(
                                 "SELECT `tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`, COUNT(`tmp`.`order_id`) AS `order_cnt`, SUM(`tmp`.`order_amount`) AS `order_amount_sum`\n"
@@ -1495,7 +1495,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isEqualTo(oldTable.getResolvedSchema().getPrimaryKey());
         assertThat(newTable.getResolvedSchema().getWatermarkSpecs())
                 .isEqualTo(oldTable.getResolvedSchema().getWatermarkSpecs());
-        assertThat(newTable.getDefinitionQuery())
+        assertThat(newTable.getExpandedQuery())
                 .isEqualTo(
                         String.format(
                                 "SELECT COALESCE(`tmp`.`user_id`, CAST(0 AS BIGINT)) AS `user_id`, `tmp`.`shop_id`, COALESCE(`tmp`.`ds`, '') AS `ds`, SUM(`tmp`.`payment_amount_cents`) AS `payed_buy_fee_sum`, SUM(1) AS `pv`\n"
@@ -1594,7 +1594,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
 
         assertThat(getAddedColumns(newTable.getResolvedSchema(), oldTable.getResolvedSchema()))
                 .isEqualTo(Collections.singletonList(Column.physical("pv", DataTypes.INT())));
-        assertThat(newTable.getDefinitionQuery())
+        assertThat(newTable.getExpandedQuery())
                 .isEqualTo(
                         String.format(
                                 "SELECT `tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`, SUM(`tmp`.`payment_amount_cents`) AS `payed_buy_fee_sum`, SUM(1) AS `pv`\n"

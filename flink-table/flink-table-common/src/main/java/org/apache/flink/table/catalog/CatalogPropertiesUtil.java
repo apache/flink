@@ -139,7 +139,7 @@ public final class CatalogPropertiesUtil {
                     properties, resolvedMaterializedTable.getResolvedSchema(), sqlFactory);
 
             final String comment = resolvedMaterializedTable.getComment();
-            if (comment != null && comment.length() > 0) {
+            if (comment != null && !comment.isEmpty()) {
                 properties.put(COMMENT, comment);
             }
 
@@ -154,7 +154,8 @@ public final class CatalogPropertiesUtil {
 
             properties.putAll(resolvedMaterializedTable.getOptions());
 
-            properties.put(DEFINITION_QUERY, resolvedMaterializedTable.getDefinitionQuery());
+            properties.put(ORIGINAL_QUERY, resolvedMaterializedTable.getOriginalQuery());
+            properties.put(EXPANDED_QUERY, resolvedMaterializedTable.getExpandedQuery());
 
             IntervalFreshness intervalFreshness =
                     resolvedMaterializedTable.getDefinitionFreshness();
@@ -280,7 +281,8 @@ public final class CatalogPropertiesUtil {
 
             final Map<String, String> options = deserializeOptions(properties);
 
-            final String definitionQuery = properties.get(DEFINITION_QUERY);
+            final String originalQuery = properties.get(ORIGINAL_QUERY);
+            final String expandedQuery = properties.get(EXPANDED_QUERY);
 
             final String freshnessInterval = properties.get(FRESHNESS_INTERVAL);
             final IntervalFreshness.TimeUnit timeUnit =
@@ -313,7 +315,8 @@ public final class CatalogPropertiesUtil {
                     .distribution(distribution)
                     .options(options)
                     .snapshot(snapshot)
-                    .definitionQuery(definitionQuery)
+                    .originalQuery(originalQuery)
+                    .expandedQuery(expandedQuery)
                     .freshness(freshness)
                     .logicalRefreshMode(logicalRefreshMode)
                     .refreshMode(refreshMode)
@@ -405,7 +408,9 @@ public final class CatalogPropertiesUtil {
 
     private static final String SNAPSHOT = "snapshot";
 
-    private static final String DEFINITION_QUERY = "definition-query";
+    private static final String ORIGINAL_QUERY = "original-query";
+
+    private static final String EXPANDED_QUERY = "expanded-query";
 
     private static final String FRESHNESS_INTERVAL = "freshness-interval";
 
@@ -450,7 +455,8 @@ public final class CatalogPropertiesUtil {
     }
 
     private static boolean isMaterializedTableAttribute(String key) {
-        return key.equals(DEFINITION_QUERY)
+        return key.equals(ORIGINAL_QUERY)
+                || key.equals(EXPANDED_QUERY)
                 || key.equals(FRESHNESS_INTERVAL)
                 || key.equals(FRESHNESS_UNIT)
                 || key.equals(LOGICAL_REFRESH_MODE)

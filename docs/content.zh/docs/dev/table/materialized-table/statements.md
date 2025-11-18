@@ -27,14 +27,14 @@ under the License.
 # 物化表语法
 
 Flink SQL 目前支持以下物化表操作：
-- [CREATE MATERIALIZED TABLE](#create-materialized-table)
+- [CREATE [OR ALTER] MATERIALIZED TABLE](#create-or-alter-materialized-table)
 - [ALTER MATERIALIZED TABLE](#alter-materialized-table)
 - [DROP MATERIALIZED TABLE](#drop-materialized-table)
 
-# CREATE MATERIALIZED TABLE
+# CREATE [OR ALTER] MATERIALIZED TABLE
 
 ```
-CREATE MATERIALIZED TABLE [catalog_name.][db_name.]table_name
+CREATE [OR ALTER] MATERIALIZED TABLE [catalog_name.][db_name.]table_name
 
 [(
     { <physical_column_definition> | <metadata_column_definition> | <computed_column_definition> }[ , ...n]
@@ -228,6 +228,30 @@ CREATE MATERIALIZED TABLE my_materialized_table
     AS SELECT * FROM kafka_catalog.db1.kafka_table;
 ```
 
+## OR ALTER
+
+The `OR ALTER` clause provides create-or-update semantics:
+
+- **If the materialized table does not exist**: Creates a new materialized table with the specified options
+- **If the materialized table exists**: Modifies the query definition (behaves like `ALTER MATERIALIZED TABLE AS`)
+
+This is particularly useful in declarative deployment scenarios where you want to define the desired state without checking if the materialized table already exists.
+
+**Behavior when materialized table exists:**
+
+The operation updates the materialized table similarly to [ALTER MATERIALIZED TABLE AS](#as-select_statement-1):
+
+**Full mode:**
+1. Updates the schema and query definition
+2. The materialized table is refreshed using the new query when the next refresh job is triggered
+
+**Continuous mode:**
+1. Pauses the current running refresh job
+2. Updates the schema and query definition
+3. Starts a new refresh job from the beginning
+
+See [ALTER MATERIALIZED TABLE AS](#as-select_statement-1) for more details.
+
 ## 示例
 
 假定 `materialized-table.refresh-mode.freshness-threshold` 为 30 分钟。
@@ -312,6 +336,46 @@ CREATE MATERIALIZED TABLE my_materialized_table_full (
 It might happen that types of columns are not the same, in that case implicit casts will be applied. 
 If for some of the combinations implicit cast is not supported then there will be validation error thrown. 
 Also, it is worth to note that reordering can also be done here. 
+
+Create or alter a materialized table executed twice:
+
+```sql
+-- First execution: creates the materialized table
+CREATE OR ALTER MATERIALIZED TABLE my_materialized_table
+    FRESHNESS = INTERVAL '10' SECOND
+    AS
+    SELECT
+        user_id,
+        COUNT(*) AS event_count,
+        SUM(amount) AS total_amount
+    FROM
+        kafka_catalog.db1.events
+    WHERE
+        event_type = 'purchase'
+    GROUP BY
+        user_id;
+
+-- Second execution: alters the query definition (adds avg_amount column)
+CREATE OR ALTER MATERIALIZED TABLE my_materialized_table
+    FRESHNESS = INTERVAL '10' SECOND
+    AS
+    SELECT
+        user_id,
+        COUNT(*) AS event_count,
+        SUM(amount) AS total_amount,
+        AVG(amount) AS avg_amount  -- Add a new nullable column at the end
+    FROM
+        kafka_catalog.db1.events
+    WHERE
+        event_type = 'purchase'
+    GROUP BY
+        user_id;
+```
+
+<span class="label label-danger">Note</span>
+- When altering an existing materialized table, schema evolution currently only supports adding `nullable` columns to the end of the original materialized table's schema.
+- In continuous mode, the new refresh job will not restore from the state of the original refresh job when altering.
+- All limitations from both CREATE and ALTER operations apply.
 
 ## 限制
 - Does not support explicitly specifying physical columns which are not used in the query

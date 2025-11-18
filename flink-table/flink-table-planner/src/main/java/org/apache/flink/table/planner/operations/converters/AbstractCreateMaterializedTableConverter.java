@@ -63,7 +63,9 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
 
         Optional<TableDistribution> getMergedTableDistribution();
 
-        String getMergedDefinitionQuery();
+        String getMergedOriginalQuery();
+
+        String getMergedExpandedQuery();
 
         ResolvedSchema getMergedQuerySchema();
     }
@@ -113,11 +115,17 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
         return MaterializedTableUtils.fromLogicalRefreshModeToRefreshMode(logicalRefreshMode);
     }
 
-    protected final String getDerivedDefinitionQuery(
+    protected final String getDerivedOriginalQuery(
+            T sqlCreateMaterializedTable, ConvertContext context) {
+        SqlNode selectQuery = sqlCreateMaterializedTable.getAsQuery();
+        return context.toQuotedSqlString(selectQuery);
+    }
+
+    protected final String getDerivedExpandedQuery(
             T sqlCreateMaterializedTable, ConvertContext context) {
         SqlNode selectQuery = sqlCreateMaterializedTable.getAsQuery();
         SqlNode validatedQuery = context.getSqlValidator().validate(selectQuery);
-        return context.toQuotedSqlString(validatedQuery);
+        return context.expandSqlIdentifiers(context.toQuotedSqlString(validatedQuery));
     }
 
     protected final String getComment(T sqlCreateMaterializedTable) {
@@ -136,11 +144,17 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
         final TableDistribution distribution =
                 mergeContext.getMergedTableDistribution().orElse(null);
         final String comment = getComment(sqlCreateMaterializedTable);
-        final String definitionQuery = mergeContext.getMergedDefinitionQuery();
+
+        final String originalQuery = mergeContext.getMergedOriginalQuery();
+        final String expandedQuery = mergeContext.getMergedExpandedQuery();
+
         final IntervalFreshness intervalFreshness = getDerivedFreshness(sqlCreateMaterializedTable);
+
         final LogicalRefreshMode logicalRefreshMode =
                 getDerivedLogicalRefreshMode(sqlCreateMaterializedTable);
+
         final RefreshMode refreshMode = getDerivedRefreshMode(logicalRefreshMode);
+
         return context.getCatalogManager()
                 .resolveCatalogMaterializedTable(
                         CatalogMaterializedTable.newBuilder()
@@ -149,7 +163,8 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
                                 .distribution(distribution)
                                 .partitionKeys(partitionKeys)
                                 .options(tableOptions)
-                                .definitionQuery(definitionQuery)
+                                .originalQuery(originalQuery)
+                                .expandedQuery(expandedQuery)
                                 .freshness(intervalFreshness)
                                 .logicalRefreshMode(logicalRefreshMode)
                                 .refreshMode(refreshMode)

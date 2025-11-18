@@ -47,7 +47,7 @@ import static java.util.Objects.requireNonNull;
 /** CREATE MATERIALIZED TABLE DDL sql call. */
 public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSqlNode {
 
-    public static final SqlSpecialOperator OPERATOR =
+    public static final SqlSpecialOperator CREATE_OPERATOR =
             new SqlSpecialOperator("CREATE MATERIALIZED TABLE", SqlKind.CREATE_TABLE);
 
     private final SqlIdentifier tableName;
@@ -56,13 +56,13 @@ public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSql
 
     private final List<SqlTableConstraint> tableConstraints;
 
+    private final SqlWatermark watermark;
+
     private final @Nullable SqlCharStringLiteral comment;
 
     private final @Nullable SqlDistribution distribution;
 
     private final SqlNodeList partitionKeyList;
-
-    private final SqlWatermark watermark;
 
     private final SqlNodeList propertyList;
 
@@ -73,6 +73,7 @@ public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSql
     private final SqlNode asQuery;
 
     public SqlCreateMaterializedTable(
+            SqlSpecialOperator operator,
             SqlParserPos pos,
             SqlIdentifier tableName,
             SqlNodeList columnList,
@@ -85,7 +86,7 @@ public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSql
             @Nullable SqlIntervalLiteral freshness,
             @Nullable SqlRefreshMode refreshMode,
             SqlNode asQuery) {
-        super(OPERATOR, pos, false, false);
+        super(operator, pos, false, false);
         this.tableName = requireNonNull(tableName, "tableName should not be null");
         this.columnList = columnList;
         this.tableConstraints = tableConstraints;
@@ -98,11 +99,6 @@ public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSql
         this.freshness = freshness;
         this.refreshMode = refreshMode;
         this.asQuery = requireNonNull(asQuery, "asQuery should not be null");
-    }
-
-    @Override
-    public SqlOperator getOperator() {
-        return OPERATOR;
     }
 
     @Override
@@ -185,12 +181,15 @@ public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSql
         // CREATE MATERIALIZED TABLE supports passing only column identifiers in the column list. If
         // the first column in the list is an identifier, then we assume the rest of the
         // columns are identifiers as well.
-        return !getColumnList().isEmpty() && getColumnList().get(0) instanceof SqlIdentifier;
+        return !columnList.isEmpty() && columnList.get(0) instanceof SqlIdentifier;
     }
 
-    @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("CREATE MATERIALIZED TABLE");
+    protected void unparseMaterializedTableAs(
+            final SqlOperator operation,
+            final SqlWriter writer,
+            final int leftPrec,
+            final int rightPrec) {
+        writer.keyword(operation.getName());
         tableName.unparse(writer, leftPrec, rightPrec);
 
         if (!columnList.isEmpty() || !tableConstraints.isEmpty() || watermark != null) {

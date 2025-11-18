@@ -33,8 +33,8 @@ public class AlterMaterializedTableAsQueryOperation extends AlterMaterializedTab
     public AlterMaterializedTableAsQueryOperation(
             ObjectIdentifier tableIdentifier,
             List<MaterializedTableChange> tableChanges,
-            CatalogMaterializedTable newMaterializedTable) {
-        super(tableIdentifier, tableChanges, newMaterializedTable);
+            CatalogMaterializedTable catalogMaterializedTable) {
+        super(tableIdentifier, tableChanges, catalogMaterializedTable);
     }
 
     @Override
@@ -48,6 +48,6 @@ public class AlterMaterializedTableAsQueryOperation extends AlterMaterializedTab
         return String.format(
                 "ALTER MATERIALIZED TABLE %s AS %s",
                 tableIdentifier.asSummaryString(),
-                getCatalogMaterializedTable().getDefinitionQuery());
+                getCatalogMaterializedTable().getExpandedQuery());
     }
 }

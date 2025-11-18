@@ -37,14 +37,21 @@ import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 @Execution(CONCURRENT)
 class MaterializedTableStatementParserTest {
 
+    private static final String CREATE_OPERATION = "CREATE ";
+    private static final String CREATE_OR_ALTER_OPERATION = "CREATE OR ALTER ";
+
     @ParameterizedTest(name = "{index}: {0}")
-    @MethodSource("inputForCreateMaterializedTable")
-    void testCreateMaterializedTable(
+    @MethodSource("inputForMaterializedTable")
+    void testMaterializedTable(
             final String testName, final Map.Entry<String, String> sqlToExpected) {
         final String sql = sqlToExpected.getKey();
         final String expected = sqlToExpected.getValue();
-
         sql(sql).ok(expected);
+    }
+
+    private static Stream<Arguments> inputForMaterializedTable() {
+        return Stream.concat(
+                inputForCreateMaterializedTable(), inputForCreateOrAlterMaterializedTable());
     }
 
     @Test
@@ -325,7 +332,7 @@ class MaterializedTableStatementParserTest {
     @Test
     void testAlterMaterializedTableAsQuery() {
         final String sql = "ALTER MATERIALIZED TABLE tbl1 AS SELECT * FROM t";
-        final String expected = "ALTER MATERIALIZED TABLE `TBL1` AS SELECT *\nFROM `T`";
+        final String expected = "ALTER MATERIALIZED TABLE `TBL1`\nAS\nSELECT *\nFROM `T`";
         sql(sql).ok(expected);
 
         final String sql2 = "ALTER MATERIALIZED TABLE tbl1 AS SELECT * FROM t A^S^";
@@ -383,18 +390,39 @@ class MaterializedTableStatementParserTest {
 
     private static Stream<Arguments> inputForCreateMaterializedTable() {
         return Stream.of(
-                Arguments.of("Full example", fullExample()),
-                Arguments.of("With columns", withColumns()),
-                Arguments.of("With columns and watermarks", withColumnsAndWatermark()),
-                Arguments.of("Without table constraint", withoutTableConstraint()),
-                Arguments.of("With primary key", withPrimaryKey()),
-                Arguments.of("Without freshness", withoutFreshness()),
-                Arguments.of("With column identifiers only", withColumnsIdentifiersOnly()));
+                Arguments.of("Full example", fullExample(CREATE_OPERATION)),
+                Arguments.of("With columns", withColumns(CREATE_OPERATION)),
+                Arguments.of(
+                        "With columns and watermarks", withColumnsAndWatermark(CREATE_OPERATION)),
+                Arguments.of("Without table constraint", withoutTableConstraint(CREATE_OPERATION)),
+                Arguments.of("With primary key", withPrimaryKey(CREATE_OPERATION)),
+                Arguments.of("Without freshness", withoutFreshness(CREATE_OPERATION)),
+                Arguments.of(
+                        "With column identifiers only",
+                        withColumnsIdentifiersOnly(CREATE_OPERATION)));
     }
 
-    private static Map.Entry<String, String> fullExample() {
+    private static Stream<Arguments> inputForCreateOrAlterMaterializedTable() {
+        return Stream.of(
+                Arguments.of("Full example", fullExample(CREATE_OR_ALTER_OPERATION)),
+                Arguments.of("With columns", withColumns(CREATE_OR_ALTER_OPERATION)),
+                Arguments.of(
+                        "With columns and watermarks",
+                        withColumnsAndWatermark(CREATE_OR_ALTER_OPERATION)),
+                Arguments.of(
+                        "Without table constraint",
+                        withoutTableConstraint(CREATE_OR_ALTER_OPERATION)),
+                Arguments.of("With primary key", withPrimaryKey(CREATE_OR_ALTER_OPERATION)),
+                Arguments.of("Without freshness", withoutFreshness(CREATE_OR_ALTER_OPERATION)),
+                Arguments.of(
+                        "With column identifiers only",
+                        withColumnsIdentifiersOnly(CREATE_OR_ALTER_OPERATION)));
+    }
+
+    private static Map.Entry<String, String> fullExample(final String operation) {
         return new AbstractMap.SimpleEntry<>(
-                "CREATE MATERIALIZED TABLE tbl1\n"
+                operation
+                        + "MATERIALIZED TABLE tbl1\n"
                         + "(\n"
                         + "  ts timestamp(3),\n"
                         + "  id varchar,\n"
@@ -410,7 +438,8 @@ class MaterializedTableStatementParserTest {
                         + ")\n"
                         + "FRESHNESS = INTERVAL '3' MINUTES\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                "CREATE MATERIALIZED TABLE `TBL1` (\n"
+                operation
+                        + "MATERIALIZED TABLE `TBL1` (\n"
                         + "  `TS` TIMESTAMP(3),\n"
                         + "  `ID` VARCHAR,\n"
                         + "  PRIMARY KEY (`ID`),\n"
@@ -429,9 +458,10 @@ class MaterializedTableStatementParserTest {
                         + "FROM `SOURCE`");
     }
 
-    private static Map.Entry<String, String> withPrimaryKey() {
+    private static Map.Entry<String, String> withPrimaryKey(final String operation) {
         return new AbstractMap.SimpleEntry<>(
-                "CREATE MATERIALIZED TABLE tbl1\n"
+                operation
+                        + "MATERIALIZED TABLE tbl1\n"
                         + "(\n"
                         + "   PRIMARY KEY (a, b)\n"
                         + ")\n"
@@ -439,7 +469,8 @@ class MaterializedTableStatementParserTest {
                         + "FRESHNESS = INTERVAL '3' MINUTE\n"
                         + "REFRESH_MODE = FULL\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                "CREATE MATERIALIZED TABLE `TBL1` (\n"
+                operation
+                        + "MATERIALIZED TABLE `TBL1` (\n"
                         + "  PRIMARY KEY (`A`, `B`)\n"
                         + ")\n"
                         + "COMMENT 'table comment'\n"
@@ -450,14 +481,16 @@ class MaterializedTableStatementParserTest {
                         + "FROM `SOURCE`");
     }
 
-    private static Map.Entry<String, String> withoutTableConstraint() {
+    private static Map.Entry<String, String> withoutTableConstraint(final String operation) {
         return new AbstractMap.SimpleEntry<>(
-                "CREATE MATERIALIZED TABLE tbl1\n"
+                operation
+                        + "MATERIALIZED TABLE tbl1\n"
                         + "COMMENT 'table comment'\n"
                         + "FRESHNESS = INTERVAL '3' DAYS\n"
                         + "REFRESH_MODE = FULL\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                "CREATE MATERIALIZED TABLE `TBL1`\n"
+                operation
+                        + "MATERIALIZED TABLE `TBL1`\n"
                         + "COMMENT 'table comment'\n"
                         + "FRESHNESS = INTERVAL '3' DAY\n"
                         + "REFRESH_MODE = FULL\n"
@@ -466,9 +499,10 @@ class MaterializedTableStatementParserTest {
                         + "FROM `SOURCE`");
     }
 
-    private static Map.Entry<String, String> withoutFreshness() {
+    private static Map.Entry<String, String> withoutFreshness(final String operation) {
         return new AbstractMap.SimpleEntry<>(
-                "CREATE MATERIALIZED TABLE tbl1\n"
+                operation
+                        + "MATERIALIZED TABLE tbl1\n"
                         + "(\n"
                         + "   PRIMARY KEY (a, b)\n"
                         + ")\n"
@@ -477,7 +511,8 @@ class MaterializedTableStatementParserTest {
                         + "  'kafka.topic' = 'log.test'\n"
                         + ")\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                "CREATE MATERIALIZED TABLE `TBL1` (\n"
+                operation
+                        + "MATERIALIZED TABLE `TBL1` (\n"
                         + "  PRIMARY KEY (`A`, `B`)\n"
                         + ")\n"
                         + "WITH (\n"
@@ -489,9 +524,10 @@ class MaterializedTableStatementParserTest {
                         + "FROM `SOURCE`");
     }
 
-    private static Map.Entry<String, String> withColumns() {
+    private static Map.Entry<String, String> withColumns(final String operation) {
         return new AbstractMap.SimpleEntry<>(
-                "CREATE MATERIALIZED TABLE tbl1\n"
+                operation
+                        + "MATERIALIZED TABLE tbl1\n"
                         + "(\n"
                         + "  a INT, b STRING, h INT, m INT\n"
                         + ")\n"
@@ -504,7 +540,8 @@ class MaterializedTableStatementParserTest {
                         + ")\n"
                         + "FRESHNESS = INTERVAL '3' MINUTE\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                "CREATE MATERIALIZED TABLE `TBL1` (\n"
+                operation
+                        + "MATERIALIZED TABLE `TBL1` (\n"
                         + "  `A` INTEGER,\n"
                         + "  `B` STRING,\n"
                         + "  `H` INTEGER,\n"
@@ -523,9 +560,10 @@ class MaterializedTableStatementParserTest {
                         + "FROM `SOURCE`");
     }
 
-    private static Map.Entry<String, String> withColumnsAndWatermark() {
+    private static Map.Entry<String, String> withColumnsAndWatermark(final String operation) {
         return new AbstractMap.SimpleEntry<>(
-                "CREATE MATERIALIZED TABLE tbl1\n"
+                operation
+                        + "MATERIALIZED TABLE tbl1\n"
                         + "(\n"
                         + "  ts timestamp(3),\n"
                         + "  id varchar,\n"
@@ -540,7 +578,8 @@ class MaterializedTableStatementParserTest {
                         + ")\n"
                         + "FRESHNESS = INTERVAL '3' MINUTE\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                "CREATE MATERIALIZED TABLE `TBL1` (\n"
+                operation
+                        + "MATERIALIZED TABLE `TBL1` (\n"
                         + "  `TS` TIMESTAMP(3),\n"
                         + "  `ID` VARCHAR,\n"
                         + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n"
@@ -558,9 +597,10 @@ class MaterializedTableStatementParserTest {
                         + "FROM `SOURCE`");
     }
 
-    private static Map.Entry<String, String> withColumnsIdentifiersOnly() {
+    private static Map.Entry<String, String> withColumnsIdentifiersOnly(final String operation) {
         return new AbstractMap.SimpleEntry<>(
-                "CREATE MATERIALIZED TABLE tbl1\n"
+                operation
+                        + "MATERIALIZED TABLE tbl1\n"
                         + "(a, b, h, m)\n"
                         + "COMMENT 'table comment'\n"
                         + "DISTRIBUTED BY HASH (a) INTO 4 BUCKETS\n"
@@ -571,7 +611,8 @@ class MaterializedTableStatementParserTest {
                         + ")\n"
                         + "FRESHNESS = INTERVAL '3' MINUTE\n"
                         + "AS SELECT a, b, h, t m FROM source",
-                "CREATE MATERIALIZED TABLE `TBL1` (\n"
+                operation
+                        + "MATERIALIZED TABLE `TBL1` (\n"
                         + "  `A`,\n"
                         + "  `B`,\n"
                         + "  `H`,\n"

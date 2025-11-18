@@ -107,6 +107,21 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
     Optional<Long> getSnapshot();
 
     /**
+     * Original text of the materialized table definition that preserves the original formatting.
+     *
+     * @return the original string literal provided by the user.
+     */
+    String getOriginalQuery();
+
+    /**
+     * Expanded text of the original materialized table definition with resolved identifiers. This
+     * is needed because context such as current DB is lost after the session.
+     *
+     * @return the materialized table definition in expanded text.
+     */
+    String getExpandedQuery();
+
+    /**
      * The definition query text of materialized table, text is expanded in contrast to the original
      * SQL. This is needed because the context such as current DB is lost after the session, in
      * which view is defined, is gone. Expanded query text takes care of this, as an example.
@@ -117,8 +132,13 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
      * database "default" and has two columns ("name" and "value").
      *
      * @return the materialized table definition in expanded text.
+     * @deprecated The definition query will be removed in future versions, please use {@link
+     *     #getExpandedQuery()} instead.
      */
-    String getDefinitionQuery();
+    @Deprecated
+    default String getDefinitionQuery() {
+        return getExpandedQuery();
+    }
 
     /**
      * Get the definition freshness of materialized table which is used to determine the physical
@@ -209,7 +229,8 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
         private List<String> partitionKeys = Collections.emptyList();
         private Map<String, String> options = Collections.emptyMap();
         private @Nullable Long snapshot;
-        private String definitionQuery;
+        private String originalQuery;
+        private String expandedQuery;
         private @Nullable IntervalFreshness freshness;
         private LogicalRefreshMode logicalRefreshMode;
         private @Nullable RefreshMode refreshMode;
@@ -245,11 +266,24 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
             return this;
         }
 
-        public Builder definitionQuery(String definitionQuery) {
-            this.definitionQuery =
-                    Preconditions.checkNotNull(
-                            definitionQuery, "Definition query must not be null.");
+        public Builder originalQuery(String originalQuery) {
+            this.originalQuery =
+                    Preconditions.checkNotNull(originalQuery, "Original query must not be null.");
             return this;
+        }
+
+        public Builder expandedQuery(String expandedQuery) {
+            this.expandedQuery =
+                    Preconditions.checkNotNull(expandedQuery, "Expanded query must not be null.");
+            return this;
+        }
+
+        /**
+         * @deprecated Use {@link #expandedQuery(String)} instead.
+         */
+        @Deprecated
+        public Builder definitionQuery(String definitionQuery) {
+            return expandedQuery(definitionQuery);
         }
 
         public Builder freshness(@Nullable IntervalFreshness freshness) {
@@ -298,7 +332,8 @@ public interface CatalogMaterializedTable extends CatalogBaseTable {
                     partitionKeys,
                     options,
                     snapshot,
-                    definitionQuery,
+                    originalQuery,
+                    expandedQuery,
                     freshness,
                     logicalRefreshMode,
                     refreshMode,

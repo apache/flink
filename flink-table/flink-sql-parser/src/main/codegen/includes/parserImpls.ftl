@@ -1852,9 +1852,9 @@ SqlNode SqlReplaceTable() :
 }
 
 /**
-  * Parses a CREATE MATERIALIZED TABLE statement.
+  * Parses a CREATE [OR ALTER] MATERIALIZED TABLE statement.
 */
-SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporary) :
+SqlCreate SqlCreateOrAlterMaterializedTable(Span s, boolean replace, boolean isTemporary) :
 {
     final SqlParserPos startPos = s.pos();
     SqlIdentifier tableName;
@@ -1870,8 +1870,14 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
     SqlNode asQuery = null;
     SqlParserPos pos = startPos;
     boolean isColumnsIdentifiersOnly = false;
+    boolean isOrAlter = false;
 }
 {
+    [
+      <OR> <ALTER> {
+        isOrAlter = true;
+      }
+    ]
     <MATERIALIZED>
     {
         if (isTemporary) {
@@ -1946,7 +1952,7 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
     <AS>
     asQuery = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
     {
-        return new SqlCreateMaterializedTable(
+        return new SqlCreateOrAlterMaterializedTable(
             startPos.plus(getPos()),
             tableName,
             columnList,
@@ -1958,7 +1964,8 @@ SqlCreate SqlCreateMaterializedTable(Span s, boolean replace, boolean isTemporar
             propertyList,
             (SqlIntervalLiteral) freshness,
             refreshMode,
-            asQuery);
+            asQuery,
+            isOrAlter);
     }
 }
 
@@ -2646,7 +2653,7 @@ SqlCreate SqlCreateExtended(Span s, boolean replace) :
     (
         create = SqlCreateCatalog(s, replace)
         |
-        create = SqlCreateMaterializedTable(s, replace, isTemporary)
+        create = SqlCreateOrAlterMaterializedTable(s, replace, isTemporary)
         |
         create = SqlCreateTable(s, replace, isTemporary)
         |
