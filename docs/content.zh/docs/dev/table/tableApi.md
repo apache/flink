@@ -2735,6 +2735,114 @@ result = t.select(col('a'), col('c')) \
 
 {{< query_state_warning_zh >}}
 
+### 模型推理
+
+{{< label Streaming >}}
+
+Table API 支持模型推理操作，允许你将机器学习模型直接集成到数据处理管道中。你可以使用特定的提供者创建模型，并使用它们对数据进行推理。
+
+#### 创建和使用模型
+
+使用 `ModelDescriptor` 创建模型，它指定提供者、输入/输出 schema 以及配置选项。创建后，你可以使用该模型对表进行预测。
+
+{{< tabs "model-inference" >}}
+{{< tab "Java" >}}
+
+```java
+// 1. 设置本地环境
+EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
+TableEnvironment tEnv = TableEnvironment.create(settings);
+
+// 2. 从内存数据创建源表
+Table myTable = tEnv.fromValues(
+    ROW(FIELD("text", STRING())),
+    row("Hello"),
+    row("Machine Learning"),
+    row("Good morning")
+);
+
+// 3. 创建模型
+tEnv.createModel(
+    "my_model",
+    ModelDescriptor.forProvider("openai")
+        .inputSchema(Schema.newBuilder().column("input", STRING()).build())
+        .outputSchema(Schema.newBuilder().column("output", STRING()).build())
+        .option("endpoint", "https://api.openai.com/v1/chat/completions")
+        .option("model", "gpt-4.1")
+        .option("system-prompt", "translate to chinese")
+        .option("api-key", "<your-openai-api-key-here>")
+        .build()
+);
+
+Model model = tEnv.fromModel("my_model");
+
+// 4. 使用模型把文本翻译成中文
+Table predictResult = model.predict(myTable, ColumnList.of("text"));
+
+// 5. 异步预测示例
+Table asyncPredictResult = model.predict(
+    myTable, 
+    ColumnList.of("text"), 
+    Map.of("async", "true")
+);
+```
+
+{{< /tab >}}
+{{< tab "Scala" >}}
+
+```scala
+// 1. 设置本地环境
+val settings = EnvironmentSettings.inStreamingMode()
+val tEnv = TableEnvironment.create(settings)
+
+// 2. 从内存数据创建源表
+val myTable: Table = tEnv.fromValues(
+    ROW(FIELD("text", STRING())),
+    row("Hello"),
+    row("Machine Learning"),
+    row("Good morning")
+)
+
+// 3. 创建模型
+tEnv.createModel(
+    "my_model",
+    ModelDescriptor.forProvider("openai")
+        .inputSchema(Schema.newBuilder().column("input", STRING()).build())
+        .outputSchema(Schema.newBuilder().column("output", STRING()).build())
+        .option("endpoint", "https://api.openai.com/v1/chat/completions")
+        .option("model", "gpt-4.1")
+        .option("system-prompt", "translate to chinese")
+        .option("api-key", "<your-openai-api-key-here>")
+        .build()
+)
+
+val model = tEnv.fromModel("my_model")
+
+// 4. 使用模型把文本翻译成中文
+val predictResult = model.predict(myTable, ColumnList.of("text"))
+
+// 5. 异步预测示例
+val asyncPredictResult = model.predict(
+    myTable, 
+    ColumnList.of("text"), 
+    Map("async" -> "true").asJava
+)
+```
+
+{{< /tab >}}
+{{< tab "Python" >}}
+
+```python
+# 目前 Python Table API 尚不支持
+```
+
+{{< /tab >}}
+{{< /tabs >}}
+
+模型推理操作支持同步和异步预测模式 (需要底层接口 `ModelProvider`支持)。默认情况下, Planner使用异步预测。这可以通过允许并发请求来提高高延迟模型的吞吐量。
+
+{{< top >}}
+
 <a name="data-types"></a>
 数据类型
 ----------
