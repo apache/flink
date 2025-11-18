@@ -187,6 +187,10 @@ under the License.
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-reload4j</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>commons-beanutils</groupId>
+					<artifactId>commons-beanutils</artifactId>
+				</exclusion>
 			</exclusions>
 		</dependency>
 
