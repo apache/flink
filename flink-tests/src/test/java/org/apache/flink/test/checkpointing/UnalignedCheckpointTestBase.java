@@ -73,6 +73,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Iterables;
 
+import org.assertj.core.api.Fail;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -150,7 +151,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
     }
 
     @Nullable
-    protected File execute(UnalignedSettings settings) throws Exception {
+    protected String execute(UnalignedSettings settings) throws Exception {
         final File checkpointDir = temp.newFolder();
         Configuration conf = settings.getConfiguration(checkpointDir);
 
@@ -179,6 +180,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(conf);
         settings.configure(env);
+        JobID jobID = null;
         try {
             // print the test parameters to help debugging when the case is stuck
             System.out.println(
@@ -186,7 +188,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             final CompletableFuture<JobSubmissionResult> result =
                     miniCluster.getMiniCluster().submitJob(streamGraph.getJobGraph());
 
-            final JobID jobID = result.get().getJobID();
+            jobID = result.get().getJobID();
             checkCounters(
                     miniCluster
                             .getMiniCluster()
@@ -198,12 +200,16 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             if (settings.generateCheckpoint) {
                 return CommonTestUtils.getLatestCompletedCheckpointPath(
                                 jobID, miniCluster.getMiniCluster())
-                        .map(File::new)
-                        .orElseThrow(() -> new AssertionError("Could not generate checkpoint"));
+                        .orElseGet(() -> Fail.fail("Could not generate checkpoint"));
             }
         } catch (Exception e) {
             if (ExceptionUtils.findThrowable(e, TestException.class).isEmpty()) {
                 throw e;
+            }
+            if (settings.generateCheckpoint) {
+                return CommonTestUtils.getLatestCompletedCheckpointPath(
+                                jobID, miniCluster.getMiniCluster())
+                        .orElseGet(() -> Fail.fail("Could not generate checkpoint"));
             }
         } finally {
             miniCluster.after();
@@ -680,7 +686,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
     protected static class UnalignedSettings {
         private int parallelism;
         private final int minCheckpoints = 10;
-        @Nullable private File restoreCheckpoint;
+        @Nullable private String restoreCheckpoint;
         private boolean generateCheckpoint = false;
         int expectedFailures = 0;
         int tolerableCheckpointFailures = 0;
@@ -701,7 +707,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             return this;
         }
 
-        public UnalignedSettings setRestoreCheckpoint(File restoreCheckpoint) {
+        public UnalignedSettings setRestoreCheckpoint(String restoreCheckpoint) {
             this.restoreCheckpoint = restoreCheckpoint;
             return this;
         }
@@ -772,7 +778,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             conf.set(StateBackendOptions.STATE_BACKEND, "hashmap");
             conf.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
             if (restoreCheckpoint != null) {
-                conf.set(StateRecoveryOptions.SAVEPOINT_PATH, restoreCheckpoint.toURI().toString());
+                conf.set(StateRecoveryOptions.SAVEPOINT_PATH, restoreCheckpoint);
             }
 
             conf.set(
