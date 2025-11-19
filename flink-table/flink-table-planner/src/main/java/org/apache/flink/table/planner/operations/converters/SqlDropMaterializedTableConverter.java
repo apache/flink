@@ -31,7 +31,7 @@ public class SqlDropMaterializedTableConverter
     public Operation convertSqlNode(
             SqlDropMaterializedTable sqlDropMaterializedTable, ConvertContext context) {
         UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlDropMaterializedTable.fullTableName());
+                UnresolvedIdentifier.of(sqlDropMaterializedTable.getFullName());
         ObjectIdentifier identifier =
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
         // Currently we don't support temporary materialized table, so isTemporary is always false

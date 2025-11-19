@@ -26,7 +26,6 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -70,7 +69,7 @@ import static java.util.Objects.requireNonNull;
  */
 public class SqlCreateTableLike extends SqlCreateTable {
 
-    public static final SqlSpecialOperator OPERATOR =
+    private static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("CREATE TABLE LIKE", SqlKind.CREATE_TABLE);
 
     private final SqlTableLike tableLike;
@@ -104,11 +103,6 @@ public class SqlCreateTableLike extends SqlCreateTable {
                 false);
         this.tableLike =
                 requireNonNull(tableLike, "LIKE clause is required for CREATE TABLE LIKE DDL");
-    }
-
-    @Override
-    public @Nonnull SqlOperator getOperator() {
-        return OPERATOR;
     }
 
     @Override

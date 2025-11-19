@@ -64,17 +64,7 @@ public class SqlLoadModule extends SqlCall {
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         writer.keyword("LOAD MODULE");
         moduleName.unparse(writer, leftPrec, rightPrec);
-
-        if (this.propertyList.size() > 0) {
-            writer.keyword("WITH");
-            SqlWriter.Frame withFrame = writer.startList("(", ")");
-            for (SqlNode property : propertyList) {
-                SqlUnparseUtils.printIndent(writer);
-                property.unparse(writer, leftPrec, rightPrec);
-            }
-            writer.newlineAndIndent();
-            writer.endList(withFrame);
-        }
+        SqlUnparseUtils.unparseProperties(propertyList, writer, leftPrec, rightPrec);
     }
 
     public SqlIdentifier getModuleName() {

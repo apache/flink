@@ -78,8 +78,8 @@ public class SqlAddPartitions extends SqlAlterTable {
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
         writer.newlineAndIndent();
         writer.keyword("ADD");
         if (ifPartitionNotExists) {

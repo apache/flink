@@ -123,13 +123,13 @@ class SqlNodeConvertUtils {
      */
     static CatalogView validateAlterView(SqlAlterView alterView, ConvertContext context) {
         UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(alterView.fullViewName());
+                UnresolvedIdentifier.of(alterView.getFullName());
         ObjectIdentifier viewIdentifier =
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
         Optional<ContextResolvedTable> optionalCatalogTable =
                 context.getCatalogManager().getTable(viewIdentifier);
         // check the view exist and is not a temporary view
-        if (!optionalCatalogTable.isPresent() || optionalCatalogTable.get().isTemporary()) {
+        if (optionalCatalogTable.isEmpty() || optionalCatalogTable.get().isTemporary()) {
             throw new ValidationException(
                     String.format("View %s doesn't exist or is a temporary view.", viewIdentifier));
         }

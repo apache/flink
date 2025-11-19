@@ -39,7 +39,7 @@ public class SqlAlterViewPropertiesConverter implements SqlNodeConverter<SqlAlte
         CatalogView oldView = validateAlterView(alterView, context);
         ObjectIdentifier viewIdentifier =
                 context.getCatalogManager()
-                        .qualifyIdentifier(UnresolvedIdentifier.of(alterView.fullViewName()));
+                        .qualifyIdentifier(UnresolvedIdentifier.of(alterView.getFullName()));
         Map<String, String> newOptions = new HashMap<>(oldView.getOptions());
         newOptions.putAll(OperationConverterUtils.getProperties(alterView.getPropertyList()));
         CatalogView newView =

@@ -29,7 +29,7 @@ public class SqlAlterMaterializedTableSuspendConverter
         implements SqlNodeConverter<SqlAlterMaterializedTableSuspend> {
     @Override
     public Operation convertSqlNode(SqlAlterMaterializedTableSuspend node, ConvertContext context) {
-        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.fullTableName());
+        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.getFullName());
         ObjectIdentifier identifier =
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
         return new AlterMaterializedTableSuspendOperation(identifier);

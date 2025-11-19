@@ -18,44 +18,21 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.calcite.sql.SqlDrop;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
-
-import java.util.List;
 
 /** DROP CATALOG DDL sql call. */
-public class SqlDropCatalog extends SqlDrop {
+public class SqlDropCatalog extends SqlDropObject {
 
     private static final SqlOperator OPERATOR =
             new SqlSpecialOperator("DROP CATALOG", SqlKind.OTHER_DDL);
 
-    private final SqlIdentifier catalogName;
-    private final boolean ifExists;
-
     public SqlDropCatalog(SqlParserPos pos, SqlIdentifier catalogName, boolean ifExists) {
-        super(OPERATOR, pos, false);
-        this.catalogName = catalogName;
-        this.ifExists = ifExists;
-    }
-
-    @Override
-    public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(catalogName);
-    }
-
-    public SqlIdentifier getCatalogName() {
-        return catalogName;
-    }
-
-    public boolean getIfExists() {
-        return this.ifExists;
+        super(OPERATOR, pos, catalogName, ifExists);
     }
 
     @Override
@@ -65,10 +42,10 @@ public class SqlDropCatalog extends SqlDrop {
         if (ifExists) {
             writer.keyword("IF EXISTS");
         }
-        catalogName.unparse(writer, leftPrec, rightPrec);
+        getName().unparse(writer, leftPrec, rightPrec);
     }
 
     public String catalogName() {
-        return catalogName.getSimple();
+        return getName().getSimple();
     }
 }

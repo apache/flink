@@ -48,7 +48,7 @@ public class SqlAlterCatalogReset extends SqlAlterCatalog {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(catalogName, propertyKeyList);
+        return ImmutableNullableList.of(getName(), propertyKeyList);
     }
 
     public SqlNodeList getPropertyList() {
@@ -62,15 +62,8 @@ public class SqlAlterCatalogReset extends SqlAlterCatalog {
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("RESET");
-        SqlWriter.Frame withFrame = writer.startList("(", ")");
-        for (SqlNode property : propertyKeyList) {
-            SqlUnparseUtils.printIndent(writer);
-            property.unparse(writer, leftPrec, rightPrec);
-        }
-        writer.newlineAndIndent();
-        writer.endList(withFrame);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseResetProperties(propertyKeyList, writer, leftPrec, rightPrec);
     }
 }

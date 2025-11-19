@@ -85,7 +85,7 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
     }
 
     protected final Map<String, String> getDerivedTableOptions(T sqlCreateMaterializedTable) {
-        return OperationConverterUtils.getProperties(sqlCreateMaterializedTable.getPropertyList());
+        return OperationConverterUtils.getProperties(sqlCreateMaterializedTable.getProperties());
     }
 
     protected final IntervalFreshness getDerivedFreshness(T sqlCreateMaterializedTable) {
@@ -174,7 +174,7 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
 
     protected final ObjectIdentifier getIdentifier(
             SqlCreateMaterializedTable node, ConvertContext context) {
-        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.fullTableName());
+        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.getFullName());
         return context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
     }
 

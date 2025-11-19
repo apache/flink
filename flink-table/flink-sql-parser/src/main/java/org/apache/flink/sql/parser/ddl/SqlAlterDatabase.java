@@ -20,7 +20,6 @@ package org.apache.flink.sql.parser.ddl;
 
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 
-import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -36,19 +35,16 @@ import java.util.List;
 import static java.util.Objects.requireNonNull;
 
 /** ALTER Database DDL sql call. */
-public class SqlAlterDatabase extends SqlCall {
+public class SqlAlterDatabase extends SqlAlterObject {
 
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("ALTER DATABASE", SqlKind.OTHER_DDL);
-
-    private final SqlIdentifier databaseName;
 
     private final SqlNodeList propertyList;
 
     public SqlAlterDatabase(
             SqlParserPos pos, SqlIdentifier databaseName, SqlNodeList propertyList) {
-        super(pos);
-        this.databaseName = requireNonNull(databaseName, "tableName should not be null");
+        super(OPERATOR, pos, "DATABASE", databaseName);
         this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
     }
 
@@ -59,11 +55,7 @@ public class SqlAlterDatabase extends SqlCall {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(databaseName, propertyList);
-    }
-
-    public SqlIdentifier getDatabaseName() {
-        return databaseName;
+        return ImmutableNullableList.of(getName(), propertyList);
     }
 
     public SqlNodeList getPropertyList() {
@@ -71,20 +63,8 @@ public class SqlAlterDatabase extends SqlCall {
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("ALTER DATABASE");
-        databaseName.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("SET");
-        SqlWriter.Frame withFrame = writer.startList("(", ")");
-        for (SqlNode property : propertyList) {
-            SqlUnparseUtils.printIndent(writer);
-            property.unparse(writer, leftPrec, rightPrec);
-        }
-        writer.newlineAndIndent();
-        writer.endList(withFrame);
-    }
-
-    public String[] fullDatabaseName() {
-        return databaseName.names.toArray(new String[0]);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        getName().unparse(writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseSetProperties(propertyList, writer, leftPrec, rightPrec);
     }
 }

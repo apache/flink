@@ -41,7 +41,7 @@ public class SqlAlterModelResetConverter
         ResolvedCatalogModel existingModel =
                 getExistingModel(
                         context,
-                        sqlAlterModelReset.fullModelName(),
+                        sqlAlterModelReset.getFullName(),
                         sqlAlterModelReset.ifModelExists());
 
         Set<String> resetKeys = sqlAlterModelReset.getResetKeys();
@@ -55,7 +55,7 @@ public class SqlAlterModelResetConverter
             return new AlterModelChangeOperation(
                     context.getCatalogManager()
                             .qualifyIdentifier(
-                                    UnresolvedIdentifier.of(sqlAlterModelReset.fullModelName())),
+                                    UnresolvedIdentifier.of(sqlAlterModelReset.getFullName())),
                     modelChanges,
                     null,
                     sqlAlterModelReset.ifModelExists());
@@ -67,7 +67,7 @@ public class SqlAlterModelResetConverter
         return new AlterModelChangeOperation(
                 context.getCatalogManager()
                         .qualifyIdentifier(
-                                UnresolvedIdentifier.of(sqlAlterModelReset.fullModelName())),
+                                UnresolvedIdentifier.of(sqlAlterModelReset.getFullName())),
                 modelChanges,
                 existingModel.copy(newOptions),
                 sqlAlterModelReset.ifModelExists());

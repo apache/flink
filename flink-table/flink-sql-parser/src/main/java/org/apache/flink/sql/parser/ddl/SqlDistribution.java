@@ -18,12 +18,11 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlDdl;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlNumericLiteral;
-import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -38,7 +37,7 @@ import java.util.Optional;
  * Distribution statement in CREATE TABLE DDL, e.g. {@code DISTRIBUTED BY HASH(column1, column2)
  * INTO BUCKETS 10}.
  */
-public class SqlDistribution extends SqlCall {
+public class SqlDistribution extends SqlDdl {
 
     private static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("DISTRIBUTED BY", SqlKind.OTHER);
@@ -51,16 +50,11 @@ public class SqlDistribution extends SqlCall {
             SqlParserPos pos,
             @Nullable String distributionKind,
             @Nullable SqlNodeList bucketColumns,
-            @Nullable SqlNumericLiteral bucketCount) {
-        super(pos);
+            SqlNumericLiteral bucketCount) {
+        super(OPERATOR, pos);
         this.distributionKind = distributionKind;
         this.bucketColumns = bucketColumns;
         this.bucketCount = bucketCount;
-    }
-
-    @Override
-    public SqlOperator getOperator() {
-        return OPERATOR;
     }
 
     @Override

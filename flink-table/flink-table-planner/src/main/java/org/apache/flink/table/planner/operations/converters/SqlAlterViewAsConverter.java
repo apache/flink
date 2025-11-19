@@ -41,7 +41,7 @@ public class SqlAlterViewAsConverter implements SqlNodeConverter<SqlAlterViewAs>
         SqlNode newQuery = alterView.getNewQuery();
         ObjectIdentifier viewIdentifier =
                 context.getCatalogManager()
-                        .qualifyIdentifier(UnresolvedIdentifier.of(alterView.fullViewName()));
+                        .qualifyIdentifier(UnresolvedIdentifier.of(alterView.getFullName()));
 
         CatalogView newView =
                 toCatalogView(

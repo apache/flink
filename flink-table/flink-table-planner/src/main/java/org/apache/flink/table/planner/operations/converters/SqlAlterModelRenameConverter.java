@@ -34,7 +34,7 @@ public class SqlAlterModelRenameConverter
             SqlAlterModelRename sqlAlterModelRename, ConvertContext context) {
         // Mainly to check model existence
         getExistingModel(
-                context, sqlAlterModelRename.fullModelName(), sqlAlterModelRename.ifModelExists());
+                context, sqlAlterModelRename.getFullName(), sqlAlterModelRename.ifModelExists());
 
         UnresolvedIdentifier newUnresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlAlterModelRename.fullNewModelName());
@@ -43,7 +43,7 @@ public class SqlAlterModelRenameConverter
         ObjectIdentifier oldModelIdentifier =
                 context.getCatalogManager()
                         .qualifyIdentifier(
-                                UnresolvedIdentifier.of(sqlAlterModelRename.fullModelName()));
+                                UnresolvedIdentifier.of(sqlAlterModelRename.getFullName()));
 
         if (!newModelIdentifier.getCatalogName().equals(oldModelIdentifier.getCatalogName())) {
             throw new ValidationException(

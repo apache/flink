@@ -111,7 +111,7 @@ public class SqlCreateTableLikeConverter extends AbstractCreateTableConverter<Sq
             @Override
             public Map<String, String> getMergedTableOptions() {
                 final Map<String, String> derivedTableOptions =
-                        OperationConverterUtils.getProperties(sqlCreateTableLike.getPropertyList());
+                        OperationConverterUtils.getProperties(sqlCreateTableLike.getProperties());
                 return mergeTableLikeUtil.mergeOptions(
                         mergingStrategies.get(SqlTableLike.FeatureOption.OPTIONS),
                         table.getOptions(),

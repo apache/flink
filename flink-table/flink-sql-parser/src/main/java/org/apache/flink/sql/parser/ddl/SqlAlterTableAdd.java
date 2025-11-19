@@ -42,7 +42,7 @@ import java.util.List;
  * ALTER TABLE mytable ADD (
  *     log_ts STRING COMMENT 'log timestamp string' FIRST,
  *     ts AS TO_TIMESTAMP(log_ts) AFTER log_ts,
- *     col_meta int metadata from 'mk1' virtual AFTER col_b,
+ *     col_meta INT METADATA FROM 'mk1' VIRTUAL AFTER col_b,
  *     PRIMARY KEY (id) NOT ENFORCED,
  *     WATERMARK FOR ts AS ts - INTERVAL '3' SECOND
  * );
@@ -62,8 +62,8 @@ public class SqlAlterTableAdd extends SqlAlterTableSchema {
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
         writer.keyword("ADD");
         // unparse table schema and distribution
         unparseSchemaAndDistribution(writer, leftPrec, rightPrec);

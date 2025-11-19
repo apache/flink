@@ -163,7 +163,6 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlUpdate;
 import org.apache.calcite.sql.SqlUtil;
-import org.apache.calcite.util.NlsString;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -350,7 +349,7 @@ public class SqlNodeToOperationConversion {
     /** Convert DROP TABLE statement. */
     private Operation convertDropTable(SqlDropTable sqlDropTable) {
         UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlDropTable.fullTableName());
+                UnresolvedIdentifier.of(sqlDropTable.getFullName());
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
         return new DropTableOperation(
@@ -360,10 +359,10 @@ public class SqlNodeToOperationConversion {
     /** Convert CREATE FUNCTION statement. */
     private Operation convertCreateFunction(SqlCreateFunction sqlCreateFunction) {
         UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlCreateFunction.getFunctionIdentifier());
+                UnresolvedIdentifier.of(sqlCreateFunction.getFullName());
         List<ResourceUri> resourceUris = getFunctionResources(sqlCreateFunction.getResourceInfos());
         final Map<String, String> options =
-                sqlCreateFunction.getPropertyList().getList().stream()
+                sqlCreateFunction.getProperties().getList().stream()
                         .map(SqlTableOption.class::cast)
                         .collect(
                                 Collectors.toMap(
@@ -439,7 +438,7 @@ public class SqlNodeToOperationConversion {
                         sqlAlterFunction.getFunctionClassName().getValueAs(String.class), language);
 
         UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlAlterFunction.getFunctionIdentifier());
+                UnresolvedIdentifier.of(sqlAlterFunction.getFullName());
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
         return new AlterCatalogFunctionOperation(
                 identifier,
@@ -451,7 +450,7 @@ public class SqlNodeToOperationConversion {
     /** Convert DROP FUNCTION statement. */
     private Operation convertDropFunction(SqlDropFunction sqlDropFunction) {
         UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlDropFunction.getFunctionIdentifier());
+                UnresolvedIdentifier.of(sqlDropFunction.getFullName());
         if (sqlDropFunction.isSystemFunction()) {
             return new DropTempSystemFunctionOperation(
                     unresolvedIdentifier.getObjectName(), sqlDropFunction.getIfExists());
@@ -568,7 +567,7 @@ public class SqlNodeToOperationConversion {
 
     /** Convert CREATE DATABASE statement. */
     private Operation convertCreateDatabase(SqlCreateDatabase sqlCreateDatabase) {
-        String[] fullDatabaseName = sqlCreateDatabase.fullDatabaseName();
+        String[] fullDatabaseName = sqlCreateDatabase.getFullName();
         if (fullDatabaseName.length > 2) {
             throw new ValidationException("create database identifier format error");
         }
@@ -579,14 +578,10 @@ public class SqlNodeToOperationConversion {
         String databaseName =
                 (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
         boolean ignoreIfExists = sqlCreateDatabase.isIfNotExists();
-        String databaseComment =
-                sqlCreateDatabase
-                        .getComment()
-                        .map(comment -> comment.getValueAs(NlsString.class).getValue())
-                        .orElse(null);
+        String databaseComment = OperationConverterUtils.getComment(sqlCreateDatabase.getComment());
         // set with properties
         final Map<String, String> properties =
-                OperationConverterUtils.getProperties(sqlCreateDatabase.getPropertyList());
+                OperationConverterUtils.getProperties(sqlCreateDatabase.getProperties());
         CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(properties, databaseComment);
         return new CreateDatabaseOperation(
                 catalogName, databaseName, catalogDatabase, ignoreIfExists);
@@ -594,7 +589,7 @@ public class SqlNodeToOperationConversion {
 
     /** Convert DROP DATABASE statement. */
     private Operation convertDropDatabase(SqlDropDatabase sqlDropDatabase) {
-        String[] fullDatabaseName = sqlDropDatabase.fullDatabaseName();
+        String[] fullDatabaseName = sqlDropDatabase.getFullName();
         if (fullDatabaseName.length > 2) {
             throw new ValidationException("drop database identifier format error");
         }
@@ -613,7 +608,7 @@ public class SqlNodeToOperationConversion {
 
     /** Convert ALTER DATABASE statement. */
     private Operation convertAlterDatabase(SqlAlterDatabase sqlAlterDatabase) {
-        String[] fullDatabaseName = sqlAlterDatabase.fullDatabaseName();
+        String[] fullDatabaseName = sqlAlterDatabase.getFullName();
         if (fullDatabaseName.length > 2) {
             throw new ValidationException("alter database identifier format error");
         }
@@ -696,7 +691,7 @@ public class SqlNodeToOperationConversion {
     /** Convert DROP VIEW statement. */
     private Operation convertDropView(SqlDropView sqlDropView) {
         UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlDropView.fullViewName());
+                UnresolvedIdentifier.of(sqlDropView.getFullName());
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
         return new DropViewOperation(

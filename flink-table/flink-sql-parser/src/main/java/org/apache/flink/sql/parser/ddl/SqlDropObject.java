@@ -18,41 +18,39 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.calcite.sql.SqlDrop;
 import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
-import org.apache.calcite.sql.SqlSpecialOperator;
-import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.util.ImmutableNullableList;
 
-/**
- * {@link SqlNode} to describe the DROP MODEL [IF EXISTS] [[catalogName.] dataBasesName].modelName
- * syntax.
- */
-public class SqlDropModel extends SqlDropObject {
-    private static final SqlOperator OPERATOR =
-            new SqlSpecialOperator("DROP MODEL", SqlKind.OTHER_DDL);
+import java.util.List;
 
-    private final boolean isTemporary;
+/** Base class for DROP DDL sql calls. */
+public abstract class SqlDropObject extends SqlDrop {
+    private final SqlIdentifier name;
 
-    public SqlDropModel(
-            SqlParserPos pos, SqlIdentifier modelName, boolean ifExists, boolean isTemporary) {
-        super(OPERATOR, pos, modelName, ifExists);
-        this.isTemporary = isTemporary;
+    protected SqlDropObject(
+            SqlOperator operator, SqlParserPos pos, SqlIdentifier name, boolean ifExists) {
+        super(operator, pos, ifExists);
+        this.name = name;
     }
 
-    public boolean getIsTemporary() {
-        return this.isTemporary;
+    public SqlIdentifier getName() {
+        return name;
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("DROP");
-        writer.keyword("MODEL");
-        if (ifExists) {
-            writer.keyword("IF EXISTS");
-        }
-        getName().unparse(writer, leftPrec, rightPrec);
+    public List<SqlNode> getOperandList() {
+        return ImmutableNullableList.of(name);
+    }
+
+    public final boolean getIfExists() {
+        return ifExists;
+    }
+
+    public String[] getFullName() {
+        return name.names.toArray(new String[0]);
     }
 }

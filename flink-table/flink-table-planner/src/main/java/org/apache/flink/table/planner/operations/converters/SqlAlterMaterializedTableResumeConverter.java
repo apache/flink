@@ -35,7 +35,7 @@ public class SqlAlterMaterializedTableResumeConverter
             SqlAlterMaterializedTableResume sqlAlterMaterializedTableResume,
             ConvertContext context) {
         UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlAlterMaterializedTableResume.fullTableName());
+                UnresolvedIdentifier.of(sqlAlterMaterializedTableResume.getFullName());
         ObjectIdentifier identifier =
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
 

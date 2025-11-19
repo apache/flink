@@ -62,8 +62,8 @@ public class SqlAlterTableModify extends SqlAlterTableSchema {
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
         writer.keyword("MODIFY");
         // unparse table schema and distribution
         unparseSchemaAndDistribution(writer, leftPrec, rightPrec);

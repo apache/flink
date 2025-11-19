@@ -71,7 +71,20 @@ public class SqlCreateOrAlterMaterializedTable extends SqlCreateMaterializedTabl
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        this.unparseMaterializedTableAs(getOperator(), writer, leftPrec, rightPrec);
+    protected void unparseCreateIfNotExists(SqlWriter writer, int leftPrec, int rightPrec) {
+        if (getOperator() == CREATE_OPERATOR) {
+            super.unparseCreateIfNotExists(writer, leftPrec, rightPrec);
+            return;
+        }
+
+        writer.keyword("CREATE OR ALTER");
+        if (isTemporary()) {
+            writer.keyword("TEMPORARY");
+        }
+        writer.keyword(getScope());
+        if (isIfNotExists()) {
+            writer.keyword("IF NOT EXISTS");
+        }
+        getName().unparse(writer, leftPrec, rightPrec);
     }
 }

@@ -68,7 +68,7 @@ public abstract class AbstractCreateTableConverter<T extends SqlCreateTable>
     }
 
     protected final Map<String, String> getDerivedTableOptions(T sqlCreateTable) {
-        return OperationConverterUtils.getProperties(sqlCreateTable.getPropertyList());
+        return OperationConverterUtils.getProperties(sqlCreateTable.getProperties());
     }
 
     protected final String getComment(T sqlCreateTable) {
@@ -98,7 +98,7 @@ public abstract class AbstractCreateTableConverter<T extends SqlCreateTable>
     }
 
     protected final ObjectIdentifier getIdentifier(SqlCreateTable node, ConvertContext context) {
-        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.fullTableName());
+        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.getFullName());
         return context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
     }
 

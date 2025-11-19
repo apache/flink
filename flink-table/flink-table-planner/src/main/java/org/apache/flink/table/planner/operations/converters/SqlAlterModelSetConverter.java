@@ -39,9 +39,7 @@ public class SqlAlterModelSetConverter extends AbstractSqlAlterModelConverter<Sq
     public Operation convertSqlNode(SqlAlterModelSet sqlAlterModelSet, ConvertContext context) {
         ResolvedCatalogModel existingModel =
                 getExistingModel(
-                        context,
-                        sqlAlterModelSet.fullModelName(),
-                        sqlAlterModelSet.ifModelExists());
+                        context, sqlAlterModelSet.getFullName(), sqlAlterModelSet.ifModelExists());
 
         Map<String, String> changeModelOptions =
                 OperationConverterUtils.getProperties(sqlAlterModelSet.getOptionList());
@@ -55,7 +53,7 @@ public class SqlAlterModelSetConverter extends AbstractSqlAlterModelConverter<Sq
             return new AlterModelChangeOperation(
                     context.getCatalogManager()
                             .qualifyIdentifier(
-                                    UnresolvedIdentifier.of(sqlAlterModelSet.fullModelName())),
+                                    UnresolvedIdentifier.of(sqlAlterModelSet.getFullName())),
                     modelChanges,
                     null,
                     sqlAlterModelSet.ifModelExists());
@@ -66,8 +64,7 @@ public class SqlAlterModelSetConverter extends AbstractSqlAlterModelConverter<Sq
 
         return new AlterModelChangeOperation(
                 context.getCatalogManager()
-                        .qualifyIdentifier(
-                                UnresolvedIdentifier.of(sqlAlterModelSet.fullModelName())),
+                        .qualifyIdentifier(UnresolvedIdentifier.of(sqlAlterModelSet.getFullName())),
                 modelChanges,
                 existingModel.copy(newOptions),
                 sqlAlterModelSet.ifModelExists());

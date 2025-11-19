@@ -25,13 +25,11 @@ import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
-import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlIntervalLiteral;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -45,12 +43,10 @@ import java.util.Optional;
 import static java.util.Objects.requireNonNull;
 
 /** CREATE MATERIALIZED TABLE DDL sql call. */
-public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSqlNode {
+public class SqlCreateMaterializedTable extends SqlCreateObject implements ExtendedSqlNode {
 
     public static final SqlSpecialOperator CREATE_OPERATOR =
             new SqlSpecialOperator("CREATE MATERIALIZED TABLE", SqlKind.CREATE_TABLE);
-
-    private final SqlIdentifier tableName;
 
     private final SqlNodeList columnList;
 
@@ -58,13 +54,9 @@ public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSql
 
     private final SqlWatermark watermark;
 
-    private final @Nullable SqlCharStringLiteral comment;
-
     private final @Nullable SqlDistribution distribution;
 
     private final SqlNodeList partitionKeyList;
-
-    private final SqlNodeList propertyList;
 
     private final @Nullable SqlIntervalLiteral freshness;
 
@@ -86,16 +78,14 @@ public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSql
             @Nullable SqlIntervalLiteral freshness,
             @Nullable SqlRefreshMode refreshMode,
             SqlNode asQuery) {
-        super(operator, pos, false, false);
-        this.tableName = requireNonNull(tableName, "tableName should not be null");
+        super(operator, pos, tableName, false, false, false, propertyList, comment);
         this.columnList = columnList;
         this.tableConstraints = tableConstraints;
         this.watermark = watermark;
-        this.comment = comment;
         this.distribution = distribution;
         this.partitionKeyList =
                 requireNonNull(partitionKeyList, "partitionKeyList should not be null");
-        this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
+        requireNonNull(propertyList, "propertyList should not be null");
         this.freshness = freshness;
         this.refreshMode = refreshMode;
         this.asQuery = requireNonNull(asQuery, "asQuery should not be null");
@@ -104,39 +94,23 @@ public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSql
     @Override
     public List<SqlNode> getOperandList() {
         return ImmutableNullableList.of(
-                tableName,
+                getName(),
                 columnList,
                 new SqlNodeList(tableConstraints, SqlParserPos.ZERO),
                 watermark,
-                comment,
+                getComment().orElse(null),
                 partitionKeyList,
-                propertyList,
+                getProperties(),
                 freshness,
                 asQuery);
-    }
-
-    public SqlIdentifier getTableName() {
-        return tableName;
-    }
-
-    public String[] fullTableName() {
-        return tableName.names.toArray(new String[0]);
     }
 
     public SqlNodeList getColumnList() {
         return columnList;
     }
 
-    public List<SqlTableConstraint> getTableConstraints() {
-        return tableConstraints;
-    }
-
     public Optional<SqlWatermark> getWatermark() {
         return Optional.ofNullable(watermark);
-    }
-
-    public Optional<SqlCharStringLiteral> getComment() {
-        return Optional.ofNullable(comment);
     }
 
     public @Nullable SqlDistribution getDistribution() {
@@ -145,10 +119,6 @@ public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSql
 
     public SqlNodeList getPartitionKeyList() {
         return partitionKeyList;
-    }
-
-    public SqlNodeList getPropertyList() {
-        return propertyList;
     }
 
     @Nullable
@@ -184,67 +154,23 @@ public class SqlCreateMaterializedTable extends SqlCreate implements ExtendedSql
         return !columnList.isEmpty() && columnList.get(0) instanceof SqlIdentifier;
     }
 
-    protected void unparseMaterializedTableAs(
-            final SqlOperator operation,
-            final SqlWriter writer,
-            final int leftPrec,
-            final int rightPrec) {
-        writer.keyword(operation.getName());
-        tableName.unparse(writer, leftPrec, rightPrec);
+    @Override
+    protected String getScope() {
+        return "MATERIALIZED TABLE";
+    }
 
-        if (!columnList.isEmpty() || !tableConstraints.isEmpty() || watermark != null) {
-            SqlUnparseUtils.unparseTableSchema(
-                    writer, leftPrec, rightPrec, columnList, tableConstraints, watermark);
-        }
-
-        if (comment != null) {
-            writer.newlineAndIndent();
-            writer.keyword("COMMENT");
-            comment.unparse(writer, leftPrec, rightPrec);
-        }
-
-        if (distribution != null) {
-            writer.newlineAndIndent();
-            distribution.unparse(writer, leftPrec, rightPrec);
-        }
-
-        if (!partitionKeyList.isEmpty()) {
-            writer.newlineAndIndent();
-            writer.keyword("PARTITIONED BY");
-            SqlWriter.Frame partitionedByFrame = writer.startList("(", ")");
-            partitionKeyList.unparse(writer, leftPrec, rightPrec);
-            writer.endList(partitionedByFrame);
-        }
-
-        if (!propertyList.isEmpty()) {
-            writer.newlineAndIndent();
-            writer.keyword("WITH");
-            SqlWriter.Frame withFrame = writer.startList("(", ")");
-            for (SqlNode property : propertyList) {
-                SqlUnparseUtils.printIndent(writer);
-                property.unparse(writer, leftPrec, rightPrec);
-            }
-            writer.newlineAndIndent();
-            writer.endList(withFrame);
-        }
-
-        if (freshness != null) {
-            writer.newlineAndIndent();
-            writer.keyword("FRESHNESS");
-            writer.keyword("=");
-            freshness.unparse(writer, leftPrec, rightPrec);
-        }
-
-        if (refreshMode != null) {
-            writer.newlineAndIndent();
-            writer.keyword("REFRESH_MODE");
-            writer.keyword("=");
-            writer.keyword(refreshMode.name());
-        }
-
-        writer.newlineAndIndent();
-        writer.keyword("AS");
-        writer.newlineAndIndent();
-        asQuery.unparse(writer, leftPrec, rightPrec);
+    @Override
+    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        unparseCreateIfNotExists(writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseTableSchema(
+                columnList, tableConstraints, watermark, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseComment(
+                getComment().orElse(null), true, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseDistribution(distribution, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparsePartitionKeyList(partitionKeyList, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseProperties(getProperties(), writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseFreshness(freshness, true, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseRefreshMode(refreshMode, writer);
+        SqlUnparseUtils.unparseAsQuery(asQuery, writer, leftPrec, rightPrec);
     }
 }

@@ -18,45 +18,26 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * Abstract class to describe statements like ALTER MODEL [IF EXISTS] [[catalogName.]
  * dataBasesName.]modelName ...
  */
-public abstract class SqlAlterModel extends SqlCall {
+public abstract class SqlAlterModel extends SqlAlterObject {
 
-    public static final SqlSpecialOperator OPERATOR =
+    private static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("ALTER MODEL", SqlKind.OTHER_DDL);
 
-    protected final SqlIdentifier modelName;
     protected final boolean ifModelExists;
 
     public SqlAlterModel(SqlParserPos pos, SqlIdentifier modelName, boolean ifModelExists) {
-        super(pos);
-        this.modelName = requireNonNull(modelName, "modelName should not be null");
+        super(OPERATOR, pos, "MODEL", modelName);
         this.ifModelExists = ifModelExists;
-    }
-
-    @Override
-    public SqlOperator getOperator() {
-        return OPERATOR;
-    }
-
-    public SqlIdentifier getModelName() {
-        return modelName;
-    }
-
-    public String[] fullModelName() {
-        return modelName.names.toArray(new String[0]);
     }
 
     /**
@@ -69,11 +50,10 @@ public abstract class SqlAlterModel extends SqlCall {
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("ALTER MODEL");
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
         if (ifModelExists) {
             writer.keyword("IF EXISTS");
         }
-        modelName.unparse(writer, leftPrec, rightPrec);
+        getName().unparse(writer, leftPrec, rightPrec);
     }
 }

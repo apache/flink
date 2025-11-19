@@ -18,48 +18,27 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * Abstract class to describe statements like ALTER MATERIALIZED TABLE
  * [catalogName.][dataBasesName.]tableName ...
  */
-public abstract class SqlAlterMaterializedTable extends SqlCall {
+public abstract class SqlAlterMaterializedTable extends SqlAlterObject {
 
-    public static final SqlSpecialOperator OPERATOR =
+    private static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("ALTER MATERIALIZED TABLE", SqlKind.ALTER_TABLE);
 
-    protected final SqlIdentifier tableIdentifier;
-
     public SqlAlterMaterializedTable(SqlParserPos pos, SqlIdentifier tableName) {
-        super(pos);
-        this.tableIdentifier = requireNonNull(tableName, "tableName should not be null");
-    }
-
-    public SqlIdentifier getTableName() {
-        return tableIdentifier;
-    }
-
-    public String[] fullTableName() {
-        return tableIdentifier.names.toArray(new String[0]);
+        super(OPERATOR, pos, "MATERIALIZED TABLE", tableName);
     }
 
     @Override
-    public SqlOperator getOperator() {
-        return OPERATOR;
-    }
-
-    @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("ALTER MATERIALIZED TABLE");
-        tableIdentifier.unparse(writer, leftPrec, rightPrec);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        getName().unparse(writer, leftPrec, rightPrec);
     }
 }

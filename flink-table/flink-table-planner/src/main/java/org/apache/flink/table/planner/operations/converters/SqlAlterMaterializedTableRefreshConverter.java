@@ -33,7 +33,7 @@ public class SqlAlterMaterializedTableRefreshConverter
 
     @Override
     public Operation convertSqlNode(SqlAlterMaterializedTableRefresh node, ConvertContext context) {
-        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.fullTableName());
+        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.getFullName());
         ObjectIdentifier identifier =
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
 

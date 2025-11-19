@@ -44,7 +44,7 @@ public class SqlAlterViewProperties extends SqlAlterView {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(viewIdentifier, propertyList);
+        return ImmutableNullableList.of(getName(), propertyList);
     }
 
     public SqlNodeList getPropertyList() {
@@ -52,15 +52,7 @@ public class SqlAlterViewProperties extends SqlAlterView {
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("SET");
-        SqlWriter.Frame withFrame = writer.startList("(", ")");
-        for (SqlNode property : propertyList) {
-            SqlUnparseUtils.printIndent(writer);
-            property.unparse(writer, leftPrec, rightPrec);
-        }
-        writer.newlineAndIndent();
-        writer.endList(withFrame);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        SqlUnparseUtils.unparseSetProperties(propertyList, writer, leftPrec, rightPrec);
     }
 }

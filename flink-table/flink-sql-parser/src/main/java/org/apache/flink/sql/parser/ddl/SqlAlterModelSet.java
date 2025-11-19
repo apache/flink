@@ -54,19 +54,12 @@ public class SqlAlterModelSet extends SqlAlterModel {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return List.of(modelName, modelOptionList);
+        return List.of(getName(), modelOptionList);
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("SET");
-        SqlWriter.Frame withFrame = writer.startList("(", ")");
-        for (SqlNode modelOption : modelOptionList) {
-            SqlUnparseUtils.printIndent(writer);
-            modelOption.unparse(writer, leftPrec, rightPrec);
-        }
-        writer.newlineAndIndent();
-        writer.endList(withFrame);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseSetProperties(modelOptionList, writer, leftPrec, rightPrec);
     }
 }

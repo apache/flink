@@ -51,7 +51,7 @@ public class SqlAlterModelReset extends SqlAlterModel {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return List.of(modelName, optionKeyList);
+        return List.of(getName(), optionKeyList);
     }
 
     public Set<String> getResetKeys() {
@@ -61,15 +61,8 @@ public class SqlAlterModelReset extends SqlAlterModel {
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("RESET");
-        SqlWriter.Frame withFrame = writer.startList("(", ")");
-        for (SqlNode optionKey : optionKeyList) {
-            SqlUnparseUtils.printIndent(writer);
-            optionKey.unparse(writer, leftPrec, rightPrec);
-        }
-        writer.newlineAndIndent();
-        writer.endList(withFrame);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseResetProperties(optionKeyList, writer, leftPrec, rightPrec);
     }
 }

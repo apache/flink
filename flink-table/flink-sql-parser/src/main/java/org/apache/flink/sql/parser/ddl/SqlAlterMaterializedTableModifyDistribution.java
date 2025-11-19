@@ -22,6 +22,7 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.util.ImmutableNullableList;
 
 import javax.annotation.Nullable;
 
@@ -43,12 +44,12 @@ public class SqlAlterMaterializedTableModifyDistribution extends SqlAlterMateria
 
     @Override
     public List<SqlNode> getOperandList() {
-        return List.of(getTableName(), distribution);
+        return ImmutableNullableList.of(getName(), distribution);
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
         writer.keyword("MODIFY");
         if (distribution != null) {
             distribution.unparseAlter(writer, leftPrec, rightPrec);
