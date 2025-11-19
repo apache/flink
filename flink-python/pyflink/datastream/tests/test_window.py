@@ -36,6 +36,7 @@ from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase, PyFlinkTestCase
 from pyflink.util.java_utils import get_j_env_configuration
 
+
 class WindowTests(object):
 
     def setUp(self) -> None:
