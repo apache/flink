@@ -87,7 +87,7 @@ public class DeltaJoinCache {
                                 : Long.valueOf(leftHitCount.get()).doubleValue()
                                         / leftRequestCount.get());
         metricGroup.<Long, Gauge<Long>>gauge(
-                LEFT_CACHE_METRIC_PREFIX + METRIC_REQUEST_COUNT, rightRequestCount::get);
+                LEFT_CACHE_METRIC_PREFIX + METRIC_REQUEST_COUNT, leftRequestCount::get);
         metricGroup.<Long, Gauge<Long>>gauge(
                 LEFT_CACHE_METRIC_PREFIX + METRIC_HIT_COUNT, leftHitCount::get);
         metricGroup.<Long, Gauge<Long>>gauge(
