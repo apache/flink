@@ -64,3 +64,18 @@ class SlotSharingGroupTests(PyFlinkTestCase):
                 .set_cpu_cores(1.0) \
                 .set_task_off_heap_memory_mb(10) \
                 .build()
+
+
+class MemorySizeTests(PyFlinkTestCase):
+
+    def test_le_method(self):
+        """Test the __le__ method of MemorySize."""
+        m1 = MemorySize.of_mebi_bytes(100)
+        m2 = MemorySize.of_mebi_bytes(100)
+        m3 = MemorySize.of_mebi_bytes(200)
+        self.assertEqual(m1, m2)
+        self.assertTrue(m1 <= m2)
+        self.assertTrue(m2 <= m1)
+
+        self.assertTrue(m1 <= m3)
+        self.assertFalse(m3 <= m1)
