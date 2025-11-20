@@ -56,6 +56,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -69,6 +70,8 @@ import java.util.stream.Stream;
 
 /** Implementation of {@link SlotManager} supporting fine-grained resource management. */
 public class FineGrainedSlotManager implements SlotManager {
+    public static final Duration METRICS_UPDATE_INTERVAL = Duration.ofSeconds(1);
+
     private static final Logger LOG = LoggerFactory.getLogger(FineGrainedSlotManager.class);
 
     private final TaskManagerTracker taskManagerTracker;
@@ -119,6 +122,8 @@ public class FineGrainedSlotManager implements SlotManager {
 
     @Nullable private ScheduledFuture<?> clusterReconciliationCheck;
 
+    @Nullable private ScheduledFuture<?> metricsUpdateFuture;
+
     @Nullable private CompletableFuture<Void> requirementsCheckFuture;
 
     @Nullable private CompletableFuture<Void> declareNeededResourceFuture;
@@ -128,6 +133,11 @@ public class FineGrainedSlotManager implements SlotManager {
 
     /** True iff the component has been started. */
     private boolean started;
+
+    /** Metrics. */
+    private long lastNumberFreeSlots;
+
+    private long lastNumberRegisteredSlots;
 
     public FineGrainedSlotManager(
             ScheduledExecutor scheduledExecutor,
@@ -166,6 +176,7 @@ public class FineGrainedSlotManager implements SlotManager {
         mainThreadExecutor = null;
         clusterReconciliationCheck = null;
         requirementsCheckFuture = null;
+        metricsUpdateFuture = null;
 
         started = false;
     }
@@ -234,10 +245,26 @@ public class FineGrainedSlotManager implements SlotManager {
     }
 
     private void registerSlotManagerMetrics() {
-        slotManagerMetricGroup.gauge(
-                MetricNames.TASK_SLOTS_AVAILABLE, () -> (long) getNumberFreeSlots());
-        slotManagerMetricGroup.gauge(
-                MetricNames.TASK_SLOTS_TOTAL, () -> (long) getNumberRegisteredSlots());
+        // Because taskManagerTracker is not thread-safe, metrics must be updated periodically on
+        // the main thread to prevent concurrent modification issues.
+        metricsUpdateFuture =
+                scheduledExecutor.scheduleAtFixedRate(
+                        this::updateMetrics,
+                        0L,
+                        METRICS_UPDATE_INTERVAL.toMillis(),
+                        TimeUnit.MILLISECONDS);
+
+        slotManagerMetricGroup.gauge(MetricNames.TASK_SLOTS_AVAILABLE, () -> lastNumberFreeSlots);
+        slotManagerMetricGroup.gauge(MetricNames.TASK_SLOTS_TOTAL, () -> lastNumberRegisteredSlots);
+    }
+
+    private void updateMetrics() {
+        Objects.requireNonNull(mainThreadExecutor)
+                .execute(
+                        () -> {
+                            lastNumberFreeSlots = getNumberFreeSlots();
+                            lastNumberRegisteredSlots = getNumberRegisteredSlots();
+                        });
     }
 
     /** Suspends the component. This clears the internal state of the slot manager. */
@@ -255,6 +282,12 @@ public class FineGrainedSlotManager implements SlotManager {
         if (clusterReconciliationCheck != null) {
             clusterReconciliationCheck.cancel(false);
             clusterReconciliationCheck = null;
+        }
+
+        // stop the metrics updates
+        if (metricsUpdateFuture != null) {
+            metricsUpdateFuture.cancel(false);
+            metricsUpdateFuture = null;
         }
 
         slotStatusSyncer.close();
