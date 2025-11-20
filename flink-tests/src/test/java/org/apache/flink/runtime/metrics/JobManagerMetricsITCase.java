@@ -26,6 +26,7 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.reporter.AbstractReporter;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
+import org.apache.flink.runtime.resourcemanager.slotmanager.FineGrainedSlotManager;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.PrintSinkFunction;
@@ -131,7 +132,8 @@ class JobManagerMetricsITCase {
                                 expectedPattern, gaugeNames));
             }
         }
-
+        // wait for metrics update
+        Thread.sleep(FineGrainedSlotManager.METRICS_UPDATE_INTERVAL.toMillis());
         for (Map.Entry<Gauge<?>, String> entry : reporter.getGauges().entrySet()) {
             if (entry.getValue().contains(MetricNames.TASK_SLOTS_AVAILABLE)) {
                 assertEquals(0L, entry.getKey().getValue());
