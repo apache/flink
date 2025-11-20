@@ -152,7 +152,7 @@ abstract class FineGrainedSlotManagerTestBase {
         private SlotManagerMetricGroup slotManagerMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredSlotManagerMetricGroup();
         private BlockedTaskManagerChecker blockedTaskManagerChecker = resourceID -> false;
-        private final ScheduledExecutor scheduledExecutor =
+        private ScheduledExecutor scheduledExecutor =
                 new ScheduledExecutorServiceAdapter(EXECUTOR_RESOURCE.getExecutor());
         private final Executor mainThreadExecutor = EXECUTOR_RESOURCE.getExecutor();
         private FineGrainedSlotManager slotManager;
@@ -191,6 +191,10 @@ abstract class FineGrainedSlotManagerTestBase {
         public void setBlockedTaskManagerChecker(
                 BlockedTaskManagerChecker blockedTaskManagerChecker) {
             this.blockedTaskManagerChecker = blockedTaskManagerChecker;
+        }
+
+        public void setScheduledExecutor(ScheduledExecutor scheduledExecutor) {
+            this.scheduledExecutor = scheduledExecutor;
         }
 
         void runInMainThread(Runnable runnable) {
