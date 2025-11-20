@@ -2482,7 +2482,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .fails(
                         "CREATE SYSTEM FUNCTION is not supported, "
                                 + "system functions can only be registered as temporary "
-                                + "function, you can use CREATE TEMPORARY SYSTEM FUNCTION instead.");
+                                + "functions, you can use CREATE TEMPORARY SYSTEM FUNCTION instead.");
 
         // test create function using jar
         sql("create temporary function function1 as 'org.apache.flink.function.function1' language java using jar 'file:///path/to/test.jar'")
@@ -3543,7 +3543,10 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  'url'='http://example.com'\n"
                         + " )\n")
                 .fails(
-                        "(?s)CREATE SYSTEM CONNECTION is not supported, system connection can only be registered as temporary connection, you can use CREATE TEMPORARY SYSTEM CONNECTION instead\\..*");
+                        "(?s)CREATE SYSTEM CONNECTION is not supported, "
+                                + "system connections can only be registered as temporary "
+                                + "connections, you can use CREATE TEMPORARY SYSTEM CONNECTION "
+                                + "instead\\..*");
     }
 
     @Test
@@ -3597,6 +3600,16 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .ok("DROP TEMPORARY SYSTEM CONNECTION `CONN1`");
         sql("drop temporary system connection if exists conn1")
                 .ok("DROP TEMPORARY SYSTEM CONNECTION IF EXISTS `CONN1`");
+    }
+
+    @Test
+    void testDropSystemConnection() {
+        sql("drop ^system^ connection conn1")
+                .fails(
+                        "(?s)DROP SYSTEM CONNECTION is not supported, "
+                                + "system connections can only be dropped as temporary "
+                                + "connections, you can use DROP TEMPORARY SYSTEM CONNECTION "
+                                + "instead\\..*");
     }
 
     @Test

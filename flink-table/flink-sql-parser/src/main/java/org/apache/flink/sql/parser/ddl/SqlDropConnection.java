@@ -39,7 +39,6 @@ public class SqlDropConnection extends SqlDrop {
             new SqlSpecialOperator("DROP CONNECTION", SqlKind.OTHER_DDL);
 
     private SqlIdentifier connectionName;
-    private boolean ifExists;
     private final boolean isTemporary;
     private final boolean isSystemConnection;
 
@@ -51,7 +50,6 @@ public class SqlDropConnection extends SqlDrop {
             boolean isSystemConnection) {
         super(OPERATOR, pos, ifExists);
         this.connectionName = connectionName;
-        this.ifExists = ifExists;
         this.isTemporary = isTemporary;
         this.isSystemConnection = isSystemConnection;
     }
@@ -79,10 +77,6 @@ public class SqlDropConnection extends SqlDrop {
 
     public boolean getIsSystemConnection() {
         return this.isSystemConnection;
-    }
-
-    public void setIfExists(boolean ifExists) {
-        this.ifExists = ifExists;
     }
 
     @Override
