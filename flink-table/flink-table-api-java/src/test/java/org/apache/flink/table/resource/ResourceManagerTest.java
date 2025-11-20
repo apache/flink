@@ -46,6 +46,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -59,6 +60,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_DATABASE;
@@ -86,6 +89,8 @@ public class ResourceManagerTest {
 
     private static File file;
 
+    private static File artifactZip;
+
     private ResourceManager resourceManager;
 
     @BeforeAll
@@ -98,6 +103,15 @@ public class ResourceManagerTest {
                         String.format(GENERATED_LOWER_UDF_CODE, GENERATED_LOWER_UDF_CLASS));
         file = File.createTempFile("ResourceManagerTest", ".txt", tempFolder);
         FileUtils.writeFileUtf8(file, "Hello World");
+
+        // Create a ZIP file for ARTIFACT testing
+        artifactZip = new File(tempFolder, "test-artifact.zip");
+        try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(artifactZip))) {
+            ZipEntry entry = new ZipEntry("test-file.txt");
+            zos.putNextEntry(entry);
+            zos.write("Test artifact content".getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+        }
     }
 
     @BeforeEach
@@ -470,5 +484,124 @@ public class ResourceManagerTest {
 
     public static Stream<Arguments> provideResource() {
         return Stream.of(Arguments.of(udfJar.getPath(), true), Arguments.of(file.getPath(), false));
+    }
+
+    @Test
+    public void testDeclareFunctionResourcesWithArtifact() throws Exception {
+        ResourceUri artifactUri = new ResourceUri(ResourceType.ARTIFACT, artifactZip.getPath());
+
+        // Should not throw ValidationException for ARTIFACT type
+        resourceManager.declareFunctionResources(Collections.singleton(artifactUri));
+
+        // Verify resource is declared in function resource infos
+        Map<ResourceUri, ResourceManager.ResourceCounter> functionResourceInfos =
+                resourceManager.functionResourceInfos();
+        assertThat(functionResourceInfos).containsKey(artifactUri);
+        assertThat(functionResourceInfos.get(artifactUri).counter).isEqualTo(1);
+    }
+
+    @Test
+    public void testRegisterArtifactResources() throws Exception {
+        ResourceUri artifactUri = new ResourceUri(ResourceType.ARTIFACT, artifactZip.getPath());
+
+        // Should not throw ValidationException for ARTIFACT type
+        resourceManager.registerArtifactResources(Collections.singletonList(artifactUri), true);
+
+        // Verify resource is registered
+        Map<ResourceUri, URL> resources = resourceManager.getResources();
+        assertThat(resources).containsKey(artifactUri);
+    }
+
+    @Test
+    public void testMixedResourceTypes() throws Exception {
+        ResourceUri jarUri = new ResourceUri(ResourceType.JAR, udfJar.getPath());
+        ResourceUri artifactUri = new ResourceUri(ResourceType.ARTIFACT, artifactZip.getPath());
+
+        Set<ResourceUri> mixedResources = new HashSet<>();
+        mixedResources.add(jarUri);
+        mixedResources.add(artifactUri);
+
+        // Should handle both types correctly
+        resourceManager.declareFunctionResources(mixedResources);
+
+        Map<ResourceUri, ResourceManager.ResourceCounter> functionResourceInfos =
+                resourceManager.functionResourceInfos();
+        assertThat(functionResourceInfos).containsKey(jarUri);
+        assertThat(functionResourceInfos).containsKey(artifactUri);
+        assertThat(functionResourceInfos.get(jarUri).counter).isEqualTo(1);
+        assertThat(functionResourceInfos.get(artifactUri).counter).isEqualTo(1);
+    }
+
+    @Test
+    public void testArtifactResourceReuse() throws Exception {
+        ResourceUri artifactUri = new ResourceUri(ResourceType.ARTIFACT, artifactZip.getPath());
+
+        // Declare first
+        resourceManager.declareFunctionResources(Collections.singleton(artifactUri));
+        Map<ResourceUri, ResourceManager.ResourceCounter> functionResourceInfos =
+                resourceManager.functionResourceInfos();
+        URL declaredUrl = functionResourceInfos.get(artifactUri).url;
+
+        // Register should reuse declared resource (optimization)
+        resourceManager.registerArtifactResources(Collections.singletonList(artifactUri), true);
+
+        // Verify the same URL is reused (counter should be 2: 1 from declare, 1 from register)
+        // Note: registerArtifactResources with declareFunctionResource=false doesn't increase
+        // counter, but the optimization in prepareStagingResources should reuse the URL
+        assertThat(functionResourceInfos.get(artifactUri).url).isEqualTo(declaredUrl);
+    }
+
+    @Test
+    public void testRegisterArtifactResourcesWithMixedTypes() throws Exception {
+        ResourceUri jarUri = new ResourceUri(ResourceType.JAR, udfJar.getPath());
+        ResourceUri artifactUri = new ResourceUri(ResourceType.ARTIFACT, artifactZip.getPath());
+
+        List<ResourceUri> mixedResources = Arrays.asList(jarUri, artifactUri);
+
+        // Should handle both types correctly
+        resourceManager.registerArtifactResources(mixedResources, true);
+
+        Map<ResourceUri, URL> resources = resourceManager.getResources();
+        assertThat(resources).containsKey(jarUri);
+        assertThat(resources).containsKey(artifactUri);
+    }
+
+    @Test
+    public void testArtifactResourceWithoutJarValidation() throws Exception {
+        // Create a non-JAR file with .zip extension
+        File zipFile = new File(tempFolder, "test-deps.zip");
+        try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(zipFile))) {
+            ZipEntry entry = new ZipEntry("dependency.txt");
+            zos.putNextEntry(entry);
+            zos.write("Dependency content".getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+        }
+
+        ResourceUri artifactUri = new ResourceUri(ResourceType.ARTIFACT, zipFile.getPath());
+
+        // Should not throw ValidationException even though it's not a valid JAR
+        // ARTIFACT type doesn't require JAR validation
+        resourceManager.declareFunctionResources(Collections.singleton(artifactUri));
+        resourceManager.registerArtifactResources(Collections.singletonList(artifactUri), false);
+
+        // Verify it was registered successfully
+        Map<ResourceUri, URL> resources = resourceManager.getResources();
+        assertThat(resources).containsKey(artifactUri);
+    }
+
+    @Test
+    public void testRegisterJarResourcesRejectsArtifact() throws Exception {
+        ResourceUri artifactUri = new ResourceUri(ResourceType.ARTIFACT, artifactZip.getPath());
+
+        // registerJarResources should reject non-JAR resources
+        CommonTestUtils.assertThrows(
+                String.format(
+                        "registerJarResources() only accepts JAR resources, but got %s for resource [%s]",
+                        ResourceType.ARTIFACT, artifactZip.getPath()),
+                ValidationException.class,
+                () -> {
+                    resourceManager.registerJarResources(Collections.singletonList(artifactUri));
+                    return null;
+                });
     }
 }

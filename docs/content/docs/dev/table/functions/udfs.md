@@ -246,6 +246,17 @@ based on different subclass types of `UserDefinedFunction`, e.g. `ScalarFunction
 More logic or optimization could be added in the framework in the future with no need to change any users' existing code. 
 {{< /hint >}}
 
+{{< hint info >}}
+**Registering Functions with Artifacts**
+
+When your function implementation and its dependencies are packaged in JAR files, ZIP archives, or other artifact formats, you can register the function using the `USING` clause in SQL or by providing `ResourceUri` objects in the Table API.
+
+- **SQL**: Use `CREATE FUNCTION ... USING JAR 'path.jar'` or `CREATE FUNCTION ... USING ARTIFACT 'path'` to specify artifact resources. The `ARTIFACT` keyword supports various archive formats and works with all languages (JAVA, SCALA, PYTHON), while `JAR` is limited to JAVA and SCALA functions.
+- **Table API**: Use `createFunction(path, className, List<ResourceUri>)` or `FunctionDescriptor` with `resourceUri()` to specify artifacts programmatically.
+
+See the [CREATE FUNCTION]({{< ref "docs/dev/table/sql/create" >}}#create-function) documentation for complete syntax, examples, and SQL-to-Table API mapping.
+{{< /hint >}}
+
 {{< top >}}
 
 Implementation Guide
