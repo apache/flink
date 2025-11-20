@@ -22,7 +22,7 @@ limitations under the License.
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], EXPR$0=[$4])
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], EXPR$0=[$5])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[tableFunc(func1($cor0.a))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -30,10 +30,10 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], EXPR$0=[$4])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, c, d, EXPR$0])
-+- Correlate(invocation=[tableFunc($4)], correlate=[table(tableFunc(f0))], select=[a,b,c,d,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
-   +- AsyncCalc(select=[a, b, c, d, func1(a) AS f0])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+Calc(select=[a, b, c, d, e, EXPR$0])
++- Correlate(invocation=[tableFunc($5)], correlate=[table(tableFunc(f0))], select=[a,b,c,d,e,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, RecordType:peek_no_expand(RecordType:peek_no_expand(INTEGER h, DOUBLE i) f, VARCHAR(2147483647) g) e, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+   +- AsyncCalc(select=[a, b, c, d, e, func1(a) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -43,7 +43,7 @@ Calc(select=[a, b, c, d, EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], EXPR$0=[$4])
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], EXPR$0=[$5])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[tableFunc(ABS(func1($cor0.a)))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -51,10 +51,10 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], EXPR$0=[$4])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, c, d, EXPR$0])
-+- Correlate(invocation=[tableFunc(ABS($4))], correlate=[table(tableFunc(ABS(f0)))], select=[a,b,c,d,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
-   +- AsyncCalc(select=[a, b, c, d, func1(a) AS f0])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+Calc(select=[a, b, c, d, e, EXPR$0])
++- Correlate(invocation=[tableFunc(ABS($5))], correlate=[table(tableFunc(ABS(f0)))], select=[a,b,c,d,e,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, RecordType:peek_no_expand(RecordType:peek_no_expand(INTEGER h, DOUBLE i) f, VARCHAR(2147483647) g) e, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+   +- AsyncCalc(select=[a, b, c, d, e, func1(a) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -64,7 +64,7 @@ Calc(select=[a, b, c, d, EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], EXPR$0=[$4])
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], EXPR$0=[$5])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[tableFunc(func1(ABS($cor0.a)))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -72,11 +72,11 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], EXPR$0=[$4])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, c, d, EXPR$0])
-+- Correlate(invocation=[tableFunc($4)], correlate=[table(tableFunc(f0))], select=[a,b,c,d,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
-   +- AsyncCalc(select=[a, b, c, d, func1(f0) AS f0])
-      +- Calc(select=[a, b, c, d, ABS(a) AS f0])
-         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+Calc(select=[a, b, c, d, e, EXPR$0])
++- Correlate(invocation=[tableFunc($5)], correlate=[table(tableFunc(f0))], select=[a,b,c,d,e,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, RecordType:peek_no_expand(RecordType:peek_no_expand(INTEGER h, DOUBLE i) f, VARCHAR(2147483647) g) e, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+   +- AsyncCalc(select=[a, b, c, d, e, func1(f0) AS f0])
+      +- Calc(select=[a, b, c, d, e, ABS(a) AS f0])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -86,7 +86,7 @@ Calc(select=[a, b, c, d, EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], EXPR$0=[$4])
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], EXPR$0=[$5])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[asyncTableFunc(CAST(CAST($cor0.a):INTEGER):INTEGER)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -94,10 +94,31 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], EXPR$0=[$4])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, c, d, EXPR$0])
-+- AsyncCorrelate(invocation=[asyncTableFunc($4)], correlate=[table(asyncTableFunc(f0))], select=[a,b,c,d,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
-   +- Calc(select=[a, b, c, d, a AS f0])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+Calc(select=[a, b, c, d, e, EXPR$0])
++- AsyncCorrelate(invocation=[asyncTableFunc($5)], correlate=[table(asyncTableFunc(f0))], select=[a,b,c,d,e,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, RecordType:peek_no_expand(RecordType:peek_no_expand(INTEGER h, DOUBLE i) f, VARCHAR(2147483647) g) e, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+   +- Calc(select=[a, b, c, d, e, a AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCorrelateWithCompositeFieldAsInput">
+    <Resource name="sql">
+      <![CDATA[select * FROM MyTable, LATERAL TABLE(asyncTableFunc(e.f.h))]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], EXPR$0=[$5])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{4}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[asyncTableFunc($cor0.e.f.h)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[a, b, c, d, e, EXPR$0])
++- AsyncCorrelate(invocation=[asyncTableFunc($6)], correlate=[table(asyncTableFunc(f1))], select=[a,b,c,d,e,f0,f1,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, RecordType:peek_no_expand(RecordType:peek_no_expand(INTEGER h, DOUBLE i) f, VARCHAR(2147483647) g) e, RecordType:peek_no_expand(INTEGER h, DOUBLE i) f0, INTEGER f1, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+   +- Calc(select=[a, b, c, d, e, e.f AS f0, e.f.h AS f1])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -107,7 +128,7 @@ Calc(select=[a, b, c, d, EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], EXPR$0=[$4])
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], EXPR$0=[$5])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[asyncTableFunc(scalar($cor0.a))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -115,10 +136,10 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], EXPR$0=[$4])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, c, d, EXPR$0])
-+- AsyncCorrelate(invocation=[asyncTableFunc($4)], correlate=[table(asyncTableFunc(f0))], select=[a,b,c,d,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
-   +- Calc(select=[a, b, c, d, scalar(a) AS f0])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+Calc(select=[a, b, c, d, e, EXPR$0])
++- AsyncCorrelate(invocation=[asyncTableFunc($5)], correlate=[table(asyncTableFunc(f0))], select=[a,b,c,d,e,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, RecordType:peek_no_expand(RecordType:peek_no_expand(INTEGER h, DOUBLE i) f, VARCHAR(2147483647) g) e, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+   +- Calc(select=[a, b, c, d, e, scalar(a) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>
@@ -128,7 +149,7 @@ Calc(select=[a, b, c, d, EXPR$0])
     </Resource>
     <Resource name="ast">
       <![CDATA[
-LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], EXPR$0=[$4])
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], e=[$4], EXPR$0=[$5])
 +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0}])
    :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
    +- LogicalTableFunctionScan(invocation=[asyncTableFunc(ABS($cor0.a))], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
@@ -136,10 +157,10 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], EXPR$0=[$4])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, c, d, EXPR$0])
-+- AsyncCorrelate(invocation=[asyncTableFunc($4)], correlate=[table(asyncTableFunc(f0))], select=[a,b,c,d,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
-   +- Calc(select=[a, b, c, d, ABS(a) AS f0])
-      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+Calc(select=[a, b, c, d, e, EXPR$0])
++- AsyncCorrelate(invocation=[asyncTableFunc($5)], correlate=[table(asyncTableFunc(f0))], select=[a,b,c,d,e,f0,EXPR$0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER ARRAY d, RecordType:peek_no_expand(RecordType:peek_no_expand(INTEGER h, DOUBLE i) f, VARCHAR(2147483647) g) e, INTEGER f0, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+   +- Calc(select=[a, b, c, d, e, ABS(a) AS f0])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
   </TestCase>

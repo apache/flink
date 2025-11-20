@@ -434,6 +434,8 @@ class ScalarFunctionSplitter(
 
   private var fieldsRexCall: Map[Int, Int] = Map[Int, Int]()
 
+  private val extractedRexNodeRefs: mutable.HashSet[RexNode] = mutable.HashSet[RexNode]()
+
   override def visitCall(call: RexCall): RexNode = {
     if (needConvert(call)) {
       getExtractedRexNode(call)
@@ -454,7 +456,9 @@ class ScalarFunctionSplitter(
           new RexInputRef(field.getIndex, field.getType)
         case _ =>
           val newFieldAccess =
-            rexBuilder.makeFieldAccess(expr.accept(this), fieldAccess.getField.getIndex)
+            rexBuilder.makeFieldAccess(
+              convertInputRefToLocalRefIfNecessary(expr.accept(this)),
+              fieldAccess.getField.getIndex)
           getExtractedRexNode(newFieldAccess)
       }
     } else {
@@ -468,9 +472,18 @@ class ScalarFunctionSplitter(
 
   override def visitNode(rexNode: RexNode): RexNode = rexNode
 
+  private def convertInputRefToLocalRefIfNecessary(node: RexNode): RexNode = {
+    node match {
+      case inputRef: RexInputRef if extractedRexNodeRefs.contains(node) =>
+        new RexLocalRef(inputRef.getIndex, node.getType)
+      case _ => node
+    }
+  }
+
   private def getExtractedRexNode(node: RexNode): RexNode = {
     val newNode = new RexInputRef(extractedFunctionOffset + extractedRexNodes.length, node.getType)
     extractedRexNodes.append(node)
+    extractedRexNodeRefs.add(newNode)
     newNode
   }
 
