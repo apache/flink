@@ -20,12 +20,14 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.metrics.groups.SlotManagerMetricGroup;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
@@ -38,6 +40,7 @@ import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
+import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.jupiter.api.Test;
@@ -50,6 +53,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
@@ -1057,5 +1061,101 @@ class FineGrainedSlotManagerTest extends FineGrainedSlotManagerTestBase {
                         });
             }
         };
+    }
+
+    @Test
+    void testMetricsUpdate() throws Exception {
+        final AtomicReference<Gauge<Long>> slotsAvailableGauge = new AtomicReference<>();
+        final AtomicReference<Gauge<Long>> slotsTotalGauge = new AtomicReference<>();
+
+        final MetricRegistry metricRegistry =
+                TestingMetricRegistry.builder()
+                        .setRegisterConsumer(
+                                (metric, name, group) -> {
+                                    if (name.equals(MetricNames.TASK_SLOTS_AVAILABLE)) {
+                                        slotsAvailableGauge.set((Gauge<Long>) metric);
+                                    } else if (name.equals(MetricNames.TASK_SLOTS_TOTAL)) {
+                                        slotsTotalGauge.set((Gauge<Long>) metric);
+                                    }
+                                })
+                        .build();
+
+        final Context context = new Context();
+        context.setSlotManagerMetricGroup(
+                SlotManagerMetricGroup.create(metricRegistry, "localhost"));
+        final ManuallyTriggeredScheduledExecutor scheduledExecutor =
+                new ManuallyTriggeredScheduledExecutor();
+        context.setScheduledExecutor(scheduledExecutor);
+        final TaskExecutorConnection executorConnection1 = createTaskExecutorConnection();
+        final TaskExecutorConnection executorConnection2 = createTaskExecutorConnection();
+
+        context.runTest(
+                () -> {
+                    assertThat(slotsAvailableGauge.get().getValue()).isEqualTo(0);
+                    assertThat(slotsTotalGauge.get().getValue()).isEqualTo(0);
+
+                    final CompletableFuture<SlotManager.RegistrationResult>
+                            registerTaskManagerFuture1 = new CompletableFuture<>();
+                    context.runInMainThreadAndWait(
+                            () ->
+                                    registerTaskManagerFuture1.complete(
+                                            context.getSlotManager()
+                                                    .registerTaskManager(
+                                                            executorConnection1,
+                                                            new SlotReport(),
+                                                            DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                            DEFAULT_SLOT_RESOURCE_PROFILE)));
+                    assertThat(assertFutureCompleteAndReturn(registerTaskManagerFuture1))
+                            .isEqualTo(SlotManager.RegistrationResult.SUCCESS);
+
+                    final CompletableFuture<SlotManager.RegistrationResult>
+                            registerTaskManagerFuture2 = new CompletableFuture<>();
+                    context.runInMainThreadAndWait(
+                            () ->
+                                    registerTaskManagerFuture2.complete(
+                                            context.getSlotManager()
+                                                    .registerTaskManager(
+                                                            executorConnection2,
+                                                            new SlotReport(
+                                                                    createAllocatedSlotStatus(
+                                                                            new JobID(),
+                                                                            new AllocationID(),
+                                                                            DEFAULT_SLOT_RESOURCE_PROFILE)),
+                                                            DEFAULT_TOTAL_RESOURCE_PROFILE,
+                                                            DEFAULT_SLOT_RESOURCE_PROFILE)));
+                    assertThat(assertFutureCompleteAndReturn(registerTaskManagerFuture2))
+                            .isEqualTo(SlotManager.RegistrationResult.SUCCESS);
+
+                    // triggers the metric update task on the main thread and waits for the main
+                    // thread to process queued up callbacks
+                    scheduledExecutor.triggerPeriodicScheduledTasks();
+                    context.runInMainThreadAndWait(() -> {});
+
+                    assertThat(slotsTotalGauge.get().getValue())
+                            .isEqualTo(2 * DEFAULT_NUM_SLOTS_PER_WORKER);
+                    assertThat(slotsAvailableGauge.get().getValue())
+                            .isEqualTo(2 * DEFAULT_NUM_SLOTS_PER_WORKER - 1);
+
+                    final CompletableFuture<Boolean> unRegisterTaskManagerFuture =
+                            new CompletableFuture<>();
+                    context.runInMainThreadAndWait(
+                            () ->
+                                    unRegisterTaskManagerFuture.complete(
+                                            context.getSlotManager()
+                                                    .unregisterTaskManager(
+                                                            executorConnection2.getInstanceID(),
+                                                            TEST_EXCEPTION)));
+                    assertThat(assertFutureCompleteAndReturn(unRegisterTaskManagerFuture)).isTrue();
+
+                    // triggers the metric update task on the main thread and waits for the main
+                    // thread to process queued up callbacks
+                    scheduledExecutor.triggerPeriodicScheduledTasks();
+                    context.runInMainThreadAndWait(() -> {});
+
+                    assertThat(slotsTotalGauge.get().getValue())
+                            .isEqualTo(DEFAULT_NUM_SLOTS_PER_WORKER);
+                    assertThat(slotsAvailableGauge.get().getValue())
+                            .isEqualTo(DEFAULT_NUM_SLOTS_PER_WORKER);
+                });
     }
 }
