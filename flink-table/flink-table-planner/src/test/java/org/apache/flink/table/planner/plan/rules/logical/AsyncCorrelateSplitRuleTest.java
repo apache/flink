@@ -62,7 +62,8 @@ public class AsyncCorrelateSplitRuleTest extends TableTestBase {
                         + "  a int,\n"
                         + "  b bigint,\n"
                         + "  c string,\n"
-                        + "  d ARRAY<INT NOT NULL>\n"
+                        + "  d ARRAY<INT NOT NULL>,\n"
+                        + "  e ROW<f ROW<h int, i double>, g string>\n"
                         + ") WITH (\n"
                         + "  'connector' = 'test-simple-table-source'\n"
                         + ") ;");
@@ -107,6 +108,12 @@ public class AsyncCorrelateSplitRuleTest extends TableTestBase {
     public void testCorrelateWithCast() {
         String sqlQuery =
                 "select * FROM MyTable, LATERAL TABLE(asyncTableFunc(cast(cast(a as int) as int)))";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testCorrelateWithCompositeFieldAsInput() {
+        String sqlQuery = "select * FROM MyTable, LATERAL TABLE(asyncTableFunc(e.f.h))";
         util.verifyRelPlan(sqlQuery);
     }
 
