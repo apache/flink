@@ -19,6 +19,7 @@ package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.accumulators.LongCounter;
@@ -57,13 +58,12 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.runtime.throwable.ThrowableAnnotation;
-import org.apache.flink.runtime.throwable.ThrowableType;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
+import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.Collector;
@@ -104,6 +104,7 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.shaded.guava33.com.google.common.collect.Iterables.getOnlyElement;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Base class for tests related to unaligned checkpoints.
@@ -195,6 +196,11 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
                             .requestJobResult(jobID)
                             .get()
                             .toJobExecutionResult(getClass().getClassLoader()));
+            if (settings.expectedFinalJobStatus != null) {
+                assertThat(miniCluster.getMiniCluster().getJobStatus(jobID))
+                        .succeedsWithin(Duration.ofMinutes(1))
+                        .isEqualTo(settings.expectedFinalJobStatus);
+            }
             System.out.println(
                     "Finished " + getClass().getCanonicalName() + "#" + name.getMethodName() + ".");
             if (settings.generateCheckpoint) {
@@ -697,6 +703,7 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         private int failuresAfterSourceFinishes = 0;
         private ChannelType channelType = ChannelType.MIXED;
         private long sourceSleepMs = 0;
+        @Nullable private JobStatus expectedFinalJobStatus = null;
 
         public UnalignedSettings(DagCreator dagCreator) {
             this.dagCreator = dagCreator;
@@ -752,6 +759,11 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             return this;
         }
 
+        public UnalignedSettings setExpectedFinalJobStatus(JobStatus expectedFinalJobStatus) {
+            this.expectedFinalJobStatus = expectedFinalJobStatus;
+            return this;
+        }
+
         public void configure(StreamExecutionEnvironment env) {
             env.enableCheckpointing(Math.max(100L, parallelism * 50L));
             env.getCheckpointConfig()
@@ -760,6 +772,8 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
             env.getCheckpointConfig()
                     .setTolerableCheckpointFailureNumber(tolerableCheckpointFailures);
             env.setParallelism(parallelism);
+            RestartStrategyUtils.configureFixedDelayRestartStrategy(
+                    env, generateCheckpoint ? expectedFailures / 2 : expectedFailures, 100L);
             env.getCheckpointConfig().enableUnalignedCheckpoints(true);
             // for custom partitioner
             env.getCheckpointConfig().setForceUnalignedCheckpoints(true);
@@ -1138,7 +1152,6 @@ public abstract class UnalignedCheckpointTestBase extends TestLogger {
         return value;
     }
 
-    @ThrowableAnnotation(ThrowableType.NonRecoverableError)
     static class TestException extends Exception {
         public TestException(String s) {
             super(s);
