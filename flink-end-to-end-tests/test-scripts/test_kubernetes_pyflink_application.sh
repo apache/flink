@@ -80,7 +80,9 @@ cp "${FLINK_PYTHON_DIR}/pyproject.toml" $PYFLINK_DOCKER_DIR/
 if [[ -d "dist" ]]; then rm -Rf dist; fi
 cd ${PYFLINK_DOCKER_DIR}
 echo "FROM ${PURE_FLINK_IMAGE_NAME}" >> Dockerfile
+echo "USER root" >> Dockerfile
 echo "RUN apt-get update && apt-get install build-essential -y" >> Dockerfile
+echo "USER flink" >> Dockerfile
 echo "COPY lint-python.sh /tmp/lint-python.sh" >> Dockerfile
 echo "COPY pyproject.toml /tmp/pyproject.toml" >> Dockerfile
 echo "RUN bash /tmp/lint-python.sh -s basic" >> Dockerfile
