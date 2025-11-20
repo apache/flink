@@ -142,6 +142,10 @@ class AggFunctionFactory(
       case _: SqlListAggFunction if call.getArgList.size() == 2 =>
         createListAggWsFunction(argTypes, index)
 
+      case a: SqlBasicAggFunction
+          if a.getName == BuiltInFunctionDefinitions.INTERNAL_WELFORD_M2.getName =>
+        createWelfordM2AggFunction(argTypes)
+
       // TODO supports SqlCardinalityCountAggFunction
 
       case a: SqlAggFunction if a.getKind == SqlKind.COLLECT =>
@@ -602,6 +606,19 @@ class AggFunctionFactory(
       new ListAggWsWithRetractAggFunction
     } else {
       new ListAggFunction(2)
+    }
+  }
+
+  private def createWelfordM2AggFunction(argTypes: Array[LogicalType]): UserDefinedFunction = {
+    argTypes(0).getTypeRoot match {
+      case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE =>
+        new WelfordM2AggFunction.NumberFunction(argTypes(0))
+      case DECIMAL =>
+        new WelfordM2AggFunction.DecimalFunction(argTypes(0))
+      case _ =>
+        throw new TableException(
+          s"${BuiltInFunctionDefinitions.INTERNAL_WELFORD_M2.getName} aggregate function does not support type: '${argTypes(
+              0).getTypeRoot}'.")
     }
   }
 

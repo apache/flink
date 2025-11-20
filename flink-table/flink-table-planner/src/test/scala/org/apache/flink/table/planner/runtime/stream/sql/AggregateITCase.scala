@@ -1566,7 +1566,7 @@ class AggregateITCase(
     tEnv.sqlQuery(sqlQuery).toRetractStream[Row].addSink(sink)
     env.execute()
     // TODO: define precise behavior of VAR_POP()
-    val expected = List(15602500.toString, 28889.toString)
+    val expected = List(15602500.toString, 28888.toString)
     assertThat(sink.getRetractResults.sorted).isEqualTo(expected.sorted)
   }
 
