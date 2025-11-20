@@ -62,7 +62,8 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
                         + "  a int,\n"
                         + "  b bigint,\n"
                         + "  c string,\n"
-                        + "  d ARRAY<INT NOT NULL>\n"
+                        + "  d ARRAY<INT NOT NULL>,\n"
+                        + "  e ROW<f ROW<h int, i double>, g string>"
                         + ") WITH (\n"
                         + "  'connector' = 'test-simple-table-source'\n"
                         + ") ;");
@@ -89,6 +90,7 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
     @Test
     public void testSingleCall() {
         String sqlQuery = "SELECT func1(a) FROM MyTable";
+        util.getTableEnv().explainSql(sqlQuery);
         util.verifyRelPlan(sqlQuery);
     }
 
@@ -179,6 +181,12 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
     @Test
     public void testFieldAccessAfter() {
         String sqlQuery = "SELECT func5(a).f0 from MyTable";
+        util.verifyRelPlan(sqlQuery);
+    }
+
+    @Test
+    public void testCompositeFieldAsInput() {
+        String sqlQuery = "SELECT func1(e.f.h) from MyTable";
         util.verifyRelPlan(sqlQuery);
     }
 
