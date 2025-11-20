@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.client.program.MiniClusterClient;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.connector.datagen.source.DataGeneratorSource;
@@ -200,6 +201,7 @@ abstract class BuiltInAggregateFunctionTestBase {
 
         private @Nullable String description;
 
+        private final Configuration configuration = new Configuration();
         private DataType sourceRowType;
         private List<Row> sourceRows;
 
@@ -217,6 +219,16 @@ abstract class BuiltInAggregateFunctionTestBase {
 
         TestSpec withDescription(String description) {
             this.description = description;
+            return this;
+        }
+
+        <T> TestSpec withConfiguration(ConfigOption<T> option, T value) {
+            this.configuration.set(option, value);
+            return this;
+        }
+
+        TestSpec withConfiguration(String key, String value) {
+            this.configuration.setString(key, value);
             return this;
         }
 
@@ -324,13 +336,12 @@ abstract class BuiltInAggregateFunctionTestBase {
         private TestCaseWithClusterClient createTestItemExecutable(
                 TestItem testItem, String stateBackend) {
             return (clusterClient) -> {
-                Configuration conf = new Configuration();
-                conf.set(StateBackendOptions.STATE_BACKEND, stateBackend);
+                configuration.set(StateBackendOptions.STATE_BACKEND, stateBackend);
                 final TableEnvironment tEnv =
                         TableEnvironment.create(
                                 EnvironmentSettings.newInstance()
                                         .inStreamingMode()
-                                        .withConfiguration(conf)
+                                        .withConfiguration(configuration)
                                         .build());
                 final Table sourceTable = asTable(tEnv, sourceRowType, sourceRows);
 
