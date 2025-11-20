@@ -794,7 +794,7 @@ SqlShowCreate SqlShowCreate() :
 }
 
 /**
- * DESCRIBE | DESC FUNCTION [ EXTENDED] [[catalogName.] dataBasesName].functionName sql call.
+ * (DESCRIBE | DESC) FUNCTION [ EXTENDED] [[catalogName.] dataBasesName].functionName sql call.
  * Here we add Rich in className to match the naming of SqlRichDescribeTable.
  */
 SqlRichDescribeFunction SqlRichDescribeFunction() :
@@ -813,7 +813,7 @@ SqlRichDescribeFunction SqlRichDescribeFunction() :
 }
 
 /**
- * DESCRIBE | DESC MODEL [ EXTENDED] [[catalogName.] dataBasesName].modelName sql call.
+ * (DESCRIBE | DESC) MODEL [ EXTENDED] [[catalogName.] dataBasesName].modelName sql call.
  * Here we add Rich in className to match the naming of SqlRichDescribeTable.
  */
 SqlRichDescribeModel SqlRichDescribeModel() :
@@ -832,7 +832,7 @@ SqlRichDescribeModel SqlRichDescribeModel() :
 }
 
 /**
- * DESCRIBE | DESC CONNECTION [ EXTENDED] [[catalogName.] dataBasesName].connectionName sql call.
+ * (DESCRIBE | DESC) CONNECTION [ EXTENDED] [[catalogName.] dataBasesName].connectionName sql call.
  * Here we add Rich in className to match the naming of SqlRichDescribeTable.
  */
 SqlRichDescribeConnection SqlRichDescribeConnection() :
@@ -851,7 +851,7 @@ SqlRichDescribeConnection SqlRichDescribeConnection() :
 }
 
 /**
- * DESCRIBE | DESC [ EXTENDED] [[catalogName.] dataBasesName].tableName sql call.
+ * (DESCRIBE | DESC) [ EXTENDED] [[catalogName.] dataBasesName].tableName sql call.
  * Here we add Rich in className to distinguish from calcite's original SqlDescribeTable.
  */
 SqlRichDescribeTable SqlRichDescribeTable() :
@@ -3562,7 +3562,16 @@ SqlDrop SqlDropConnection(Span s, boolean isTemporary) :
     boolean isSystemConnection = false;
 }
 {
-    [ <SYSTEM>   { isSystemConnection = true; } ]
+    [
+        <SYSTEM>
+        {
+            if (!isTemporary){
+                throw SqlUtil.newContextException(getPos(),
+                    ParserResource.RESOURCE.dropSystemConnectionOnlySupportTemporary());
+            }
+            isSystemConnection = true;
+        }
+    ]
 
     <CONNECTION>
 

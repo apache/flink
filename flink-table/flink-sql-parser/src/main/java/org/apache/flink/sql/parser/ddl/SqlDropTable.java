@@ -38,10 +38,6 @@ public class SqlDropTable extends SqlDropObject {
         this.isTemporary = isTemporary;
     }
 
-    public boolean isTemporary() {
-        return this.isTemporary;
-    }
-
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         writer.keyword("DROP");

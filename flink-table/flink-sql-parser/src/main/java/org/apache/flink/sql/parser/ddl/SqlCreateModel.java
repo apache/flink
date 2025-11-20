@@ -18,9 +18,7 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.ExtendedSqlNode;
-import org.apache.flink.sql.parser.SqlUnparseUtils;
-import org.apache.flink.sql.parser.error.SqlValidateException;
+import static java.util.Objects.requireNonNull;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -31,12 +29,13 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
-
-import javax.annotation.Nonnull;
+import org.apache.flink.sql.parser.ExtendedSqlNode;
+import org.apache.flink.sql.parser.SqlUnparseUtils;
+import org.apache.flink.sql.parser.error.SqlValidateException;
 
 import java.util.List;
 
-import static java.util.Objects.requireNonNull;
+import javax.annotation.Nonnull;
 
 /**
  * {@link SqlNode} to describe the CREATE MODEL syntax. CREATE MODEL [IF NOT EXISTS] [[catalogName.]
@@ -49,6 +48,7 @@ public class SqlCreateModel extends SqlCreateObject implements ExtendedSqlNode {
 
     private final SqlNodeList inputColumnList;
     private final SqlNodeList outputColumnList;
+
 
     public SqlCreateModel(
             SqlParserPos pos,

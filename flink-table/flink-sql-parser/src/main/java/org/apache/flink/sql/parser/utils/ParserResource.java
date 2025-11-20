@@ -35,11 +35,15 @@ public interface ParserResource {
     Resources.ExInst<ParseException> overwriteIsOnlyUsedWithInsert();
 
     @Resources.BaseMessage(
-            "CREATE SYSTEM CONNECTION is not supported, system connection can only be registered as temporary connection, you can use CREATE TEMPORARY SYSTEM CONNECTION instead.")
+            "CREATE SYSTEM CONNECTION is not supported, system connections can only be registered as temporary connections, you can use CREATE TEMPORARY SYSTEM CONNECTION instead.")
     Resources.ExInst<ParseException> createSystemConnectionOnlySupportTemporary();
 
     @Resources.BaseMessage(
-            "CREATE SYSTEM FUNCTION is not supported, system functions can only be registered as temporary function, you can use CREATE TEMPORARY SYSTEM FUNCTION instead.")
+            "DROP SYSTEM CONNECTION is not supported, system connections can only be dropped as temporary connections, you can use DROP TEMPORARY SYSTEM CONNECTION instead.")
+    Resources.ExInst<ParseException> dropSystemConnectionOnlySupportTemporary();
+
+    @Resources.BaseMessage(
+            "CREATE SYSTEM FUNCTION is not supported, system functions can only be registered as temporary functions, you can use CREATE TEMPORARY SYSTEM FUNCTION instead.")
     Resources.ExInst<ParseException> createSystemFunctionOnlySupportTemporary();
 
     @Resources.BaseMessage("Duplicate EXPLAIN DETAIL is not allowed.")

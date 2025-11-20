@@ -28,7 +28,6 @@ import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -62,8 +61,6 @@ public class SqlCreateConnection extends SqlCreate implements ExtendedSqlNode {
 
     private final boolean isSystem;
 
-    private final boolean ifNotExists;
-
     public SqlCreateConnection(
             SqlParserPos pos,
             SqlIdentifier connectionName,
@@ -78,12 +75,6 @@ public class SqlCreateConnection extends SqlCreate implements ExtendedSqlNode {
         this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
         this.isTemporary = isTemporary;
         this.isSystem = isSystem;
-        this.ifNotExists = ifNotExists;
-    }
-
-    @Override
-    public @Nonnull SqlOperator getOperator() {
-        return OPERATOR;
     }
 
     @Override
