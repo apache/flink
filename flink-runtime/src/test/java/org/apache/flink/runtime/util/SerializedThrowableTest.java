@@ -26,6 +26,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.SerializedThrowable;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -33,6 +34,7 @@ import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -195,18 +197,20 @@ class SerializedThrowableTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCyclicSuppressedThrowableConcurrentSerialized() throws InterruptedException {
         Throwable throwable = mockThrowable();
-        CountDownLatch countDownLatch = new CountDownLatch(2);
-        List<Thread> list = new ArrayList<>();
-        for (int i = 0; i < 2; i++) {
-            String threadName = "t" + i;
+        int threadNum = 16;
+        CountDownLatch countDownLatch = new CountDownLatch(threadNum);
+        List<Thread> threads = new ArrayList<>();
+        for (int i = 0; i < threadNum; i++) {
+            String threadName = "thread-" + i;
             Thread t = createThread(countDownLatch, throwable, threadName);
             t.start();
             countDownLatch.countDown();
-            list.add(t);
+            threads.add(t);
         }
-        for (Thread thread : list) {
+        for (Thread thread : threads) {
             thread.join();
         }
     }

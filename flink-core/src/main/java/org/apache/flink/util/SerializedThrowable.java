@@ -68,10 +68,14 @@ public class SerializedThrowable extends Exception implements Serializable {
         if (!(exception instanceof SerializedThrowable)) {
             // serialize and memoize the original message
             byte[] serialized;
-            try {
-                serialized = InstantiationUtil.serializeObject(exception);
-            } catch (Throwable t) {
-                serialized = null;
+            // introduce the synchronization here to avoid deadlock of multi thread serializing
+            // exceptions
+            synchronized (SerializedThrowable.class) {
+                try {
+                    serialized = InstantiationUtil.serializeObject(exception);
+                } catch (Throwable t) {
+                    serialized = null;
+                }
             }
             this.serializedException = serialized;
             this.cachedException = new WeakReference<>(exception);
