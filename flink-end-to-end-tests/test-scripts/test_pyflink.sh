@@ -179,6 +179,8 @@ CREATE TABLE sink (
   'format' = 'csv'
 );
 
+SET 'python.logging.level.overrides' = 'add_one: DEBUG';
+
 CREATE FUNCTION add_one AS 'add_one.add_one' LANGUAGE PYTHON;
 
 SET 'python.client.executable'='$PYTHON_EXEC';
@@ -194,6 +196,15 @@ JOB_ID=$($FLINK_DIR/bin/sql-client.sh \
   -f "$SUBMITTED_SQL" | grep "Job ID:" | sed 's/.* //g')
 
 wait_job_terminal_state "$JOB_ID" "FINISHED"
+
+# check logs
+captured_log="DEBUG: input is"
+grep_debug_cmd="grep -c '$captured_log' $FLINK_LOG_DIR/*taskexecutor*.log"
+debug_line_cnt=$(eval "$grep_debug_cmd")
+if [[ ${debug_line_cnt} -lt 0 ]]; then
+  echo "Don't find any PythonFunction debug lines."
+  EXIT_CODE=1
+fi
 
 # Note: The 'data_stream_job.py' still uses the Kafka legacy source,
 # so we temporarily disable this case because we plan to address this

@@ -17,9 +17,12 @@
 ################################################################################
 from pyflink.table import DataTypes
 from pyflink.table.udf import udf
+import logging
 
+LOGGER = logging.getLogger(__name__)
 
 @udf(input_types=[DataTypes.BIGINT()], result_type=DataTypes.BIGINT())
 def add_one(i):
     import pytest
+    LOGGER.debug(f'DEBUG: input is {i}')
     return i + 1

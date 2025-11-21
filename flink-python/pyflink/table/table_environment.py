@@ -1740,8 +1740,11 @@ class TableEnvironment(object):
         def startup_loopback_server():
             from pyflink.fn_execution.beam.beam_worker_pool_service import \
                 BeamFnLoopbackWorkerPoolServicer
+
             self.get_config().set("python.loopback-server.address",
-                                  BeamFnLoopbackWorkerPoolServicer().start())
+                                  BeamFnLoopbackWorkerPoolServicer()
+                                  .configure(
+                                      Configuration.from_dict(self.get_config().to_map())).start())
 
         python_worker_execution_mode = os.environ.get('_python_worker_execution_mode')
 

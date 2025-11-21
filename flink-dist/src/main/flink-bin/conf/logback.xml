@@ -55,4 +55,6 @@
     <logger name="org.jboss.netty.channel.DefaultChannelPipeline" level="ERROR">
         <appender-ref ref="file"/>
     </logger>
+
+    <logger name="PythonWorker" level="ALL"/>
 </configuration>
