@@ -48,7 +48,7 @@ public class SqlAlterMaterializedTableAsQuery extends SqlAlterMaterializedTable 
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getName(), asQuery);
+        return ImmutableNullableList.of(name, asQuery);
     }
 
     @Override

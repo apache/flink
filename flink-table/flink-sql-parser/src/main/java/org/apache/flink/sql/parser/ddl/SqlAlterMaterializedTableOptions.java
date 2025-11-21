@@ -49,7 +49,7 @@ public class SqlAlterMaterializedTableOptions extends SqlAlterMaterializedTable 
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getName(), propertyList);
+        return ImmutableNullableList.of(name, propertyList);
     }
 
     @Override

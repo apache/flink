@@ -18,6 +18,7 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
@@ -30,16 +31,16 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 
 import javax.annotation.Nullable;
 
-import java.util.Optional;
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
 /** Base class for CREATE DDL sql calls. */
 public abstract class SqlCreateObject extends SqlCreate {
-    private final SqlIdentifier name;
+    protected final SqlIdentifier name;
+    protected final @Nullable SqlCharStringLiteral comment;
     private final boolean isTemporary;
-    private final @Nullable SqlCharStringLiteral comment;
-    private final @Nullable SqlNodeList properties;
+    protected final @Nullable SqlNodeList properties;
 
     public SqlCreateObject(
             SqlOperator operator,
@@ -68,12 +69,12 @@ public abstract class SqlCreateObject extends SqlCreate {
         return isTemporary;
     }
 
-    public Optional<SqlCharStringLiteral> getComment() {
-        return Optional.ofNullable(comment);
+    public String getComment() {
+        return SqlParseUtils.extractString(comment);
     }
 
-    public SqlNodeList getProperties() {
-        return properties;
+    public Map<String, String> getProperties() {
+        return SqlParseUtils.extractMap(properties);
     }
 
     public SqlIdentifier getName() {

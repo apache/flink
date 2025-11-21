@@ -39,6 +39,6 @@ public abstract class SqlAlterMaterializedTable extends SqlAlterObject {
 
     @Override
     public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
-        getName().unparse(writer, leftPrec, rightPrec);
+        name.unparse(writer, leftPrec, rightPrec);
     }
 }

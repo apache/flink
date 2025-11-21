@@ -43,7 +43,7 @@ public class SqlAlterViewAs extends SqlAlterView {
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getName(), newQuery);
+        return ImmutableNullableList.of(name, newQuery);
     }
 
     @Override

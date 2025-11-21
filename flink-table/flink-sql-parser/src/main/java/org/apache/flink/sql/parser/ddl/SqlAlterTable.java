@@ -18,7 +18,7 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.SqlPartitionUtils;
+import org.apache.flink.sql.parser.SqlParseUtils;
 
 import org.apache.calcite.sql.SqlAlter;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -107,7 +107,7 @@ public abstract class SqlAlterTable extends SqlAlter {
 
     /** Get partition spec as key-value strings. */
     public LinkedHashMap<String, String> getPartitionKVs() {
-        return SqlPartitionUtils.getPartitionKVs(getPartitionSpec());
+        return SqlParseUtils.getPartitionKVs(getPartitionSpec());
     }
 
     /**

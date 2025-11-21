@@ -45,7 +45,7 @@ public class SqlAlterMaterializedTableRefreshMode extends SqlAlterMaterializedTa
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getName());
+        return ImmutableNullableList.of(name);
     }
 
     @Override

@@ -144,14 +144,12 @@ public class SqlUnparseUtils {
 
     public static void unparseSetProperties(
             SqlNodeList propertyList, SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("SET");
-        unparsePropertiesBlock(propertyList, writer, leftPrec, rightPrec);
+        unparseListWithIndent("SET", propertyList, false, writer, leftPrec, rightPrec);
     }
 
     public static void unparseResetProperties(
             SqlNodeList propertyList, SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("RESET");
-        unparsePropertiesBlock(propertyList, writer, leftPrec, rightPrec);
+        unparseListWithIndent("RESET", propertyList, false, writer, leftPrec, rightPrec);
     }
 
     public static void unparseAsQuery(
@@ -175,14 +173,29 @@ public class SqlUnparseUtils {
             return;
         }
         writer.newlineAndIndent();
-        writer.keyword("WITH");
-        unparsePropertiesBlock(properties, writer, leftPrec, rightPrec);
+        unparseListWithIndent("WITH", properties, true, writer, leftPrec, rightPrec);
     }
 
-    private static void unparsePropertiesBlock(
-            SqlNodeList propertyList, SqlWriter writer, int leftPrec, int rightPrec) {
+    public static void unparseList(
+            SqlNodeList list, SqlWriter writer, int leftPrec, int rightPrec) {
         SqlWriter.Frame withFrame = writer.startList("(", ")");
-        for (SqlNode property : propertyList) {
+        list.unparse(writer, leftPrec, rightPrec);
+        writer.endList(withFrame);
+    }
+
+    public static void unparseListWithIndent(
+            String name,
+            SqlNodeList list,
+            boolean skipIfEmpty,
+            SqlWriter writer,
+            int leftPrec,
+            int rightPrec) {
+        if (skipIfEmpty && list.isEmpty()) {
+            return;
+        }
+        writer.keyword(name);
+        SqlWriter.Frame withFrame = writer.startList("(", ")");
+        for (SqlNode property : list) {
             SqlUnparseUtils.printIndent(writer);
             property.unparse(writer, leftPrec, rightPrec);
         }

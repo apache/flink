@@ -27,18 +27,14 @@ import org.apache.calcite.util.ImmutableNullableList;
 
 import java.util.List;
 
-/** Base class for DROP DDL sql calls. */
+/** Base class for DROP DDL SQL calls. */
 public abstract class SqlDropObject extends SqlDrop {
-    private final SqlIdentifier name;
+    protected final SqlIdentifier name;
 
     protected SqlDropObject(
             SqlOperator operator, SqlParserPos pos, SqlIdentifier name, boolean ifExists) {
         super(operator, pos, ifExists);
         this.name = name;
-    }
-
-    public SqlIdentifier getName() {
-        return name;
     }
 
     @Override

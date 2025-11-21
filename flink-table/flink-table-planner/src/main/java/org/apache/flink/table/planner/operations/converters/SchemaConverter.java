@@ -229,7 +229,7 @@ public abstract class SchemaConverter {
 
     @Nullable
     protected String getComment(SqlTableColumn column) {
-        return OperationConverterUtils.getComment(column);
+        return column.getComment();
     }
 
     private void applyColumnPosition(List<SqlNode> alterColumns) {

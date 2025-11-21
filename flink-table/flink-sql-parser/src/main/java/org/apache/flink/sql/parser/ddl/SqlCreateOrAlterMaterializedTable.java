@@ -85,6 +85,6 @@ public class SqlCreateOrAlterMaterializedTable extends SqlCreateMaterializedTabl
         if (isIfNotExists()) {
             writer.keyword("IF NOT EXISTS");
         }
-        getName().unparse(writer, leftPrec, rightPrec);
+        name.unparse(writer, leftPrec, rightPrec);
     }
 }

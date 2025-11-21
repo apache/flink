@@ -61,7 +61,7 @@ public class SqlCreateView extends SqlCreateObject {
     @Override
     public List<SqlNode> getOperandList() {
         List<SqlNode> ops = new ArrayList<>();
-        ops.add(getName());
+        ops.add(name);
         ops.add(fieldList);
         ops.add(query);
         ops.add(SqlLiteral.createBoolean(getReplace(), SqlParserPos.ZERO));
@@ -85,8 +85,7 @@ public class SqlCreateView extends SqlCreateObject {
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         unparseCreateIfNotExists(writer, leftPrec, rightPrec);
         unparseFieldList(writer, leftPrec, rightPrec);
-        SqlUnparseUtils.unparseComment(
-                getComment().orElse(null), true, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseComment(comment, true, writer, leftPrec, rightPrec);
         SqlUnparseUtils.unparseAsQuery(query, writer, leftPrec, rightPrec);
     }
 

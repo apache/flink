@@ -36,7 +36,6 @@ import org.apache.flink.sql.parser.ddl.SqlReplaceTableAs;
 import org.apache.flink.sql.parser.ddl.SqlReset;
 import org.apache.flink.sql.parser.ddl.SqlSet;
 import org.apache.flink.sql.parser.ddl.SqlStopJob;
-import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.sql.parser.ddl.SqlUseCatalog;
 import org.apache.flink.sql.parser.ddl.SqlUseDatabase;
 import org.apache.flink.sql.parser.ddl.SqlUseModules;
@@ -361,13 +360,7 @@ public class SqlNodeToOperationConversion {
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlCreateFunction.getFullName());
         List<ResourceUri> resourceUris = getFunctionResources(sqlCreateFunction.getResourceInfos());
-        final Map<String, String> options =
-                sqlCreateFunction.getProperties().getList().stream()
-                        .map(SqlTableOption.class::cast)
-                        .collect(
-                                Collectors.toMap(
-                                        SqlTableOption::getKeyString,
-                                        SqlTableOption::getValueString));
+        final Map<String, String> options = sqlCreateFunction.getProperties();
         if (sqlCreateFunction.isSystemFunction()) {
             return new CreateTempSystemFunctionOperation(
                     unresolvedIdentifier.getObjectName(),
@@ -578,10 +571,9 @@ public class SqlNodeToOperationConversion {
         String databaseName =
                 (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
         boolean ignoreIfExists = sqlCreateDatabase.isIfNotExists();
-        String databaseComment = OperationConverterUtils.getComment(sqlCreateDatabase.getComment());
+        String databaseComment = sqlCreateDatabase.getComment();
         // set with properties
-        final Map<String, String> properties =
-                OperationConverterUtils.getProperties(sqlCreateDatabase.getProperties());
+        final Map<String, String> properties = sqlCreateDatabase.getProperties();
         CatalogDatabase catalogDatabase = new CatalogDatabaseImpl(properties, databaseComment);
         return new CreateDatabaseOperation(
                 catalogName, databaseName, catalogDatabase, ignoreIfExists);
@@ -633,8 +625,7 @@ public class SqlNodeToOperationConversion {
             throw new ValidationException(String.format("Catalog %s not exists", catalogName));
         }
         // set with properties
-        properties.putAll(
-                OperationConverterUtils.getProperties(sqlAlterDatabase.getPropertyList()));
+        properties.putAll(sqlAlterDatabase.getProperties());
         CatalogDatabase catalogDatabase =
                 new CatalogDatabaseImpl(properties, originCatalogDatabase.getComment());
         return new AlterDatabaseOperation(catalogName, databaseName, catalogDatabase);
@@ -752,11 +743,7 @@ public class SqlNodeToOperationConversion {
     /** Convert LOAD MODULE statement. */
     private Operation convertLoadModule(SqlLoadModule sqlLoadModule) {
         String moduleName = sqlLoadModule.moduleName();
-        Map<String, String> properties = new HashMap<>();
-        for (SqlNode node : sqlLoadModule.getPropertyList().getList()) {
-            SqlTableOption option = (SqlTableOption) node;
-            properties.put(option.getKeyString(), option.getValueString());
-        }
+        Map<String, String> properties = sqlLoadModule.getProperties();
         return new LoadModuleOperation(moduleName, properties);
     }
 
@@ -870,18 +857,18 @@ public class SqlNodeToOperationConversion {
                             tableIdentifier));
         }
 
-        String[] columns = analyzeTable.getColumnNames();
+        List<String> columns = analyzeTable.getColumnNames();
         List<Column> targetColumns;
         if (analyzeTable.isAllColumns()) {
-            Preconditions.checkArgument(columns.length == 0);
+            Preconditions.checkArgument(columns.isEmpty());
             // computed column and metadata column will be ignored
             targetColumns =
                     schema.getColumns().stream()
                             .filter(Column::isPhysical)
                             .collect(Collectors.toList());
-        } else if (columns.length > 0) {
+        } else if (!columns.isEmpty()) {
             targetColumns =
-                    Arrays.stream(columns)
+                    columns.stream()
                             .map(
                                     c -> {
                                         Optional<Column> colOpt = schema.getColumn(c);

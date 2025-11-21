@@ -58,7 +58,7 @@ public class SqlDropFunction extends SqlDropObject {
         if (ifExists) {
             writer.keyword("IF EXISTS");
         }
-        getName().unparse(writer, leftPrec, rightPrec);
+        name.unparse(writer, leftPrec, rightPrec);
     }
 
     public boolean isTemporary() {

@@ -49,7 +49,7 @@ public class SqlAlterMaterializedTableReset extends SqlAlterMaterializedTable {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getName(), propertyKeyList);
+        return ImmutableNullableList.of(name, propertyKeyList);
     }
 
     @Override

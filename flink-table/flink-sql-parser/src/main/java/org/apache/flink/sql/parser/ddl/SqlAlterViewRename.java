@@ -42,7 +42,7 @@ public class SqlAlterViewRename extends SqlAlterView {
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getName(), newViewIdentifier);
+        return ImmutableNullableList.of(name, newViewIdentifier);
     }
 
     @Override

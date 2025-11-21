@@ -18,65 +18,25 @@
 
 package org.apache.flink.table.planner.utils;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.ddl.SqlDistribution;
-import org.apache.flink.sql.parser.ddl.SqlTableColumn;
-import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 
-import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlDialect;
-import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlNumericLiteral;
 import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 
-import javax.annotation.Nullable;
-
 import java.math.BigDecimal;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 /** Utils methods for converting sql to operations. */
 public class OperationConverterUtils {
 
     private OperationConverterUtils() {}
-
-    public static @Nullable String getComment(SqlTableColumn column) {
-        return column.getComment()
-                .map(SqlCharStringLiteral.class::cast)
-                .map(c -> c.getValueAs(String.class))
-                .orElse(null);
-    }
-
-    public static @Nullable String getComment(Optional<SqlCharStringLiteral> tableComment) {
-        return tableComment.map(comment -> comment.getValueAs(String.class)).orElse(null);
-    }
-
-    public static Map<String, String> getProperties(SqlNodeList propList) {
-        Map<String, String> properties = new HashMap<>();
-        if (propList != null) {
-            propList.getList()
-                    .forEach(
-                            p ->
-                                    properties.put(
-                                            ((SqlTableOption) p).getKeyString(),
-                                            ((SqlTableOption) p).getValueString()));
-        }
-        return properties;
-    }
-
-    public static List<String> getColumnNames(SqlNodeList sqlNodeList) {
-        return sqlNodeList.getList().stream()
-                .map(p -> ((SqlIdentifier) p).getSimple())
-                .collect(Collectors.toList());
-    }
 
     public static TableDistribution getDistributionFromSqlDistribution(
             SqlDistribution distribution) {
@@ -91,15 +51,8 @@ public class OperationConverterUtils {
             bucketCount = ((BigDecimal) (count).getValue()).intValue();
         }
 
-        List<String> bucketColumns = Collections.emptyList();
-
         SqlNodeList columns = distribution.getBucketColumns();
-        if (columns != null) {
-            bucketColumns =
-                    columns.getList().stream()
-                            .map(p -> ((SqlIdentifier) p).getSimple())
-                            .collect(Collectors.toList());
-        }
+        List<String> bucketColumns = SqlParseUtils.extractList(columns);
         return TableDistribution.of(kind, bucketCount, bucketColumns);
     }
 

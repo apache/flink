@@ -29,7 +29,6 @@ import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterPartitionPropertiesOperation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -62,16 +61,14 @@ public class SqlAlterTableOptionsConverter
                                                             partitionSpec.getPartitionSpec(),
                                                             tableIdentifier)));
             Map<String, String> newProps = new HashMap<>(catalogPartition.getProperties());
-            newProps.putAll(
-                    OperationConverterUtils.getProperties(alterTableOptions.getPropertyList()));
+            newProps.putAll(alterTableOptions.getProperties());
             return new AlterPartitionPropertiesOperation(
                     tableIdentifier,
                     partitionSpec,
                     new CatalogPartitionImpl(newProps, catalogPartition.getComment()));
         } else {
             // it's altering a table
-            Map<String, String> changeOptions =
-                    OperationConverterUtils.getProperties(alterTableOptions.getPropertyList());
+            Map<String, String> changeOptions = alterTableOptions.getProperties();
             Map<String, String> newOptions = new HashMap<>(oldTable.getOptions());
             newOptions.putAll(changeOptions);
             return new AlterTableChangeOperation(

@@ -37,14 +37,14 @@ public class SqlAlterMaterializedTableModifyDistribution extends SqlAlterMateria
     protected final @Nullable SqlDistribution distribution;
 
     public SqlAlterMaterializedTableModifyDistribution(
-            SqlParserPos pos, SqlIdentifier tableName, SqlDistribution distribution) {
+            SqlParserPos pos, SqlIdentifier tableName, @Nullable SqlDistribution distribution) {
         super(pos, tableName);
         this.distribution = distribution;
     }
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getName(), distribution);
+        return ImmutableNullableList.of(name, distribution);
     }
 
     @Override

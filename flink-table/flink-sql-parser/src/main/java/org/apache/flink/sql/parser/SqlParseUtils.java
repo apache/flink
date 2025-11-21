@@ -18,17 +18,25 @@
 
 package org.apache.flink.sql.parser;
 
+import org.apache.flink.sql.parser.ddl.SqlTableOption;
+
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.util.NlsString;
 
+import javax.annotation.Nullable;
+
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
-/** Utils methods for partition DDLs. */
-public class SqlPartitionUtils {
+/** Utils methods for parsing DDLs. */
+public class SqlParseUtils {
 
-    private SqlPartitionUtils() {}
+    private SqlParseUtils() {}
 
     /**
      * Get static partition key value pair as strings.
@@ -44,18 +52,49 @@ public class SqlPartitionUtils {
             return null;
         }
         LinkedHashMap<String, String> ret = new LinkedHashMap<>();
-        if (partitionSpec.size() == 0) {
+        if (partitionSpec.isEmpty()) {
             return ret;
         }
         for (SqlNode node : partitionSpec.getList()) {
             SqlProperty sqlProperty = (SqlProperty) node;
-            Comparable<?> comparable = SqlLiteral.value(sqlProperty.getValue());
-            String value =
-                    comparable instanceof NlsString
-                            ? ((NlsString) comparable).getValue()
-                            : comparable.toString();
+            String value = extractString(sqlProperty.getValue());
             ret.put(sqlProperty.getKey().getSimple(), value);
         }
         return ret;
+    }
+
+    @Nullable
+    public static String extractString(@Nullable SqlLiteral literal) {
+        return literal == null ? null : literal.getValueAs(NlsString.class).getValue();
+    }
+
+    @Nullable
+    public static String extractString(@Nullable SqlNode node) {
+        if (node == null) {
+            return null;
+        }
+        final Comparable value = SqlLiteral.value(node);
+        if (value == null) {
+            return null;
+        }
+        return value instanceof NlsString ? ((NlsString) value).getValue() : value.toString();
+    }
+
+    public static Map<String, String> extractMap(@Nullable SqlNodeList propList) {
+        if (propList == null) {
+            return Map.of();
+        }
+        return propList.getList().stream()
+                .map(p -> (SqlTableOption) p)
+                .collect(Collectors.toMap(k -> k.getKeyString(), SqlTableOption::getValueString));
+    }
+
+    public static List<String> extractList(@Nullable SqlNodeList sqlNodeList) {
+        if (sqlNodeList == null) {
+            return List.of();
+        }
+        return sqlNodeList.getList().stream()
+                .map(p -> ((SqlIdentifier) p).getSimple())
+                .collect(Collectors.toList());
     }
 }

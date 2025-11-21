@@ -40,15 +40,15 @@ public class SqlAlterCatalog extends SqlAlterObject {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getName());
+        return ImmutableNullableList.of(name);
     }
 
     public String catalogName() {
-        return getName().getSimple();
+        return name.getSimple();
     }
 
     @Override
     protected void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
-        getName().unparse(writer, leftPrec, rightPrec);
+        name.unparse(writer, leftPrec, rightPrec);
     }
 }

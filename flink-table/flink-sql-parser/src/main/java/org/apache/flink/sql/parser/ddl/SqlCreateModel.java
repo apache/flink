@@ -68,11 +68,7 @@ public class SqlCreateModel extends SqlCreateObject implements ExtendedSqlNode {
     @Override
     public @Nonnull List<SqlNode> getOperandList() {
         return ImmutableNullableList.of(
-                getName(),
-                getComment().orElse(null),
-                inputColumnList,
-                outputColumnList,
-                getProperties());
+                name, comment, inputColumnList, outputColumnList, properties);
     }
 
     public SqlNodeList getInputColumnList() {
@@ -100,7 +96,7 @@ public class SqlCreateModel extends SqlCreateObject implements ExtendedSqlNode {
                     outputColumnList.get(0).getParserPosition(),
                     "Input column list can not be empty with non-empty output column list.");
         }
-        if (getProperties().isEmpty()) {
+        if (properties == null || properties.isEmpty()) {
             throw new SqlValidateException(
                     getParserPosition(), "Model property list can not be empty.");
         }
@@ -109,36 +105,11 @@ public class SqlCreateModel extends SqlCreateObject implements ExtendedSqlNode {
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         unparseCreateIfNotExists(writer, leftPrec, rightPrec);
-        unparseInputColumnList(writer, leftPrec, rightPrec);
-        unparseOutputColumnList(writer, leftPrec, rightPrec);
-        SqlUnparseUtils.unparseComment(
-                getComment().orElse(null), true, writer, leftPrec, rightPrec);
-        SqlUnparseUtils.unparseProperties(getProperties(), writer, leftPrec, rightPrec);
-    }
-
-    private void unparseInputColumnList(SqlWriter writer, int leftPrec, int rightPrec) {
-        if (!inputColumnList.isEmpty()) {
-            writer.keyword("INPUT");
-            SqlWriter.Frame withFrame = writer.startList("(", ")");
-            for (SqlNode column : inputColumnList) {
-                SqlUnparseUtils.printIndent(writer);
-                column.unparse(writer, leftPrec, rightPrec);
-            }
-            writer.newlineAndIndent();
-            writer.endList(withFrame);
-        }
-    }
-
-    private void unparseOutputColumnList(SqlWriter writer, int leftPrec, int rightPrec) {
-        if (!outputColumnList.isEmpty()) {
-            writer.keyword("OUTPUT");
-            SqlWriter.Frame withFrame = writer.startList("(", ")");
-            for (SqlNode column : outputColumnList) {
-                SqlUnparseUtils.printIndent(writer);
-                column.unparse(writer, leftPrec, rightPrec);
-            }
-            writer.newlineAndIndent();
-            writer.endList(withFrame);
-        }
+        SqlUnparseUtils.unparseListWithIndent(
+                "INPUT", inputColumnList, true, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseListWithIndent(
+                "OUTPUT", outputColumnList, true, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseComment(comment, true, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseProperties(properties, writer, leftPrec, rightPrec);
     }
 }

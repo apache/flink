@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.operations.converters;
 import org.apache.flink.sql.parser.ddl.SqlCreateCatalog;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateCatalogOperation;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import java.util.Map;
 
@@ -29,15 +28,14 @@ import java.util.Map;
 public class SqlCreateCatalogConverter implements SqlNodeConverter<SqlCreateCatalog> {
 
     @Override
-    public Operation convertSqlNode(SqlCreateCatalog node, ConvertContext context) {
+    public Operation convertSqlNode(SqlCreateCatalog sqlCreateCatalog, ConvertContext context) {
         // set with properties
-        final Map<String, String> properties =
-                OperationConverterUtils.getProperties(node.getProperties());
+        final Map<String, String> properties = sqlCreateCatalog.getProperties();
 
         return new CreateCatalogOperation(
-                node.catalogName(),
+                sqlCreateCatalog.catalogName(),
                 properties,
-                OperationConverterUtils.getComment(node.getComment()),
-                node.isIfNotExists());
+                sqlCreateCatalog.getComment(),
+                sqlCreateCatalog.isIfNotExists());
     }
 }

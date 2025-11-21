@@ -51,7 +51,7 @@ public class SqlAlterModelRename extends SqlAlterModel {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return List.of(getName(), newModelName);
+        return List.of(name, newModelName);
     }
 
     @Override

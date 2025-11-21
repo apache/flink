@@ -120,10 +120,10 @@ public class SqlReplaceTableAs extends SqlCreateTable implements ExtendedSqlNode
                 getName(),
                 getColumnList(),
                 new SqlNodeList(getTableConstraints(), SqlParserPos.ZERO),
-                getProperties(),
-                getPartitionKeyList(),
+                properties,
+                partitionKeyList,
                 getWatermark().get(),
-                getComment().orElse(null),
+                comment,
                 asQuery);
     }
 
@@ -176,9 +176,8 @@ public class SqlReplaceTableAs extends SqlCreateTable implements ExtendedSqlNode
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         unparseCreateOrReplace(writer, leftPrec, rightPrec);
-        SqlUnparseUtils.unparseComment(
-                getComment().orElse(null), true, writer, leftPrec, rightPrec);
-        SqlUnparseUtils.unparseProperties(getProperties(), writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseComment(comment, true, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseProperties(properties, writer, leftPrec, rightPrec);
         SqlUnparseUtils.unparseAsQuery(asQuery, writer, leftPrec, rightPrec);
     }
 
@@ -187,6 +186,6 @@ public class SqlReplaceTableAs extends SqlCreateTable implements ExtendedSqlNode
             writer.keyword("CREATE OR");
         }
         writer.keyword("REPLACE TABLE");
-        getName().unparse(writer, leftPrec, rightPrec);
+        name.unparse(writer, leftPrec, rightPrec);
     }
 }

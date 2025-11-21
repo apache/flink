@@ -42,10 +42,10 @@ public class SqlDropCatalog extends SqlDropObject {
         if (ifExists) {
             writer.keyword("IF EXISTS");
         }
-        getName().unparse(writer, leftPrec, rightPrec);
+        name.unparse(writer, leftPrec, rightPrec);
     }
 
     public String catalogName() {
-        return getName().getSimple();
+        return name.getSimple();
     }
 }

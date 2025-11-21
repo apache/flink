@@ -76,7 +76,7 @@ public class SqlCreateFunction extends SqlCreateObject {
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getName(), functionClassName, resourceInfos);
+        return ImmutableNullableList.of(name, functionClassName, resourceInfos);
     }
 
     public boolean isSystemFunction() {
@@ -106,7 +106,7 @@ public class SqlCreateFunction extends SqlCreateObject {
 
         unparseFunctionLanguage(writer, leftPrec, rightPrec);
         unparseResourceInfo(writer, leftPrec, rightPrec);
-        SqlUnparseUtils.unparseProperties(getProperties(), writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseProperties(properties, writer, leftPrec, rightPrec);
     }
 
     @Override
@@ -122,7 +122,7 @@ public class SqlCreateFunction extends SqlCreateObject {
         if (ifNotExists) {
             writer.keyword("IF NOT EXISTS");
         }
-        getName().unparse(writer, leftPrec, rightPrec);
+        name.unparse(writer, leftPrec, rightPrec);
         writer.keyword("AS");
         functionClassName.unparse(writer, leftPrec, rightPrec);
     }

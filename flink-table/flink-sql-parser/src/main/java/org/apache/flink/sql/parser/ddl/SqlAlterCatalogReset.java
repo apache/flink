@@ -18,16 +18,15 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 
 import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
-import org.apache.calcite.util.NlsString;
 
 import java.util.List;
 import java.util.Set;
@@ -48,7 +47,7 @@ public class SqlAlterCatalogReset extends SqlAlterCatalog {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getName(), propertyKeyList);
+        return ImmutableNullableList.of(name, propertyKeyList);
     }
 
     public SqlNodeList getPropertyList() {
@@ -57,7 +56,7 @@ public class SqlAlterCatalogReset extends SqlAlterCatalog {
 
     public Set<String> getResetKeys() {
         return propertyKeyList.getList().stream()
-                .map(key -> ((NlsString) SqlLiteral.value(key)).getValue())
+                .map(SqlParseUtils::extractString)
                 .collect(Collectors.toSet());
     }
 

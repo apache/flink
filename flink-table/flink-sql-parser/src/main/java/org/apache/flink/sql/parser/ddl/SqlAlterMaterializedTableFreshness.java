@@ -45,7 +45,7 @@ public class SqlAlterMaterializedTableFreshness extends SqlAlterMaterializedTabl
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getName(), freshness);
+        return ImmutableNullableList.of(name, freshness);
     }
 
     public SqlIntervalLiteral getFreshness() {

@@ -43,7 +43,7 @@ public class SqlAlterMaterializedTableRefresh extends SqlAlterMaterializedTable 
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getName(), partitionSpec);
+        return ImmutableNullableList.of(name, partitionSpec);
     }
 
     @Override

@@ -20,6 +20,7 @@ package org.apache.flink.sql.parser.ddl;
 
 import org.apache.flink.sql.parser.ExtendedSqlNode;
 import org.apache.flink.sql.parser.SqlConstraintValidator;
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.error.SqlValidateException;
@@ -94,13 +95,13 @@ public class SqlCreateMaterializedTable extends SqlCreateObject implements Exten
     @Override
     public List<SqlNode> getOperandList() {
         return ImmutableNullableList.of(
-                getName(),
+                name,
                 columnList,
                 new SqlNodeList(tableConstraints, SqlParserPos.ZERO),
                 watermark,
-                getComment().orElse(null),
+                comment,
                 partitionKeyList,
-                getProperties(),
+                properties,
                 freshness,
                 asQuery);
     }
@@ -117,8 +118,8 @@ public class SqlCreateMaterializedTable extends SqlCreateObject implements Exten
         return distribution;
     }
 
-    public SqlNodeList getPartitionKeyList() {
-        return partitionKeyList;
+    public List<String> getPartitionKeyList() {
+        return SqlParseUtils.extractList(partitionKeyList);
     }
 
     @Nullable
@@ -164,11 +165,10 @@ public class SqlCreateMaterializedTable extends SqlCreateObject implements Exten
         unparseCreateIfNotExists(writer, leftPrec, rightPrec);
         SqlUnparseUtils.unparseTableSchema(
                 columnList, tableConstraints, watermark, writer, leftPrec, rightPrec);
-        SqlUnparseUtils.unparseComment(
-                getComment().orElse(null), true, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseComment(comment, true, writer, leftPrec, rightPrec);
         SqlUnparseUtils.unparseDistribution(distribution, writer, leftPrec, rightPrec);
         SqlUnparseUtils.unparsePartitionKeyList(partitionKeyList, writer, leftPrec, rightPrec);
-        SqlUnparseUtils.unparseProperties(getProperties(), writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseProperties(properties, writer, leftPrec, rightPrec);
         SqlUnparseUtils.unparseFreshness(freshness, true, writer, leftPrec, rightPrec);
         SqlUnparseUtils.unparseRefreshMode(refreshMode, writer);
         SqlUnparseUtils.unparseAsQuery(asQuery, writer, leftPrec, rightPrec);

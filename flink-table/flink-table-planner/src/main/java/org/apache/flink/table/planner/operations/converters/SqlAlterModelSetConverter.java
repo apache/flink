@@ -25,7 +25,6 @@ import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterModelChangeOperation;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,8 +40,7 @@ public class SqlAlterModelSetConverter extends AbstractSqlAlterModelConverter<Sq
                 getExistingModel(
                         context, sqlAlterModelSet.getFullName(), sqlAlterModelSet.ifModelExists());
 
-        Map<String, String> changeModelOptions =
-                OperationConverterUtils.getProperties(sqlAlterModelSet.getOptionList());
+        Map<String, String> changeModelOptions = sqlAlterModelSet.getProperties();
         if (changeModelOptions.isEmpty()) {
             throw new ValidationException("ALTER MODEL SET does not support empty option.");
         }

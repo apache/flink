@@ -36,7 +36,7 @@ public class SqlAlterMaterializedTableSuspend extends SqlAlterMaterializedTable 
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getName());
+        return ImmutableNullableList.of(name);
     }
 
     @Override

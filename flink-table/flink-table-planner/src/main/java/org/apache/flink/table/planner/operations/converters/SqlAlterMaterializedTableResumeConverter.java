@@ -23,7 +23,6 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableResumeOperation;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import java.util.Map;
 
@@ -40,9 +39,7 @@ public class SqlAlterMaterializedTableResumeConverter
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
 
         // get table options
-        final Map<String, String> options =
-                OperationConverterUtils.getProperties(
-                        sqlAlterMaterializedTableResume.getPropertyList());
+        final Map<String, String> options = sqlAlterMaterializedTableResume.getProperties();
         return new AlterMaterializedTableResumeOperation(identifier, options);
     }
 }

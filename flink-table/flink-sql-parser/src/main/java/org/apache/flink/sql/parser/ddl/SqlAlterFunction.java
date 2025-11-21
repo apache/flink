@@ -79,7 +79,7 @@ public class SqlAlterFunction extends SqlAlterObject {
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getName(), functionClassName);
+        return ImmutableNullableList.of(name, functionClassName);
     }
 
     public String getFunctionLanguage() {
@@ -114,6 +114,6 @@ public class SqlAlterFunction extends SqlAlterObject {
         if (ifExists) {
             writer.keyword("IF EXISTS");
         }
-        getName().unparse(writer, leftPrec, rightPrec);
+        name.unparse(writer, leftPrec, rightPrec);
     }
 }

@@ -63,18 +63,6 @@ public abstract class AbstractCreateTableConverter<T extends SqlCreateTable>
                 .map(OperationConverterUtils::getDistributionFromSqlDistribution);
     }
 
-    protected final List<String> getDerivedPartitionKeys(T sqlCreateTable) {
-        return OperationConverterUtils.getColumnNames(sqlCreateTable.getPartitionKeyList());
-    }
-
-    protected final Map<String, String> getDerivedTableOptions(T sqlCreateTable) {
-        return OperationConverterUtils.getProperties(sqlCreateTable.getProperties());
-    }
-
-    protected final String getComment(T sqlCreateTable) {
-        return OperationConverterUtils.getComment(sqlCreateTable.getComment());
-    }
-
     protected final ResolvedCatalogTable getResolvedCatalogTable(
             T sqlCreateTable, ConvertContext context, ResolvedSchema schemaToMerge) {
         final MergeContext mergeContext = getMergeContext(sqlCreateTable, context);
@@ -85,7 +73,7 @@ public abstract class AbstractCreateTableConverter<T extends SqlCreateTable>
         final Map<String, String> tableOptions = mergeContext.getMergedTableOptions();
         final TableDistribution distribution =
                 mergeContext.getMergedTableDistribution().orElse(null);
-        final String comment = getComment(sqlCreateTable);
+        final String comment = sqlCreateTable.getComment();
         final CatalogTable catalogTable =
                 CatalogTable.newBuilder()
                         .schema(schema)

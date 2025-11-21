@@ -54,6 +54,6 @@ public abstract class SqlAlterModel extends SqlAlterObject {
         if (ifModelExists) {
             writer.keyword("IF EXISTS");
         }
-        getName().unparse(writer, leftPrec, rightPrec);
+        name.unparse(writer, leftPrec, rightPrec);
     }
 }

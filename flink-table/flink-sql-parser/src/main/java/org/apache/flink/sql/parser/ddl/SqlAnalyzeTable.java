@@ -18,12 +18,12 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.SqlPartitionSpecProperty;
 
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
@@ -31,7 +31,6 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
-import org.apache.calcite.util.NlsString;
 
 import javax.annotation.Nonnull;
 
@@ -75,26 +74,14 @@ public class SqlAnalyzeTable extends SqlCall {
         LinkedHashMap<String, String> ret = new LinkedHashMap<>();
         for (SqlNode node : partitions.getList()) {
             SqlPartitionSpecProperty property = (SqlPartitionSpecProperty) node;
-            final String value;
-            if (property.getValue() == null) {
-                value = null;
-            } else {
-                Comparable<?> comparable = SqlLiteral.value(property.getValue());
-                value =
-                        comparable instanceof NlsString
-                                ? ((NlsString) comparable).getValue()
-                                : comparable.toString();
-            }
-
+            final String value = SqlParseUtils.extractString(property.getValue());
             ret.put(property.getKey().getSimple(), value);
         }
         return ret;
     }
 
-    public String[] getColumnNames() {
-        return columns.getList().stream()
-                .map(col -> ((SqlIdentifier) col).getSimple())
-                .toArray(String[]::new);
+    public List<String> getColumnNames() {
+        return SqlParseUtils.extractList(columns);
     }
 
     public boolean isAllColumns() {
@@ -119,7 +106,7 @@ public class SqlAnalyzeTable extends SqlCall {
         final int opRight = getOperator().getRightPrec();
         tableName.unparse(writer, opLeft, opRight);
 
-        if (partitions.size() > 0) {
+        if (!partitions.isEmpty()) {
             writer.keyword("PARTITION");
             partitions.unparse(writer, opLeft, opRight);
         }
@@ -128,7 +115,7 @@ public class SqlAnalyzeTable extends SqlCall {
 
         if (allColumns) {
             writer.keyword("FOR ALL COLUMNS");
-        } else if (columns.size() > 0) {
+        } else if (!columns.isEmpty()) {
             writer.keyword("FOR COLUMNS");
             // use 0 to disable parentheses
             columns.unparse(writer, 0, 0);

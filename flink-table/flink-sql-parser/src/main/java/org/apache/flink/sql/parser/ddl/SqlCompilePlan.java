@@ -19,18 +19,17 @@
 package org.apache.flink.sql.parser.ddl;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.sql.parser.dml.SqlStatementSet;
 
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.NlsString;
 
 import javax.annotation.Nonnull;
 
@@ -60,7 +59,7 @@ public class SqlCompilePlan extends SqlCall {
     }
 
     public String getPlanFile() {
-        return ((NlsString) SqlLiteral.value(planFile)).getValue();
+        return SqlParseUtils.extractString(planFile);
     }
 
     public boolean isIfNotExists() {

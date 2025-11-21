@@ -24,7 +24,6 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateViewOperation;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import org.apache.calcite.sql.SqlNode;
 
@@ -44,9 +43,8 @@ public class SqlCreateViewConverter implements SqlNodeConverter<SqlCreateView> {
         ObjectIdentifier identifier =
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
 
-        String viewComment = OperationConverterUtils.getComment(sqlCreateView.getComment());
-        Map<String, String> viewOptions =
-                OperationConverterUtils.getProperties(sqlCreateView.getProperties());
+        String viewComment = sqlCreateView.getComment();
+        Map<String, String> viewOptions = sqlCreateView.getProperties();
         CatalogView catalogView =
                 SqlNodeConvertUtils.toCatalogView(
                         query, viewFields, viewOptions, viewComment, context);

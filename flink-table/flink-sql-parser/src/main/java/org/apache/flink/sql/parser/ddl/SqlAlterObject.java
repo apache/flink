@@ -46,10 +46,6 @@ public abstract class SqlAlterObject extends SqlAlter {
         this.name = requireNonNull(name, "name cannot be null");
     }
 
-    public SqlIdentifier getName() {
-        return name;
-    }
-
     public String[] getFullName() {
         return name.names.toArray(new String[0]);
     }

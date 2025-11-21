@@ -18,6 +18,8 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlUnparseUtils;
+
 import org.apache.calcite.sql.SqlDdl;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -49,8 +51,8 @@ public class SqlDistribution extends SqlDdl {
     public SqlDistribution(
             SqlParserPos pos,
             @Nullable String distributionKind,
-            @Nullable SqlNodeList bucketColumns,
-            SqlNumericLiteral bucketCount) {
+            SqlNodeList bucketColumns,
+            @Nullable SqlNumericLiteral bucketCount) {
         super(OPERATOR, pos);
         this.distributionKind = distributionKind;
         this.bucketColumns = bucketColumns;
@@ -83,9 +85,7 @@ public class SqlDistribution extends SqlDdl {
         if (distributionKind != null) {
             writer.print(distributionKind);
         }
-        SqlWriter.Frame bucketFrame = writer.startList("(", ")");
-        bucketColumns.unparse(writer, leftPrec, rightPrec);
-        writer.endList(bucketFrame);
+        SqlUnparseUtils.unparseList(bucketColumns, writer, leftPrec, rightPrec);
 
         if (bucketCount != null) {
             writer.keyword("INTO");
