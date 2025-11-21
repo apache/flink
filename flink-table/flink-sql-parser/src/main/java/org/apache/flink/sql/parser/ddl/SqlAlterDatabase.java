@@ -67,6 +67,6 @@ public class SqlAlterDatabase extends SqlAlterObject {
     @Override
     public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
         name.unparse(writer, leftPrec, rightPrec);
-        SqlUnparseUtils.unparseSetProperties(propertyList, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseSetOptions(propertyList, writer, leftPrec, rightPrec);
     }
 }

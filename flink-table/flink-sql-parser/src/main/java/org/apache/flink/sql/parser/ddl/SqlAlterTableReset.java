@@ -66,6 +66,6 @@ public class SqlAlterTableReset extends SqlAlterTable {
     @Override
     public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparseAlterOperation(writer, leftPrec, rightPrec);
-        SqlUnparseUtils.unparseResetProperties(propertyKeyList, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseResetOptions(propertyKeyList, writer, leftPrec, rightPrec);
     }
 }

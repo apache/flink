@@ -142,12 +142,12 @@ public class SqlUnparseUtils {
         comment.unparse(writer, leftPrec, rightPrec);
     }
 
-    public static void unparseSetProperties(
+    public static void unparseSetOptions(
             SqlNodeList propertyList, SqlWriter writer, int leftPrec, int rightPrec) {
         unparseListWithIndent("SET", propertyList, false, writer, leftPrec, rightPrec);
     }
 
-    public static void unparseResetProperties(
+    public static void unparseResetOptions(
             SqlNodeList propertyList, SqlWriter writer, int leftPrec, int rightPrec) {
         unparseListWithIndent("RESET", propertyList, false, writer, leftPrec, rightPrec);
     }

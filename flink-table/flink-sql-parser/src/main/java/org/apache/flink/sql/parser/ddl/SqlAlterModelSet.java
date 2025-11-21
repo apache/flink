@@ -62,6 +62,6 @@ public class SqlAlterModelSet extends SqlAlterModel {
     @Override
     public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparseAlterOperation(writer, leftPrec, rightPrec);
-        SqlUnparseUtils.unparseSetProperties(modelOptionList, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseSetOptions(modelOptionList, writer, leftPrec, rightPrec);
     }
 }

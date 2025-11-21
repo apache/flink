@@ -79,6 +79,6 @@ public class SqlAlterTableOptions extends SqlAlterTable {
     @Override
     public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparseAlterOperation(writer, leftPrec, rightPrec);
-        SqlUnparseUtils.unparseSetProperties(propertyList, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseSetOptions(propertyList, writer, leftPrec, rightPrec);
     }
 }

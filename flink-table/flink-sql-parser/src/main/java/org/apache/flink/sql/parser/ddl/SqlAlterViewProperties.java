@@ -55,6 +55,6 @@ public class SqlAlterViewProperties extends SqlAlterView {
 
     @Override
     public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
-        SqlUnparseUtils.unparseSetProperties(propertyList, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseSetOptions(propertyList, writer, leftPrec, rightPrec);
     }
 }
