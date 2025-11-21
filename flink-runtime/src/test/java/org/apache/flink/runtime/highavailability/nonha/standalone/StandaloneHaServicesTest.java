@@ -145,26 +145,34 @@ public class StandaloneHaServicesTest extends TestLogger {
     }
 
     /**
-     * Tests that the constructor properly validates null parameters and provides meaningful error messages.
+     * Tests that the constructor properly validates null parameters and provides meaningful error
+     * messages.
      */
     @Test
     public void testConstructorNullValidation() {
         // Test null resourceManagerAddress
-        Exception exception = assertThrows(
-                NullPointerException.class,
-                () -> new StandaloneHaServices(null, dispatcherAddress, webMonitorAddress));
+        Exception exception =
+                assertThrows(
+                        NullPointerException.class,
+                        () -> new StandaloneHaServices(null, dispatcherAddress, webMonitorAddress));
         assertTrue(exception.getMessage().contains("resourceManagerAddress"));
 
         // Test null dispatcherAddress
-        exception = assertThrows(
-                NullPointerException.class,
-                () -> new StandaloneHaServices(resourceManagerAddress, null, webMonitorAddress));
+        exception =
+                assertThrows(
+                        NullPointerException.class,
+                        () ->
+                                new StandaloneHaServices(
+                                        resourceManagerAddress, null, webMonitorAddress));
         assertTrue(exception.getMessage().contains("dispatcherAddress"));
 
         // Test null clusterRestEndpointAddress
-        exception = assertThrows(
-                NullPointerException.class,
-                () -> new StandaloneHaServices(resourceManagerAddress, dispatcherAddress, null));
+        exception =
+                assertThrows(
+                        NullPointerException.class,
+                        () ->
+                                new StandaloneHaServices(
+                                        resourceManagerAddress, dispatcherAddress, null));
         assertTrue(exception.getMessage().contains("clusterRestEndpointAddress"));
     }
 }
