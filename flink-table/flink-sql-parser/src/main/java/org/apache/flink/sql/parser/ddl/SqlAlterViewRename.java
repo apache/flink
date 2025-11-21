@@ -42,12 +42,12 @@ public class SqlAlterViewRename extends SqlAlterView {
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(viewIdentifier, newViewIdentifier);
+        return ImmutableNullableList.of(name, newViewIdentifier);
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
         writer.keyword("RENAME TO");
         newViewIdentifier.unparse(writer, leftPrec, rightPrec);
     }

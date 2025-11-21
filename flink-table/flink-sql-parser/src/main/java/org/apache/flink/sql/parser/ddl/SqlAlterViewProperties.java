@@ -18,6 +18,7 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 
 import org.apache.calcite.sql.SqlIdentifier;
@@ -28,6 +29,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
 import java.util.List;
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
@@ -44,23 +46,15 @@ public class SqlAlterViewProperties extends SqlAlterView {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(viewIdentifier, propertyList);
+        return ImmutableNullableList.of(name, propertyList);
     }
 
-    public SqlNodeList getPropertyList() {
-        return propertyList;
+    public Map<String, String> getProperties() {
+        return SqlParseUtils.extractMap(propertyList);
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("SET");
-        SqlWriter.Frame withFrame = writer.startList("(", ")");
-        for (SqlNode property : propertyList) {
-            SqlUnparseUtils.printIndent(writer);
-            property.unparse(writer, leftPrec, rightPrec);
-        }
-        writer.newlineAndIndent();
-        writer.endList(withFrame);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        SqlUnparseUtils.unparseSetOptions(propertyList, writer, leftPrec, rightPrec);
     }
 }

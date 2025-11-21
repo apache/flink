@@ -30,7 +30,7 @@ public class SqlDropModelConverter implements SqlNodeConverter<SqlDropModel> {
     @Override
     public Operation convertSqlNode(SqlDropModel sqlDropModel, ConvertContext context) {
         UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlDropModel.fullModelName());
+                UnresolvedIdentifier.of(sqlDropModel.getFullName());
         ObjectIdentifier identifier =
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
 

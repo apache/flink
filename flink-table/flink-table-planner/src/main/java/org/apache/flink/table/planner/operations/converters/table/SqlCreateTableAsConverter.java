@@ -104,12 +104,12 @@ public class SqlCreateTableAsConverter extends AbstractCreateTableConverter<SqlC
 
             @Override
             public Map<String, String> getMergedTableOptions() {
-                return SqlCreateTableAsConverter.this.getDerivedTableOptions(sqlCreateTableAs);
+                return sqlCreateTableAs.getProperties();
             }
 
             @Override
             public List<String> getMergedPartitionKeys() {
-                return SqlCreateTableAsConverter.this.getDerivedPartitionKeys(sqlCreateTableAs);
+                return sqlCreateTableAs.getPartitionKeyList();
             }
 
             @Override

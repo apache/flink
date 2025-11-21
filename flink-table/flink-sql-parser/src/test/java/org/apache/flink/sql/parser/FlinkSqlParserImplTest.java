@@ -27,7 +27,6 @@ import org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.calcite.sql.parser.SqlParserFixture;
 import org.apache.calcite.sql.parser.SqlParserTest;
 import org.apache.calcite.sql.validate.SqlConformanceEnum;
-import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
@@ -36,6 +35,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+
+import java.util.Locale;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -174,23 +175,23 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @ParameterizedTest
     @CsvSource({"true,true", "true,false", "false,true", "false,false"})
     void testCreateCatalog(boolean ifNotExists, boolean comment) {
-        String ifNotExistsClause = ifNotExists ? "if not exists " : "";
-        String commentClause = comment ? "\ncomment 'HELLO' " : " ";
+        final String ifNotExistsClause = ifNotExists ? "if not exists " : "";
+        final String commentClause = comment ? "\ncomment 'HELLO'" : "";
 
         sql("create catalog "
                         + ifNotExistsClause
                         + "c1"
                         + commentClause
-                        + " WITH (\n"
+                        + "\nWITH (\n"
                         + "  'key1'='value1',\n"
                         + "  'key2'='value2'\n"
                         + " )\n")
                 .ok(
                         "CREATE CATALOG "
-                                + StringUtils.upperCase(ifNotExistsClause)
+                                + ifNotExistsClause.toUpperCase(Locale.ROOT)
                                 + "`C1`"
-                                + StringUtils.upperCase(commentClause)
-                                + "WITH (\n"
+                                + commentClause.toUpperCase(Locale.ROOT)
+                                + "\nWITH (\n"
                                 + "  'key1' = 'value1',\n"
                                 + "  'key2' = 'value2'\n"
                                 + ")");
@@ -260,7 +261,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "with ( 'key1' = 'value1', 'key2.a' = 'value2.a')";
         final String expected1 =
                 "CREATE DATABASE `DB1`\n"
-                        + "COMMENT 'test create database' WITH (\n"
+                        + "COMMENT 'test create database'"
+                        + "\nWITH (\n"
                         + "  'key1' = 'value1',\n"
                         + "  'key2.a' = 'value2.a'\n"
                         + ")";
@@ -2514,14 +2516,14 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
         sql("create function function1 as 'org.apache.flink.function.function1' language java using jar 'file:///path/to/test.jar' WITH ('k1' = 'v1', 'k2' = 'v2')")
                 .ok(
-                        "CREATE FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar' WITH (\n"
+                        "CREATE FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar'\nWITH (\n"
                                 + "  'k1' = 'v1',\n"
                                 + "  'k2' = 'v2'\n"
                                 + ")");
 
         sql("create temporary function function1 as 'org.apache.flink.function.function1' language java using jar 'file:///path/to/test.jar' WITH ('k1' = 'v1', 'k2' = 'v2')")
                 .ok(
-                        "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar' WITH (\n"
+                        "CREATE TEMPORARY FUNCTION `FUNCTION1` AS 'org.apache.flink.function.function1' LANGUAGE JAVA USING JAR 'file:///path/to/test.jar'\nWITH (\n"
                                 + "  'k1' = 'v1',\n"
                                 + "  'k2' = 'v2'\n"
                                 + ")");
@@ -2549,7 +2551,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("load module dummy with ('k1' = 'v1', 'k2' = 'v2')")
                 .ok(
                         "LOAD MODULE `DUMMY`"
-                                + " WITH (\n"
+                                + "\nWITH (\n"
                                 + "  'k1' = 'v1',\n"
                                 + "  'k2' = 'v2'\n"
                                 + ")");
@@ -3096,7 +3098,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
         // test replace table as select with options
         sql("REPLACE TABLE t WITH ('test' = 'zm') AS SELECT * FROM b")
-                .ok("REPLACE TABLE `T` WITH (\n  'test' = 'zm'\n)\nAS\nSELECT *\nFROM `B`");
+                .ok("REPLACE TABLE `T`\nWITH (\n  'test' = 'zm'\n)\nAS\nSELECT *\nFROM `B`");
 
         // test replace table as select with tmp table
         sql("REPLACE TEMPORARY TABLE t (col1 string) WITH ('test' = 'zm') AS SELECT col1 FROM b")
@@ -3146,7 +3148,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         // test create or replace table as select with options
         sql("CREATE OR REPLACE TABLE t WITH ('test' = 'zm') AS SELECT * FROM b")
                 .ok(
-                        "CREATE OR REPLACE TABLE `T` WITH (\n  'test' = 'zm'\n)\nAS\nSELECT *\nFROM `B`");
+                        "CREATE OR REPLACE TABLE `T`\nWITH (\n  'test' = 'zm'\n)\nAS\nSELECT *\nFROM `B`");
 
         // test create or replace table as select with create table like
         sql("CREATE OR REPLACE TABLE t (col1 string) WITH ('test' = 'zm') like b ^AS^ SELECT col1 FROM b")
@@ -3336,7 +3338,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + ") OUTPUT (\n"
                                 + "  `LABEL` DOUBLE\n"
                                 + ")\n"
-                                + "COMMENT 'model_comment' WITH (\n"
+                                + "COMMENT 'model_comment'"
+                                + "\nWITH (\n"
                                 + "  'key1' = 'value1',\n"
                                 + "  'key2' = 'value2'\n"
                                 + ")");
@@ -3359,7 +3362,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + ") OUTPUT (\n"
                                 + "  `LABEL` DOUBLE\n"
                                 + ")\n"
-                                + "COMMENT 'model_comment' WITH (\n"
+                                + "COMMENT 'model_comment'"
+                                + "\nWITH (\n"
                                 + "  'key1' = 'value1',\n"
                                 + "  'key2' = 'value2'\n"
                                 + ")");
@@ -3373,7 +3377,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  'key2'='value2'\n"
                         + " ) as select f1, f2 from t1\n")
                 .ok(
-                        "CREATE MODEL `M1` WITH (\n"
+                        "CREATE MODEL `M1`"
+                                + "\nWITH (\n"
                                 + "  'key1' = 'value1',\n"
                                 + "  'key2' = 'value2'\n"
                                 + ")\n"
@@ -3390,7 +3395,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  'key2'='value2'\n"
                         + " ) as select f1, f2 from t1\n")
                 .ok(
-                        "CREATE MODEL IF NOT EXISTS `M1` WITH (\n"
+                        "CREATE MODEL IF NOT EXISTS `M1`"
+                                + "\nWITH (\n"
                                 + "  'key1' = 'value1',\n"
                                 + "  'key2' = 'value2'\n"
                                 + ")\n"
@@ -3414,7 +3420,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + "  `COL2` STRING\n"
                                 + ") OUTPUT (\n"
                                 + "  `LABEL` DOUBLE\n"
-                                + ") WITH (\n"
+                                + ")"
+                                + "\nWITH (\n"
                                 + "  'key1' = 'value1',\n"
                                 + "  'key2' = 'value2'\n"
                                 + ")\n"
@@ -3438,7 +3445,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                 .ok(
                         "CREATE MODEL IF NOT EXISTS `M1` OUTPUT (\n"
                                 + "  `LABEL` DOUBLE\n"
-                                + ") WITH (\n"
+                                + ")"
+                                + "\nWITH (\n"
                                 + "  'key1' = 'value1',\n"
                                 + "  'key2' = 'value2'\n"
                                 + ")\n"

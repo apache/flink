@@ -46,7 +46,7 @@ public class SqlAlterCatalogOptions extends SqlAlterCatalog {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(catalogName, propertyList);
+        return ImmutableNullableList.of(name, propertyList);
     }
 
     public SqlNodeList getPropertyList() {
@@ -64,15 +64,8 @@ public class SqlAlterCatalogOptions extends SqlAlterCatalog {
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("SET");
-        SqlWriter.Frame withFrame = writer.startList("(", ")");
-        for (SqlNode property : propertyList) {
-            SqlUnparseUtils.printIndent(writer);
-            property.unparse(writer, leftPrec, rightPrec);
-        }
-        writer.newlineAndIndent();
-        writer.endList(withFrame);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseSetOptions(propertyList, writer, leftPrec, rightPrec);
     }
 }

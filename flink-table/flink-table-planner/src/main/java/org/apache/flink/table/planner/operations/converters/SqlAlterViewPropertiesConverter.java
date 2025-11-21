@@ -24,7 +24,6 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterViewPropertiesOperation;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -39,9 +38,9 @@ public class SqlAlterViewPropertiesConverter implements SqlNodeConverter<SqlAlte
         CatalogView oldView = validateAlterView(alterView, context);
         ObjectIdentifier viewIdentifier =
                 context.getCatalogManager()
-                        .qualifyIdentifier(UnresolvedIdentifier.of(alterView.fullViewName()));
+                        .qualifyIdentifier(UnresolvedIdentifier.of(alterView.getFullName()));
         Map<String, String> newOptions = new HashMap<>(oldView.getOptions());
-        newOptions.putAll(OperationConverterUtils.getProperties(alterView.getPropertyList()));
+        newOptions.putAll(alterView.getProperties());
         CatalogView newView =
                 CatalogView.of(
                         oldView.getUnresolvedSchema(),

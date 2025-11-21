@@ -43,18 +43,14 @@ public class SqlAlterMaterializedTableRefreshMode extends SqlAlterMaterializedTa
         this.sqlRefreshMode = requireNonNull(sqlRefreshMode, "refreshMode should not be null");
     }
 
-    public SqlLiteral getSqlRefreshMode() {
-        return sqlRefreshMode;
-    }
-
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getTableName());
+        return ImmutableNullableList.of(name);
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
         writer.keyword("SET REFRESH_MODE");
         writer.keyword("=");
         sqlRefreshMode.unparse(writer, leftPrec, rightPrec);

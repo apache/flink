@@ -33,7 +33,6 @@ import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -110,8 +109,7 @@ public class SqlCreateTableLikeConverter extends AbstractCreateTableConverter<Sq
 
             @Override
             public Map<String, String> getMergedTableOptions() {
-                final Map<String, String> derivedTableOptions =
-                        OperationConverterUtils.getProperties(sqlCreateTableLike.getPropertyList());
+                final Map<String, String> derivedTableOptions = sqlCreateTableLike.getProperties();
                 return mergeTableLikeUtil.mergeOptions(
                         mergingStrategies.get(SqlTableLike.FeatureOption.OPTIONS),
                         table.getOptions(),
@@ -123,8 +121,7 @@ public class SqlCreateTableLikeConverter extends AbstractCreateTableConverter<Sq
                 return mergeTableLikeUtil.mergePartitions(
                         mergingStrategies.get(SqlTableLike.FeatureOption.PARTITIONS),
                         table.getPartitionKeys(),
-                        SqlCreateTableLikeConverter.this.getDerivedPartitionKeys(
-                                sqlCreateTableLike));
+                        sqlCreateTableLike.getPartitionKeyList());
             }
 
             @Override

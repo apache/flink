@@ -18,41 +18,35 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.SqlUnparseUtils;
-
+import org.apache.calcite.sql.SqlDrop;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlWriter;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
-import javax.annotation.Nonnull;
-
 import java.util.List;
 
-/** ALTER DDL to change a view's query. */
-public class SqlAlterViewAs extends SqlAlterView {
+/** Base class for DROP DDL SQL calls. */
+public abstract class SqlDropObject extends SqlDrop {
+    protected final SqlIdentifier name;
 
-    private final SqlNode newQuery;
-
-    public SqlAlterViewAs(SqlParserPos pos, SqlIdentifier viewIdentifier, SqlNode newQuery) {
-        super(pos, viewIdentifier);
-        this.newQuery = newQuery;
+    protected SqlDropObject(
+            SqlOperator operator, SqlParserPos pos, SqlIdentifier name, boolean ifExists) {
+        super(operator, pos, ifExists);
+        this.name = name;
     }
 
-    @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(name, newQuery);
+        return ImmutableNullableList.of(name);
     }
 
-    @Override
-    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparseAlterOperation(writer, leftPrec, rightPrec);
-        SqlUnparseUtils.unparseAsQuery(newQuery, writer, leftPrec, rightPrec);
+    public final boolean getIfExists() {
+        return ifExists;
     }
 
-    public SqlNode getNewQuery() {
-        return newQuery;
+    public String[] getFullName() {
+        return name.names.toArray(new String[0]);
     }
 }

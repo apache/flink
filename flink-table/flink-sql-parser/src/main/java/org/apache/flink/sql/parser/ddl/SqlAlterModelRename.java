@@ -51,12 +51,12 @@ public class SqlAlterModelRename extends SqlAlterModel {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return List.of(modelName, newModelName);
+        return List.of(name, newModelName);
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
         writer.keyword("RENAME TO");
         newModelName.unparse(writer, leftPrec, rightPrec);
     }

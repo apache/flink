@@ -80,12 +80,7 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
     }
 
     protected final List<String> getDerivedPartitionKeys(T sqlCreateMaterializedTable) {
-        return OperationConverterUtils.getColumnNames(
-                sqlCreateMaterializedTable.getPartitionKeyList());
-    }
-
-    protected final Map<String, String> getDerivedTableOptions(T sqlCreateMaterializedTable) {
-        return OperationConverterUtils.getProperties(sqlCreateMaterializedTable.getPropertyList());
+        return sqlCreateMaterializedTable.getPartitionKeyList();
     }
 
     protected final IntervalFreshness getDerivedFreshness(T sqlCreateMaterializedTable) {
@@ -129,7 +124,7 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
     }
 
     protected final String getComment(T sqlCreateMaterializedTable) {
-        return OperationConverterUtils.getComment(sqlCreateMaterializedTable.getComment());
+        return sqlCreateMaterializedTable.getComment();
     }
 
     protected final ResolvedCatalogMaterializedTable getResolvedCatalogMaterializedTable(
@@ -143,7 +138,7 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
 
         final TableDistribution distribution =
                 mergeContext.getMergedTableDistribution().orElse(null);
-        final String comment = getComment(sqlCreateMaterializedTable);
+        final String comment = sqlCreateMaterializedTable.getComment();
 
         final String originalQuery = mergeContext.getMergedOriginalQuery();
         final String expandedQuery = mergeContext.getMergedExpandedQuery();
@@ -174,7 +169,7 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
 
     protected final ObjectIdentifier getIdentifier(
             SqlCreateMaterializedTable node, ConvertContext context) {
-        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.fullTableName());
+        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.getFullName());
         return context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
     }
 

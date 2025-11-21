@@ -161,7 +161,7 @@ public class SqlCreateOrAlterMaterializedTableConverter
                         oldSchema, mergeContext.getMergedQuerySchema());
         newColumns.forEach(col -> schemaBuilder.column(col.getName(), col.getDataType()));
 
-        final String comment = this.getComment(sqlCreateOrAlterMaterializedTable);
+        final String comment = sqlCreateOrAlterMaterializedTable.getComment();
         final IntervalFreshness freshness =
                 this.getDerivedFreshness(sqlCreateOrAlterMaterializedTable);
         final LogicalRefreshMode logicalRefreshMode =
@@ -242,14 +242,12 @@ public class SqlCreateOrAlterMaterializedTableConverter
 
             @Override
             public Map<String, String> getMergedTableOptions() {
-                return SqlCreateOrAlterMaterializedTableConverter.this.getDerivedTableOptions(
-                        sqlCreateMaterializedTable);
+                return sqlCreateMaterializedTable.getProperties();
             }
 
             @Override
             public List<String> getMergedPartitionKeys() {
-                return SqlCreateOrAlterMaterializedTableConverter.this.getDerivedPartitionKeys(
-                        sqlCreateMaterializedTable);
+                return sqlCreateMaterializedTable.getPartitionKeyList();
             }
 
             @Override

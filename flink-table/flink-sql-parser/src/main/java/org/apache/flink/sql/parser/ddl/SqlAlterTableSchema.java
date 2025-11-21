@@ -108,12 +108,8 @@ public abstract class SqlAlterTableSchema extends SqlAlterTable implements Exten
     }
 
     void unparseSchemaAndDistribution(SqlWriter writer, int leftPrec, int rightPrec) {
-        if ((columnList != null && columnList.size() > 0)
-                || (constraints != null && constraints.size() > 0)
-                || watermark != null) {
-            SqlUnparseUtils.unparseTableSchema(
-                    writer, leftPrec, rightPrec, columnList, constraints, watermark);
-        }
+        SqlUnparseUtils.unparseTableSchema(
+                columnList, constraints, watermark, writer, leftPrec, rightPrec);
         if (distribution != null) {
             distribution.unparseAlter(writer, leftPrec, rightPrec);
         }

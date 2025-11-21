@@ -18,12 +18,12 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.calcite.sql.SqlCall;
+import org.apache.flink.sql.parser.SqlUnparseUtils;
+
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -36,12 +36,10 @@ import java.util.List;
 import static java.util.Objects.requireNonNull;
 
 /** Alter Function Sql Call. */
-public class SqlAlterFunction extends SqlCall {
+public class SqlAlterFunction extends SqlAlterObject {
 
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("ALTER FUNCTION", SqlKind.OTHER_DDL);
-
-    private final SqlIdentifier functionIdentifier;
 
     private final SqlCharStringLiteral functionClassName;
 
@@ -61,49 +59,27 @@ public class SqlAlterFunction extends SqlCall {
             boolean ifExists,
             boolean isTemporary,
             boolean isSystemFunction) {
-        super(pos);
-        this.functionIdentifier =
-                requireNonNull(functionIdentifier, "functionIdentifier should not be null");
+        super(OPERATOR, pos, functionIdentifier);
         this.functionClassName =
                 requireNonNull(functionClassName, "functionClassName should not be null");
-        this.isSystemFunction = requireNonNull(isSystemFunction);
+        this.isSystemFunction = isSystemFunction;
         this.isTemporary = isTemporary;
         this.functionLanguage = functionLanguage;
         this.ifExists = ifExists;
     }
 
-    @Nonnull
     @Override
-    public SqlOperator getOperator() {
-        return OPERATOR;
-    }
-
-    @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("ALTER");
-        if (isTemporary) {
-            writer.keyword("TEMPORARY");
-        }
-        if (isSystemFunction) {
-            writer.keyword("SYSTEM");
-        }
-        writer.keyword("FUNCTION");
-        if (ifExists) {
-            writer.keyword("IF EXISTS");
-        }
-        functionIdentifier.unparse(writer, leftPrec, rightPrec);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        unparseAlterIfExists(writer, leftPrec, rightPrec);
         writer.keyword("AS");
         functionClassName.unparse(writer, leftPrec, rightPrec);
-        if (functionLanguage != null) {
-            writer.keyword("LANGUAGE");
-            writer.keyword(functionLanguage);
-        }
+        SqlUnparseUtils.unparseLanguage(functionLanguage, writer);
     }
 
     @Nonnull
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(functionIdentifier, functionClassName);
+        return ImmutableNullableList.of(name, functionClassName);
     }
 
     public String getFunctionLanguage() {
@@ -126,7 +102,18 @@ public class SqlAlterFunction extends SqlCall {
         return this.ifExists;
     }
 
-    public String[] getFunctionIdentifier() {
-        return functionIdentifier.names.toArray(new String[0]);
+    private void unparseAlterIfExists(SqlWriter writer, int leftPrec, int rightPrec) {
+        writer.keyword("ALTER");
+        if (isTemporary) {
+            writer.keyword("TEMPORARY");
+        }
+        if (isSystemFunction) {
+            writer.keyword("SYSTEM");
+        }
+        writer.keyword("FUNCTION");
+        if (ifExists) {
+            writer.keyword("IF EXISTS");
+        }
+        name.unparse(writer, leftPrec, rightPrec);
     }
 }

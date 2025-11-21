@@ -18,13 +18,13 @@
 
 package org.apache.flink.sql.parser.type;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.table.calcite.ExtendedRelTypeFactory;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlTypeNameSpec;
 import org.apache.calcite.sql.SqlWriter;
@@ -32,7 +32,6 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.util.Litmus;
-import org.apache.calcite.util.NlsString;
 import org.apache.calcite.util.Pair;
 
 import java.util.List;
@@ -129,7 +128,7 @@ public class SqlStructuredTypeNameSpec extends SqlTypeNameSpec {
         final ExtendedRelTypeFactory typeFactory =
                 (ExtendedRelTypeFactory) sqlValidator.getTypeFactory();
         return typeFactory.createStructuredType(
-                ((NlsString) SqlLiteral.value(className)).getValue(),
+                SqlParseUtils.extractString(className),
                 fieldTypes.stream()
                         .map(dt -> dt.deriveType(sqlValidator))
                         .collect(Collectors.toList()),

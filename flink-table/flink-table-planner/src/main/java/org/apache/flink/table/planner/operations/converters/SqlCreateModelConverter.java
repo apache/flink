@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.ddl.SqlCreateModel;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
-import org.apache.flink.sql.parser.ddl.SqlTableOption;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogModel;
@@ -31,14 +30,11 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateModelOperation;
 import org.apache.flink.table.planner.operations.converters.table.SchemaBuilderUtil;
 
-import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.validate.SqlValidator;
 
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Function;
 
 /** A converter for {@link org.apache.flink.sql.parser.ddl.SqlCreateModel}. */
@@ -47,10 +43,10 @@ public class SqlCreateModelConverter implements SqlNodeConverter<SqlCreateModel>
     @Override
     public Operation convertSqlNode(SqlCreateModel sqlCreateModel, ConvertContext context) {
         UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlCreateModel.fullModelName());
+                UnresolvedIdentifier.of(sqlCreateModel.getFullName());
         ObjectIdentifier identifier =
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
-        Map<String, String> modelOptions = getModelOptions(sqlCreateModel);
+        Map<String, String> modelOptions = sqlCreateModel.getProperties();
 
         ModelSchemaBuilderUtils schemaBuilderUtil =
                 new ModelSchemaBuilderUtils(
@@ -63,26 +59,13 @@ public class SqlCreateModelConverter implements SqlNodeConverter<SqlCreateModel>
                         schemaBuilderUtil.getSchema(sqlCreateModel.getInputColumnList(), true),
                         schemaBuilderUtil.getSchema(sqlCreateModel.getOutputColumnList(), false),
                         modelOptions,
-                        sqlCreateModel.getComment().map(SqlLiteral::toValue).orElse(null));
+                        sqlCreateModel.getComment());
 
         return new CreateModelOperation(
                 identifier,
                 context.getCatalogManager().resolveCatalogModel(catalogModel),
                 sqlCreateModel.isIfNotExists(),
                 sqlCreateModel.isTemporary());
-    }
-
-    private Map<String, String> getModelOptions(SqlCreateModel sqlCreateModel) {
-        Map<String, String> options = new HashMap<>();
-        sqlCreateModel
-                .getPropertyList()
-                .getList()
-                .forEach(
-                        p ->
-                                options.put(
-                                        ((SqlTableOption) Objects.requireNonNull(p)).getKeyString(),
-                                        ((SqlTableOption) p).getValueString()));
-        return options;
     }
 
     /** Builder for {@link Schema} of a model. */

@@ -43,12 +43,12 @@ public class SqlAlterMaterializedTableRefresh extends SqlAlterMaterializedTable 
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getTableName(), partitionSpec);
+        return ImmutableNullableList.of(name, partitionSpec);
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
         writer.keyword("REFRESH");
         if (!partitionSpec.isEmpty()) {
             writer.keyword("PARTITION");

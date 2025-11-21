@@ -40,7 +40,7 @@ public abstract class AbstractAlterMaterializedTableConverter<T extends SqlNode>
     protected ObjectIdentifier resolveIdentifier(
             SqlAlterMaterializedTable sqlAlterMaterializedTable, ConvertContext context) {
         UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlAlterMaterializedTable.fullTableName());
+                UnresolvedIdentifier.of(sqlAlterMaterializedTable.getFullName());
         return context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
     }
 

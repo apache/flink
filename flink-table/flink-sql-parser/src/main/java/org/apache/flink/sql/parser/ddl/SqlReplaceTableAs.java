@@ -117,13 +117,13 @@ public class SqlReplaceTableAs extends SqlCreateTable implements ExtendedSqlNode
     @Override
     public @Nonnull List<SqlNode> getOperandList() {
         return ImmutableNullableList.of(
-                getTableName(),
+                getName(),
                 getColumnList(),
                 new SqlNodeList(getTableConstraints(), SqlParserPos.ZERO),
-                getPropertyList(),
-                getPartitionKeyList(),
+                properties,
+                partitionKeyList,
                 getWatermark().get(),
-                getComment().get(),
+                comment,
                 asQuery);
     }
 
@@ -175,38 +175,17 @@ public class SqlReplaceTableAs extends SqlCreateTable implements ExtendedSqlNode
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
+        unparseCreateOrReplace(writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseComment(comment, true, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseProperties(properties, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseAsQuery(asQuery, writer, leftPrec, rightPrec);
+    }
+
+    protected void unparseCreateOrReplace(SqlWriter writer, int leftPrec, int rightPrec) {
         if (isCreateOrReplace) {
             writer.keyword("CREATE OR");
         }
         writer.keyword("REPLACE TABLE");
-        getTableName().unparse(writer, leftPrec, rightPrec);
-
-        SqlCharStringLiteral comment = getComment().orElse(null);
-        if (comment != null) {
-            writer.newlineAndIndent();
-            writer.keyword("COMMENT");
-            comment.unparse(writer, leftPrec, rightPrec);
-        }
-
-        SqlNodeList propertyList = getPropertyList();
-        if (!propertyList.isEmpty()) {
-            writer.keyword("WITH");
-            SqlWriter.Frame withFrame = writer.startList("(", ")");
-            for (SqlNode property : propertyList) {
-                SqlUnparseUtils.printIndent(writer);
-                property.unparse(writer, leftPrec, rightPrec);
-            }
-            writer.newlineAndIndent();
-            writer.endList(withFrame);
-        }
-
-        writer.newlineAndIndent();
-        writer.keyword("AS");
-        writer.newlineAndIndent();
-        this.asQuery.unparse(writer, leftPrec, rightPrec);
-    }
-
-    public String[] fullTableName() {
-        return getTableName().names.toArray(new String[0]);
+        name.unparse(writer, leftPrec, rightPrec);
     }
 }

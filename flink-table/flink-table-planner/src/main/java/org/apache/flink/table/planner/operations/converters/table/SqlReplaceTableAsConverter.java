@@ -106,12 +106,12 @@ public class SqlReplaceTableAsConverter extends AbstractCreateTableConverter<Sql
 
             @Override
             public Map<String, String> getMergedTableOptions() {
-                return SqlReplaceTableAsConverter.this.getDerivedTableOptions(sqlReplaceTableAs);
+                return sqlReplaceTableAs.getProperties();
             }
 
             @Override
             public List<String> getMergedPartitionKeys() {
-                return SqlReplaceTableAsConverter.this.getDerivedPartitionKeys(sqlReplaceTableAs);
+                return sqlReplaceTableAs.getPartitionKeyList();
             }
 
             @Override

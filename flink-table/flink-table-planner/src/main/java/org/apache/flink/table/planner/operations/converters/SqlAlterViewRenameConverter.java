@@ -34,7 +34,7 @@ public class SqlAlterViewRenameConverter implements SqlNodeConverter<SqlAlterVie
         validateAlterView(alterView, context);
         ObjectIdentifier viewIdentifier =
                 context.getCatalogManager()
-                        .qualifyIdentifier(UnresolvedIdentifier.of(alterView.fullViewName()));
+                        .qualifyIdentifier(UnresolvedIdentifier.of(alterView.getFullName()));
         ObjectIdentifier newViewIdentifier =
                 context.getCatalogManager()
                         .qualifyIdentifier(UnresolvedIdentifier.of(alterView.fullNewViewName()));

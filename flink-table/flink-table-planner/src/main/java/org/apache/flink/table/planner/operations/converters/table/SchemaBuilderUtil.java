@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
-import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlComputedColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlMetadataColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
@@ -40,7 +39,6 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.validate.SqlValidator;
 
@@ -49,7 +47,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -195,29 +192,26 @@ public class SchemaBuilderUtil {
     /** Converts a {@link SqlRegularColumn} to an {@link UnresolvedPhysicalColumn} object. */
     protected UnresolvedPhysicalColumn toUnresolvedPhysicalColumn(SqlRegularColumn column) {
         final String name = column.getName().getSimple();
-        final Optional<String> comment = getComment(column);
+        final String comment = column.getComment();
         final LogicalType logicalType = toLogicalType(toRelDataType(column.getType()));
 
-        return new UnresolvedPhysicalColumn(
-                name, fromLogicalToDataType(logicalType), comment.orElse(null));
+        return new UnresolvedPhysicalColumn(name, fromLogicalToDataType(logicalType), comment);
     }
 
     /** Converts a {@link SqlComputedColumn} to an {@link UnresolvedComputedColumn} object. */
     UnresolvedComputedColumn toUnresolvedComputedColumn(
             SqlComputedColumn column, SqlNode validatedExpression) {
         final String name = column.getName().getSimple();
-        final Optional<String> comment = getComment(column);
+        final String comment = column.getComment();
 
         return new UnresolvedComputedColumn(
-                name,
-                new SqlCallExpression(escapeExpressions.apply(validatedExpression)),
-                comment.orElse(null));
+                name, new SqlCallExpression(escapeExpressions.apply(validatedExpression)), comment);
     }
 
     /** Converts a {@link SqlMetadataColumn} to an {@link UnresolvedMetadataColumn} object. */
     UnresolvedMetadataColumn toUnresolvedMetadataColumn(SqlMetadataColumn column) {
         final String name = column.getName().getSimple();
-        final Optional<String> comment = getComment(column);
+        final String comment = column.getComment();
         final LogicalType logicalType = toLogicalType(toRelDataType(column.getType()));
 
         return new UnresolvedMetadataColumn(
@@ -225,7 +219,7 @@ public class SchemaBuilderUtil {
                 fromLogicalToDataType(logicalType),
                 column.getMetadataAlias().orElse(null),
                 column.isVirtual(),
-                comment.orElse(null));
+                comment);
     }
 
     /** Converts a {@link SqlWatermark} to an {@link UnresolvedWatermarkSpec} object. */
@@ -270,10 +264,6 @@ public class SchemaBuilderUtil {
      */
     LogicalType getLogicalType(UnresolvedMetadataColumn column) {
         return dataTypeFactory.createDataType(column.getDataType()).getLogicalType();
-    }
-
-    Optional<String> getComment(SqlTableColumn column) {
-        return column.getComment().map(c -> ((SqlLiteral) c).getValueAs(String.class));
     }
 
     RelDataType toRelDataType(SqlDataTypeSpec type) {

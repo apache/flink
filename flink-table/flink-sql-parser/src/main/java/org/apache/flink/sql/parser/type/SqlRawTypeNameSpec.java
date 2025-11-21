@@ -19,18 +19,17 @@
 package org.apache.flink.sql.parser.type;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.table.calcite.ExtendedRelTypeFactory;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlIdentifier;
-import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlTypeNameSpec;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.util.Litmus;
-import org.apache.calcite.util.NlsString;
 
 /**
  * Represents a raw type such as {@code RAW('org.my.Class', 'sW3Djsds...')}.
@@ -57,8 +56,8 @@ public final class SqlRawTypeNameSpec extends SqlTypeNameSpec {
     public RelDataType deriveType(SqlValidator validator) {
         return ((ExtendedRelTypeFactory) validator.getTypeFactory())
                 .createRawType(
-                        ((NlsString) SqlLiteral.value(className)).getValue(),
-                        ((NlsString) SqlLiteral.value(serializerString)).getValue());
+                        SqlParseUtils.extractString(className),
+                        SqlParseUtils.extractString(serializerString));
     }
 
     @Override

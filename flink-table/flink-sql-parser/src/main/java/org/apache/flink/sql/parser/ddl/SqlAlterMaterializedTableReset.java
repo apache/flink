@@ -49,19 +49,12 @@ public class SqlAlterMaterializedTableReset extends SqlAlterMaterializedTable {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getTableName(), propertyKeyList);
+        return ImmutableNullableList.of(name, propertyKeyList);
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("RESET");
-        SqlWriter.Frame withFrame = writer.startList("(", ")");
-        for (SqlNode propertyKey : propertyKeyList) {
-            SqlUnparseUtils.printIndent(writer);
-            propertyKey.unparse(writer, leftPrec, rightPrec);
-        }
-        writer.newlineAndIndent();
-        writer.endList(withFrame);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseResetOptions(propertyKeyList, writer, leftPrec, rightPrec);
     }
 }

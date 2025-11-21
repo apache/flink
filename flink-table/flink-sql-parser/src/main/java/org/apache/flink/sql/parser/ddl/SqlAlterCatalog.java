@@ -18,11 +18,9 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
@@ -30,42 +28,27 @@ import org.apache.calcite.util.ImmutableNullableList;
 
 import java.util.List;
 
-import static java.util.Objects.requireNonNull;
-
 /** Abstract class to describe statements like ALTER CATALOG catalog_name. */
-public class SqlAlterCatalog extends SqlCall {
+public class SqlAlterCatalog extends SqlAlterObject {
 
-    public static final SqlSpecialOperator OPERATOR =
+    private static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("ALTER CATALOG", SqlKind.OTHER_DDL);
 
-    protected final SqlIdentifier catalogName;
-
     public SqlAlterCatalog(SqlParserPos position, SqlIdentifier catalogName) {
-        super(position);
-        this.catalogName = requireNonNull(catalogName, "catalogName cannot be null");
-    }
-
-    @Override
-    public SqlOperator getOperator() {
-        return OPERATOR;
+        super(OPERATOR, position, "CATALOG", catalogName);
     }
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(catalogName);
-    }
-
-    public SqlIdentifier getCatalogName() {
-        return catalogName;
+        return ImmutableNullableList.of(name);
     }
 
     public String catalogName() {
-        return catalogName.getSimple();
+        return name.getSimple();
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("ALTER CATALOG");
-        catalogName.unparse(writer, leftPrec, rightPrec);
+    protected void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        name.unparse(writer, leftPrec, rightPrec);
     }
 }

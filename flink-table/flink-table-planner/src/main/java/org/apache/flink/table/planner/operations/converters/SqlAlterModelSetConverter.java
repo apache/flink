@@ -25,7 +25,6 @@ import org.apache.flink.table.catalog.ResolvedCatalogModel;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterModelChangeOperation;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -39,12 +38,9 @@ public class SqlAlterModelSetConverter extends AbstractSqlAlterModelConverter<Sq
     public Operation convertSqlNode(SqlAlterModelSet sqlAlterModelSet, ConvertContext context) {
         ResolvedCatalogModel existingModel =
                 getExistingModel(
-                        context,
-                        sqlAlterModelSet.fullModelName(),
-                        sqlAlterModelSet.ifModelExists());
+                        context, sqlAlterModelSet.getFullName(), sqlAlterModelSet.ifModelExists());
 
-        Map<String, String> changeModelOptions =
-                OperationConverterUtils.getProperties(sqlAlterModelSet.getOptionList());
+        Map<String, String> changeModelOptions = sqlAlterModelSet.getProperties();
         if (changeModelOptions.isEmpty()) {
             throw new ValidationException("ALTER MODEL SET does not support empty option.");
         }
@@ -55,7 +51,7 @@ public class SqlAlterModelSetConverter extends AbstractSqlAlterModelConverter<Sq
             return new AlterModelChangeOperation(
                     context.getCatalogManager()
                             .qualifyIdentifier(
-                                    UnresolvedIdentifier.of(sqlAlterModelSet.fullModelName())),
+                                    UnresolvedIdentifier.of(sqlAlterModelSet.getFullName())),
                     modelChanges,
                     null,
                     sqlAlterModelSet.ifModelExists());
@@ -66,8 +62,7 @@ public class SqlAlterModelSetConverter extends AbstractSqlAlterModelConverter<Sq
 
         return new AlterModelChangeOperation(
                 context.getCatalogManager()
-                        .qualifyIdentifier(
-                                UnresolvedIdentifier.of(sqlAlterModelSet.fullModelName())),
+                        .qualifyIdentifier(UnresolvedIdentifier.of(sqlAlterModelSet.getFullName())),
                 modelChanges,
                 existingModel.copy(newOptions),
                 sqlAlterModelSet.ifModelExists());

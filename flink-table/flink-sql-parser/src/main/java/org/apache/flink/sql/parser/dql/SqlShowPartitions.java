@@ -18,7 +18,7 @@
 
 package org.apache.flink.sql.parser.dql;
 
-import org.apache.flink.sql.parser.SqlPartitionUtils;
+import org.apache.flink.sql.parser.SqlParseUtils;
 
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -92,6 +92,6 @@ public class SqlShowPartitions extends SqlCall {
 
     /** Get partition spec as key-value strings. */
     public LinkedHashMap<String, String> getPartitionKVs() {
-        return SqlPartitionUtils.getPartitionKVs(getPartitionSpec());
+        return SqlParseUtils.getPartitionKVs(getPartitionSpec());
     }
 }

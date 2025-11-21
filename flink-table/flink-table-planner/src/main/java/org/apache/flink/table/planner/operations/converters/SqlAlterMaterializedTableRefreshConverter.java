@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.SqlPartitionUtils;
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableRefresh;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -33,12 +33,11 @@ public class SqlAlterMaterializedTableRefreshConverter
 
     @Override
     public Operation convertSqlNode(SqlAlterMaterializedTableRefresh node, ConvertContext context) {
-        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.fullTableName());
+        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.getFullName());
         ObjectIdentifier identifier =
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
 
-        Map<String, String> partitionSpec =
-                SqlPartitionUtils.getPartitionKVs(node.getPartitionSpec());
+        Map<String, String> partitionSpec = SqlParseUtils.getPartitionKVs(node.getPartitionSpec());
 
         return new AlterMaterializedTableRefreshOperation(identifier, partitionSpec);
     }

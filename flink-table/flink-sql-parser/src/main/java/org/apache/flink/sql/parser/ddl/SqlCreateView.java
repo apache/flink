@@ -18,8 +18,9 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlUnparseUtils;
+
 import org.apache.calcite.sql.SqlCharStringLiteral;
-import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
@@ -29,27 +30,18 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import javax.annotation.Nullable;
-
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
 /** CREATE VIEW DDL sql call. */
-public class SqlCreateView extends SqlCreate {
-    public static final SqlSpecialOperator OPERATOR =
+public class SqlCreateView extends SqlCreateObject {
+    private static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("CREATE_VIEW", SqlKind.CREATE_VIEW);
 
-    private final SqlIdentifier viewName;
     private final SqlNodeList fieldList;
     private final SqlNode query;
-    private final boolean isTemporary;
-
-    @Nullable private final SqlCharStringLiteral comment;
-
-    @Nullable private final SqlNodeList properties;
 
     public SqlCreateView(
             SqlParserPos pos,
@@ -61,27 +53,19 @@ public class SqlCreateView extends SqlCreate {
             boolean ifNotExists,
             SqlCharStringLiteral comment,
             SqlNodeList properties) {
-        super(OPERATOR, pos, replace, ifNotExists);
-        this.viewName = requireNonNull(viewName, "viewName should not be null");
+        super(OPERATOR, pos, viewName, isTemporary, replace, ifNotExists, properties, comment);
         this.fieldList = requireNonNull(fieldList, "fieldList should not be null");
         this.query = requireNonNull(query, "query should not be null");
-        this.isTemporary = requireNonNull(isTemporary, "isTemporary should not be null");
-        this.comment = comment;
-        this.properties = properties;
     }
 
     @Override
     public List<SqlNode> getOperandList() {
         List<SqlNode> ops = new ArrayList<>();
-        ops.add(viewName);
+        ops.add(name);
         ops.add(fieldList);
         ops.add(query);
         ops.add(SqlLiteral.createBoolean(getReplace(), SqlParserPos.ZERO));
         return ops;
-    }
-
-    public SqlIdentifier getViewName() {
-        return viewName;
     }
 
     public SqlNodeList getFieldList() {
@@ -92,48 +76,22 @@ public class SqlCreateView extends SqlCreate {
         return query;
     }
 
-    public Optional<SqlCharStringLiteral> getComment() {
-        return Optional.ofNullable(comment);
-    }
-
-    public Optional<SqlNodeList> getProperties() {
-        return Optional.ofNullable(properties);
+    @Override
+    protected String getScope() {
+        return "VIEW";
     }
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("CREATE");
-        if (isTemporary()) {
-            writer.keyword("TEMPORARY");
-        }
-        writer.keyword("VIEW");
-        if (isIfNotExists()) {
-            writer.keyword("IF NOT EXISTS");
-        }
-        viewName.unparse(writer, leftPrec, rightPrec);
-        if (fieldList.size() > 0) {
+        unparseCreateIfNotExists(writer, leftPrec, rightPrec);
+        unparseFieldList(writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseComment(comment, true, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseAsQuery(query, writer, leftPrec, rightPrec);
+    }
+
+    private void unparseFieldList(SqlWriter writer, int leftPrec, int rightPrec) {
+        if (!fieldList.isEmpty()) {
             fieldList.unparse(writer, 1, rightPrec);
         }
-        if (comment != null) {
-            writer.newlineAndIndent();
-            writer.keyword("COMMENT");
-            comment.unparse(writer, leftPrec, rightPrec);
-        }
-        writer.newlineAndIndent();
-        writer.keyword("AS");
-        writer.newlineAndIndent();
-        query.unparse(writer, leftPrec, rightPrec);
-    }
-
-    public boolean isTemporary() {
-        return isTemporary;
-    }
-
-    public boolean isIfNotExists() {
-        return ifNotExists;
-    }
-
-    public String[] fullViewName() {
-        return viewName.names.toArray(new String[0]);
     }
 }

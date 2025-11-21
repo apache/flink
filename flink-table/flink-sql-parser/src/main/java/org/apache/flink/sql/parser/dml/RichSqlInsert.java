@@ -18,6 +18,7 @@
 
 package org.apache.flink.sql.parser.dml;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.SqlProperty;
 
 import org.apache.calcite.sql.SqlInsert;
@@ -28,7 +29,6 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlTableRef;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.NlsString;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -84,16 +84,12 @@ public class RichSqlInsert extends SqlInsert {
      */
     public LinkedHashMap<String, String> getStaticPartitionKVs() {
         LinkedHashMap<String, String> ret = new LinkedHashMap<>();
-        if (this.staticPartitions.size() == 0) {
+        if (this.staticPartitions.isEmpty()) {
             return ret;
         }
         for (SqlNode node : this.staticPartitions.getList()) {
             SqlProperty sqlProperty = (SqlProperty) node;
-            Comparable comparable = SqlLiteral.value(sqlProperty.getValue());
-            String value =
-                    comparable instanceof NlsString
-                            ? ((NlsString) comparable).getValue()
-                            : comparable.toString();
+            String value = SqlParseUtils.extractString(sqlProperty.getValue());
             ret.put(sqlProperty.getKey().getSimple(), value);
         }
         return ret;

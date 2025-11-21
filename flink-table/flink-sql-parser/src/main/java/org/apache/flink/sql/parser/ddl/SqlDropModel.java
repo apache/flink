@@ -18,7 +18,6 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.calcite.sql.SqlDrop;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -26,53 +25,25 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
-
-import java.util.List;
 
 /**
  * {@link SqlNode} to describe the DROP MODEL [IF EXISTS] [[catalogName.] dataBasesName].modelName
  * syntax.
  */
-public class SqlDropModel extends SqlDrop {
+public class SqlDropModel extends SqlDropObject {
     private static final SqlOperator OPERATOR =
             new SqlSpecialOperator("DROP MODEL", SqlKind.OTHER_DDL);
 
-    private SqlIdentifier modelName;
-    private boolean ifExists;
-    private boolean isTemporary;
+    private final boolean isTemporary;
 
     public SqlDropModel(
             SqlParserPos pos, SqlIdentifier modelName, boolean ifExists, boolean isTemporary) {
-        super(OPERATOR, pos, ifExists);
-        this.modelName = modelName;
-        this.ifExists = ifExists;
+        super(OPERATOR, pos, modelName, ifExists);
         this.isTemporary = isTemporary;
-    }
-
-    @Override
-    public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(modelName);
-    }
-
-    public SqlIdentifier getModelName() {
-        return modelName;
-    }
-
-    public void setModelName(SqlIdentifier modelName) {
-        this.modelName = modelName;
-    }
-
-    public boolean getIfExists() {
-        return this.ifExists;
     }
 
     public boolean getIsTemporary() {
         return this.isTemporary;
-    }
-
-    public void setIfExists(boolean ifExists) {
-        this.ifExists = ifExists;
     }
 
     @Override
@@ -82,10 +53,6 @@ public class SqlDropModel extends SqlDrop {
         if (ifExists) {
             writer.keyword("IF EXISTS");
         }
-        modelName.unparse(writer, leftPrec, rightPrec);
-    }
-
-    public String[] fullModelName() {
-        return modelName.names.toArray(new String[0]);
+        name.unparse(writer, leftPrec, rightPrec);
     }
 }

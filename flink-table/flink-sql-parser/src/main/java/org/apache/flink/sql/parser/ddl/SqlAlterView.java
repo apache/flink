@@ -18,43 +18,24 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /** Abstract class to describe ALTER VIEW statements. */
-public abstract class SqlAlterView extends SqlCall {
+public abstract class SqlAlterView extends SqlAlterObject {
 
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("ALTER VIEW", SqlKind.ALTER_VIEW);
 
-    protected final SqlIdentifier viewIdentifier;
-
     public SqlAlterView(SqlParserPos pos, SqlIdentifier viewIdentifier) {
-        super(pos);
-        this.viewIdentifier = viewIdentifier;
-    }
-
-    public SqlIdentifier getViewIdentifier() {
-        return viewIdentifier;
+        super(OPERATOR, pos, "VIEW", viewIdentifier);
     }
 
     @Override
-    public SqlOperator getOperator() {
-        return OPERATOR;
-    }
-
-    @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("ALTER VIEW");
-        viewIdentifier.unparse(writer, leftPrec, rightPrec);
-    }
-
-    public String[] fullViewName() {
-        return viewIdentifier.names.toArray(new String[0]);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        name.unparse(writer, leftPrec, rightPrec);
     }
 }

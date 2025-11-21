@@ -18,6 +18,10 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
+import org.apache.flink.sql.parser.SqlUnparseUtils;
+
+import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlWriter;
@@ -31,27 +35,26 @@ import static java.util.Objects.requireNonNull;
 /** ALTER CATALOG catalog_name COMMENT 'comment'. */
 public class SqlAlterCatalogComment extends SqlAlterCatalog {
 
-    private final SqlNode comment;
+    private final SqlCharStringLiteral comment;
 
     public SqlAlterCatalogComment(
-            SqlParserPos position, SqlIdentifier catalogName, SqlNode comment) {
+            SqlParserPos position, SqlIdentifier catalogName, SqlCharStringLiteral comment) {
         super(position, catalogName);
         this.comment = requireNonNull(comment, "comment cannot be null");
     }
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(catalogName, comment);
+        return ImmutableNullableList.of(name, comment);
     }
 
-    public SqlNode getComment() {
-        return comment;
+    public String getComment() {
+        return SqlParseUtils.extractString(comment);
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("COMMENT");
-        comment.unparse(writer, leftPrec, rightPrec);
+    protected void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseComment(comment, false, writer, leftPrec, rightPrec);
     }
 }
