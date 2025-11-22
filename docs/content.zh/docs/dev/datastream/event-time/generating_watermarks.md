@@ -235,7 +235,7 @@ If you are upgrading from a Flink version between 1.15.x and 1.16.x inclusive, y
 by checking if it throws an `UnsupportedOperationException` at runtime or by reading the javadocs. In this case, it would be desirable to
 to disable split level watermark alignment to avoid fatal exceptions.
 
-When setting the flag to true, watermark alignment will be only working properly when the number of splits/shards/partitions is equal to the
+When setting the flag to false, watermark alignment will be only working properly when the number of splits/shards/partitions is equal to the
 parallelism of the source operator. This results in every subtask being assigned a single unit of work. On the other hand, if there are two Kafka partitions, which produce watermarks at different paces and
 get assigned to the same task, then watermarks might not behave as expected. Fortunately, even in the worst case, the basic alignment should not perform worse than having no alignment at all.
 
