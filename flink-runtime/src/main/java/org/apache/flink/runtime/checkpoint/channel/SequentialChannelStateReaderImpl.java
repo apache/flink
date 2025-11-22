@@ -67,6 +67,11 @@ public class SequentialChannelStateReaderImpl implements SequentialChannelStateR
                     groupByDelegate(
                             streamSubtaskStates(),
                             ChannelStateHelper::extractUnmergedInputHandles));
+            read(
+                    stateHandler,
+                    groupByDelegate(
+                            streamSubtaskStates(),
+                            OperatorSubtaskState::getUpstreamOutputBufferState));
         }
     }
 

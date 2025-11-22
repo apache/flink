@@ -75,6 +75,7 @@ public class StateAssignmentOperation {
 
     private final long restoreCheckpointId;
     private final boolean allowNonRestoredState;
+    private final boolean recoverOutputOnDownstreamTask;
 
     /** The state assignments for each ExecutionJobVertex that will be filled in multiple passes. */
     private final Map<ExecutionJobVertex, TaskStateAssignment> vertexAssignments;
@@ -90,18 +91,29 @@ public class StateAssignmentOperation {
             long restoreCheckpointId,
             Set<ExecutionJobVertex> tasks,
             Map<OperatorID, OperatorState> operatorStates,
-            boolean allowNonRestoredState) {
+            boolean allowNonRestoredState,
+            boolean recoverOutputOnDownstreamTask) {
 
         this.restoreCheckpointId = restoreCheckpointId;
         this.tasks = Preconditions.checkNotNull(tasks);
         this.operatorStates = Preconditions.checkNotNull(operatorStates);
         this.allowNonRestoredState = allowNonRestoredState;
+        this.recoverOutputOnDownstreamTask = recoverOutputOnDownstreamTask;
         this.vertexAssignments = CollectionUtil.newHashMapWithExpectedSize(tasks.size());
     }
 
     public void assignStates() {
         checkStateMappingCompleteness(allowNonRestoredState, operatorStates, tasks);
 
+        buildStateAssignments();
+
+        repartitionState();
+
+        // actually assign the state
+        applyStateAssignments();
+    }
+
+    private void buildStateAssignments() {
         Map<OperatorID, OperatorState> localOperators = new HashMap<>(operatorStates);
 
         // find the states of all operators belonging to this task and compute additional
@@ -135,13 +147,16 @@ public class StateAssignmentOperation {
                             executionJobVertex,
                             operatorStates,
                             consumerAssignment,
-                            vertexAssignments);
+                            vertexAssignments,
+                            recoverOutputOnDownstreamTask);
             vertexAssignments.put(executionJobVertex, stateAssignment);
             for (final IntermediateResult producedDataSet : executionJobVertex.getInputs()) {
                 consumerAssignment.put(producedDataSet.getId(), stateAssignment);
             }
         }
+    }
 
+    private void repartitionState() {
         // repartition state
         for (TaskStateAssignment stateAssignment : vertexAssignments.values()) {
             if (stateAssignment.hasNonFinishedState
@@ -153,7 +168,22 @@ public class StateAssignmentOperation {
             }
         }
 
-        // actually assign the state
+        // distribute output channel states to downstream tasks if needed
+        // Note: it has to be called after assignAttemptState for all tasks since the
+        // redistributing of result subpartition states depend on the inputSubtaskMappings
+        // of downstream tasks.
+        if (recoverOutputOnDownstreamTask) {
+            for (TaskStateAssignment stateAssignment : vertexAssignments.values()) {
+                // If recoverOutputOnDownstreamTask is enabled, all upstream output buffers have to
+                // be distributed to downstream since the upstream task side doesn’t deserialize
+                // records generally. It is easy to filter records and re-upload records if
+                // recovering output buffers on downstream task side directly.
+                stateAssignment.distributeOutputBuffersToDownstream();
+            }
+        }
+    }
+
+    private void applyStateAssignments() {
         for (TaskStateAssignment stateAssignment : vertexAssignments.values()) {
             // If upstream has output states or downstream has input states, even the empty task
             // state should be assigned for the current task in order to notify this task that the
