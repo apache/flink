@@ -23,7 +23,6 @@ import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
-import org.apache.calcite.sql.SqlCreate;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
@@ -34,30 +33,18 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.util.ImmutableNullableList;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import java.util.List;
-import java.util.Optional;
-
-import static java.util.Objects.requireNonNull;
 
 /**
  * {@link SqlNode} to describe the CREATE CONNECTION syntax. CREATE [TEMPORARY] [SYSTEM] CONNECTION
  * [IF NOT EXISTS] [[catalogName.] dataBasesName].connectionName [COMMENT connection_comment] WITH
  * (name=value, [name=value]*).
  */
-public class SqlCreateConnection extends SqlCreate implements ExtendedSqlNode {
+public class SqlCreateConnection extends SqlCreateObject implements ExtendedSqlNode {
 
-    public static final SqlSpecialOperator OPERATOR =
+    private static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("CREATE CONNECTION", SqlKind.OTHER_DDL);
-
-    private final SqlIdentifier connectionName;
-
-    @Nullable private final SqlCharStringLiteral comment;
-
-    private final SqlNodeList propertyList;
-
-    private final boolean isTemporary;
 
     private final boolean isSystem;
 
@@ -69,55 +56,44 @@ public class SqlCreateConnection extends SqlCreate implements ExtendedSqlNode {
             boolean isTemporary,
             boolean isSystem,
             boolean ifNotExists) {
-        super(OPERATOR, pos, false, ifNotExists);
-        this.connectionName = requireNonNull(connectionName, "connectionName should not be null");
-        this.comment = comment;
-        this.propertyList = requireNonNull(propertyList, "propertyList should not be null");
-        this.isTemporary = isTemporary;
+        super(
+                OPERATOR,
+                pos,
+                connectionName,
+                isTemporary,
+                false,
+                ifNotExists,
+                propertyList,
+                comment);
         this.isSystem = isSystem;
     }
 
     @Override
     public @Nonnull List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(connectionName, comment, propertyList);
-    }
-
-    public SqlIdentifier getConnectionName() {
-        return connectionName;
-    }
-
-    public Optional<SqlCharStringLiteral> getComment() {
-        return Optional.ofNullable(comment);
-    }
-
-    public SqlNodeList getPropertyList() {
-        return propertyList;
-    }
-
-    public boolean isTemporary() {
-        return isTemporary;
+        return ImmutableNullableList.of(name, comment, properties);
     }
 
     public boolean isSystem() {
         return isSystem;
     }
 
-    public boolean isIfNotExists() {
-        return ifNotExists;
-    }
-
     @Override
     public void validate() throws SqlValidateException {
-        if (propertyList.isEmpty()) {
+        if (properties == null || properties.isEmpty()) {
             throw new SqlValidateException(
                     getParserPosition(), "Connection property list can not be empty.");
         }
     }
 
     @Override
+    protected String getScope() {
+        return "CONNECTION";
+    }
+
+    @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         writer.keyword("CREATE");
-        if (isTemporary) {
+        if (isTemporary()) {
             writer.keyword("TEMPORARY");
         }
         if (isSystem) {
@@ -127,7 +103,7 @@ public class SqlCreateConnection extends SqlCreate implements ExtendedSqlNode {
         if (isIfNotExists()) {
             writer.keyword("IF NOT EXISTS");
         }
-        connectionName.unparse(writer, leftPrec, rightPrec);
+        name.unparse(writer, leftPrec, rightPrec);
 
         if (comment != null) {
             writer.newlineAndIndent();
@@ -135,19 +111,15 @@ public class SqlCreateConnection extends SqlCreate implements ExtendedSqlNode {
             comment.unparse(writer, leftPrec, rightPrec);
         }
 
-        if (!this.propertyList.isEmpty()) {
+        if (properties != null && !properties.isEmpty()) {
             writer.keyword("WITH");
             SqlWriter.Frame withFrame = writer.startList("(", ")");
-            for (SqlNode connectionProperty : propertyList) {
+            for (SqlNode connectionProperty : properties) {
                 SqlUnparseUtils.printIndent(writer);
                 connectionProperty.unparse(writer, leftPrec, rightPrec);
             }
             writer.newlineAndIndent();
             writer.endList(withFrame);
         }
-    }
-
-    public String[] fullConnectionName() {
-        return connectionName.names.toArray(new String[0]);
     }
 }

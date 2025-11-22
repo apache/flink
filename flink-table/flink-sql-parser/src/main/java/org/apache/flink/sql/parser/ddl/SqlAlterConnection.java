@@ -18,49 +18,43 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-
-import static java.util.Objects.requireNonNull;
-
-import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /**
- * Abstract class to describe statements like ALTER CONNECTION [[catalogName.]
+ * Abstract class to describe statements like ALTER CONNECTION [IF EXISTS] [[catalogName.]
  * dataBasesName.]connectionName ...
  */
-public abstract class SqlAlterConnection extends SqlCall {
+public abstract class SqlAlterConnection extends SqlAlterObject {
 
-    public static final SqlSpecialOperator OPERATOR =
+    private static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("ALTER CONNECTION", SqlKind.OTHER_DDL);
 
-    protected final SqlIdentifier connectionName;
+    protected final boolean ifConnectionExists;
 
-    public SqlAlterConnection(SqlParserPos pos, SqlIdentifier connectionName) {
-        super(pos);
-        this.connectionName = requireNonNull(connectionName, "connectionName should not be null");
+    public SqlAlterConnection(
+            SqlParserPos pos, SqlIdentifier connectionName, boolean ifConnectionExists) {
+        super(OPERATOR, pos, "CONNECTION", connectionName);
+        this.ifConnectionExists = ifConnectionExists;
+    }
+
+    /**
+     * Whether to ignore the error if the connection doesn't exist.
+     *
+     * @return true when IF EXISTS is specified.
+     */
+    public boolean ifConnectionExists() {
+        return ifConnectionExists;
     }
 
     @Override
-    public SqlOperator getOperator() {
-        return OPERATOR;
-    }
-
-    public SqlIdentifier getConnectionName() {
-        return connectionName;
-    }
-
-    public String[] fullConnectionName() {
-        return connectionName.names.toArray(new String[0]);
-    }
-
-    @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("ALTER CONNECTION");
-        connectionName.unparse(writer, leftPrec, rightPrec);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        if (ifConnectionExists) {
+            writer.keyword("IF EXISTS");
+        }
+        name.unparse(writer, leftPrec, rightPrec);
     }
 }

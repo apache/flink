@@ -3266,6 +3266,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testDropTemporaryModel() {
+        sql("drop temporary model m1").ok("DROP TEMPORARY MODEL `M1`");
+        sql("drop temporary model if exists m1").ok("DROP TEMPORARY MODEL IF EXISTS `M1`");
+    }
+
+    @Test
     void testDropModelIfExists() {
         sql("drop model if exists catalog1.db1.m1")
                 .ok("DROP MODEL IF EXISTS `CATALOG1`.`DB1`.`M1`");
@@ -3659,6 +3665,33 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     void testAlterConnectionResetWithQualifiedName() {
         final String sql = "alter connection catalog1.db1.conn1 reset ('token')";
         final String expected = "ALTER CONNECTION `CATALOG1`.`DB1`.`CONN1` RESET (\n  'token'\n)";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testAlterConnectionIfExists() {
+        final String sql =
+                "alter connection if exists conn1 set ('password' = 'new_password','url' = 'http://new.com')";
+        final String expected =
+                "ALTER CONNECTION IF EXISTS `CONN1` SET (\n"
+                        + "  'password' = 'new_password',\n"
+                        + "  'url' = 'http://new.com'\n"
+                        + ")";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testAlterConnectionRenameIfExists() {
+        final String sql = "alter connection if exists conn1 rename to conn2";
+        final String expected = "ALTER CONNECTION IF EXISTS `CONN1` RENAME TO `CONN2`";
+        sql(sql).ok(expected);
+    }
+
+    @Test
+    void testAlterConnectionResetIfExists() {
+        final String sql = "alter connection if exists conn1 reset ('password', 'url')";
+        final String expected =
+                "ALTER CONNECTION IF EXISTS `CONN1` RESET (\n  'password',\n  'url'\n)";
         sql(sql).ok(expected);
     }
 

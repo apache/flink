@@ -35,6 +35,6 @@ public class SqlDropModelConverter implements SqlNodeConverter<SqlDropModel> {
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
 
         return new DropModelOperation(
-                identifier, sqlDropModel.getIfExists(), sqlDropModel.getIsTemporary());
+                identifier, sqlDropModel.getIfExists(), sqlDropModel.isTemporary());
     }
 }
