@@ -3485,14 +3485,15 @@ SqlAlterModel SqlAlterModel() :
 }
 
 /**
-* ALTER CONNECTION connectionName SET (property_key = property_val, ...)
-* ALTER CONNECTION connectionName RENAME TO newConnectionName
-* ALTER CONNECTION connectionName RESET (property_key, ...)
+* ALTER CONNECTION [IF EXISTS] connectionName SET (property_key = property_val, ...)
+* ALTER CONNECTION [IF EXISTS] connectionName RENAME TO newConnectionName
+* ALTER CONNECTION [IF EXISTS] connectionName RESET (property_key, ...)
 * Alter temporary or system connection is not supported.
 */
 SqlAlterConnection SqlAlterConnection() :
 {
     SqlParserPos startPos;
+    boolean ifExists = false;
     SqlIdentifier connectionIdentifier;
     SqlIdentifier newConnectionIdentifier = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
@@ -3500,6 +3501,7 @@ SqlAlterConnection SqlAlterConnection() :
 }
 {
     <ALTER> <CONNECTION> { startPos = getPos(); }
+    ifExists = IfExistsOpt()
     connectionIdentifier = CompoundIdentifier()
     (
         LOOKAHEAD(2)
@@ -3509,7 +3511,8 @@ SqlAlterConnection SqlAlterConnection() :
             return new SqlAlterConnectionRename(
                         startPos.plus(getPos()),
                         connectionIdentifier,
-                        newConnectionIdentifier);
+                        newConnectionIdentifier,
+                        ifExists);
         }
     |
         <SET>
@@ -3518,6 +3521,7 @@ SqlAlterConnection SqlAlterConnection() :
             return new SqlAlterConnectionSet(
                         startPos.plus(getPos()),
                         connectionIdentifier,
+                        ifExists,
                         propertyList);
         }
     |
@@ -3527,6 +3531,7 @@ SqlAlterConnection SqlAlterConnection() :
             return new SqlAlterConnectionReset(
                         startPos.plus(getPos()),
                         connectionIdentifier,
+                        ifExists,
                         propertyKeyList);
         }
     )

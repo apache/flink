@@ -18,27 +18,21 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.calcite.sql.SqlDrop;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
-
-import java.util.List;
 
 /**
- * {@link SqlNode} to describe the DROP CONNECTION [IF EXISTS] [[catalogName.]
- * dataBasesName].connectionName syntax.
+ * {@link org.apache.calcite.sql.SqlNode} to describe the DROP CONNECTION [IF EXISTS]
+ * [[catalogName.] dataBasesName].connectionName syntax.
  */
-public class SqlDropConnection extends SqlDrop {
+public class SqlDropConnection extends SqlDropObject {
     private static final SqlOperator OPERATOR =
             new SqlSpecialOperator("DROP CONNECTION", SqlKind.OTHER_DDL);
 
-    private SqlIdentifier connectionName;
     private final boolean isTemporary;
     private final boolean isSystemConnection;
 
@@ -48,35 +42,17 @@ public class SqlDropConnection extends SqlDrop {
             boolean ifExists,
             boolean isTemporary,
             boolean isSystemConnection) {
-        super(OPERATOR, pos, ifExists);
-        this.connectionName = connectionName;
+        super(OPERATOR, pos, connectionName, ifExists);
         this.isTemporary = isTemporary;
         this.isSystemConnection = isSystemConnection;
     }
 
-    @Override
-    public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(connectionName);
+    public boolean isTemporary() {
+        return isTemporary;
     }
 
-    public SqlIdentifier getConnectionName() {
-        return connectionName;
-    }
-
-    public void setConnectionName(SqlIdentifier connectionName) {
-        this.connectionName = connectionName;
-    }
-
-    public boolean getIfExists() {
-        return this.ifExists;
-    }
-
-    public boolean getIsTemporary() {
-        return this.isTemporary;
-    }
-
-    public boolean getIsSystemConnection() {
-        return this.isSystemConnection;
+    public boolean isSystemConnection() {
+        return isSystemConnection;
     }
 
     @Override
@@ -92,10 +68,6 @@ public class SqlDropConnection extends SqlDrop {
         if (ifExists) {
             writer.keyword("IF EXISTS");
         }
-        connectionName.unparse(writer, leftPrec, rightPrec);
-    }
-
-    public String[] fullConnectionName() {
-        return connectionName.names.toArray(new String[0]);
+        name.unparse(writer, leftPrec, rightPrec);
     }
 }

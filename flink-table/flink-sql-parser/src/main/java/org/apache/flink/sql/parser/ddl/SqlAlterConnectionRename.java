@@ -27,14 +27,20 @@ import java.util.List;
 
 import static java.util.Objects.requireNonNull;
 
-/** ALTER CONNECTION [[catalogName.] dataBasesName.]connectionName RENAME TO newConnectionName. */
+/**
+ * ALTER CONNECTION [IF EXISTS] [[catalogName.] dataBasesName.]connectionName RENAME TO
+ * newConnectionName.
+ */
 public class SqlAlterConnectionRename extends SqlAlterConnection {
 
     private final SqlIdentifier newConnectionName;
 
     public SqlAlterConnectionRename(
-            SqlParserPos pos, SqlIdentifier connectionName, SqlIdentifier newConnectionName) {
-        super(pos, connectionName);
+            SqlParserPos pos,
+            SqlIdentifier connectionName,
+            SqlIdentifier newConnectionName,
+            boolean ifConnectionExists) {
+        super(pos, connectionName, ifConnectionExists);
         this.newConnectionName =
                 requireNonNull(newConnectionName, "newConnectionName should not be null");
     }
@@ -49,12 +55,12 @@ public class SqlAlterConnectionRename extends SqlAlterConnection {
 
     @Override
     public List<SqlNode> getOperandList() {
-        return List.of(connectionName, newConnectionName);
+        return List.of(name, newConnectionName);
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
         writer.keyword("RENAME TO");
         newConnectionName.unparse(writer, leftPrec, rightPrec);
     }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 
 import org.apache.calcite.sql.SqlIdentifier;
@@ -27,42 +28,40 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import java.util.List;
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * ALTER CONNECTION [[catalogName.] dataBasesName.]connectionName SET ( name=value [, name=value]*).
+ * ALTER CONNECTION [IF EXISTS] [[catalogName.] dataBasesName.]connectionName SET ( name=value [,
+ * name=value]*).
  */
 public class SqlAlterConnectionSet extends SqlAlterConnection {
 
     private final SqlNodeList connectionOptionList;
 
     public SqlAlterConnectionSet(
-            SqlParserPos pos, SqlIdentifier connectionName, SqlNodeList connectionOptionList) {
-        super(pos, connectionName);
+            SqlParserPos pos,
+            SqlIdentifier connectionName,
+            boolean ifConnectionExists,
+            SqlNodeList connectionOptionList) {
+        super(pos, connectionName, ifConnectionExists);
         this.connectionOptionList =
                 requireNonNull(connectionOptionList, "connectionOptionList should not be null");
     }
 
-    public SqlNodeList getOptionList() {
-        return connectionOptionList;
+    public Map<String, String> getProperties() {
+        return SqlParseUtils.extractMap(connectionOptionList);
     }
 
     @Override
     public List<SqlNode> getOperandList() {
-        return List.of(connectionName, connectionOptionList);
+        return List.of(name, connectionOptionList);
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparse(writer, leftPrec, rightPrec);
-        writer.keyword("SET");
-        SqlWriter.Frame withFrame = writer.startList("(", ")");
-        for (SqlNode connectionOption : connectionOptionList) {
-            SqlUnparseUtils.printIndent(writer);
-            connectionOption.unparse(writer, leftPrec, rightPrec);
-        }
-        writer.newlineAndIndent();
-        writer.endList(withFrame);
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseSetOptions(connectionOptionList, writer, leftPrec, rightPrec);
     }
 }
