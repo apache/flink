@@ -54,13 +54,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 
 import static org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
 /** Integration test for performing rescale of unaligned checkpoint. */
@@ -619,8 +619,10 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                         .setExpectedFailures(1)
                         .setSourceSleepMs(sourceSleepMs);
         prescaleSettings.setGenerateCheckpoint(true);
-        final File checkpointDir = super.execute(prescaleSettings);
-
+        final String checkpointDir = super.execute(prescaleSettings);
+        assertThat(checkpointDir)
+                .as("First job must generate a checkpoint for rescale test to be valid.")
+                .isNotNull();
         // resume
         final UnalignedSettings postscaleSettings =
                 new UnalignedSettings(topology)
