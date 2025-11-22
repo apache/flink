@@ -566,7 +566,7 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
       isLeftUnique: JBoolean,
       isRightUnique: JBoolean): JSet[ImmutableBitSet] = {
 
-    // first add the different combinations of concatenated unique keys
+    // First add the different combinations of concatenated unique keys
     // from the left and the right, adjusting the right hand side keys to
     // reflect the addition of the left hand side
     //
@@ -576,15 +576,25 @@ class FlinkRelMdUniqueKeys private extends MetadataHandler[BuiltInMetadata.Uniqu
     // an alternative way of getting unique key information.
     val retSet = new JHashSet[ImmutableBitSet]
     val nFieldsOnLeft = leftFieldsCount
-    val rightSet = if (rightUniqueKeys != null) {
+
+    // We only want to do this if the right side has unique keys AND
+    // they cannot be null. If the side of the join can generate null keys,
+    // then we can't use it in the unique key.
+    val rightSet = if (rightUniqueKeys != null && !joinRelType.generatesNullsOnRight) {
       val res = new JHashSet[ImmutableBitSet]
+      // This only collects the unique keys from the right side, offsetting
+      // the column positions appropriately.
       rightUniqueKeys.foreach {
         colMask =>
           val tmpMask = ImmutableBitSet.builder
           colMask.foreach(bit => tmpMask.set(bit + nFieldsOnLeft))
           res.add(tmpMask.build())
       }
-      if (leftUniqueKeys != null) {
+
+      // If the left side has unique keys AND the keys cannot be null,
+      // then we can combine them with the right side unique keys to form
+      // a superset of unique keys.
+      if (leftUniqueKeys != null && !joinRelType.generatesNullsOnLeft) {
         res.foreach {
           // 1) Concatenate unique keys from both sides to get a superset that is unique.
           // If left is unique on {0,1} and right on {0}, then {0,1} (after offset) remains unique,
