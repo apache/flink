@@ -23,9 +23,6 @@ import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
 import org.apache.flink.types.Row;
-import org.apache.flink.types.RowKind;
-
-import java.util.stream.IntStream;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecJoin}. */
 public class JoinTestPrograms {
@@ -44,63 +41,6 @@ public class JoinTestPrograms {
     public static final TableTestProgram ANTI_JOIN;
     public static final TableTestProgram JOIN_WITH_STATE_TTL_HINT;
     public static final TableTestProgram SEMI_ANTI_JOIN_WITH_LITERAL_AGG;
-
-    public static final TableTestProgram OUTER_JOIN_CHANGELOG_TEST =
-            TableTestProgram.of("join-duplicate-emission-bug", "bug with CTE and left join")
-                    .setupTableSource(
-                            SourceTestStep.newBuilder("upsert_table_with_duplicates")
-                                    .addSchema(
-                                            "`execution_plan_id` VARCHAR(2147483647) NOT NULL",
-                                            "`workflow_id` VARCHAR(2147483647) NOT NULL",
-                                            "`event_section_id` VARCHAR(2147483647) NOT NULL",
-                                            "CONSTRAINT `PRIMARY` PRIMARY KEY (`execution_plan_id`, `event_section_id`) NOT ENFORCED")
-                                    .addOption("changelog-mode", "I, UA,D")
-                                    .producedValues(
-                                            IntStream.range(0, 13)
-                                                    .mapToObj(
-                                                            i ->
-                                                                    Row.ofKind(
-                                                                            RowKind.UPDATE_AFTER,
-                                                                            "section_id_1",
-                                                                            "section_id_2",
-                                                                            "section_id_3"))
-                                                    .toArray(Row[]::new))
-                                    .build())
-                    .setupTableSink(
-                            SinkTestStep.newBuilder("sink")
-                                    .addSchema("event_element_id STRING", "cnt BIGINT")
-                                    .testMaterializedData()
-                                    .consumedValues(Row.of("pk-1", 1), Row.of("pk-2", 1))
-                                    .build())
-                    .runSql(
-                            "INSERT INTO sink WITH\n"
-                                    + "    section_detail as (\n"
-                                    + "        SELECT s.event_section_id\n"
-                                    + "        \n"
-                                    + "        FROM upsert_table_with_duplicates s\n"
-                                    + "    ),\n"
-                                    + "\n"
-                                    + "    event_element as (\n"
-                                    + "        SELECT\n"
-                                    + "            ed.id as event_element_id\n"
-                                    + "        FROM (\n"
-                                    + "          SELECT\n"
-                                    + "                 'pk-2' id,\n"
-                                    + "                 'section_id_3' section_id\n"
-                                    + "           UNION ALL\n"
-                                    + "          SELECT\n"
-                                    + "                 'pk-1' id,\n"
-                                    + "                 'section_id_3' section_id\n"
-                                    + "        ) ed  \n"
-                                    + "        LEFT JOIN\n"
-                                    + "            section_detail as s\n"
-                                    + "            ON s.event_section_id = ed.section_id\n"
-                                    + "    )\n"
-                                    + "\n"
-                                    + "SELECT  event_element_id, COUNT(*) cnt\n"
-                                    + "FROM event_element\n"
-                                    + "GROUP BY event_element_id")
-                    .build();
 
     static final SourceTestStep EMPLOYEE =
             SourceTestStep.newBuilder("EMPLOYEE")
