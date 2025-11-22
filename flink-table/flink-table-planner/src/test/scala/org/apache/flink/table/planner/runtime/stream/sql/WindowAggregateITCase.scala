@@ -905,7 +905,7 @@ class WindowAggregateITCase(
         |GROUP BY c, window_start, window_end
       """.stripMargin
     val sink = new TestingAppendSink
-    tEnv.sqlQuery(sqlQuery).toAppendStream[Row].addSink(sink)
+    tEnv.sqlQuery(sqlQuery).toDataStream.addSink(sink)
     env.execute()
 
     val expected = Seq(
