@@ -16,46 +16,45 @@
  * limitations under the License.
  */
 
-package org.apache.flink.sql.parser.ddl;
+package org.apache.flink.sql.parser.dql;
 
+import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
-import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-/**
- * {@link SqlNode} to describe the DROP MODEL [IF EXISTS] [[catalogName.] dataBasesName].modelName
- * syntax.
- */
-public class SqlDropModel extends SqlDropObject {
-    private static final SqlOperator OPERATOR =
-            new SqlSpecialOperator("DROP MODEL", SqlKind.OTHER_DDL);
+/** {@link SqlNode} to describe the SHOW CONNECTIONS syntax. */
+public class SqlShowConnections extends SqlShowCall {
 
-    private final boolean isTemporary;
+    public static final SqlSpecialOperator OPERATOR =
+            new SqlSpecialOperator("SHOW CONNECTIONS", SqlKind.OTHER);
 
-    public SqlDropModel(
-            SqlParserPos pos, SqlIdentifier modelName, boolean ifExists, boolean isTemporary) {
-        super(OPERATOR, pos, modelName, ifExists);
-        this.isTemporary = isTemporary;
-    }
-
-    public boolean isTemporary() {
-        return isTemporary;
+    public SqlShowConnections(
+            SqlParserPos pos,
+            String preposition,
+            SqlIdentifier databaseName,
+            boolean notLike,
+            SqlCharStringLiteral likeLiteral) {
+        // only LIKE currently supported for SHOW CONNECTIONS
+        super(
+                pos,
+                preposition,
+                databaseName,
+                likeLiteral == null ? null : "LIKE",
+                likeLiteral,
+                notLike);
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("DROP");
-        if (isTemporary) {
-            writer.keyword("TEMPORARY");
-        }
-        writer.keyword("MODEL");
-        if (ifExists) {
-            writer.keyword("IF EXISTS");
-        }
-        name.unparse(writer, leftPrec, rightPrec);
+    public SqlOperator getOperator() {
+        return OPERATOR;
+    }
+
+    @Override
+    String getOperationName() {
+        return "SHOW CONNECTIONS";
     }
 }
