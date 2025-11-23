@@ -36,6 +36,13 @@ import org.apache.flink.table.types.logical.LogicalType
  *   None if the expression is not literal. Otherwise it represent the original object of the
  *   literal.
  */
+
+/**
+ * resultTerm: 表示当前结果的 变量名
+ * nullTerm: 表示当前结果是否为null的 变量名
+ * code: 生成结果的代码
+ * resultType: 结果的数据类型
+ */
 case class GeneratedExpression(
     resultTerm: String,
     nullTerm: String,

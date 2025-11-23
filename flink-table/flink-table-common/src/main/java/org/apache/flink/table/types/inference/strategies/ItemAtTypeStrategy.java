@@ -20,6 +20,7 @@ package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
@@ -41,19 +42,25 @@ public final class ItemAtTypeStrategy implements TypeStrategy {
     @Override
     public Optional<DataType> inferType(CallContext callContext) {
 
-        DataType arrayOrMapType = callContext.getArgumentDataTypes().get(0);
+        DataType arrayOrMapOrVariantType = callContext.getArgumentDataTypes().get(0);
         final Optional<DataType> legacyArrayElement =
-                StrategyUtils.extractLegacyArrayElement(arrayOrMapType);
+                StrategyUtils.extractLegacyArrayElement(arrayOrMapOrVariantType);
 
         if (legacyArrayElement.isPresent()) {
             return legacyArrayElement;
         }
 
-        if (arrayOrMapType.getLogicalType().is(LogicalTypeRoot.ARRAY)) {
-            return Optional.of(
-                    ((CollectionDataType) arrayOrMapType).getElementDataType().nullable());
-        } else if (arrayOrMapType instanceof KeyValueDataType) {
-            return Optional.of(((KeyValueDataType) arrayOrMapType).getValueDataType().nullable());
+        if (arrayOrMapOrVariantType.getLogicalType().is(LogicalTypeRoot.ARRAY)) {
+            return Optional.of(((CollectionDataType) arrayOrMapOrVariantType)
+                    .getElementDataType()
+                    .nullable());
+        } else if (arrayOrMapOrVariantType instanceof KeyValueDataType) {
+            return Optional.of(((KeyValueDataType) arrayOrMapOrVariantType)
+                    .getValueDataType()
+                    .nullable());
+        } else if (arrayOrMapOrVariantType.getLogicalType().is(LogicalTypeRoot.VARIANT)) {
+            return Optional.of(((AtomicDataType) arrayOrMapOrVariantType)
+                    .nullable());
         }
 
         return Optional.empty();

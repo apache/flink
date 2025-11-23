@@ -29,6 +29,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.MapType;
+import org.apache.flink.table.types.logical.VariantType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 
 import java.util.List;
@@ -48,8 +49,10 @@ public final class ItemAtIndexArgumentTypeStrategy implements ArgumentTypeStrate
     @Override
     public Optional<DataType> inferArgumentType(
             CallContext callContext, int argumentPos, boolean throwOnFailure) {
-        final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes();
+        final List<DataType> argumentDataTypes = callContext.getArgumentDataTypes(); // 这个逐个参数的类型
+        // 第一个参数的logical类型,也就是区分map还是array，还是Variant
         final LogicalType collectionType = argumentDataTypes.get(0).getLogicalType();
+        // 第二个参数 下标 key 或者 （下标或者key）
         final DataType indexType = argumentDataTypes.get(1);
 
         if (collectionType.is(LogicalTypeRoot.ARRAY)) {
@@ -86,12 +89,34 @@ public final class ItemAtIndexArgumentTypeStrategy implements ArgumentTypeStrate
             }
         }
 
+        if(collectionType.is(LogicalTypeRoot.VARIANT)) {
+            if (indexType.getLogicalType().is(LogicalTypeFamily.INTEGER_NUMERIC)) {
+
+                if (callContext.isArgumentLiteral(1)) {
+                    Optional<Integer> literalVal = callContext.getArgumentValue(1, Integer.class);
+                    if (literalVal.isPresent() && literalVal.get() <= 0) {
+                        return callContext.fail(
+                                throwOnFailure,
+                                "The provided index must be a valid SQL index starting from 1, but was '%s'",
+                                literalVal.get());
+                    }
+                }
+
+                return Optional.of(indexType);
+            } else if (indexType.getLogicalType().is(LogicalTypeFamily.CHARACTER_STRING)) {
+                return Optional.of(indexType);
+            } else {
+                return callContext.fail(
+                        throwOnFailure, "Variant can be indexed only using an INTEGER NUMERIC or CHAR type.");
+            }
+        }
+
         return Optional.empty();
     }
 
     @Override
     public Signature.Argument getExpectedArgument(
             FunctionDefinition functionDefinition, int argumentPos) {
-        return Signature.Argument.of("[<INTEGER NUMERIC> | <MAP_KEY_TYPE>]");
+        return Signature.Argument.of("[<INTEGER NUMERIC> | <MAP_KEY_TYPE> | <CHARACTER STRING>]");
     }
 }
