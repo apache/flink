@@ -261,12 +261,12 @@ public class PythonOptions {
                                     + "Note that currently it still doesn't support to execute Python user-defined functions in `thread` mode in all places. "
                                     + "It will fall back to `process` mode in these cases.");
 
-    public static final ConfigOption<String> PYTHON_DEFAULT_LOGGING_LEVEL =
-            ConfigOptions.key("python.default.logging.level")
+    public static final ConfigOption<String> PYTHON_LOGGING_DEFAULT_LEVEL =
+            ConfigOptions.key("python.logging.default.level")
                     .stringType()
                     .defaultValue("INFO")
                     .withDescription(
-                            "Controls the default log level of python loggers without a log level override.");
+                            "Controls the default log level of python loggers, available values: OFF, ERROR, WARN, INFO, DEBUG, TRACE.");
 
     public static final ConfigOption<Map<String, String>> PYTHON_LOGGING_LEVEL_OVERRIDE =
             ConfigOptions.key("python.logging.level.overrides")

@@ -188,11 +188,12 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
             if fn_log_handler:
                 fn_log_handler.close()
 
-    def _get_log_level_from_options_dict(self, config) -> int:
+    @staticmethod
+    def _get_log_level_from_options_dict(config) -> int:
         """Get log level from options dict's entry `default_sdk_harness_log_level`.
         If not specified, default log level is logging.INFO.
         """
-        dict_level = config.get_string('python.default.logging.level', 'INFO')
+        dict_level = config.get_string('python.logging.default.level', 'INFO')
         log_level = dict_level
         if log_level.isdecimal():
             log_level = int(log_level)
@@ -206,7 +207,8 @@ class BeamFnLoopbackWorkerPoolServicer(beam_fn_api_pb2_grpc.BeamFnExternalWorker
 
         return log_level
 
-    def _set_log_level_overrides(self, config) -> None:
+    @staticmethod
+    def _set_log_level_overrides(config) -> None:
         """Set module log level overrides from options dict's entry
         `sdk_harness_log_level_overrides`.
         """

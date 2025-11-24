@@ -1317,7 +1317,7 @@ class CommonDataStreamTests(PyFlinkTestCase):
         super(CommonDataStreamTests, self).setUp()
         self.env = StreamExecutionEnvironment.get_execution_environment(Configuration.from_dict(
             {
-                'python.default.logging.level': 'DEBUG',
+                'python.logging.default.level': 'DEBUG',
                 'python.logging.level.overrides': f'{__name__}: INFO'
             }))
         self.env.set_parallelism(2)

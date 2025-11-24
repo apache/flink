@@ -104,7 +104,7 @@ import static org.apache.flink.python.Constants.TIMER_CODER_ID;
 import static org.apache.flink.python.Constants.WINDOW_CODER_ID;
 import static org.apache.flink.python.Constants.WINDOW_STRATEGY;
 import static org.apache.flink.python.Constants.WRAPPER_TIMER_CODER_ID;
-import static org.apache.flink.python.PythonOptions.PYTHON_DEFAULT_LOGGING_LEVEL;
+import static org.apache.flink.python.PythonOptions.PYTHON_LOGGING_DEFAULT_LEVEL;
 import static org.apache.flink.python.PythonOptions.PYTHON_LOGGING_LEVEL_OVERRIDE;
 import static org.apache.flink.python.PythonOptions.USE_MANAGED_MEMORY;
 import static org.apache.flink.python.util.ProtoUtils.createCoderProto;
@@ -273,7 +273,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 .as(SdkHarnessOptions.class)
                 .setDefaultSdkHarnessLogLevel(
                         SdkHarnessOptions.LogLevel.valueOf(
-                                config.get(PYTHON_DEFAULT_LOGGING_LEVEL)));
+                                config.get(PYTHON_LOGGING_DEFAULT_LEVEL)));
         if (config.getOptional(PYTHON_LOGGING_LEVEL_OVERRIDE).isPresent()) {
             SdkHarnessOptions.SdkHarnessLogLevelOverrides loggingOptions =
                     SdkHarnessOptions.SdkHarnessLogLevelOverrides.from(
