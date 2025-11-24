@@ -823,9 +823,17 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 1234,
                                 -100,
                                 DecimalDataUtils.castFrom(-Double.MAX_VALUE, 38, 18),
-                                100.01)
+                                100.01,
+                                "unparsable",
+                                null)
                         .andDataTypes(
-                                DOUBLE(), BIGINT(), BIGINT(), DataTypes.DECIMAL(38, 18), FLOAT())
+                                DOUBLE(),
+                                BIGINT(),
+                                BIGINT(),
+                                DataTypes.DECIMAL(38, 18),
+                                FLOAT(),
+                                STRING(),
+                                STRING().nullable())
                         .testResult(
                                 toTimestampLtz($("f0")),
                                 "TO_TIMESTAMP_LTZ(f0)",
@@ -941,18 +949,33 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 toTimestampLtz(
                                         "01/01/2023 08:00:00",
                                         literal("yyyy-MM-dd HH:mm:ss"),
-                                        literal("un-parsable timezone")),
-                                "TO_TIMESTAMP_LTZ('01/01/2023 08:00:00', 'yyyy-MM-dd HH:mm:ss', 'un-parsable timezone')",
+                                        $("f5")),
+                                "TO_TIMESTAMP_LTZ('01/01/2023 08:00:00', 'yyyy-MM-dd HH:mm:ss', f5)",
                                 null,
                                 TIMESTAMP_LTZ(3).nullable())
+                        .testSqlValidationError(
+                                "TO_TIMESTAMP_LTZ('01/01/2023 08:00:00', 'yyyy-MM-dd HH:mm:ss', 'un-parsable timezone')",
+                                "Invalid timezone for parsing TIMESTAMP_LTZ: Invalid ID for region-based ZoneId, invalid format: un-parsable timezone")
+                        .testTableApiValidationError(
+                                toTimestampLtz(
+                                        "01/01/2023 08:00:00",
+                                        literal("yyyy-MM-dd HH:mm:ss"),
+                                        literal("un-parsable timezone")),
+                                "Invalid timezone for parsing TIMESTAMP_LTZ: Invalid ID for region-based ZoneId, invalid format: un-parsable timezone")
                         .testResult(
+                                toTimestampLtz("01/01/2023 08:00:00", $("f5"), literal("UTC")),
+                                "TO_TIMESTAMP_LTZ('01/01/2023 08:00:00', f5, 'UTC')",
+                                null,
+                                TIMESTAMP_LTZ(3).nullable())
+                        .testTableApiValidationError(
                                 toTimestampLtz(
                                         "01/01/2023 08:00:00",
                                         literal("un-parsable format"),
                                         literal("UTC")),
+                                "Invalid pattern for parsing TIMESTAMP_LTZ: Unknown pattern letter: r")
+                        .testSqlValidationError(
                                 "TO_TIMESTAMP_LTZ('01/01/2023 08:00:00', 'un-parsable format', 'UTC')",
-                                null,
-                                TIMESTAMP_LTZ(3).nullable())
+                                "Invalid pattern for parsing TIMESTAMP_LTZ: Unknown pattern letter: r")
                         .testResult(
                                 toTimestampLtz(
                                         "un-parsable timestamp",
@@ -982,25 +1005,38 @@ class TimeFunctionsITCase extends BuiltInFunctionTestBase {
                                 null,
                                 TIMESTAMP_LTZ(3).nullable())
                         .testResult(
-                                toTimestampLtz("1970-01-01 00:00:00.12345", null),
-                                "TO_TIMESTAMP_LTZ('1970-01-01 00:00:00.12345', NULL)",
+                                toTimestampLtz("1970-01-01 00:00:00.12345", $("f6")),
+                                "TO_TIMESTAMP_LTZ('1970-01-01 00:00:00.12345', f6)",
                                 null,
                                 TIMESTAMP_LTZ(3).nullable())
+                        .testTableApiValidationError(
+                                toTimestampLtz("1970-01-01 00:00:00.12345", null),
+                                "Pattern can not be a null literal")
                         .testResult(
                                 toTimestampLtz(null, "dd/MM/yyyy HH:mm:ss", "America/Los_Angeles"),
                                 "TO_TIMESTAMP_LTZ(NULL, 'dd/MM/yyyy HH:mm:ss', 'America/Los_Angeles')",
                                 null,
                                 TIMESTAMP_LTZ(3).nullable())
                         .testResult(
-                                toTimestampLtz("2023-01-01 00:00:00", null, "America/Los_Angeles"),
-                                "TO_TIMESTAMP_LTZ('2023-01-01 00:00:00', NULL, 'America/Los_Angeles')",
+                                toTimestampLtz(
+                                        "2023-01-01 00:00:00", $("f6"), "America/Los_Angeles"),
+                                "TO_TIMESTAMP_LTZ('2023-01-01 00:00:00', f6, 'America/Los_Angeles')",
                                 null,
                                 TIMESTAMP_LTZ(3).nullable())
+                        .testTableApiValidationError(
+                                toTimestampLtz(
+                                        "1970-01-01 00:00:00.12345", null, "America/Los_Angeles"),
+                                "Pattern can not be a null literal")
                         .testResult(
-                                toTimestampLtz("2023-01-01 00:00:00", "dd/MM/yyyy HH:mm:ss", null),
-                                "TO_TIMESTAMP_LTZ('2023-01-01 00:00:00', 'dd/MM/yyyy HH:mm:ss', NULL)",
+                                toTimestampLtz(
+                                        "2023-01-01 00:00:00", "dd/MM/yyyy HH:mm:ss", $("f6")),
+                                "TO_TIMESTAMP_LTZ('2023-01-01 00:00:00', 'dd/MM/yyyy HH:mm:ss', f6)",
                                 null,
                                 TIMESTAMP_LTZ(3).nullable())
+                        .testTableApiValidationError(
+                                toTimestampLtz(
+                                        "1970-01-01 00:00:00.12345", "dd/MM/yyyy HH:mm:ss", null),
+                                "Timezone can not be a null literal")
                         .testResult(
                                 toTimestampLtz(null),
                                 "TO_TIMESTAMP_LTZ(NULL)",
