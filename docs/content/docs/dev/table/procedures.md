@@ -32,7 +32,7 @@ Flink Table API & SQL empowers users to perform data manipulation and administra
 ## Implementation Guide
 
 To call a procedure, it must be available in a catalog. To provide procedures in a catalog, you need to implement the procedure and then return it using the `Catalog.getProcedure(ObjectPath procedurePath)` method.
-The following steps will guild you on how to implement and provide a procedure in a catalog.
+The following steps will guide you on how to implement and provide a procedure in a catalog.
 
 ### Procedure Class
 
