@@ -1820,10 +1820,9 @@ SqlNode SqlReplaceTable() :
         }
         <RPAREN>
     ]
-    [ <COMMENT> <QUOTED_STRING> {
-        String p = SqlParserUtil.parseString(token.image);
-        comment = SqlLiteral.createCharString(p, getPos());
-    }]
+    [ <COMMENT> <QUOTED_STRING>
+        { comment = Comment(); }
+    ]
     [
         <DISTRIBUTED>
         distribution = SqlDistribution(getPos())
