@@ -31,6 +31,8 @@
     "org.apache.flink.sql.parser.ddl.resource.SqlResource"
     "org.apache.flink.sql.parser.ddl.resource.SqlResourceType"
     "org.apache.flink.sql.parser.ddl.SqlAddJar"
+    "org.apache.flink.sql.parser.ddl.SqlAlterDistribution.SqlAddDistribution"
+    "org.apache.flink.sql.parser.ddl.SqlAlterDistribution.SqlModifyDistribution"
     "org.apache.flink.sql.parser.ddl.SqlAddPartitions"
     "org.apache.flink.sql.parser.ddl.SqlAddPartitions.AlterTableAddPartitionContext"
     "org.apache.flink.sql.parser.ddl.SqlAlterCatalog"

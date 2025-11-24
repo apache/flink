@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.operations.converters.table;
 
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
-import org.apache.flink.sql.parser.ddl.SqlAlterTableSchema;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -36,12 +35,10 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 import org.apache.flink.table.operations.utils.ValidationUtils;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import org.apache.calcite.sql.SqlIdentifier;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 /** Abstract class for ALTER TABLE converters. */
@@ -51,27 +48,6 @@ public abstract class AbstractAlterTableConverter<T extends SqlAlterTable>
 
     protected abstract Operation convertToOperation(
             T sqlAlterTable, ResolvedCatalogTable oldTable, ConvertContext context);
-
-    protected final Schema getOldSchema(ResolvedCatalogTable resolvedCatalogTable) {
-        return resolvedCatalogTable.getUnresolvedSchema();
-    }
-
-    protected final TableDistribution getOldTableDistribution(
-            ResolvedCatalogTable resolvedCatalogTable) {
-        return resolvedCatalogTable.getDistribution().orElse(null);
-    }
-
-    protected final List<String> getOldPartitionKeys(ResolvedCatalogTable resolvedCatalogTable) {
-        return resolvedCatalogTable.getPartitionKeys();
-    }
-
-    protected final String getOldComment(ResolvedCatalogTable resolvedCatalogTable) {
-        return resolvedCatalogTable.getComment();
-    }
-
-    protected final Map<String, String> getOldOptions(ResolvedCatalogTable resolvedCatalogTable) {
-        return resolvedCatalogTable.getOptions();
-    }
 
     @Override
     public final Operation convertSqlNode(T sqlAlterTable, ConvertContext context) {
@@ -140,15 +116,6 @@ public abstract class AbstractAlterTableConverter<T extends SqlAlterTable>
 
     protected TableDistribution getTableDistribution(
             SqlAlterTable alterTable, ResolvedCatalogTable oldTable) {
-        if (alterTable instanceof SqlAlterTableSchema) {
-            final Optional<TableDistribution> tableDistribution =
-                    ((SqlAlterTableSchema) alterTable)
-                            .getDistribution()
-                            .map(OperationConverterUtils::getDistributionFromSqlDistribution);
-            if (tableDistribution.isPresent()) {
-                return tableDistribution.get();
-            }
-        }
         return oldTable.getDistribution().orElse(null);
     }
 }

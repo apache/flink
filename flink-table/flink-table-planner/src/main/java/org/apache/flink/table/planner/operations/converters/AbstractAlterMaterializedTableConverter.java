@@ -37,7 +37,7 @@ import static org.apache.flink.table.catalog.CatalogBaseTable.TableKind.MATERIAL
 public abstract class AbstractAlterMaterializedTableConverter<T extends SqlNode>
         implements SqlNodeConverter<T> {
 
-    protected ObjectIdentifier resolveIdentifier(
+    protected ObjectIdentifier getIdentifier(
             SqlAlterMaterializedTable sqlAlterMaterializedTable, ConvertContext context) {
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlAlterMaterializedTable.getFullName());
