@@ -923,6 +923,10 @@ SqlAlterTable SqlAlterTable() :
             }
         |
         (
+            <DISTRIBUTION>
+            ctx.distribution = SqlDistribution(getPos())
+            {return new SqlAddDistribution(getPos(), tableIdentifier, ctx.distribution);}
+        |
             AlterTableAddOrModify(ctx)
         |
             <LPAREN>
@@ -939,13 +943,16 @@ SqlAlterTable SqlAlterTable() :
                         new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
                         ctx.constraints,
                         ctx.watermark,
-                        ctx.distribution,
                         ifExists);
         }
         )
     |
         <MODIFY>
         (
+            <DISTRIBUTION>
+            ctx.distribution = SqlDistribution(getPos())
+            {return new SqlModifyDistribution(getPos(), tableIdentifier, ctx.distribution);}
+        |
             AlterTableAddOrModify(ctx)
         |
             <LPAREN>
@@ -962,10 +969,8 @@ SqlAlterTable SqlAlterTable() :
                         new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
                         ctx.constraints,
                         ctx.watermark,
-                        ctx.distribution,
                         ifExists);
         }
-
     |
      <DROP>
         (
@@ -1254,9 +1259,6 @@ void AlterTableAddOrModify(AlterTableContext context) :
         }
     |
         Watermark(context)
-    |
-        <DISTRIBUTION>
-        context.distribution = SqlDistribution(getPos())
     )
 }
 

@@ -22,7 +22,6 @@ import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import javax.annotation.Nullable;
@@ -56,16 +55,12 @@ public class SqlAlterTableAdd extends SqlAlterTableSchema {
             SqlNodeList addedColumns,
             List<SqlTableConstraint> constraint,
             @Nullable SqlWatermark sqlWatermark,
-            @Nullable SqlDistribution distribution,
             boolean ifTableExists) {
-        super(pos, tableName, addedColumns, constraint, sqlWatermark, distribution, ifTableExists);
+        super(pos, tableName, addedColumns, constraint, sqlWatermark, ifTableExists);
     }
 
     @Override
-    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparseAlterOperation(writer, leftPrec, rightPrec);
-        writer.keyword("ADD");
-        // unparse table schema and distribution
-        unparseSchemaAndDistribution(writer, leftPrec, rightPrec);
+    protected String getAlterOperation() {
+        return "ADD";
     }
 }

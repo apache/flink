@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableAddDistributionConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableAddPartitionConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropColumnConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropConstraintConverter;
@@ -29,6 +30,7 @@ import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableD
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropPartitionConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropPrimaryKeyConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropWatermarkConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableModifyDistributionConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableOptionsConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableRenameColumnConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableRenameConverter;
@@ -106,6 +108,8 @@ public class SqlNodeConverters {
         register(new SqlAlterTableDropConstraintConverter());
         register(new SqlAlterTableDropWatermarkConverter());
         register(new SqlAlterTableDropDistributionConverter());
+        register(new SqlAlterTableAddDistributionConverter());
+        register(new SqlAlterTableModifyDistributionConverter());
         register(new SqlAlterTableRenameColumnConverter());
         register(new SqlAlterTableResetConverter());
         register(new SqlAlterTableOptionsConverter());

@@ -18,44 +18,50 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
+import org.apache.flink.sql.parser.ddl.SqlAlterDistribution;
+import org.apache.flink.sql.parser.ddl.SqlAlterDistribution.SqlAddDistribution;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
-import org.apache.flink.sql.parser.ddl.SqlAlterTableDropDistribution;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import java.util.List;
+import java.util.Optional;
 
-/** Convert ALTER TABLE DROP DISTRIBUTION statement. */
-public class SqlAlterTableDropDistributionConverter
-        extends AbstractAlterTableConverter<SqlAlterTableDropDistribution> {
+/** A converter for {@link SqlAlterDistribution} for ADD call. */
+public class SqlAlterTableAddDistributionConverter
+        extends AbstractAlterTableConverter<SqlAddDistribution> {
+
     @Override
     protected Operation convertToOperation(
-            SqlAlterTableDropDistribution sqlAlterTable,
-            ResolvedCatalogTable resolvedCatalogTable,
+            SqlAddDistribution sqlAddDistribution,
+            ResolvedCatalogTable oldTable,
             ConvertContext context) {
-        final ObjectIdentifier tableIdentifier = resolveIdentifier(sqlAlterTable, context);
-        if (resolvedCatalogTable.getDistribution().isEmpty()) {
-            throw new ValidationException(
-                    String.format(
-                            "Table %s does not have a distribution to drop.", tableIdentifier));
-        }
-
-        List<TableChange> tableChanges = List.of(TableChange.dropDistribution());
         return buildAlterTableChangeOperation(
-                sqlAlterTable,
-                tableChanges,
-                resolvedCatalogTable.getUnresolvedSchema(),
-                resolvedCatalogTable,
+                sqlAddDistribution,
+                List.of(
+                        TableChange.add(
+                                OperationConverterUtils.getDistributionFromSqlDistribution(
+                                        sqlAddDistribution.getDistribution()))),
+                oldTable.getUnresolvedSchema(),
+                oldTable,
                 context.getCatalogManager());
     }
 
-    @Override
     protected TableDistribution getTableDistribution(
             SqlAlterTable alterTable, ResolvedCatalogTable oldTable) {
-        return null;
+        Optional<TableDistribution> oldDistribution = oldTable.getDistribution();
+        if (oldDistribution.isPresent()) {
+            throw new ValidationException(
+                    String.format(
+                            "%sThe base table has already defined the distribution `%s`. "
+                                    + "You can modify it or drop it before adding a new one.",
+                            EX_MSG_PREFIX, oldDistribution.get()));
+        }
+        return OperationConverterUtils.getDistributionFromSqlDistribution(
+                ((SqlAlterDistribution) alterTable).getDistribution());
     }
 }

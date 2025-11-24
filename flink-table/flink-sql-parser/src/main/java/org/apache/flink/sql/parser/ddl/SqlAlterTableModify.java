@@ -22,7 +22,6 @@ import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNodeList;
-import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import javax.annotation.Nullable;
@@ -56,16 +55,12 @@ public class SqlAlterTableModify extends SqlAlterTableSchema {
             SqlNodeList modifiedColumns,
             List<SqlTableConstraint> constraints,
             @Nullable SqlWatermark watermark,
-            @Nullable SqlDistribution distribution,
             boolean ifTableExists) {
-        super(pos, tableName, modifiedColumns, constraints, watermark, distribution, ifTableExists);
+        super(pos, tableName, modifiedColumns, constraints, watermark, ifTableExists);
     }
 
     @Override
-    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
-        super.unparseAlterOperation(writer, leftPrec, rightPrec);
-        writer.keyword("MODIFY");
-        // unparse table schema and distribution
-        unparseSchemaAndDistribution(writer, leftPrec, rightPrec);
+    protected String getAlterOperation() {
+        return "MODIFY";
     }
 }
