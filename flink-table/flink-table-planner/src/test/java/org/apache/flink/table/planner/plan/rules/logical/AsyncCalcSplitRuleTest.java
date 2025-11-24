@@ -90,7 +90,6 @@ public class AsyncCalcSplitRuleTest extends TableTestBase {
     @Test
     public void testSingleCall() {
         String sqlQuery = "SELECT func1(a) FROM MyTable";
-        util.getTableEnv().explainSql(sqlQuery);
         util.verifyRelPlan(sqlQuery);
     }
 
