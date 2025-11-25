@@ -100,6 +100,18 @@ Slot 资源准备就绪后：
 
 - `taskmanager.load-balance.mode`: `tasks`
 
+<span class="label label-info">注意</span> 在故障切换场景中，
+当资源被释放并处理资源请求时，资源视图的延迟更新可能导致分配结果未达到最优平衡。
+在这种情况下，可通过适当增大
+[`slot.request.max-interval`]({{< ref "docs/deployment/config" >}}#slot-request-max-interval) 的数值来改善此问题。
+例如，每次可尝试以 `50` 毫秒为增量进行调整。
+提高该数值将使作业调度期间的槽位请求与可用资源视图更加稳定，从而使任务能够尽可能均衡分配。
+但相应地，这会延长任务调度阶段的整体时长。
+因此，增大此配置值也会增加 [`slot.request.timeout`]({{< ref "docs/deployment/config" >}}#slot-request-timeout) 参数超时的风险。
+值得强调的是，若在充分提高该选项数值后，仍出现非最优的任务均衡现象，
+可在 <a href="https://issues.apache.org/jira/browse/FLINK-38715">FLINK-38715</a> 中报告此问题，
+报告中应包含调度相关配置的说明及观察到的具体现象描述。
+
 <a name="more-details"></a>
 
 ## 更多详情

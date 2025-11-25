@@ -116,6 +116,22 @@ You can enable balanced tasks scheduling through the following configuration ite
 
 - `taskmanager.load-balance.mode`: `tasks`
 
+<span class="label label-info">Note</span> During failover scenarios,
+when resources are released and resource requests are processed,
+the delayed updates in the resource view may lead to allocation results that are not optimally balanced.
+In such cases, you can improve the situation by appropriately increasing the value of
+[`slot.request.max-interval`]({{< ref "docs/deployment/config" >}}#slot-request-max-interval).
+For example, you can try increasing it by `50` milliseconds each time for adjustment.
+Raising this value will make the slot requests and available resource view more stable during job scheduling,
+allowing tasks to be allocated as balanced as possible.
+However, this will correspondingly extend the overall duration of the task scheduling phase.
+Therefore, increasing this configuration value will also raise the risk of 
+[`slot.request.timeout`]({{< ref "docs/deployment/config" >}}#slot-request-timeout) parameter timeouts.
+It must be emphasized that if non-best task balancing still occurs after the value of
+option has been sufficiently increased, you may report it in
+<a href="https://issues.apache.org/jira/browse/FLINK-38715">FLINK-38715</a>,
+which should include descriptions of scheduling-related configurations and the observed phenomena.
+
 ## More details
 
 See the <a href="https://cwiki.apache.org/confluence/x/U56zDw">FLIP-370</a> for more details.
