@@ -272,6 +272,133 @@ public class MultiJoinTest extends TableTestBase {
     }
 
     @Test
+    void testThreeWayJoinWithMultiJoinHint() {
+        // Disable config so the MultiJoin is enabled by hints
+        util.getTableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, false);
+
+        util.verifyRelPlan(
+                "SELECT /*+ MULTI_JOIN(u, o, p) */u.user_id, u.name, o.order_id, p.payment_id "
+                        + "FROM Users u "
+                        + "INNER JOIN Orders o ON u.user_id = o.user_id "
+                        + "LEFT JOIN Payments p ON u.user_id = p.user_id");
+    }
+
+    @Test
+    void testMultiJoinHintCombinedWithStateTtlHint() {
+        util.getTableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, false);
+
+        util.verifyRelPlan(
+                "SELECT /*+ MULTI_JOIN(u, o, p), STATE_TTL(u='1d', o='2d', p='1h') */u.user_id, u.name, o.order_id, p.payment_id "
+                        + "FROM Users u "
+                        + "INNER JOIN Orders o ON u.user_id = o.user_id "
+                        + "INNER JOIN Payments p ON u.user_id = p.user_id");
+    }
+
+    @Test
+    void testMultiJoinPartialHintCombinedWithStateTtlHint() {
+        util.getTableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, false);
+
+        util.verifyRelPlan(
+                "SELECT /*+ MULTI_JOIN(u, o), STATE_TTL(u='1d', o='2d', p='1h') */u.user_id, u.name, o.order_id, p.payment_id "
+                        + "FROM Users u "
+                        + "INNER JOIN Orders o ON u.user_id = o.user_id "
+                        + "INNER JOIN Payments p ON u.user_id = p.user_id");
+    }
+
+    @Test
+    void testMultiJoinHintWithTableNames() {
+        util.getTableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, false);
+
+        util.verifyRelPlan(
+                "SELECT /*+ MULTI_JOIN(Users, Orders, Payments) */Users.user_id, Users.name, Orders.order_id, Payments.payment_id "
+                        + "FROM Users "
+                        + "INNER JOIN Orders ON Users.user_id = Orders.user_id "
+                        + "INNER JOIN Payments ON Users.user_id = Payments.user_id");
+    }
+
+    @Test
+    void testMultiJoinHintPartialMatch() {
+        // First join (u, o) should become MultiJoin with hint
+        // When the result joins with s, that's not in the hint so regular join should be used
+        util.getTableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, false);
+
+        util.verifyRelPlan(
+                "SELECT /*+ MULTI_JOIN(u, o) */u.user_id, u.name, o.order_id, s.location "
+                        + "FROM Users u "
+                        + "INNER JOIN Orders o ON u.user_id = o.user_id "
+                        + "INNER JOIN Shipments s ON u.user_id = s.user_id");
+    }
+
+    @Test
+    void testMultiJoinHintWithMixedNamesAndAliases() {
+        // Hint uses table name for Users, but aliases for others - matching should work
+        util.getTableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, false);
+
+        util.verifyRelPlan(
+                "SELECT /*+ MULTI_JOIN(Users, o, p) */ Users.user_id, Users.name, o.order_id, p.payment_id "
+                        + "FROM Users "
+                        + "INNER JOIN Orders o ON Users.user_id = o.user_id "
+                        + "INNER JOIN Payments p ON Users.user_id = p.user_id");
+    }
+
+    @Test
+    void testChainedMultiJoinHints() {
+        // Tests two separate MULTI_JOIN hints in the same query
+        // Inner subquery has MULTI_JOIN(o, p, s) and outer query joins with Users
+        // This verifies that multiple MULTI_JOIN hints can be used at different query levels
+        util.getTableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, false);
+
+        util.verifyRelPlan(
+                "SELECT /*+ MULTI_JOIN(u, subq) */ u.user_id, u.name, subq.order_id, subq.payment_id, subq.location "
+                        + "FROM Users u "
+                        + "INNER JOIN ("
+                        + "  SELECT /*+ MULTI_JOIN(o, p, s) */ o.order_id, o.user_id u1, p.payment_id, p.user_id u2, s.location, s.user_id u3"
+                        + "  FROM Orders o "
+                        + "  INNER JOIN Payments p ON o.user_id = p.user_id "
+                        + "  INNER JOIN Shipments s ON p.user_id = s.user_id"
+                        + ") subq ON u.user_id = subq.u1");
+    }
+
+    @Test
+    void testMultipleMultiJoinHintsInDifferentBranches() {
+        // Tests multiple MULTI_JOIN hints where two separate multi-joins are joined together
+        // Left side: MULTI_JOIN(u, o)
+        // Right side: MULTI_JOIN(p, s)
+        // Then these two multi-joins are joined together
+        util.getTableEnv()
+                .getConfig()
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED, false);
+
+        util.verifyRelPlan(
+                "SELECT left_side.user_id, left_side.order_id, right_side.payment_id, right_side.location "
+                        + "FROM ("
+                        + "  SELECT /*+ MULTI_JOIN(u, o) */ u.user_id, o.order_id, o.user_id ouid "
+                        + "  FROM Users u "
+                        + "  INNER JOIN Orders o ON u.user_id = o.user_id"
+                        + ") left_side "
+                        + "INNER JOIN ("
+                        + "  SELECT /*+ MULTI_JOIN(p, s) */ p.payment_id, p.user_id, s.location, s.user_id suid "
+                        + "  FROM Payments p "
+                        + "  INNER JOIN Shipments s ON p.user_id = s.user_id"
+                        + ") right_side "
+                        + "ON left_side.user_id = right_side.user_id");
+    }
+
+    @Test
     void testThreeWayLeftOuterJoinExecPlan() {
         util.verifyExecPlan(
                 "\nSELECT\n"
