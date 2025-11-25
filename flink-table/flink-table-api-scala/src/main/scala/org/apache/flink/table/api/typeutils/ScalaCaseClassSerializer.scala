@@ -91,6 +91,8 @@ object ScalaCaseClassSerializer {
       (arr: Array[AnyRef]) => constructorMethodMirror.apply(arr: _*).asInstanceOf[T]
     }.recover {
       case e =>
+        System.err.println(
+          s"[ScalaCaseClassSerializer] Falling back to Java reflection for ${cls.getName}: ${e.getMessage}")
         val constructor = cls.getConstructors()(0)
         (arr: Array[AnyRef]) => constructor.newInstance(arr: _*).asInstanceOf[T]
     }.get
