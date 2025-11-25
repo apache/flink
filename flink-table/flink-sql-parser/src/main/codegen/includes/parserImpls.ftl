@@ -857,7 +857,7 @@ SqlAlterTable SqlAlterTable() :
     SqlTableConstraint constraint;
     SqlIdentifier originColumnIdentifier;
     SqlIdentifier newColumnIdentifier;
-    AlterTableContext ctx = new AlterTableContext();
+    AlterTableSchemaContext ctx = new AlterTableSchemaContext();
     AlterTableAddPartitionContext addPartitionCtx = new AlterTableAddPartitionContext();
     AlterTableDropPartitionsContext dropPartitionsCtx = new AlterTableDropPartitionsContext();
 }
@@ -924,8 +924,7 @@ SqlAlterTable SqlAlterTable() :
         |
         (
             <DISTRIBUTION>
-            ctx.distribution = SqlDistribution(getPos())
-            {return new SqlAddDistribution(getPos(), tableIdentifier, ctx.distribution);}
+            {return new SqlAddDistribution(getPos(), tableIdentifier, SqlDistribution(getPos()));}
         |
             AlterTableAddOrModify(ctx)
         |
@@ -950,8 +949,7 @@ SqlAlterTable SqlAlterTable() :
         <MODIFY>
         (
             <DISTRIBUTION>
-            ctx.distribution = SqlDistribution(getPos())
-            {return new SqlModifyDistribution(getPos(), tableIdentifier, ctx.distribution);}
+            {return new SqlModifyDistribution(getPos(), tableIdentifier, SqlDistribution(getPos()));}
         |
             AlterTableAddOrModify(ctx)
         |
@@ -1062,7 +1060,7 @@ SqlNodeList PropertyKeys():
     {  return new SqlNodeList(proKeyList, span.end(this)); }
 }
 
-void TableColumn(TableCreationContext context) :
+void TableColumn(TableSchemaContext context) :
 {
     SqlTableConstraint constraint;
 }
@@ -1081,7 +1079,7 @@ void TableColumn(TableCreationContext context) :
     )
 }
 
-void Watermark(TableCreationContext context) :
+void Watermark(TableSchemaContext context) :
 {
     SqlIdentifier eventTimeColumnName;
     SqlParserPos pos;
@@ -1102,7 +1100,7 @@ void Watermark(TableCreationContext context) :
 }
 
 /** Parses {@code column_name column_data_type [...]}. */
-SqlTableColumn TypedColumn(TableCreationContext context) :
+SqlTableColumn TypedColumn(TableSchemaContext context) :
 {
     SqlTableColumn tableColumn;
     SqlIdentifier name;
@@ -1123,7 +1121,7 @@ SqlTableColumn TypedColumn(TableCreationContext context) :
 }
 
 /** Parses {@code column_name AS expr [COMMENT 'comment']}. */
-SqlTableColumn ComputedColumn(TableCreationContext context) :
+SqlTableColumn ComputedColumn(TableSchemaContext context) :
 {
     SqlIdentifier name;
     SqlParserPos pos;
@@ -1152,7 +1150,7 @@ SqlTableColumn ComputedColumn(TableCreationContext context) :
 }
 
 /** Parses {@code column_name column_data_type METADATA [FROM 'alias_name'] [VIRTUAL] [COMMENT 'comment']}. */
-SqlTableColumn MetadataColumn(TableCreationContext context, SqlIdentifier name, SqlDataTypeSpec type) :
+SqlTableColumn MetadataColumn(TableSchemaContext context, SqlIdentifier name, SqlDataTypeSpec type) :
 {
     SqlNode metadataAlias = null;
     boolean isVirtual = false;
@@ -1189,7 +1187,7 @@ SqlTableColumn MetadataColumn(TableCreationContext context, SqlIdentifier name, 
 }
 
 /** Parses {@code column_name column_data_type [constraint] [COMMENT 'comment']}. */
-SqlTableColumn RegularColumn(TableCreationContext context, SqlIdentifier name, SqlDataTypeSpec type) :
+SqlTableColumn RegularColumn(TableSchemaContext context, SqlIdentifier name, SqlDataTypeSpec type) :
 {
     SqlTableConstraint constraint = null;
     SqlCharStringLiteral comment = null;
@@ -1245,8 +1243,8 @@ void  AlterTableAddPartition(AlterTableAddPartitionContext context) :
     }
 }
 
-/** Parses {@code ALTER TABLE table_name ADD/MODIFY [...]}. */
-void AlterTableAddOrModify(AlterTableContext context) :
+/** Parses {@code ALTER [MATERIALIZED ]TABLE table_name ADD/MODIFY [...]}. */
+void AlterTableAddOrModify(AlterTableSchemaContext context) :
 {
     SqlTableConstraint constraint;
 }
@@ -1263,7 +1261,7 @@ void AlterTableAddOrModify(AlterTableContext context) :
 }
 
 /** Parses {@code ADD/MODIFY column_name column_data_type [...]}. */
-void AddOrModifyColumn(AlterTableContext context) :
+void AddOrModifyColumn(AlterTableSchemaContext context) :
 {
     SqlTableColumn column;
     SqlIdentifier referencedColumn = null;
@@ -1568,7 +1566,7 @@ SqlCreate SqlCreateTable(Span s, boolean replace, boolean isTemporary) :
 
     tableName = CompoundIdentifier()
     [
-        <LPAREN> { pos = getPos(); TableCreationContext ctx = new TableCreationContext();}
+        <LPAREN> { pos = getPos(); TableSchemaContext ctx = new TableSchemaContext();}
         TableColumnsOrIdentifiers(pos, ctx)
         {
             pos = pos.plus(getPos());
@@ -1753,9 +1751,9 @@ SqlDrop SqlDropTable(Span s, boolean replace, boolean isTemporary) :
     }
 }
 
-void TableColumnsOrIdentifiers(SqlParserPos pos, TableCreationContext ctx) :
+void TableColumnsOrIdentifiers(SqlParserPos pos, TableSchemaContext ctx) :
 {
-    final TableCreationContext tempCtx = new TableCreationContext();
+    final TableSchemaContext tempCtx = new TableSchemaContext();
     final List<SqlNode> identifiers = new ArrayList<SqlNode>();
 }
 {
@@ -1812,7 +1810,7 @@ SqlNode SqlReplaceTable() :
 
     tableName = CompoundIdentifier()
     [
-        <LPAREN> { pos = getPos(); TableCreationContext ctx = new TableCreationContext();}
+        <LPAREN> { pos = getPos(); TableSchemaContext ctx = new TableSchemaContext();}
         TableColumnsOrIdentifiers(pos, ctx)
         {
             pos = getPos();
@@ -1899,7 +1897,7 @@ SqlCreate SqlCreateOrAlterMaterializedTable(Span s, boolean replace, boolean isT
     <TABLE>
     tableName = CompoundIdentifier()
     [
-        <LPAREN> { pos = getPos(); TableCreationContext ctx = new TableCreationContext();}
+        <LPAREN> { pos = getPos(); TableSchemaContext ctx = new TableSchemaContext();}
             TableColumnsOrIdentifiers(pos, ctx) {
                 pos = pos.plus(getPos());
                 isColumnsIdentifiersOnly = ctx.isColumnsIdentifiersOnly();
@@ -2013,6 +2011,7 @@ SqlAlterMaterializedTable SqlAlterMaterializedTable() :
     SqlNodeList partSpec = SqlNodeList.EMPTY;
     SqlNode freshness = null;
     SqlNode asQuery = null;
+    AlterTableSchemaContext ctx = new AlterTableSchemaContext();
 }
 {
     <ALTER> <MATERIALIZED> <TABLE> { startPos = getPos();}
@@ -3461,7 +3460,7 @@ SqlCreate SqlCreateModel(Span s, boolean isTemporary) :
 
     modelIdentifier = CompoundIdentifier()
     [
-        <INPUT> <LPAREN> { pos = getPos(); TableCreationContext ctx = new TableCreationContext();}
+        <INPUT> <LPAREN> { pos = getPos(); TableSchemaContext ctx = new TableSchemaContext();}
         TableColumn(ctx)
         (
             <COMMA> TableColumn(ctx)
@@ -3473,7 +3472,7 @@ SqlCreate SqlCreateModel(Span s, boolean isTemporary) :
         <RPAREN>
     ]
     [
-        <OUTPUT> <LPAREN> { pos = getPos(); TableCreationContext ctx = new TableCreationContext();}
+        <OUTPUT> <LPAREN> { pos = getPos(); TableSchemaContext ctx = new TableSchemaContext();}
         TableColumn(ctx)
         (
             <COMMA> TableColumn(ctx)
