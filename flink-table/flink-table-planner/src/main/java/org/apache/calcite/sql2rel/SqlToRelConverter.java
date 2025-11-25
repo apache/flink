@@ -245,19 +245,21 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>FLINK modifications are at lines
  *
  * <ol>
- *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 686 ~ 703
- *   <li>Added in Flink-24024: Lines 1453 ~ 1459
- *   <li>Added in Flink-24024: Lines 1473 ~ 1512
- *   <li>Added in Flink-37269: Lines 2250 ~ 2272
- *   <li>Added in FLINK-28682: Lines 2383 ~ 2400
- *   <li>Added in FLINK-28682: Lines 2437 ~ 2465
- *   <li>Added in FLINK-32474: Lines 2522 ~ 2524
- *   <li>Added in FLINK-32474: Lines 2528 ~ 2530
- *   <li>Added in FLINK-32474: Lines 2546 ~ 2548
- *   <li>Added in CALCITE-7217: Lines 2587 ~ 2595, should be dropped with upgrade to Calcite 1.41.0
- *   <li>Added in FLINK-32474: Lines 2970 ~ 2982
- *   <li>Added in FLINK-32474: Lines 3083 ~ 3117
- *   <li>Added in FLINK-34312: Lines 5947 ~ 5958
+ *   <li>Added in FLINK-29081, FLINK-28682, FLINK-33395: Lines 688 ~ 705
+ *   <li>Added in FLINK-24024: Lines 1455 ~ 1461
+ *   <li>Added in FLINK-24024: Lines 1475 ~ 1514
+ *   <li>Added in FLINK-37269: Lines 2252 ~ 2274
+ *   <li>Added in FLINK-28682: Lines 2385 ~ 2402
+ *   <li>Added in FLINK-28682: Lines 2439 ~ 2467
+ *   <li>Added in FLINK-32474: Lines 2524 ~ 2526
+ *   <li>Added in FLINK-32474: Lines 2530 ~ 2532
+ *   <li>Added in FLINK-32474: Lines 2548 ~ 2550
+ *   <li>Added in CALCITE-7217: Lines 2589 ~ 2597, should be dropped with upgrade to Calcite 1.41.0
+ *   <li>Added in FLINK-32474: Lines 2972 ~ 2984
+ *   <li>Added in FLINK-32474: Lines 3085 ~ 3119
+ *   <li>Added in FLINK-38720: Lines 4579 ~ 4585
+ *   <li>Added in FLINK-38720: Lines 4591 ~ 4607
+ *   <li>Added in FLINK-34312: Lines 5971 ~ 5982
  * </ol>
  *
  * <p>In official extension point (i.e. {@link #convertExtendedExpression(SqlNode, Blackboard)}):
@@ -4574,13 +4576,33 @@ public class SqlToRelConverter {
         }
 
         if (e0.left instanceof RexCorrelVariable) {
-            assert e instanceof RexFieldAccess;
-            final RexNode prev =
-                    bb.mapCorrelateToRex.put(((RexCorrelVariable) e0.left).id, (RexFieldAccess) e);
+            // ----- FLINK MODIFICATION BEGIN -----
+            // adjust the type to account for nulls introduced by FlinkRexBuilder#makeFieldAccess
+            final RexFieldAccess rfa = adjustRexFieldAccess(e);
+            final RexNode prev = bb.mapCorrelateToRex.put(((RexCorrelVariable) e0.left).id, rfa);
+            // ----- FLINK MODIFICATION END -----
             assert prev == null;
         }
         return e;
     }
+
+    // ----- FLINK MODIFICATION BEGIN -----
+    private RexFieldAccess adjustRexFieldAccess(RexNode rexNode) {
+        // Either RexFieldAccess or CAST of RexFieldAccess to nullable
+        assert rexNode instanceof RexFieldAccess
+                || rexNode instanceof RexCall
+                        && rexNode.getKind() == SqlKind.CAST
+                        && ((RexCall) rexNode).getOperands().size() == 1
+                        && ((RexCall) rexNode).getOperands().get(0) instanceof RexFieldAccess;
+
+        if (rexNode instanceof RexFieldAccess) {
+            return (RexFieldAccess) rexNode;
+        } else {
+            return (RexFieldAccess) ((RexCall) rexNode).getOperands().get(0);
+        }
+    }
+
+    // ----- FLINK MODIFICATION END -----
 
     /**
      * Adjusts the type of a reference to an input field to account for nulls introduced by outer
