@@ -18,12 +18,16 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.hint.FlinkHints;
+import org.apache.flink.table.planner.hint.JoinStrategy;
 import org.apache.flink.table.planner.hint.StateTtlHint;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMultiJoin;
 import org.apache.flink.table.planner.plan.utils.IntervalJoinUtil;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.AttributeBasedJoinKeyExtractor;
 import org.apache.flink.table.runtime.operators.join.stream.keyselector.JoinKeyExtractor;
 import org.apache.flink.table.types.logical.RowType;
@@ -170,7 +174,41 @@ public class JoinToMultiJoinRule extends RelRule<JoinToMultiJoinRule.Config>
             return false;
         }
 
-        return origJoin.getJoinType().projectsRight();
+        if (!origJoin.getJoinType().projectsRight()) {
+            return false;
+        }
+
+        // Enable multi-join if either config is enabled OR MULTI_JOIN hint is present
+        return isEnabledViaConfig(origJoin) || hasMultiJoinHint(origJoin);
+    }
+
+    /**
+     * Checks if multi-join optimization is enabled via configuration.
+     *
+     * @param join the join node
+     * @return true if TABLE_OPTIMIZER_MULTI_JOIN_ENABLED is set to true
+     */
+    private boolean isEnabledViaConfig(Join join) {
+        final TableConfig tableConfig = ShortcutUtils.unwrapTableConfig(join);
+        return tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED);
+    }
+
+    /**
+     * Checks if the MULTI_JOIN hint is present on the join node.
+     *
+     * <p>Note: By the time this rule sees the join, the QueryHintsResolver has already validated
+     * the hint. If the hint is present with valid options, it means both sides of this join were
+     * mentioned in the original hint and have been validated.
+     *
+     * @param join the join node
+     * @return true if MULTI_JOIN hint is present and valid
+     */
+    private boolean hasMultiJoinHint(Join join) {
+        return join.getHints().stream()
+                .anyMatch(
+                        hint ->
+                                JoinStrategy.MULTI_JOIN.getJoinHintName().equals(hint.hintName)
+                                        && !hint.listOptions.isEmpty());
     }
 
     @Override
