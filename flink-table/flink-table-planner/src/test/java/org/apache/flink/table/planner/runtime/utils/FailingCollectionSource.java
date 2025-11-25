@@ -156,7 +156,8 @@ public class FailingCollectionSource<T>
                         "Failed to deserialize an element from the source. "
                                 + "If you are using user-defined serialization (Value and Writable types), check the "
                                 + "serialization functions.\nSerializer is "
-                                + serializer);
+                                + serializer,
+                        e);
             }
 
             this.numElementsEmitted = this.numElementsToSkip;
