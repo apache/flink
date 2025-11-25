@@ -79,6 +79,23 @@ SinkUpsertMaterializer is an operator in Flink that reconciles out of order chan
 sending them to an upsert sink. Performance of this operator degrades exponentially in some cases.
 Flink 2.2 introduces a new implementation that is optimized for such cases.
 
+
+#### Delta Join
+
+##### [FLINK-38495](https://issues.apache.org/jira/browse/FLINK-38495), [FLINK-38511](https://issues.apache.org/jira/browse/FLINK-38511), [FLINK-38556](https://issues.apache.org/jira/browse/FLINK-38556)
+
+In 2.1, Apache Flink has introduced a new delta join operator to mitigate the challenges caused by 
+big state in regular joins. It replaces the large state maintained by regular joins with a 
+bidirectional lookup-based join that directly reuses data from the source tables.
+
+Flink 2.2 enhances support for converting more SQL patterns into delta joins. Delta joins now 
+support consuming CDC sources without DELETE operations, and allow projection and filter operations 
+after the source. Additionally, delta joins include support for caching, which helps reduce requests 
+to external storage.
+
+See more details about the capabilities and usages of Flink's 
+[Delta Joins](https://nightlies.apache.org/flink/flink-docs-release-2.2/docs/dev/table/tuning/#delta-joins).
+
 ### Runtime
 
 #### Balanced Tasks Scheduling
@@ -128,7 +145,14 @@ assign splits at runtime.
 
 ##### [FLINK-38190](https://issues.apache.org/jira/browse/FLINK-38190)
 
-Flink python supports async function in Python DataStream API from Flink 2.2.
+In Flink 2.2, we have added support of async function in Python DataStream API. This enables Python 
+users to efficiently query external services in their Flink jobs, e.g. large-sized LLM which is 
+typically deployed in a standalone GPU cluster, etc.
+
+Furthermore, we have provided comprehensive support to ensure the stability of external service 
+access. On one hand, we support limiting the number of concurrent requests sent to the external 
+service to avoid overwhelming it. On the other hand, we have also added retry support to tolerate 
+temporary unavailability which maybe caused by network jitter or other transient issues.
 
 ### Dependency upgrades
 
