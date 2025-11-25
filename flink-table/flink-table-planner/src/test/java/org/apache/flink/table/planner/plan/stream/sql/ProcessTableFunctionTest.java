@@ -146,6 +146,12 @@ public class ProcessTableFunctionTest extends TableTestBase {
     }
 
     @Test
+    void testEmptyArgs() {
+        util.addTemporarySystemFunction("f", EmptyArgFunction.class);
+        util.verifyRelPlan("SELECT * FROM f(uid => 'my-ptf')");
+    }
+
+    @Test
     void testIntervalDayArgs() {
         util.addTemporarySystemFunction("f", IntervalDayArgFunction.class);
         util.verifyRelPlan("SELECT * FROM f(d => INTERVAL '1' SECOND)");
@@ -155,12 +161,6 @@ public class ProcessTableFunctionTest extends TableTestBase {
     void testIntervalYearArgs() {
         util.addTemporarySystemFunction("f", IntervalYearArgFunction.class);
         util.verifyRelPlan("SELECT * FROM f(p => INTERVAL '1' YEAR)");
-    }
-
-    @Test
-    void testEmptyArgs() {
-        util.addTemporarySystemFunction("f", EmptyArgFunction.class);
-        util.verifyRelPlan("SELECT * FROM f(uid => 'my-ptf')");
     }
 
     @Test

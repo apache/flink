@@ -340,14 +340,14 @@ public class ProcessTableFunctionTestUtils {
 
     /** Testing function. */
     public static class IntervalDayArgFunction extends AppendProcessTableFunctionBase {
-        public void eval(@DataTypeHint Duration d) {
+        public void eval(Duration d) {
             collectObjects(d);
         }
     }
 
     /** Testing function. */
     public static class IntervalYearArgFunction extends AppendProcessTableFunctionBase {
-        public void eval(@DataTypeHint Period p) {
+        public void eval(Period p) {
             collectObjects(p);
         }
     }
