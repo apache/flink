@@ -72,6 +72,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -103,6 +104,8 @@ import static org.apache.flink.python.Constants.TIMER_CODER_ID;
 import static org.apache.flink.python.Constants.WINDOW_CODER_ID;
 import static org.apache.flink.python.Constants.WINDOW_STRATEGY;
 import static org.apache.flink.python.Constants.WRAPPER_TIMER_CODER_ID;
+import static org.apache.flink.python.PythonOptions.PYTHON_LOGGING_DEFAULT_LEVEL;
+import static org.apache.flink.python.PythonOptions.PYTHON_LOGGING_LEVEL_OVERRIDE;
 import static org.apache.flink.python.PythonOptions.USE_MANAGED_MEMORY;
 import static org.apache.flink.python.util.ProtoUtils.createCoderProto;
 
@@ -263,6 +266,21 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                     .setExperiments(
                             Collections.singletonList(
                                     ExperimentalOptions.STATE_CACHE_SIZE + "=" + stateCacheSize));
+        }
+
+        // Set log level
+        portableOptions
+                .as(SdkHarnessOptions.class)
+                .setDefaultSdkHarnessLogLevel(
+                        SdkHarnessOptions.LogLevel.valueOf(
+                                config.get(PYTHON_LOGGING_DEFAULT_LEVEL)));
+        if (config.getOptional(PYTHON_LOGGING_LEVEL_OVERRIDE).isPresent()) {
+            SdkHarnessOptions.SdkHarnessLogLevelOverrides loggingOptions =
+                    SdkHarnessOptions.SdkHarnessLogLevelOverrides.from(
+                            config.get(PYTHON_LOGGING_LEVEL_OVERRIDE));
+            portableOptions
+                    .as(SdkHarnessOptions.class)
+                    .setSdkHarnessLogLevelOverrides(loggingOptions);
         }
 
         Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);

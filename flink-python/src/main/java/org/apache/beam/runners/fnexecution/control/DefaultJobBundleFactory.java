@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import org.apache.flink.python.FlinkSlf4jLogWriter;
+
 import org.apache.beam.model.fnexecution.v1.ProvisionApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardEnvironments;
@@ -37,7 +39,6 @@ import org.apache.beam.runners.fnexecution.environment.ExternalEnvironmentFactor
 import org.apache.beam.runners.fnexecution.environment.ProcessEnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
-import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
@@ -734,7 +735,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
                         serverFactory);
         GrpcFnServer<GrpcLoggingService> loggingServer =
                 GrpcFnServer.allocatePortAndCreateFor(
-                        GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
+                        GrpcLoggingService.forWriter(new FlinkSlf4jLogWriter()), serverFactory);
         GrpcFnServer<ArtifactRetrievalService> retrievalServer =
                 GrpcFnServer.allocatePortAndCreateFor(
                         new ArtifactRetrievalService(), serverFactory);

@@ -118,6 +118,17 @@ def prepare_environment_variables(env):
     env["FLINK_BIN_DIR"] = os.path.join(real_flink_home, "bin")
 
 
+def get_log_dir(env):
+    flink_home = os.path.realpath(_find_flink_home())
+
+    if "FLINK_LOG_DIR" in env:
+        flink_log_dir = env["FLINK_LOG_DIR"]
+    else:
+        flink_log_dir = read_from_config(
+            KEY_ENV_LOG_DIR, os.path.join(flink_home, "log"), env['FLINK_CONF_DIR'])
+    return flink_log_dir
+
+
 def construct_log_settings(env):
     templates = [
         "-Dlog.file=${flink_log_dir}/flink-${flink_ident_string}-python-${hostname}.log",
@@ -126,14 +137,8 @@ def construct_log_settings(env):
         "-Dlogback.configurationFile=${logback_xml}"
     ]
 
-    flink_home = os.path.realpath(_find_flink_home())
     flink_conf_dir = env['FLINK_CONF_DIR']
-
-    if "FLINK_LOG_DIR" in env:
-        flink_log_dir = env["FLINK_LOG_DIR"]
-    else:
-        flink_log_dir = read_from_config(
-            KEY_ENV_LOG_DIR, os.path.join(flink_home, "log"), env['FLINK_CONF_DIR'])
+    flink_log_dir = get_log_dir(env)
 
     if "LOG4J_PROPERTIES" in env:
         log4j_properties = env["LOG4J_PROPERTIES"]
