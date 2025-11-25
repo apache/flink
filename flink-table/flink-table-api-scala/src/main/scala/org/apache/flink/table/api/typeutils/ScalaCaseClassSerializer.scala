@@ -24,6 +24,7 @@ import org.apache.flink.table.api.typeutils.ScalaCaseClassSerializer.lookupConst
 import java.io.ObjectInputStream
 
 import scala.reflect.runtime.universe
+import scala.util.Try
 
 /**
  * This is a non macro-generated, concrete Scala case class serializer.
@@ -60,11 +61,7 @@ class ScalaCaseClassSerializer[T <: Product](
 object ScalaCaseClassSerializer {
 
   def lookupConstructor[T](cls: Class[T]): Array[AnyRef] => T = {
-    val className = cls.getName
-    if (className.startsWith("scala.Tuple")) {
-      val constructor = cls.getConstructors()(0)
-      (arr: Array[AnyRef]) => constructor.newInstance(arr: _*).asInstanceOf[T]
-    } else {
+    Try {
       val rootMirror = universe.runtimeMirror(cls.getClassLoader)
       val classSymbol = rootMirror.classSymbol(cls)
 
@@ -85,13 +82,17 @@ object ScalaCaseClassSerializer {
           case constructorSymbol: universe.MethodSymbol if constructorSymbol.isPrimaryConstructor =>
             constructorSymbol
         }
-        .head
+        .getOrElse(throw new NoSuchElementException("No primary constructor found"))
         .asMethod
 
       val classMirror = rootMirror.reflectClass(classSymbol)
       val constructorMethodMirror = classMirror.reflectConstructor(primaryConstructorSymbol)
 
       (arr: Array[AnyRef]) => constructorMethodMirror.apply(arr: _*).asInstanceOf[T]
-    }
+    }.recover {
+      case e =>
+        val constructor = cls.getConstructors()(0)
+        (arr: Array[AnyRef]) => constructor.newInstance(arr: _*).asInstanceOf[T]
+    }.get
   }
 }
