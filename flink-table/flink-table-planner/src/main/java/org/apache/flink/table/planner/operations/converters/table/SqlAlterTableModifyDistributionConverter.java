@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterDistribution;
-import org.apache.flink.sql.parser.ddl.SqlAlterDistribution.SqlModifyDistribution;
 import org.apache.flink.sql.parser.ddl.SqlAlterTable;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableDistribution;
+import org.apache.flink.sql.parser.ddl.SqlAlterTableDistribution.SqlAlterTableModifyDistribution;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
@@ -33,11 +33,11 @@ import java.util.Optional;
 
 /** A converter for {@link SqlAlterDistribution} for MODIFY call. */
 public class SqlAlterTableModifyDistributionConverter
-        extends AbstractAlterTableConverter<SqlModifyDistribution> {
+        extends AbstractAlterTableConverter<SqlAlterTableModifyDistribution> {
 
     @Override
     protected Operation convertToOperation(
-            SqlModifyDistribution sqlModifyDistribution,
+            SqlAlterTableModifyDistribution sqlModifyDistribution,
             ResolvedCatalogTable oldTable,
             ConvertContext context) {
         return buildAlterTableChangeOperation(
@@ -61,6 +61,6 @@ public class SqlAlterTableModifyDistributionConverter
                             EX_MSG_PREFIX));
         }
         return OperationConverterUtils.getDistributionFromSqlDistribution(
-                ((SqlAlterDistribution) alterTable).getDistribution());
+                ((SqlAlterTableDistribution) alterTable).getDistribution());
     }
 }

@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableModifyDistribution;
+import org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableDistribution.SqlAlterMaterializedTableModifyDistribution;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;

@@ -351,6 +351,152 @@ class MaterializedTableStatementParserTest {
     }
 
     @Test
+    void testAlterMaterializedTableAddSchema() {
+        sql("alter materialized table mt1 add constraint ct1 primary key(a, b)")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` ADD (\n"
+                                + "  CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`)\n"
+                                + ")")
+                .node(
+                        new ValidationMatcher()
+                                .fails(
+                                        "Flink doesn't support ENFORCED mode for PRIMARY KEY constraint. "
+                                                + "ENFORCED/NOT ENFORCED controls if the constraint checks are performed on the incoming/outgoing data. "
+                                                + "Flink does not own the data therefore the only supported mode is the NOT ENFORCED mode"));
+        sql("alter materialized table mt1 add constraint ct1 primary key(a, b) not enforced")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` ADD (\n"
+                                + "  CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED\n"
+                                + ")");
+        sql("alter materialized table mt1 " + "add unique(a, b)")
+                .ok("ALTER MATERIALIZED TABLE `MT1` ADD (\n" + "  UNIQUE (`A`, `B`)\n" + ")")
+                .node(new ValidationMatcher().fails("UNIQUE constraint is not supported yet"));
+    }
+
+    @Test
+    void testAlterMaterializedTableAddNestedColumn() {
+        // add a row column
+        sql("alter materialized table mt1 add new_column array<row(f0 int, f1 bigint)> comment 'new_column docs'")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` ADD (\n"
+                                + "  `NEW_COLUMN` ARRAY< ROW(`F0` INTEGER, `F1` BIGINT) > COMMENT 'new_column docs'\n"
+                                + ")");
+
+        sql("alter materialized table mt1 add (new_row row(f0 int, f1 bigint) comment 'new_column docs', f2 as new_row.f0 + 1)")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` ADD (\n"
+                                + "  `NEW_ROW` ROW(`F0` INTEGER, `F1` BIGINT) COMMENT 'new_column docs',\n"
+                                + "  `F2` AS (`NEW_ROW`.`F0` + 1)\n"
+                                + ")");
+
+        // add a field to the row
+        sql("alter materialized table mt1 add (new_row.f2 array<int>)")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` ADD (\n"
+                                + "  `NEW_ROW`.`F2` ARRAY< INTEGER >\n"
+                                + ")");
+
+        // add a field to the row with after
+        sql("alter materialized table mt1 add (new_row.f2 array<int> after new_row.f0)")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` ADD (\n"
+                                + "  `NEW_ROW`.`F2` ARRAY< INTEGER > AFTER `NEW_ROW`.`F0`\n"
+                                + ")");
+    }
+
+    @Test
+    void testAlterMaterializedTableAddSingleColumn() {
+        sql("alter materialized table mt1 add new_column int not null")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` ADD (\n"
+                                + "  `NEW_COLUMN` INTEGER NOT NULL\n"
+                                + ")");
+        sql("alter materialized table mt1 add new_column string comment 'new_column docs'")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` ADD (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs'\n"
+                                + ")");
+        sql("alter materialized table mt1 add new_column string comment 'new_column docs' first")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` ADD (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' FIRST\n"
+                                + ")");
+        sql("alter materialized table mt1 add new_column string comment 'new_column docs' after id")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` ADD (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' AFTER `ID`\n"
+                                + ")");
+        // add compute column
+        sql("alter materialized table mt1 add col_int as col_a - col_b after col_b")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` ADD (\n"
+                                + "  `COL_INT` AS (`COL_A` - `COL_B`) AFTER `COL_B`\n"
+                                + ")");
+        // add metadata column
+        sql("alter materialized table mt1 add col_int int metadata from 'mk1' virtual comment 'comment_metadata' after col_b")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` ADD (\n"
+                                + "  `COL_INT` INTEGER METADATA FROM 'mk1' VIRTUAL COMMENT 'comment_metadata' AFTER `COL_B`\n"
+                                + ")");
+    }
+
+    @Test
+    void testAlterMaterializedTableAddWatermark() {
+        sql("alter materialized table mt1 add watermark for ts as ts")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` ADD (\n"
+                                + "  WATERMARK FOR `TS` AS `TS`\n"
+                                + ")");
+        sql("alter materialized table mt1 add watermark for ts as ts - interval '1' second")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` ADD (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
+        sql("alter materialized table default_database.mt1 add watermark for ts as ts - interval '1' second")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `DEFAULT_DATABASE`.`MT1` ADD (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
+        sql("alter materialized table default_catalog.default_database.mt1 add watermark for ts as ts - interval '1' second")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `DEFAULT_CATALOG`.`DEFAULT_DATABASE`.`MT1` ADD (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
+
+        sql("alter materialized table default_catalog.default_database.mt1 add (\n"
+                        + "watermark for ts as ts - interval '1' second,\n"
+                        + "^watermark^ for f1 as now()\n"
+                        + ")")
+                .fails("Multiple WATERMARK statements is not supported yet.");
+    }
+
+    @Test
+    void testAlterMaterializedTableAddDistribution() {
+        sql("alter materialized table mt1 add DISTRIBUTION BY HASH(a) INTO 6 BUCKETS")
+                .ok("ALTER MATERIALIZED TABLE `MT1` ADD DISTRIBUTION BY HASH(`A`) INTO 6 BUCKETS");
+
+        sql("alter materialized table mt1 add DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` ADD DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter materialized table mt1 add DISTRIBUTION BY RANGE(a, h) INTO 6 BUCKETS")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` ADD DISTRIBUTION BY RANGE(`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter materialized table mt1 add DISTRIBUTION BY ^RANDOM^(a, h) INTO 6 BUCKETS")
+                .fails("(?s).*Encountered \"RANDOM\" at line 1, column.*");
+
+        sql("alter materialized table mt1 add DISTRIBUTION BY (a, h) INTO 6 BUCKETS")
+                .ok("ALTER MATERIALIZED TABLE `MT1` ADD DISTRIBUTION BY (`A`, `H`) INTO 6 BUCKETS");
+
+        sql("alter materialized table mt1 add DISTRIBUTION BY RANGE(a, h)")
+                .ok("ALTER MATERIALIZED TABLE `MT1` ADD DISTRIBUTION BY RANGE(`A`, `H`)");
+
+        sql("alter materialized table mt1 add DISTRIBUTION BY (a, h)")
+                .ok("ALTER MATERIALIZED TABLE `MT1` ADD DISTRIBUTION BY (`A`, `H`)");
+    }
+
+    @Test
     void testDropMaterializedTable() {
         final String sql = "DROP MATERIALIZED TABLE tbl1";
         final String expected = "DROP MATERIALIZED TABLE `TBL1`";
