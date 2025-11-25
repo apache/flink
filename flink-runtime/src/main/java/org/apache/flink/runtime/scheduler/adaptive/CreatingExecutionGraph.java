@@ -317,8 +317,8 @@ public class CreatingExecutionGraph extends StateWithoutExecutionGraph {
         }
 
         public static ExecutionGraphWithVertexParallelism create(
-                ExecutionGraph executionGraph, JobSchedulingPlan vertexParallelism) {
-            return new ExecutionGraphWithVertexParallelism(executionGraph, vertexParallelism);
+                ExecutionGraph executionGraph, JobSchedulingPlan jobSchedulingPlan) {
+            return new ExecutionGraphWithVertexParallelism(executionGraph, jobSchedulingPlan);
         }
 
         public ExecutionGraph getExecutionGraph() {
