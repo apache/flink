@@ -52,7 +52,7 @@ public abstract class AbstractAlterTableConverter<T extends SqlAlterTable>
     @Override
     public final Operation convertSqlNode(T sqlAlterTable, ConvertContext context) {
         CatalogManager catalogManager = context.getCatalogManager();
-        final ObjectIdentifier tableIdentifier = getIdentifier(sqlAlterTable, context);
+        final ObjectIdentifier tableIdentifier = resolveIdentifier(sqlAlterTable, context);
         Optional<ContextResolvedTable> optionalCatalogTable =
                 catalogManager.getTable(tableIdentifier);
 
@@ -109,7 +109,7 @@ public abstract class AbstractAlterTableConverter<T extends SqlAlterTable>
         return identifier.getSimple();
     }
 
-    protected final ObjectIdentifier getIdentifier(SqlAlterTable node, ConvertContext context) {
+    protected final ObjectIdentifier resolveIdentifier(SqlAlterTable node, ConvertContext context) {
         UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.fullTableName());
         return context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
     }

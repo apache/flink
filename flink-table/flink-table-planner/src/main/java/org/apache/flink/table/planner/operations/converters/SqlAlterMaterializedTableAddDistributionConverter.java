@@ -37,7 +37,7 @@ public class SqlAlterMaterializedTableAddDistributionConverter
     @Override
     public Operation convertSqlNode(
             SqlAlterMaterializedTableAddDistribution node, ConvertContext context) {
-        ObjectIdentifier identifier = getIdentifier(node, context);
+        ObjectIdentifier identifier = resolveIdentifier(node, context);
 
         ResolvedCatalogMaterializedTable oldTable =
                 getResolvedMaterializedTable(

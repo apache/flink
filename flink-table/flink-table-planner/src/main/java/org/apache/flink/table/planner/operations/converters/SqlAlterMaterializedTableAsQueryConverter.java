@@ -45,7 +45,7 @@ public class SqlAlterMaterializedTableAsQueryConverter
     public Operation convertSqlNode(
             SqlAlterMaterializedTableAsQuery sqlAlterMaterializedTableAsQuery,
             ConvertContext context) {
-        ObjectIdentifier identifier = getIdentifier(sqlAlterMaterializedTableAsQuery, context);
+        ObjectIdentifier identifier = resolveIdentifier(sqlAlterMaterializedTableAsQuery, context);
 
         // Validate and extract schema from query
         String originalQuery =

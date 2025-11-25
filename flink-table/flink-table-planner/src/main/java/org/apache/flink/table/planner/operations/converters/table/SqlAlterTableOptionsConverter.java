@@ -45,7 +45,7 @@ public class SqlAlterTableOptionsConverter
             SqlAlterTableOptions alterTableOptions,
             ResolvedCatalogTable oldTable,
             ConvertContext context) {
-        final ObjectIdentifier tableIdentifier = getIdentifier(alterTableOptions, context);
+        final ObjectIdentifier tableIdentifier = resolveIdentifier(alterTableOptions, context);
         final Map<String, String> partitionKVs = alterTableOptions.getPartitionKVs();
         // it's altering partitions
         if (partitionKVs != null) {

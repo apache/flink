@@ -35,7 +35,7 @@ public class SqlAlterTableRenameConverter extends AbstractAlterTableConverter<Sq
             SqlAlterTableRename sqlAlterTable,
             ResolvedCatalogTable oldTable,
             ConvertContext context) {
-        final ObjectIdentifier tableIdentifier = getIdentifier(sqlAlterTable, context);
+        final ObjectIdentifier tableIdentifier = resolveIdentifier(sqlAlterTable, context);
         UnresolvedIdentifier newUnresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlAlterTable.fullNewTableName());
         ObjectIdentifier newTableIdentifier =
