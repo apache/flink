@@ -90,6 +90,7 @@ object ScalaCaseClassSerializer {
 
       (arr: Array[AnyRef]) => constructorMethodMirror.apply(arr: _*).asInstanceOf[T]
     }.recover {
+      case e: IllegalArgumentException => throw e
       case e =>
         System.err.println(
           s"[ScalaCaseClassSerializer] Falling back to Java reflection for ${cls.getName}: ${e.getMessage}")
