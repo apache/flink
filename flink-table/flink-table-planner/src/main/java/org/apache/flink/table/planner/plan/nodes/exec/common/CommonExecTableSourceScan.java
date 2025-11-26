@@ -188,13 +188,11 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                     ((DataStreamScanProvider) provider)
                             .produceDataStream(createProviderContext(config), env)
                             .getTransformation();
-            meta.fill(sourceTransform);
             sourceTransform.setOutputType(outputTypeInfo);
         } else if (provider instanceof TransformationScanProvider) {
             sourceTransform =
                     ((TransformationScanProvider) provider)
                             .createTransformation(createProviderContext(config));
-            meta.fill(sourceTransform);
             sourceTransform.setOutputType(outputTypeInfo);
         } else {
             throw new UnsupportedOperationException(

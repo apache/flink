@@ -102,7 +102,7 @@ public class StubTransformation<T> extends Transformation<T> {
         checkNotNull(upstreamFinder, "upstreamFinder must not be null");
         checkNotNull(inputAdjuster, "inputAdjuster must not be null");
         return new StubTransformation<>(
-                "unconnected", typeInformation, 1, upstreamFinder, inputAdjuster);
+                "unconnected", typeInformation, -1, upstreamFinder, inputAdjuster);
     }
 
     public Function<Transformation<?>, Transformation<?>> getInputAdjuster() {
