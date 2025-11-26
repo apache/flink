@@ -34,7 +34,6 @@ import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
-import org.apache.flink.table.catalog.TableChange.MaterializedTableChange;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableAsQueryOperation;
@@ -109,7 +108,7 @@ public class SqlCreateOrAlterMaterializedTableConverter
                 buildNewCatalogMaterializedTableFromOldTable(
                         oldMaterializedTable, sqlCreateOrAlterMaterializedTable, context);
 
-        List<MaterializedTableChange> tableChanges =
+        List<TableChange> tableChanges =
                 buildTableChanges(sqlCreateOrAlterMaterializedTable, oldMaterializedTable, context);
 
         return new AlterMaterializedTableAsQueryOperation(identifier, tableChanges, newTable);
@@ -126,11 +125,11 @@ public class SqlCreateOrAlterMaterializedTableConverter
         return new CreateMaterializedTableOperation(identifier, resolvedCatalogMaterializedTable);
     }
 
-    private List<MaterializedTableChange> buildTableChanges(
+    private List<TableChange> buildTableChanges(
             final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterMaterializedTable,
             final ResolvedCatalogMaterializedTable oldTable,
             final ConvertContext context) {
-        List<MaterializedTableChange> changes = new ArrayList<>();
+        List<TableChange> changes = new ArrayList<>();
         final MergeContext mergeContext =
                 this.getMergeContext(sqlCreateOrAlterMaterializedTable, context);
 

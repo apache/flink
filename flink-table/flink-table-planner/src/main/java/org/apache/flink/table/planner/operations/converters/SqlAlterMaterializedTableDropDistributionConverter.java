@@ -33,17 +33,12 @@ import java.util.List;
 public class SqlAlterMaterializedTableDropDistributionConverter
         extends AbstractAlterMaterializedTableConverter<SqlAlterMaterializedTableDropDistribution> {
     @Override
-    public Operation convertSqlNode(
-            SqlAlterMaterializedTableDropDistribution node, ConvertContext context) {
-        ObjectIdentifier identifier = resolveIdentifier(node, context);
-
-        ResolvedCatalogMaterializedTable oldTable =
-                getResolvedMaterializedTable(
-                        context,
-                        identifier,
-                        () -> "Operation is supported only for materialized tables");
-
-        if (oldTable.getDistribution().isEmpty()) {
+    protected Operation convertToOperation(
+            SqlAlterMaterializedTableDropDistribution sqlDropDistribution,
+            ResolvedCatalogMaterializedTable oldMaterializedTable,
+            ConvertContext context) {
+        ObjectIdentifier identifier = resolveIdentifier(sqlDropDistribution, context);
+        if (oldMaterializedTable.getDistribution().isEmpty()) {
             throw new ValidationException(
                     String.format(
                             "Materialized table %s does not have a distribution to drop.",
@@ -52,7 +47,8 @@ public class SqlAlterMaterializedTableDropDistributionConverter
 
         // Build new materialized table and apply changes
         CatalogMaterializedTable updatedTable =
-                buildUpdatedMaterializedTable(oldTable, builder -> builder.distribution(null));
+                buildUpdatedMaterializedTable(
+                        oldMaterializedTable, builder -> builder.distribution(null));
 
         return new AlterMaterializedTableChangeOperation(
                 identifier, List.of(TableChange.dropDistribution()), updatedTable);

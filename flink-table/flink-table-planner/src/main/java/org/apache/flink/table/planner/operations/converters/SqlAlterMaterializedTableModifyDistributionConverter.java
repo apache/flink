@@ -35,18 +35,14 @@ import java.util.List;
 public class SqlAlterMaterializedTableModifyDistributionConverter
         extends AbstractAlterMaterializedTableConverter<
                 SqlAlterMaterializedTableModifyDistribution> {
+
     @Override
-    public Operation convertSqlNode(
-            SqlAlterMaterializedTableModifyDistribution node, ConvertContext context) {
-        ObjectIdentifier identifier = resolveIdentifier(node, context);
-
-        ResolvedCatalogMaterializedTable oldTable =
-                getResolvedMaterializedTable(
-                        context,
-                        identifier,
-                        () -> "Operation is supported only for materialized tables");
-
-        if (oldTable.getDistribution().isEmpty()) {
+    protected Operation convertToOperation(
+            SqlAlterMaterializedTableModifyDistribution sqlModifyDistribution,
+            ResolvedCatalogMaterializedTable oldMaterializedTable,
+            ConvertContext context) {
+        ObjectIdentifier identifier = resolveIdentifier(sqlModifyDistribution, context);
+        if (oldMaterializedTable.getDistribution().isEmpty()) {
             throw new ValidationException(
                     String.format(
                             "Materialized table %s does not have a distribution to modify.",
@@ -55,11 +51,11 @@ public class SqlAlterMaterializedTableModifyDistributionConverter
 
         TableDistribution tableDistribution =
                 OperationConverterUtils.getDistributionFromSqlDistribution(
-                        node.getDistribution().get());
+                        sqlModifyDistribution.getDistribution().get());
         // Build new materialized table and apply changes
         CatalogMaterializedTable updatedTable =
                 buildUpdatedMaterializedTable(
-                        oldTable, builder -> builder.distribution(tableDistribution));
+                        oldMaterializedTable, builder -> builder.distribution(tableDistribution));
 
         return new AlterMaterializedTableChangeOperation(
                 identifier, List.of(TableChange.modify(tableDistribution)), updatedTable);

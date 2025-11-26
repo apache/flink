@@ -1542,9 +1542,9 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                         "alter materialized table cat1.db1.tb2 add distribution into 3 buckets"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Materialized table `cat1`.`db1`.`tb2` has already defined "
-                                + "the distribution `DISTRIBUTED BY HASH(`a`) INTO 1 BUCKETS`."
-                                + " You can modify it or drop it before adding a new one.");
+                        "The base materialized table has already defined the distribution "
+                                + "`DISTRIBUTED BY HASH(`a`) INTO 1 BUCKETS`. "
+                                + "You can modify it or drop it before adding a new one.");
     }
 
     @Test

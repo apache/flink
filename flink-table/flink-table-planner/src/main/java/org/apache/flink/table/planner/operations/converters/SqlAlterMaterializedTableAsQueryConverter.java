@@ -26,7 +26,6 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
-import org.apache.flink.table.catalog.TableChange.MaterializedTableChange;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableAsQueryOperation;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
@@ -42,8 +41,9 @@ public class SqlAlterMaterializedTableAsQueryConverter
         extends AbstractAlterMaterializedTableConverter<SqlAlterMaterializedTableAsQuery> {
 
     @Override
-    public Operation convertSqlNode(
+    protected Operation convertToOperation(
             SqlAlterMaterializedTableAsQuery sqlAlterMaterializedTableAsQuery,
+            ResolvedCatalogMaterializedTable oldMaterializedTable,
             ConvertContext context) {
         ObjectIdentifier identifier = resolveIdentifier(sqlAlterMaterializedTableAsQuery, context);
 
@@ -56,14 +56,7 @@ public class SqlAlterMaterializedTableAsQueryConverter
         PlannerQueryOperation queryOperation =
                 new PlannerQueryOperation(
                         context.toRelRoot(validatedQuery).project(), () -> definitionQuery);
-
-        ResolvedCatalogMaterializedTable oldTable =
-                getResolvedMaterializedTable(
-                        context,
-                        identifier,
-                        () -> "Only materialized tables support modifying the definition query.");
-
-        ResolvedSchema oldSchema = oldTable.getResolvedSchema();
+        ResolvedSchema oldSchema = oldMaterializedTable.getResolvedSchema();
         List<Column> addedColumns =
                 MaterializedTableUtils.validateAndExtractNewColumns(
                         oldSchema, queryOperation.getResolvedSchema());
@@ -71,8 +64,8 @@ public class SqlAlterMaterializedTableAsQueryConverter
         // Build new materialized table and apply changes
         CatalogMaterializedTable updatedTable =
                 buildUpdatedMaterializedTable(
-                        oldTable, addedColumns, originalQuery, definitionQuery);
-        List<MaterializedTableChange> tableChanges = new ArrayList<>();
+                        oldMaterializedTable, addedColumns, originalQuery, definitionQuery);
+        List<TableChange> tableChanges = new ArrayList<>();
         addedColumns.forEach(column -> tableChanges.add(TableChange.add(column)));
         tableChanges.add(TableChange.modifyDefinitionQuery(definitionQuery));
 

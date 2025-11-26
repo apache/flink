@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.operations.converters.table;
 
 import org.apache.flink.sql.parser.ddl.SqlAlterTableAdd;
-import org.apache.flink.sql.parser.ddl.SqlAlterTableSchema;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.planner.operations.converters.SchemaAddConverter;
 import org.apache.flink.table.planner.operations.converters.SchemaConverter;
@@ -32,9 +31,7 @@ public class SqlAlterTableSchemaAddConverter
         extends SqlAlterTableSchemaConverter<SqlAlterTableAdd> {
     @Override
     protected SchemaConverter createSchemaConverter(
-            SqlAlterTableSchema alterTableSchema,
-            ResolvedCatalogTable oldTable,
-            ConvertContext context) {
+            ResolvedCatalogTable oldTable, ConvertContext context) {
         return new SchemaAddConverter(oldTable, context);
     }
 }

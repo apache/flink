@@ -32,7 +32,7 @@ public abstract class SqlAlterTableSchemaConverter<T extends SqlAlterTableSchema
     @Override
     protected Operation convertToOperation(
             T alterTableSchema, ResolvedCatalogTable oldTable, ConvertContext context) {
-        SchemaConverter converter = createSchemaConverter(alterTableSchema, oldTable, context);
+        SchemaConverter converter = createSchemaConverter(oldTable, context);
         converter.updateColumn(alterTableSchema.getColumnPositions().getList());
         alterTableSchema.getWatermark().ifPresent(converter::updateWatermark);
         alterTableSchema.getFullConstraint().ifPresent(converter::updatePrimaryKey);
@@ -46,7 +46,5 @@ public abstract class SqlAlterTableSchemaConverter<T extends SqlAlterTableSchema
     }
 
     protected abstract SchemaConverter createSchemaConverter(
-            SqlAlterTableSchema alterTableSchema,
-            ResolvedCatalogTable oldTable,
-            ConvertContext context);
+            ResolvedCatalogTable oldTable, ConvertContext context);
 }

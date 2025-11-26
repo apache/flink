@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.operations.converters;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.planner.operations.converters.SqlAlterMaterializedTableSchemaConverter.SqlAlterMaterializedTableAddSchemaConverter;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableAddDistributionConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableAddPartitionConverter;
@@ -118,6 +119,7 @@ public class SqlNodeConverters {
 
     private static void registerMaterializedTableConverters() {
         register(new SqlAlterMaterializedTableAddDistributionConverter());
+        register(new SqlAlterMaterializedTableAddSchemaConverter());
         register(new SqlAlterMaterializedTableAsQueryConverter());
         register(new SqlAlterMaterializedTableDropDistributionConverter());
         register(new SqlAlterMaterializedTableModifyDistributionConverter());

@@ -39,7 +39,6 @@ import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
-import org.apache.flink.table.catalog.TableChange.MaterializedTableChange;
 import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -899,7 +898,7 @@ public class MaterializedTableManager {
                 == oldMaterializedTable.getRefreshStatus()) {
             // alter schema & definition query & refresh handler (reset savepoint path of refresh
             // handler)
-            List<MaterializedTableChange> tableChanges = new ArrayList<>(op.getTableChanges());
+            List<TableChange> tableChanges = new ArrayList<>(op.getTableChanges());
             TableChange.ModifyRefreshHandler modifyRefreshHandler =
                     generateResetSavepointTableChange(
                             oldMaterializedTable.getSerializedRefreshHandler());
@@ -930,8 +929,8 @@ public class MaterializedTableManager {
     private AlterMaterializedTableChangeOperation generateRollbackAlterMaterializedTableOperation(
             CatalogMaterializedTable oldMaterializedTable,
             AlterMaterializedTableChangeOperation op) {
-        List<MaterializedTableChange> tableChanges = op.getTableChanges();
-        List<MaterializedTableChange> rollbackChanges = new ArrayList<>();
+        List<TableChange> tableChanges = op.getTableChanges();
+        List<TableChange> rollbackChanges = new ArrayList<>();
 
         for (TableChange tableChange : tableChanges) {
             if (tableChange instanceof TableChange.AddColumn) {
@@ -1217,7 +1216,7 @@ public class MaterializedTableManager {
         CatalogMaterializedTable updatedMaterializedTable =
                 catalogMaterializedTable.copy(
                         refreshStatus, refreshHandlerSummary, serializedRefreshHandler);
-        List<MaterializedTableChange> tableChanges = new ArrayList<>();
+        List<TableChange> tableChanges = new ArrayList<>();
         tableChanges.add(TableChange.modifyRefreshStatus(refreshStatus));
         tableChanges.add(
                 TableChange.modifyRefreshHandler(refreshHandlerSummary, serializedRefreshHandler));

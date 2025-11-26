@@ -1221,6 +1221,49 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
     }
 
     @Test
+    void testAlterMaterializedTableAddSchemaColumnsFullMode() throws Exception {
+        createAndVerifyCreateMaterializedTableWithData(
+                "users_shops", Collections.emptyList(), Collections.emptyMap(), RefreshMode.FULL);
+
+        ResolvedCatalogMaterializedTable oldTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        // Alter materialized table as query in full mode
+        String alterMaterializedTableAsQueryDDL =
+                "ALTER MATERIALIZED TABLE users_shops ADD (`ct` AS CURRENT_TIMESTAMP, WATERMARK FOR `ct` AS `ct` - INTERVAL '3' SECOND)";
+
+        OperationHandle alterMaterializedTableAsQueryHandle =
+                service.executeStatement(
+                        sessionHandle, alterMaterializedTableAsQueryDDL, -1, new Configuration());
+
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableAsQueryHandle);
+
+        // verify the altered materialized table
+        ResolvedCatalogMaterializedTable newTable =
+                (ResolvedCatalogMaterializedTable)
+                        service.getTable(
+                                sessionHandle,
+                                ObjectIdentifier.of(
+                                        fileSystemCatalogName,
+                                        TEST_DEFAULT_DATABASE,
+                                        "users_shops"));
+
+        assertThat(getAddedColumns(newTable.getResolvedSchema(), oldTable.getResolvedSchema()))
+                .hasToString("[`ct` TIMESTAMP_LTZ(3) NOT NULL *ROWTIME* AS CURRENT_TIMESTAMP]");
+        assertThat(newTable.getExpandedQuery()).isEqualTo(oldTable.getExpandedQuery());
+        // the refresh handler in full mode should be the same as the old one
+        assertThat(oldTable.getSerializedRefreshHandler())
+                .isEqualTo(newTable.getSerializedRefreshHandler());
+        assertThat(oldTable.getDefinitionFreshness()).isEqualTo(newTable.getDefinitionFreshness());
+    }
+
+    @Test
     void testAlterMaterializedTableAsQueryInFullMode() throws Exception {
         createAndVerifyCreateMaterializedTableWithData(
                 "users_shops", Collections.emptyList(), Collections.emptyMap(), RefreshMode.FULL);

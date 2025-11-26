@@ -19,19 +19,29 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableSchema;
 import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn;
+import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.IntervalFreshness;
+import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.planner.operations.PlannerQueryOperation;
+import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
 
 import org.apache.calcite.sql.SqlIntervalLiteral;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /** The utils for materialized table. */
 @Internal
@@ -131,5 +141,62 @@ public class MaterializedTableUtils {
         }
 
         return newAddedColumns;
+    }
+
+    public static void validatePhysicalColumnsUsedByQuery(
+            ResolvedCatalogMaterializedTable oldTable,
+            SqlAlterMaterializedTableSchema alterTableSchema,
+            ConvertContext context) {
+        final SqlNodeList sqlNodeList = alterTableSchema.getColumnPositions();
+        if (sqlNodeList.isEmpty()) {
+            return;
+        }
+
+        final SqlNode originalQuery =
+                context.getFlinkPlanner().parser().parse(oldTable.getOriginalQuery());
+        final SqlNode validateQuery = context.getSqlValidator().validate(originalQuery);
+        final PlannerQueryOperation queryOperation =
+                new PlannerQueryOperation(
+                        context.toRelRoot(validateQuery).project(),
+                        () -> context.toQuotedSqlString(validateQuery));
+
+        validatePhysicalColumnsUsedByQuery(sqlNodeList, queryOperation.getResolvedSchema());
+    }
+
+    public static void validatePhysicalColumnsUsedByQuery(
+            SqlNodeList columnPositions, ResolvedSchema querySchema) {
+        final Set<String> querySchemaColumnNames = new HashSet<>(querySchema.getColumnNames());
+        for (SqlNode column : columnPositions) {
+            throwIfPhysicalColumnNotUsedByQuery(column, querySchemaColumnNames);
+        }
+    }
+
+    public static List<SqlTableColumn> getSqlTableColumns(SqlNodeList columnPositions) {
+        List<SqlTableColumn> list = new ArrayList<>();
+        for (SqlNode position : columnPositions) {
+            if (position instanceof SqlTableColumnPosition) {
+                list.add(((SqlTableColumnPosition) position).getColumn());
+            } else {
+                throw new ValidationException("Not a position");
+            }
+        }
+        return list;
+    }
+
+    private static void throwIfPhysicalColumnNotUsedByQuery(
+            SqlNode column, Set<String> querySchemaColumnNames) {
+        if (column instanceof SqlTableColumn.SqlRegularColumn) {
+            SqlTableColumn.SqlRegularColumn physicalColumn =
+                    (SqlTableColumn.SqlRegularColumn) column;
+            if (!querySchemaColumnNames.contains(physicalColumn.getName().getSimple())) {
+                throw new ValidationException(
+                        String.format(
+                                "Invalid as physical column '%s' is defined in the DDL, but is not used in a query column.",
+                                physicalColumn.getName().getSimple()));
+            }
+        } else if (column instanceof SqlTableColumnPosition) {
+            throwIfPhysicalColumnNotUsedByQuery(
+                    ((SqlTableColumnPosition) column).getColumn(), querySchemaColumnNames);
+        }
     }
 }

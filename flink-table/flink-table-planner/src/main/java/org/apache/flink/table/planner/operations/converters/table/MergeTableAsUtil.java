@@ -24,6 +24,7 @@ import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlMetadataColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
+import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Schema.UnresolvedColumn;
 import org.apache.flink.table.api.Schema.UnresolvedMetadataColumn;
@@ -32,7 +33,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.DataTypeFactory;
-import org.apache.flink.table.catalog.ResolvedCatalogTable;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
@@ -97,7 +98,7 @@ public class MergeTableAsUtil {
             FlinkPlannerImpl flinkPlanner,
             PlannerQueryOperation origQueryOperation,
             SqlNode origQueryNode,
-            ResolvedCatalogTable sinkTable) {
+            ResolvedCatalogBaseTable<?> sinkTable) {
         FlinkCalciteSqlValidator sqlValidator = flinkPlanner.getOrCreateSqlValidator();
         SqlRewriterUtils rewriterUtils = new SqlRewriterUtils(sqlValidator);
         FlinkTypeFactory typeFactory = (FlinkTypeFactory) sqlValidator.getTypeFactory();
@@ -275,7 +276,8 @@ public class MergeTableAsUtil {
 
             int sinkColumnPos = -1;
             for (SqlNode sinkColumn : sinkCols) {
-                String name = ((SqlTableColumn) sinkColumn).getName().getSimple();
+                final SqlTableColumn column = toSqlTableColumn(sinkColumn);
+                String name = column.getName().getSimple();
                 sinkColumnPos++;
 
                 if (sinkSchemaCols.containsKey(name)) {
@@ -284,35 +286,28 @@ public class MergeTableAsUtil {
                                     "A column named '%s' already exists in the schema. ", name));
                 }
 
-                UnresolvedColumn unresolvedSinkColumn;
-
-                if (sinkColumn instanceof SqlRegularColumn) {
-                    unresolvedSinkColumn =
-                            toUnresolvedPhysicalColumn((SqlRegularColumn) sinkColumn);
-
-                    regularAndMetadataFieldNamesToTypes.put(
-                            name, toRelDataType(((SqlRegularColumn) sinkColumn).getType()));
-                } else if (sinkColumn instanceof SqlMetadataColumn) {
-                    unresolvedSinkColumn =
-                            toUnresolvedMetadataColumn((SqlMetadataColumn) sinkColumn);
-
-                    regularAndMetadataFieldNamesToTypes.put(
-                            name, toRelDataType(((SqlMetadataColumn) sinkColumn).getType()));
-                } else if (sinkColumn instanceof SqlComputedColumn) {
+                final UnresolvedColumn unresolvedSinkColumn;
+                final RelDataType relDataType;
+                if (column instanceof SqlRegularColumn) {
+                    unresolvedSinkColumn = toUnresolvedPhysicalColumn((SqlRegularColumn) column);
+                    relDataType = toRelDataType(((SqlRegularColumn) column).getType());
+                } else if (column instanceof SqlMetadataColumn) {
+                    unresolvedSinkColumn = toUnresolvedMetadataColumn((SqlMetadataColumn) column);
+                    relDataType = toRelDataType(((SqlMetadataColumn) column).getType());
+                } else if (column instanceof SqlComputedColumn) {
+                    final SqlComputedColumn computedColumn = (SqlComputedColumn) column;
                     final SqlNode validatedExpr =
                             sqlValidator.validateParameterizedExpression(
-                                    ((SqlComputedColumn) sinkColumn).getExpr(),
-                                    regularAndMetadataFieldNamesToTypes);
+                                    computedColumn.getExpr(), regularAndMetadataFieldNamesToTypes);
 
                     unresolvedSinkColumn =
-                            toUnresolvedComputedColumn(
-                                    (SqlComputedColumn) sinkColumn, validatedExpr);
-
-                    computeFieldNamesToTypes.put(
-                            name, sqlValidator.getValidatedNodeType(validatedExpr));
+                            toUnresolvedComputedColumn(computedColumn, validatedExpr);
+                    relDataType = sqlValidator.getValidatedNodeType(validatedExpr);
                 } else {
-                    throw new ValidationException("Unsupported column type: " + sinkColumn);
+                    throw new ValidationException("Unsupported column type: " + column);
                 }
+
+                regularAndMetadataFieldNamesToTypes.put(name, relDataType);
 
                 if (sourceSchemaCols.containsKey(name)) {
                     // If the column is already defined in the source schema, then check if
@@ -332,6 +327,14 @@ public class MergeTableAsUtil {
             columns.clear();
             columns.putAll(sinkSchemaCols);
             columns.putAll(sourceSchemaCols);
+        }
+
+        private SqlTableColumn toSqlTableColumn(SqlNode sinkColumn) {
+            if (sinkColumn instanceof SqlTableColumn) {
+                return (SqlTableColumn) sinkColumn;
+            } else {
+                return ((SqlTableColumnPosition) sinkColumn).getColumn();
+            }
         }
 
         /** Reorders the columns from the source schema based on the columns identifiers list. */
@@ -431,13 +434,9 @@ public class MergeTableAsUtil {
         }
 
         private void setWatermark(SqlWatermark sqlWatermark) {
-            Map<String, RelDataType> accessibleFieldNamesToTypes =
-                    new LinkedHashMap() {
-                        {
-                            putAll(regularAndMetadataFieldNamesToTypes);
-                            putAll(computeFieldNamesToTypes);
-                        }
-                    };
+            final Map<String, RelDataType> accessibleFieldNamesToTypes =
+                    new LinkedHashMap<>(regularAndMetadataFieldNamesToTypes);
+            accessibleFieldNamesToTypes.putAll(computeFieldNamesToTypes);
 
             addWatermarks(
                     Collections.singletonList(sqlWatermark), accessibleFieldNamesToTypes, false);
