@@ -34,7 +34,6 @@ import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
-import org.apache.flink.table.catalog.TableChange.MaterializedTableChange;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableAsQueryOperation;
@@ -101,38 +100,36 @@ public class SqlCreateOrAlterMaterializedTableConverter
     }
 
     private Operation handleAlter(
-            final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterMaterializedTable,
-            final ResolvedCatalogMaterializedTable oldMaterializedTable,
+            final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterTable,
+            final ResolvedCatalogMaterializedTable oldTable,
             final ConvertContext context,
             final ObjectIdentifier identifier) {
         final CatalogMaterializedTable newTable =
                 buildNewCatalogMaterializedTableFromOldTable(
-                        oldMaterializedTable, sqlCreateOrAlterMaterializedTable, context);
+                        oldTable, sqlCreateOrAlterTable, context);
 
-        List<MaterializedTableChange> tableChanges =
-                buildTableChanges(sqlCreateOrAlterMaterializedTable, oldMaterializedTable, context);
+        List<TableChange> tableChanges =
+                buildTableChanges(sqlCreateOrAlterTable, oldTable, context);
 
         return new AlterMaterializedTableAsQueryOperation(identifier, tableChanges, newTable);
     }
 
     private Operation handleCreate(
-            final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterMaterializedTable,
+            final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterTable,
             final ConvertContext context,
             final ObjectIdentifier identifier) {
-        final ResolvedCatalogMaterializedTable resolvedCatalogMaterializedTable =
-                this.getResolvedCatalogMaterializedTable(
-                        sqlCreateOrAlterMaterializedTable, context);
+        final ResolvedCatalogMaterializedTable resolvedTable =
+                this.getResolvedCatalogMaterializedTable(sqlCreateOrAlterTable, context);
 
-        return new CreateMaterializedTableOperation(identifier, resolvedCatalogMaterializedTable);
+        return new CreateMaterializedTableOperation(identifier, resolvedTable);
     }
 
-    private List<MaterializedTableChange> buildTableChanges(
-            final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterMaterializedTable,
+    private List<TableChange> buildTableChanges(
+            final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterTable,
             final ResolvedCatalogMaterializedTable oldTable,
             final ConvertContext context) {
-        List<MaterializedTableChange> changes = new ArrayList<>();
-        final MergeContext mergeContext =
-                this.getMergeContext(sqlCreateOrAlterMaterializedTable, context);
+        List<TableChange> changes = new ArrayList<>();
+        final MergeContext mergeContext = this.getMergeContext(sqlCreateOrAlterTable, context);
 
         final ResolvedSchema oldSchema = oldTable.getResolvedSchema();
         final List<Column> newColumns =
@@ -146,26 +143,24 @@ public class SqlCreateOrAlterMaterializedTableConverter
     }
 
     private CatalogMaterializedTable buildNewCatalogMaterializedTableFromOldTable(
-            final ResolvedCatalogMaterializedTable oldMaterializedTable,
-            final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterMaterializedTable,
+            final ResolvedCatalogMaterializedTable oldTable,
+            final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterTable,
             final ConvertContext context) {
         final Schema.Builder schemaBuilder =
-                Schema.newBuilder().fromResolvedSchema(oldMaterializedTable.getResolvedSchema());
+                Schema.newBuilder().fromResolvedSchema(oldTable.getResolvedSchema());
 
         // Add new columns if this is an alter operation
-        final ResolvedSchema oldSchema = oldMaterializedTable.getResolvedSchema();
-        final MergeContext mergeContext =
-                this.getMergeContext(sqlCreateOrAlterMaterializedTable, context);
+        final ResolvedSchema oldSchema = oldTable.getResolvedSchema();
+        final MergeContext mergeContext = this.getMergeContext(sqlCreateOrAlterTable, context);
         final List<Column> newColumns =
                 MaterializedTableUtils.validateAndExtractNewColumns(
                         oldSchema, mergeContext.getMergedQuerySchema());
         newColumns.forEach(col -> schemaBuilder.column(col.getName(), col.getDataType()));
 
-        final String comment = sqlCreateOrAlterMaterializedTable.getComment();
-        final IntervalFreshness freshness =
-                this.getDerivedFreshness(sqlCreateOrAlterMaterializedTable);
+        final String comment = sqlCreateOrAlterTable.getComment();
+        final IntervalFreshness freshness = this.getDerivedFreshness(sqlCreateOrAlterTable);
         final LogicalRefreshMode logicalRefreshMode =
-                this.getDerivedLogicalRefreshMode(sqlCreateOrAlterMaterializedTable);
+                this.getDerivedLogicalRefreshMode(sqlCreateOrAlterTable);
         final RefreshMode refreshMode = this.getDerivedRefreshMode(logicalRefreshMode);
 
         CatalogMaterializedTable.Builder builder =
@@ -183,10 +178,8 @@ public class SqlCreateOrAlterMaterializedTableConverter
                         .refreshStatus(RefreshStatus.INITIALIZING);
 
         // Preserve refresh handler from old materialized table
-        oldMaterializedTable
-                .getRefreshHandlerDescription()
-                .ifPresent(builder::refreshHandlerDescription);
-        builder.serializedRefreshHandler(oldMaterializedTable.getSerializedRefreshHandler());
+        oldTable.getRefreshHandlerDescription().ifPresent(builder::refreshHandlerDescription);
+        builder.serializedRefreshHandler(oldTable.getSerializedRefreshHandler());
 
         return builder.build();
     }

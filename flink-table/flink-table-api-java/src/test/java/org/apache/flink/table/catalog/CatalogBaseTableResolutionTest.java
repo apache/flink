@@ -21,6 +21,9 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.expressions.DefaultSqlFactory;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -253,11 +256,11 @@ class CatalogBaseTableResolutionTest {
         assertThat(resolvedCatalogMaterializedTable.getExpandedQuery())
                 .isEqualTo(DEFAULT_EXPANDED_QUERY);
         assertThat(resolvedCatalogMaterializedTable.getLogicalRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.CONTINUOUS);
+                .isSameAs(LogicalRefreshMode.CONTINUOUS);
         assertThat(resolvedCatalogMaterializedTable.getRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.RefreshMode.CONTINUOUS);
+                .isSameAs(RefreshMode.CONTINUOUS);
         assertThat(resolvedCatalogMaterializedTable.getRefreshStatus())
-                .isEqualTo(CatalogMaterializedTable.RefreshStatus.INITIALIZING);
+                .isSameAs(RefreshStatus.INITIALIZING);
         byte[] expectedBytes =
                 ContinuousRefreshHandlerSerializer.INSTANCE.serialize(CONTINUOUS_REFRESH_HANDLER);
         assertThat(resolvedCatalogMaterializedTable.getSerializedRefreshHandler())
@@ -450,9 +453,9 @@ class CatalogBaseTableResolutionTest {
                 .originalQuery(DEFAULT_ORIGINAL_QUERY)
                 .expandedQuery(DEFAULT_EXPANDED_QUERY)
                 .freshness(IntervalFreshness.ofSecond("30"))
-                .logicalRefreshMode(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC)
-                .refreshMode(CatalogMaterializedTable.RefreshMode.CONTINUOUS)
-                .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
+                .logicalRefreshMode(LogicalRefreshMode.AUTOMATIC)
+                .refreshMode(RefreshMode.CONTINUOUS)
+                .refreshStatus(RefreshStatus.INITIALIZING)
                 .build();
     }
 

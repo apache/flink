@@ -86,6 +86,12 @@ public abstract class SqlAlterMaterializedTableSchema extends SqlAlterMaterializ
         return constraints;
     }
 
+    public Optional<SqlTableConstraint> getFullConstraint() {
+        List<SqlTableConstraint> primaryKeys =
+                SqlConstraintValidator.getFullConstraints(constraints, getColumns());
+        return primaryKeys.isEmpty() ? Optional.empty() : Optional.of(primaryKeys.get(0));
+    }
+
     private SqlNodeList getColumns() {
         return new SqlNodeList(
                 columnList.getList().stream()
@@ -107,7 +113,7 @@ public abstract class SqlAlterMaterializedTableSchema extends SqlAlterMaterializ
     /**
      * Example: DDL like the below for adding column(s)/constraint/watermark.
      *
-     * <p>Note: adding or altering physical columns is not supported, only computed or metadata
+     * <p>Note: adding or modifying physical columns is not supported, only computed or metadata
      *
      * <pre>{@code
      * -- add single column

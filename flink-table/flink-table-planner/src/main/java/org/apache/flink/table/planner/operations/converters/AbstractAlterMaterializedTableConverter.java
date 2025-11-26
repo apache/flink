@@ -20,38 +20,59 @@ package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTable;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
+import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.utils.ValidationUtils;
 
+import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
-
-import static org.apache.flink.table.catalog.CatalogBaseTable.TableKind.MATERIALIZED_TABLE;
 
 /** Abstract converter for {@link org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTable}. */
 public abstract class AbstractAlterMaterializedTableConverter<T extends SqlAlterMaterializedTable>
         implements SqlNodeConverter<T> {
+
+    protected static final String EX_MSG_PREFIX =
+            "Failed to execute ALTER MATERIALIZED TABLE statement.\n";
+
+    protected abstract Operation convertToOperation(
+            T sqlAlterTable, ResolvedCatalogMaterializedTable oldTable, ConvertContext context);
+
+    @Override
+    public final Operation convertSqlNode(T sqlAlterMaterializedTable, ConvertContext context) {
+        final CatalogManager catalogManager = context.getCatalogManager();
+        final ObjectIdentifier materializedTableIdentifier =
+                resolveIdentifier(sqlAlterMaterializedTable, context);
+        final Optional<ContextResolvedTable> optionalCatalogMaterializedTable =
+                catalogManager.getTable(materializedTableIdentifier);
+
+        if (optionalCatalogMaterializedTable.isEmpty()
+                || optionalCatalogMaterializedTable.get().isTemporary()) {
+            throw new ValidationException(
+                    String.format(
+                            "Materialized table %s doesn't exist.", materializedTableIdentifier));
+        }
+        ValidationUtils.validateTableKind(
+                optionalCatalogMaterializedTable.get().getTable(),
+                TableKind.MATERIALIZED_TABLE,
+                "alter materialized table");
+
+        return convertToOperation(
+                sqlAlterMaterializedTable,
+                optionalCatalogMaterializedTable.get().getResolvedTable(),
+                context);
+    }
 
     protected ObjectIdentifier resolveIdentifier(
             SqlAlterMaterializedTable sqlAlterMaterializedTable, ConvertContext context) {
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlAlterMaterializedTable.getFullName());
         return context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
-    }
-
-    protected ResolvedCatalogMaterializedTable getResolvedMaterializedTable(
-            ConvertContext context, ObjectIdentifier identifier, Supplier<String> errorMessage) {
-        ResolvedCatalogBaseTable<?> table =
-                context.getCatalogManager().getTableOrError(identifier).getResolvedTable();
-
-        if (MATERIALIZED_TABLE != table.getTableKind()) {
-            throw new ValidationException(errorMessage.get());
-        }
-
-        return (ResolvedCatalogMaterializedTable) table;
     }
 
     protected CatalogMaterializedTable buildUpdatedMaterializedTable(

@@ -24,7 +24,6 @@ import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.TableChange;
-import org.apache.flink.table.catalog.TableChange.MaterializedTableChange;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 
 import java.util.List;
@@ -36,19 +35,19 @@ import java.util.stream.Collectors;
 @Internal
 public class AlterMaterializedTableChangeOperation extends AlterMaterializedTableOperation {
 
-    private final List<MaterializedTableChange> tableChanges;
+    private final List<TableChange> tableChanges;
     private final CatalogMaterializedTable catalogMaterializedTable;
 
     public AlterMaterializedTableChangeOperation(
             ObjectIdentifier tableIdentifier,
-            List<MaterializedTableChange> tableChanges,
+            List<TableChange> tableChanges,
             CatalogMaterializedTable catalogMaterializedTable) {
         super(tableIdentifier);
         this.tableChanges = tableChanges;
         this.catalogMaterializedTable = catalogMaterializedTable;
     }
 
-    public List<MaterializedTableChange> getTableChanges() {
+    public List<TableChange> getTableChanges() {
         return tableChanges;
     }
 
@@ -61,9 +60,7 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
         ctx.getCatalogManager()
                 .alterTable(
                         getCatalogMaterializedTable(),
-                        getTableChanges().stream()
-                                .map(TableChange.class::cast)
-                                .collect(Collectors.toList()),
+                        getTableChanges(),
                         getTableIdentifier(),
                         false);
         return TableResultImpl.TABLE_RESULT_OK;
@@ -79,7 +76,7 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
                 "ALTER MATERIALIZED TABLE %s\n%s", tableIdentifier.asSummaryString(), changes);
     }
 
-    private static String toString(MaterializedTableChange tableChange) {
+    private static String toString(TableChange tableChange) {
         if (tableChange instanceof TableChange.ModifyRefreshStatus) {
             TableChange.ModifyRefreshStatus refreshStatus =
                     (TableChange.ModifyRefreshStatus) tableChange;

@@ -26,7 +26,6 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
-import org.apache.flink.table.catalog.TableChange.MaterializedTableChange;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableAsQueryOperation;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
@@ -42,27 +41,20 @@ public class SqlAlterMaterializedTableAsQueryConverter
         extends AbstractAlterMaterializedTableConverter<SqlAlterMaterializedTableAsQuery> {
 
     @Override
-    public Operation convertSqlNode(
-            SqlAlterMaterializedTableAsQuery sqlAlterMaterializedTableAsQuery,
+    protected Operation convertToOperation(
+            SqlAlterMaterializedTableAsQuery sqlAlterTableAsQuery,
+            ResolvedCatalogMaterializedTable oldTable,
             ConvertContext context) {
-        ObjectIdentifier identifier = resolveIdentifier(sqlAlterMaterializedTableAsQuery, context);
+        ObjectIdentifier identifier = resolveIdentifier(sqlAlterTableAsQuery, context);
 
         // Validate and extract schema from query
-        String originalQuery =
-                context.toQuotedSqlString(sqlAlterMaterializedTableAsQuery.getAsQuery());
+        String originalQuery = context.toQuotedSqlString(sqlAlterTableAsQuery.getAsQuery());
         SqlNode validatedQuery =
-                context.getSqlValidator().validate(sqlAlterMaterializedTableAsQuery.getAsQuery());
+                context.getSqlValidator().validate(sqlAlterTableAsQuery.getAsQuery());
         String definitionQuery = context.toQuotedSqlString(validatedQuery);
         PlannerQueryOperation queryOperation =
                 new PlannerQueryOperation(
                         context.toRelRoot(validatedQuery).project(), () -> definitionQuery);
-
-        ResolvedCatalogMaterializedTable oldTable =
-                getResolvedMaterializedTable(
-                        context,
-                        identifier,
-                        () -> "Only materialized tables support modifying the definition query.");
-
         ResolvedSchema oldSchema = oldTable.getResolvedSchema();
         List<Column> addedColumns =
                 MaterializedTableUtils.validateAndExtractNewColumns(
@@ -72,7 +64,7 @@ public class SqlAlterMaterializedTableAsQueryConverter
         CatalogMaterializedTable updatedTable =
                 buildUpdatedMaterializedTable(
                         oldTable, addedColumns, originalQuery, definitionQuery);
-        List<MaterializedTableChange> tableChanges = new ArrayList<>();
+        List<TableChange> tableChanges = new ArrayList<>();
         addedColumns.forEach(column -> tableChanges.add(TableChange.add(column)));
         tableChanges.add(TableChange.modifyDefinitionQuery(definitionQuery));
 

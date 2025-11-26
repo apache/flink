@@ -33,16 +33,11 @@ import java.util.List;
 public class SqlAlterMaterializedTableDropDistributionConverter
         extends AbstractAlterMaterializedTableConverter<SqlAlterMaterializedTableDropDistribution> {
     @Override
-    public Operation convertSqlNode(
-            SqlAlterMaterializedTableDropDistribution node, ConvertContext context) {
-        ObjectIdentifier identifier = resolveIdentifier(node, context);
-
-        ResolvedCatalogMaterializedTable oldTable =
-                getResolvedMaterializedTable(
-                        context,
-                        identifier,
-                        () -> "Operation is supported only for materialized tables");
-
+    protected Operation convertToOperation(
+            SqlAlterMaterializedTableDropDistribution sqlDropDistribution,
+            ResolvedCatalogMaterializedTable oldTable,
+            ConvertContext context) {
+        ObjectIdentifier identifier = resolveIdentifier(sqlDropDistribution, context);
         if (oldTable.getDistribution().isEmpty()) {
             throw new ValidationException(
                     String.format(

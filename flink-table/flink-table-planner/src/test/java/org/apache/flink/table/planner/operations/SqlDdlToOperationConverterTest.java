@@ -1542,9 +1542,9 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                         "alter materialized table cat1.db1.tb2 add distribution into 3 buckets"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "Materialized table `cat1`.`db1`.`tb2` has already defined "
-                                + "the distribution `DISTRIBUTED BY HASH(`a`) INTO 1 BUCKETS`."
-                                + " You can modify it or drop it before adding a new one.");
+                        "The current materialized table has already defined the distribution "
+                                + "`DISTRIBUTED BY HASH(`a`) INTO 1 BUCKETS`. "
+                                + "You can modify it or drop it before adding a new one.");
     }
 
     @Test
@@ -1604,7 +1604,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         // try to add a column with duplicated name
         assertThatThrownBy(() -> parse("alter table tb1 add a bigint"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("Try to add a column `a` which already exists in the table.");
+                .hasMessageContaining("Column `a` already exists in the table.");
 
         // try to add multiple columns with duplicated column name
         assertThatThrownBy(() -> parse("alter table tb1 add (x array<string>, x string)"))
@@ -1775,7 +1775,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         assertThatThrownBy(() -> parse("alter table tb1 add primary key(c) not enforced"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "The base table has already defined the primary key constraint [`a`]. "
+                        "The current table has already defined the primary key constraint [`a`]. "
                                 + "You might want to drop it before adding a new one.");
 
         assertThatThrownBy(
@@ -1784,7 +1784,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                         "alter table tb1 add x string not null primary key not enforced"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "The base table has already defined the primary key constraint [`a`]. "
+                        "The current table has already defined the primary key constraint [`a`]. "
                                 + "You might want to drop it before adding a new one");
 
         // the original table has composite pk
@@ -1793,7 +1793,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         assertThatThrownBy(() -> parse("alter table tb2 add primary key(c) not enforced"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "The base table has already defined the primary key constraint [`a`, `b`]. "
+                        "The current table has already defined the primary key constraint [`a`, `b`]. "
                                 + "You might want to drop it before adding a new one");
 
         assertThatThrownBy(
@@ -1802,7 +1802,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                         "alter table tb2 add x string not null primary key not enforced"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "The base table has already defined the primary key constraint [`a`, `b`]. "
+                        "The current table has already defined the primary key constraint [`a`, `b`]. "
                                 + "You might want to drop it before adding a new one");
 
         // the original table does not define pk
@@ -1946,7 +1946,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         assertThatThrownBy(() -> parse("alter table tb2 add watermark for ts as ts"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "The base table has already defined the watermark strategy "
+                        "The current table has already defined the watermark strategy "
                                 + "`ts` AS ts - interval '5' seconds. "
                                 + "You might want to drop it before adding a new one.");
         checkAlterNonExistTable("alter table %s nonexistent add watermark for ts as ts");
@@ -2047,8 +2047,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         // modify nonexistent column name
         assertThatThrownBy(() -> parse("alter table tb1 modify x bigint"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(
-                        "Try to modify a column `x` which does not exist in the table.");
+                .hasMessageContaining("Column `x` does not exist in the table.");
 
         // refer to nonexistent column name
         assertThatThrownBy(() -> parse("alter table tb1 modify a bigint after x"))
@@ -2272,7 +2271,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                         "alter table tb1 modify constraint ct primary key (b) not enforced"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "The base table does not define any primary key constraint. You might want to add a new one.");
+                        "The current table does not define any primary key constraint. You might want to add a new one.");
 
         prepareTable("tb2", 1);
 
@@ -2432,7 +2431,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                                         "alter table tb1 modify watermark for a as to_timestamp(a) - interval '1' minute"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "The base table does not define any watermark. You might want to add a new one.");
+                        "The current table does not define any watermark. You might want to add a new one.");
 
         prepareTable("tb2", true);
 

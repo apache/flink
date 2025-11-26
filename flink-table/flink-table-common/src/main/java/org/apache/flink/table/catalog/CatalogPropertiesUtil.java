@@ -22,6 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Schema.Builder;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.Column.ComputedColumn;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
@@ -289,13 +292,11 @@ public final class CatalogPropertiesUtil {
                     IntervalFreshness.TimeUnit.valueOf(properties.get(FRESHNESS_UNIT));
             final IntervalFreshness freshness = IntervalFreshness.of(freshnessInterval, timeUnit);
 
-            final CatalogMaterializedTable.LogicalRefreshMode logicalRefreshMode =
-                    CatalogMaterializedTable.LogicalRefreshMode.valueOf(
-                            properties.get(LOGICAL_REFRESH_MODE));
-            final CatalogMaterializedTable.RefreshMode refreshMode =
-                    CatalogMaterializedTable.RefreshMode.valueOf(properties.get(REFRESH_MODE));
-            final CatalogMaterializedTable.RefreshStatus refreshStatus =
-                    CatalogMaterializedTable.RefreshStatus.valueOf(properties.get(REFRESH_STATUS));
+            final LogicalRefreshMode logicalRefreshMode =
+                    LogicalRefreshMode.valueOf(properties.get(LOGICAL_REFRESH_MODE));
+            final RefreshMode refreshMode = RefreshMode.valueOf(properties.get(REFRESH_MODE));
+            final RefreshStatus refreshStatus =
+                    RefreshStatus.valueOf(properties.get(REFRESH_STATUS));
 
             final @Nullable String refreshHandlerDesc = properties.get(REFRESH_HANDLER_DESC);
             final @Nullable String refreshHandlerStringBytes =

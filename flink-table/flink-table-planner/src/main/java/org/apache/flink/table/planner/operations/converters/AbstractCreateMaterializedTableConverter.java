@@ -24,6 +24,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
@@ -163,7 +164,7 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
                                 .freshness(intervalFreshness)
                                 .logicalRefreshMode(logicalRefreshMode)
                                 .refreshMode(refreshMode)
-                                .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
+                                .refreshStatus(RefreshStatus.INITIALIZING)
                                 .build());
     }
 
@@ -184,7 +185,7 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
             if (schema.getColumn(partitionKey).isEmpty()) {
                 throw new ValidationException(
                         String.format(
-                                "Partition column '%s' not defined in the query schema. Available columns: [%s].",
+                                "Partition column '%s' not defined in the query's schema. Available columns: [%s].",
                                 partitionKey,
                                 schema.getColumnNames().stream()
                                         .collect(Collectors.joining("', '", "'", "'"))));
@@ -218,7 +219,7 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
                     .contains(LogicalTypeFamily.CHARACTER_STRING)) {
                 throw new ValidationException(
                         String.format(
-                                "Materialized table option '%s' only supports referring to char, varchar and string type partition column. Column %s type is %s.",
+                                "Materialized table option '%s' only supports referring to char, varchar and string type partition column. Column `%s` type is %s.",
                                 partitionOption, partitionKey, partitionKeyType.asSummaryString()));
             }
         }

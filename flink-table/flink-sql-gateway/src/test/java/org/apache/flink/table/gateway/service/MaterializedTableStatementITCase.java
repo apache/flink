@@ -34,8 +34,9 @@ import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatistic
 import org.apache.flink.runtime.rest.util.RestMapperUtils;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -65,6 +66,7 @@ import org.quartz.JobKey;
 import org.quartz.Trigger;
 import org.quartz.TriggerKey;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -116,21 +118,13 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
                         + " ) AS tmp\n"
                         + " GROUP BY (user_id, shop_id, ds)";
-        OperationHandle materializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        OperationHandle materializedTableHandle = executeStatement(materializedTableDDL);
         awaitOperationTermination(service, sessionHandle, materializedTableHandle);
 
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
         // validate materialized table: schema, refresh mode, refresh status, refresh handler,
         // doesn't check the data because it generates randomly.
-        ResolvedCatalogMaterializedTable actualMaterializedTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ResolvedCatalogMaterializedTable actualMaterializedTable = getTable(userShopsIdentifier);
 
         // Expected schema
         ResolvedSchema expectedSchema =
@@ -144,26 +138,21 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
 
         assertThat(actualMaterializedTable.getResolvedSchema()).isEqualTo(expectedSchema);
         assertThat(actualMaterializedTable.getLogicalRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC);
-        assertThat(actualMaterializedTable.getRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.RefreshMode.CONTINUOUS);
-        assertThat(actualMaterializedTable.getRefreshStatus())
-                .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
+                .isSameAs(LogicalRefreshMode.AUTOMATIC);
+        assertThat(actualMaterializedTable.getRefreshMode()).isSameAs(RefreshMode.CONTINUOUS);
+        assertThat(actualMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
         assertThat(actualMaterializedTable.getRefreshHandlerDescription()).isNotEmpty();
         assertThat(actualMaterializedTable.getSerializedRefreshHandler()).isNotEmpty();
 
         ContinuousRefreshHandler activeRefreshHandler =
-                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
-                        actualMaterializedTable.getSerializedRefreshHandler(),
-                        getClass().getClassLoader());
+                getContinuousRefreshHandler(actualMaterializedTable);
 
         waitUntilAllTasksAreRunning(
                 restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
 
         // verify the background job is running
         String describeJobDDL = String.format("DESCRIBE JOB '%s'", activeRefreshHandler.getJobId());
-        OperationHandle describeJobHandle =
-                service.executeStatement(sessionHandle, describeJobDDL, -1, new Configuration());
+        OperationHandle describeJobHandle = executeStatement(describeJobDDL);
         awaitOperationTermination(service, sessionHandle, describeJobHandle);
         List<RowData> jobResults = fetchAllResults(service, sessionHandle, describeJobHandle);
         assertThat(jobResults.get(0).getString(2).toString()).isEqualTo("RUNNING");
@@ -174,8 +163,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         assertThat(checkpointInterval).isEqualTo(30 * 1000);
 
         // drop the materialized table
-        dropMaterializedTable(
-                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -197,21 +185,13 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
                         + " ) AS tmp\n"
                         + " GROUP BY (user_id, shop_id, ds)";
-        OperationHandle materializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        OperationHandle materializedTableHandle = executeStatement(materializedTableDDL);
         awaitOperationTermination(service, sessionHandle, materializedTableHandle);
 
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
         // validate materialized table: schema, refresh mode, refresh status, refresh handler,
         // doesn't check the data because it generates randomly.
-        ResolvedCatalogMaterializedTable actualMaterializedTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ResolvedCatalogMaterializedTable actualMaterializedTable = getTable(userShopsIdentifier);
 
         // Expected schema
         ResolvedSchema expectedSchema =
@@ -225,10 +205,9 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
 
         assertThat(actualMaterializedTable.getResolvedSchema()).isEqualTo(expectedSchema);
         assertThat(actualMaterializedTable.getLogicalRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.FULL);
-        assertThat(actualMaterializedTable.getRefreshMode()).isEqualTo(RefreshMode.FULL);
-        assertThat(actualMaterializedTable.getRefreshStatus())
-                .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
+                .isSameAs(LogicalRefreshMode.FULL);
+        assertThat(actualMaterializedTable.getRefreshMode()).isSameAs(RefreshMode.FULL);
+        assertThat(actualMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
         assertThat(actualMaterializedTable.getRefreshHandlerDescription()).isNotEmpty();
         assertThat(actualMaterializedTable.getSerializedRefreshHandler()).isNotEmpty();
 
@@ -238,13 +217,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 EmbeddedRefreshHandlerSerializer.INSTANCE.deserialize(
                         serializedHandler, getClass().getClassLoader());
         assertThat(embeddedRefreshHandler.getWorkflowName())
-                .isEqualTo(
-                        "quartz_job_"
-                                + ObjectIdentifier.of(
-                                                fileSystemCatalogName,
-                                                TEST_DEFAULT_DATABASE,
-                                                "users_shops")
-                                        .asSerializableString());
+                .isEqualTo("quartz_job_" + userShopsIdentifier.asSerializableString());
 
         EmbeddedQuartzScheduler embeddedWorkflowScheduler =
                 SQL_GATEWAY_REST_ENDPOINT_EXTENSION
@@ -273,8 +246,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .doesNotContainKey(RESOURCES_DOWNLOAD_DIR.key());
 
         // drop the materialized table
-        dropMaterializedTable(
-                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -296,21 +268,13 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
                         + " ) AS tmp\n"
                         + " GROUP BY (user_id, shop_id, ds)";
-        OperationHandle materializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        OperationHandle materializedTableHandle = executeStatement(materializedTableDDL);
         awaitOperationTermination(service, sessionHandle, materializedTableHandle);
 
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
         // validate materialized table: schema, refresh mode, refresh status, refresh handler,
         // doesn't check the data because it generates randomly.
-        ResolvedCatalogMaterializedTable actualMaterializedTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ResolvedCatalogMaterializedTable actualMaterializedTable = getTable(userShopsIdentifier);
 
         // Expected schema
         ResolvedSchema expectedSchema =
@@ -326,26 +290,21 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         assertThat(actualMaterializedTable.getDefinitionFreshness())
                 .isEqualTo(IntervalFreshness.ofMinute("3"));
         assertThat(actualMaterializedTable.getLogicalRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC);
-        assertThat(actualMaterializedTable.getRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.RefreshMode.CONTINUOUS);
-        assertThat(actualMaterializedTable.getRefreshStatus())
-                .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
+                .isSameAs(LogicalRefreshMode.AUTOMATIC);
+        assertThat(actualMaterializedTable.getRefreshMode()).isSameAs(RefreshMode.CONTINUOUS);
+        assertThat(actualMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
         assertThat(actualMaterializedTable.getRefreshHandlerDescription()).isNotEmpty();
         assertThat(actualMaterializedTable.getSerializedRefreshHandler()).isNotEmpty();
 
         ContinuousRefreshHandler activeRefreshHandler =
-                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
-                        actualMaterializedTable.getSerializedRefreshHandler(),
-                        getClass().getClassLoader());
+                getContinuousRefreshHandler(actualMaterializedTable);
 
         waitUntilAllTasksAreRunning(
                 restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
 
         // verify the background job is running
         String describeJobDDL = String.format("DESCRIBE JOB '%s'", activeRefreshHandler.getJobId());
-        OperationHandle describeJobHandle =
-                service.executeStatement(sessionHandle, describeJobDDL, -1, new Configuration());
+        OperationHandle describeJobHandle = executeStatement(describeJobDDL);
         awaitOperationTermination(service, sessionHandle, describeJobHandle);
         List<RowData> jobResults = fetchAllResults(service, sessionHandle, describeJobHandle);
         assertThat(jobResults.get(0).getString(2).toString()).isEqualTo("RUNNING");
@@ -359,8 +318,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         assertThat(checkpointInterval).isEqualTo(expectedCheckpointInterval);
 
         // drop the materialized table
-        dropMaterializedTable(
-                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -397,24 +355,14 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
                         + " ) AS tmp\n"
                         + " GROUP BY (user_id, shop_id, ds)";
-        OperationHandle materializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        OperationHandle materializedTableHandle = executeStatement(materializedTableDDL);
         awaitOperationTermination(service, sessionHandle, materializedTableHandle);
 
-        ResolvedCatalogMaterializedTable actualMaterializedTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedCatalogMaterializedTable actualMaterializedTable = getTable(userShopsIdentifier);
 
         ContinuousRefreshHandler activeRefreshHandler =
-                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
-                        actualMaterializedTable.getSerializedRefreshHandler(),
-                        getClass().getClassLoader());
+                getContinuousRefreshHandler(actualMaterializedTable);
 
         waitUntilAllTasksAreRunning(
                 restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
@@ -424,13 +372,12 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         assertThat(actualCheckpointInterval).isEqualTo(checkpointInterval);
 
         // drop the materialized table
-        dropMaterializedTable(
-                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
     void testCreateMaterializedTableInFullMode() throws Exception {
-        String dataId = TestValuesTableFactory.registerData(Collections.emptyList());
+        String dataId = TestValuesTableFactory.registerData(List.of());
         String sourceDdl =
                 String.format(
                         "CREATE TABLE IF NOT EXISTS my_source (\n"
@@ -446,8 +393,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                                 + ")",
                         dataId);
 
-        OperationHandle sourceHandle =
-                service.executeStatement(sessionHandle, sourceDdl, -1, new Configuration());
+        OperationHandle sourceHandle = executeStatement(sourceDdl);
         awaitOperationTermination(service, sessionHandle, sourceHandle);
 
         String materializedTableDDL =
@@ -468,24 +414,15 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + "    SELECT user_id, shop_id, order_created_at AS ds, order_id FROM my_source"
                         + " ) AS tmp\n"
                         + " GROUP BY (user_id, shop_id, ds)";
-        OperationHandle materializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        OperationHandle materializedTableHandle = executeStatement(materializedTableDDL);
         awaitOperationTermination(service, sessionHandle, materializedTableHandle);
 
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
         // verify materialized table is created
-        ResolvedCatalogMaterializedTable actualMaterializedTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ResolvedCatalogMaterializedTable actualMaterializedTable = getTable(userShopsIdentifier);
 
         // verify refresh mode
-        assertThat(actualMaterializedTable.getRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.RefreshMode.FULL);
+        assertThat(actualMaterializedTable.getRefreshMode()).isSameAs(RefreshMode.FULL);
 
         // verify refresh handler
         byte[] serializedHandler = actualMaterializedTable.getSerializedRefreshHandler();
@@ -493,13 +430,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 EmbeddedRefreshHandlerSerializer.INSTANCE.deserialize(
                         serializedHandler, getClass().getClassLoader());
         assertThat(embeddedRefreshHandler.getWorkflowName())
-                .isEqualTo(
-                        "quartz_job_"
-                                + ObjectIdentifier.of(
-                                                fileSystemCatalogName,
-                                                TEST_DEFAULT_DATABASE,
-                                                "users_shops")
-                                        .asSerializableString());
+                .isEqualTo("quartz_job_" + userShopsIdentifier.asSerializableString());
 
         EmbeddedQuartzScheduler embeddedWorkflowScheduler =
                 SQL_GATEWAY_REST_ENDPOINT_EXTENSION
@@ -528,8 +459,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .doesNotContainKey(RESOURCES_DOWNLOAD_DIR.key());
 
         // drop the materialized table
-        dropMaterializedTable(
-                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -552,10 +482,9 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
                         + " ) AS tmp\n"
                         + " GROUP BY (user_id, shop_id, ds)";
-        OperationHandle materializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        OperationHandle materializedTableHandle = executeStatement(materializedTableDDL);
 
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
         assertThatThrownBy(
                         () ->
                                 awaitOperationTermination(
@@ -564,21 +493,10 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .hasMessageContaining(
                         String.format(
                                 "Submit continuous refresh job for materialized table %s occur exception.",
-                                ObjectIdentifier.of(
-                                                fileSystemCatalogName,
-                                                TEST_DEFAULT_DATABASE,
-                                                "users_shops")
-                                        .asSerializableString()));
+                                userShopsIdentifier.asSerializableString()));
 
         // verify the materialized table is not created
-        assertThatThrownBy(
-                        () ->
-                                service.getTable(
-                                        sessionHandle,
-                                        ObjectIdentifier.of(
-                                                fileSystemCatalogName,
-                                                TEST_DEFAULT_DATABASE,
-                                                "users_shops")))
+        assertThatThrownBy(() -> getTable(userShopsIdentifier))
                 .isInstanceOf(SqlGatewayException.class)
                 .hasMessageContaining("Failed to getTable.");
     }
@@ -605,8 +523,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         long currentTime = System.currentTimeMillis();
         String alterStatement =
                 "ALTER MATERIALIZED TABLE my_materialized_table REFRESH PARTITION (ds = '2024-01-02')";
-        OperationHandle alterHandle =
-                service.executeStatement(sessionHandle, alterStatement, -1, new Configuration());
+        OperationHandle alterHandle = executeStatement(alterStatement);
         awaitOperationTermination(service, sessionHandle, alterHandle);
         List<RowData> result = fetchAllResults(service, sessionHandle, alterHandle);
         assertThat(result.size()).isEqualTo(1);
@@ -631,9 +548,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isEqualTo(1);
 
         // drop the materialized table
-        dropMaterializedTable(
-                ObjectIdentifier.of(
-                        fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table"));
+        dropMaterializedTable(getObjectIdentifier("my_materialized_table"));
     }
 
     @Test
@@ -657,11 +572,10 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + " ) AS tmp\n"
                         + " GROUP BY (user_id, shop_id, ds1, ds2)";
 
-        OperationHandle materializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        OperationHandle materializedTableHandle = executeStatement(materializedTableDDL);
         awaitOperationTermination(service, sessionHandle, materializedTableHandle);
 
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
         // CASE 1: check unknown partition keys
         String alterStatementWithUnknownPartitionKey =
                 "ALTER MATERIALIZED TABLE users_shops REFRESH PARTITION (ds3 = '2024-01-01')";
@@ -716,8 +630,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                                 + "ds2");
 
         // drop the materialized table
-        dropMaterializedTable(
-                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -741,27 +654,16 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + " ) AS tmp\n"
                         + " GROUP BY (user_id, shop_id, ds)";
 
-        OperationHandle materializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        OperationHandle materializedTableHandle = executeStatement(materializedTableDDL);
         awaitOperationTermination(service, sessionHandle, materializedTableHandle);
 
-        ResolvedCatalogMaterializedTable activeMaterializedTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedCatalogMaterializedTable activeMaterializedTable = getTable(userShopsIdentifier);
 
-        assertThat(activeMaterializedTable.getRefreshStatus())
-                .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
+        assertThat(activeMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
 
         ContinuousRefreshHandler activeRefreshHandler =
-                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
-                        activeMaterializedTable.getSerializedRefreshHandler(),
-                        getClass().getClassLoader());
+                getContinuousRefreshHandler(activeMaterializedTable);
 
         waitUntilAllTasksAreRunning(
                 restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
@@ -772,39 +674,26 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 String.format(
                         "SET 'execution.checkpointing.savepoint-dir' = 'file://%s'", savepointDir);
         OperationHandle alterMaterializedTableSavepointHandle =
-                service.executeStatement(
-                        sessionHandle, alterJobSavepointDDL, -1, new Configuration());
+                executeStatement(alterJobSavepointDDL);
         awaitOperationTermination(service, sessionHandle, alterMaterializedTableSavepointHandle);
 
         // suspend materialized table
         String alterMaterializedTableSuspendDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
         OperationHandle alterMaterializedTableSuspendHandle =
-                service.executeStatement(
-                        sessionHandle, alterMaterializedTableSuspendDDL, -1, new Configuration());
+                executeStatement(alterMaterializedTableSuspendDDL);
         awaitOperationTermination(service, sessionHandle, alterMaterializedTableSuspendHandle);
 
-        ResolvedCatalogMaterializedTable suspendMaterializedTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ResolvedCatalogMaterializedTable suspendMaterializedTable = getTable(userShopsIdentifier);
 
-        assertThat(suspendMaterializedTable.getRefreshStatus())
-                .isEqualTo(CatalogMaterializedTable.RefreshStatus.SUSPENDED);
+        assertThat(suspendMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.SUSPENDED);
 
         // verify background job is stopped
-        byte[] refreshHandler = suspendMaterializedTable.getSerializedRefreshHandler();
         ContinuousRefreshHandler suspendRefreshHandler =
-                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
-                        refreshHandler, getClass().getClassLoader());
+                getContinuousRefreshHandler(suspendMaterializedTable);
         String suspendJobId = suspendRefreshHandler.getJobId();
 
         String describeJobDDL = String.format("DESCRIBE JOB '%s'", suspendJobId);
-        OperationHandle describeJobHandle =
-                service.executeStatement(sessionHandle, describeJobDDL, -1, new Configuration());
+        OperationHandle describeJobHandle = executeStatement(describeJobDDL);
         awaitOperationTermination(service, sessionHandle, alterMaterializedTableSuspendHandle);
         List<RowData> jobResults = fetchAllResults(service, sessionHandle, describeJobHandle);
         assertThat(jobResults.get(0).getString(2).toString()).isEqualTo("FINISHED");
@@ -817,43 +706,27 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         String alterMaterializedTableResumeDDL =
                 "ALTER MATERIALIZED TABLE users_shops RESUME WITH ('debezium-json.ignore-parse-errors' = 'true')";
         OperationHandle alterMaterializedTableResumeHandle =
-                service.executeStatement(
-                        sessionHandle, alterMaterializedTableResumeDDL, -1, new Configuration());
+                executeStatement(alterMaterializedTableResumeDDL);
         awaitOperationTermination(service, sessionHandle, alterMaterializedTableResumeHandle);
 
         ResolvedCatalogMaterializedTable resumedCatalogMaterializedTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+                getTable(userShopsIdentifier);
         assertThat(resumedCatalogMaterializedTable.getOptions())
                 .doesNotContainKey("debezium-json.ignore-parse-errors");
         assertThat(resumedCatalogMaterializedTable.getRefreshStatus())
-                .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
+                .isSameAs(RefreshStatus.ACTIVATED);
 
         waitUntilAllTasksAreRunning(
                 restClusterClient,
                 JobID.fromHexString(
-                        ContinuousRefreshHandlerSerializer.INSTANCE
-                                .deserialize(
-                                        resumedCatalogMaterializedTable
-                                                .getSerializedRefreshHandler(),
-                                        getClass().getClassLoader())
-                                .getJobId()));
+                        getContinuousRefreshHandler(resumedCatalogMaterializedTable).getJobId()));
 
         // verify background job is running
-        refreshHandler = resumedCatalogMaterializedTable.getSerializedRefreshHandler();
         ContinuousRefreshHandler resumeRefreshHandler =
-                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
-                        refreshHandler, getClass().getClassLoader());
+                getContinuousRefreshHandler(resumedCatalogMaterializedTable);
         String resumeJobId = resumeRefreshHandler.getJobId();
         String describeResumeJobDDL = String.format("DESCRIBE JOB '%s'", resumeJobId);
-        OperationHandle describeResumeJobHandle =
-                service.executeStatement(
-                        sessionHandle, describeResumeJobDDL, -1, new Configuration());
+        OperationHandle describeResumeJobHandle = executeStatement(describeResumeJobDDL);
         awaitOperationTermination(service, sessionHandle, describeResumeJobHandle);
         jobResults = fetchAllResults(service, sessionHandle, describeResumeJobHandle);
         assertThat(jobResults.get(0).getString(2).toString()).isEqualTo("RUNNING");
@@ -865,8 +738,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         assertThat(actualRestorePath.get()).isEqualTo(actualSavepointPath);
 
         // drop the materialized table
-        dropMaterializedTable(
-                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -890,19 +762,11 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + " ) AS tmp\n"
                         + " GROUP BY (user_id, shop_id, ds)";
 
-        OperationHandle materializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        OperationHandle materializedTableHandle = executeStatement(materializedTableDDL);
         awaitOperationTermination(service, sessionHandle, materializedTableHandle);
 
-        ResolvedCatalogMaterializedTable activeMaterializedTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedCatalogMaterializedTable activeMaterializedTable = getTable(userShopsIdentifier);
         waitUntilAllTasksAreRunning(
                 restClusterClient,
                 JobID.fromHexString(
@@ -915,8 +779,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         // suspend materialized table
         String alterMaterializedTableSuspendDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
         OperationHandle alterMaterializedTableSuspendHandle =
-                service.executeStatement(
-                        sessionHandle, alterMaterializedTableSuspendDDL, -1, new Configuration());
+                executeStatement(alterMaterializedTableSuspendDDL);
         assertThatThrownBy(
                         () ->
                                 awaitOperationTermination(
@@ -929,8 +792,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         "Savepoint directory is not configured, can't stop job with savepoint.");
 
         // drop the materialized table
-        dropMaterializedTable(
-                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -954,19 +816,11 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + " ) AS tmp\n"
                         + " GROUP BY (user_id, shop_id, ds)";
 
-        OperationHandle materializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        OperationHandle materializedTableHandle = executeStatement(materializedTableDDL);
         awaitOperationTermination(service, sessionHandle, materializedTableHandle);
 
-        ResolvedCatalogMaterializedTable activeMaterializedTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedCatalogMaterializedTable activeMaterializedTable = getTable(userShopsIdentifier);
         waitUntilAllTasksAreRunning(
                 restClusterClient,
                 JobID.fromHexString(
@@ -982,21 +836,18 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 String.format(
                         "SET 'execution.checkpointing.savepoint-dir' = 'file://%s'", savepointDir);
         OperationHandle alterMaterializedTableSavepointHandle =
-                service.executeStatement(
-                        sessionHandle, alterJobSavepointDDL, -1, new Configuration());
+                executeStatement(alterJobSavepointDDL);
         awaitOperationTermination(service, sessionHandle, alterMaterializedTableSavepointHandle);
 
         // suspend materialized table
         String alterMaterializedTableSuspendDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
         OperationHandle alterMaterializedTableSuspendHandle =
-                service.executeStatement(
-                        sessionHandle, alterMaterializedTableSuspendDDL, -1, new Configuration());
+                executeStatement(alterMaterializedTableSuspendDDL);
         awaitOperationTermination(service, sessionHandle, alterMaterializedTableSuspendHandle);
 
         // verify repeated suspend materialized table
         OperationHandle repeatedAlterMaterializedTableSuspendHandle =
-                service.executeStatement(
-                        sessionHandle, alterMaterializedTableSuspendDDL, -1, new Configuration());
+                executeStatement(alterMaterializedTableSuspendDDL);
         assertThatThrownBy(
                         () ->
                                 awaitOperationTermination(
@@ -1008,22 +859,17 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .hasMessageContaining(
                         String.format(
                                 "Materialized table %s continuous refresh job has been suspended",
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops")));
+                                userShopsIdentifier));
 
         // resume materialized table
         String alterMaterializedTableResumeDDL = "ALTER MATERIALIZED TABLE users_shops RESUME";
         OperationHandle alterMaterializedTableResumeHandle =
-                service.executeStatement(
-                        sessionHandle, alterMaterializedTableResumeDDL, -1, new Configuration());
+                executeStatement(alterMaterializedTableResumeDDL);
         awaitOperationTermination(service, sessionHandle, alterMaterializedTableResumeHandle);
 
         // verify repeated resume materialized table
         OperationHandle repeatedAlterMaterializedTableResumeHandle =
-                service.executeStatement(
-                        sessionHandle, alterMaterializedTableResumeDDL, -1, new Configuration());
+                executeStatement(alterMaterializedTableResumeDDL);
         assertThatThrownBy(
                         () ->
                                 awaitOperationTermination(
@@ -1035,48 +881,29 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .hasMessageContaining(
                         String.format(
                                 "Materialized table %s continuous refresh job has been resumed",
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops")));
+                                userShopsIdentifier));
     }
 
     @Test
     void testAlterMaterializedTableSuspendAndResumeInFullMode() throws Exception {
         createAndVerifyCreateMaterializedTableWithData(
-                "users_shops", Collections.emptyList(), Collections.emptyMap(), RefreshMode.FULL);
+                "users_shops", List.of(), Map.of(), RefreshMode.FULL);
 
-        ResolvedCatalogMaterializedTable activeMaterializedTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedCatalogMaterializedTable activeMaterializedTable = getTable(userShopsIdentifier);
 
-        assertThat(activeMaterializedTable.getRefreshStatus())
-                .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
+        assertThat(activeMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
 
         // suspend materialized table
         String alterMaterializedTableSuspendDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
         OperationHandle alterMaterializedTableSuspendHandle =
-                service.executeStatement(
-                        sessionHandle, alterMaterializedTableSuspendDDL, -1, new Configuration());
+                executeStatement(alterMaterializedTableSuspendDDL);
 
         awaitOperationTermination(service, sessionHandle, alterMaterializedTableSuspendHandle);
 
-        ResolvedCatalogMaterializedTable suspendMaterializedTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ResolvedCatalogMaterializedTable suspendMaterializedTable = getTable(userShopsIdentifier);
 
-        assertThat(suspendMaterializedTable.getRefreshStatus())
-                .isEqualTo(CatalogMaterializedTable.RefreshStatus.SUSPENDED);
+        assertThat(suspendMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.SUSPENDED);
 
         // verify workflow is suspended
         byte[] refreshHandler = suspendMaterializedTable.getSerializedRefreshHandler();
@@ -1102,21 +929,14 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         String alterMaterializedTableResumeDDL =
                 "ALTER MATERIALIZED TABLE users_shops RESUME WITH ('debezium-json.ignore-parse-errors' = 'true')";
         OperationHandle alterMaterializedTableResumeHandle =
-                service.executeStatement(
-                        sessionHandle, alterMaterializedTableResumeDDL, -1, new Configuration());
+                executeStatement(alterMaterializedTableResumeDDL);
         awaitOperationTermination(service, sessionHandle, alterMaterializedTableResumeHandle);
 
         ResolvedCatalogMaterializedTable resumedCatalogMaterializedTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+                getTable(userShopsIdentifier);
 
         assertThat(resumedCatalogMaterializedTable.getRefreshStatus())
-                .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
+                .isSameAs(RefreshStatus.ACTIVATED);
 
         // verify workflow is resumed
         refreshHandler = resumedCatalogMaterializedTable.getSerializedRefreshHandler();
@@ -1140,38 +960,28 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .containsEntry("debezium-json.ignore-parse-errors", "true");
 
         // drop the materialized table
-        dropMaterializedTable(
-                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
     void testAlterMaterializedTableWithRepeatedSuspendAndResumeInFullMode() throws Exception {
         createAndVerifyCreateMaterializedTableWithData(
-                "users_shops", Collections.emptyList(), Collections.emptyMap(), RefreshMode.FULL);
+                "users_shops", List.of(), Map.of(), RefreshMode.FULL);
 
-        ResolvedCatalogMaterializedTable activeMaterializedTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedCatalogMaterializedTable activeMaterializedTable = getTable(userShopsIdentifier);
 
-        assertThat(activeMaterializedTable.getRefreshStatus())
-                .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
+        assertThat(activeMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
 
         // suspend materialized table
         String alterMaterializedTableSuspendDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
         OperationHandle alterMaterializedTableSuspendHandle =
-                service.executeStatement(
-                        sessionHandle, alterMaterializedTableSuspendDDL, -1, new Configuration());
+                executeStatement(alterMaterializedTableSuspendDDL);
         awaitOperationTermination(service, sessionHandle, alterMaterializedTableSuspendHandle);
 
         // repeated suspend materialized table
         OperationHandle repeatedAlterMaterializedTableSuspendHandle =
-                service.executeStatement(
-                        sessionHandle, alterMaterializedTableSuspendDDL, -1, new Configuration());
+                executeStatement(alterMaterializedTableSuspendDDL);
         assertThatThrownBy(
                         () ->
                                 awaitOperationTermination(
@@ -1183,23 +993,18 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .hasMessageContaining(
                         String.format(
                                 "Materialized table %s refresh workflow has been suspended.",
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops")));
+                                userShopsIdentifier));
 
         // resume materialized table
         String alterMaterializedTableResumeDDL =
                 "ALTER MATERIALIZED TABLE users_shops RESUME WITH ('debezium-json.ignore-parse-errors' = 'true')";
         OperationHandle alterMaterializedTableResumeHandle =
-                service.executeStatement(
-                        sessionHandle, alterMaterializedTableResumeDDL, -1, new Configuration());
+                executeStatement(alterMaterializedTableResumeDDL);
         awaitOperationTermination(service, sessionHandle, alterMaterializedTableResumeHandle);
 
         // verify repeated resume materialized table
         OperationHandle repeatedAlterMaterializedTableResumeHandle =
-                service.executeStatement(
-                        sessionHandle, alterMaterializedTableResumeDDL, -1, new Configuration());
+                executeStatement(alterMaterializedTableResumeDDL);
         assertThatThrownBy(
                         () ->
                                 awaitOperationTermination(
@@ -1211,28 +1016,51 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .hasMessageContaining(
                         String.format(
                                 "Materialized table %s refresh workflow has been resumed.",
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops")));
+                                userShopsIdentifier));
 
-        dropMaterializedTable(
-                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+        dropMaterializedTable(userShopsIdentifier);
+    }
+
+    @Test
+    void testAlterMaterializedTableAddVirtualColumnsFullMode() throws Exception {
+        createAndVerifyCreateMaterializedTableWithData(
+                "users_shops", List.of(), Map.of(), RefreshMode.FULL);
+
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedCatalogMaterializedTable oldTable = getTable(userShopsIdentifier);
+
+        // Alter materialized table as query in full mode
+        String alterMaterializedTableAsQueryDDL =
+                "ALTER MATERIALIZED TABLE users_shops ADD (`ct` AS CURRENT_TIMESTAMP, WATERMARK FOR `ct` AS `ct` - INTERVAL '3' SECOND)";
+
+        OperationHandle alterMaterializedTableAsQueryHandle =
+                executeStatement(alterMaterializedTableAsQueryDDL);
+
+        awaitOperationTermination(service, sessionHandle, alterMaterializedTableAsQueryHandle);
+
+        // verify the altered materialized table
+        ResolvedCatalogMaterializedTable newTable = getTable(userShopsIdentifier);
+
+        ResolvedSchema newSchema = newTable.getResolvedSchema();
+        assertThat(getAddedColumns(newSchema, oldTable.getResolvedSchema()))
+                .hasToString("[`ct` TIMESTAMP_LTZ(3) NOT NULL *ROWTIME* AS CURRENT_TIMESTAMP]");
+        assertThat(newSchema.getWatermarkSpecs())
+                .hasToString(
+                        "[WATERMARK FOR `ct`: TIMESTAMP_LTZ(3) NOT NULL AS `ct` - INTERVAL '3' SECOND]");
+        assertThat(newTable.getExpandedQuery()).isEqualTo(oldTable.getExpandedQuery());
+        // the refresh handler in full mode should be the same as the old one
+        assertThat(oldTable.getSerializedRefreshHandler())
+                .isEqualTo(newTable.getSerializedRefreshHandler());
+        assertThat(oldTable.getDefinitionFreshness()).isEqualTo(newTable.getDefinitionFreshness());
     }
 
     @Test
     void testAlterMaterializedTableAsQueryInFullMode() throws Exception {
         createAndVerifyCreateMaterializedTableWithData(
-                "users_shops", Collections.emptyList(), Collections.emptyMap(), RefreshMode.FULL);
+                "users_shops", List.of(), Map.of(), RefreshMode.FULL);
 
-        ResolvedCatalogMaterializedTable oldTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedCatalogMaterializedTable oldTable = getTable(userShopsIdentifier);
 
         // Alter materialized table as query in full mode
         String alterMaterializedTableAsQueryDDL =
@@ -1249,25 +1077,15 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + " GROUP BY (user_id, shop_id, ds)";
 
         OperationHandle alterMaterializedTableAsQueryHandle =
-                service.executeStatement(
-                        sessionHandle, alterMaterializedTableAsQueryDDL, -1, new Configuration());
+                executeStatement(alterMaterializedTableAsQueryDDL);
 
         awaitOperationTermination(service, sessionHandle, alterMaterializedTableAsQueryHandle);
 
         // verify the altered materialized table
-        ResolvedCatalogMaterializedTable newTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ResolvedCatalogMaterializedTable newTable = getTable(userShopsIdentifier);
 
         assertThat(getAddedColumns(newTable.getResolvedSchema(), oldTable.getResolvedSchema()))
-                .isEqualTo(
-                        Collections.singletonList(
-                                Column.physical("order_amount_sum", DataTypes.INT())));
+                .isEqualTo(List.of(Column.physical("order_amount_sum", DataTypes.INT())));
         assertThat(newTable.getExpandedQuery())
                 .isEqualTo(
                         String.format(
@@ -1293,9 +1111,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + " )\n"
                         + " FRESHNESS = INTERVAL '30' SECOND\n"
                         + " AS SELECT 1 as shop_id, 2 as user_id";
-        OperationHandle materializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        OperationHandle materializedTableHandle = executeStatement(materializedTableDDL);
         assertThatThrownBy(
                         () ->
                                 awaitOperationTermination(
@@ -1311,36 +1127,22 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
     @Test
     void testAlterMaterializedTableAddDistribution() throws Exception {
         createAndVerifyCreateMaterializedTableWithData(
-                "users_shops", Collections.emptyList(), Collections.emptyMap(), RefreshMode.FULL);
+                "users_shops", List.of(), Map.of(), RefreshMode.FULL);
 
-        ResolvedCatalogMaterializedTable oldTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedCatalogMaterializedTable oldTable = getTable(userShopsIdentifier);
 
         // Alter materialized table as query in full mode
         String alterMaterializedTableAsQueryDDL =
                 "ALTER MATERIALIZED TABLE users_shops ADD DISTRIBUTION BY HASH (`order_id`) INTO 2 BUCKETS";
 
         OperationHandle alterMaterializedTableAsQueryHandle =
-                service.executeStatement(
-                        sessionHandle, alterMaterializedTableAsQueryDDL, -1, new Configuration());
+                executeStatement(alterMaterializedTableAsQueryDDL);
 
         awaitOperationTermination(service, sessionHandle, alterMaterializedTableAsQueryHandle);
 
         // verify the altered materialized table
-        ResolvedCatalogMaterializedTable newTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ResolvedCatalogMaterializedTable newTable = getTable(userShopsIdentifier);
 
         assertThat(newTable.getExpandedQuery()).isEqualTo(oldTable.getExpandedQuery());
 
@@ -1356,22 +1158,15 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
     @Test
     void testAlterMaterializedTableAsQueryInFullModeWithSuspendStatus() throws Exception {
         createAndVerifyCreateMaterializedTableWithData(
-                "users_shops", Collections.emptyList(), Collections.emptyMap(), RefreshMode.FULL);
+                "users_shops", List.of(), Map.of(), RefreshMode.FULL);
 
-        ResolvedCatalogMaterializedTable oldTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedCatalogMaterializedTable oldTable = getTable(userShopsIdentifier);
 
         // Alter materialized table suspend
         String alterMaterializedTableSuspendDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
         OperationHandle alterMaterializedTableSuspendHandle =
-                service.executeStatement(
-                        sessionHandle, alterMaterializedTableSuspendDDL, -1, new Configuration());
+                executeStatement(alterMaterializedTableSuspendDDL);
         awaitOperationTermination(service, sessionHandle, alterMaterializedTableSuspendHandle);
 
         // Alter materialized table as query in full mode
@@ -1389,25 +1184,15 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + " GROUP BY (user_id, shop_id, ds)";
 
         OperationHandle alterMaterializedTableAsQueryHandle =
-                service.executeStatement(
-                        sessionHandle, alterMaterializedTableAsQueryDDL, -1, new Configuration());
+                executeStatement(alterMaterializedTableAsQueryDDL);
 
         awaitOperationTermination(service, sessionHandle, alterMaterializedTableAsQueryHandle);
 
         // verify the altered materialized table
-        ResolvedCatalogMaterializedTable newTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ResolvedCatalogMaterializedTable newTable = getTable(userShopsIdentifier);
 
         assertThat(getAddedColumns(newTable.getResolvedSchema(), oldTable.getResolvedSchema()))
-                .isEqualTo(
-                        Collections.singletonList(
-                                Column.physical("order_amount_sum", DataTypes.INT())));
+                .containsExactly(Column.physical("order_amount_sum", DataTypes.INT()));
         assertThat(newTable.getExpandedQuery())
                 .isEqualTo(
                         String.format(
@@ -1443,23 +1228,13 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
                         + " ) AS tmp\n"
                         + " GROUP BY (user_id, shop_id, ds)";
-        OperationHandle materializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        OperationHandle materializedTableHandle = executeStatement(materializedTableDDL);
         awaitOperationTermination(service, sessionHandle, materializedTableHandle);
-        ResolvedCatalogMaterializedTable oldTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedCatalogMaterializedTable oldTable = getTable(userShopsIdentifier);
 
         // verify background job is running
-        ContinuousRefreshHandler activeRefreshHandler =
-                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
-                        oldTable.getSerializedRefreshHandler(), getClass().getClassLoader());
+        ContinuousRefreshHandler activeRefreshHandler = getContinuousRefreshHandler(oldTable);
         waitUntilAllTasksAreRunning(
                 restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
 
@@ -1477,26 +1252,18 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
                         + " ) AS tmp\n"
                         + " GROUP BY (user_id, shop_id, ds)";
-        OperationHandle alterTableHandle =
-                service.executeStatement(sessionHandle, alterTableDDL, -1, new Configuration());
+        OperationHandle alterTableHandle = executeStatement(alterTableDDL);
         awaitOperationTermination(service, sessionHandle, alterTableHandle);
-        ResolvedCatalogMaterializedTable newTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ResolvedCatalogMaterializedTable newTable = getTable(userShopsIdentifier);
 
         assertThat(getAddedColumns(newTable.getResolvedSchema(), oldTable.getResolvedSchema()))
-                .isEqualTo(Collections.singletonList(Column.physical("pv", DataTypes.INT())));
+                .containsExactly(Column.physical("pv", DataTypes.INT()));
         assertThat(newTable.getResolvedSchema().getPrimaryKey())
                 .isEqualTo(oldTable.getResolvedSchema().getPrimaryKey());
         assertThat(newTable.getResolvedSchema().getWatermarkSpecs())
                 .isEqualTo(oldTable.getResolvedSchema().getWatermarkSpecs());
         assertThat(newTable.getExpandedQuery())
-                .isEqualTo(
+                .hasToString(
                         String.format(
                                 "SELECT COALESCE(`tmp`.`user_id`, CAST(0 AS BIGINT)) AS `user_id`, `tmp`.`shop_id`, COALESCE(`tmp`.`ds`, '') AS `ds`, SUM(`tmp`.`payment_amount_cents`) AS `payed_buy_fee_sum`, SUM(1) AS `pv`\n"
                                         + "FROM (SELECT `datagenSource`.`user_id`, `datagenSource`.`shop_id`, DATE_FORMAT(`datagenSource`.`order_created_at`, 'yyyy-MM-dd') AS `ds`, `datagenSource`.`payment_amount_cents`\n"
@@ -1508,17 +1275,14 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
 
         // verify the new continuous job is start without savepoint
         ContinuousRefreshHandler newContinuousRefreshHandler =
-                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
-                        newTable.getSerializedRefreshHandler(),
-                        Thread.currentThread().getContextClassLoader());
+                getContinuousRefreshHandler(newTable);
         Optional<String> restorePath =
                 getJobRestoreSavepointPath(
                         restClusterClient, newContinuousRefreshHandler.getJobId());
         assertThat(restorePath).isEmpty();
 
         // drop the materialized table
-        dropMaterializedTable(
-                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -1540,23 +1304,13 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
                         + " ) AS tmp\n"
                         + " GROUP BY (user_id, shop_id, ds)";
-        OperationHandle materializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        OperationHandle materializedTableHandle = executeStatement(materializedTableDDL);
         awaitOperationTermination(service, sessionHandle, materializedTableHandle);
-        ResolvedCatalogMaterializedTable oldTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        ResolvedCatalogMaterializedTable oldTable = getTable(userShopsIdentifier);
 
         // verify background job is running
-        ContinuousRefreshHandler activeRefreshHandler =
-                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
-                        oldTable.getSerializedRefreshHandler(), getClass().getClassLoader());
+        ContinuousRefreshHandler activeRefreshHandler = getContinuousRefreshHandler(oldTable);
         waitUntilAllTasksAreRunning(
                 restClusterClient, JobID.fromHexString(activeRefreshHandler.getJobId()));
 
@@ -1564,8 +1318,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
 
         // suspend materialized table
         String suspendTableDDL = "ALTER MATERIALIZED TABLE users_shops SUSPEND";
-        OperationHandle suspendTableHandle =
-                service.executeStatement(sessionHandle, suspendTableDDL, -1, new Configuration());
+        OperationHandle suspendTableHandle = executeStatement(suspendTableDDL);
         awaitOperationTermination(service, sessionHandle, suspendTableHandle);
 
         String alterTableDDL =
@@ -1580,22 +1333,14 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + "    SELECT user_id, shop_id, DATE_FORMAT(order_created_at, 'yyyy-MM-dd') AS ds, payment_amount_cents FROM datagenSource"
                         + " ) AS tmp\n"
                         + " GROUP BY (user_id, shop_id, ds)";
-        OperationHandle alterTableHandle =
-                service.executeStatement(sessionHandle, alterTableDDL, -1, new Configuration());
+        OperationHandle alterTableHandle = executeStatement(alterTableDDL);
         awaitOperationTermination(service, sessionHandle, alterTableHandle);
-        ResolvedCatalogMaterializedTable newTable =
-                (ResolvedCatalogMaterializedTable)
-                        service.getTable(
-                                sessionHandle,
-                                ObjectIdentifier.of(
-                                        fileSystemCatalogName,
-                                        TEST_DEFAULT_DATABASE,
-                                        "users_shops"));
+        ResolvedCatalogMaterializedTable newTable = getTable(userShopsIdentifier);
 
         assertThat(getAddedColumns(newTable.getResolvedSchema(), oldTable.getResolvedSchema()))
-                .isEqualTo(Collections.singletonList(Column.physical("pv", DataTypes.INT())));
+                .containsExactly(Column.physical("pv", DataTypes.INT()));
         assertThat(newTable.getExpandedQuery())
-                .isEqualTo(
+                .hasToString(
                         String.format(
                                 "SELECT `tmp`.`user_id`, `tmp`.`shop_id`, `tmp`.`ds`, SUM(`tmp`.`payment_amount_cents`) AS `payed_buy_fee_sum`, SUM(1) AS `pv`\n"
                                         + "FROM (SELECT `datagenSource`.`user_id`, `datagenSource`.`shop_id`, DATE_FORMAT(`datagenSource`.`order_created_at`, 'yyyy-MM-dd') AS `ds`, `datagenSource`.`payment_amount_cents`\n"
@@ -1608,14 +1353,11 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
 
         // verify the restore path is empty
         ContinuousRefreshHandler newContinuousRefreshHandler =
-                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
-                        newTable.getSerializedRefreshHandler(),
-                        Thread.currentThread().getContextClassLoader());
+                getContinuousRefreshHandler(newTable);
         assertThat(newContinuousRefreshHandler.getRestorePath()).isEmpty();
 
         // drop the materialized table
-        dropMaterializedTable(
-                ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+        dropMaterializedTable(userShopsIdentifier);
     }
 
     @Test
@@ -1638,39 +1380,27 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         + " ) AS tmp\n"
                         + " GROUP BY (user_id, shop_id, ds)";
 
-        OperationHandle materializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, materializedTableDDL, -1, new Configuration());
+        OperationHandle materializedTableHandle = executeStatement(materializedTableDDL);
         awaitOperationTermination(service, sessionHandle, materializedTableHandle);
 
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
         // verify materialized table exists
-        ResolvedCatalogBaseTable<?> activeMaterializedTable =
-                service.getTable(
-                        sessionHandle,
-                        ObjectIdentifier.of(
-                                fileSystemCatalogName, TEST_DEFAULT_DATABASE, "users_shops"));
+        ResolvedCatalogBaseTable<?> activeMaterializedTable = getTable(userShopsIdentifier);
 
         assertThat(activeMaterializedTable).isInstanceOf(ResolvedCatalogMaterializedTable.class);
 
+        ResolvedCatalogMaterializedTable activeMaterializedTable1 =
+                (ResolvedCatalogMaterializedTable) activeMaterializedTable;
         waitUntilAllTasksAreRunning(
                 restClusterClient,
                 JobID.fromHexString(
-                        ContinuousRefreshHandlerSerializer.INSTANCE
-                                .deserialize(
-                                        ((ResolvedCatalogMaterializedTable) activeMaterializedTable)
-                                                .getSerializedRefreshHandler(),
-                                        getClass().getClassLoader())
-                                .getJobId()));
+                        getContinuousRefreshHandler(activeMaterializedTable1).getJobId()));
 
         // verify background job is running
         ContinuousRefreshHandler activeRefreshHandler =
-                ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
-                        ((ResolvedCatalogMaterializedTable) activeMaterializedTable)
-                                .getSerializedRefreshHandler(),
-                        getClass().getClassLoader());
+                getContinuousRefreshHandler(activeMaterializedTable1);
         String describeJobDDL = String.format("DESCRIBE JOB '%s'", activeRefreshHandler.getJobId());
-        OperationHandle describeJobHandle =
-                service.executeStatement(sessionHandle, describeJobDDL, -1, new Configuration());
+        OperationHandle describeJobHandle = executeStatement(describeJobDDL);
         awaitOperationTermination(service, sessionHandle, describeJobHandle);
         List<RowData> jobResults = fetchAllResults(service, sessionHandle, describeJobHandle);
         assertThat(jobResults.get(0).getString(2).toString()).isEqualTo("RUNNING");
@@ -1678,8 +1408,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         // Drop materialized table using drop table statement
         String dropTableUsingMaterializedTableDDL = "DROP TABLE users_shops";
         OperationHandle dropTableUsingMaterializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, dropTableUsingMaterializedTableDDL, -1, new Configuration());
+                executeStatement(dropTableUsingMaterializedTableDDL);
 
         assertThatThrownBy(
                         () ->
@@ -1692,28 +1421,15 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .hasMessage(
                         String.format(
                                 "Table with identifier '%s' does not exist.",
-                                ObjectIdentifier.of(
-                                                fileSystemCatalogName,
-                                                TEST_DEFAULT_DATABASE,
-                                                "users_shops")
-                                        .asSummaryString()));
+                                userShopsIdentifier.asSummaryString()));
 
         // drop materialized table
         String dropMaterializedTableDDL = "DROP MATERIALIZED TABLE IF EXISTS users_shops";
-        OperationHandle dropMaterializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, dropMaterializedTableDDL, -1, new Configuration());
+        OperationHandle dropMaterializedTableHandle = executeStatement(dropMaterializedTableDDL);
         awaitOperationTermination(service, sessionHandle, dropMaterializedTableHandle);
 
         // verify materialized table metadata is removed
-        assertThatThrownBy(
-                        () ->
-                                service.getTable(
-                                        sessionHandle,
-                                        ObjectIdentifier.of(
-                                                fileSystemCatalogName,
-                                                TEST_DEFAULT_DATABASE,
-                                                "users_shops")))
+        assertThatThrownBy(() -> getTable(userShopsIdentifier))
                 .isInstanceOf(SqlGatewayException.class)
                 .hasMessageContaining("Failed to getTable.");
 
@@ -1723,9 +1439,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
 
         String describeJobAfterDropDDL =
                 String.format("DESCRIBE JOB '%s'", activeRefreshHandler.getJobId());
-        OperationHandle describeJobAfterDropHandle =
-                service.executeStatement(
-                        sessionHandle, describeJobAfterDropDDL, -1, new Configuration());
+        OperationHandle describeJobAfterDropHandle = executeStatement(describeJobAfterDropDDL);
         awaitOperationTermination(service, sessionHandle, describeJobAfterDropHandle);
         List<RowData> jobResultsAfterDrop =
                 fetchAllResults(service, sessionHandle, describeJobAfterDropHandle);
@@ -1734,8 +1448,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         // verify drop materialized table that doesn't exist
         String dropNonExistMaterializedTableDDL = "DROP MATERIALIZED TABLE users_shops";
         OperationHandle dropNonExistTableHandle =
-                service.executeStatement(
-                        sessionHandle, dropNonExistMaterializedTableDDL, -1, new Configuration());
+                executeStatement(dropNonExistMaterializedTableDDL);
 
         assertThatThrownBy(
                         () ->
@@ -1746,50 +1459,32 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .hasMessage(
                         String.format(
                                 "Materialized table with identifier %s does not exist.",
-                                ObjectIdentifier.of(
-                                                fileSystemCatalogName,
-                                                TEST_DEFAULT_DATABASE,
-                                                "users_shops")
-                                        .asSerializableString()));
+                                userShopsIdentifier.asSerializableString()));
 
         String dropNonExistMaterializedTableDDL2 = "DROP MATERIALIZED TABLE IF EXISTS users_shops";
         OperationHandle dropNonExistMaterializedTableHandle2 =
-                service.executeStatement(
-                        sessionHandle, dropNonExistMaterializedTableDDL2, -1, new Configuration());
+                executeStatement(dropNonExistMaterializedTableDDL2);
         awaitOperationTermination(service, sessionHandle, dropNonExistMaterializedTableHandle2);
 
         // Drop a table using drop materialized table statement
         dropMaterializedTableDDL = "DROP MATERIALIZED TABLE IF EXISTS datagenSource";
-        OperationHandle dropTableHandle =
-                service.executeStatement(
-                        sessionHandle, dropMaterializedTableDDL, -1, new Configuration());
+        OperationHandle dropTableHandle = executeStatement(dropMaterializedTableDDL);
         assertThatThrownBy(() -> awaitOperationTermination(service, sessionHandle, dropTableHandle))
                 .rootCause()
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
                         String.format(
                                 "Table %s is not a materialized table, does not support materialized table related operation.",
-                                ObjectIdentifier.of(
-                                                fileSystemCatalogName,
-                                                TEST_DEFAULT_DATABASE,
-                                                "datagenSource")
-                                        .asSerializableString()));
+                                getObjectIdentifier("datagenSource").asSerializableString()));
     }
 
     @Test
     void testDropMaterializedTableInFullMode() throws Exception {
         createAndVerifyCreateMaterializedTableWithData(
-                "users_shops", Collections.emptyList(), Collections.emptyMap(), RefreshMode.FULL);
+                "users_shops", List.of(), Map.of(), RefreshMode.FULL);
 
-        JobKey jobKey =
-                JobKey.jobKey(
-                        "quartz_job_"
-                                + ObjectIdentifier.of(
-                                                fileSystemCatalogName,
-                                                TEST_DEFAULT_DATABASE,
-                                                "users_shops")
-                                        .asSerializableString(),
-                        "default_group");
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        JobKey jobKey = getJobKey(userShopsIdentifier);
         EmbeddedQuartzScheduler embeddedWorkflowScheduler =
                 SQL_GATEWAY_REST_ENDPOINT_EXTENSION
                         .getSqlGatewayRestEndpoint()
@@ -1801,8 +1496,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         // Drop materialized table using drop table statement
         String dropTableUsingMaterializedTableDDL = "DROP TABLE users_shops";
         OperationHandle dropTableUsingMaterializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, dropTableUsingMaterializedTableDDL, -1, new Configuration());
+                executeStatement(dropTableUsingMaterializedTableDDL);
 
         assertThatThrownBy(
                         () ->
@@ -1815,28 +1509,15 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .hasMessage(
                         String.format(
                                 "Table with identifier '%s' does not exist.",
-                                ObjectIdentifier.of(
-                                                fileSystemCatalogName,
-                                                TEST_DEFAULT_DATABASE,
-                                                "users_shops")
-                                        .asSummaryString()));
+                                userShopsIdentifier.asSummaryString()));
 
         // drop materialized table
         String dropMaterializedTableDDL = "DROP MATERIALIZED TABLE IF EXISTS users_shops";
-        OperationHandle dropMaterializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, dropMaterializedTableDDL, -1, new Configuration());
+        OperationHandle dropMaterializedTableHandle = executeStatement(dropMaterializedTableDDL);
         awaitOperationTermination(service, sessionHandle, dropMaterializedTableHandle);
 
         // verify materialized table metadata is removed
-        assertThatThrownBy(
-                        () ->
-                                service.getTable(
-                                        sessionHandle,
-                                        ObjectIdentifier.of(
-                                                fileSystemCatalogName,
-                                                TEST_DEFAULT_DATABASE,
-                                                "users_shops")))
+        assertThatThrownBy(() -> getTable(userShopsIdentifier))
                 .isInstanceOf(SqlGatewayException.class)
                 .hasMessageContaining("Failed to getTable.");
 
@@ -1847,17 +1528,10 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
     @Test
     void testDropMaterializedTableWithDeletedRefreshWorkflowInFullMode() throws Exception {
         createAndVerifyCreateMaterializedTableWithData(
-                "users_shops", Collections.emptyList(), Collections.emptyMap(), RefreshMode.FULL);
+                "users_shops", List.of(), Map.of(), RefreshMode.FULL);
 
-        JobKey jobKey =
-                JobKey.jobKey(
-                        "quartz_job_"
-                                + ObjectIdentifier.of(
-                                                fileSystemCatalogName,
-                                                TEST_DEFAULT_DATABASE,
-                                                "users_shops")
-                                        .asSerializableString(),
-                        "default_group");
+        ObjectIdentifier userShopsIdentifier = getObjectIdentifier("users_shops");
+        JobKey jobKey = getJobKey(userShopsIdentifier);
         EmbeddedQuartzScheduler embeddedWorkflowScheduler =
                 SQL_GATEWAY_REST_ENDPOINT_EXTENSION
                         .getSqlGatewayRestEndpoint()
@@ -1871,20 +1545,11 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
 
         // drop materialized table
         String dropMaterializedTableDDL = "DROP MATERIALIZED TABLE IF EXISTS users_shops";
-        OperationHandle dropMaterializedTableHandle =
-                service.executeStatement(
-                        sessionHandle, dropMaterializedTableDDL, -1, new Configuration());
+        OperationHandle dropMaterializedTableHandle = executeStatement(dropMaterializedTableDDL);
         awaitOperationTermination(service, sessionHandle, dropMaterializedTableHandle);
 
         // verify materialized table metadata is removed
-        assertThatThrownBy(
-                        () ->
-                                service.getTable(
-                                        sessionHandle,
-                                        ObjectIdentifier.of(
-                                                fileSystemCatalogName,
-                                                TEST_DEFAULT_DATABASE,
-                                                "users_shops")))
+        assertThatThrownBy(() -> getTable(userShopsIdentifier))
                 .isInstanceOf(SqlGatewayException.class)
                 .hasMessageContaining("Failed to getTable.");
     }
@@ -1901,9 +1566,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 Collections.singletonMap("ds", "yyyy-MM-dd"),
                 RefreshMode.CONTINUOUS);
 
-        ObjectIdentifier objectIdentifier =
-                ObjectIdentifier.of(
-                        fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table");
+        ObjectIdentifier objectIdentifier = getObjectIdentifier("my_materialized_table");
 
         // add more data to all data list
         data.add(Row.of(3L, 3L, 3L, "2024-01-01"));
@@ -1920,9 +1583,9 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         objectIdentifier.asSerializableString(),
                         false,
                         null,
-                        Collections.emptyMap(),
+                        Map.of(),
                         staticPartitions,
-                        Collections.emptyMap());
+                        Map.of());
         awaitOperationTermination(service, sessionHandle, refreshTableHandle);
         List<RowData> result = fetchAllResults(service, sessionHandle, refreshTableHandle);
         assertThat(result.size()).isEqualTo(1);
@@ -1948,9 +1611,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isNotEqualTo(getPartitionSize(data, "2024-01-01"));
 
         // drop the materialized table
-        dropMaterializedTable(
-                ObjectIdentifier.of(
-                        fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table"));
+        dropMaterializedTable(objectIdentifier);
     }
 
     @Test
@@ -1963,14 +1624,11 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         createAndVerifyCreateMaterializedTableWithData(
                 "my_materialized_table_without_partition_options",
                 data,
-                Collections.emptyMap(),
+                Map.of(),
                 RefreshMode.CONTINUOUS);
 
-        ObjectIdentifier materializedTableWithoutFormatterIdentifier =
-                ObjectIdentifier.of(
-                        fileSystemCatalogName,
-                        TEST_DEFAULT_DATABASE,
-                        "my_materialized_table_without_partition_options");
+        ObjectIdentifier tableWithoutFormatterIdentifier =
+                getObjectIdentifier("my_materialized_table_without_partition_options");
 
         // add more data to all data list
         data.add(Row.of(3L, 3L, 3L, "2024-01-01"));
@@ -1980,12 +1638,12 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         OperationHandle periodRefreshTableWithoutFormatterHandle =
                 service.refreshMaterializedTable(
                         sessionHandle,
-                        materializedTableWithoutFormatterIdentifier.asSerializableString(),
+                        tableWithoutFormatterIdentifier.asSerializableString(),
                         true,
                         "2024-01-02 00:00:00",
-                        Collections.emptyMap(),
-                        Collections.emptyMap(),
-                        Collections.emptyMap());
+                        Map.of(),
+                        Map.of(),
+                        Map.of());
 
         awaitOperationTermination(service, sessionHandle, periodRefreshTableWithoutFormatterHandle);
 
@@ -2016,11 +1674,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isEqualTo(getPartitionSize(data, "2024-01-02"));
 
         // drop the materialized table
-        dropMaterializedTable(
-                ObjectIdentifier.of(
-                        fileSystemCatalogName,
-                        TEST_DEFAULT_DATABASE,
-                        "my_materialized_table_without_partition_options"));
+        dropMaterializedTable(tableWithoutFormatterIdentifier);
     }
 
     @Test
@@ -2034,9 +1688,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 Collections.singletonMap("ds", "yyyy-MM-dd"),
                 RefreshMode.FULL);
 
-        ObjectIdentifier materializedTableIdentifier =
-                ObjectIdentifier.of(
-                        fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table");
+        ObjectIdentifier materializedTableIdentifier = getObjectIdentifier("my_materialized_table");
 
         // add more data to all data list
         data.add(Row.of(1L, 1L, 1L, "2024-01-01"));
@@ -2051,9 +1703,9 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         materializedTableIdentifier.asSerializableString(),
                         true,
                         "2024-01-03 00:00:00",
-                        Collections.emptyMap(),
-                        Collections.emptyMap(),
-                        Collections.emptyMap());
+                        Map.of(),
+                        Map.of(),
+                        Map.of());
 
         awaitOperationTermination(service, sessionHandle, periodRefreshTableHandle);
 
@@ -2084,9 +1736,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .isNotEqualTo(getPartitionSize(data, "2024-01-01"));
 
         // drop the materialized table
-        dropMaterializedTable(
-                ObjectIdentifier.of(
-                        fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table"));
+        dropMaterializedTable(materializedTableIdentifier);
     }
 
     @Test
@@ -2101,9 +1751,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 Collections.singletonMap("ds", "yyyy-MM-dd"),
                 RefreshMode.CONTINUOUS);
 
-        ObjectIdentifier objectIdentifier =
-                ObjectIdentifier.of(
-                        fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table");
+        ObjectIdentifier objectIdentifier = getObjectIdentifier("my_materialized_table");
 
         // refresh the materialized table with schedule time not specified
         OperationHandle invalidRefreshTableHandle1 =
@@ -2112,9 +1760,9 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         objectIdentifier.asSerializableString(),
                         true,
                         null,
-                        Collections.emptyMap(),
-                        Collections.emptyMap(),
-                        Collections.emptyMap());
+                        Map.of(),
+                        Map.of(),
+                        Map.of());
         assertThatThrownBy(
                         () ->
                                 awaitOperationTermination(
@@ -2124,11 +1772,7 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .hasMessage(
                         String.format(
                                 "The scheduler time must not be null during the periodic refresh of the materialized table %s.",
-                                ObjectIdentifier.of(
-                                                fileSystemCatalogName,
-                                                TEST_DEFAULT_DATABASE,
-                                                "my_materialized_table")
-                                        .asSerializableString()));
+                                objectIdentifier.asSerializableString()));
 
         // refresh the materialized table with invalid schedule time
         String invalidTime = "20240103 00:00:00.000";
@@ -2138,9 +1782,9 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                         objectIdentifier.asSerializableString(),
                         true,
                         invalidTime,
-                        Collections.emptyMap(),
-                        Collections.emptyMap(),
-                        Collections.emptyMap());
+                        Map.of(),
+                        Map.of(),
+                        Map.of());
 
         assertThatThrownBy(
                         () ->
@@ -2151,25 +1795,34 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
                 .hasMessage(
                         String.format(
                                 "Failed to parse a valid partition value for the field 'ds' in materialized table %s using the scheduler time '20240103 00:00:00.000' based on the date format 'yyyy-MM-dd HH:mm:ss'.",
-                                ObjectIdentifier.of(
-                                                fileSystemCatalogName,
-                                                TEST_DEFAULT_DATABASE,
-                                                "my_materialized_table")
-                                        .asSerializableString()));
+                                objectIdentifier.asSerializableString()));
 
         // drop the materialized table
-        dropMaterializedTable(
-                ObjectIdentifier.of(
-                        fileSystemCatalogName, TEST_DEFAULT_DATABASE, "my_materialized_table"));
+        dropMaterializedTable(getObjectIdentifier("my_materialized_table"));
     }
 
     private void setupSavepointDir(Path temporaryPath) throws Exception {
         String savepointDir = "file://" + temporaryPath.toAbsolutePath();
         String setupSavepointDDL =
                 "SET 'execution.checkpointing.savepoint-dir' = '" + savepointDir + "'";
-        OperationHandle setupSavepointHandle =
-                service.executeStatement(sessionHandle, setupSavepointDDL, -1, new Configuration());
+        OperationHandle setupSavepointHandle = executeStatement(setupSavepointDDL);
         awaitOperationTermination(service, sessionHandle, setupSavepointHandle);
+    }
+
+    private OperationHandle executeStatement(
+            String statement, long timeoutMs, Configuration config) {
+        return service.executeStatement(sessionHandle, statement, timeoutMs, config);
+    }
+
+    private OperationHandle executeStatement(String statement) {
+        return executeStatement(statement, -1, new Configuration());
+    }
+
+    private ContinuousRefreshHandler getContinuousRefreshHandler(
+            ResolvedCatalogMaterializedTable resolvedTable)
+            throws IOException, ClassNotFoundException {
+        return ContinuousRefreshHandlerSerializer.INSTANCE.deserialize(
+                resolvedTable.getSerializedRefreshHandler(), getClass().getClassLoader());
     }
 
     private List<Column> getAddedColumns(ResolvedSchema newSchema, ResolvedSchema oldSchema) {
@@ -2213,6 +1866,18 @@ class MaterializedTableStatementITCase extends AbstractMaterializedTableStatemen
         return restoredCheckpointStatistics != null
                 ? Optional.ofNullable(restoredCheckpointStatistics.getExternalPath())
                 : Optional.empty();
+    }
+
+    private ObjectIdentifier getObjectIdentifier(String name) {
+        return ObjectIdentifier.of(fileSystemCatalogName, TEST_DEFAULT_DATABASE, name);
+    }
+
+    private JobKey getJobKey(ObjectIdentifier identifier) {
+        return JobKey.jobKey("quartz_job_" + identifier.asSerializableString(), "default_group");
+    }
+
+    private ResolvedCatalogMaterializedTable getTable(ObjectIdentifier identifier) {
+        return (ResolvedCatalogMaterializedTable) service.getTable(sessionHandle, identifier);
     }
 
     private static <M extends JobMessageParameters, R extends RequestBody, P extends ResponseBody>

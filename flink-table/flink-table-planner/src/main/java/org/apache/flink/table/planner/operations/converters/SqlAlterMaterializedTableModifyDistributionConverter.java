@@ -35,17 +35,13 @@ import java.util.List;
 public class SqlAlterMaterializedTableModifyDistributionConverter
         extends AbstractAlterMaterializedTableConverter<
                 SqlAlterMaterializedTableModifyDistribution> {
+
     @Override
-    public Operation convertSqlNode(
-            SqlAlterMaterializedTableModifyDistribution node, ConvertContext context) {
-        ObjectIdentifier identifier = resolveIdentifier(node, context);
-
-        ResolvedCatalogMaterializedTable oldTable =
-                getResolvedMaterializedTable(
-                        context,
-                        identifier,
-                        () -> "Operation is supported only for materialized tables");
-
+    protected Operation convertToOperation(
+            SqlAlterMaterializedTableModifyDistribution sqlModifyDistribution,
+            ResolvedCatalogMaterializedTable oldTable,
+            ConvertContext context) {
+        ObjectIdentifier identifier = resolveIdentifier(sqlModifyDistribution, context);
         if (oldTable.getDistribution().isEmpty()) {
             throw new ValidationException(
                     String.format(
@@ -55,7 +51,7 @@ public class SqlAlterMaterializedTableModifyDistributionConverter
 
         TableDistribution tableDistribution =
                 OperationConverterUtils.getDistributionFromSqlDistribution(
-                        node.getDistribution().get());
+                        sqlModifyDistribution.getDistribution().get());
         // Build new materialized table and apply changes
         CatalogMaterializedTable updatedTable =
                 buildUpdatedMaterializedTable(
