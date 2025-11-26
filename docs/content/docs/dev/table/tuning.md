@@ -348,7 +348,7 @@ JOIN t2 ON t1.id = t2.id
 JOIN t3 ON t1.id = t3.id;
 ```
 
-The hint approach allows you to selectively apply the MultiJoin optimization to specific query blocks without enabling it globally. You can specify either table names or table aliases in the hint. For more details on the MULTI_JOIN hint, see [Join Hints]({{< ref "docs/dev/table/sql/queries/hints" >}}#multi_join).
+The hint approach allows you to selectively apply the MultiJoin optimization to specific query blocks without enabling it globally. For more details on the MULTI_JOIN hint, see [Join Hints]({{< ref "docs/dev/table/sql/queries/hints" >}}#multi_join). The configuration setting takes precedence over the hint.
 
 Important: This is currently in an experimental state - optimizations and breaking changes might be implemented. We currently support only streaming INNER/LEFT joins. Due to records partitioning, you need at least one key that is shared between the join conditions, see:
 
