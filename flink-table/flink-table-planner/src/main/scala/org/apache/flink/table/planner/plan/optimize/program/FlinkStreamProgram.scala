@@ -233,22 +233,20 @@ object FlinkStreamProgram {
     }
 
     // multi-join
-    if (tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTI_JOIN_ENABLED)) {
-      chainedProgram.addLast(
-        MULTI_JOIN,
-        FlinkGroupProgramBuilder
-          .newBuilder[StreamOptimizeContext]
-          .addProgram(
-            FlinkHepRuleSetProgramBuilder.newBuilder
-              .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
-              .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
-              .add(FlinkStreamRuleSets.MULTI_JOIN_RULES)
-              .build(),
-            "merge binary regular joins into MultiJoin"
-          )
-          .build()
-      )
-    }
+    chainedProgram.addLast(
+      MULTI_JOIN,
+      FlinkGroupProgramBuilder
+        .newBuilder[StreamOptimizeContext]
+        .addProgram(
+          FlinkHepRuleSetProgramBuilder.newBuilder
+            .setHepRulesExecutionType(HEP_RULES_EXECUTION_TYPE.RULE_COLLECTION)
+            .setHepMatchOrder(HepMatchOrder.BOTTOM_UP)
+            .add(FlinkStreamRuleSets.MULTI_JOIN_RULES)
+            .build(),
+          "merge binary regular joins into MultiJoin"
+        )
+        .build()
+    )
 
     // project rewrite
     chainedProgram.addLast(
