@@ -276,7 +276,7 @@ $ bin/flink run -s :savepointPath [:runArgs]
 For more details, please take a look at the [savepoint documentation]({{< ref "docs/ops/state/savepoints" >}}).
 
 ## Compatibility Table
-> **Note:** For SQL/Table API jobs, even minor version upgrades (e.g., 1.16 → 1.20) can cause incompatible savepoints due to changes in query optimizers and operator topologies. See the [Table API & SQL](#table-api--sql) section above for important compatibility considerations.
+> **Note:** For SQL/Table API jobs, even minor version upgrades (e.g., 1.18 → 1.20) can cause incompatible savepoints due to changes in query optimizers and operator topologies. See the [Table API & SQL](#table-api--sql) section above for important compatibility considerations.
 
 Savepoints are compatible across Flink versions as indicated by the table below:
 
