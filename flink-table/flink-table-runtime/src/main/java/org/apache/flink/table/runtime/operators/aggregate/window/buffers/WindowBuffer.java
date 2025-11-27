@@ -36,7 +36,7 @@ import java.time.ZoneId;
  * frequently accessing state, or flushes to output to reduce shuffling data.
  */
 @Internal
-public interface WindowBuffer {
+public interface WindowBuffer extends AutoCloseable {
 
     /**
      * Adds an element with associated key into the buffer. The buffer may temporarily buffer the
@@ -71,9 +71,6 @@ public interface WindowBuffer {
      *     exception.
      */
     void flush() throws Exception;
-
-    /** Release resources allocated by this buffer. */
-    void close() throws Exception;
 
     // ------------------------------------------------------------------------
 
