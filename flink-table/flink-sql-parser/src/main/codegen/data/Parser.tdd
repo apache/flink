@@ -61,7 +61,6 @@
     "org.apache.flink.sql.parser.ddl.TableSchemaContext"
     "org.apache.flink.sql.parser.ddl.TableSchemaContext.AlterTableSchemaContext"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableAdd"
-    "org.apache.flink.sql.parser.ddl.SqlAlterTableAddConstraint"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableDropColumn"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableDropConstraint"
     "org.apache.flink.sql.parser.ddl.SqlAlterTableDropDistribution"
