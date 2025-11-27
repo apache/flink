@@ -28,6 +28,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctio
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.ContextFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.DescriptorFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.EmptyArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalDayArgFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.IntervalYearArgFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidPassThroughTimersFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidRowKindFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.ProcessTableFunctionTestUtils.InvalidRowSemanticTableTimersFunction;
@@ -383,6 +385,30 @@ public class ProcessTableFunctionTestPrograms {
                                     .consumedValues("+I[{empty}]")
                                     .build())
                     .runSql("INSERT INTO sink SELECT * FROM f()")
+                    .build();
+
+    public static final TableTestProgram PROCESS_INTERVAL_DAY_ARGS =
+            TableTestProgram.of("process-interval-day-args", "interval argument")
+                    .setupTemporarySystemFunction("f", IntervalDayArgFunction.class)
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues("+I[{PT1S}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(d => INTERVAL '1' SECOND)")
+                    .build();
+
+    public static final TableTestProgram PROCESS_INTERVAL_YEAR_ARGS =
+            TableTestProgram.of("process-interval-year-args", "interval argument")
+                    .setupTemporarySystemFunction("f", IntervalYearArgFunction.class)
+                    .setupSql(BASIC_VALUES)
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink")
+                                    .addSchema(BASE_SINK_SCHEMA)
+                                    .consumedValues("+I[{P1Y}]")
+                                    .build())
+                    .runSql("INSERT INTO sink SELECT * FROM f(p => INTERVAL '1' YEAR)")
                     .build();
 
     public static final TableTestProgram PROCESS_ROW_SEMANTIC_TABLE_PASS_THROUGH =

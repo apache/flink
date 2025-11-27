@@ -20,6 +20,7 @@ package org.apache.flink.table.types.logical.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.types.logical.DateType;
+import org.apache.flink.table.types.logical.DayTimeIntervalType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
@@ -28,6 +29,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.logical.VarBinaryType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.YearMonthIntervalType;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -74,7 +76,10 @@ import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIME_WITHOUT_
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.TINYINT;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARBINARY;
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARCHAR;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getDayPrecision;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getFractionalPrecision;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getLength;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getYearPrecision;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isSingleFieldInterval;
 
 /**
@@ -536,6 +541,31 @@ public final class LogicalTypeCasts {
 
         private CastAvoidanceChecker(LogicalType sourceType) {
             this.sourceType = sourceType;
+        }
+
+        @Override
+        public Boolean visit(YearMonthIntervalType targetType) {
+            if (sourceType.isNullable() && !targetType.isNullable()) {
+                return false;
+            }
+            if (sourceType.is(LogicalTypeRoot.INTERVAL_YEAR_MONTH)
+                    && getYearPrecision(sourceType) <= targetType.getYearPrecision()) {
+                return true;
+            }
+            return defaultMethod(targetType);
+        }
+
+        @Override
+        public Boolean visit(DayTimeIntervalType targetType) {
+            if (sourceType.isNullable() && !targetType.isNullable()) {
+                return false;
+            }
+            if (sourceType.is(LogicalTypeRoot.INTERVAL_DAY_TIME)
+                    && getDayPrecision(sourceType) <= targetType.getDayPrecision()
+                    && getFractionalPrecision(sourceType) <= targetType.getFractionalPrecision()) {
+                return true;
+            }
+            return defaultMethod(targetType);
         }
 
         @Override
