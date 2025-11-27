@@ -61,41 +61,11 @@ class ScalaCaseClassSerializer[T <: Product](
 object ScalaCaseClassSerializer {
 
   def lookupConstructor[T](cls: Class[T]): Array[AnyRef] => T = {
-    Try {
-      val rootMirror = universe.runtimeMirror(cls.getClassLoader)
-      val classSymbol = rootMirror.classSymbol(cls)
-
-      require(
-        classSymbol.isStatic,
-        s"""
-           |The class ${cls.getSimpleName} is an instance class, meaning it is not a member of a
-           |toplevel object, or of an object contained in a toplevel object,
-           |therefore it requires an outer instance to be instantiated, but we don't have a
-           |reference to the outer instance. Please consider changing the outer class to an object.
-           |""".stripMargin
-      )
-
-      val primaryConstructorSymbol = classSymbol.toType
-        .decl(universe.termNames.CONSTRUCTOR)
-        .alternatives
-        .collectFirst {
-          case constructorSymbol: universe.MethodSymbol if constructorSymbol.isPrimaryConstructor =>
-            constructorSymbol
-        }
-        .getOrElse(throw new NoSuchElementException("No primary constructor found"))
-        .asMethod
-
-      val classMirror = rootMirror.reflectClass(classSymbol)
-      val constructorMethodMirror = classMirror.reflectConstructor(primaryConstructorSymbol)
-
-      (arr: Array[AnyRef]) => constructorMethodMirror.apply(arr: _*).asInstanceOf[T]
-    }.recover {
-      case e: IllegalArgumentException => throw e
-      case e =>
-        System.err.println(
-          s"[ScalaCaseClassSerializer] Falling back to Java reflection for ${cls.getName}: ${e.getMessage}")
-        val constructor = cls.getConstructors()(0)
-        (arr: Array[AnyRef]) => constructor.newInstance(arr: _*).asInstanceOf[T]
-    }.get
+    // Use Java reflection instead of Scala reflection to avoid issues with
+    // DefaultInstantiatorStrategy introduced in FLINK-37546.
+    // Scala reflection fails during type erasure transformation when Kryo uses
+    // DefaultInstantiatorStrategy for object instantiation.
+    val constructor = cls.getConstructors()(0)
+    (arr: Array[AnyRef]) => constructor.newInstance(arr: _*).asInstanceOf[T]
   }
 }
