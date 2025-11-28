@@ -109,6 +109,23 @@ class CalcTest extends TableTestBase {
   }
 
   @Test
+  def testCoalesceOnInvalidField(): Unit = {
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(() => util.verifyExecPlan("SELECT coalesce(SELECT invalid)"))
+      .havingRootCause()
+      .withMessageContaining("Column 'invalid' not found in any table")
+  }
+
+  @Test
+  def testNestedCoalesceOnInvalidField(): Unit = {
+    assertThatExceptionOfType(classOf[ValidationException])
+      .isThrownBy(
+        () => util.verifyExecPlan("SELECT coalesce(SELECT coalesce(SELECT coalesce(invalid)))"))
+      .havingRootCause()
+      .withMessageContaining("Column 'invalid' not found in any table")
+  }
+
+  @Test
   def testPrimitiveMapType(): Unit = {
     util.verifyExecPlan("SELECT MAP[b, 30, 10, a] FROM MyTable")
   }

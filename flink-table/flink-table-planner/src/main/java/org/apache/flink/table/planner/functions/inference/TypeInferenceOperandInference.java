@@ -31,7 +31,6 @@ import org.apache.flink.table.types.inference.TypeInferenceUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.runtime.CalciteContextException;
 import org.apache.calcite.sql.SqlCallBinding;
 import org.apache.calcite.sql.type.SqlOperandTypeInference;
 
@@ -81,7 +80,7 @@ public final class TypeInferenceOperandInference implements SqlOperandTypeInfere
                     false)) {
                 inferOperandTypesOrError(unwrapTypeFactory(callBinding), callContext, operandTypes);
             }
-        } catch (ValidationException | CalciteContextException e) {
+        } catch (ValidationException e) {
             // let operand checker fail
         } catch (Throwable t) {
             throw createUnexpectedException(callContext, t);

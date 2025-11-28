@@ -36,6 +36,7 @@ import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelFieldCollation, RelRoot}
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rex.{RexInputRef, RexNode}
+import org.apache.calcite.runtime.CalciteContextException
 import org.apache.calcite.sql.{SqlBasicCall, SqlCall, SqlHint, SqlKind, SqlNode, SqlNodeList, SqlOperatorTable, SqlSelect, SqlTableRef}
 import org.apache.calcite.sql.advise.SqlAdvisorValidator
 import org.apache.calcite.sql.util.SqlShuttle
@@ -202,7 +203,13 @@ class FlinkPlannerImpl(
       }
     } catch {
       case e: RuntimeException =>
-        throw new ValidationException(s"SQL validation failed. ${e.getMessage}", e)
+        val reason =
+          if (e.getCause != null && e.getCause.isInstanceOf[CalciteContextException]) {
+            e.getCause
+          } else {
+            e
+          }
+        throw new ValidationException(s"SQL validation failed. ${reason.getMessage}", reason)
     }
   }
 
