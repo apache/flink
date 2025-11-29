@@ -114,7 +114,8 @@ class Restarting extends StateWithExecutionGraph {
     }
 
     private void goToSubsequentState() {
-        if (availableParallelismNotChanged(restartWithParallelism)) {
+        if (availableParallelismNotChanged(restartWithParallelism)
+                || context.hasDesiredResources()) {
             context.goToCreatingExecutionGraph(getExecutionGraph());
         } else {
             context.goToWaitingForResources(getExecutionGraph());
@@ -163,6 +164,13 @@ class Restarting extends StateWithExecutionGraph {
          * slots.
          */
         Optional<VertexParallelism> getAvailableVertexParallelism();
+
+        /**
+         * Checks whether we have the desired resources.
+         *
+         * @return {@code true} if we have enough resources; otherwise {@code false}
+         */
+        boolean hasDesiredResources();
     }
 
     static class Factory implements StateFactory<Restarting> {
