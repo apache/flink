@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,8 +77,10 @@ class RestartingTest {
         }
     }
 
-    @Test
-    public void testTransitionToSubsequentStateWhenResourceChanged() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    public void testTransitionToSubsequentStateWhenResourceChanged(boolean hasDesiredResources)
+            throws Exception {
         try (MockRestartingContext ctx = new MockRestartingContext()) {
             JobVertexID jobVertexId = new JobVertexID();
             VertexParallelism availableParallelism =
@@ -86,8 +89,13 @@ class RestartingTest {
                     new VertexParallelism(singletonMap(jobVertexId, 2));
 
             ctx.setAvailableVertexParallelism(availableParallelism);
+            ctx.setHasDesiredResources(hasDesiredResources);
             Restarting restarting = createRestartingState(ctx, requiredParallelismForForcedRestart);
-            ctx.setExpectWaitingForResources();
+            if (hasDesiredResources) {
+                ctx.setExpectCreatingExecutionGraph();
+            } else {
+                ctx.setExpectWaitingForResources();
+            }
             restarting.onGloballyTerminalState(JobStatus.CANCELED);
         }
     }
