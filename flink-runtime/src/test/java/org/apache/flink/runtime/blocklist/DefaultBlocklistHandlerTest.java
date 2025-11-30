@@ -44,6 +44,7 @@ import java.util.function.Consumer;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Test for {@link DefaultBlocklistHandler}. */
 class DefaultBlocklistHandlerTest {
@@ -71,6 +72,7 @@ class DefaultBlocklistHandlerTest {
         TestBlocklistListener listener = new TestBlocklistListener();
 
         try (DefaultBlocklistHandler handler = createDefaultBlocklistHandler(context)) {
+            handler.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
             handler.registerBlocklistListener(listener);
             assertThat(listener.listenerReceivedNodes).isEmpty();
             assertThat(contextReceivedNodes).isEmpty();
@@ -117,8 +119,8 @@ class DefaultBlocklistHandlerTest {
                         .setUnblockResourcesConsumer(unblockResourcesFuture::complete)
                         .build();
 
-        try (DefaultBlocklistHandler handler =
-                createDefaultBlocklistHandler(context, mainThreadExecutor)) {
+        try (DefaultBlocklistHandler handler = createDefaultBlocklistHandler(context)) {
+            handler.start(mainThreadExecutor);
             CompletableFuture.supplyAsync(
                             () -> {
                                 BlockedNode blockedNode =
@@ -154,6 +156,7 @@ class DefaultBlocklistHandlerTest {
         taskManagerToNode.put(resourceID3, "node2");
 
         try (DefaultBlocklistHandler handler = createDefaultBlocklistHandler(taskManagerToNode)) {
+            handler.start(ComponentMainThreadExecutorServiceAdapter.forMainThread());
 
             handler.addNewBlockedNodes(
                     Collections.singleton(new BlockedNode("node1", "cause", Long.MAX_VALUE)));
@@ -164,6 +167,20 @@ class DefaultBlocklistHandlerTest {
         }
     }
 
+    @Test
+    void testStartBlocklist() throws Exception {
+        TestBlocklistContext context = TestBlocklistContext.newBuilder().build();
+
+        try (DefaultBlocklistHandler handler = createDefaultBlocklistHandler(context)) {
+            assertThrows(
+                    NullPointerException.class,
+                    () ->
+                            handler.addNewBlockedNodes(
+                                    Collections.singleton(
+                                            new BlockedNode("node1", "cause", Long.MAX_VALUE))));
+        }
+    }
+
     private DefaultBlocklistHandler createDefaultBlocklistHandler(
             BlocklistContext blocklistContext) {
         return new DefaultBlocklistHandler(
@@ -171,7 +188,6 @@ class DefaultBlocklistHandlerTest {
                 blocklistContext,
                 resourceID -> "node",
                 Duration.ofMillis(100L),
-                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                 LOG);
     }
 
@@ -182,18 +198,6 @@ class DefaultBlocklistHandlerTest {
                 TestBlocklistContext.newBuilder().build(),
                 taskManagerToNode::get,
                 Duration.ofMillis(100L),
-                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
-                LOG);
-    }
-
-    private DefaultBlocklistHandler createDefaultBlocklistHandler(
-            BlocklistContext blocklistContext, ComponentMainThreadExecutor mainThreadExecutor) {
-        return new DefaultBlocklistHandler(
-                new DefaultBlocklistTracker(),
-                blocklistContext,
-                resourceID -> "node",
-                Duration.ofMillis(100L),
-                mainThreadExecutor,
                 LOG);
     }
 
