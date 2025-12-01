@@ -49,10 +49,6 @@ public class SqlAlterConnectionRename extends SqlAlterConnection {
         return newConnectionName;
     }
 
-    public String[] fullNewConnectionName() {
-        return newConnectionName.names.toArray(new String[0]);
-    }
-
     @Override
     public List<SqlNode> getOperandList() {
         return List.of(name, newConnectionName);

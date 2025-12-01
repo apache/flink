@@ -3505,7 +3505,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + " )\n")
                 .ok(
                         "CREATE CONNECTION `CONN1`\n"
-                                + "COMMENT 'connection_comment' WITH (\n"
+                                + "COMMENT 'connection_comment'\n"
+                                + "WITH (\n"
                                 + "  'type' = 'basic',\n"
                                 + "  'url' = 'http://example.com',\n"
                                 + "  'username' = 'user1',\n"
@@ -3521,7 +3522,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  'token'='my_token'\n"
                         + " )\n")
                 .ok(
-                        "CREATE CONNECTION IF NOT EXISTS `CONN1` WITH (\n"
+                        "CREATE CONNECTION IF NOT EXISTS `CONN1`\n"
+                                + "WITH (\n"
                                 + "  'type' = 'bearer',\n"
                                 + "  'token' = 'my_token'\n"
                                 + ")");
@@ -3535,7 +3537,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  'client_id'='client1'\n"
                         + " )\n")
                 .ok(
-                        "CREATE TEMPORARY CONNECTION `CONN1` WITH (\n"
+                        "CREATE TEMPORARY CONNECTION `CONN1`\n"
+                                + "WITH (\n"
                                 + "  'type' = 'oauth',\n"
                                 + "  'client_id' = 'client1'\n"
                                 + ")");
@@ -3563,7 +3566,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "  'api_key'='key123'\n"
                         + " )\n")
                 .ok(
-                        "CREATE TEMPORARY SYSTEM CONNECTION `CONN1` WITH (\n"
+                        "CREATE TEMPORARY SYSTEM CONNECTION `CONN1`\n"
+                                + "WITH (\n"
                                 + "  'type' = 'custom_type',\n"
                                 + "  'api_key' = 'key123'\n"
                                 + ")");
@@ -3574,7 +3578,8 @@ class FlinkSqlParserImplTest extends SqlParserTest {
         sql("create connection catalog1.db1.conn1\n"
                         + " WITH ('type'='basic', 'url'='http://example.com')\n")
                 .ok(
-                        "CREATE CONNECTION `CATALOG1`.`DB1`.`CONN1` WITH (\n"
+                        "CREATE CONNECTION `CATALOG1`.`DB1`.`CONN1`\n"
+                                + "WITH (\n"
                                 + "  'type' = 'basic',\n"
                                 + "  'url' = 'http://example.com'\n"
                                 + ")");

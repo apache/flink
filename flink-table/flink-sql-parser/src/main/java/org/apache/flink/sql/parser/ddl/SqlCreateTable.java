@@ -136,7 +136,7 @@ public class SqlCreateTable extends SqlCreateObject implements ExtendedSqlNode {
     }
 
     public List<String> getPartitionKeyList() {
-        return SqlParseUtils.extractList(partitionKeyList);
+        return SqlParseUtils.extractList(partitionKeyList, p -> ((SqlIdentifier) p).getSimple());
     }
 
     public List<SqlTableConstraint> getTableConstraints() {

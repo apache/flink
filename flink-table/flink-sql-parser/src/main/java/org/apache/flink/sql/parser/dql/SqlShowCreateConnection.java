@@ -43,10 +43,6 @@ public class SqlShowCreateConnection extends SqlShowCreate {
         return sqlIdentifier;
     }
 
-    public String[] getFullConnectionName() {
-        return sqlIdentifier.names.toArray(new String[0]);
-    }
-
     @Override
     public SqlOperator getOperator() {
         return OPERATOR;

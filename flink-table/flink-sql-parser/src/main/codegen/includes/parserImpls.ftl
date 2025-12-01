@@ -3707,8 +3707,7 @@ SqlCreate SqlCreateConnection(Span s, boolean isTemporary) :
     connectionIdentifier = CompoundIdentifier()
     [ <COMMENT> <QUOTED_STRING>
         {
-            String p = SqlParserUtil.parseString(token.image);
-            comment = SqlLiteral.createCharString(p, getPos());
+            comment = Comment();
         }
     ]
     <WITH>

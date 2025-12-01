@@ -81,7 +81,7 @@ public class SqlAnalyzeTable extends SqlCall {
     }
 
     public List<String> getColumnNames() {
-        return SqlParseUtils.extractList(columns);
+        return SqlParseUtils.extractList(columns, p -> ((SqlIdentifier) p).getSimple());
     }
 
     public boolean isAllColumns() {

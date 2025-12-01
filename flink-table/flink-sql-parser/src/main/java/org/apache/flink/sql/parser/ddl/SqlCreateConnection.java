@@ -104,22 +104,7 @@ public class SqlCreateConnection extends SqlCreateObject implements ExtendedSqlN
             writer.keyword("IF NOT EXISTS");
         }
         name.unparse(writer, leftPrec, rightPrec);
-
-        if (comment != null) {
-            writer.newlineAndIndent();
-            writer.keyword("COMMENT");
-            comment.unparse(writer, leftPrec, rightPrec);
-        }
-
-        if (properties != null && !properties.isEmpty()) {
-            writer.keyword("WITH");
-            SqlWriter.Frame withFrame = writer.startList("(", ")");
-            for (SqlNode connectionProperty : properties) {
-                SqlUnparseUtils.printIndent(writer);
-                connectionProperty.unparse(writer, leftPrec, rightPrec);
-            }
-            writer.newlineAndIndent();
-            writer.endList(withFrame);
-        }
+        SqlUnparseUtils.unparseComment(comment, true, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseProperties(properties, writer, leftPrec, rightPrec);
     }
 }

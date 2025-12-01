@@ -29,7 +29,6 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -55,9 +54,7 @@ public class SqlAlterConnectionReset extends SqlAlterConnection {
     }
 
     public Set<String> getResetKeys() {
-        return optionKeyList.getList().stream()
-                .map(SqlParseUtils::extractString)
-                .collect(Collectors.toSet());
+        return SqlParseUtils.extractSet(optionKeyList, SqlParseUtils::extractString);
     }
 
     @Override
