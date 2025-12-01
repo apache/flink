@@ -428,6 +428,7 @@ class ResourceManagerTaskExecutorTest {
             // Test request task manager information before slot report.
             TaskManagerInfoWithSlots taskManagerInfoWithSlots =
                     rmGateway.requestTaskManagerDetailsInfo(taskExecutorResourceID, TIMEOUT).get();
+            assertThat(taskManagerInfoWithSlots.getTaskManagerInfo().getNumberOfTasks()).isZero();
             assertThat(taskManagerInfoWithSlots.getAllocatedSlots()).isNullOrEmpty();
 
             // on success, send slot report for taskmanager registration
@@ -462,6 +463,7 @@ class ResourceManagerTaskExecutorTest {
             // Test request task manager information after slot report.
             taskManagerInfoWithSlots =
                     rmGateway.requestTaskManagerDetailsInfo(taskExecutorResourceID, TIMEOUT).get();
+            assertThat(taskManagerInfoWithSlots.getTaskManagerInfo().getNumberOfTasks()).isOne();
             assertThat(
                             taskManagerInfoWithSlots.getAllocatedSlots().stream()
                                     .map(SlotInfo::getNumberOfTasks))

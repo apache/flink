@@ -687,6 +687,10 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                             taskManagerHeartbeatManager.getLastHeartbeatFrom(resourceId),
                             slotManager.getNumberRegisteredSlotsOf(taskExecutor.getInstanceID()),
                             slotManager.getNumberFreeSlotsOf(taskExecutor.getInstanceID()),
+                            (int)
+                                    slotManager
+                                            .getLoadingWeightOf(taskExecutor.getInstanceID())
+                                            .getLoading(),
                             slotManager.getRegisteredResourceOf(taskExecutor.getInstanceID()),
                             slotManager.getFreeResourceOf(taskExecutor.getInstanceID()),
                             taskExecutor.getHardwareDescription(),
@@ -717,6 +721,7 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
                                     taskManagerHeartbeatManager.getLastHeartbeatFrom(resourceId),
                                     slotManager.getNumberRegisteredSlotsOf(instanceId),
                                     slotManager.getNumberFreeSlotsOf(instanceId),
+                                    (int) slotManager.getLoadingWeightOf(instanceId).getLoading(),
                                     slotManager.getRegisteredResourceOf(instanceId),
                                     slotManager.getFreeResourceOf(instanceId),
                                     taskExecutor.getHardwareDescription(),

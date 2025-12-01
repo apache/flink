@@ -27,6 +27,7 @@ export interface TaskManagerDetail {
   timeSinceLastHeartbeat: number;
   slotsNumber: number;
   freeSlots: number;
+  numberOfTasks: number;
   hardware: Hardware;
   metrics: Metrics;
   memoryConfiguration: MemoryConfiguration;
@@ -68,6 +69,7 @@ export interface TaskManagersItem {
   timeSinceLastHeartbeat: number;
   slotsNumber: number;
   freeSlots: number;
+  numberOfTasks: number;
   hardware: Hardware;
   blocked?: boolean;
 }

@@ -3931,6 +3931,9 @@
               "freeSlots" : {
                 "type" : "integer"
               },
+              "numberOfTasks" : {
+                "type" : "integer"
+              },
               "totalResource" : {
                 "type" : "object",
                 "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo",
@@ -4091,6 +4094,9 @@
           "type" : "integer"
         },
         "freeSlots" : {
+          "type" : "integer"
+        },
+        "numberOfTasks" : {
           "type" : "integer"
         },
         "totalResource" : {
