@@ -53,6 +53,7 @@
     "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableRefresh"
     "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableResume"
     "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableSuspend"
+    "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableSchema.SqlAlterMaterializedTableAddSchema"
     "org.apache.flink.sql.parser.ddl.SqlAlterModel"
     "org.apache.flink.sql.parser.ddl.SqlAlterModelRename"
     "org.apache.flink.sql.parser.ddl.SqlAlterModelReset"

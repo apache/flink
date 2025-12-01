@@ -43,8 +43,8 @@ import java.util.stream.Collectors;
 public abstract class SqlAlterTableSchema extends SqlAlterTable implements ExtendedSqlNode {
 
     protected final SqlNodeList columnList;
-    @Nullable protected final SqlWatermark watermark;
     protected final List<SqlTableConstraint> constraints;
+    protected final @Nullable SqlWatermark watermark;
 
     public SqlAlterTableSchema(
             SqlParserPos pos,

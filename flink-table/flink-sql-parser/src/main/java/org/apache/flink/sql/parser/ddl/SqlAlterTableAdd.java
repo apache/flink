@@ -31,7 +31,7 @@ import java.util.List;
 /**
  * SqlNode to describe ALTER TABLE [IF EXISTS] table_name ADD column/constraint/watermark clause.
  *
- * <p>Example: DDL like the below for add column/constraint/watermark.
+ * <p>Example: DDL like the below for adding column(s)/constraint/watermark.
  *
  * <pre>{@code
  * -- add single column

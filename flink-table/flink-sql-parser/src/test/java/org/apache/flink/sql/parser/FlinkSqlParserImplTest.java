@@ -18,7 +18,6 @@
 
 package org.apache.flink.sql.parser;
 
-import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 
@@ -38,9 +37,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import java.util.Locale;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** FlinkSqlParserImpl tests. * */
@@ -3563,64 +3560,5 @@ class FlinkSqlParserImplTest extends SqlParserTest {
 
         sql("CREATE TABLE t (\n" + "v VARIANT NOT NULL" + "\n)")
                 .ok("CREATE TABLE `T` (\n" + "  `V` VARIANT NOT NULL\n" + ")");
-    }
-
-    /** Matcher that invokes the #validate() of the {@link ExtendedSqlNode} instance. * */
-    private static class ValidationMatcher extends BaseMatcher<SqlNode> {
-        private String expectedColumnSql;
-        private String failMsg;
-        private boolean ok;
-
-        public ValidationMatcher expectColumnSql(String s) {
-            this.expectedColumnSql = s;
-            return this;
-        }
-
-        public ValidationMatcher fails(String failMsg) {
-            this.failMsg = failMsg;
-            this.ok = false;
-            return this;
-        }
-
-        public ValidationMatcher ok() {
-            this.failMsg = null;
-            this.ok = true;
-            return this;
-        }
-
-        @Override
-        public void describeTo(Description description) {
-            description.appendText("test");
-        }
-
-        @Override
-        public boolean matches(Object item) {
-            if (item instanceof ExtendedSqlNode) {
-                ExtendedSqlNode createTable = (ExtendedSqlNode) item;
-
-                if (ok) {
-                    try {
-                        createTable.validate();
-                    } catch (SqlValidateException e) {
-                        fail("unexpected exception", e);
-                    }
-                } else if (failMsg != null) {
-                    try {
-                        createTable.validate();
-                        fail("expected exception");
-                    } catch (SqlValidateException e) {
-                        assertThat(e).hasMessage(failMsg);
-                    }
-                }
-
-                if (expectedColumnSql != null && item instanceof SqlCreateTable) {
-                    assertThat(((SqlCreateTable) createTable).getColumnSqlString())
-                            .isEqualTo(expectedColumnSql);
-                }
-                return true;
-            } else {
-                return false;
-            }
-        }
     }
 }
