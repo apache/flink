@@ -924,7 +924,7 @@ SqlAlterTable SqlAlterTable() :
         |
         (
             <DISTRIBUTION>
-            {return new SqlAddDistribution(getPos(), tableIdentifier, SqlDistribution(getPos()));}
+            {return new SqlAlterTableAddDistribution(getPos(), tableIdentifier, SqlDistribution(getPos()));}
         |
             AlterTableAddOrModify(ctx)
         |
@@ -949,7 +949,7 @@ SqlAlterTable SqlAlterTable() :
         <MODIFY>
         (
             <DISTRIBUTION>
-            {return new SqlModifyDistribution(getPos(), tableIdentifier, SqlDistribution(getPos()));}
+            {return new SqlAlterTableModifyDistribution(getPos(), tableIdentifier, SqlDistribution(getPos()));}
         |
             AlterTableAddOrModify(ctx)
         |
