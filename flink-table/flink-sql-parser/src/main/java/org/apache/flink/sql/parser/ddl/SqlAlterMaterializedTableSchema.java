@@ -39,7 +39,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/** Abstract class to describe statements which are used to alter schema for materialized tables. */
+/**
+ * Abstract class to describe statements which are used to alter schema for materialized tables. See
+ * examples in javadoc for {@link SqlAlterMaterializedTableAddSchema}.
+ */
 public abstract class SqlAlterMaterializedTableSchema extends SqlAlterMaterializedTable
         implements ExtendedSqlNode {
 
@@ -101,6 +104,25 @@ public abstract class SqlAlterMaterializedTableSchema extends SqlAlterMaterializ
                 columnList, constraints, watermark, writer, leftPrec, rightPrec);
     }
 
+    /**
+     * Example: DDL like the below for add column/constraint/watermark.
+     *
+     * <p>Note: adding or altering physical columns is not supported, only computed or metadata
+     *
+     * <pre>{@code
+     * -- add single column
+     * ALTER MATERIALIZED TABLE myMaterializedTable ADD c1 AS current_timestamp COMMENT 'new_column docs';
+     *
+     * -- add multiple columns, constraint, and watermark
+     * ALTER MATERIALIZED TABLE myMaterializedTable ADD (
+     *     ts AS current_timestamp FIRST,
+     *     col_meta INT METADATA FROM 'mk1' VIRTUAL AFTER col_b,
+     *     PRIMARY KEY (id) NOT ENFORCED,
+     *     WATERMARK FOR ts AS ts - INTERVAL '3' SECOND
+     * );
+     *
+     * }</pre>
+     */
     public static class SqlAlterMaterializedTableAddSchema extends SqlAlterMaterializedTableSchema {
         public SqlAlterMaterializedTableAddSchema(
                 SqlParserPos pos,
@@ -114,23 +136,6 @@ public abstract class SqlAlterMaterializedTableSchema extends SqlAlterMaterializ
         @Override
         protected String getAlterOperation() {
             return "ADD";
-        }
-    }
-
-    public static class SqlAlterMaterializedTableModifySchema
-            extends SqlAlterMaterializedTableSchema {
-        public SqlAlterMaterializedTableModifySchema(
-                SqlParserPos pos,
-                SqlIdentifier materializedTableName,
-                SqlNodeList columnList,
-                List<SqlTableConstraint> constraints,
-                @Nullable SqlWatermark sqlWatermark) {
-            super(pos, materializedTableName, columnList, constraints, sqlWatermark);
-        }
-
-        @Override
-        protected String getAlterOperation() {
-            return "MODIFY";
         }
     }
 }
