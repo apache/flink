@@ -86,9 +86,6 @@ public final class TypeInferenceOperandInference implements SqlOperandTypeInfere
         } catch (CalciteContextException e) {
             throw e;
         } catch (Throwable t) {
-            if (t.getCause() instanceof CalciteContextException) {
-                throw (CalciteContextException) t.getCause();
-            }
             throw createUnexpectedException(callContext, t);
         }
     }
