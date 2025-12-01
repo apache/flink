@@ -25,7 +25,9 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
@@ -42,12 +44,21 @@ import java.util.Collections;
  * Stream {@link ExecNode} to read data from an external source defined by a {@link
  * ScanTableSource}.
  */
+// Version 1: Initial version
 @ExecNodeMetadata(
         name = "stream-exec-table-source-scan",
         version = 1,
         producedTransformations = CommonExecTableSourceScan.SOURCE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
+// Version 2: Fixed overwriting of transformation UIDs and names for the last transformation
+// returned by DataStreamScanProvider and TransformationScanProvider.
+@ExecNodeMetadata(
+        name = "stream-exec-table-source-scan",
+        version = 2,
+        producedTransformations = CommonExecTableSourceScan.SOURCE_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v2_3,
+        minStateVersion = FlinkVersion.v2_3)
 public class StreamExecTableSourceScan extends CommonExecTableSourceScan
         implements StreamExecNode<RowData> {
 
@@ -84,6 +95,12 @@ public class StreamExecTableSourceScan extends CommonExecTableSourceScan
     }
 
     @Override
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
+        return createTransformation(planner, config, legacyUidsEnabled());
+    }
+
+    @Override
     public Transformation<RowData> createInputFormatTransformation(
             StreamExecutionEnvironment env,
             InputFormat<RowData, ?> inputFormat,
@@ -92,5 +109,9 @@ public class StreamExecTableSourceScan extends CommonExecTableSourceScan
         // It's better to use StreamExecutionEnvironment.createInput()
         // rather than addLegacySource() for streaming, because it take care of checkpoint.
         return env.createInput(inputFormat, outputTypeInfo).name(operatorName).getTransformation();
+    }
+
+    private boolean legacyUidsEnabled() {
+        return getVersion() == 1;
     }
 }

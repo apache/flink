@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 
@@ -33,14 +34,14 @@ import java.lang.annotation.Target;
 
 /**
  * Annotation to be used for {@link ExecNode}s to keep necessary metadata when
- * serializing/deserializing them in a plan. It's used for internal bookkeeping across Flink
- * versions, and to provide necessary information to the testing infrastructure.
+ * serializing/deserializing them into a {@link CompiledPlan}. It's used for internal bookkeeping
+ * across Flink versions, and to provide necessary information to the testing infrastructure.
  *
  * <p>Each {@link ExecNode} needs to be annotated and provide the necessary metadata info so that it
- * can be correctly serialized and later on instantiated from a string (JSON) plan.
+ * can be correctly serialized and later on instantiated from a JSON plan.
  *
- * <p>It's possible for one {@link ExecNode} class to use multiple annotations to denote ability to
- * upgrade to more versions. an {@link ExecNode} class can be annotated directly with multiple
+ * <p>It's possible for one {@link ExecNode} class to use multiple annotations to denote the ability
+ * to upgrade to more versions. an {@link ExecNode} class can be annotated directly with multiple
  * {@link ExecNodeMetadata} annotations, or with a single {@link MultipleExecNodeMetadata}
  * annotation where the {@link MultipleExecNodeMetadata#value()} is an array of {@link
  * ExecNodeMetadata} annotations.

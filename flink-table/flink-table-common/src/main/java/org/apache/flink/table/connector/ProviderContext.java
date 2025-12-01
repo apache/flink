@@ -41,4 +41,26 @@ public interface ProviderContext {
      * in batch mode, or UIDs cannot be guaranteed to be unique.
      */
     Optional<String> generateUid(String name);
+
+    /**
+     * Returns the name provided by the framework to label the connector.
+     *
+     * <p>If multiple transformations are present, the implementer decides which one is the
+     * connector. To distinguish between transformations, each transformation should have a unique
+     * name; do not reuse the same name for more than one transformation.
+     */
+    default String getName() {
+        return "";
+    }
+
+    /**
+     * Returns the description provided by the framework to label the connector.
+     *
+     * <p>If multiple transformations are present, the implementer decides which one is the
+     * connector. To distinguish between transformations, each transformation should have a unique
+     * description; do not reuse the same description for more than one transformation.
+     */
+    default String getDescription() {
+        return "";
+    }
 }
