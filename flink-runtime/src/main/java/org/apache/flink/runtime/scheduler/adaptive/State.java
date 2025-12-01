@@ -21,11 +21,13 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.Durable;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.slf4j.Logger;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -33,14 +35,23 @@ import java.util.function.Consumer;
  * State abstraction of the {@link AdaptiveScheduler}. This interface contains all methods every
  * state implementation must support.
  */
-interface State extends LabeledGlobalFailureHandler {
+public interface State extends LabeledGlobalFailureHandler {
+
+    /**
+     * Get the durable time information of the current state.
+     *
+     * @return The durable time information of the current state.
+     */
+    Durable getDurable();
 
     /**
      * This method is called whenever one transitions out of this state.
      *
      * @param newState newState is the state into which the scheduler transitions
      */
-    default void onLeave(Class<? extends State> newState) {}
+    default void onLeave(Class<? extends State> newState) {
+        getDurable().setLeaveTimestamp(Instant.now().toEpochMilli());
+    }
 
     /** Cancels the job execution. */
     void cancel();
