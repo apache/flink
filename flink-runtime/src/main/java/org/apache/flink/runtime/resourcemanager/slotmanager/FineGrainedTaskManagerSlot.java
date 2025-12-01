@@ -24,7 +24,11 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -51,6 +55,8 @@ public class FineGrainedTaskManagerSlot implements TaskManagerSlotInformation {
     /** Current state of this slot. Should be either PENDING or ALLOCATED. */
     private SlotState state;
 
+    private LoadingWeight loadingWeight;
+
     public FineGrainedTaskManagerSlot(
             AllocationID allocationId,
             JobID jobId,
@@ -65,11 +71,23 @@ public class FineGrainedTaskManagerSlot implements TaskManagerSlotInformation {
         checkArgument(
                 !slotState.equals(SlotState.FREE),
                 "The slot of fine-grained resource management should be dynamically created in allocation. Thus it should not in FREE state.");
+        this.loadingWeight = DefaultLoadingWeight.EMPTY;
     }
 
     @Override
     public ResourceProfile getResourceProfile() {
         return resourceProfile;
+    }
+
+    @Override
+    public void setLoading(LoadingWeight loadingWeight) {
+        this.loadingWeight = checkNotNull(loadingWeight);
+    }
+
+    @Nonnull
+    @Override
+    public LoadingWeight getLoading() {
+        return loadingWeight;
     }
 
     @Override

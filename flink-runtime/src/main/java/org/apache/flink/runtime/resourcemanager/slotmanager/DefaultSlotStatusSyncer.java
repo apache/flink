@@ -26,6 +26,7 @@ import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 import org.apache.flink.runtime.taskexecutor.SlotStatus;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -41,6 +42,7 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -295,16 +297,15 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
     private boolean syncAllocatedSlotStatus(SlotStatus slotStatus, TaskManagerInfo taskManager) {
         final AllocationID allocationId = Preconditions.checkNotNull(slotStatus.getAllocationID());
         final JobID jobId = Preconditions.checkNotNull(slotStatus.getJobID());
+        final LoadingWeight loadingWeight = slotStatus.getLoading();
         try (MdcUtils.MdcCloseable ignored = MdcUtils.withContext(MdcUtils.asContextData(jobId))) {
             final ResourceProfile resourceProfile =
                     Preconditions.checkNotNull(slotStatus.getResourceProfile());
 
-            if (taskManager.getAllocatedSlots().containsKey(allocationId)) {
-                if (taskManager.getAllocatedSlots().get(allocationId).getState()
-                        == SlotState.PENDING) {
+            TaskManagerSlotInformation slot = taskManager.getAllocatedSlots().get(allocationId);
+            if (Objects.nonNull(slot)) {
+                if (slot.getState() == SlotState.PENDING) {
                     // Allocation Complete
-                    final TaskManagerSlotInformation slot =
-                            taskManager.getAllocatedSlots().get(allocationId);
                     pendingSlotAllocations.remove(slot.getAllocationId());
                     taskManagerTracker.notifySlotStatus(
                             slot.getAllocationId(),
@@ -313,6 +314,7 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
                             slot.getResourceProfile(),
                             SlotState.ALLOCATED);
                 }
+                slot.setLoading(loadingWeight);
                 return true;
             } else {
                 Preconditions.checkState(
@@ -325,6 +327,7 @@ public class DefaultSlotStatusSyncer implements SlotStatusSyncer {
                         resourceProfile,
                         SlotState.ALLOCATED);
                 resourceTracker.notifyAcquiredResource(jobId, resourceProfile);
+                taskManager.getAllocatedSlots().get(allocationId).setLoading(loadingWeight);
                 return false;
             }
         }

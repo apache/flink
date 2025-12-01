@@ -803,7 +803,12 @@ public class FineGrainedSlotManager implements SlotManager {
                 .map(Map::values)
                 .orElse(Collections.emptyList())
                 .stream()
-                .map(slot -> new SlotInfo(slot.getJobId(), slot.getResourceProfile()))
+                .map(
+                        slot ->
+                                new SlotInfo(
+                                        slot.getJobId(),
+                                        slot.getResourceProfile(),
+                                        (int) slot.getLoading().getLoading()))
                 .collect(Collectors.toList());
     }
 

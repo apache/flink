@@ -4190,6 +4190,9 @@
               "jobId" : {
                 "type" : "any"
               },
+              "numberOfTasks" : {
+                "type" : "integer"
+              },
               "resource" : {
                 "type" : "object",
                 "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo"
