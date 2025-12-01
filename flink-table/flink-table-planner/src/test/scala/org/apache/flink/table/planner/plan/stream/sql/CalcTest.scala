@@ -112,7 +112,6 @@ class CalcTest extends TableTestBase {
   def testCoalesceOnInvalidField(): Unit = {
     assertThatExceptionOfType(classOf[ValidationException])
       .isThrownBy(() => util.verifyExecPlan("SELECT coalesce(SELECT invalid)"))
-      .havingRootCause()
       .withMessageContaining("Column 'invalid' not found in any table")
   }
 
@@ -121,7 +120,6 @@ class CalcTest extends TableTestBase {
     assertThatExceptionOfType(classOf[ValidationException])
       .isThrownBy(
         () => util.verifyExecPlan("SELECT coalesce(SELECT coalesce(SELECT coalesce(invalid)))"))
-      .havingRootCause()
       .withMessageContaining("Column 'invalid' not found in any table")
   }
 
