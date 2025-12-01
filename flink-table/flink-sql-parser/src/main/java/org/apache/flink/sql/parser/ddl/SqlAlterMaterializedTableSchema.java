@@ -105,7 +105,7 @@ public abstract class SqlAlterMaterializedTableSchema extends SqlAlterMaterializ
     }
 
     /**
-     * Example: DDL like the below for add column/constraint/watermark.
+     * Example: DDL like the below for adding column/constraint/watermark.
      *
      * <p>Note: adding or altering physical columns is not supported, only computed or metadata
      *

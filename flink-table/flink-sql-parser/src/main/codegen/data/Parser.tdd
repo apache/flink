@@ -54,7 +54,6 @@
     "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableDistribution.SqlAlterMaterializedTableAddDistribution"
     "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableDistribution.SqlAlterMaterializedTableModifyDistribution"
     "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableSchema.SqlAlterMaterializedTableAddSchema"
-    "org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableSchema.SqlAlterMaterializedTableModifySchema"
     "org.apache.flink.sql.parser.ddl.SqlAlterModel"
     "org.apache.flink.sql.parser.ddl.SqlAlterModelRename"
     "org.apache.flink.sql.parser.ddl.SqlAlterModelReset"

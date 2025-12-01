@@ -472,27 +472,27 @@ class MaterializedTableStatementParserTest {
 
     @Test
     void testAlterMaterializedTableAddDistribution() {
-        sql("alter materialized table mt1 add DISTRIBUTION BY HASH(a) INTO 6 BUCKETS")
+        sql("alter materialized table mt1 add distribution by hash(a) into 6 buckets")
                 .ok("ALTER MATERIALIZED TABLE `MT1` ADD DISTRIBUTION BY HASH(`A`) INTO 6 BUCKETS");
 
-        sql("alter materialized table mt1 add DISTRIBUTION BY HASH(a, h) INTO 6 BUCKETS")
+        sql("alter materialized table mt1 add distribution by hash(a, h) into 6 buckets")
                 .ok(
                         "ALTER MATERIALIZED TABLE `MT1` ADD DISTRIBUTION BY HASH(`A`, `H`) INTO 6 BUCKETS");
 
-        sql("alter materialized table mt1 add DISTRIBUTION BY RANGE(a, h) INTO 6 BUCKETS")
+        sql("alter materialized table mt1 add distribution by range(a, h) into 6 buckets")
                 .ok(
                         "ALTER MATERIALIZED TABLE `MT1` ADD DISTRIBUTION BY RANGE(`A`, `H`) INTO 6 BUCKETS");
 
-        sql("alter materialized table mt1 add DISTRIBUTION BY ^RANDOM^(a, h) INTO 6 BUCKETS")
+        sql("alter materialized table mt1 add distribution by ^RANDOM^(a, h) into 6 buckets")
                 .fails("(?s).*Encountered \"RANDOM\" at line 1, column.*");
 
-        sql("alter materialized table mt1 add DISTRIBUTION BY (a, h) INTO 6 BUCKETS")
+        sql("alter materialized table mt1 add distribution by (a, h) into 6 buckets")
                 .ok("ALTER MATERIALIZED TABLE `MT1` ADD DISTRIBUTION BY (`A`, `H`) INTO 6 BUCKETS");
 
-        sql("alter materialized table mt1 add DISTRIBUTION BY RANGE(a, h)")
+        sql("alter materialized table mt1 add distribution by range(a, h)")
                 .ok("ALTER MATERIALIZED TABLE `MT1` ADD DISTRIBUTION BY RANGE(`A`, `H`)");
 
-        sql("alter materialized table mt1 add DISTRIBUTION BY (a, h)")
+        sql("alter materialized table mt1 add distribution by (a, h)")
                 .ok("ALTER MATERIALIZED TABLE `MT1` ADD DISTRIBUTION BY (`A`, `H`)");
     }
 
