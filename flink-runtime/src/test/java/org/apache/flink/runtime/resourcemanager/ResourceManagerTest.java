@@ -206,6 +206,7 @@ class ResourceManagerTest {
         assertThat(taskManagerInfo.getJmxPort()).isEqualTo(jmxPort);
         assertThat(taskManagerInfo.getNumberSlots()).isEqualTo(0);
         assertThat(taskManagerInfo.getNumberAvailableSlots()).isEqualTo(0);
+        assertThat(taskManagerInfo.getAssignedTasks()).isZero();
         assertThat(taskManagerInfoWithSlots.getAllocatedSlots()).isEmpty();
     }
 

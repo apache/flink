@@ -55,6 +55,7 @@ class TaskManagerInfoTest extends RestResponseMarshallingTestBase<TaskManagerInf
                 random.nextLong(),
                 random.nextInt(),
                 random.nextInt(),
+                0,
                 ResourceProfile.ZERO,
                 ResourceProfile.ZERO,
                 new HardwareDescription(

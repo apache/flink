@@ -34,6 +34,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
 import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
@@ -754,6 +755,11 @@ public class FineGrainedSlotManager implements SlotManager {
     // ---------------------------------------------------------------------------------------------
     // Legacy APIs
     // ---------------------------------------------------------------------------------------------
+
+    @Override
+    public LoadingWeight getLoadingWeightOf(InstanceID instanceId) {
+        return taskManagerTracker.getLoadingWeightOf(instanceId);
+    }
 
     @Override
     public int getNumberRegisteredSlots() {

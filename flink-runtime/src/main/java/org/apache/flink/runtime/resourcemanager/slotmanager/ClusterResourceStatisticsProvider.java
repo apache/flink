@@ -20,9 +20,13 @@ package org.apache.flink.runtime.resourcemanager.slotmanager;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 
 /** Provides statistics of cluster resources. */
 public interface ClusterResourceStatisticsProvider {
+
+    /** Get total loading weight of the current instance. */
+    LoadingWeight getLoadingWeightOf(InstanceID instanceId);
 
     /** Get total number of registered slots. */
     int getNumberRegisteredSlots();
