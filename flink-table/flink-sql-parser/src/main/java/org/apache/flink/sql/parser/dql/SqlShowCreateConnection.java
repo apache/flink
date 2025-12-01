@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.sql.parser.ddl;
+package org.apache.flink.sql.parser.dql;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -26,36 +26,36 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-/**
- * {@link SqlNode} to describe the DROP MODEL [IF EXISTS] [[catalogName.] dataBasesName].modelName
- * syntax.
- */
-public class SqlDropModel extends SqlDropObject {
-    private static final SqlOperator OPERATOR =
-            new SqlSpecialOperator("DROP MODEL", SqlKind.OTHER_DDL);
+import java.util.Collections;
+import java.util.List;
 
-    private final boolean isTemporary;
+/** SHOW CREATE CONNECTION sql call. */
+public class SqlShowCreateConnection extends SqlShowCreate {
 
-    public SqlDropModel(
-            SqlParserPos pos, SqlIdentifier modelName, boolean ifExists, boolean isTemporary) {
-        super(OPERATOR, pos, modelName, ifExists);
-        this.isTemporary = isTemporary;
+    public static final SqlSpecialOperator OPERATOR =
+            new SqlSpecialOperator("SHOW CREATE CONNECTION", SqlKind.OTHER_DDL);
+
+    public SqlShowCreateConnection(SqlParserPos pos, SqlIdentifier connectionName) {
+        super(pos, connectionName);
     }
 
-    public boolean isTemporary() {
-        return isTemporary;
+    public SqlIdentifier getConnectionName() {
+        return sqlIdentifier;
+    }
+
+    @Override
+    public SqlOperator getOperator() {
+        return OPERATOR;
+    }
+
+    @Override
+    public List<SqlNode> getOperandList() {
+        return Collections.singletonList(sqlIdentifier);
     }
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("DROP");
-        if (isTemporary) {
-            writer.keyword("TEMPORARY");
-        }
-        writer.keyword("MODEL");
-        if (ifExists) {
-            writer.keyword("IF EXISTS");
-        }
-        name.unparse(writer, leftPrec, rightPrec);
+        writer.keyword("SHOW CREATE CONNECTION");
+        sqlIdentifier.unparse(writer, leftPrec, rightPrec);
     }
 }

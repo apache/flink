@@ -119,7 +119,7 @@ public class SqlCreateMaterializedTable extends SqlCreateObject implements Exten
     }
 
     public List<String> getPartitionKeyList() {
-        return SqlParseUtils.extractList(partitionKeyList);
+        return SqlParseUtils.extractList(partitionKeyList, p -> ((SqlIdentifier) p).getSimple());
     }
 
     @Nullable

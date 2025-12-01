@@ -30,7 +30,6 @@ import org.apache.calcite.util.ImmutableNullableList;
 
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -58,9 +57,7 @@ public class SqlAlterTableReset extends SqlAlterTable {
     }
 
     public Set<String> getResetKeys() {
-        return propertyKeyList.getList().stream()
-                .map(SqlParseUtils::extractString)
-                .collect(Collectors.toSet());
+        return SqlParseUtils.extractSet(propertyKeyList, SqlParseUtils::extractString);
     }
 
     @Override

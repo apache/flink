@@ -24,6 +24,7 @@ import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 
 import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlNumericLiteral;
@@ -52,7 +53,8 @@ public class OperationConverterUtils {
         }
 
         SqlNodeList columns = distribution.getBucketColumns();
-        List<String> bucketColumns = SqlParseUtils.extractList(columns);
+        List<String> bucketColumns =
+                SqlParseUtils.extractList(columns, p -> ((SqlIdentifier) p).getSimple());
         return TableDistribution.of(kind, bucketCount, bucketColumns);
     }
 

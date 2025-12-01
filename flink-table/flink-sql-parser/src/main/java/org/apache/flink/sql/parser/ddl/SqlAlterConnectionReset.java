@@ -33,17 +33,18 @@ import java.util.Set;
 import static java.util.Objects.requireNonNull;
 
 /**
- * ALTER MODEL [IF EXISTS] [[catalogName.] dataBasesName.]modelName RESET ( 'key1' [, 'key2']...).
+ * ALTER CONNECTION [IF EXISTS] [[catalogName.] dataBasesName.]connectionName RESET ( 'key1' [,
+ * 'key2']...).
  */
-public class SqlAlterModelReset extends SqlAlterModel {
+public class SqlAlterConnectionReset extends SqlAlterConnection {
     private final SqlNodeList optionKeyList;
 
-    public SqlAlterModelReset(
+    public SqlAlterConnectionReset(
             SqlParserPos pos,
-            SqlIdentifier modelName,
-            boolean ifModelExists,
+            SqlIdentifier connectionName,
+            boolean ifConnectionExists,
             SqlNodeList optionKeyList) {
-        super(pos, modelName, ifModelExists);
+        super(pos, connectionName, ifConnectionExists);
         this.optionKeyList = requireNonNull(optionKeyList, "optionKeyList should not be null");
     }
 

@@ -28,37 +28,40 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * ALTER MODEL [IF EXISTS] [[catalogName.] dataBasesName.]modelName RESET ( 'key1' [, 'key2']...).
+ * ALTER CONNECTION [IF EXISTS] [[catalogName.] dataBasesName.]connectionName SET ( name=value [,
+ * name=value]*).
  */
-public class SqlAlterModelReset extends SqlAlterModel {
-    private final SqlNodeList optionKeyList;
+public class SqlAlterConnectionSet extends SqlAlterConnection {
 
-    public SqlAlterModelReset(
+    private final SqlNodeList connectionOptionList;
+
+    public SqlAlterConnectionSet(
             SqlParserPos pos,
-            SqlIdentifier modelName,
-            boolean ifModelExists,
-            SqlNodeList optionKeyList) {
-        super(pos, modelName, ifModelExists);
-        this.optionKeyList = requireNonNull(optionKeyList, "optionKeyList should not be null");
+            SqlIdentifier connectionName,
+            boolean ifConnectionExists,
+            SqlNodeList connectionOptionList) {
+        super(pos, connectionName, ifConnectionExists);
+        this.connectionOptionList =
+                requireNonNull(connectionOptionList, "connectionOptionList should not be null");
+    }
+
+    public Map<String, String> getProperties() {
+        return SqlParseUtils.extractMap(connectionOptionList);
     }
 
     @Override
     public List<SqlNode> getOperandList() {
-        return List.of(name, optionKeyList);
-    }
-
-    public Set<String> getResetKeys() {
-        return SqlParseUtils.extractSet(optionKeyList, SqlParseUtils::extractString);
+        return List.of(name, connectionOptionList);
     }
 
     @Override
     public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparseAlterOperation(writer, leftPrec, rightPrec);
-        SqlUnparseUtils.unparseResetOptions(optionKeyList, writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseSetOptions(connectionOptionList, writer, leftPrec, rightPrec);
     }
 }

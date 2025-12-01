@@ -20,40 +20,39 @@ package org.apache.flink.sql.parser.ddl;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /**
- * {@link SqlNode} to describe the DROP MODEL [IF EXISTS] [[catalogName.] dataBasesName].modelName
- * syntax.
+ * Abstract class to describe statements like ALTER CONNECTION [IF EXISTS] [[catalogName.]
+ * dataBasesName.]connectionName ...
  */
-public class SqlDropModel extends SqlDropObject {
-    private static final SqlOperator OPERATOR =
-            new SqlSpecialOperator("DROP MODEL", SqlKind.OTHER_DDL);
+public abstract class SqlAlterConnection extends SqlAlterObject {
 
-    private final boolean isTemporary;
+    private static final SqlSpecialOperator OPERATOR =
+            new SqlSpecialOperator("ALTER CONNECTION", SqlKind.OTHER_DDL);
 
-    public SqlDropModel(
-            SqlParserPos pos, SqlIdentifier modelName, boolean ifExists, boolean isTemporary) {
-        super(OPERATOR, pos, modelName, ifExists);
-        this.isTemporary = isTemporary;
+    protected final boolean ifConnectionExists;
+
+    public SqlAlterConnection(
+            SqlParserPos pos, SqlIdentifier connectionName, boolean ifConnectionExists) {
+        super(OPERATOR, pos, "CONNECTION", connectionName);
+        this.ifConnectionExists = ifConnectionExists;
     }
 
-    public boolean isTemporary() {
-        return isTemporary;
+    /**
+     * Whether to ignore the error if the connection doesn't exist.
+     *
+     * @return true when IF EXISTS is specified.
+     */
+    public boolean ifConnectionExists() {
+        return ifConnectionExists;
     }
 
     @Override
-    public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("DROP");
-        if (isTemporary) {
-            writer.keyword("TEMPORARY");
-        }
-        writer.keyword("MODEL");
-        if (ifExists) {
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        if (ifConnectionExists) {
             writer.keyword("IF EXISTS");
         }
         name.unparse(writer, leftPrec, rightPrec);

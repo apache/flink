@@ -18,47 +18,46 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.SqlParseUtils;
-import org.apache.flink.sql.parser.SqlUnparseUtils;
-
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 import java.util.List;
-import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
 /**
- * ALTER MODEL [IF EXISTS] [[catalogName.] dataBasesName.]modelName RESET ( 'key1' [, 'key2']...).
+ * ALTER CONNECTION [IF EXISTS] [[catalogName.] dataBasesName.]connectionName RENAME TO
+ * newConnectionName.
  */
-public class SqlAlterModelReset extends SqlAlterModel {
-    private final SqlNodeList optionKeyList;
+public class SqlAlterConnectionRename extends SqlAlterConnection {
 
-    public SqlAlterModelReset(
+    private final SqlIdentifier newConnectionName;
+
+    public SqlAlterConnectionRename(
             SqlParserPos pos,
-            SqlIdentifier modelName,
-            boolean ifModelExists,
-            SqlNodeList optionKeyList) {
-        super(pos, modelName, ifModelExists);
-        this.optionKeyList = requireNonNull(optionKeyList, "optionKeyList should not be null");
+            SqlIdentifier connectionName,
+            SqlIdentifier newConnectionName,
+            boolean ifConnectionExists) {
+        super(pos, connectionName, ifConnectionExists);
+        this.newConnectionName =
+                requireNonNull(newConnectionName, "newConnectionName should not be null");
+    }
+
+    public SqlIdentifier getNewConnectionName() {
+        return newConnectionName;
     }
 
     @Override
     public List<SqlNode> getOperandList() {
-        return List.of(name, optionKeyList);
-    }
-
-    public Set<String> getResetKeys() {
-        return SqlParseUtils.extractSet(optionKeyList, SqlParseUtils::extractString);
+        return List.of(name, newConnectionName);
     }
 
     @Override
     public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparseAlterOperation(writer, leftPrec, rightPrec);
-        SqlUnparseUtils.unparseResetOptions(optionKeyList, writer, leftPrec, rightPrec);
+        writer.keyword("RENAME TO");
+        newConnectionName.unparse(writer, leftPrec, rightPrec);
     }
 }
