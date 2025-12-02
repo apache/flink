@@ -180,16 +180,13 @@ table_env.execute_sql("DESCRIBE CATALOG cat2").print()
 table_env.execute_sql("DESC CATALOG EXTENDED cat2").print()
 
 
-# register a function named "MySum" using JAR
+// register a function named "MySum"
 table_env.execute_sql("CREATE FUNCTION MySum as 'org.example.SumScalarFunction' USING JAR 'file://home/users/mysum-udf.jar';").print()
 
-# register a function using ARTIFACT (recommended for new code)
-table_env.execute_sql("CREATE FUNCTION MySum2 as 'org.example.SumScalarFunction' LANGUAGE JAVA USING ARTIFACT 'file://home/users/mysum-udf.jar';").print()
-
-# print the metadata
+// print the metadata
 table_env.execute_sql("DESCRIBE FUNCTION MySum").print()
 
-# print the complete metadata
+// print the complete metadata
 table_env.execute_sql("DESC FUNCTION EXTENDED MySum").print()
 ```
 {{< /tab >}}
