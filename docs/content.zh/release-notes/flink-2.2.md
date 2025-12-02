@@ -54,6 +54,9 @@ Apache Flink has supported leveraging LLM capabilities through the `ML_PREDICT` 
 since version 2.1. In Flink 2.2, the Table API also supports model inference operations that allow
 you to integrate machine learning models directly into your data processing pipelines.
 
+See more details about the capabilities and usages of
+Flink's [Model Inference](https://nightlies.apache.org/flink/flink-docs-release-2.2/docs/dev/table/tableapi/#model-inference).
+
 #### Materialized Table
 
 ##### [FLINK-38532](https://issues.apache.org/jira/browse/FLINK-38532), [FLINK-38311](https://issues.apache.org/jira/browse/FLINK-38311)
@@ -68,7 +71,7 @@ CREATE OR ALTER MATERIALIZED TABLE DDL statements. Flink 2.2 introduces a new Ma
 interface. This provides a formal extension point for customizable default logic, allowing advanced
 users and vendors to implement "smart" default behaviors (e.g., inferring freshness from upstream tables).
 
-Besides this, users can use `DISTRIBUTED INTO` or`DISTRIBUTED INTO` to support bucketing concept
+Besides this, users can use `DISTRIBUTED BY` or`DISTRIBUTED INTO` to support bucketing concept
 for Materialized tables. Users can use `SHOW MATERIALIZED TABLES` to show all Materialized tables.
 
 #### SinkUpsertMaterializer V2
@@ -110,6 +113,14 @@ Casting to TIME type now considers the correct precision (0-3). Casting incorrec
 (e.g. where the hour component is higher than 24) leads to a runtime exception now. Casting between 
 BINARY and VARBINARY should now correctly consider the target length.
 
+#### Use UniqueKeys instead of Upsertkeys for state management
+
+##### [FLINK-38209](https://issues.apache.org/jira/browse/FLINK-38209)
+
+This is considerable optimization and an breaking change for the StreamingMultiJoinOperator.
+As noted in the release notes, the operator was launched in an experimental state for Flink 2.1
+since we're working on relevant optimizations that could be breaking changes.
+
 ### Runtime
 
 #### Balanced Tasks Scheduling
@@ -149,14 +160,6 @@ children spans. See more details in [Traces](https://nightlies.apache.org/flink/
 
 Since 2.1.0 users are able to report custom events using the EventReporters. Since 2.2.0 Flink reports
 some built-in/system events.
-
-#### Use UniqueKeys instead of Upsertkeys for state management
-
-##### [FLINK-38209](https://issues.apache.org/jira/browse/FLINK-38209)
-
-This is considerable optimization and an breaking change for the StreamingMultiJoinOperator.
-As noted in the release notes, the operator was launched in an experimental state for Flink 2.1 
-since we're working on relevant optimizations that could be breaking changes.
 
 ### Connectors
 
