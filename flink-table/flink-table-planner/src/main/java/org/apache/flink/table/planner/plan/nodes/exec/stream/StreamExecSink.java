@@ -25,10 +25,13 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.RowtimeInserter;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.SinkUpsertMaterializeStrategy;
+import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
@@ -59,6 +62,7 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.runtime.util.StateConfigUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.typeutils.RowTypeUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -77,6 +81,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE_ADAPTIVE_THRESHOLD_HIGH;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE_ADAPTIVE_THRESHOLD_LOW;
@@ -390,5 +395,35 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             default:
                 throw new IllegalArgumentException("Unsupported strategy: " + strategy);
         }
+    }
+
+    /**
+     * The method recreates the type of the incoming record from the sink's schema. It puts the
+     * physical columns first, followed by persisted metadata columns.
+     */
+    @Override
+    protected final RowType getPersistedRowType(ResolvedSchema schema) {
+        final List<Column> physicalColumns = new ArrayList<>();
+        final List<Column> persistedMetadataColumns = new ArrayList<>();
+        for (Column column : schema.getColumns()) {
+            if (column.isPersisted()) {
+                if (column.isPhysical()) {
+                    physicalColumns.add(column);
+                } else {
+                    persistedMetadataColumns.add(column);
+                }
+            }
+        }
+        return (RowType)
+                Stream.concat(physicalColumns.stream(), persistedMetadataColumns.stream())
+                        .map(
+                                c ->
+                                        DataTypes.FIELD(
+                                                c.getName(),
+                                                DataTypeUtils.removeTimeAttribute(c.getDataType())))
+                        .collect(Collectors.collectingAndThen(Collectors.toList(), DataTypes::ROW))
+                        // the row should never be null
+                        .notNull()
+                        .getLogicalType();
     }
 }
