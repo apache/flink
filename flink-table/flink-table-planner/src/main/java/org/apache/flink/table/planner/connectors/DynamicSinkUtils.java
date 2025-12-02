@@ -1326,7 +1326,7 @@ public final class DynamicSinkUtils {
      *
      * <p>The format looks as follows: {@code PHYSICAL COLUMNS + PERSISTED METADATA COLUMNS}
      */
-    private static RowType createConsumedType(ResolvedSchema schema, DynamicTableSink sink) {
+    public static RowType createConsumedType(ResolvedSchema schema, DynamicTableSink sink) {
         final Map<String, DataType> metadataMap = extractMetadataMap(sink);
 
         final Stream<RowField> physicalFields =

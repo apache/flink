@@ -52,6 +52,7 @@ import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
 import org.apache.flink.table.connector.sink.legacy.SinkFunctionProvider;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.connectors.DynamicSinkUtils;
 import org.apache.flink.table.planner.lineage.TableLineageUtils;
 import org.apache.flink.table.planner.lineage.TableSinkLineageVertex;
 import org.apache.flink.table.planner.lineage.TableSinkLineageVertexImpl;
@@ -151,8 +152,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                 tableSink.getSinkRuntimeProvider(
                         new SinkRuntimeProviderContext(
                                 isBounded, tableSinkSpec.getTargetColumns()));
-        final RowType physicalRowType = getPhysicalRowType(schema);
-        final int[] primaryKeys = getPrimaryKeyIndices(physicalRowType, schema);
+        final RowType persistedRowType = getPersistedRowType(schema, tableSink);
+        final int[] primaryKeys = getPrimaryKeyIndices(persistedRowType, schema);
         final int sinkParallelism = deriveSinkParallelism(inputTransform, runtimeProvider);
         sinkParallelismConfigured = isParallelismConfigured(runtimeProvider);
         final int inputParallelism = inputTransform.getParallelism();
@@ -190,7 +191,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         final boolean needMaterialization = !inputInsertOnly && upsertMaterialize;
 
         Transformation<RowData> sinkTransform =
-                applyConstraintValidations(inputTransform, config, physicalRowType);
+                applyConstraintValidations(inputTransform, config, persistedRowType);
 
         if (hasPk) {
             sinkTransform =
@@ -212,7 +213,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                             sinkParallelism,
                             config,
                             classLoader,
-                            physicalRowType,
+                            persistedRowType,
                             inputUpsertKey);
         }
 
@@ -545,8 +546,16 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                 .orElse(new int[0]);
     }
 
-    protected RowType getPhysicalRowType(ResolvedSchema schema) {
-        return (RowType) schema.toPhysicalRowDataType().getLogicalType();
+    /**
+     * The method recreates the type of the incoming record from the sink's schema. It puts the
+     * physical columns first, followed by persisted metadata columns.
+     */
+    protected RowType getPersistedRowType(ResolvedSchema schema, DynamicTableSink sink) {
+        if (legacyPhysicalTypeEnabled()) {
+            return (RowType) schema.toPhysicalRowDataType().getLogicalType();
+        } else {
+            return DynamicSinkUtils.createConsumedType(schema, sink);
+        }
     }
 
     /**
@@ -574,4 +583,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         }
         return Optional.empty();
     }
+
+    protected abstract boolean legacyPhysicalTypeEnabled();
 }
