@@ -61,10 +61,9 @@ Flink's [Model Inference](https://nightlies.apache.org/flink/flink-docs-release-
 
 ##### [FLINK-38532](https://issues.apache.org/jira/browse/FLINK-38532), [FLINK-38311](https://issues.apache.org/jira/browse/FLINK-38311)
 
-Materialized Table is a new table type introduced in Flink SQL, aimed at simplifying both batch and
-stream data pipelines, providing a consistent development experience. By specifying data freshness
-and query when creating Materialized Table, the engine automatically derives the schema for the
-materialized table and creates corresponding data refresh pipeline to achieve the specified freshness.
+By specifying data freshness and query when creating [Materialized Table](https://nightlies.apache.org/flink/flink-docs-release-2.2/docs/dev/table/materialized-table/overview/),
+the engine automatically derives the schema for the materialized table and creates corresponding 
+data refresh pipeline to achieve the specified freshness.
 
 From Flink 2.2, the FRESHNESS clause is not a mandatory part of the CREATE MATERIALIZED TABLE and
 CREATE OR ALTER MATERIALIZED TABLE DDL statements. Flink 2.2 introduces a new MaterializedTableEnricher

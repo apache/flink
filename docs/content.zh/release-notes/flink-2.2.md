@@ -61,10 +61,9 @@ Flink's [Model Inference](https://nightlies.apache.org/flink/flink-docs-release-
 
 ##### [FLINK-38532](https://issues.apache.org/jira/browse/FLINK-38532), [FLINK-38311](https://issues.apache.org/jira/browse/FLINK-38311)
 
-Materialized Table is a new table type introduced in Flink SQL, aimed at simplifying both batch and
-stream data pipelines, providing a consistent development experience. By specifying data freshness
-and query when creating Materialized Table, the engine automatically derives the schema for the
-materialized table and creates corresponding data refresh pipeline to achieve the specified freshness.
+By specifying data freshness and query when creating [Materialized Table](https://nightlies.apache.org/flink/flink-docs-release-2.2/docs/dev/table/materialized-table/overview/),
+the engine automatically derives the schema for the materialized table and creates corresponding
+data refresh pipeline to achieve the specified freshness.
 
 From Flink 2.2, the FRESHNESS clause is not a mandatory part of the CREATE MATERIALIZED TABLE and
 CREATE OR ALTER MATERIALIZED TABLE DDL statements. Flink 2.2 introduces a new MaterializedTableEnricher
@@ -102,15 +101,15 @@ See more details about the capabilities and usages of Flink's
 
 ##### [FLINK-20539](https://issues.apache.org/jira/browse/FLINK-20539), [FLINK-38181](https://issues.apache.org/jira/browse/FLINK-38181)
 
-Before Flink 2.2, row types defined in SQL e.g. `SELECT CAST(f AS ROW&lt;i NOT NULL&gt;)` did ignore 
-the `NOT NULL` constraint. This was more aligned with the SQL standard but caused many type 
-inconsistencies and cryptic error message when working on nested data. For example, it prevented 
+Before Flink 2.2, row types defined in SQL e.g. `SELECT CAST(f AS ROW&lt;i NOT NULL&gt;)` did ignore
+the `NOT NULL` constraint. This was more aligned with the SQL standard but caused many type
+inconsistencies and cryptic error message when working on nested data. For example, it prevented
 using rows in computed columns or join keys. The new behavior takes the nullability into consideration.
 The config option `table.legacy-nested-row-nullability` allows to restore the old behavior if required,
 but it is recommended to update existing queries that ignored constraints before.
 
-Casting to TIME type now considers the correct precision (0-3). Casting incorrect strings to time 
-(e.g. where the hour component is higher than 24) leads to a runtime exception now. Casting between 
+Casting to TIME type now considers the correct precision (0-3). Casting incorrect strings to time
+(e.g. where the hour component is higher than 24) leads to a runtime exception now. Casting between
 BINARY and VARBINARY should now correctly consider the target length.
 
 #### Use UniqueKeys instead of Upsertkeys for state management
@@ -147,11 +146,11 @@ to fulfill more scenario requirements.
 ##### [FLINK-38158](https://issues.apache.org/jira/browse/FLINK-38158), [FLINK-38353](https://issues.apache.org/jira/browse/FLINK-38353)
 
 Since 2.2.0 users can now assign custom metric variables for each operator/transformation used in the
-Job. Those variables are later converted to tags/labels by the metric reporters, allowing users to 
+Job. Those variables are later converted to tags/labels by the metric reporters, allowing users to
 tab/label specific operator's metrics. For example, you can use this to name and differentiate sources.
 
 Users can now control the level of details of checkpoint spans via [traces.checkpoint.span-detail-level](https://nightlies.apache.org/flink/flink-docs-release-2.2/docs/deployment/config/#traces-checkpoint-span-detail-level).
-Highest levels report tree of spans for each task and subtask. Reported custom spans can now contain 
+Highest levels report tree of spans for each task and subtask. Reported custom spans can now contain
 children spans. See more details in [Traces](https://nightlies.apache.org/flink/flink-docs-release-2.2/docs/ops/traces/).
 
 #### Introduce Event Reporting
