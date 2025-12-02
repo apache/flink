@@ -30,6 +30,7 @@ public class SinkSemanticTests extends SemanticTestBase {
     public List<TableTestProgram> programs() {
         return List.of(
                 SinkTestPrograms.INSERT_RETRACT_WITHOUT_PK,
-                SinkTestPrograms.INSERT_RETRACT_WITH_PK);
+                SinkTestPrograms.INSERT_RETRACT_WITH_PK,
+                SinkTestPrograms.INSERT_RETRACT_WITH_WRITABLE_METADATA);
     }
 }

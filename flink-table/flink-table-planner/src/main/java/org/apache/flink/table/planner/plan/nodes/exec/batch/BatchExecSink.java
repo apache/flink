@@ -124,7 +124,7 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
     }
 
     @Override
-    protected RowType getPhysicalRowType(ResolvedSchema schema) {
+    protected final RowType getPersistedRowType(ResolvedSchema schema) {
         // row-level modification may only write partial columns,
         // so we try to prune the RowType to get the real RowType containing
         // the physical columns to be written

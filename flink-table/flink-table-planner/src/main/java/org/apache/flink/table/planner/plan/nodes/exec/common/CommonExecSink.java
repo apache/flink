@@ -151,7 +151,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                 tableSink.getSinkRuntimeProvider(
                         new SinkRuntimeProviderContext(
                                 isBounded, tableSinkSpec.getTargetColumns()));
-        final RowType physicalRowType = getPhysicalRowType(schema);
+        final RowType physicalRowType = getPersistedRowType(schema);
         final int[] primaryKeys = getPrimaryKeyIndices(physicalRowType, schema);
         final int sinkParallelism = deriveSinkParallelism(inputTransform, runtimeProvider);
         sinkParallelismConfigured = isParallelismConfigured(runtimeProvider);
@@ -545,9 +545,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                 .orElse(new int[0]);
     }
 
-    protected RowType getPhysicalRowType(ResolvedSchema schema) {
-        return (RowType) schema.toPhysicalRowDataType().getLogicalType();
-    }
+    protected abstract RowType getPersistedRowType(ResolvedSchema schema);
 
     /**
      * Get the target row-kind that the row data should change to, assuming the current row kind is
