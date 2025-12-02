@@ -81,8 +81,10 @@ public final class TypeInferenceOperandInference implements SqlOperandTypeInfere
                     false)) {
                 inferOperandTypesOrError(unwrapTypeFactory(callBinding), callContext, operandTypes);
             }
-        } catch (ValidationException | CalciteContextException e) {
+        } catch (ValidationException e) {
             // let operand checker fail
+        } catch (CalciteContextException e) {
+            throw e;
         } catch (Throwable t) {
             throw createUnexpectedException(callContext, t);
         }
