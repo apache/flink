@@ -114,6 +114,21 @@ public class TableTestProgram {
         return id;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+
+        TableTestProgram that = (TableTestProgram) o;
+        return id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+
     /**
      * Entrypoint for a {@link TableTestProgram} that forces an identifier and description of the
      * test program.
