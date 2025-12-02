@@ -16,13 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.physical.stream;
+package org.apache.flink.table.planner.plan.nodes.physical.batch;
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.RexModelCall;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMLPredictTableFunction;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMLPredictTableFunction;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalMLPredictTableFunction;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
@@ -35,11 +35,11 @@ import org.apache.calcite.rel.type.RelDataType;
 import java.util.List;
 import java.util.Map;
 
-/** Stream physical RelNode for ml predict table function. */
-public class StreamPhysicalMLPredictTableFunction extends CommonPhysicalMLPredictTableFunction
-        implements StreamPhysicalRel {
+/** Batch physical RelNode for ml predict table function. */
+public class BatchPhysicalMLPredictTableFunction extends CommonPhysicalMLPredictTableFunction
+        implements BatchPhysicalRel {
 
-    public StreamPhysicalMLPredictTableFunction(
+    public BatchPhysicalMLPredictTableFunction(
             RelOptCluster cluster,
             RelTraitSet traits,
             RelNode inputRel,
@@ -51,19 +51,14 @@ public class StreamPhysicalMLPredictTableFunction extends CommonPhysicalMLPredic
 
     @Override
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-        return new StreamPhysicalMLPredictTableFunction(
+        return new BatchPhysicalMLPredictTableFunction(
                 getCluster(), traitSet, inputs.get(0), scan, getRowType(), runtimeConfig);
-    }
-
-    @Override
-    public boolean requireWatermark() {
-        return false;
     }
 
     @Override
     public ExecNode<?> translateToExecNode() {
         RexModelCall modelCall = extractOperand(operand -> operand instanceof RexModelCall);
-        return new StreamExecMLPredictTableFunction(
+        return new BatchExecMLPredictTableFunction(
                 ShortcutUtils.unwrapTableConfig(this),
                 buildMLPredictSpec(runtimeConfig),
                 buildModelSpec(modelCall),
