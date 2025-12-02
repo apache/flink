@@ -77,7 +77,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 class TransformationsTest {
 
     @Test
-    public void testLegacyBatchSource() {
+    void testLegacyBatchSource() {
         final StreamTableEnvironment env =
                 StreamTableEnvironment.create(
                         StreamExecutionEnvironment.getExecutionEnvironment(),
@@ -107,7 +107,7 @@ class TransformationsTest {
     }
 
     @Test
-    public void testLegacyStreamSource() {
+    void testLegacyStreamSource() {
         final StreamTableEnvironment env =
                 StreamTableEnvironment.create(
                         StreamExecutionEnvironment.getExecutionEnvironment(),
@@ -137,7 +137,7 @@ class TransformationsTest {
     }
 
     @Test
-    public void testLegacyBatchValues() {
+    void testLegacyBatchValues() {
         final StreamTableEnvironment env =
                 StreamTableEnvironment.create(
                         StreamExecutionEnvironment.getExecutionEnvironment(),
@@ -152,14 +152,14 @@ class TransformationsTest {
     }
 
     @Test
-    public void testUidGeneration() {
+    void testUidGeneration() {
         testUidGeneration(c -> c.set(TABLE_EXEC_UID_GENERATION, PLAN_ONLY), true, false);
         testUidGeneration(c -> c.set(TABLE_EXEC_UID_GENERATION, ALWAYS), true, true);
         testUidGeneration(c -> c.set(TABLE_EXEC_UID_GENERATION, DISABLED), false, false);
     }
 
     @Test
-    public void testUidDefaults() throws IOException {
+    void testUidDefaults() throws IOException {
         assertTransformations(
                 config -> {},
                 json -> {},
@@ -170,7 +170,7 @@ class TransformationsTest {
     }
 
     @Test
-    public void testUidFlink1_15() throws IOException {
+    void testUidFlink1_15() throws IOException {
         assertTransformations(
                 config ->
                         config.set(TABLE_EXEC_UID_FORMAT, "<id>_<type>_<version>_<transformation>"),
@@ -182,7 +182,7 @@ class TransformationsTest {
     }
 
     @Test
-    public void testUidFlink1_18() throws IOException {
+    void testUidFlink1_18() throws IOException {
         assertTransformations(
                 config ->
                         config.set(TABLE_EXEC_UID_FORMAT, "<id>_<type>_<version>_<transformation>"),
@@ -194,7 +194,7 @@ class TransformationsTest {
     }
 
     @Test
-    public void testPerNodeCustomUid() throws IOException {
+    void testPerNodeCustomUid() throws IOException {
         assertTransformations(
                 config -> {},
                 json ->
@@ -210,7 +210,7 @@ class TransformationsTest {
     }
 
     @Test
-    public void testMultiTransformSources() throws IOException {
+    void testMultiTransformSources() throws IOException {
         assertTransformations(
                 config -> {},
                 json -> {},
@@ -231,7 +231,7 @@ class TransformationsTest {
     }
 
     @Test
-    public void testMultiTransformSourcesV1() throws IOException {
+    void testMultiTransformSourcesV1() throws IOException {
         assertTransformations(
                 config -> {},
                 json -> {},
