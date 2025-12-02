@@ -895,7 +895,7 @@ Language tag to instruct Flink runtime how to execute the function. Currently on
 
 Specifies the list of jar resources that contain the implementation of the function along with its dependencies. The jar should be located in a local or remote [file system]({{< ref "docs/deployment/filesystems/overview" >}}) such as hdfs/s3/oss which Flink current supports. 
 
-**Note:** The Python Table API currently has limited support for specifying artifacts programmatically. Python functions with artifacts are primarily created via SQL statements. See [Python Table API documentation]({{< ref "docs/dev/python/table/table_environment" >}}) for current capabilities.
+**Note:** The Python Table API currently has limited support for specifying artifacts programmatically. See [Python Table API documentation]({{< ref "docs/dev/python/table/table_environment" >}}) for current capabilities.
 
 {{< top >}}
 
