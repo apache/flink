@@ -15,10 +15,8 @@
 # specific language governing permissions and limitations
 # under the License
 
-opensearch:
+openai:
   name: OpenAI
   category: model
-  versions:
-    - version: 2.1.x
-      maven: flink-model-openai
-      sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-model-openai/2.1.1/flink-model-openai-2.1.1.jar
+  maven: flink-model-openai
+  sql_url: https://repo.maven.apache.org/maven2/org/apache/flink/flink-model-openai/$version/flink-model-openai-$version.jar
