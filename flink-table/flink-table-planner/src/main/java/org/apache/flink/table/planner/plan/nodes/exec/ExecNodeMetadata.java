@@ -33,18 +33,18 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation to be used for {@link ExecNode}s to keep necessary metadata when
- * serializing/deserializing them into a {@link CompiledPlan}. It's used for internal bookkeeping
- * across Flink versions, and to provide necessary information to the testing infrastructure.
+ * Annotation to be used by classes implementing the {@link ExecNode} interface.
  *
- * <p>Each {@link ExecNode} needs to be annotated and provide the necessary metadata info so that it
- * can be correctly serialized and later on instantiated from a JSON plan.
+ * <p>The {@link ExecNodeMetadata} annotation contains crucial information for (de)serializing a
+ * node into a {@link CompiledPlan}. It's used for internal bookkeeping across Flink versions and
+ * powers testing infrastructure.
  *
- * <p>It's possible for one {@link ExecNode} class to use multiple annotations to denote the ability
- * to upgrade to more versions. an {@link ExecNode} class can be annotated directly with multiple
- * {@link ExecNodeMetadata} annotations, or with a single {@link MultipleExecNodeMetadata}
- * annotation where the {@link MultipleExecNodeMetadata#value()} is an array of {@link
- * ExecNodeMetadata} annotations.
+ * <p>Each new {@link ExecNode} version needs an annotation. Multiple annotations on top of a single
+ * {@link ExecNode} class are supported and declare multiple versions. When compiling a node into
+ * JSON, the most recent version is persisted. When restoring from JSON, the original version is
+ * available via {@link ExecNode#getVersion()}. Parts of the original configuration (see {@link
+ * #consumedOptions()}) together with recent session configuration will be made available via {@link
+ * ExecNodeConfig}.
  */
 @Documented
 @Target(ElementType.TYPE)
