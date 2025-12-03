@@ -39,6 +39,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -230,10 +232,12 @@ final class RecoverableMultiPartUploadImpl implements RecoverableMultiPartUpload
             throws IOException {
         final PartETag completedUploadEtag;
         try {
-            completedUploadEtag = upload.get();
+            completedUploadEtag = upload.get(10, TimeUnit.MINUTES);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted while waiting for part uploads to complete");
+        } catch (TimeoutException e) {
+            throw new IOException("Timed out while waiting for part uploads to complete", e);
         } catch (ExecutionException e) {
             throw new IOException("Uploading parts failed", e.getCause());
         }
