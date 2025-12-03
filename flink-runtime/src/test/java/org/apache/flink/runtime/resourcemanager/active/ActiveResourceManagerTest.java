@@ -1246,7 +1246,8 @@ class ActiveResourceManagerTest {
                             TESTING_CONFIG,
                             ResourceProfile.ZERO,
                             ResourceProfile.ZERO,
-                            resourceID.toString());
+                            resourceID.toString(),
+                            1);
 
             return resourceManager
                     .getSelfGateway(ResourceManagerGateway.class)
