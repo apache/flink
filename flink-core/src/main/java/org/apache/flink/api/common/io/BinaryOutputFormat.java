@@ -53,7 +53,8 @@ public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
         }
     }
 
-    protected void complementBlockInfo(BlockInfo blockInfo) {}
+    protected void complementBlockInfo(BlockInfo blockInfo) {
+    }
 
     @Override
     public void configure(Configuration parameters) {
@@ -135,9 +136,11 @@ public abstract class BinaryOutputFormat<T> extends FileOutputFormat<T> {
 
         @Override
         public void write(byte[] b, int off, int len) throws IOException {
-
-            for (int remainingLength = len, offset = off; remainingLength > 0; ) {
-                int blockLen = Math.min(remainingLength, this.maxPayloadSize - this.blockPos);
+            int remainingLength = len;
+            int offset = off;
+            while (remainingLength > 0) {
+                int spaceInBlock = this.maxPayloadSize - this.blockPos;
+                int blockLen = Math.min(remainingLength, spaceInBlock);
                 this.out.write(b, offset, blockLen);
 
                 this.blockPos += blockLen;
