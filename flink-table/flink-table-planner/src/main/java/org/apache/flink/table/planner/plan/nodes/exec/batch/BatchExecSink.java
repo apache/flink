@@ -132,16 +132,16 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
             for (SinkAbilitySpec sinkAbilitySpec : tableSinkSpec.getSinkAbilities()) {
                 if (sinkAbilitySpec instanceof RowLevelUpdateSpec) {
                     RowLevelUpdateSpec rowLevelUpdateSpec = (RowLevelUpdateSpec) sinkAbilitySpec;
-                    return getPhysicalRowType(
+                    return getPersistedRowType(
                             schema, rowLevelUpdateSpec.getRequiredPhysicalColumnIndices());
                 } else if (sinkAbilitySpec instanceof RowLevelDeleteSpec) {
                     RowLevelDeleteSpec rowLevelDeleteSpec = (RowLevelDeleteSpec) sinkAbilitySpec;
-                    return getPhysicalRowType(
+                    return getPersistedRowType(
                             schema, rowLevelDeleteSpec.getRequiredPhysicalColumnIndices());
                 }
             }
         }
-        return (RowType) schema.toPhysicalRowDataType().getLogicalType();
+        return toPersistedRowType(schema);
     }
 
     @Override
@@ -183,12 +183,12 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
     }
 
     /** Get the physical row type with given column indices. */
-    private RowType getPhysicalRowType(ResolvedSchema schema, int[] columnIndices) {
+    private RowType getPersistedRowType(ResolvedSchema schema, int[] columnIndices) {
         List<Column> columns = schema.getColumns();
         List<Column> requireColumns = new ArrayList<>();
         for (int columnIndex : columnIndices) {
             requireColumns.add(columns.get(columnIndex));
         }
-        return (RowType) ResolvedSchema.of(requireColumns).toPhysicalRowDataType().getLogicalType();
+        return toPersistedRowType(ResolvedSchema.of(requireColumns));
     }
 }
