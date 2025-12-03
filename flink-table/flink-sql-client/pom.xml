@@ -202,10 +202,11 @@ under the License.
 			<version>${project.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
 			<exclusions>
-				<exclusion>
+				<!-- Uncomment it after Calcite is upgraded to 1.39.0
+			     <exclusion>
 					<groupId>org.apache.calcite</groupId>
 					<artifactId>calcite-core</artifactId>
-				</exclusion>
+				</exclusion-->
 				<exclusion>
 					<groupId>org.apache.calcite</groupId>
 					<artifactId>calcite-testkit</artifactId>
