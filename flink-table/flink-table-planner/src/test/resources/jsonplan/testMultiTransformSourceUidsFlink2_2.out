@@ -1,0 +1,57 @@
+{
+  "flinkVersion" : "2.2",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`T`"
+      }
+    },
+    "outputType" : "ROW<`i` INT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, T]], fields=[i])"
+  }, {
+    "id" : 2,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "i",
+              "dataType" : "INT"
+            } ]
+          },
+          "options" : {
+            "connector" : "blackhole"
+          }
+        }
+      }
+    },
+    "inputChangelogMode" : [ "INSERT" ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`i` INT>",
+    "description" : "Sink(table=[*anonymous_blackhole$1*], fields=[i])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
