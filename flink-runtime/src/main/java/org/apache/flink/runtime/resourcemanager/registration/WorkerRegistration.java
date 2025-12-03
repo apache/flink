@@ -45,6 +45,8 @@ public class WorkerRegistration<WorkerType extends ResourceIDRetrievable>
 
     private final String nodeId;
 
+    private final int numberSlots;
+
     public WorkerRegistration(
             TaskExecutorGateway taskExecutorGateway,
             WorkerType worker,
@@ -54,7 +56,8 @@ public class WorkerRegistration<WorkerType extends ResourceIDRetrievable>
             TaskExecutorMemoryConfiguration memoryConfiguration,
             ResourceProfile totalResourceProfile,
             ResourceProfile defaultSlotResourceProfile,
-            String nodeId) {
+            String nodeId,
+            int numberSlots) {
 
         super(worker.getResourceID(), taskExecutorGateway);
 
@@ -66,6 +69,7 @@ public class WorkerRegistration<WorkerType extends ResourceIDRetrievable>
         this.totalResourceProfile = Preconditions.checkNotNull(totalResourceProfile);
         this.defaultSlotResourceProfile = Preconditions.checkNotNull(defaultSlotResourceProfile);
         this.nodeId = Preconditions.checkNotNull(nodeId);
+        this.numberSlots = numberSlots;
     }
 
     public WorkerType getWorker() {
@@ -98,5 +102,9 @@ public class WorkerRegistration<WorkerType extends ResourceIDRetrievable>
 
     public String getNodeId() {
         return nodeId;
+    }
+
+    public int getNumberSlots() {
+        return numberSlots;
     }
 }

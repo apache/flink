@@ -222,7 +222,8 @@ class ResourceManagerTaskExecutorTest {
                                     1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
                             DEFAULT_SLOT_PROFILE,
                             DEFAULT_SLOT_PROFILE,
-                            taskExecutorGateway.getAddress());
+                            taskExecutorGateway.getAddress(),
+                            1);
 
             CompletableFuture<RegistrationResponse> firstFuture =
                     rmGateway.registerTaskExecutor(taskExecutorRegistration, fastTimeout);
@@ -287,7 +288,8 @@ class ResourceManagerTaskExecutorTest {
                                 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
                         DEFAULT_SLOT_PROFILE,
                         DEFAULT_SLOT_PROFILE.multiply(numberSlots),
-                        taskExecutorGateway.getAddress());
+                        taskExecutorGateway.getAddress(),
+                        numberSlots);
         final RegistrationResponse registrationResponse =
                 rmGateway.registerTaskExecutor(taskExecutorRegistration, TIMEOUT).get();
         assertThat(registrationResponse).isInstanceOf(TaskExecutorRegistrationSuccess.class);
@@ -364,7 +366,8 @@ class ResourceManagerTaskExecutorTest {
                                 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L),
                         DEFAULT_SLOT_PROFILE,
                         DEFAULT_SLOT_PROFILE,
-                        taskExecutorAddress),
+                        taskExecutorAddress,
+                        1),
                 TIMEOUT);
     }
 }
