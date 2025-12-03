@@ -171,18 +171,6 @@ public class MaterializedTableUtils {
         }
     }
 
-    public static List<SqlTableColumn> getSqlTableColumns(SqlNodeList columnPositions) {
-        List<SqlTableColumn> list = new ArrayList<>();
-        for (SqlNode position : columnPositions) {
-            if (position instanceof SqlTableColumnPosition) {
-                list.add(((SqlTableColumnPosition) position).getColumn());
-            } else {
-                throw new ValidationException("Not a position");
-            }
-        }
-        return list;
-    }
-
     private static void throwIfPhysicalColumnNotUsedByQuery(
             SqlNode column, Set<String> querySchemaColumnNames) {
         if (column instanceof SqlTableColumn.SqlRegularColumn) {
@@ -191,7 +179,9 @@ public class MaterializedTableUtils {
             if (!querySchemaColumnNames.contains(physicalColumn.getName().getSimple())) {
                 throw new ValidationException(
                         String.format(
-                                "Invalid as physical column '%s' is defined in the DDL, but is not used in a query column.",
+                                "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
+                                        + "Invalid schema change. All physical columns in the schema part need to be present in the query part. "
+                                        + "However, column `%s` could not be found in the query.",
                                 physicalColumn.getName().getSimple()));
             }
         } else if (column instanceof SqlTableColumnPosition) {

@@ -49,8 +49,7 @@ public class SchemaModifyConverter extends SchemaConverter {
         if (!sortedColumnNames.contains(columnName)) {
             throw new ValidationException(
                     String.format(
-                            "%sTry to modify a column `%s` which does not exist in the table.",
-                            exMsgPrefix, columnName));
+                            "%sColumn `%s` does not exist in the table.", exMsgPrefix, columnName));
         }
 
         Column oldColumn = unwrap(oldBaseTable.getResolvedSchema().getColumn(columnName));
@@ -88,7 +87,7 @@ public class SchemaModifyConverter extends SchemaConverter {
         if (primaryKey == null) {
             throw new ValidationException(
                     String.format(
-                            "%sThe base %s does not define any primary key constraint. You might "
+                            "%sThe current %s does not define any primary key constraint. You might "
                                     + "want to add a new one.",
                             exMsgPrefix, tableKindStr));
         }
@@ -103,7 +102,7 @@ public class SchemaModifyConverter extends SchemaConverter {
         if (watermarkSpec == null) {
             throw new ValidationException(
                     String.format(
-                            "%sThe base %s does not define any watermark. You might "
+                            "%sThe current %s does not define any watermark. You might "
                                     + "want to add a new one.",
                             exMsgPrefix, tableKindStr));
         }

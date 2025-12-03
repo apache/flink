@@ -38,14 +38,13 @@ public class SqlAlterMaterializedTableAddDistributionConverter
     @Override
     protected Operation convertToOperation(
             SqlAlterMaterializedTableAddDistribution sqlAddDistribution,
-            ResolvedCatalogMaterializedTable oldMaterializedTable,
+            ResolvedCatalogMaterializedTable oldTable,
             ConvertContext context) {
-        TableDistribution distribution =
-                getTableDistribution(sqlAddDistribution, oldMaterializedTable);
+        TableDistribution distribution = getTableDistribution(sqlAddDistribution, oldTable);
         // Build new materialized table and apply changes
         CatalogMaterializedTable updatedTable =
                 buildUpdatedMaterializedTable(
-                        oldMaterializedTable, builder -> builder.distribution(distribution));
+                        oldTable, builder -> builder.distribution(distribution));
         return new AlterMaterializedTableChangeOperation(
                 resolveIdentifier(sqlAddDistribution, context),
                 List.of(TableChange.add(distribution)),
@@ -53,9 +52,9 @@ public class SqlAlterMaterializedTableAddDistributionConverter
     }
 
     private TableDistribution getTableDistribution(
-            SqlAlterMaterializedTableDistribution sqlAlterMaterializedTableDistribution,
-            ResolvedCatalogMaterializedTable oldMaterializedTable) {
-        Optional<TableDistribution> oldDistribution = oldMaterializedTable.getDistribution();
+            SqlAlterMaterializedTableDistribution sqlAlterTableDistribution,
+            ResolvedCatalogMaterializedTable oldTable) {
+        Optional<TableDistribution> oldDistribution = oldTable.getDistribution();
         if (oldDistribution.isPresent()) {
             throw new ValidationException(
                     String.format(
@@ -65,6 +64,6 @@ public class SqlAlterMaterializedTableAddDistributionConverter
         }
 
         return OperationConverterUtils.getDistributionFromSqlDistribution(
-                sqlAlterMaterializedTableDistribution.getDistribution().get());
+                sqlAlterTableDistribution.getDistribution().get());
     }
 }

@@ -24,6 +24,9 @@ import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogDatabase;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.IntervalFreshness;
@@ -109,13 +112,12 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
                             .originalQuery(DEFAULT_ORIGINAL_QUERY)
                             .expandedQuery(DEFAULT_EXPANDED_QUERY)
                             .freshness(FRESHNESS)
-                            .logicalRefreshMode(
-                                    CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC)
-                            .refreshMode(CatalogMaterializedTable.RefreshMode.CONTINUOUS)
-                            .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
+                            .logicalRefreshMode(LogicalRefreshMode.AUTOMATIC)
+                            .refreshMode(RefreshMode.CONTINUOUS)
+                            .refreshStatus(RefreshStatus.INITIALIZING)
                             .build(),
                     CREATE_RESOLVED_SCHEMA,
-                    CatalogMaterializedTable.RefreshMode.CONTINUOUS,
+                    RefreshMode.CONTINUOUS,
                     FRESHNESS);
 
     private static final TestRefreshHandler REFRESH_HANDLER =
@@ -247,13 +249,11 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
         assertThat(actualMaterializedTable.getDefinitionFreshness()).isEqualTo(FRESHNESS);
         // validate logical refresh mode
         assertThat(actualMaterializedTable.getLogicalRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC);
+                .isSameAs(LogicalRefreshMode.AUTOMATIC);
         // validate refresh mode
-        assertThat(actualMaterializedTable.getRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.RefreshMode.CONTINUOUS);
+        assertThat(actualMaterializedTable.getRefreshMode()).isSameAs(RefreshMode.CONTINUOUS);
         // validate refresh status
-        assertThat(actualMaterializedTable.getRefreshStatus())
-                .isEqualTo(CatalogMaterializedTable.RefreshStatus.INITIALIZING);
+        assertThat(actualMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.INITIALIZING);
         // validate refresh handler
         assertThat(actualMaterializedTable.getRefreshHandlerDescription())
                 .isEqualTo(Optional.empty());
@@ -377,7 +377,7 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
         // alter materialized table refresh handler
         ResolvedCatalogMaterializedTable updatedMaterializedTable =
                 EXPECTED_CATALOG_MATERIALIZED_TABLE.copy(
-                        CatalogMaterializedTable.RefreshStatus.ACTIVATED,
+                        RefreshStatus.ACTIVATED,
                         REFRESH_HANDLER.asSummaryString(),
                         REFRESH_HANDLER.toBytes());
         catalog.alterTable(tablePath, updatedMaterializedTable, Collections.emptyList(), false);
@@ -390,8 +390,7 @@ public class TestFileSystemCatalogTest extends TestFileSystemCatalogTestBase {
 
         CatalogMaterializedTable actualMaterializedTable = (CatalogMaterializedTable) actualTable;
         // validate refresh status
-        assertThat(actualMaterializedTable.getRefreshStatus())
-                .isEqualTo(CatalogMaterializedTable.RefreshStatus.ACTIVATED);
+        assertThat(actualMaterializedTable.getRefreshStatus()).isSameAs(RefreshStatus.ACTIVATED);
         // validate refresh handler
         assertThat(actualMaterializedTable.getRefreshHandlerDescription().get())
                 .isEqualTo(REFRESH_HANDLER.asSummaryString());

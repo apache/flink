@@ -51,9 +51,9 @@ public abstract class AbstractAlterTableConverter<T extends SqlAlterTable>
 
     @Override
     public final Operation convertSqlNode(T sqlAlterTable, ConvertContext context) {
-        CatalogManager catalogManager = context.getCatalogManager();
+        final CatalogManager catalogManager = context.getCatalogManager();
         final ObjectIdentifier tableIdentifier = resolveIdentifier(sqlAlterTable, context);
-        Optional<ContextResolvedTable> optionalCatalogTable =
+        final Optional<ContextResolvedTable> optionalCatalogTable =
                 catalogManager.getTable(tableIdentifier);
 
         if (optionalCatalogTable.isEmpty() || optionalCatalogTable.get().isTemporary()) {

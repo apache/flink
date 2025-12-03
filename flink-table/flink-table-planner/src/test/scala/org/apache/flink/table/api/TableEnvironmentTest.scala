@@ -469,7 +469,7 @@ class TableEnvironmentTest {
                                                    |""".stripMargin))
       .hasMessageContaining(
         """Failed to execute ALTER TABLE statement.
-          |The base table has already defined the primary key constraint [`b`]. You might want to drop it before adding a new one.""".stripMargin)
+          |The current table has already defined the primary key constraint [`b`]. You might want to drop it before adding a new one.""".stripMargin)
       .isInstanceOf[ValidationException]
 
     assertThatThrownBy(() => tableEnv.executeSql("""
@@ -477,9 +477,8 @@ class TableEnvironmentTest {
                                                    |  a STRING
                                                    |)
                                                    |""".stripMargin))
-      .hasMessageContaining(
-        """Failed to execute ALTER TABLE statement.
-          |Try to add a column `a` which already exists in the table.""".stripMargin)
+      .hasMessageContaining("""Failed to execute ALTER TABLE statement.
+                              |Column `a` already exists in the table.""".stripMargin)
       .isInstanceOf[ValidationException]
 
     assertThatThrownBy(() => tableEnv.executeSql("""
@@ -544,7 +543,7 @@ class TableEnvironmentTest {
     assertThatThrownBy(() => tableEnv.executeSql("ALTER TABLE MyTable ADD WATERMARK FOR ts AS ts"))
       .hasMessageContaining(
         """Failed to execute ALTER TABLE statement.
-          |The base table has already defined the watermark strategy `d` AS `d` - INTERVAL '2' SECOND. You might want to drop it before adding a new one.""".stripMargin)
+          |The current table has already defined the watermark strategy `d` AS `d` - INTERVAL '2' SECOND. You might want to drop it before adding a new one.""".stripMargin)
       .isInstanceOf[ValidationException]
   }
 
@@ -671,9 +670,8 @@ class TableEnvironmentTest {
                                                    |  x STRING FIRST
                                                    |)
                                                    |""".stripMargin))
-      .hasMessageContaining(
-        """Failed to execute ALTER TABLE statement.
-          |Try to modify a column `x` which does not exist in the table.""".stripMargin)
+      .hasMessageContaining("""Failed to execute ALTER TABLE statement.
+                              |Column `x` does not exist in the table.""".stripMargin)
       .isInstanceOf[ValidationException]
 
     assertThatThrownBy(() => tableEnv.executeSql("""
@@ -766,7 +764,7 @@ class TableEnvironmentTest {
                                                    |""".stripMargin))
       .hasMessageContaining(
         """Failed to execute ALTER TABLE statement.
-          |The base table does not define any primary key constraint. You might want to add a new one.""".stripMargin)
+          |The current table does not define any primary key constraint. You might want to add a new one.""".stripMargin)
       .isInstanceOf[ValidationException]
 
     tableEnv.executeSql("""

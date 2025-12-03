@@ -40,9 +40,10 @@ public class SchemaAddConverter extends SchemaConverter {
         if (primaryKey != null) {
             throw new ValidationException(
                     String.format(
-                            "%sThe base table has already defined the primary key constraint %s. You might "
+                            "%sThe current %s has already defined the primary key constraint %s. You might "
                                     + "want to drop it before adding a new one.",
                             exMsgPrefix,
+                            tableKindStr,
                             primaryKey.getColumnNames().stream()
                                     .collect(Collectors.joining("`, `", "[`", "`]"))));
         }
@@ -56,7 +57,7 @@ public class SchemaAddConverter extends SchemaConverter {
         if (watermarkSpec != null) {
             throw new ValidationException(
                     String.format(
-                            "%sThe base %s has already defined the watermark strategy `%s` AS %s. You might "
+                            "%sThe current %s has already defined the watermark strategy `%s` AS %s. You might "
                                     + "want to drop it before adding a new one.",
                             exMsgPrefix,
                             tableKindStr,
@@ -76,8 +77,8 @@ public class SchemaAddConverter extends SchemaConverter {
         if (sortedColumnNames.contains(columnName)) {
             throw new ValidationException(
                     String.format(
-                            "%sTry to add a column `%s` which already exists in the table.",
-                            exMsgPrefix, columnName));
+                            "%sColumn `%s` already exists in the %s.",
+                            exMsgPrefix, columnName, tableKindStr));
         }
 
         if (columnPosition.isFirstColumn()) {

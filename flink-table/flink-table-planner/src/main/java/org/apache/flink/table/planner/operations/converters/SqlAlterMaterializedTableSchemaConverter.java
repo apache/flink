@@ -25,26 +25,20 @@ import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
-import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.utils.MaterializedTableUtils;
 
-import org.apache.calcite.sql.SqlNode;
-
+/**
+ * Abstract class for converting {@link SqlAlterMaterializedTableSchema} and its children for alter
+ * schema materialized table operations.
+ */
 public abstract class SqlAlterMaterializedTableSchemaConverter<
                 T extends SqlAlterMaterializedTableSchema>
         extends AbstractAlterMaterializedTableConverter<T> {
     @Override
     protected Operation convertToOperation(
             T alterTableSchema, ResolvedCatalogMaterializedTable oldTable, ConvertContext context) {
-        final SqlNode originalQuery =
-                context.getFlinkPlanner().parser().parse(oldTable.getOriginalQuery());
-        final SqlNode validateQuery = context.getSqlValidator().validate(originalQuery);
-        PlannerQueryOperation queryOperation =
-                new PlannerQueryOperation(
-                        context.toRelRoot(validateQuery).project(),
-                        () -> context.toQuotedSqlString(validateQuery));
         MaterializedTableUtils.validatePhysicalColumnsUsedByQuery(
-                alterTableSchema.getColumnPositions(), queryOperation.getResolvedSchema());
+                oldTable, alterTableSchema, context);
 
         SchemaConverter converter = createSchemaConverter(oldTable, context);
         converter.updateColumn(alterTableSchema.getColumnPositions().getList());
@@ -62,14 +56,15 @@ public abstract class SqlAlterMaterializedTableSchemaConverter<
     }
 
     protected abstract SchemaConverter createSchemaConverter(
-            ResolvedCatalogMaterializedTable oldMaterializedTable, ConvertContext context);
+            ResolvedCatalogMaterializedTable oldTable, ConvertContext context);
 
+    /** A converter for {@link SqlAlterMaterializedTableAddSchema}. */
     public static class SqlAlterMaterializedTableAddSchemaConverter
             extends SqlAlterMaterializedTableSchemaConverter<SqlAlterMaterializedTableAddSchema> {
         @Override
         protected SchemaConverter createSchemaConverter(
-                ResolvedCatalogMaterializedTable oldMaterializedTable, ConvertContext context) {
-            return new SchemaAddConverter(oldMaterializedTable, context);
+                ResolvedCatalogMaterializedTable oldTable, ConvertContext context) {
+            return new SchemaAddConverter(oldTable, context);
         }
     }
 }

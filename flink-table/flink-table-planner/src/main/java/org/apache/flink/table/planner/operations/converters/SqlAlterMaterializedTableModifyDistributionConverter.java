@@ -39,10 +39,10 @@ public class SqlAlterMaterializedTableModifyDistributionConverter
     @Override
     protected Operation convertToOperation(
             SqlAlterMaterializedTableModifyDistribution sqlModifyDistribution,
-            ResolvedCatalogMaterializedTable oldMaterializedTable,
+            ResolvedCatalogMaterializedTable oldTable,
             ConvertContext context) {
         ObjectIdentifier identifier = resolveIdentifier(sqlModifyDistribution, context);
-        if (oldMaterializedTable.getDistribution().isEmpty()) {
+        if (oldTable.getDistribution().isEmpty()) {
             throw new ValidationException(
                     String.format(
                             "Materialized table %s does not have a distribution to modify.",
@@ -55,7 +55,7 @@ public class SqlAlterMaterializedTableModifyDistributionConverter
         // Build new materialized table and apply changes
         CatalogMaterializedTable updatedTable =
                 buildUpdatedMaterializedTable(
-                        oldMaterializedTable, builder -> builder.distribution(tableDistribution));
+                        oldTable, builder -> builder.distribution(tableDistribution));
 
         return new AlterMaterializedTableChangeOperation(
                 identifier, List.of(TableChange.modify(tableDistribution)), updatedTable);

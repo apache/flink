@@ -42,21 +42,20 @@ public class SqlAlterMaterializedTableAsQueryConverter
 
     @Override
     protected Operation convertToOperation(
-            SqlAlterMaterializedTableAsQuery sqlAlterMaterializedTableAsQuery,
-            ResolvedCatalogMaterializedTable oldMaterializedTable,
+            SqlAlterMaterializedTableAsQuery sqlAlterTableAsQuery,
+            ResolvedCatalogMaterializedTable oldTable,
             ConvertContext context) {
-        ObjectIdentifier identifier = resolveIdentifier(sqlAlterMaterializedTableAsQuery, context);
+        ObjectIdentifier identifier = resolveIdentifier(sqlAlterTableAsQuery, context);
 
         // Validate and extract schema from query
-        String originalQuery =
-                context.toQuotedSqlString(sqlAlterMaterializedTableAsQuery.getAsQuery());
+        String originalQuery = context.toQuotedSqlString(sqlAlterTableAsQuery.getAsQuery());
         SqlNode validatedQuery =
-                context.getSqlValidator().validate(sqlAlterMaterializedTableAsQuery.getAsQuery());
+                context.getSqlValidator().validate(sqlAlterTableAsQuery.getAsQuery());
         String definitionQuery = context.toQuotedSqlString(validatedQuery);
         PlannerQueryOperation queryOperation =
                 new PlannerQueryOperation(
                         context.toRelRoot(validatedQuery).project(), () -> definitionQuery);
-        ResolvedSchema oldSchema = oldMaterializedTable.getResolvedSchema();
+        ResolvedSchema oldSchema = oldTable.getResolvedSchema();
         List<Column> addedColumns =
                 MaterializedTableUtils.validateAndExtractNewColumns(
                         oldSchema, queryOperation.getResolvedSchema());
@@ -64,7 +63,7 @@ public class SqlAlterMaterializedTableAsQueryConverter
         // Build new materialized table and apply changes
         CatalogMaterializedTable updatedTable =
                 buildUpdatedMaterializedTable(
-                        oldMaterializedTable, addedColumns, originalQuery, definitionQuery);
+                        oldTable, addedColumns, originalQuery, definitionQuery);
         List<TableChange> tableChanges = new ArrayList<>();
         addedColumns.forEach(column -> tableChanges.add(TableChange.add(column)));
         tableChanges.add(TableChange.modifyDefinitionQuery(definitionQuery));

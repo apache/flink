@@ -26,6 +26,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
+import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshStatus;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.IntervalFreshness;
@@ -80,15 +81,13 @@ class SqlMaterializedTableNodeToOperationConverterTest
     void before() throws TableAlreadyExistException, DatabaseNotExistException {
         super.before();
         final ObjectPath path3 = new ObjectPath(catalogManager.getCurrentDatabase(), "t3");
-        final Schema tableSchema =
-                Schema.newBuilder()
-                        .fromResolvedSchema(
-                                ResolvedSchema.of(
-                                        Column.physical("a", DataTypes.BIGINT().notNull()),
-                                        Column.physical("b", DataTypes.VARCHAR(Integer.MAX_VALUE)),
-                                        Column.physical("c", DataTypes.INT()),
-                                        Column.physical("d", DataTypes.VARCHAR(Integer.MAX_VALUE))))
-                        .build();
+        final ResolvedSchema t3TableSchema =
+                ResolvedSchema.of(
+                        Column.physical("a", DataTypes.BIGINT().notNull()),
+                        Column.physical("b", DataTypes.VARCHAR(Integer.MAX_VALUE)),
+                        Column.physical("c", DataTypes.INT()),
+                        Column.physical("d", DataTypes.VARCHAR(Integer.MAX_VALUE)));
+        final Schema tableSchema = Schema.newBuilder().fromResolvedSchema(t3TableSchema).build();
         Map<String, String> options = new HashMap<>();
         options.put("connector", "COLLECTION");
         final CatalogTable catalogTable =
@@ -101,7 +100,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
         catalog.createTable(path3, catalogTable, true);
 
         // create materialized table
-        final String sql =
+        final String sqlWithConstraint =
                 "CREATE MATERIALIZED TABLE base_mtbl (\n"
                         + "   CONSTRAINT ct1 PRIMARY KEY(a) NOT ENFORCED"
                         + ")\n"
@@ -114,12 +113,9 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         + "FRESHNESS = INTERVAL '30' SECOND\n"
                         + "REFRESH_MODE = FULL\n"
                         + "AS SELECT * FROM t1";
-        final ObjectPath path4 = new ObjectPath(catalogManager.getCurrentDatabase(), "base_mtbl");
+        createMaterializedTableInCatalog(sqlWithConstraint, "base_mtbl");
 
-        CreateMaterializedTableOperation operation = (CreateMaterializedTableOperation) parse(sql);
-        catalog.createTable(path4, operation.getCatalogMaterializedTable(), true);
-
-        // create materialized table
+        // MATERIALIZED TABLE with WATERMARK
         final String sqlWithWatermark =
                 "CREATE MATERIALIZED TABLE base_mtbl_with_watermark (\n"
                         + "   t AS current_timestamp,"
@@ -135,15 +131,9 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         + "FRESHNESS = INTERVAL '30' SECOND\n"
                         + "REFRESH_MODE = FULL\n"
                         + "AS SELECT t1.* FROM t1";
-        final ObjectPath materializedTableWithWatermarkPath =
-                new ObjectPath(catalogManager.getCurrentDatabase(), "base_mtbl_with_watermark");
+        createMaterializedTableInCatalog(sqlWithWatermark, "base_mtbl_with_watermark");
 
-        CreateMaterializedTableOperation operation1 =
-                (CreateMaterializedTableOperation) parse(sqlWithWatermark);
-        catalog.createTable(
-                materializedTableWithWatermarkPath, operation1.getCatalogMaterializedTable(), true);
-
-        // create materialized table
+        // MATERIALIZED TABLE without constraint
         final String sqlWithoutConstraint =
                 "CREATE MATERIALIZED TABLE base_mtbl_without_constraint "
                         + "COMMENT 'materialized table comment'\n"
@@ -155,13 +145,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         + "FRESHNESS = INTERVAL '30' SECOND\n"
                         + "REFRESH_MODE = FULL\n"
                         + "AS SELECT t1.* FROM t1";
-        final ObjectPath materializedTableWithoutConstraint =
-                new ObjectPath(catalogManager.getCurrentDatabase(), "base_mtbl_without_constraint");
 
-        CreateMaterializedTableOperation operation2 =
-                (CreateMaterializedTableOperation) parse(sqlWithoutConstraint);
-        catalog.createTable(
-                materializedTableWithoutConstraint, operation2.getCatalogMaterializedTable(), true);
+        createMaterializedTableInCatalog(sqlWithoutConstraint, "base_mtbl_without_constraint");
     }
 
     @Test
@@ -179,11 +164,9 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         + "FRESHNESS = INTERVAL '30' SECOND\n"
                         + "REFRESH_MODE = FULL\n"
                         + "AS SELECT * FROM t1";
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
 
-        CreateMaterializedTableOperation op = (CreateMaterializedTableOperation) operation;
-        ResolvedCatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
+        ResolvedCatalogMaterializedTable materializedTable =
+                createResolvedCatalogMaterializedTable(sql);
 
         final IntervalFreshness resolvedFreshness = materializedTable.getDefinitionFreshness();
         assertThat(resolvedFreshness).isEqualTo(IntervalFreshness.ofSecond("30"));
@@ -192,11 +175,11 @@ class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(resolvedRefreshMode).isSameAs(RefreshMode.FULL);
 
         final CatalogMaterializedTable expected =
-                getDefaultMaterializedTablebuilder()
+                getDefaultMaterializedTableBuilder()
                         .freshness(IntervalFreshness.ofSecond("30"))
-                        .logicalRefreshMode(CatalogMaterializedTable.LogicalRefreshMode.FULL)
+                        .logicalRefreshMode(LogicalRefreshMode.FULL)
                         .refreshMode(RefreshMode.FULL)
-                        .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
+                        .refreshStatus(RefreshStatus.INITIALIZING)
                         .build();
         assertThat(materializedTable.getOrigin()).isEqualTo(expected);
     }
@@ -215,12 +198,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         + ")\n"
                         + "REFRESH_MODE = FULL\n"
                         + "AS SELECT * FROM t1";
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
-
-        CreateMaterializedTableOperation op = (CreateMaterializedTableOperation) operation;
-        ResolvedCatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
-        assertThat(materializedTable).isInstanceOf(ResolvedCatalogMaterializedTable.class);
+        ResolvedCatalogMaterializedTable materializedTable =
+                createResolvedCatalogMaterializedTable(sql);
 
         // The resolved freshness should default to 1 minute
         final IntervalFreshness resolvedFreshness = materializedTable.getDefinitionFreshness();
@@ -230,10 +209,10 @@ class SqlMaterializedTableNodeToOperationConverterTest
         assertThat(resolvedRefreshMode).isSameAs(RefreshMode.FULL);
 
         final CatalogMaterializedTable expected =
-                getDefaultMaterializedTablebuilder()
+                getDefaultMaterializedTableBuilder()
                         .logicalRefreshMode(LogicalRefreshMode.FULL)
                         .refreshMode(RefreshMode.FULL)
-                        .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
+                        .refreshStatus(RefreshStatus.INITIALIZING)
                         .build();
         assertThat(materializedTable.getOrigin()).isEqualTo(expected);
     }
@@ -251,19 +230,15 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         + "  'format' = 'json'\n"
                         + ")\n"
                         + "AS SELECT * FROM t1";
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
-
-        CreateMaterializedTableOperation op = (CreateMaterializedTableOperation) operation;
-        ResolvedCatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
-        assertThat(materializedTable).isInstanceOf(ResolvedCatalogMaterializedTable.class);
+        ResolvedCatalogMaterializedTable materializedTable =
+                createResolvedCatalogMaterializedTable(sql);
 
         final IntervalFreshness resolvedFreshness = materializedTable.getDefinitionFreshness();
         assertThat(resolvedFreshness).isEqualTo(IntervalFreshness.ofMinute("3"));
         final CatalogMaterializedTable expected =
-                getDefaultMaterializedTablebuilder()
+                getDefaultMaterializedTableBuilder()
                         .logicalRefreshMode(LogicalRefreshMode.AUTOMATIC)
-                        .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
+                        .refreshStatus(RefreshStatus.INITIALIZING)
                         .build();
         assertThat(materializedTable.getOrigin()).isEqualTo(expected);
     }
@@ -290,11 +265,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         + "FRESHNESS = INTERVAL '30' SECOND\n"
                         + "REFRESH_MODE = FULL\n"
                         + "AS SELECT a, f1, f2 FROM t1, LATERAL TABLE(myFunc(b)) as T(f1, f2)";
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
 
-        CreateMaterializedTableOperation createOperation =
-                (CreateMaterializedTableOperation) operation;
+        CreateMaterializedTableOperation createOperation = createMaterializedTableOperation(sql);
 
         assertThat(createOperation.getCatalogMaterializedTable().getExpandedQuery())
                 .isEqualTo(
@@ -315,11 +287,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
         final String sql =
                 "CREATE MATERIALIZED TABLE mtbl1 \n"
                         + "AS SELECT * FROM t1, LATERAL TABLE(myFunc(b))";
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
-
-        CreateMaterializedTableOperation createOperation =
-                (CreateMaterializedTableOperation) operation;
+        CreateMaterializedTableOperation createOperation = createMaterializedTableOperation(sql);
 
         assertThat(createOperation.getCatalogMaterializedTable().getExpandedQuery())
                 .isEqualTo(
@@ -335,15 +303,12 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 "CREATE MATERIALIZED TABLE mtbl1\n"
                         + "FRESHNESS = INTERVAL '30' SECOND\n"
                         + "AS SELECT * FROM t1";
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
-
-        CreateMaterializedTableOperation op = (CreateMaterializedTableOperation) operation;
-        ResolvedCatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
+        ResolvedCatalogMaterializedTable materializedTable =
+                createResolvedCatalogMaterializedTable(sql);
 
         assertThat(materializedTable.getLogicalRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC);
-        assertThat(materializedTable.getRefreshMode()).isEqualTo(RefreshMode.CONTINUOUS);
+                .isSameAs(LogicalRefreshMode.AUTOMATIC);
+        assertThat(materializedTable.getRefreshMode()).isSameAs(RefreshMode.CONTINUOUS);
 
         // test continuous mode by manual specify
         final String sql2 =
@@ -351,16 +316,12 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         + "FRESHNESS = INTERVAL '30' DAY\n"
                         + "REFRESH_MODE = CONTINUOUS\n"
                         + "AS SELECT * FROM t1";
-        Operation operation2 = parse(sql2);
-        assertThat(operation2).isInstanceOf(CreateMaterializedTableOperation.class);
-
-        CreateMaterializedTableOperation op2 = (CreateMaterializedTableOperation) operation2;
-        ResolvedCatalogMaterializedTable materializedTable2 = op2.getCatalogMaterializedTable();
+        ResolvedCatalogMaterializedTable materializedTable2 =
+                createResolvedCatalogMaterializedTable(sql2);
 
         assertThat(materializedTable2.getLogicalRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.CONTINUOUS);
-        assertThat(materializedTable2.getRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.RefreshMode.CONTINUOUS);
+                .isSameAs(LogicalRefreshMode.CONTINUOUS);
+        assertThat(materializedTable2.getRefreshMode()).isSameAs(RefreshMode.CONTINUOUS);
     }
 
     @Test
@@ -370,15 +331,12 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 "CREATE MATERIALIZED TABLE mtbl1\n"
                         + "FRESHNESS = INTERVAL '1' DAY\n"
                         + "AS SELECT * FROM t1";
-        Operation operation = parse(sql);
-        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
-
-        CreateMaterializedTableOperation op = (CreateMaterializedTableOperation) operation;
-        ResolvedCatalogMaterializedTable materializedTable = op.getCatalogMaterializedTable();
+        ResolvedCatalogMaterializedTable materializedTable =
+                createResolvedCatalogMaterializedTable(sql);
 
         assertThat(materializedTable.getLogicalRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.AUTOMATIC);
-        assertThat(materializedTable.getRefreshMode()).isEqualTo(RefreshMode.FULL);
+                .isSameAs(LogicalRefreshMode.AUTOMATIC);
+        assertThat(materializedTable.getRefreshMode()).isSameAs(RefreshMode.FULL);
 
         // test full mode by manual specify
         final String sql2 =
@@ -386,15 +344,11 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         + "FRESHNESS = INTERVAL '30' SECOND\n"
                         + "REFRESH_MODE = FULL\n"
                         + "AS SELECT * FROM t1";
-        Operation operation2 = parse(sql2);
-        assertThat(operation2).isInstanceOf(CreateMaterializedTableOperation.class);
+        ResolvedCatalogMaterializedTable materializedTable2 =
+                createResolvedCatalogMaterializedTable(sql2);
 
-        CreateMaterializedTableOperation op2 = (CreateMaterializedTableOperation) operation2;
-        ResolvedCatalogMaterializedTable materializedTable2 = op2.getCatalogMaterializedTable();
-
-        assertThat(materializedTable2.getLogicalRefreshMode())
-                .isEqualTo(CatalogMaterializedTable.LogicalRefreshMode.FULL);
-        assertThat(materializedTable2.getRefreshMode()).isEqualTo(RefreshMode.FULL);
+        assertThat(materializedTable2.getLogicalRefreshMode()).isSameAs(LogicalRefreshMode.FULL);
+        assertThat(materializedTable2.getRefreshMode()).isSameAs(RefreshMode.FULL);
     }
 
     @ParameterizedTest
@@ -642,11 +596,11 @@ class SqlMaterializedTableNodeToOperationConverterTest
         options.put("connector", "filesystem");
         options.put("format", "json");
         final CatalogMaterializedTable expected =
-                getDefaultMaterializedTablebuilder()
+                getDefaultMaterializedTableBuilder()
                         .freshness(IntervalFreshness.ofSecond("30"))
-                        .logicalRefreshMode(CatalogMaterializedTable.LogicalRefreshMode.FULL)
-                        .refreshMode(CatalogMaterializedTable.RefreshMode.FULL)
-                        .refreshStatus(CatalogMaterializedTable.RefreshStatus.INITIALIZING)
+                        .logicalRefreshMode(LogicalRefreshMode.FULL)
+                        .refreshMode(RefreshMode.FULL)
+                        .refreshStatus(RefreshStatus.INITIALIZING)
                         .build();
 
         assertThat(materializedTable.getOrigin()).isEqualTo(expected);
@@ -780,15 +734,17 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl_with_watermark ADD WATERMARK for t as current_timestamp - INTERVAL '2' SECOND",
                         "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                                + "The base materialized table has already defined the watermark strategy "
+                                + "The current materialized table has already defined the watermark strategy "
                                 + "`t` AS CURRENT_TIMESTAMP - INTERVAL '5' SECOND. You might want to drop it before adding a new one."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl ADD `physical_not_used_in_query` BIGINT NOT NULL",
-                        "Invalid as physical column 'physical_not_used_in_query' is defined in the DDL, but is not used in a query column."),
+                        "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
+                                + "Invalid schema change. All physical columns in the schema part need to be present in the query part. "
+                                + "However, column `physical_not_used_in_query` could not be found in the query."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl ADD `a` BIGINT NOT NULL",
                         "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                                + "Try to add a column `a` which already exists in the table."),
+                                + "Column `a` already exists in the materialized table."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl ADD `q` AS `non_existing_column` + 2",
                         "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
@@ -796,7 +752,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl ADD PRIMARY KEY(c) NOT ENFORCED",
                         "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                                + "The base table has already defined the primary key constraint [`a`]. "
+                                + "The current materialized table has already defined the primary key constraint [`a`]. "
                                 + "You might want to drop it before adding a new one."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl ADD (`q` AS current_timestamp AFTER `q2`, `q2` AS current_timestamp AFTER `q`)",
@@ -889,7 +845,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "FRESHNESS = INTERVAL '30' SECOND\n"
                                 + "REFRESH_MODE = FULL\n"
                                 + "AS SELECT * FROM t1",
-                        "Partition column 'e' not defined in the query schema. Available columns: ['a', 'b', 'c', 'd']."),
+                        "Partition column `e` not defined in the query's schema. Available columns: ['a', 'b', 'c', 'd']."),
                 TestSpec.of(
                         "CREATE MATERIALIZED TABLE mtbl1\n"
                                 + "PARTITIONED BY (b, c)\n"
@@ -899,7 +855,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "FRESHNESS = INTERVAL '30' SECOND\n"
                                 + "REFRESH_MODE = FULL\n"
                                 + "AS SELECT * FROM t3",
-                        "Column 'ds' referenced by materialized table option 'partition.fields.ds.date-formatter' isn't a partition column. Available partition columns: ['b', 'c']."),
+                        "Column `ds` referenced by materialized table option 'partition.fields.ds.date-formatter' isn't a partition column. Available partition columns: ['b', 'c']."),
                 TestSpec.of(
                         "CREATE MATERIALIZED TABLE mtbl1\n"
                                 + "WITH (\n"
@@ -908,7 +864,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "FRESHNESS = INTERVAL '30' SECOND\n"
                                 + "REFRESH_MODE = FULL\n"
                                 + "AS SELECT * FROM t3",
-                        "Column 'c' referenced by materialized table option 'partition.fields.c.date-formatter' isn't a partition column. Available partition columns: ['']."),
+                        "Column `c` referenced by materialized table option 'partition.fields.c.date-formatter' isn't a partition column. Available partition columns: ['']."),
                 TestSpec.of(
                         "CREATE MATERIALIZED TABLE mtbl1\n"
                                 + "PARTITIONED BY (b, c)\n"
@@ -918,7 +874,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "FRESHNESS = INTERVAL '30' SECOND\n"
                                 + "REFRESH_MODE = FULL\n"
                                 + "AS SELECT * FROM t3",
-                        "Materialized table option 'partition.fields.c.date-formatter' only supports referring to char, varchar and string type partition column. Column c type is INT."));
+                        "Materialized table option 'partition.fields.c.date-formatter' only supports referring to char, varchar and string type partition column. Column `c` type is INT."));
     }
 
     private static List<TestSpec> createWithInvalidFreshness() {
@@ -982,12 +938,14 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 TestSpec.withExpectedSchema(
                         "ALTER MATERIALIZED TABLE base_mtbl_without_constraint ADD ("
                                 + "    `c1` AS current_timestamp FIRST, "
+                                + "    `topic` STRING METADATA VIRTUAL COMMENT 'kafka topic' AFTER `b`, "
                                 + "    WATERMARK FOR `c1` AS `c1` - INTERVAL '1' SECOND, "
                                 + "    PRIMARY KEY(`a`) NOT ENFORCED)",
                         "(\n"
                                 + "  `c1` AS [CURRENT_TIMESTAMP],\n"
                                 + "  `a` BIGINT NOT NULL,\n"
                                 + "  `b` STRING,\n"
+                                + "  `topic` METADATA VIRTUAL COMMENT 'kafka topic',\n"
                                 + "  `c` INT,\n"
                                 + "  `d` STRING,\n"
                                 + "  WATERMARK FOR `c1` AS [`c1` - INTERVAL '1' SECOND],\n"
@@ -1065,7 +1023,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 List.of())));
     }
 
-    private CatalogMaterializedTable.Builder getDefaultMaterializedTablebuilder() {
+    /** Boilerplate CatalogMaterializedTable builder for tests. */
+    private CatalogMaterializedTable.Builder getDefaultMaterializedTableBuilder() {
         return CatalogMaterializedTable.newBuilder()
                 .schema(
                         Schema.newBuilder()
@@ -1082,6 +1041,24 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 .expandedQuery(
                         "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`\n"
                                 + "FROM `builtin`.`default`.`t1` AS `t1`");
+    }
+
+    private void createMaterializedTableInCatalog(String sql, String materializedTableName)
+            throws TableAlreadyExistException, DatabaseNotExistException {
+        final ObjectPath objectPath =
+                new ObjectPath(catalogManager.getCurrentDatabase(), materializedTableName);
+        final CreateMaterializedTableOperation operation = createMaterializedTableOperation(sql);
+        catalog.createTable(objectPath, operation.getCatalogMaterializedTable(), true);
+    }
+
+    private ResolvedCatalogMaterializedTable createResolvedCatalogMaterializedTable(String sql) {
+        return createMaterializedTableOperation(sql).getCatalogMaterializedTable();
+    }
+
+    private CreateMaterializedTableOperation createMaterializedTableOperation(String sql) {
+        final Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
+        return (CreateMaterializedTableOperation) operation;
     }
 
     private static class TestSpec {
@@ -1114,6 +1091,11 @@ class SqlMaterializedTableNodeToOperationConverterTest
 
         public static TestSpec withExpectedSchema(String sql, String expectedSchema) {
             return new TestSpec(sql, expectedSchema);
+        }
+
+        @Override
+        public String toString() {
+            return sql;
         }
     }
 }

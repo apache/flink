@@ -35,10 +35,10 @@ public class SqlAlterMaterializedTableDropDistributionConverter
     @Override
     protected Operation convertToOperation(
             SqlAlterMaterializedTableDropDistribution sqlDropDistribution,
-            ResolvedCatalogMaterializedTable oldMaterializedTable,
+            ResolvedCatalogMaterializedTable oldTable,
             ConvertContext context) {
         ObjectIdentifier identifier = resolveIdentifier(sqlDropDistribution, context);
-        if (oldMaterializedTable.getDistribution().isEmpty()) {
+        if (oldTable.getDistribution().isEmpty()) {
             throw new ValidationException(
                     String.format(
                             "Materialized table %s does not have a distribution to drop.",
@@ -47,8 +47,7 @@ public class SqlAlterMaterializedTableDropDistributionConverter
 
         // Build new materialized table and apply changes
         CatalogMaterializedTable updatedTable =
-                buildUpdatedMaterializedTable(
-                        oldMaterializedTable, builder -> builder.distribution(null));
+                buildUpdatedMaterializedTable(oldTable, builder -> builder.distribution(null));
 
         return new AlterMaterializedTableChangeOperation(
                 identifier, List.of(TableChange.dropDistribution()), updatedTable);
