@@ -312,6 +312,31 @@ class SqlMaterializedTableNodeToOperationConverterTest
     }
 
     @Test
+    void testCreateMaterializedTableWithUDTFQueryWithoutAlias() {
+        functionCatalog.registerCatalogFunction(
+                UnresolvedIdentifier.of(
+                        ObjectIdentifier.of(
+                                catalogManager.getCurrentCatalog(), "default", "myFunc")),
+                FunctionDescriptor.forFunctionClass(TableFunc0.class).build(),
+                true);
+
+        final String sql =
+                "CREATE MATERIALIZED TABLE mtbl1 \n"
+                        + "AS SELECT * FROM t1, LATERAL TABLE(myFunc(b))";
+        Operation operation = parse(sql);
+        assertThat(operation).isInstanceOf(CreateMaterializedTableOperation.class);
+
+        CreateMaterializedTableOperation createOperation =
+                (CreateMaterializedTableOperation) operation;
+
+        assertThat(createOperation.getCatalogMaterializedTable().getExpandedQuery())
+                .isEqualTo(
+                        "SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`d`, `EXPR$0`.`name`, `EXPR$0`.`age`\n"
+                                + "FROM `builtin`.`default`.`t1` AS `t1`,\n"
+                                + "LATERAL TABLE(`builtin`.`default`.`myFunc`(`b`)) AS `EXPR$0`");
+    }
+
+    @Test
     void testContinuousRefreshMode() {
         // test continuous mode derived by specify freshness automatically
         final String sql =

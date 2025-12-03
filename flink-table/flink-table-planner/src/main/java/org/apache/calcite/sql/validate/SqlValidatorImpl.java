@@ -169,22 +169,23 @@ import static org.apache.calcite.util.Util.first;
  * Default implementation of {@link SqlValidator}, the class was copied over because of
  * CALCITE-4554.
  *
- * <p>Lines 202 ~ 205, Flink improves error message for functions without appropriate arguments in
+ * <p>Lines 207 ~ 210, Flink improves error message for functions without appropriate arguments in
  * handleUnresolvedFunction.
  *
- * <p>Lines 1270 ~ 1272, CALCITE-7217, should be removed after upgrading Calcite to 1.41.0.
+ * <p>Lines 1275 ~ 1277, CALCITE-7217, should be removed after upgrading Calcite to 1.41.0.
  *
- * <p>Lines 2031 ~ 2045, Flink improves error message for functions without appropriate arguments in
+ * <p>Lines 2036 ~ 2050, Flink improves error message for functions without appropriate arguments in
  * handleUnresolvedFunction at {@link SqlValidatorImpl#handleUnresolvedFunction}.
  *
- * <p>Lines 2571 ~ 2588, CALCITE-7217, should be removed after upgrading Calcite to 1.41.0.
+ * <p>Lines 2576 ~ 2595, CALCITE-7217, CALCITE-7312 should be removed after upgrading Calcite to
+ * 1.42.0.
  *
- * <p>Line 2618 ~2631, set the correct scope for VECTOR_SEARCH.
+ * <p>Line 2626 ~2644, set the correct scope for VECTOR_SEARCH.
  *
- * <p>Lines 3920 ~ 3925, 6599 ~ 6606 Flink improves Optimize the retrieval of sub-operands in
+ * <p>Lines 3923 ~ 3927, 6602 ~ 6608 Flink improves Optimize the retrieval of sub-operands in
  * SqlCall when using NamedParameters at {@link SqlValidatorImpl#checkRollUp}.
  *
- * <p>Lines 5340 ~ 5347, FLINK-24352 Add null check for temporal table check on SqlSnapshot.
+ * <p>Lines 5343 ~ 5349, FLINK-24352 Add null check for temporal table check on SqlSnapshot.
  */
 public class SqlValidatorImpl implements SqlValidatorWithHints {
     // ~ Static fields/initializers ---------------------------------------------
@@ -2578,16 +2579,18 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                 // in order to make visible the left items
                 // of the JOIN tree.
                 scopes.put(node, usingScope);
-                registerFrom(
-                        parentScope,
-                        usingScope,
-                        register,
-                        ((SqlCall) node).operand(0),
-                        enclosingNode,
-                        alias,
-                        extendList,
-                        forceNullable,
-                        true);
+                newOperand =
+                        registerFrom(
+                                parentScope,
+                                usingScope,
+                                register,
+                                ((SqlCall) node).operand(0),
+                                enclosingNode,
+                                alias,
+                                extendList,
+                                forceNullable,
+                                true);
+                sbc.setOperand(0, newOperand);
                 return sbc;
             // ----- FLINK MODIFICATION END -----
 
