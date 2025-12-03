@@ -2578,16 +2578,18 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
                 // in order to make visible the left items
                 // of the JOIN tree.
                 scopes.put(node, usingScope);
-                registerFrom(
-                        parentScope,
-                        usingScope,
-                        register,
-                        ((SqlCall) node).operand(0),
-                        enclosingNode,
-                        alias,
-                        extendList,
-                        forceNullable,
-                        true);
+                newOperand =
+                        registerFrom(
+                                parentScope,
+                                usingScope,
+                                register,
+                                ((SqlCall) node).operand(0),
+                                enclosingNode,
+                                alias,
+                                extendList,
+                                forceNullable,
+                                true);
+                sbc.setOperand(0, newOperand);
                 return sbc;
             // ----- FLINK MODIFICATION END -----
 
