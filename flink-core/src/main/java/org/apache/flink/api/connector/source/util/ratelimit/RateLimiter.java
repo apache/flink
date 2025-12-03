@@ -18,7 +18,7 @@
 
 package org.apache.flink.api.connector.source.util.ratelimit;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.SourceSplit;
 
 import javax.annotation.concurrent.NotThreadSafe;
@@ -31,7 +31,7 @@ import java.util.concurrent.CompletionStage;
  * @param <SplitT> The type of the source splits.
  */
 @NotThreadSafe
-@Experimental
+@PublicEvolving
 public interface RateLimiter<SplitT extends SourceSplit> {
 
     /**
