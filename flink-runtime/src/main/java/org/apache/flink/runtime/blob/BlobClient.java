@@ -95,7 +95,7 @@ public final class BlobClient implements Closeable {
             // the
             // InetSocketAddress can cache a failure in hostname resolution forever.
             socket.connect(
-                    new InetSocketAddress(serverAddress.getHostName(), serverAddress.getPort()),
+                    new InetSocketAddress(serverAddress.getHostString(), serverAddress.getPort()),
                     clientConfig.get(BlobServerOptions.CONNECT_TIMEOUT));
             socket.setSoTimeout(clientConfig.get(BlobServerOptions.SO_TIMEOUT));
         } catch (Exception e) {
