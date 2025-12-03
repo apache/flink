@@ -98,11 +98,12 @@ public class SinkTestPrograms {
                                     + " uses writable metadata columns. The scenario showcases a"
                                     + " bug where a wrong type was used in sinks which did not"
                                     + " consider metadata columns. There needs to be multiple"
-                                    + " requirements for the bug to show up. 1. We need to rocksdb,"
-                                    + " so that we use a serializer when putting records into"
-                                    + " state in SinkUpsertMaterializer. 2. We need to retract to"
-                                    + " a previous value taken from the state, otherwise we forward"
-                                    + " the incoming record. 3. There need to be metadata columns.")
+                                    + " requirements for the bug to show up. 1. We need to use "
+                                    + " rocksdb, so that we use a serializer when putting records"
+                                    + " into state in SinkUpsertMaterializer. 2. We need to retract"
+                                    + " to a previous value taken from the state, otherwise we"
+                                    + " forward the incoming record. 3. There need to be persisted"
+                                    + " metadata columns.")
                     .setupConfig(
                             TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY,
                             SinkUpsertMaterializeStrategy.LEGACY)
