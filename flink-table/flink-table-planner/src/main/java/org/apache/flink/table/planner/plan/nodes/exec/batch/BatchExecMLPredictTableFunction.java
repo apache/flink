@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.stream;
+package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecMLPredictTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.MLPredictSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.ModelSpec;
@@ -40,9 +39,9 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
 
-/** Stream {@link ExecNode} for {@code ML_PREDICT}. */
+/** Batch {@link ExecNode} for {@code ML_PREDICT}. */
 @ExecNodeMetadata(
-        name = "stream-exec-ml-predict-table-function",
+        name = "batch-exec-ml-predict-table-function",
         version = 1,
         consumedOptions = {
             "table.exec.async-ml-predict.max-concurrent-operations",
@@ -50,12 +49,12 @@ import java.util.List;
             "table.exec.async-ml-predict.output-mode"
         },
         producedTransformations = CommonExecMLPredictTableFunction.ML_PREDICT_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v2_1,
-        minStateVersion = FlinkVersion.v2_1)
-public class StreamExecMLPredictTableFunction extends CommonExecMLPredictTableFunction
-        implements MultipleTransformationTranslator<RowData>, StreamExecNode<RowData> {
+        minPlanVersion = FlinkVersion.v2_3,
+        minStateVersion = FlinkVersion.v2_3)
+public class BatchExecMLPredictTableFunction extends CommonExecMLPredictTableFunction
+        implements SingleTransformationTranslator<RowData>, BatchExecNode<RowData> {
 
-    public StreamExecMLPredictTableFunction(
+    public BatchExecMLPredictTableFunction(
             ReadableConfig persistedConfig,
             MLPredictSpec mlPredictSpec,
             ModelSpec modelSpec,
@@ -65,8 +64,9 @@ public class StreamExecMLPredictTableFunction extends CommonExecMLPredictTableFu
             String description) {
         this(
                 ExecNodeContext.newNodeId(),
-                ExecNodeContext.newContext(StreamExecMLPredictTableFunction.class),
-                persistedConfig,
+                ExecNodeContext.newContext(BatchExecMLPredictTableFunction.class),
+                ExecNodeContext.newPersistedConfig(
+                        BatchExecMLPredictTableFunction.class, persistedConfig),
                 mlPredictSpec,
                 modelSpec,
                 asyncOptions,
@@ -76,7 +76,7 @@ public class StreamExecMLPredictTableFunction extends CommonExecMLPredictTableFu
     }
 
     @JsonCreator
-    public StreamExecMLPredictTableFunction(
+    public BatchExecMLPredictTableFunction(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
             @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
