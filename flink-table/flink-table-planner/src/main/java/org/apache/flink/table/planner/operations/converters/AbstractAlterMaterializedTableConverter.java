@@ -26,15 +26,13 @@ import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 
-import org.apache.calcite.sql.SqlNode;
-
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.catalog.CatalogBaseTable.TableKind.MATERIALIZED_TABLE;
 
 /** Abstract converter for {@link org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTable}. */
-public abstract class AbstractAlterMaterializedTableConverter<T extends SqlNode>
+public abstract class AbstractAlterMaterializedTableConverter<T extends SqlAlterMaterializedTable>
         implements SqlNodeConverter<T> {
 
     protected ObjectIdentifier resolveIdentifier(

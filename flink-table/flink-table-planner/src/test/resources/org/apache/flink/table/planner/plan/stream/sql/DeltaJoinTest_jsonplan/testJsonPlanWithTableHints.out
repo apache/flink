@@ -2,7 +2,7 @@
   "flinkVersion" : "",
   "nodes" : [ {
     "id" : 1,
-    "type" : "stream-exec-table-source-scan_1",
+    "type" : "stream-exec-table-source-scan_2",
     "scanTableSource" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`src1`",
@@ -55,7 +55,7 @@
     "description" : "Exchange(distribution=[hash[a1, a2]])"
   }, {
     "id" : 3,
-    "type" : "stream-exec-table-source-scan_1",
+    "type" : "stream-exec-table-source-scan_2",
     "scanTableSource" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`src2`",

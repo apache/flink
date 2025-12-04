@@ -1663,12 +1663,12 @@ HashAggregate(isMerge=[true], groupBy=[a1, b1, a2, b2], select=[a1, b1, a2, b2])
   </TestCase>
   <TestCase name="testMultiJoinHints">
     <Resource name="sql">
-      <![CDATA[select /*+ NEST_LOOP(T1), BROADCAST(T1),SHUFFLE_HASH(T1),SHUFFLE_MERGE(T1) */* from T1 join T2 on T1.a1 = T2.a2]]>
+      <![CDATA[select /*+ NEST_LOOP(T1), BROADCAST(T1),SHUFFLE_HASH(T1),SHUFFLE_MERGE(T1),MULTI_JOIN(T1) */* from T1 join T2 on T1.a1 = T2.a2]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a1=[$0], b1=[$1], a2=[$2], b2=[$3])
-+- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]][BROADCAST inheritPath:[0] options:[T1]][SHUFFLE_HASH inheritPath:[0] options:[T1]][SHUFFLE_MERGE inheritPath:[0] options:[T1]]]])
++- LogicalJoin(condition=[=($0, $2)], joinType=[inner], joinHints=[[[NEST_LOOP inheritPath:[0] options:[T1]][BROADCAST inheritPath:[0] options:[T1]][SHUFFLE_HASH inheritPath:[0] options:[T1]][SHUFFLE_MERGE inheritPath:[0] options:[T1]][MULTI_JOIN inheritPath:[0] options:[T1]]]])
    :- LogicalTableScan(table=[[default_catalog, default_database, T1]], hints=[[[ALIAS inheritPath:[] options:[T1]]]])
    +- LogicalTableScan(table=[[default_catalog, default_database, T2]], hints=[[[ALIAS inheritPath:[] options:[T2]]]])
 ]]>

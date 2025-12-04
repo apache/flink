@@ -122,6 +122,11 @@ public abstract class FlinkHintStrategies {
                                 .optionChecker(LOOKUP_NON_EMPTY_KV_OPTION_CHECKER)
                                 .build())
                 .hintStrategy(
+                        JoinStrategy.MULTI_JOIN.getJoinHintName(),
+                        HintStrategy.builder(HintPredicates.JOIN)
+                                .optionChecker(NON_EMPTY_LIST_OPTION_CHECKER)
+                                .build())
+                .hintStrategy(
                         StateTtlHint.STATE_TTL.getHintName(),
                         HintStrategy.builder(
                                         HintPredicates.or(

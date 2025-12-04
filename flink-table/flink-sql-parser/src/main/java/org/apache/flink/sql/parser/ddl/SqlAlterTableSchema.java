@@ -43,9 +43,8 @@ import java.util.stream.Collectors;
 public abstract class SqlAlterTableSchema extends SqlAlterTable implements ExtendedSqlNode {
 
     protected final SqlNodeList columnList;
-    @Nullable protected final SqlWatermark watermark;
-    @Nullable protected final SqlDistribution distribution;
     protected final List<SqlTableConstraint> constraints;
+    protected final @Nullable SqlWatermark watermark;
 
     public SqlAlterTableSchema(
             SqlParserPos pos,
@@ -53,12 +52,10 @@ public abstract class SqlAlterTableSchema extends SqlAlterTable implements Exten
             SqlNodeList columnList,
             List<SqlTableConstraint> constraints,
             @Nullable SqlWatermark sqlWatermark,
-            @Nullable SqlDistribution distribution,
             boolean ifTableExists) {
         super(pos, tableName, ifTableExists);
         this.columnList = columnList;
         this.constraints = constraints;
-        this.distribution = distribution;
         this.watermark = sqlWatermark;
     }
 
@@ -85,10 +82,6 @@ public abstract class SqlAlterTableSchema extends SqlAlterTable implements Exten
         return Optional.ofNullable(watermark);
     }
 
-    public Optional<SqlDistribution> getDistribution() {
-        return Optional.ofNullable(distribution);
-    }
-
     public List<SqlTableConstraint> getConstraints() {
         return constraints;
     }
@@ -107,11 +100,13 @@ public abstract class SqlAlterTableSchema extends SqlAlterTable implements Exten
                 SqlParserPos.ZERO);
     }
 
-    void unparseSchemaAndDistribution(SqlWriter writer, int leftPrec, int rightPrec) {
+    protected abstract String getAlterOperation();
+
+    @Override
+    public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+        super.unparseAlterOperation(writer, leftPrec, rightPrec);
+        writer.keyword(getAlterOperation());
         SqlUnparseUtils.unparseTableSchema(
                 columnList, constraints, watermark, writer, leftPrec, rightPrec);
-        if (distribution != null) {
-            distribution.unparseAlter(writer, leftPrec, rightPrec);
-        }
     }
 }

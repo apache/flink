@@ -218,6 +218,43 @@ Calc(select=[user_id, name, order_id, dept_name, project_name, budget])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testChainedMultiJoinHints">
+    <Resource name="sql">
+      <![CDATA[SELECT /*+ MULTI_JOIN(u, subq) */ u.user_id, u.name, subq.order_id, subq.payment_id, subq.location FROM Users u INNER JOIN (  SELECT /*+ MULTI_JOIN(o, p, s) */ o.order_id, o.user_id u1, p.payment_id, p.user_id u2, s.location, s.user_id u3  FROM Orders o   INNER JOIN Payments p ON o.user_id = p.user_id   INNER JOIN Shipments s ON p.user_id = s.user_id) subq ON u.user_id = subq.u1]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$5], location=[$7])
++- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[u, subq]]]])
+   :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[u]]]])
+   +- LogicalProject(order_id=[$0], u1=[$1], payment_id=[$3], u2=[$5], location=[$6], u3=[$7])
+      +- LogicalJoin(condition=[=($5, $7)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[o, p, s]]]])
+         :- LogicalJoin(condition=[=($1, $5)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0, 0] options:[o, p, s]]]])
+         :  :- LogicalTableScan(table=[[default_catalog, default_database, Orders]], hints=[[[ALIAS inheritPath:[] options:[o]]]])
+         :  +- LogicalTableScan(table=[[default_catalog, default_database, Payments]], hints=[[[ALIAS inheritPath:[] options:[p]]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]], hints=[[[ALIAS inheritPath:[] options:[s]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id, name, order_id, payment_id, location])
++- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER], inputUniqueKeys=[(user_id), noUniqueKey], joinConditions=[=(user_id, u1)], select=[user_id,name,order_id,u1,payment_id,location], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) u1, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) location)])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- ChangelogNormalize(key=[user_id])
+   :     +- Exchange(distribution=[hash[user_id]])
+   :        +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id, name], metadata=[]]], fields=[user_id, name])
+   +- Exchange(distribution=[hash[user_id]])
+      +- Calc(select=[order_id, user_id, payment_id, location])
+         +- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(order_id), (payment_id), noUniqueKey], joinConditions=[=(user_id, user_id0), =(user_id0, user_id1)], select=[order_id,user_id,payment_id,user_id0,location,user_id1], rowType=[RecordType(VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) location, VARCHAR(2147483647) user_id1)])
+            :- Exchange(distribution=[hash[user_id]])
+            :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
+            :- Exchange(distribution=[hash[user_id]])
+            :  +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id], metadata=[]]], fields=[payment_id, user_id])
+            +- Exchange(distribution=[hash[user_id]])
+               +- TableSourceScan(table=[[default_catalog, default_database, Shipments]], fields=[location, user_id])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testComplexCTEWithMultiJoinNoCommonJoinKey">
     <Resource name="sql">
       <![CDATA[
@@ -1327,6 +1364,151 @@ MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER], inputUniqueKeys=[(user_id)
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testMultiJoinHintCombinedWithStateTtlHint">
+    <Resource name="sql">
+      <![CDATA[SELECT /*+ MULTI_JOIN(u, o, p), STATE_TTL(u='1d', o='2d', p='1h') */u.user_id, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id = o.user_id INNER JOIN Payments p ON u.user_id = p.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($0, $8)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[u, o, p]]]], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{p=1h, u=1d, o=2d}]]])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0, 0] options:[u, o, p]]]], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0] options:{p=1h, u=1d, o=2d}]]])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[u]]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]], hints=[[[ALIAS inheritPath:[] options:[o]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]], hints=[[[ALIAS inheritPath:[] options:[p]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id, name, order_id, payment_id])
++- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id), (order_id), (payment_id)], stateTtlHints=[[[STATE_TTL options:[1d, 2d, 1h]]]], joinConditions=[=(user_id, user_id0), =(user_id, user_id1)], select=[user_id,name,order_id,user_id0,payment_id,user_id1], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id1)])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id, name], metadata=[]]], fields=[user_id, name])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
+   +- Exchange(distribution=[hash[user_id]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id], metadata=[]]], fields=[payment_id, user_id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoinHintPartialMatch">
+    <Resource name="sql">
+      <![CDATA[SELECT /*+ MULTI_JOIN(u, o) */u.user_id, u.name, o.order_id, s.location FROM Users u INNER JOIN Orders o ON u.user_id = o.user_id INNER JOIN Shipments s ON u.user_id = s.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id=[$0], name=[$1], order_id=[$3], location=[$6])
++- LogicalJoin(condition=[=($0, $7)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[u, o]]]])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0, 0] options:[u, o]]]])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[u]]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]], hints=[[[ALIAS inheritPath:[] options:[o]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]], hints=[[[ALIAS inheritPath:[] options:[s]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id, name, order_id, location])
++- Join(joinType=[InnerJoin], where=[=(user_id, user_id0)], select=[user_id, name, order_id, location, user_id0], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- Calc(select=[user_id, name, order_id])
+   :     +- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER], inputUniqueKeys=[(user_id), (order_id)], joinConditions=[=(user_id, user_id0)], select=[user_id,name,order_id,user_id0], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0)])
+   :        :- Exchange(distribution=[hash[user_id]])
+   :        :  +- ChangelogNormalize(key=[user_id])
+   :        :     +- Exchange(distribution=[hash[user_id]])
+   :        :        +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id, name], metadata=[]]], fields=[user_id, name])
+   :        +- Exchange(distribution=[hash[user_id]])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
+   +- Exchange(distribution=[hash[user_id]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Shipments]], fields=[location, user_id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoinHintWithMixedNamesAndAliases">
+    <Resource name="sql">
+      <![CDATA[SELECT /*+ MULTI_JOIN(Users, o, p) */ Users.user_id, Users.name, o.order_id, p.payment_id FROM Users INNER JOIN Orders o ON Users.user_id = o.user_id INNER JOIN Payments p ON Users.user_id = p.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($0, $8)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[Users, o, p]]]])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0, 0] options:[Users, o, p]]]])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[Users]]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]], hints=[[[ALIAS inheritPath:[] options:[o]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]], hints=[[[ALIAS inheritPath:[] options:[p]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id, name, order_id, payment_id])
++- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id), (order_id), (payment_id)], joinConditions=[=(user_id, user_id0), =(user_id, user_id1)], select=[user_id,name,order_id,user_id0,payment_id,user_id1], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id1)])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id, name], metadata=[]]], fields=[user_id, name])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
+   +- Exchange(distribution=[hash[user_id]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id], metadata=[]]], fields=[payment_id, user_id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoinHintWithTableNames">
+    <Resource name="sql">
+      <![CDATA[SELECT /*+ MULTI_JOIN(Users, Orders, Payments) */Users.user_id, Users.name, Orders.order_id, Payments.payment_id FROM Users INNER JOIN Orders ON Users.user_id = Orders.user_id INNER JOIN Payments ON Users.user_id = Payments.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($0, $8)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[Users, Orders, Payments]]]])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0, 0] options:[Users, Orders, Payments]]]])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[Users]]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]], hints=[[[ALIAS inheritPath:[] options:[Orders]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]], hints=[[[ALIAS inheritPath:[] options:[Payments]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id, name, order_id, payment_id])
++- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, INNER], inputUniqueKeys=[(user_id), (order_id), (payment_id)], joinConditions=[=(user_id, user_id0), =(user_id, user_id1)], select=[user_id,name,order_id,user_id0,payment_id,user_id1], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id1)])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id, name], metadata=[]]], fields=[user_id, name])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
+   +- Exchange(distribution=[hash[user_id]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id], metadata=[]]], fields=[payment_id, user_id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiJoinPartialHintCombinedWithStateTtlHint">
+    <Resource name="sql">
+      <![CDATA[SELECT /*+ MULTI_JOIN(u, o), STATE_TTL(u='1d', o='2d', p='1h') */u.user_id, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id = o.user_id INNER JOIN Payments p ON u.user_id = p.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($0, $8)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[u, o]]]], stateTtlHints=[[[STATE_TTL inheritPath:[0] options:{p=1h, u=1d, o=2d}]]])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0, 0] options:[u, o]]]], stateTtlHints=[[[STATE_TTL inheritPath:[0, 0] options:{p=1h, u=1d, o=2d}]]])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[u]]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]], hints=[[[ALIAS inheritPath:[] options:[o]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]], hints=[[[ALIAS inheritPath:[] options:[p]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id, name, order_id, payment_id])
++- Join(joinType=[InnerJoin], where=[=(user_id, user_id0)], select=[user_id, name, order_id, payment_id, user_id0], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey], stateTtlHints=[[[STATE_TTL options:{RIGHT=1h}]]])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- Calc(select=[user_id, name, order_id])
+   :     +- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER], inputUniqueKeys=[(user_id), (order_id)], stateTtlHints=[[[STATE_TTL options:[1d, 2d]]]], joinConditions=[=(user_id, user_id0)], select=[user_id,name,order_id,user_id0], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0)])
+   :        :- Exchange(distribution=[hash[user_id]])
+   :        :  +- ChangelogNormalize(key=[user_id])
+   :        :     +- Exchange(distribution=[hash[user_id]])
+   :        :        +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id, name], metadata=[]]], fields=[user_id, name])
+   :        +- Exchange(distribution=[hash[user_id]])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
+   +- Exchange(distribution=[hash[user_id]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id], metadata=[]]], fields=[payment_id, user_id])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMultiSinkOnMultiJoinedView">
     <Resource name="optimized rel plan with advice">
       <![CDATA[
@@ -1359,6 +1541,47 @@ Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), _UTF-16LE'yyMMdd') AS day], cha
 +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a], metadata=[]]], fields=[a], changelogMode=[I,UB,UA,D])
 
 
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultipleMultiJoinHintsInDifferentBranches">
+    <Resource name="sql">
+      <![CDATA[SELECT left_side.user_id, left_side.order_id, right_side.payment_id, right_side.location FROM (  SELECT /*+ MULTI_JOIN(u, o) */ u.user_id, o.order_id, o.user_id ouid   FROM Users u   INNER JOIN Orders o ON u.user_id = o.user_id) left_side INNER JOIN (  SELECT /*+ MULTI_JOIN(p, s) */ p.payment_id, p.user_id, s.location, s.user_id suid   FROM Payments p   INNER JOIN Shipments s ON p.user_id = s.user_id) right_side ON left_side.user_id = right_side.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id=[$0], order_id=[$1], payment_id=[$3], location=[$5])
++- LogicalJoin(condition=[=($0, $4)], joinType=[inner])
+   :- LogicalProject(user_id=[$0], order_id=[$3], ouid=[$4])
+   :  +- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[u, o]]]])
+   :     :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[u]]]])
+   :     +- LogicalTableScan(table=[[default_catalog, default_database, Orders]], hints=[[[ALIAS inheritPath:[] options:[o]]]])
+   +- LogicalProject(payment_id=[$0], user_id=[$2], location=[$3], suid=[$4])
+      +- LogicalJoin(condition=[=($2, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[p, s]]]])
+         :- LogicalTableScan(table=[[default_catalog, default_database, Payments]], hints=[[[ALIAS inheritPath:[] options:[p]]]])
+         +- LogicalTableScan(table=[[default_catalog, default_database, Shipments]], hints=[[[ALIAS inheritPath:[] options:[s]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id, order_id, payment_id, location])
++- Join(joinType=[InnerJoin], where=[=(user_id, user_id0)], select=[user_id, order_id, payment_id, user_id0, location], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- Calc(select=[user_id, order_id])
+   :     +- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER], inputUniqueKeys=[(user_id), (order_id)], joinConditions=[=(user_id, user_id0)], select=[user_id,order_id,user_id0], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0)])
+   :        :- Exchange(distribution=[hash[user_id]])
+   :        :  +- ChangelogNormalize(key=[user_id])
+   :        :     +- Exchange(distribution=[hash[user_id]])
+   :        :        +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id], metadata=[]]], fields=[user_id])
+   :        +- Exchange(distribution=[hash[user_id]])
+   :           +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
+   +- Exchange(distribution=[hash[user_id]])
+      +- Calc(select=[payment_id, user_id, location])
+         +- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER], inputUniqueKeys=[(payment_id), noUniqueKey], joinConditions=[=(user_id, user_id0)], select=[payment_id,user_id,location,user_id0], rowType=[RecordType(VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id, VARCHAR(2147483647) location, VARCHAR(2147483647) user_id0)])
+            :- Exchange(distribution=[hash[user_id]])
+            :  +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id], metadata=[]]], fields=[payment_id, user_id])
+            +- Exchange(distribution=[hash[user_id]])
+               +- TableSourceScan(table=[[default_catalog, default_database, Shipments]], fields=[location, user_id])
 ]]>
     </Resource>
   </TestCase>
@@ -1987,6 +2210,33 @@ MultiJoin(commonJoinKey=[noCommonJoinKey], joinTypes=[INNER], inputUniqueKeys=[n
 :        +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id], metadata=[]]], fields=[order_id])
 +- Exchange(distribution=[single])
    +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id], metadata=[]]], fields=[payment_id])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testThreeWayJoinWithMultiJoinHint">
+    <Resource name="sql">
+      <![CDATA[SELECT /*+ MULTI_JOIN(u, o, p) */u.user_id, u.name, o.order_id, p.payment_id FROM Users u INNER JOIN Orders o ON u.user_id = o.user_id LEFT JOIN Payments p ON u.user_id = p.user_id]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(user_id=[$0], name=[$1], order_id=[$3], payment_id=[$6])
++- LogicalJoin(condition=[=($0, $8)], joinType=[left], joinHints=[[[MULTI_JOIN inheritPath:[0] options:[u, o, p]]]])
+   :- LogicalJoin(condition=[=($0, $4)], joinType=[inner], joinHints=[[[MULTI_JOIN inheritPath:[0, 0] options:[u, o, p]]]])
+   :  :- LogicalTableScan(table=[[default_catalog, default_database, Users]], hints=[[[ALIAS inheritPath:[] options:[u]]]])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, Orders]], hints=[[[ALIAS inheritPath:[] options:[o]]]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, Payments]], hints=[[[ALIAS inheritPath:[] options:[p]]]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[user_id, name, order_id, payment_id])
++- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER, LEFT], inputUniqueKeys=[(user_id), (order_id), (payment_id)], joinConditions=[=(user_id, user_id0), =(user_id, user_id1)], select=[user_id,name,order_id,user_id0,payment_id,user_id1], rowType=[RecordType(VARCHAR(2147483647) user_id, VARCHAR(2147483647) name, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) payment_id, VARCHAR(2147483647) user_id1)])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Users, project=[user_id, name], metadata=[]]], fields=[user_id, name])
+   :- Exchange(distribution=[hash[user_id]])
+   :  +- TableSourceScan(table=[[default_catalog, default_database, Orders, project=[order_id, user_id], metadata=[]]], fields=[order_id, user_id])
+   +- Exchange(distribution=[hash[user_id]])
+      +- TableSourceScan(table=[[default_catalog, default_database, Payments, project=[payment_id, user_id], metadata=[]]], fields=[payment_id, user_id])
 ]]>
     </Resource>
   </TestCase>

@@ -578,9 +578,9 @@ Join(joinType=[LeftOuterJoin], where=[(id = id0)], select=[id, b, c, id0, a], le
 {
   "nodes" : [ {
     "id" : ,
-    "type" : "Source: src[]",
+    "type" : "Source: Custom Source",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, src, filter=[]]], fields=[id, b, c])",
+    "contents" : "Source: Custom Source",
     "parallelism" : 3
   }, {
     "id" : ,
@@ -595,9 +595,9 @@ Join(joinType=[LeftOuterJoin], where=[(id = id0)], select=[id, b, c, id0, a], le
     } ]
   }, {
     "id" : ,
-    "type" : "Source: changelog_src[]",
+    "type" : "Source: Custom Source",
     "pact" : "Data Source",
-    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, changelog_src]], fields=[id, a])",
+    "contents" : "Source: Custom Source",
     "parallelism" : 5
   }, {
     "id" : ,

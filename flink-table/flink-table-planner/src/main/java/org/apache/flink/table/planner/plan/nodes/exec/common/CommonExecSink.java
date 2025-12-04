@@ -398,19 +398,21 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             ExecNodeConfig config,
             ClassLoader classLoader) {
         try (TemporaryClassLoaderContext ignored = TemporaryClassLoaderContext.of(classLoader)) {
-
-            TransformationMetadata sinkMeta = createTransformationMeta(SINK_TRANSFORMATION, config);
+            final TransformationMetadata metadata =
+                    createTransformationMeta(SINK_TRANSFORMATION, config);
             if (runtimeProvider instanceof DataStreamSinkProvider) {
                 Transformation<RowData> sinkTransformation =
                         applyRowtimeTransformation(
                                 inputTransform, rowtimeFieldIndex, sinkParallelism, config);
                 final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
                 final DataStreamSinkProvider provider = (DataStreamSinkProvider) runtimeProvider;
-                return provider.consumeDataStream(createProviderContext(config), dataStream)
+                return provider.consumeDataStream(
+                                createProviderContext(metadata, config), dataStream)
                         .getTransformation();
             } else if (runtimeProvider instanceof TransformationSinkProvider) {
                 final TransformationSinkProvider provider =
                         (TransformationSinkProvider) runtimeProvider;
+                final ProviderContext providerContext = createProviderContext(metadata, config);
                 return provider.createTransformation(
                         new TransformationSinkProvider.Context() {
                             @Override
@@ -425,7 +427,17 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
 
                             @Override
                             public Optional<String> generateUid(String name) {
-                                return createProviderContext(config).generateUid(name);
+                                return providerContext.generateUid(name);
+                            }
+
+                            @Override
+                            public String getName() {
+                                return providerContext.getName();
+                            }
+
+                            @Override
+                            public String getDescription() {
+                                return providerContext.getDescription();
                             }
                         });
             } else if (runtimeProvider instanceof SinkFunctionProvider) {
@@ -436,7 +448,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                         env,
                         inputTransform,
                         rowtimeFieldIndex,
-                        sinkMeta,
+                        metadata,
                         sinkParallelism);
             } else if (runtimeProvider instanceof OutputFormatProvider) {
                 OutputFormat<RowData> outputFormat =
@@ -448,7 +460,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                         env,
                         inputTransform,
                         rowtimeFieldIndex,
-                        sinkMeta,
+                        metadata,
                         sinkParallelism);
             } else if (runtimeProvider instanceof SinkV2Provider) {
                 SinkV2Provider sinkV2Provider = (SinkV2Provider) runtimeProvider;
@@ -466,21 +478,12 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                         .getAdditionalMetricVariables()
                         .forEach(transformation::addMetricVariable);
                 transformation.setParallelism(sinkParallelism, sinkParallelismConfigured);
-                sinkMeta.fill(transformation);
+                metadata.fill(transformation);
                 return transformation;
             } else {
                 throw new TableException("Unsupported sink runtime provider.");
             }
         }
-    }
-
-    private ProviderContext createProviderContext(ExecNodeConfig config) {
-        return name -> {
-            if (config.shouldSetUid()) {
-                return Optional.of(createTransformationUid(name, config));
-            }
-            return Optional.empty();
-        };
     }
 
     private Transformation<?> createSinkFunctionTransformation(

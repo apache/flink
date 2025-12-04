@@ -37,7 +37,7 @@ public class SqlAlterTableDropDistributionConverter
             SqlAlterTableDropDistribution sqlAlterTable,
             ResolvedCatalogTable resolvedCatalogTable,
             ConvertContext context) {
-        final ObjectIdentifier tableIdentifier = getIdentifier(sqlAlterTable, context);
+        final ObjectIdentifier tableIdentifier = resolveIdentifier(sqlAlterTable, context);
         if (resolvedCatalogTable.getDistribution().isEmpty()) {
             throw new ValidationException(
                     String.format(

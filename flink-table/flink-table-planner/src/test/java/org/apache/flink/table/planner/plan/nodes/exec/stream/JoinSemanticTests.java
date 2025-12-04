@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.table.planner.plan.nodes.exec.common.JoinTestPrograms;
+import org.apache.flink.table.planner.plan.nodes.exec.common.JoinSemanticTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.SemanticTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
@@ -28,6 +28,8 @@ import java.util.List;
 public class JoinSemanticTests extends SemanticTestBase {
     @Override
     public List<TableTestProgram> programs() {
-        return List.of(JoinTestPrograms.OUTER_JOIN_CHANGELOG_TEST);
+        return List.of(
+                JoinSemanticTestPrograms.OUTER_JOIN_CHANGELOG_TEST,
+                JoinSemanticTestPrograms.ANTI_JOIN_ON_NESTED);
     }
 }

@@ -42,13 +42,16 @@ public class SqlDropModel extends SqlDropObject {
         this.isTemporary = isTemporary;
     }
 
-    public boolean getIsTemporary() {
-        return this.isTemporary;
+    public boolean isTemporary() {
+        return isTemporary;
     }
 
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         writer.keyword("DROP");
+        if (isTemporary) {
+            writer.keyword("TEMPORARY");
+        }
         writer.keyword("MODEL");
         if (ifExists) {
             writer.keyword("IF EXISTS");

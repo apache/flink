@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,53 +18,50 @@
 
 package org.apache.flink.sql.parser.ddl;
 
-import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
+import org.apache.flink.sql.parser.SqlParseUtils;
+import org.apache.flink.sql.parser.SqlUnparseUtils;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
 
 import java.util.List;
+import java.util.Map;
+
+import static java.util.Objects.requireNonNull;
 
 /**
- * ALTER TABLE [IF EXISTS] [catalog_name.][db_name.]table_name ADD [CONSTRAINT constraint_name]
- * (PRIMARY KEY | UNIQUE) (column, ...) [[NOT] ENFORCED].
+ * ALTER CONNECTION [IF EXISTS] [[catalogName.] dataBasesName.]connectionName SET ( name=value [,
+ * name=value]*).
  */
-public class SqlAlterTableAddConstraint extends SqlAlterTable {
-    private final SqlTableConstraint constraint;
+public class SqlAlterConnectionSet extends SqlAlterConnection {
 
-    /**
-     * Creates a add table constraint node.
-     *
-     * @param tableID Table ID
-     * @param constraint Table constraint
-     * @param pos Parser position
-     * @param ifTableExists Whether IF EXISTS is specified
-     */
-    public SqlAlterTableAddConstraint(
-            SqlIdentifier tableID,
-            SqlTableConstraint constraint,
+    private final SqlNodeList connectionOptionList;
+
+    public SqlAlterConnectionSet(
             SqlParserPos pos,
-            boolean ifTableExists) {
-        super(pos, tableID, ifTableExists);
-        this.constraint = constraint;
+            SqlIdentifier connectionName,
+            boolean ifConnectionExists,
+            SqlNodeList connectionOptionList) {
+        super(pos, connectionName, ifConnectionExists);
+        this.connectionOptionList =
+                requireNonNull(connectionOptionList, "connectionOptionList should not be null");
     }
 
-    public SqlTableConstraint getConstraint() {
-        return constraint;
+    public Map<String, String> getProperties() {
+        return SqlParseUtils.extractMap(connectionOptionList);
     }
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(getTableName(), this.constraint);
+        return List.of(name, connectionOptionList);
     }
 
     @Override
     public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparseAlterOperation(writer, leftPrec, rightPrec);
-        writer.keyword("ADD");
-        this.constraint.unparse(writer, leftPrec, rightPrec);
+        SqlUnparseUtils.unparseSetOptions(connectionOptionList, writer, leftPrec, rightPrec);
     }
 }

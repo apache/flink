@@ -35,7 +35,6 @@ public abstract class SqlAlterTableSchemaConverter<T extends SqlAlterTableSchema
         SchemaConverter converter = createSchemaConverter(alterTableSchema, oldTable, context);
         converter.updateColumn(alterTableSchema.getColumnPositions().getList());
         alterTableSchema.getWatermark().ifPresent(converter::updateWatermark);
-        alterTableSchema.getDistribution().ifPresent(converter::updateDistribution);
         alterTableSchema.getFullConstraint().ifPresent(converter::updatePrimaryKey);
 
         return buildAlterTableChangeOperation(

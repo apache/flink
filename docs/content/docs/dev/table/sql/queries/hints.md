@@ -279,6 +279,49 @@ SELECT /*+ NEST_LOOP(t1) */ * FROM t1 JOIN t2 ON t1.id = t2.id;
 SELECT /*+ NEST_LOOP(t1, t3) */ * FROM t1 JOIN t2 ON t1.id = t2.id JOIN t3 ON t1.id = t3.id;
 ```
 
+#### MULTI_JOIN
+
+{{< label Streaming >}}
+
+`MULTI_JOIN` suggests that Flink uses the `MultiJoin operator` to process multiple regular joins simultaneously. This type of join hint is recommended when you have multiple joins that share at least one common join key and experience large intermediate state or record amplification. The MultiJoin operator eliminates intermediate state by processing joins across various input streams simultaneously, which can significantly reduce state size and improve performance in some cases.
+
+For more details on the MultiJoin operator, including when to use it and configuration options, see [Multiple Regular Joins]({{< ref "docs/dev/table/tuning" >}}#multiple-regular-joins).
+
+{{< hint info >}}
+Note:
+- The MULTI_JOIN hint can specify table names or table aliases. If a table has an alias, the hint must use the alias name.
+- At least one key must be shared between the join conditions for the MultiJoin operator to be applied.
+- When specified, the MULTI_JOIN hint applies to the tables listed in the hint within the current query block.
+{{< /hint >}}
+
+##### Examples
+
+```sql
+CREATE TABLE t1 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t2 (id BIGINT, name STRING, age INT) WITH (...);
+CREATE TABLE t3 (id BIGINT, name STRING, age INT) WITH (...);
+
+-- Flink will use the MultiJoin operator for the three-way join.
+SELECT /*+ MULTI_JOIN(t1, t2, t3) */ * FROM t1 
+JOIN t2 ON t1.id = t2.id 
+JOIN t3 ON t1.id = t3.id;
+
+-- Using table names instead of aliases.
+SELECT /*+ MULTI_JOIN(Users, Orders, Payments) */ * FROM Users 
+INNER JOIN Orders ON Users.user_id = Orders.user_id 
+INNER JOIN Payments ON Users.user_id = Payments.user_id;
+
+-- Partial match: only t1 and t2 will use MultiJoin, t3 will use regular join.
+SELECT /*+ MULTI_JOIN(t1, t2) */ * FROM t1 
+JOIN t2 ON t1.id = t2.id 
+JOIN t3 ON t1.id = t3.id;
+
+-- Combining MULTI_JOIN with STATE_TTL hint.
+SELECT /*+ MULTI_JOIN(t1, t2, t3), STATE_TTL('t1'='1d', 't2'='2d', 't3'='12h') */ * FROM t1 
+JOIN t2 ON t1.id = t2.id 
+JOIN t3 ON t1.id = t3.id;
+```
+
 #### LOOKUP
 
 {{< label Streaming >}}

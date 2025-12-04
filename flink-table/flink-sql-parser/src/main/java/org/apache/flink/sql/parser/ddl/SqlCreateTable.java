@@ -41,7 +41,6 @@ import org.apache.calcite.util.ImmutableNullableList;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -137,7 +136,7 @@ public class SqlCreateTable extends SqlCreateObject implements ExtendedSqlNode {
     }
 
     public List<String> getPartitionKeyList() {
-        return SqlParseUtils.extractList(partitionKeyList);
+        return SqlParseUtils.extractList(partitionKeyList, p -> ((SqlIdentifier) p).getSimple());
     }
 
     public List<SqlTableConstraint> getTableConstraints() {
@@ -212,17 +211,5 @@ public class SqlCreateTable extends SqlCreateObject implements ExtendedSqlNode {
         SqlUnparseUtils.unparseDistribution(distribution, writer, leftPrec, rightPrec);
         SqlUnparseUtils.unparsePartitionKeyList(partitionKeyList, writer, leftPrec, rightPrec);
         SqlUnparseUtils.unparseProperties(properties, writer, leftPrec, rightPrec);
-    }
-
-    /** Table creation context. */
-    public static class TableCreationContext {
-        public List<SqlNode> columnList = new ArrayList<>();
-        public List<SqlTableConstraint> constraints = new ArrayList<>();
-        @Nullable public SqlWatermark watermark;
-        @Nullable public SqlDistribution distribution;
-
-        public boolean isColumnsIdentifiersOnly() {
-            return !columnList.isEmpty() && columnList.get(0) instanceof SqlIdentifier;
-        }
     }
 }

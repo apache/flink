@@ -71,6 +71,40 @@ ProcessTableFunction(invocation=[f(DEFAULT(), _UTF-16LE'my-ptf')], uid=[my-ptf],
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testIntervalDayArgs">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(d => INTERVAL '1' SECOND)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(out=[$0])
++- LogicalTableFunctionScan(invocation=[f(1000:INTERVAL SECOND, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(1000:INTERVAL SECOND, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
++- Values(tuples=[[{  }]])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testIntervalYearArgs">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM f(p => INTERVAL '1' YEAR)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(out=[$0])
++- LogicalTableFunctionScan(invocation=[f(12:INTERVAL YEAR, DEFAULT(), DEFAULT())], rowType=[RecordType(VARCHAR(2147483647) out)])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+ProcessTableFunction(invocation=[f(12:INTERVAL YEAR, DEFAULT(), DEFAULT())], uid=[null], select=[out], rowType=[RecordType(VARCHAR(2147483647) out)])
++- Values(tuples=[[{  }]])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testOnTime">
     <Resource name="sql">
       <![CDATA[SELECT `out`, `rowtime` FROM f(r => TABLE t_watermarked, on_time => DESCRIPTOR(ts))]]>

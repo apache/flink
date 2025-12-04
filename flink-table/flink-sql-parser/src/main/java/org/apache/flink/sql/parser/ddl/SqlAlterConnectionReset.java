@@ -18,45 +18,48 @@
 
 package org.apache.flink.sql.parser.ddl;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
+import org.apache.flink.sql.parser.SqlUnparseUtils;
+
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.calcite.util.ImmutableNullableList;
-
-import javax.annotation.Nullable;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
+
+import static java.util.Objects.requireNonNull;
 
 /**
- * SqlNode to describe the ALTER MATERIALIZED TABLE [catalogName.][dataBasesName.]tableName ADD
- * DISTRIBUTION statement.
+ * ALTER CONNECTION [IF EXISTS] [[catalogName.] dataBasesName.]connectionName RESET ( 'key1' [,
+ * 'key2']...).
  */
-public class SqlAlterMaterializedTableAddDistribution extends SqlAlterMaterializedTable {
-    protected final @Nullable SqlDistribution distribution;
+public class SqlAlterConnectionReset extends SqlAlterConnection {
+    private final SqlNodeList optionKeyList;
 
-    public SqlAlterMaterializedTableAddDistribution(
-            SqlParserPos pos, SqlIdentifier tableName, @Nullable SqlDistribution distribution) {
-        super(pos, tableName);
-        this.distribution = distribution;
+    public SqlAlterConnectionReset(
+            SqlParserPos pos,
+            SqlIdentifier connectionName,
+            boolean ifConnectionExists,
+            SqlNodeList optionKeyList) {
+        super(pos, connectionName, ifConnectionExists);
+        this.optionKeyList = requireNonNull(optionKeyList, "optionKeyList should not be null");
     }
 
     @Override
     public List<SqlNode> getOperandList() {
-        return ImmutableNullableList.of(name, distribution);
+        return List.of(name, optionKeyList);
+    }
+
+    public Set<String> getResetKeys() {
+        return SqlParseUtils.extractSet(optionKeyList, SqlParseUtils::extractString);
     }
 
     @Override
     public void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
         super.unparseAlterOperation(writer, leftPrec, rightPrec);
-        writer.keyword("ADD");
-        if (distribution != null) {
-            distribution.unparseAlter(writer, leftPrec, rightPrec);
-        }
-    }
-
-    public Optional<SqlDistribution> getDistribution() {
-        return Optional.ofNullable(distribution);
+        SqlUnparseUtils.unparseResetOptions(optionKeyList, writer, leftPrec, rightPrec);
     }
 }
