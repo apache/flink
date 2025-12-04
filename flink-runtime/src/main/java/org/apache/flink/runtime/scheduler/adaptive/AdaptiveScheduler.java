@@ -303,7 +303,15 @@ public class AdaptiveScheduler
                     configuration.get(
                             SCHEDULER_RESCALE_TRIGGER_MAX_DELAY,
                             maximumDelayForRescaleTriggerDefault),
-                    rescaleOnFailedCheckpointsCount);
+                    rescaleOnFailedCheckpointsCount,
+                    configuration.get(
+                            JobManagerOptions.SCHEDULER_RESCALE_ACTIVE_CHECKPOINT_ENABLED),
+                    configuration.get(
+                            JobManagerOptions.SCHEDULER_RESCALE_ACTIVE_CHECKPOINT_TIMEOUT),
+                    configuration.get(
+                            JobManagerOptions.SCHEDULER_RESCALE_ACTIVE_CHECKPOINT_MAX_RETRIES),
+                    configuration.get(
+                            JobManagerOptions.SCHEDULER_RESCALE_ACTIVE_CHECKPOINT_BACKOFF));
         }
 
         private final SchedulerExecutionMode executionMode;
@@ -314,6 +322,10 @@ public class AdaptiveScheduler
         private final Duration executingResourceStabilizationTimeout;
         private final Duration maximumDelayForTriggeringRescale;
         private final int rescaleOnFailedCheckpointCount;
+        private final boolean rescaleActiveCheckpointEnabled;
+        private final Duration rescaleActiveCheckpointTimeout;
+        private final int rescaleActiveCheckpointMaxRetries;
+        private final Duration rescaleActiveCheckpointBackoff;
 
         private Settings(
                 SchedulerExecutionMode executionMode,
@@ -323,7 +335,11 @@ public class AdaptiveScheduler
                 Duration executingCooldownTimeout,
                 Duration executingResourceStabilizationTimeout,
                 Duration maximumDelayForTriggeringRescale,
-                int rescaleOnFailedCheckpointCount) {
+                int rescaleOnFailedCheckpointCount,
+                boolean rescaleActiveCheckpointEnabled,
+                Duration rescaleActiveCheckpointTimeout,
+                int rescaleActiveCheckpointMaxRetries,
+                Duration rescaleActiveCheckpointBackoff) {
             this.executionMode = executionMode;
             this.submissionResourceWaitTimeout = submissionResourceWaitTimeout;
             this.submissionResourceStabilizationTimeout = submissionResourceStabilizationTimeout;
@@ -332,6 +348,10 @@ public class AdaptiveScheduler
             this.executingResourceStabilizationTimeout = executingResourceStabilizationTimeout;
             this.maximumDelayForTriggeringRescale = maximumDelayForTriggeringRescale;
             this.rescaleOnFailedCheckpointCount = rescaleOnFailedCheckpointCount;
+            this.rescaleActiveCheckpointEnabled = rescaleActiveCheckpointEnabled;
+            this.rescaleActiveCheckpointTimeout = rescaleActiveCheckpointTimeout;
+            this.rescaleActiveCheckpointMaxRetries = rescaleActiveCheckpointMaxRetries;
+            this.rescaleActiveCheckpointBackoff = rescaleActiveCheckpointBackoff;
         }
 
         public SchedulerExecutionMode getExecutionMode() {
@@ -364,6 +384,22 @@ public class AdaptiveScheduler
 
         public int getRescaleOnFailedCheckpointCount() {
             return rescaleOnFailedCheckpointCount;
+        }
+
+        public boolean isRescaleActiveCheckpointEnabled() {
+            return rescaleActiveCheckpointEnabled;
+        }
+
+        public Duration getRescaleActiveCheckpointTimeout() {
+            return rescaleActiveCheckpointTimeout;
+        }
+
+        public int getRescaleActiveCheckpointMaxRetries() {
+            return rescaleActiveCheckpointMaxRetries;
+        }
+
+        public Duration getRescaleActiveCheckpointBackoff() {
+            return rescaleActiveCheckpointBackoff;
         }
     }
 
@@ -1556,6 +1592,14 @@ public class AdaptiveScheduler
     @Override
     public JobManagerJobMetricGroup getMetricGroup() {
         return jobManagerJobMetricGroup;
+    }
+
+    // ----------------------------------------------------------------
+    // Executing.Context additions
+    // ----------------------------------------------------------------
+
+    public Settings getSettings() {
+        return settings;
     }
 
     @Override
