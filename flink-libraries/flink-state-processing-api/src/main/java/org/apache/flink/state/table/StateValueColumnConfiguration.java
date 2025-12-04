@@ -19,7 +19,7 @@
 package org.apache.flink.state.table;
 
 import org.apache.flink.api.common.state.StateDescriptor;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 
 import javax.annotation.Nullable;
 
@@ -31,21 +31,21 @@ public class StateValueColumnConfiguration implements Serializable {
     private final int columnIndex;
     private final String stateName;
     private final SavepointConnectorOptions.StateType stateType;
-    @Nullable private final TypeInformation mapKeyTypeInfo;
-    @Nullable private final TypeInformation valueTypeInfo;
+    @Nullable private final TypeSerializer mapKeyTypeSerializer;
+    @Nullable private final TypeSerializer valueTypeSerializer;
     @Nullable private StateDescriptor stateDescriptor;
 
     public StateValueColumnConfiguration(
             int columnIndex,
             final String stateName,
             final SavepointConnectorOptions.StateType stateType,
-            @Nullable final TypeInformation mapKeyTypeInfo,
-            final TypeInformation valueTypeInfo) {
+            @Nullable final TypeSerializer mapKeyTypeSerializer,
+            final TypeSerializer valueTypeSerializer) {
         this.columnIndex = columnIndex;
         this.stateName = stateName;
         this.stateType = stateType;
-        this.mapKeyTypeInfo = mapKeyTypeInfo;
-        this.valueTypeInfo = valueTypeInfo;
+        this.mapKeyTypeSerializer = mapKeyTypeSerializer;
+        this.valueTypeSerializer = valueTypeSerializer;
     }
 
     public int getColumnIndex() {
@@ -61,12 +61,12 @@ public class StateValueColumnConfiguration implements Serializable {
     }
 
     @Nullable
-    public TypeInformation getMapKeyTypeInfo() {
-        return mapKeyTypeInfo;
+    public TypeSerializer getMapKeyTypeSerializer() {
+        return mapKeyTypeSerializer;
     }
 
-    public TypeInformation getValueTypeInfo() {
-        return valueTypeInfo;
+    public TypeSerializer getValueTypeSerializer() {
+        return valueTypeSerializer;
     }
 
     public void setStateDescriptor(StateDescriptor stateDescriptor) {
