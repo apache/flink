@@ -53,14 +53,13 @@ public class SavepointDynamicTableSourceTest {
                         + "  KeyedPrimitiveValue bigint,\n"
                         + "  KeyedPojoValue ROW<privateLong bigint, publicLong bigint>,\n"
                         + "  KeyedPrimitiveValueList ARRAY<bigint>,\n"
-                        + "  KeyedPrimitiveValueMap MAP<bigint, bigint>,\n"
+                        + "  KeyedPrimitiveValueMap MAP<string, bigint>,\n"
                         + "  PRIMARY KEY (k) NOT ENFORCED\n"
                         + ")\n"
                         + "with (\n"
                         + "  'connector' = 'savepoint',\n"
                         + "  'state.path' = 'src/test/resources/table-state',\n"
-                        + "  'operator.uid' = 'keyed-state-process-uid',\n"
-                        + "  'fields.KeyedPojoValue.value-class' = 'com.example.state.writer.job.schema.PojoData'\n"
+                        + "  'operator.uid' = 'keyed-state-process-uid'\n"
                         + ")";
         tEnv.executeSql(sql);
         Table table = tEnv.sqlQuery("SELECT * FROM state_table");
@@ -108,20 +107,21 @@ public class SavepointDynamicTableSourceTest {
         }
 
         // Check map state
-        Set<Tuple2<Long, Map<Long, Long>>> mapValues =
+        Set<Tuple2<Long, Map<String, Long>>> mapValues =
                 result.stream()
                         .map(
                                 r ->
                                         Tuple2.of(
                                                 (Long) r.getField("k"),
-                                                (Map<Long, Long>)
+                                                (Map<String, Long>)
                                                         r.getField("KeyedPrimitiveValueMap")))
                         .flatMap(l -> Set.of(l).stream())
                         .collect(Collectors.toSet());
         assertThat(mapValues.size()).isEqualTo(10);
-        for (Tuple2<Long, Map<Long, Long>> tuple2 : mapValues) {
+        for (Tuple2<Long, Map<String, Long>> tuple2 : mapValues) {
             assertThat(tuple2.f1.size()).isEqualTo(1);
-            assertThat(tuple2.f0).isEqualTo(tuple2.f1.get(tuple2.f0));
+            String expectedKey = String.valueOf(tuple2.f0);
+            assertThat(tuple2.f1.get(expectedKey)).isEqualTo(tuple2.f0);
         }
     }
 
@@ -142,8 +142,7 @@ public class SavepointDynamicTableSourceTest {
                         + "with (\n"
                         + "  'connector' = 'savepoint',\n"
                         + "  'state.path' = 'src/test/resources/table-state-nulls',\n"
-                        + "  'operator.uid' = 'keyed-state-process-uid-null',\n"
-                        + "  'fields.total.value-class' = 'com.example.state.writer.job.schema.PojoData'\n"
+                        + "  'operator.uid' = 'keyed-state-process-uid-null'\n"
                         + ")";
         tEnv.executeSql(sql);
         Table table = tEnv.sqlQuery("SELECT * FROM state_table");
@@ -185,9 +184,7 @@ public class SavepointDynamicTableSourceTest {
                         + "with (\n"
                         + "  'connector' = 'savepoint',\n"
                         + "  'state.path' = 'src/test/resources/table-state-avro',\n"
-                        + "  'operator.uid' = 'keyed-state-process-uid',\n"
-                        + "  'fields.KeyedSpecificAvroValue.value-type-factory' = 'org.apache.flink.state.table.SpecificAvroSavepointTypeInformationFactory',\n"
-                        + "  'fields.KeyedGenericAvroValue.value-type-factory' = 'org.apache.flink.state.table.GenericAvroSavepointTypeInformationFactory'\n"
+                        + "  'operator.uid' = 'keyed-state-process-uid'\n"
                         + ")";
         tEnv.executeSql(sql);
         Table table = tEnv.sqlQuery("SELECT * FROM state_table");

@@ -19,15 +19,27 @@
 package org.apache.flink.state.api.runtime;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.FSDataInputStream;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
+import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.KeyGroupsStateHandle;
+import org.apache.flink.runtime.state.KeyedBackendSerializationProxy;
+import org.apache.flink.runtime.state.KeyedStateHandle;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
+import org.apache.flink.state.api.OperatorIdentifier;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
-/** Utility class for loading {@link CheckpointMetadata} metadata. */
+/** Utility class for loading savepoint metadata and operator state information. */
 @Internal
 public final class SavepointLoader {
     private SavepointLoader() {}
@@ -53,6 +65,72 @@ public final class SavepointLoader {
                 new DataInputStream(location.getMetadataHandle().openInputStream())) {
             return Checkpoints.loadCheckpointMetadata(
                     stream, Thread.currentThread().getContextClassLoader(), savepointPath);
+        }
+    }
+
+    /**
+     * Loads all state metadata for an operator in a single I/O operation.
+     *
+     * @param savepointPath Path to the savepoint directory
+     * @param operatorIdentifier Operator UID or hash
+     * @return Map from state name to StateMetaInfoSnapshot
+     * @throws IOException If reading fails
+     */
+    public static Map<String, StateMetaInfoSnapshot> loadOperatorStateMetadata(
+            String savepointPath, OperatorIdentifier operatorIdentifier) throws IOException {
+
+        CheckpointMetadata checkpointMetadata = loadSavepointMetadata(savepointPath);
+
+        OperatorState operatorState =
+                checkpointMetadata.getOperatorStates().stream()
+                        .filter(
+                                state ->
+                                        operatorIdentifier
+                                                .getOperatorId()
+                                                .equals(state.getOperatorID()))
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Operator "
+                                                        + operatorIdentifier
+                                                        + " not found in savepoint"));
+
+        KeyedStateHandle keyedStateHandle =
+                operatorState.getStates().stream()
+                        .flatMap(s -> s.getManagedKeyedState().stream())
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "No keyed state found for operator "
+                                                        + operatorIdentifier));
+
+        KeyedBackendSerializationProxy<?> proxy = readSerializationProxy(keyedStateHandle);
+        return proxy.getStateMetaInfoSnapshots().stream()
+                .collect(Collectors.toMap(StateMetaInfoSnapshot::getName, Function.identity()));
+    }
+
+    private static KeyedBackendSerializationProxy<?> readSerializationProxy(
+            KeyedStateHandle stateHandle) throws IOException {
+
+        StreamStateHandle streamStateHandle;
+        if (stateHandle instanceof KeyGroupsStateHandle) {
+            streamStateHandle = ((KeyGroupsStateHandle) stateHandle).getDelegateStateHandle();
+        } else {
+            throw new IllegalArgumentException(
+                    "Unsupported KeyedStateHandle type: " + stateHandle.getClass());
+        }
+
+        try (FSDataInputStream inputStream = streamStateHandle.openInputStream()) {
+            DataInputViewStreamWrapper inputView = new DataInputViewStreamWrapper(inputStream);
+
+            KeyedBackendSerializationProxy<?> proxy =
+                    new KeyedBackendSerializationProxy<>(
+                            Thread.currentThread().getContextClassLoader());
+            proxy.read(inputView);
+
+            return proxy;
         }
     }
 }

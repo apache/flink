@@ -586,13 +586,6 @@ public class StatefulFunction extends KeyedProcessFunction<Integer, Integer, Voi
   }
   ...
 }
-
-public class AvroSavepointTypeInformationFactory implements SavepointTypeInformationFactory {
-    @Override
-    public TypeInformation<?> getTypeInformation() {
-        return new AvroTypeInfo<>(AvroRecord.class);
-    }
-}
 ```
 
 Then it can read by querying a table created using the following SQL statement:
@@ -609,8 +602,7 @@ CREATE TABLE state_table (
   'connector' = 'savepoint',
   'state.backend.type' = 'rocksdb',
   'state.path' = '/root/dir/of/checkpoint-data/chk-1',
-  'operator.uid' = 'my-uid',
-  'fields.MyAvroState.value-type-factory' = 'org.apache.flink.state.table.AvroSavepointTypeInformationFactory'
+  'operator.uid' = 'my-uid'
 );
 ```
 
