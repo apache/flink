@@ -21,7 +21,8 @@ package org.apache.flink.table.planner.utils;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableSchema;
 import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
-import org.apache.flink.sql.parser.ddl.SqlTableColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlMetadataColumn;
+import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
 import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
@@ -46,6 +47,12 @@ import java.util.Set;
 /** The utils for materialized table. */
 @Internal
 public class MaterializedTableUtils {
+
+    private static final String PERSISTED_COLUMN_NOT_USED_IN_QUERY =
+            "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
+                    + "Invalid schema change. All persisted (physical and metadata) columns "
+                    + "in the schema part need to be present in the query part.\n"
+                    + "However, %s column `%s` could not be found in the query.";
 
     public static IntervalFreshness getMaterializedTableFreshness(
             SqlIntervalLiteral sqlIntervalLiteral) {
@@ -143,7 +150,7 @@ public class MaterializedTableUtils {
         return newAddedColumns;
     }
 
-    public static void validatePhysicalColumnsUsedByQuery(
+    public static void validatePersistedColumnsUsedByQuery(
             ResolvedCatalogMaterializedTable oldTable,
             SqlAlterMaterializedTableSchema alterTableSchema,
             ConvertContext context) {
@@ -160,33 +167,39 @@ public class MaterializedTableUtils {
                         context.toRelRoot(validateQuery).project(),
                         () -> context.toQuotedSqlString(validateQuery));
 
-        validatePhysicalColumnsUsedByQuery(sqlNodeList, queryOperation.getResolvedSchema());
+        validatePersistedColumnsUsedByQuery(sqlNodeList, queryOperation.getResolvedSchema());
     }
 
-    public static void validatePhysicalColumnsUsedByQuery(
+    public static void validatePersistedColumnsUsedByQuery(
             SqlNodeList columnPositions, ResolvedSchema querySchema) {
         final Set<String> querySchemaColumnNames = new HashSet<>(querySchema.getColumnNames());
         for (SqlNode column : columnPositions) {
-            throwIfPhysicalColumnNotUsedByQuery(column, querySchemaColumnNames);
+            throwIfPersistedColumnNotUsedByQuery(column, querySchemaColumnNames);
         }
     }
 
-    private static void throwIfPhysicalColumnNotUsedByQuery(
+    private static void throwIfPersistedColumnNotUsedByQuery(
             SqlNode column, Set<String> querySchemaColumnNames) {
-        if (column instanceof SqlTableColumn.SqlRegularColumn) {
-            SqlTableColumn.SqlRegularColumn physicalColumn =
-                    (SqlTableColumn.SqlRegularColumn) column;
-            if (!querySchemaColumnNames.contains(physicalColumn.getName().getSimple())) {
-                throw new ValidationException(
-                        String.format(
-                                "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                                        + "Invalid schema change. All physical columns in the schema part need to be present in the query part. "
-                                        + "However, column `%s` could not be found in the query.",
-                                physicalColumn.getName().getSimple()));
+        if (column instanceof SqlRegularColumn) {
+            SqlRegularColumn physicalColumn = (SqlRegularColumn) column;
+            String columnName = physicalColumn.getName().getSimple();
+            if (!querySchemaColumnNames.contains(columnName)) {
+                throwPersistedColumnNotUsedException("physical", columnName);
+            }
+        } else if (column instanceof SqlMetadataColumn) {
+            SqlMetadataColumn metadataColumn = (SqlMetadataColumn) column;
+            String columnName = metadataColumn.getName().getSimple();
+            if (!metadataColumn.isVirtual() && !querySchemaColumnNames.contains(columnName)) {
+                throwPersistedColumnNotUsedException("metadata persisted", columnName);
             }
         } else if (column instanceof SqlTableColumnPosition) {
-            throwIfPhysicalColumnNotUsedByQuery(
+            throwIfPersistedColumnNotUsedByQuery(
                     ((SqlTableColumnPosition) column).getColumn(), querySchemaColumnNames);
         }
+    }
+
+    private static void throwPersistedColumnNotUsedException(String type, String columnName) {
+        throw new ValidationException(
+                String.format(PERSISTED_COLUMN_NOT_USED_IN_QUERY, type, columnName));
     }
 }

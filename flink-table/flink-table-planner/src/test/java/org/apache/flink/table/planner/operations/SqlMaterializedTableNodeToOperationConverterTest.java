@@ -739,8 +739,9 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl ADD `physical_not_used_in_query` BIGINT NOT NULL",
                         "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                                + "Invalid schema change. All physical columns in the schema part need to be present in the query part. "
-                                + "However, column `physical_not_used_in_query` could not be found in the query."),
+                                + "Invalid schema change. All persisted (physical and metadata) "
+                                + "columns in the schema part need to be present in the query part.\n"
+                                + "However, physical column `physical_not_used_in_query` could not be found in the query."),
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl ADD `a` BIGINT NOT NULL",
                         "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
@@ -757,7 +758,13 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl ADD (`q` AS current_timestamp AFTER `q2`, `q2` AS current_timestamp AFTER `q`)",
                         "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                                + "Referenced column `q2` by 'AFTER' does not exist in the table."));
+                                + "Referenced column `q2` by 'AFTER' does not exist in the table."),
+                TestSpec.of(
+                        "ALTER MATERIALIZED TABLE base_mtbl ADD `m1` INT METADATA",
+                        "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
+                                + "Invalid schema change. All persisted (physical and metadata) "
+                                + "columns in the schema part need to be present in the query part.\n"
+                                + "However, metadata persisted column `m1` could not be found in the query."));
     }
 
     private static List<TestSpec> createWithInvalidSchema() {

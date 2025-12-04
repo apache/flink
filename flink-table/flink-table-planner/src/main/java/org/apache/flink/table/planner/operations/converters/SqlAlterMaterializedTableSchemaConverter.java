@@ -37,7 +37,7 @@ public abstract class SqlAlterMaterializedTableSchemaConverter<
     @Override
     protected Operation convertToOperation(
             T alterTableSchema, ResolvedCatalogMaterializedTable oldTable, ConvertContext context) {
-        MaterializedTableUtils.validatePhysicalColumnsUsedByQuery(
+        MaterializedTableUtils.validatePersistedColumnsUsedByQuery(
                 oldTable, alterTableSchema, context);
 
         SchemaConverter converter = createSchemaConverter(oldTable, context);
