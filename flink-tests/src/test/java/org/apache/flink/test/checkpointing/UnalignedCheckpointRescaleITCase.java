@@ -20,6 +20,7 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -54,13 +55,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 
 import static org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
 /** Integration test for performing rescale of unaligned checkpoint. */
@@ -366,14 +367,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                                 })
                         .name("long-to-string-map")
                         .uid("long-to-string-map")
-                        .map(
-                                new FailingMapper<>(
-                                        state -> false,
-                                        state ->
-                                                state.completedCheckpoints >= minCheckpoints / 2
-                                                        && state.runNumber == 0,
-                                        state -> false,
-                                        state -> false))
+                        .map(getFailingMapper(minCheckpoints))
                         .name("failing-map")
                         .uid("failing-map")
                         .setParallelism(parallelism)
@@ -394,14 +388,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                 DataStream<Long> combinedSource, long minCheckpoints, boolean slotSharing) {
             combinedSource
                     .shuffle()
-                    .map(
-                            new FailingMapper<>(
-                                    state -> false,
-                                    state ->
-                                            state.completedCheckpoints >= minCheckpoints / 2
-                                                    && state.runNumber == 0,
-                                    state -> false,
-                                    state -> false))
+                    .map(getFailingMapper(minCheckpoints))
                     .name("failing-map")
                     .uid("failing-map")
                     .slotSharingGroup(slotSharing ? "default" : "failing-map")
@@ -416,6 +403,25 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
                     .name("sink")
                     .uid("sink")
                     .slotSharingGroup(slotSharing ? "default" : "sink");
+        }
+
+        /**
+         * Creates a FailingMapper that only fails during snapshot operations.
+         *
+         * <p>Only fails during snapshotState() when completedCheckpoints >= minCheckpoints/2 AND
+         * runNumber == 0. After job failovers internally, runNumber becomes attemptNumber > 0, so
+         * failure condition is no longer satisfied. This ensures the mapper fails exactly once
+         * during initial run to trigger job failover, but never fails again after failing over and
+         * recovery from checkpoint.
+         */
+        private static <T> FailingMapper<T> getFailingMapper(long minCheckpoints) {
+            return new FailingMapper<>(
+                    state -> false,
+                    state ->
+                            state.completedCheckpoints >= minCheckpoints / 2
+                                    && state.runNumber == 0,
+                    state -> false,
+                    state -> false);
         }
 
         DataStream<Long> createSourcePipeline(
@@ -611,21 +617,34 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         this.sourceSleepMs = sourceSleepMs;
     }
 
+    /**
+     * Tests unaligned checkpoint rescaling behavior.
+     *
+     * <p>Prescale phase: Job fails when completedCheckpoints >= minCheckpoints/2 via FailingMapper.
+     * Generates checkpoint for rescale test.
+     *
+     * <p>Postscale phase: Job restores from checkpoint with different parallelism, failovers once,
+     * and finishes after source generates all records.
+     */
     @Test
     public void shouldRescaleUnalignedCheckpoint() throws Exception {
         final UnalignedSettings prescaleSettings =
                 new UnalignedSettings(topology)
                         .setParallelism(oldParallelism)
                         .setExpectedFailures(1)
-                        .setSourceSleepMs(sourceSleepMs);
+                        .setSourceSleepMs(sourceSleepMs)
+                        .setExpectedFinalJobStatus(JobStatus.FAILED);
         prescaleSettings.setGenerateCheckpoint(true);
-        final File checkpointDir = super.execute(prescaleSettings);
-
+        final String checkpointDir = super.execute(prescaleSettings);
+        assertThat(checkpointDir)
+                .as("First job must generate a checkpoint for rescale test to be valid.")
+                .isNotNull();
         // resume
         final UnalignedSettings postscaleSettings =
                 new UnalignedSettings(topology)
                         .setParallelism(newParallelism)
-                        .setExpectedFailures(1);
+                        .setExpectedFailures(1)
+                        .setExpectedFinalJobStatus(JobStatus.FINISHED);
         postscaleSettings.setRestoreCheckpoint(checkpointDir);
         super.execute(postscaleSettings);
     }
