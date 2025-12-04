@@ -57,7 +57,7 @@ public class SqlAlterTableAddDistributionConverter
         if (oldDistribution.isPresent()) {
             throw new ValidationException(
                     String.format(
-                            "%sThe base table has already defined the distribution `%s`. "
+                            "%sThe current table has already defined the distribution '%s'. "
                                     + "You can modify it or drop it before adding a new one.",
                             EX_MSG_PREFIX, oldDistribution.get()));
         }

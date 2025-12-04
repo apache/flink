@@ -852,7 +852,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "FRESHNESS = INTERVAL '30' SECOND\n"
                                 + "REFRESH_MODE = FULL\n"
                                 + "AS SELECT * FROM t1",
-                        "Partition column `e` not defined in the query's schema. Available columns: ['a', 'b', 'c', 'd']."),
+                        "Partition column 'e' not defined in the query's schema. Available columns: ['a', 'b', 'c', 'd']."),
                 TestSpec.of(
                         "CREATE MATERIALIZED TABLE mtbl1\n"
                                 + "PARTITIONED BY (b, c)\n"
@@ -862,7 +862,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "FRESHNESS = INTERVAL '30' SECOND\n"
                                 + "REFRESH_MODE = FULL\n"
                                 + "AS SELECT * FROM t3",
-                        "Column `ds` referenced by materialized table option 'partition.fields.ds.date-formatter' isn't a partition column. Available partition columns: ['b', 'c']."),
+                        "Column 'ds' referenced by materialized table option 'partition.fields.ds.date-formatter' isn't a partition column. Available partition columns: ['b', 'c']."),
                 TestSpec.of(
                         "CREATE MATERIALIZED TABLE mtbl1\n"
                                 + "WITH (\n"
@@ -871,7 +871,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "FRESHNESS = INTERVAL '30' SECOND\n"
                                 + "REFRESH_MODE = FULL\n"
                                 + "AS SELECT * FROM t3",
-                        "Column `c` referenced by materialized table option 'partition.fields.c.date-formatter' isn't a partition column. Available partition columns: ['']."),
+                        "Column 'c' referenced by materialized table option 'partition.fields.c.date-formatter' isn't a partition column. Available partition columns: ['']."),
                 TestSpec.of(
                         "CREATE MATERIALIZED TABLE mtbl1\n"
                                 + "PARTITIONED BY (b, c)\n"

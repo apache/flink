@@ -185,7 +185,7 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
             if (schema.getColumn(partitionKey).isEmpty()) {
                 throw new ValidationException(
                         String.format(
-                                "Partition column `%s` not defined in the query's schema. Available columns: [%s].",
+                                "Partition column '%s' not defined in the query's schema. Available columns: [%s].",
                                 partitionKey,
                                 schema.getColumnNames().stream()
                                         .collect(Collectors.joining("', '", "'", "'"))));
@@ -203,7 +203,7 @@ public abstract class AbstractCreateMaterializedTableConverter<T extends SqlCrea
             if (!partitionKeys.contains(partitionKey)) {
                 throw new ValidationException(
                         String.format(
-                                "Column `%s` referenced by materialized table option '%s' isn't a partition column. Available partition columns: [%s].",
+                                "Column '%s' referenced by materialized table option '%s' isn't a partition column. Available partition columns: [%s].",
                                 partitionKey,
                                 partitionOption,
                                 partitionKeys.stream()
