@@ -28,7 +28,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTransl
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecVectorSearchTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.VectorSearchSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.VectorSearchTableSourceSpec;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecVectorSearchTableFunction;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -65,9 +64,9 @@ public class BatchExecVectorSearchTableFunction extends CommonExecVectorSearchTa
             String description) {
         this(
                 ExecNodeContext.newNodeId(),
-                ExecNodeContext.newContext(StreamExecVectorSearchTableFunction.class),
+                ExecNodeContext.newContext(BatchExecVectorSearchTableFunction.class),
                 ExecNodeContext.newPersistedConfig(
-                        StreamExecVectorSearchTableFunction.class, tableConfig),
+                        BatchExecVectorSearchTableFunction.class, tableConfig),
                 tableSourceSpec,
                 vectorSearchSpec,
                 asyncOptions,
