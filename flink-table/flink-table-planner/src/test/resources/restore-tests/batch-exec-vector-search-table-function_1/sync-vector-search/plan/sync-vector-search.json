@@ -1,5 +1,5 @@
 {
-  "flinkVersion" : "2.2",
+  "flinkVersion" : "2.3",
   "nodes" : [ {
     "id" : 1,
     "type" : "batch-exec-table-source-scan_1",
@@ -24,10 +24,10 @@
     },
     "outputType" : "ROW<`id` BIGINT, `content` VARCHAR(2147483647), `vector` ARRAY<FLOAT>>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, src_t]], fields=[id, content, vector])",
-    "dynamicFilteringDataListenerID" : "5e850a71-a459-4906-9822-22c324f6f4c9"
+    "dynamicFilteringDataListenerID" : "19f6b4e7-e167-4785-8b10-4ab9bb286201"
   }, {
     "id" : 2,
-    "type" : "stream-exec-vector-search-table-function_1",
+    "type" : "batch-exec-vector-search-table-function_1",
     "configuration" : {
       "table.exec.async-vector-search.max-concurrent-operations" : "10",
       "table.exec.async-vector-search.output-mode" : "ORDERED",
