@@ -19,6 +19,7 @@
 package org.apache.flink.sql.parser.ddl;
 
 import org.apache.flink.sql.parser.SqlParseUtils;
+import org.apache.flink.sql.parser.ddl.table.SqlAlterTable;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;

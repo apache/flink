@@ -374,7 +374,7 @@ class MaterializedTableStatementParserTest {
     }
 
     @Test
-    void testAlterMaterializedTableAddNestedColumn() {
+    void testAddNestedColumn() {
         // add a row column
         sql("alter materialized table mt1 add new_column array<row(f0 int, f1 bigint)> comment 'new_column docs'")
                 .ok(
@@ -405,7 +405,7 @@ class MaterializedTableStatementParserTest {
     }
 
     @Test
-    void testAlterMaterializedTableAddSingleColumn() {
+    void testAddSingleColumn() {
         sql("alter materialized table mt1 add new_column int not null")
                 .ok(
                         "ALTER MATERIALIZED TABLE `MT1` ADD (\n"
@@ -441,7 +441,7 @@ class MaterializedTableStatementParserTest {
     }
 
     @Test
-    void testAlterMaterializedTableAddWatermark() {
+    void testAddWatermark() {
         sql("alter materialized table mt1 add watermark for ts as ts")
                 .ok(
                         "ALTER MATERIALIZED TABLE `MT1` ADD (\n"
@@ -471,7 +471,130 @@ class MaterializedTableStatementParserTest {
     }
 
     @Test
-    void testAlterMaterializedTableAddDistribution() {
+    void testModifySingleColumn() {
+        sql("alter materialized table mt1 modify new_column string comment 'new_column docs'")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` MODIFY (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs'\n"
+                                + ")");
+        sql("alter materialized table mt1 modify new_column string comment 'new_column docs'")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` MODIFY (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs'\n"
+                                + ")");
+        sql("alter materialized table mt1 modify new_column string comment 'new_column docs' first")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` MODIFY (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' FIRST\n"
+                                + ")");
+        sql("alter materialized table mt1 modify new_column string comment 'new_column docs' after id")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` MODIFY (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' AFTER `ID`\n"
+                                + ")");
+        // modify column type
+        sql("alter materialized table mt1 modify new_column array<string not null> not null")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` MODIFY (\n"
+                                + "  `NEW_COLUMN` ARRAY< STRING NOT NULL > NOT NULL\n"
+                                + ")");
+
+        // modify compute column
+        sql("alter materialized table mt1 modify col_int as col_a - col_b after col_b")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` MODIFY (\n"
+                                + "  `COL_INT` AS (`COL_A` - `COL_B`) AFTER `COL_B`\n"
+                                + ")");
+        // modify metadata column
+        sql("alter materialized table mt1 modify col_int int metadata from 'mk1' virtual comment 'comment_metadata' after col_b")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` MODIFY (\n"
+                                + "  `COL_INT` INTEGER METADATA FROM 'mk1' VIRTUAL COMMENT 'comment_metadata' AFTER `COL_B`\n"
+                                + ")");
+
+        // modify nested column
+        sql("alter materialized table mt1 modify row_column.f0 int not null comment 'change nullability'")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` MODIFY (\n"
+                                + "  `ROW_COLUMN`.`F0` INTEGER NOT NULL COMMENT 'change nullability'\n"
+                                + ")");
+
+        // modify nested column, shift position
+        sql("alter materialized table mt1 modify row_column.f0 int after row_column.f2")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` MODIFY (\n"
+                                + "  `ROW_COLUMN`.`F0` INTEGER AFTER `ROW_COLUMN`.`F2`\n"
+                                + ")");
+    }
+
+    @Test
+    void testModifyWatermark() {
+        sql("alter materialized table mt1 modify watermark for ts as ts")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` MODIFY (\n"
+                                + "  WATERMARK FOR `TS` AS `TS`\n"
+                                + ")");
+        sql("alter materialized table mt1 modify watermark for ts as ts - interval '1' second")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` MODIFY (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
+        sql("alter  materialized table default_database.mt1 modify watermark for ts as ts - interval '1' second")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `DEFAULT_DATABASE`.`MT1` MODIFY (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
+        sql("alter materialized table default_catalog.default_database.mt1 modify watermark for ts as ts - interval '1' second")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `DEFAULT_CATALOG`.`DEFAULT_DATABASE`.`MT1` MODIFY (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
+
+        sql("alter materialized table default_catalog.default_database.mt1 modify (\n"
+                        + "watermark for ts as ts - interval '1' second,\n"
+                        + "^watermark^ for f1 as now()\n"
+                        + ")")
+                .fails("Multiple WATERMARK statements is not supported yet.");
+    }
+
+    @Test
+    void testModifyConstraint() {
+        sql("alter materialized table mt1 modify constraint ct1 primary key(a, b) not enforced")
+                .ok(
+                        "ALTER MATERIALIZED TABLE `MT1` MODIFY (\n"
+                                + "  CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED\n"
+                                + ")");
+        sql("alter materialized table mt1 modify unique(a, b)")
+                .ok("ALTER MATERIALIZED TABLE `MT1` MODIFY (\n" + "  UNIQUE (`A`, `B`)\n" + ")");
+    }
+
+    @Test
+    void testModifyMultipleColumn() {
+        final String sql1 =
+                "alter materialized table mt1 modify (\n"
+                        + "col_int int,\n"
+                        + "log_ts string comment 'log timestamp string' first,\n"
+                        + "ts AS to_timestamp(log_ts) after log_ts,\n"
+                        + "col_meta int metadata from 'mk1' virtual comment 'comment_str' after col_b,\n"
+                        + "primary key (id) not enforced,\n"
+                        + "unique(a, b),\n"
+                        + "watermark for ts as ts - interval '3' second\n"
+                        + ")";
+        final String expected1 =
+                "ALTER MATERIALIZED TABLE `MT1` MODIFY (\n"
+                        + "  `COL_INT` INTEGER,\n"
+                        + "  `LOG_TS` STRING COMMENT 'log timestamp string' FIRST,\n"
+                        + "  `TS` AS `TO_TIMESTAMP`(`LOG_TS`) AFTER `LOG_TS`,\n"
+                        + "  `COL_META` INTEGER METADATA FROM 'mk1' VIRTUAL COMMENT 'comment_str' AFTER `COL_B`,\n"
+                        + "  PRIMARY KEY (`ID`) NOT ENFORCED,\n"
+                        + "  UNIQUE (`A`, `B`),\n"
+                        + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n"
+                        + ")";
+        sql(sql1).ok(expected1);
+    }
+
+    @Test
+    void testAddDistribution() {
         sql("alter materialized table mt1 add distribution by hash(a) into 6 buckets")
                 .ok("ALTER MATERIALIZED TABLE `MT1` ADD DISTRIBUTION BY HASH(`A`) INTO 6 BUCKETS");
 

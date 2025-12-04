@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterTableSchema;
+import org.apache.flink.sql.parser.ddl.table.SqlAlterTableSchema;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.operations.converters.SchemaConverter;

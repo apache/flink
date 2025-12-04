@@ -19,10 +19,10 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableSchema;
 import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlMetadataColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
+import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableSchema;
 import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
