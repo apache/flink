@@ -99,22 +99,6 @@ This file is based on the checkstyle file of Apache Beam.
 			<property name="message" value="Use System.getProperties() to get system properties."/>
 		</module>
 
-		<module name="Regexp">
-			<property name="format" value="CatalogMaterializedTable\.RefreshStatus\."/>
-			<property name="illegalPattern" value="true"/>
-			<property name="message" value="Use static import for CatalogMaterializedTable.RefreshStatus."/>
-		</module>
-		<module name="Regexp">
-			<property name="format" value="CatalogMaterializedTable\.RefreshMode\."/>
-			<property name="illegalPattern" value="true"/>
-			<property name="message" value="Use static import for CatalogMaterializedTable.RefreshMode."/>
-		</module>
-		<module name="Regexp">
-			<property name="format" value="CatalogMaterializedTable\.LogicalRefreshMode\."/>
-			<property name="illegalPattern" value="true"/>
-			<property name="message" value="Use static import for CatalogMaterializedTable.LogicalRefreshMode."/>
-		</module>
-
 		<!--
 
 		IllegalImport cannot blacklist classes so we have to fall back to Regexp.
