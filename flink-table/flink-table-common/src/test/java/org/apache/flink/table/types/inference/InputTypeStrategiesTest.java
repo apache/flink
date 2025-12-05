@@ -543,7 +543,7 @@ class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                         .calledWithArgumentTypes(DataTypes.VARCHAR(5))
                         .expectSignature("f(<VARCHAR NOT NULL>)")
                         .expectErrorMessage(
-                                "Unsupported argument type. Expected nullable type of root 'VARCHAR' but actual type was 'VARCHAR(5)'."),
+                                "Unsupported argument type. Expected NOT NULL type of root 'VARCHAR' but actual type was 'VARCHAR(5)'."),
                 TestSpec.forStrategy(
                                 "Logical type family instead of concrete data types",
                                 sequence(
