@@ -63,7 +63,9 @@ public class ProcTimeCommitTrigger implements PartitionCommitTrigger {
         this.pendingPartitionsState = stateStore.getListState(PENDING_PARTITIONS_STATE_DESC);
         this.pendingPartitions = new HashMap<>();
         if (isRestored) {
-            pendingPartitions.putAll(pendingPartitionsState.get().iterator().next());
+            if (pendingPartitionsState.get().iterator().hasNext()) {
+                pendingPartitions.putAll(pendingPartitionsState.get().iterator().next());
+            }
         }
         this.procTimeService = procTimeService;
         this.partitionCommitPredicate = partitionCommitPredicate;
