@@ -28,8 +28,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTransl
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecVectorSearchTableFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.VectorSearchSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.VectorSearchTableSourceSpec;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMLPredictTableFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecVectorSearchTableFunction;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -50,7 +48,7 @@ import java.util.List;
             "table.exec.async-vector-search.timeout",
             "table.exec.async-vector-search.output-mode"
         },
-        producedTransformations = StreamExecMLPredictTableFunction.ML_PREDICT_TRANSFORMATION,
+        producedTransformations = CommonExecVectorSearchTableFunction.VECTOR_SEARCH_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v2_2,
         minStateVersion = FlinkVersion.v2_2)
 public class BatchExecVectorSearchTableFunction extends CommonExecVectorSearchTableFunction
@@ -66,9 +64,9 @@ public class BatchExecVectorSearchTableFunction extends CommonExecVectorSearchTa
             String description) {
         this(
                 ExecNodeContext.newNodeId(),
-                ExecNodeContext.newContext(StreamExecVectorSearchTableFunction.class),
+                ExecNodeContext.newContext(BatchExecVectorSearchTableFunction.class),
                 ExecNodeContext.newPersistedConfig(
-                        StreamExecVectorSearchTableFunction.class, tableConfig),
+                        BatchExecVectorSearchTableFunction.class, tableConfig),
                 tableSourceSpec,
                 vectorSearchSpec,
                 asyncOptions,

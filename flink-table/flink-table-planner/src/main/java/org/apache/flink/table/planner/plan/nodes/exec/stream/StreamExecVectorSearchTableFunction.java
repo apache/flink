@@ -49,7 +49,7 @@ import java.util.List;
             "table.exec.async-vector-search.timeout",
             "table.exec.async-vector-search.output-mode"
         },
-        producedTransformations = StreamExecMLPredictTableFunction.ML_PREDICT_TRANSFORMATION,
+        producedTransformations = CommonExecVectorSearchTableFunction.VECTOR_SEARCH_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v2_2,
         minStateVersion = FlinkVersion.v2_2)
 public class StreamExecVectorSearchTableFunction extends CommonExecVectorSearchTableFunction

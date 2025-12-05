@@ -24,10 +24,10 @@
     },
     "outputType" : "ROW<`id` BIGINT, `content` VARCHAR(2147483647), `vector` ARRAY<FLOAT>>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, src_t]], fields=[id, content, vector])",
-    "dynamicFilteringDataListenerID" : "581f0987-928f-4c00-a1c1-500fdd1c98fb"
+    "dynamicFilteringDataListenerID" : "1753d1db-2d8a-4ca8-9d85-18ec5670a027"
   }, {
     "id" : 6,
-    "type" : "stream-exec-vector-search-table-function_1",
+    "type" : "batch-exec-vector-search-table-function_1",
     "configuration" : {
       "table.exec.async-vector-search.max-concurrent-operations" : "10",
       "table.exec.async-vector-search.output-mode" : "ORDERED",
