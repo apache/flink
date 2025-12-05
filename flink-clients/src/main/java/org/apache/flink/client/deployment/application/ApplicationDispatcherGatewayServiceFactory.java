@@ -19,9 +19,13 @@
 package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.PackagedProgram;
+import org.apache.flink.configuration.ApplicationOptionsInternal;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.DeploymentOptions;
+import org.apache.flink.runtime.dispatcher.ApplicationBootstrap;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
@@ -51,8 +55,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *
  * <p>It instantiates a {@link
  * org.apache.flink.runtime.dispatcher.runner.AbstractDispatcherLeaderProcess.DispatcherGatewayService
- * DispatcherGatewayService} with an {@link ApplicationDispatcherBootstrap} containing the user's
- * program.
+ * DispatcherGatewayService} with an {@link ApplicationBootstrap} containing the user's program.
  */
 @Internal
 public class ApplicationDispatcherGatewayServiceFactory
@@ -62,7 +65,7 @@ public class ApplicationDispatcherGatewayServiceFactory
 
     private final DispatcherFactory dispatcherFactory;
 
-    private final PackagedProgram application;
+    private final PackagedProgram program;
 
     private final RpcService rpcService;
 
@@ -71,12 +74,12 @@ public class ApplicationDispatcherGatewayServiceFactory
     public ApplicationDispatcherGatewayServiceFactory(
             Configuration configuration,
             DispatcherFactory dispatcherFactory,
-            PackagedProgram application,
+            PackagedProgram program,
             RpcService rpcService,
             PartialDispatcherServices partialDispatcherServices) {
         this.configuration = configuration;
         this.dispatcherFactory = dispatcherFactory;
-        this.application = checkNotNull(application);
+        this.program = checkNotNull(program);
         this.rpcService = rpcService;
         this.partialDispatcherServices = partialDispatcherServices;
     }
@@ -91,6 +94,26 @@ public class ApplicationDispatcherGatewayServiceFactory
 
         final List<JobID> recoveredJobIds = getRecoveredJobIds(recoveredJobs);
 
+        final boolean allowExecuteMultipleJobs =
+                ApplicationJobUtils.allowExecuteMultipleJobs(configuration);
+        ApplicationJobUtils.maybeFixJobIdAndApplicationId(configuration);
+        final ApplicationID applicationId =
+                configuration
+                        .getOptional(ApplicationOptionsInternal.FIXED_APPLICATION_ID)
+                        .map(ApplicationID::fromHexString)
+                        .orElseGet(ApplicationID::new);
+
+        PackagedProgramApplication bootstrapApplication =
+                new PackagedProgramApplication(
+                        applicationId,
+                        program,
+                        recoveredJobIds,
+                        configuration,
+                        true,
+                        !allowExecuteMultipleJobs,
+                        configuration.get(DeploymentOptions.SUBMIT_FAILED_JOB_ON_APPLICATION_ERROR),
+                        configuration.get(DeploymentOptions.SHUTDOWN_ON_APPLICATION_FINISH));
+
         final Dispatcher dispatcher;
         try {
             dispatcher =
@@ -100,13 +123,7 @@ public class ApplicationDispatcherGatewayServiceFactory
                             recoveredJobs,
                             recoveredDirtyJobResults,
                             (dispatcherGateway, scheduledExecutor, errorHandler) ->
-                                    new ApplicationDispatcherBootstrap(
-                                            application,
-                                            recoveredJobIds,
-                                            configuration,
-                                            dispatcherGateway,
-                                            scheduledExecutor,
-                                            errorHandler),
+                                    new ApplicationBootstrap(bootstrapApplication),
                             PartialDispatcherServicesWithJobPersistenceComponents.from(
                                     partialDispatcherServices,
                                     executionPlanWriter,
