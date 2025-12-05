@@ -110,6 +110,7 @@ import static org.apache.flink.table.api.internal.StaticResultProvider.SIMPLE_RO
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
+import static org.apache.flink.table.gateway.api.config.SqlGatewayServiceConfigOptions.SQL_GATEWAY_READ_ONLY_MODE;
 import static org.apache.flink.table.gateway.api.results.ResultSet.ResultType.PAYLOAD;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.awaitOperationTermination;
 import static org.apache.flink.table.gateway.service.utils.SqlGatewayServiceTestUtil.createInitializedSession;
@@ -1046,6 +1047,68 @@ public class SqlGatewayServiceITCase {
                 task ->
                         assertThatThrownBy(task::get)
                                 .satisfies(anyCauseMatches(SqlGatewayException.class, msg)));
+    }
+
+    @Test
+    void testReadOnlyModeWithModificationOperations() {
+        Configuration config = new Configuration(MINI_CLUSTER.getClientConfiguration());
+        config.set(SQL_GATEWAY_READ_ONLY_MODE, true);
+
+        SessionEnvironment sessionEnvironment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .build();
+
+        SessionHandle sessionHandle = service.openSession(sessionEnvironment);
+        String sourceDdl = "CREATE TABLE source (a STRING) WITH ('connector'='datagen');";
+        String sinkDdl = "CREATE TABLE sink (a STRING) WITH ('connector'='blackhole');";
+
+        service.executeStatement(sessionHandle, sourceDdl, -1, config);
+        service.executeStatement(sessionHandle, sinkDdl, -1, config);
+
+        OperationHandle insertOperationHandle =
+                service.executeStatement(
+                        sessionHandle, "INSERT INTO sink SELECT * FROM source;", -1, config);
+
+        assertThatThrownBy(() -> fetchAllResults(service, sessionHandle, insertOperationHandle))
+                .satisfies(
+                        anyCauseMatches(
+                                SqlExecutionException.class,
+                                "SQL Gateway is in read-only mode. The following statement is not allowed: INSERT INTO sink SELECT * FROM source"));
+    }
+
+    @Test
+    void testReadOnlyModeWithStatementSet() {
+        Configuration config = new Configuration(MINI_CLUSTER.getClientConfiguration());
+        config.set(SQL_GATEWAY_READ_ONLY_MODE, true);
+
+        SessionEnvironment sessionEnvironment =
+                SessionEnvironment.newBuilder()
+                        .setSessionEndpointVersion(MockedEndpointVersion.V1)
+                        .build();
+
+        SessionHandle sessionHandle = service.openSession(sessionEnvironment);
+        String sourceDdl = "CREATE TABLE source (a STRING) WITH ('connector'='datagen');";
+        String sinkDdl1 = "CREATE TABLE sink1 (a STRING) WITH ('connector'='blackhole');";
+        String sinkDdl2 = "CREATE TABLE sink2 (a STRING) WITH ('connector'='blackhole');";
+
+        service.executeStatement(sessionHandle, sourceDdl, -1, config);
+        service.executeStatement(sessionHandle, sinkDdl1, -1, config);
+        service.executeStatement(sessionHandle, sinkDdl2, -1, config);
+
+        service.executeStatement(sessionHandle, "BEGIN STATEMENT SET", -1, config);
+        service.executeStatement(
+                sessionHandle, "INSERT INTO sink1 SELECT * FROM source", -1, config);
+        service.executeStatement(
+                sessionHandle, "INSERT INTO sink2 SELECT * FROM source", -1, config);
+
+        OperationHandle endOpHandle = service.executeStatement(sessionHandle, "END", -1, config);
+
+        assertThatThrownBy(() -> fetchAllResults(service, sessionHandle, endOpHandle))
+                .satisfies(
+                        anyCauseMatches(
+                                SqlExecutionException.class,
+                                "SQL Gateway is in read-only mode. Modification operations are not allowed."));
     }
 
     // --------------------------------------------------------------------------------------------
