@@ -24,11 +24,13 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
 
 import javax.annotation.Nullable;
 
 /** Basic information about a TaskManager slot. */
-public interface TaskManagerSlotInformation {
+public interface TaskManagerSlotInformation extends WeightLoadable {
 
     SlotID getSlotId();
 
@@ -60,4 +62,11 @@ public interface TaskManagerSlotInformation {
      * @return resource profile of this slot
      */
     ResourceProfile getResourceProfile();
+
+    /**
+     * Set the loading weight of the current slot.
+     *
+     * @param loadingWeight The loading weight of the current slot.
+     */
+    void setLoading(LoadingWeight loadingWeight);
 }
