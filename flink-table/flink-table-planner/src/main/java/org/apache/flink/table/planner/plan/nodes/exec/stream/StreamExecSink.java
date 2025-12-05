@@ -29,7 +29,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.RowtimeInserter;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.SinkUpsertMaterializeStrategy;
-import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
@@ -333,8 +332,8 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
     }
 
     @Override
-    protected RowType getPersistedRowType(ResolvedSchema schema) {
-        return toPersistedRowType(schema);
+    protected RowType getInputRowType() {
+        return (RowType) getInputEdges().get(0).getOutputType();
     }
 
     private OneInputStreamOperator<RowData, RowData> createSumOperator(

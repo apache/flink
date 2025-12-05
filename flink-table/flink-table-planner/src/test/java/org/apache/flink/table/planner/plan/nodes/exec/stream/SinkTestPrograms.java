@@ -124,12 +124,22 @@ public class SinkTestPrograms {
                                     .addSchema(
                                             "name STRING PRIMARY KEY NOT ENFORCED",
                                             "score BIGINT",
-                                            "scoreMetadata BIGINT METADATA")
+                                            "scoreMetadata BIGINT METADATA",
+                                            "nameMetadata STRING METADATA")
                                     .addOption("sink-changelog-mode-enforced", "I,UA,D")
-                                    .addOption("writable-metadata", "scoreMetadata:BIGINT")
+                                    // The test sink lists metadata columns
+                                    // (SupportsWritingMetadata#listWritableMetadata) in
+                                    // alphabetical order, this is also the order in the record of
+                                    // a sink, irrespective of the table schema
+                                    .addOption(
+                                            "writable-metadata",
+                                            "nameMetadata:STRING,scoreMetadata:BIGINT")
                                     .consumedValues(
-                                            "+I[BOB, 5, 5]", "+U[BOB, 6, 6]", "+U[BOB, 5, 5]")
+                                            "+I[BOB, 5, Bob, 5]",
+                                            "+U[BOB, 6, Bob, 6]",
+                                            "+U[BOB, 5, Bob, 5]")
                                     .build())
-                    .runSql("INSERT INTO sink_t SELECT UPPER(name), score, score FROM source_t")
+                    .runSql(
+                            "INSERT INTO sink_t SELECT UPPER(name), score, score, name FROM source_t")
                     .build();
 }

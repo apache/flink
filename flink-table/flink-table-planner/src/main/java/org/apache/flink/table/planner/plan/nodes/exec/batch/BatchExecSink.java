@@ -124,11 +124,13 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
     }
 
     @Override
-    protected final RowType getPersistedRowType(ResolvedSchema schema) {
+    protected final RowType getInputRowType() {
         // row-level modification may only write partial columns,
         // so we try to prune the RowType to get the real RowType containing
         // the physical columns to be written
         if (tableSinkSpec.getSinkAbilities() != null) {
+            final ResolvedSchema schema =
+                    tableSinkSpec.getContextResolvedTable().getResolvedSchema();
             for (SinkAbilitySpec sinkAbilitySpec : tableSinkSpec.getSinkAbilities()) {
                 if (sinkAbilitySpec instanceof RowLevelUpdateSpec) {
                     RowLevelUpdateSpec rowLevelUpdateSpec = (RowLevelUpdateSpec) sinkAbilitySpec;
@@ -141,7 +143,7 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
                 }
             }
         }
-        return toPersistedRowType(schema);
+        return (RowType) getInputEdges().get(0).getOutputType();
     }
 
     @Override
@@ -189,6 +191,6 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
         for (int columnIndex : columnIndices) {
             requireColumns.add(columns.get(columnIndex));
         }
-        return toPersistedRowType(ResolvedSchema.of(requireColumns));
+        return (RowType) ResolvedSchema.of(requireColumns).toPhysicalRowDataType().getLogicalType();
     }
 }
