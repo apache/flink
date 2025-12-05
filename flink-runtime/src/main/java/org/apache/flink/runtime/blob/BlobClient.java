@@ -92,10 +92,12 @@ public final class BlobClient implements Closeable {
             }
 
             // Establish the socket using the hostname and port. This avoids a potential issue where
-            // the
-            // InetSocketAddress can cache a failure in hostname resolution forever.
+            // the InetSocketAddress can cache a failure in hostname resolution forever.
+            // Use getHostString() instead of getHostName() to avoid unnecessary reverse DNS and DNS
+            // lookups when addresses are specified as IP literals. This improves reliability and
+            // reduces latency for each blob transfer.
             socket.connect(
-                    new InetSocketAddress(serverAddress.getHostName(), serverAddress.getPort()),
+                    new InetSocketAddress(serverAddress.getHostString(), serverAddress.getPort()),
                     clientConfig.get(BlobServerOptions.CONNECT_TIMEOUT));
             socket.setSoTimeout(clientConfig.get(BlobServerOptions.SO_TIMEOUT));
         } catch (Exception e) {
