@@ -60,8 +60,11 @@ public class NativeS3FileSystemFactory implements FileSystemFactory {
     public static final ConfigOption<String> REGION =
             ConfigOptions.key("s3.region")
                     .stringType()
-                    .defaultValue("us-east-1")
-                    .withDescription("AWS region");
+                    .noDefaultValue()
+                    .withDescription(
+                            "AWS region. If not specified, the region will be automatically detected using AWS SDK's "
+                                    + "DefaultAwsRegionProviderChain, which checks (in order): AWS_REGION env var, "
+                                    + "~/.aws/config, EC2 instance metadata, and bucket location API.");
 
     public static final ConfigOption<String> ENDPOINT =
             ConfigOptions.key("s3.endpoint")

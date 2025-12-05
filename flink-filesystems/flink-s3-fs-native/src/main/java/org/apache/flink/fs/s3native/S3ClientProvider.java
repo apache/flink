@@ -35,6 +35,7 @@ import software.amazon.awssdk.core.retry.RetryPolicy;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3AsyncClientBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -234,15 +235,30 @@ public class S3ClientProvider implements AutoCloseableAsync {
                     LOG.debug("HTTP endpoint detected, disabling SSL certificate validation");
                     disableCertCheck = true;
                 }
-                // For S3-compatible storage, set default region if not specified
                 if (region == null || region.isEmpty()) {
-                    region = "us-east-1";
-                    LOG.debug("Setting default region to us-east-1 (required by AWS SDK)");
+                    throw new IllegalArgumentException("Region is required for AWS S3");
                 }
             }
 
-            // Use us-east-1 as default region
-            Region awsRegion = (region != null) ? Region.of(region) : Region.US_EAST_1;
+            Region awsRegion;
+            if (region != null && !region.isEmpty()) {
+                awsRegion = Region.of(region);
+                try {
+                    awsRegion = DefaultAwsRegionProviderChain.builder().build().getRegion();
+                    LOG.info(
+                            "Automatically detected AWS region: {} (via DefaultAwsRegionProviderChain)",
+                            awsRegion.id());
+                } catch (Exception e) {
+                    LOG.error(
+                            "Failed to automatically detect AWS region, falling back to us-east-1. "
+                                    + "Consider setting the s3.region configuration or AWS_REGION environment variable. "
+                                    + "Error: {}",
+                            e.getMessage());
+                    throw new IllegalArgumentException("Region is required for AWS S3");
+                }
+            } else {
+                throw new IllegalArgumentException("Region is required for AWS S3");
+            }
 
             LOG.info(
                     "Initializing S3 client - endpoint: {}, region: {}, pathStyle: {}, s3Compatible: {}",
@@ -252,26 +268,17 @@ public class S3ClientProvider implements AutoCloseableAsync {
                     isS3Compatible);
 
             AwsCredentialsProvider credentialsProvider = buildCredentialsProvider();
-
-            // Build S3-specific configuration with S3-compatible storage optimizations
             S3Configuration.Builder s3ConfigBuilder = S3Configuration.builder();
             s3ConfigBuilder.pathStyleAccessEnabled(pathStyleAccess);
 
             if (isS3Compatible) {
-                // CRITICAL S3-compatible storage settings:
-                // 1. Disable chunked encoding (some S3-compatible services have issues with AWS SDK
-                // v2 chunked encoding)
                 s3ConfigBuilder.chunkedEncodingEnabled(false);
-                // 2. Disable checksum validation (not all S3-compatible services provide expected
-                // checksums)
                 s3ConfigBuilder.checksumValidationEnabled(false);
                 LOG.debug(
                         "Applied S3-compatible storage optimizations: chunked encoding disabled, checksum validation disabled");
             }
 
             S3Configuration s3Config = s3ConfigBuilder.build();
-
-            // Build synchronous client
             S3ClientBuilder clientBuilder = S3Client.builder();
             clientBuilder.credentialsProvider(credentialsProvider);
             clientBuilder.region(awsRegion);
