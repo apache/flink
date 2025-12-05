@@ -201,7 +201,7 @@ public class CommonTestUtils {
      * @throws InterruptedException if the thread is interrupted.
      */
     @SuppressWarnings("BusyWait")
-    public static void waitUtil(
+    public static void waitUntil(
             Supplier<Boolean> condition, Duration timeout, Duration pause, String errorMsg)
             throws TimeoutException, InterruptedException {
         long timeoutMs = timeout.toMillis();
@@ -245,7 +245,7 @@ public class CommonTestUtils {
                     }
                 };
 
-        waitUtil(safeCondition, timeout, pause, errorMsg);
+        waitUntil(safeCondition, timeout, pause, errorMsg);
     }
 
     /**
@@ -258,8 +258,8 @@ public class CommonTestUtils {
      * @throws TimeoutException if the condition is not met before timeout.
      * @throws InterruptedException if the thread is interrupted.
      */
-    public static void waitUtil(Supplier<Boolean> condition, Duration timeout, String errorMsg)
+    public static void waitUntil(Supplier<Boolean> condition, Duration timeout, String errorMsg)
             throws TimeoutException, InterruptedException {
-        waitUtil(condition, timeout, Duration.ofMillis(1), errorMsg);
+        waitUntil(condition, timeout, Duration.ofMillis(1), errorMsg);
     }
 }
