@@ -943,6 +943,20 @@ public class ProcessTableFunctionTestUtils {
     }
 
     /** Testing function. */
+    public static class MultiInputWithScalarArgsFunction extends AppendProcessTableFunctionBase {
+        public void eval(
+                Context ctx,
+                Map<String, String> m,
+                @ArgumentHint(SET_SEMANTIC_TABLE) Row in1,
+                Integer i,
+                @ArgumentHint({SET_SEMANTIC_TABLE, OPTIONAL_PARTITION_BY}) Row in2,
+                @DataTypeHint("ROW<b BOOLEAN, s STRING>") Row r)
+                throws Exception {
+            collectObjects(in1, in2, m, i, r);
+        }
+    }
+
+    /** Testing function. */
     public static class TimedJoinFunction extends AppendProcessTableFunctionBase {
         public void eval(
                 Context ctx,

@@ -182,10 +182,14 @@ public class SystemTypeInference {
     }
 
     private static void checkMultipleTableArgs(List<StaticArgument> staticArgs) {
-        if (staticArgs.stream().filter(arg -> arg.is(StaticArgumentTrait.TABLE)).count() <= 1) {
+        final List<StaticArgument> tableArgs =
+                staticArgs.stream()
+                        .filter(arg -> arg.is(StaticArgumentTrait.TABLE))
+                        .collect(Collectors.toList());
+        if (tableArgs.size() <= 1) {
             return;
         }
-        if (staticArgs.stream().anyMatch(arg -> !arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE))) {
+        if (tableArgs.stream().anyMatch(arg -> !arg.is(StaticArgumentTrait.SET_SEMANTIC_TABLE))) {
             throw new ValidationException(
                     "All table arguments must use set semantics if multiple table arguments are declared.");
         }
