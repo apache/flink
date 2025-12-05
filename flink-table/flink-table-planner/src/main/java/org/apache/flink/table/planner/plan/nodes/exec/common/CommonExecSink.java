@@ -151,8 +151,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                 tableSink.getSinkRuntimeProvider(
                         new SinkRuntimeProviderContext(
                                 isBounded, tableSinkSpec.getTargetColumns()));
-        final RowType physicalRowType = getPhysicalRowType(schema);
-        final int[] primaryKeys = getPrimaryKeyIndices(physicalRowType, schema);
+        final RowType inputRowType = getInputRowType();
+        final int[] primaryKeys = getPrimaryKeyIndices(inputRowType, schema);
         final int sinkParallelism = deriveSinkParallelism(inputTransform, runtimeProvider);
         sinkParallelismConfigured = isParallelismConfigured(runtimeProvider);
         final int inputParallelism = inputTransform.getParallelism();
@@ -190,7 +190,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         final boolean needMaterialization = !inputInsertOnly && upsertMaterialize;
 
         Transformation<RowData> sinkTransform =
-                applyConstraintValidations(inputTransform, config, physicalRowType);
+                applyConstraintValidations(inputTransform, config, inputRowType);
 
         if (hasPk) {
             sinkTransform =
@@ -212,7 +212,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                             sinkParallelism,
                             config,
                             classLoader,
-                            physicalRowType,
+                            inputRowType,
                             inputUpsertKey);
         }
 
@@ -545,9 +545,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                 .orElse(new int[0]);
     }
 
-    protected RowType getPhysicalRowType(ResolvedSchema schema) {
-        return (RowType) schema.toPhysicalRowDataType().getLogicalType();
-    }
+    protected abstract RowType getInputRowType();
 
     /**
      * Get the target row-kind that the row data should change to, assuming the current row kind is

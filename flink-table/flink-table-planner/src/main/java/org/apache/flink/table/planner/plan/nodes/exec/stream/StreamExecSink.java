@@ -331,6 +331,11 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
         return materializeTransform;
     }
 
+    @Override
+    protected RowType getInputRowType() {
+        return (RowType) getInputEdges().get(0).getOutputType();
+    }
+
     private OneInputStreamOperator<RowData, RowData> createSumOperator(
             ExecNodeConfig config,
             RowType physicalRowType,
