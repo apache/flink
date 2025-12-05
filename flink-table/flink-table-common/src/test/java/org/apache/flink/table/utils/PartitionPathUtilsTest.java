@@ -430,4 +430,53 @@ class PartitionPathUtilsTest {
         assertThat(result.get(0).f0).isEmpty(); // No partition spec
         assertThat(result.get(0).f1).isEqualTo(filePath);
     }
+
+
+  @Test
+    void testSearchPartSpecAndPathsWithComplexHiddenFileStructure() throws Exception {
+        // Test complex structure: base/dt=2023/hr=01/data1.csv, base/.hidden/.data2.csv, base/.hidden/data1.csv
+        Path basePath = buildPath("base");
+        Path partitionPath1 = buildPath("base", "dt=2023");
+        Path partitionPath2 = buildPath("base", "dt=2023", "hr=01");
+        Path validFile = buildPath("base", "dt=2023", "hr=01", "data1.csv");
+        Path hiddenDir1 = buildPath("base", ".hidden");
+        Path hiddenDir2 = buildPath("base", ".hidden", ".data2.csv");
+        Path hiddenDir3 = buildPath("base", ".hidden", "data1.csv");
+
+        // Create mocks
+        FileStatus baseStatus = createMockFileStatus(basePath, true);
+        FileStatus partitionStatus1 = createMockFileStatus(partitionPath1, true);
+        FileStatus partitionStatus2 = createMockFileStatus(partitionPath2, true);
+        FileStatus validFileStatus = createMockFileStatus(validFile, false);
+        FileStatus hiddenDirStatus1 = createMockFileStatus(hiddenDir1, true);
+        FileStatus hiddenDirStatus2 = createMockFileStatus(hiddenDir2, false);
+        FileStatus hiddenDirStatus3 = createMockFileStatus(hiddenDir3, false);
+
+        // Mock file system structure
+        when(mockFileSystem.getFileStatus(basePath)).thenReturn(baseStatus);
+        when(mockFileSystem.getFileStatus(partitionPath1)).thenReturn(partitionStatus1);
+        when(mockFileSystem.getFileStatus(partitionPath2)).thenReturn(partitionStatus2);
+        when(mockFileSystem.getFileStatus(validFile)).thenReturn(validFileStatus);
+        when(mockFileSystem.getFileStatus(hiddenDir1)).thenReturn(hiddenDirStatus1);
+        when(mockFileSystem.getFileStatus(hiddenDir2)).thenReturn(hiddenDirStatus2);
+        when(mockFileSystem.getFileStatus(hiddenDir3)).thenReturn(hiddenDirStatus3);
+
+        when(mockFileSystem.listStatus(basePath))
+                .thenReturn(new FileStatus[] {partitionStatus1, hiddenDirStatus1});
+        when(mockFileSystem.listStatus(partitionPath1))
+                .thenReturn(new FileStatus[] {partitionStatus2});
+        when(mockFileSystem.listStatus(partitionPath2))
+                .thenReturn(new FileStatus[] {validFileStatus});
+        when(mockFileSystem.listStatus(hiddenDir1))
+                .thenReturn(new FileStatus[] {hiddenDirStatus2, hiddenDirStatus3});
+
+        List<Tuple2<LinkedHashMap<String, String>, Path>> result =
+                PartitionPathUtils.searchPartSpecAndPaths(mockFileSystem, basePath, 2);
+
+        // Should only find the valid partition path, hidden files and directories should be filtered out
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).f0).containsEntry("dt", "2023");
+        assertThat(result.get(0).f0).containsEntry("hr", "01");
+        assertThat(result.get(0).f1).isEqualTo(partitionPath2);
+    }
 }
