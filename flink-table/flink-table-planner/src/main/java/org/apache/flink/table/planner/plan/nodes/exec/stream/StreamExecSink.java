@@ -29,7 +29,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.RowtimeInserter;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.SinkUpsertMaterializeStrategy;
-import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.data.RowData;
@@ -105,6 +104,27 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
         },
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
+// Version 2: Fixed the data type used for creating constraint enforcer and sink upsert
+// materializer. Since this version the sink works correctly with persisted metadata columns.
+@ExecNodeMetadata(
+        name = "stream-exec-sink",
+        version = 2,
+        consumedOptions = {
+            "table.exec.sink.not-null-enforcer",
+            "table.exec.sink.type-length-enforcer",
+            "table.exec.sink.upsert-materialize",
+            "table.exec.sink.keyed-shuffle",
+            "table.exec.sink.rowtime-inserter"
+        },
+        producedTransformations = {
+            CommonExecSink.CONSTRAINT_VALIDATOR_TRANSFORMATION,
+            CommonExecSink.PARTITIONER_TRANSFORMATION,
+            CommonExecSink.UPSERT_MATERIALIZE_TRANSFORMATION,
+            CommonExecSink.TIMESTAMP_INSERTER_TRANSFORMATION,
+            CommonExecSink.SINK_TRANSFORMATION
+        },
+        minPlanVersion = FlinkVersion.v2_3,
+        minStateVersion = FlinkVersion.v2_3)
 public class StreamExecSink extends CommonExecSink implements StreamExecNode<Object> {
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecSink.class);
 
@@ -332,11 +352,6 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
         return materializeTransform;
     }
 
-    @Override
-    protected RowType getPersistedRowType(ResolvedSchema schema) {
-        return toPersistedRowType(schema);
-    }
-
     private OneInputStreamOperator<RowData, RowData> createSumOperator(
             ExecNodeConfig config,
             RowType physicalRowType,
@@ -396,5 +411,10 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             default:
                 throw new IllegalArgumentException("Unsupported strategy: " + strategy);
         }
+    }
+
+    @Override
+    protected final boolean legacyPhysicalTypeEnabled() {
+        return getVersion() == 1;
     }
 }

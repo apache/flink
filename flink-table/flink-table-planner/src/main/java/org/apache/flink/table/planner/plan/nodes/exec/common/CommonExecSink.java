@@ -36,10 +36,8 @@ import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.TransformationWithLineage;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.ParallelismProvider;
@@ -54,6 +52,7 @@ import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelDelete;
 import org.apache.flink.table.connector.sink.abilities.SupportsRowLevelUpdate;
 import org.apache.flink.table.connector.sink.legacy.SinkFunctionProvider;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.connectors.DynamicSinkUtils;
 import org.apache.flink.table.planner.lineage.TableLineageUtils;
 import org.apache.flink.table.planner.lineage.TableSinkLineageVertex;
 import org.apache.flink.table.planner.lineage.TableSinkLineageVertexImpl;
@@ -80,19 +79,16 @@ import org.apache.flink.table.runtime.operators.sink.constraint.ConstraintEnforc
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * Base {@link ExecNode} to write data to an external sink defined by a {@link DynamicTableSink}.
@@ -156,7 +152,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                 tableSink.getSinkRuntimeProvider(
                         new SinkRuntimeProviderContext(
                                 isBounded, tableSinkSpec.getTargetColumns()));
-        final RowType persistedRowType = getPersistedRowType(schema);
+        final RowType persistedRowType = getPersistedRowType(schema, tableSink);
         final int[] primaryKeys = getPrimaryKeyIndices(persistedRowType, schema);
         final int sinkParallelism = deriveSinkParallelism(inputTransform, runtimeProvider);
         sinkParallelismConfigured = isParallelismConfigured(runtimeProvider);
@@ -550,35 +546,16 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                 .orElse(new int[0]);
     }
 
-    protected abstract RowType getPersistedRowType(ResolvedSchema schema);
-
     /**
      * The method recreates the type of the incoming record from the sink's schema. It puts the
      * physical columns first, followed by persisted metadata columns.
      */
-    protected final RowType toPersistedRowType(ResolvedSchema schema) {
-        final List<Column> physicalColumns = new ArrayList<>();
-        final List<Column> persistedMetadataColumns = new ArrayList<>();
-        for (Column column : schema.getColumns()) {
-            if (column.isPersisted()) {
-                if (column.isPhysical()) {
-                    physicalColumns.add(column);
-                } else {
-                    persistedMetadataColumns.add(column);
-                }
-            }
+    protected RowType getPersistedRowType(ResolvedSchema schema, DynamicTableSink sink) {
+        if (legacyPhysicalTypeEnabled()) {
+            return (RowType) schema.toPhysicalRowDataType().getLogicalType();
+        } else {
+            return DynamicSinkUtils.createConsumedType(schema, sink);
         }
-        return (RowType)
-                Stream.concat(physicalColumns.stream(), persistedMetadataColumns.stream())
-                        .map(
-                                c ->
-                                        DataTypes.FIELD(
-                                                c.getName(),
-                                                DataTypeUtils.removeTimeAttribute(c.getDataType())))
-                        .collect(Collectors.collectingAndThen(Collectors.toList(), DataTypes::ROW))
-                        // the row should never be null
-                        .notNull()
-                        .getLogicalType();
     }
 
     /**
@@ -606,4 +583,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         }
         return Optional.empty();
     }
+
+    protected abstract boolean legacyPhysicalTypeEnabled();
 }

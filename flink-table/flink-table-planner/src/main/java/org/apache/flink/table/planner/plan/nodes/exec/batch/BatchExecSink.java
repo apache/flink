@@ -65,6 +65,22 @@ import java.util.List;
         },
         minPlanVersion = FlinkVersion.v2_0,
         minStateVersion = FlinkVersion.v2_0)
+// Version 2: Fixed the data type used for creating constraint enforcer and sink upsert
+// materializer. Since this version the sink works correctly with persisted metadata columns.
+@ExecNodeMetadata(
+        name = "batch-exec-sink",
+        version = 2,
+        consumedOptions = {
+            "table.exec.sink.not-null-enforcer",
+            "table.exec.sink.type-length-enforcer",
+        },
+        producedTransformations = {
+            CommonExecSink.CONSTRAINT_VALIDATOR_TRANSFORMATION,
+            CommonExecSink.PARTITIONER_TRANSFORMATION,
+            CommonExecSink.SINK_TRANSFORMATION
+        },
+        minPlanVersion = FlinkVersion.v2_3,
+        minStateVersion = FlinkVersion.v2_3)
 public class BatchExecSink extends CommonExecSink implements BatchExecNode<Object> {
     public BatchExecSink(
             ReadableConfig tableConfig,
@@ -124,7 +140,7 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
     }
 
     @Override
-    protected final RowType getPersistedRowType(ResolvedSchema schema) {
+    protected final RowType getPersistedRowType(ResolvedSchema schema, DynamicTableSink tableSink) {
         // row-level modification may only write partial columns,
         // so we try to prune the RowType to get the real RowType containing
         // the physical columns to be written
@@ -133,15 +149,19 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
                 if (sinkAbilitySpec instanceof RowLevelUpdateSpec) {
                     RowLevelUpdateSpec rowLevelUpdateSpec = (RowLevelUpdateSpec) sinkAbilitySpec;
                     return getPersistedRowType(
-                            schema, rowLevelUpdateSpec.getRequiredPhysicalColumnIndices());
+                            schema,
+                            rowLevelUpdateSpec.getRequiredPhysicalColumnIndices(),
+                            tableSink);
                 } else if (sinkAbilitySpec instanceof RowLevelDeleteSpec) {
                     RowLevelDeleteSpec rowLevelDeleteSpec = (RowLevelDeleteSpec) sinkAbilitySpec;
                     return getPersistedRowType(
-                            schema, rowLevelDeleteSpec.getRequiredPhysicalColumnIndices());
+                            schema,
+                            rowLevelDeleteSpec.getRequiredPhysicalColumnIndices(),
+                            tableSink);
                 }
             }
         }
-        return toPersistedRowType(schema);
+        return super.getPersistedRowType(schema, tableSink);
     }
 
     @Override
@@ -183,12 +203,18 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
     }
 
     /** Get the physical row type with given column indices. */
-    private RowType getPersistedRowType(ResolvedSchema schema, int[] columnIndices) {
+    private RowType getPersistedRowType(
+            ResolvedSchema schema, int[] columnIndices, DynamicTableSink sink) {
         List<Column> columns = schema.getColumns();
         List<Column> requireColumns = new ArrayList<>();
         for (int columnIndex : columnIndices) {
             requireColumns.add(columns.get(columnIndex));
         }
-        return toPersistedRowType(ResolvedSchema.of(requireColumns));
+        return super.getPersistedRowType(ResolvedSchema.of(requireColumns), sink);
+    }
+
+    @Override
+    protected final boolean legacyPhysicalTypeEnabled() {
+        return getVersion() == 1;
     }
 }
