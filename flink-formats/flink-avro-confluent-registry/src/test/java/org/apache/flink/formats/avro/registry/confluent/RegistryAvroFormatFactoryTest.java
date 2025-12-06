@@ -96,6 +96,7 @@ class RegistryAvroFormatFactoryTest {
                     + "        }\n"
                     + "    ]\n"
                     + "}";
+    private static final String TOKEN_ENDPOINT_URL = "http://localhost:8080/token";
 
     private static final Map<String, String> EXPECTED_OPTIONAL_PROPERTIES = new HashMap<>();
 
@@ -109,6 +110,9 @@ class RegistryAvroFormatFactoryTest {
         EXPECTED_OPTIONAL_PROPERTIES.put("basic.auth.credentials.source", "USER_INFO");
         EXPECTED_OPTIONAL_PROPERTIES.put("basic.auth.user.info", "user:pwd");
         EXPECTED_OPTIONAL_PROPERTIES.put("bearer.auth.token", "CUSTOM");
+        EXPECTED_OPTIONAL_PROPERTIES.put("sasl.oauthbearer.token.endpoint.url", TOKEN_ENDPOINT_URL);
+        EXPECTED_OPTIONAL_PROPERTIES.put("sasl.jaas.config", "custom.jaas.config");
+        EXPECTED_OPTIONAL_PROPERTIES.put("bearer.auth.logical.cluster", "test-cluster");
     }
 
     @Test
@@ -271,6 +275,9 @@ class RegistryAvroFormatFactoryTest {
         properties.put(AvroConfluentFormatOptions.BASIC_AUTH_USER_INFO.key(), "user:pwd");
         // defined via general property map
         properties.put("properties.bearer.auth.token", "CUSTOM");
+        properties.put(AvroConfluentFormatOptions.TOKEN_ENDPOINT_URL.key(), TOKEN_ENDPOINT_URL);
+        properties.put(AvroConfluentFormatOptions.SASL_JAAS_CONFIG.key(), "custom.jaas.config");
+        properties.put(AvroConfluentFormatOptions.LOGICAL_CLUSTER.key(), "test-cluster");
         properties.put("schema", SCHEMA_STRING);
 
         return getModifiedOptions(
