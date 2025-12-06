@@ -236,28 +236,32 @@ public class S3ClientProvider implements AutoCloseableAsync {
                     disableCertCheck = true;
                 }
                 if (region == null || region.isEmpty()) {
-                    throw new IllegalArgumentException("Region is required for AWS S3");
+                    region = "us-east-1";
+                    LOG.debug(
+                            "Setting default region to us-east-1 for S3-compatible storage (required by AWS SDK)");
                 }
             }
 
             Region awsRegion;
             if (region != null && !region.isEmpty()) {
                 awsRegion = Region.of(region);
+                LOG.debug("Using explicitly configured region: {}", region);
+            } else if (!isS3Compatible) {
                 try {
                     awsRegion = DefaultAwsRegionProviderChain.builder().build().getRegion();
                     LOG.info(
                             "Automatically detected AWS region: {} (via DefaultAwsRegionProviderChain)",
                             awsRegion.id());
                 } catch (Exception e) {
-                    LOG.error(
+                    awsRegion = Region.US_EAST_1;
+                    LOG.warn(
                             "Failed to automatically detect AWS region, falling back to us-east-1. "
                                     + "Consider setting the s3.region configuration or AWS_REGION environment variable. "
                                     + "Error: {}",
                             e.getMessage());
-                    throw new IllegalArgumentException("Region is required for AWS S3");
                 }
             } else {
-                throw new IllegalArgumentException("Region is required for AWS S3");
+                awsRegion = Region.US_EAST_1;
             }
 
             LOG.info(
