@@ -32,7 +32,7 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<presto.version>0.272</presto.version>
+		<presto.version>0.295</presto.version>
 		<surefire.module.config> <!--
 			S5CmdOnPrestoS3FileSystemITCase uses ArraysAsListSerializer indirectly
 			-->--add-opens=java.base/java.util=ALL-UNNAMED
@@ -562,6 +562,9 @@ under the License.
 										<exclude>mime.types</exclude>
 										<exclude>mozilla/**</exclude>
 										<exclude>META-INF/LICENSE.txt</exclude>
+										<!-- flink-s3-fs-presto-2.2 jar contains LICENSE files in the root folder -->
+										<exclude>LICENSE.txt</exclude>
+										<exclude>LICENSE</exclude>
 									</excludes>
 								</filter>
 								<filter>
