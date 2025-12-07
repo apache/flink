@@ -351,4 +351,88 @@ class NativeS3FileSystemFactoryTest {
             assertThat(e.getMessage()).contains("AWS region could not be determined");
         }
     }
+
+    @Test
+    void testS3ASchemeReturnsS3A() {
+        NativeS3AFileSystemFactory factory = new NativeS3AFileSystemFactory();
+        assertThat(factory.getScheme()).isEqualTo("s3a");
+    }
+
+    @Test
+    void testS3ACreateFileSystemWithMinimalConfiguration() throws Exception {
+        NativeS3AFileSystemFactory factory = new NativeS3AFileSystemFactory();
+        Configuration config = new Configuration();
+        config.setString("s3.access-key", "test-access-key");
+        config.setString("s3.secret-key", "test-secret-key");
+        config.setString("s3.region", "us-east-1");
+        config.setString("io.tmp.dirs", System.getProperty("java.io.tmpdir"));
+
+        factory.configure(config);
+
+        URI fsUri = URI.create("s3a://test-bucket/");
+        FileSystem fs = factory.create(fsUri);
+
+        assertThat(fs).isNotNull();
+        assertThat(fs).isInstanceOf(NativeS3FileSystem.class);
+    }
+
+    @Test
+    void testS3ACreateFileSystemWithCustomEndpoint() throws Exception {
+        NativeS3AFileSystemFactory factory = new NativeS3AFileSystemFactory();
+        Configuration config = new Configuration();
+        config.setString("s3.access-key", "test-access-key");
+        config.setString("s3.secret-key", "test-secret-key");
+        config.setString("s3.endpoint", "http://localhost:9000");
+        config.setString("s3.region", "us-east-1");
+        config.setString("io.tmp.dirs", System.getProperty("java.io.tmpdir"));
+
+        factory.configure(config);
+
+        URI fsUri = URI.create("s3a://test-bucket/path/to/file");
+        FileSystem fs = factory.create(fsUri);
+
+        assertThat(fs).isNotNull();
+        assertThat(fs).isInstanceOf(NativeS3FileSystem.class);
+    }
+
+    @Test
+    void testS3AInheritsAllS3Configuration() throws Exception {
+        NativeS3AFileSystemFactory factory = new NativeS3AFileSystemFactory();
+        Configuration config = new Configuration();
+        config.setString("s3.access-key", "test-access-key");
+        config.setString("s3.secret-key", "test-secret-key");
+        config.setString("s3.region", "eu-west-1");
+        config.setString("s3.entropy.key", "__ENTROPY__");
+        config.set(NativeS3FileSystemFactory.ENTROPY_INJECT_LENGTH_OPTION, 6);
+        config.set(NativeS3FileSystemFactory.BULK_COPY_ENABLED, true);
+        config.set(NativeS3FileSystemFactory.USE_ASYNC_OPERATIONS, true);
+        config.setString("io.tmp.dirs", System.getProperty("java.io.tmpdir"));
+
+        factory.configure(config);
+
+        URI fsUri = URI.create("s3a://test-bucket/");
+        FileSystem fs = factory.create(fsUri);
+
+        assertThat(fs).isNotNull();
+        assertThat(fs).isInstanceOf(NativeS3FileSystem.class);
+    }
+
+    @Test
+    void testS3AWithSSEConfiguration() throws Exception {
+        NativeS3AFileSystemFactory factory = new NativeS3AFileSystemFactory();
+        Configuration config = new Configuration();
+        config.setString("s3.access-key", "test-access-key");
+        config.setString("s3.secret-key", "test-secret-key");
+        config.setString("s3.region", "us-east-1");
+        config.setString("s3.sse.type", "sse-s3");
+        config.setString("io.tmp.dirs", System.getProperty("java.io.tmpdir"));
+
+        factory.configure(config);
+
+        URI fsUri = URI.create("s3a://test-bucket/");
+        FileSystem fs = factory.create(fsUri);
+
+        assertThat(fs).isNotNull();
+        assertThat(fs).isInstanceOf(NativeS3FileSystem.class);
+    }
 }

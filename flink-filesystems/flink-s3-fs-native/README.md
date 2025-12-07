@@ -6,6 +6,27 @@ This module provides a native S3 filesystem implementation for Apache Flink usin
 
 The Native S3 FileSystem is a direct implementation of Flink's FileSystem interface using AWS SDK v2, without Hadoop dependencies. It provides exactly-once semantics for checkpointing and file sinks through S3 multipart uploads.
 
+## Supported URI Schemes
+
+This module supports both `s3://` and `s3a://` URI schemes:
+
+| Scheme | Description |
+|--------|-------------|
+| `s3://` | Primary scheme for native S3 filesystem |
+| `s3a://` | Hadoop S3A compatibility scheme - allows drop-in replacement for existing Hadoop-based configurations |
+
+Both schemes use the same native AWS SDK v2 implementation and share identical configuration options.
+
+**Example usage with either scheme:**
+
+```java
+// Using s3:// scheme
+env.getCheckpointConfig().setCheckpointStorage("s3://my-bucket/checkpoints");
+
+// Using s3a:// scheme (for Hadoop compatibility)
+env.getCheckpointConfig().setCheckpointStorage("s3a://my-bucket/checkpoints");
+```
+
 ## Usage
 
 Add this module to Flink's plugins directory:

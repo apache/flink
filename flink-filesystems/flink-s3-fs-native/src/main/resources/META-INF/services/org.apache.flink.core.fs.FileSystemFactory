@@ -14,4 +14,4 @@
 # limitations under the License.
 
 org.apache.flink.fs.s3native.NativeS3FileSystemFactory
-
+org.apache.flink.fs.s3native.NativeS3AFileSystemFactory
