@@ -18,37 +18,32 @@
 
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, Subject } from 'rxjs';
-import { mergeMap, share, takeUntil } from 'rxjs/operators';
+import { Observable, shareReplay, Subject } from 'rxjs';
+import { map, takeUntil } from 'rxjs/operators';
 
-import { ApplicationListComponent } from '@flink-runtime-web/components/application-list/application-list.component';
-import { ApplicationItem } from '@flink-runtime-web/interfaces';
-import { OverviewStatisticComponent } from '@flink-runtime-web/pages/overview/statistic/overview-statistic.component';
-import { ApplicationService, StatusService } from '@flink-runtime-web/services';
+import { JobListComponent } from '@flink-runtime-web/components/job-list/job-list.component';
+import { JobsItem } from '@flink-runtime-web/interfaces';
+import { ApplicationLocalService } from '@flink-runtime-web/pages/application/application-local.service';
 
 @Component({
-  selector: 'flink-overview',
-  templateUrl: './overview.component.html',
-  styleUrls: ['./overview.component.less'],
+  selector: 'application-overview',
+  templateUrl: './application-overview.component.html',
+  styleUrls: ['./application-overview.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [OverviewStatisticComponent, ApplicationListComponent]
+  imports: [JobListComponent]
 })
-export class OverviewComponent implements OnInit, OnDestroy {
-  public applicationData$: Observable<ApplicationItem[]>;
+export class ApplicationOverviewComponent implements OnInit, OnDestroy {
+  public jobData$: Observable<JobsItem[]>;
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(
-    private readonly statusService: StatusService,
-    private readonly applicationService: ApplicationService,
-    private router: Router
-  ) {}
+  constructor(private readonly applicationLocalService: ApplicationLocalService, private router: Router) {}
 
   public ngOnInit(): void {
-    this.applicationData$ = this.statusService.refresh$.pipe(
+    this.jobData$ = this.applicationLocalService.applicationDetailChanges().pipe(
       takeUntil(this.destroy$),
-      mergeMap(() => this.applicationService.loadApplications()),
-      share()
+      map(data => data.jobs),
+      shareReplay({ bufferSize: 1, refCount: true })
     );
   }
 
@@ -57,7 +52,7 @@ export class OverviewComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  public navigateToApplication(commands: string[]): void {
+  public navigateToJob(commands: string[]): void {
     this.router.navigate(commands).then();
   }
 }

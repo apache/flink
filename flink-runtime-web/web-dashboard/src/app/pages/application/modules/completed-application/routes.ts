@@ -16,22 +16,23 @@
  * limitations under the License.
  */
 
-export * from './configuration';
-export * from './jar';
-export * from './job-overview';
-export * from './job-detail';
-export * from './job-exception';
-export * from './job-timeline';
-export * from './job-config';
-export * from './job-vertex';
-export * from './job-checkpoint';
-export * from './job-backpressure';
-export * from './job-flamegraph';
-export * from './plan';
-export * from './overview';
-export * from './task-manager';
-export * from './job-accumulators';
-export * from './job-manager';
-export * from './job-metrics';
-export * from './application-overview';
-export * from './application-detail';
+import { Routes } from '@angular/router';
+
+import { ApplicationDetailComponent } from '@flink-runtime-web/pages/application/application-detail/application-detail.component';
+
+export const COMPLETED_APPLICATION_ROUES: Routes = [
+  {
+    path: '',
+    component: ApplicationDetailComponent,
+    children: [
+      {
+        path: 'overview',
+        loadChildren: () => import('../../overview/routes').then(m => m.APPLICATION_OVERVIEW_ROUTES),
+        data: {
+          path: 'overview'
+        }
+      },
+      { path: '**', redirectTo: 'overview', pathMatch: 'full' }
+    ]
+  }
+];

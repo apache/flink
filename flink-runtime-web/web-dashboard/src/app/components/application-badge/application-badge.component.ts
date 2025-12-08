@@ -16,22 +16,22 @@
  * limitations under the License.
  */
 
-export * from './configuration';
-export * from './jar';
-export * from './job-overview';
-export * from './job-detail';
-export * from './job-exception';
-export * from './job-timeline';
-export * from './job-config';
-export * from './job-vertex';
-export * from './job-checkpoint';
-export * from './job-backpressure';
-export * from './job-flamegraph';
-export * from './plan';
-export * from './overview';
-export * from './task-manager';
-export * from './job-accumulators';
-export * from './job-manager';
-export * from './job-metrics';
-export * from './application-overview';
-export * from './application-detail';
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+
+import { ColorKey, ConfigService } from '@flink-runtime-web/services';
+
+@Component({
+  selector: 'flink-application-badge',
+  templateUrl: './application-badge.component.html',
+  styleUrls: ['./application-badge.component.less'],
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class ApplicationBadgeComponent {
+  @Input() public status: string;
+
+  constructor(private readonly configService: ConfigService) {}
+
+  public backgroundColor(status: string): string {
+    return this.configService.COLOR_MAP[status as ColorKey];
+  }
+}

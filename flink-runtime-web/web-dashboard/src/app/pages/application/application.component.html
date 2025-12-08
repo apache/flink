@@ -16,16 +16,14 @@
   ~ limitations under the License.
   -->
 
-<flink-overview-statistic></flink-overview-statistic>
-<flink-application-list
-  [applicationData$]="applicationData$"
-  [title]="'Running Application List'"
-  [completed]="false"
-  (navigate)="navigateToApplication(['application', 'running', $event.id])"
-></flink-application-list>
-<flink-application-list
-  [applicationData$]="applicationData$"
-  [title]="'Completed Application List'"
-  [completed]="true"
-  (navigate)="navigateToApplication(['application', 'completed', $event.id])"
-></flink-application-list>
+<ng-container *ngIf="!applicationIdSelected; else applicationTemplate">
+  <flink-application-list
+    [completed]="isCompleted"
+    [title]="cardTitle"
+    (navigate)="navigateToApplication($event)"
+  ></flink-application-list>
+</ng-container>
+
+<ng-template #applicationTemplate>
+  <router-outlet></router-outlet>
+</ng-template>

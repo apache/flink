@@ -16,16 +16,15 @@
   ~ limitations under the License.
   -->
 
-<flink-overview-statistic></flink-overview-statistic>
-<flink-application-list
-  [applicationData$]="applicationData$"
-  [title]="'Running Application List'"
+<flink-job-list
+  [jobData$]="jobData$"
+  [title]="'Running Job List'"
   [completed]="false"
-  (navigate)="navigateToApplication(['application', 'running', $event.id])"
-></flink-application-list>
-<flink-application-list
-  [applicationData$]="applicationData$"
-  [title]="'Completed Application List'"
+  (navigate)="navigateToJob(['job', 'running', $event.jid])"
+></flink-job-list>
+<flink-job-list
+  [jobData$]="jobData$"
+  [title]="'Completed Job List'"
   [completed]="true"
-  (navigate)="navigateToApplication(['application', 'completed', $event.id])"
-></flink-application-list>
+  (navigate)="navigateToJob(['job', 'completed', $event.jid])"
+></flink-job-list>

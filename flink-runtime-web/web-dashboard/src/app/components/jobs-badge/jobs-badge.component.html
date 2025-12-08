@@ -16,16 +16,15 @@
   ~ limitations under the License.
   -->
 
-<flink-overview-statistic></flink-overview-statistic>
-<flink-application-list
-  [applicationData$]="applicationData$"
-  [title]="'Running Application List'"
-  [completed]="false"
-  (navigate)="navigateToApplication(['application', 'running', $event.id])"
-></flink-application-list>
-<flink-application-list
-  [applicationData$]="applicationData$"
-  [title]="'Completed Application List'"
-  [completed]="true"
-  (navigate)="navigateToApplication(['application', 'completed', $event.id])"
-></flink-application-list>
+<div class="background" *ngIf="jobs">
+  <ng-container *ngFor="let status of statusList">
+    <span
+      *ngIf="jobs[status]"
+      nz-tooltip
+      [nzTooltipTitle]="status"
+      [style.background]="colorMap[status]"
+    >
+      {{ jobs[status] }}
+    </span>
+  </ng-container>
+</div>
