@@ -16,22 +16,21 @@
  * limitations under the License.
  */
 
-export * from './configuration';
-export * from './jar';
-export * from './job-overview';
-export * from './job-detail';
-export * from './job-exception';
-export * from './job-timeline';
-export * from './job-config';
-export * from './job-vertex';
-export * from './job-checkpoint';
-export * from './job-backpressure';
-export * from './job-flamegraph';
-export * from './plan';
-export * from './overview';
-export * from './task-manager';
-export * from './job-accumulators';
-export * from './job-manager';
-export * from './job-metrics';
-export * from './application-overview';
-export * from './application-detail';
+import { Injectable } from '@angular/core';
+import { Observable, ReplaySubject } from 'rxjs';
+
+import { ApplicationDetail } from '@flink-runtime-web/interfaces';
+
+@Injectable()
+export class ApplicationLocalService {
+  /** Current activated job. */
+  private readonly applicationDetail$ = new ReplaySubject<ApplicationDetail>(1);
+
+  applicationDetailChanges(): Observable<ApplicationDetail> {
+    return this.applicationDetail$.asObservable();
+  }
+
+  setApplicationDetail(applicationDetail: ApplicationDetail): void {
+    this.applicationDetail$.next(applicationDetail);
+  }
+}

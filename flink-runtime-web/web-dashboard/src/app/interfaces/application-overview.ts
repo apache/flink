@@ -16,22 +16,32 @@
  * limitations under the License.
  */
 
-export * from './configuration';
-export * from './jar';
-export * from './job-overview';
-export * from './job-detail';
-export * from './job-exception';
-export * from './job-timeline';
-export * from './job-config';
-export * from './job-vertex';
-export * from './job-checkpoint';
-export * from './job-backpressure';
-export * from './job-flamegraph';
-export * from './plan';
-export * from './overview';
-export * from './task-manager';
-export * from './job-accumulators';
-export * from './job-manager';
-export * from './job-metrics';
-export * from './application-overview';
-export * from './application-detail';
+export interface ApplicationOverview {
+  applications: ApplicationItem[];
+}
+
+export interface ApplicationItem {
+  id: string;
+  name: string;
+  status: string;
+  'start-time': number;
+  'end-time': number;
+  duration: number;
+  jobs: JobStatus;
+  completed?: boolean;
+}
+
+export interface JobStatus {
+  CANCELED: number;
+  CANCELING: number;
+  CREATED: number;
+  FAILED: number;
+  FAILING: number;
+  FINISHED: number;
+  RECONCILING: number;
+  RUNNING: number;
+  RESTARTING: number;
+  INITIALIZING: number;
+  SUSPENDED: number;
+  TOTAL: number;
+}

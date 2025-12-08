@@ -16,22 +16,26 @@
  * limitations under the License.
  */
 
-export * from './configuration';
-export * from './jar';
-export * from './job-overview';
-export * from './job-detail';
-export * from './job-exception';
-export * from './job-timeline';
-export * from './job-config';
-export * from './job-vertex';
-export * from './job-checkpoint';
-export * from './job-backpressure';
-export * from './job-flamegraph';
-export * from './plan';
-export * from './overview';
-export * from './task-manager';
-export * from './job-accumulators';
-export * from './job-manager';
-export * from './job-metrics';
-export * from './application-overview';
-export * from './application-detail';
+@import "theme";
+
+:host {
+  display: flex;
+  flex-direction: column;
+  margin: -24px -24px 0;
+  padding: 16px 32px 0;
+  border-bottom: 1px solid @border-color-split;
+  background: @component-background;
+
+  nz-descriptions {
+    margin-bottom: @margin-xs;
+  }
+
+  .operate-action {
+    font-size: 24px;
+  }
+
+  .status-wrapper {
+    display: flex;
+    align-items: center;
+  }
+}

@@ -16,22 +16,27 @@
  * limitations under the License.
  */
 
-export * from './configuration';
-export * from './jar';
-export * from './job-overview';
-export * from './job-detail';
-export * from './job-exception';
-export * from './job-timeline';
-export * from './job-config';
-export * from './job-vertex';
-export * from './job-checkpoint';
-export * from './job-backpressure';
-export * from './job-flamegraph';
-export * from './plan';
-export * from './overview';
-export * from './task-manager';
-export * from './job-accumulators';
-export * from './job-manager';
-export * from './job-metrics';
-export * from './application-overview';
-export * from './application-detail';
+import { JobStatus } from '@flink-runtime-web/interfaces/application-overview';
+import { JobsItem } from '@flink-runtime-web/interfaces/job-overview';
+
+interface TimestampsStatus {
+  FINISHED: number;
+  FAILING: number;
+  CREATED: number;
+  CANCELLING: number;
+  FAILED: number;
+  CANCELED: number;
+  RUNNING: number;
+}
+
+export interface ApplicationDetail {
+  id: string;
+  name: string;
+  status: string;
+  'start-time': number;
+  'end-time': number;
+  duration: number;
+  timestamps: TimestampsStatus;
+  jobs: JobsItem[];
+  'status-counts'?: JobStatus;
+}

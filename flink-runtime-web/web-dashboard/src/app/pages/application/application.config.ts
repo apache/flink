@@ -16,22 +16,17 @@
  * limitations under the License.
  */
 
-export * from './configuration';
-export * from './jar';
-export * from './job-overview';
-export * from './job-detail';
-export * from './job-exception';
-export * from './job-timeline';
-export * from './job-config';
-export * from './job-vertex';
-export * from './job-checkpoint';
-export * from './job-backpressure';
-export * from './job-flamegraph';
-export * from './plan';
-export * from './overview';
-export * from './task-manager';
-export * from './job-accumulators';
-export * from './job-manager';
-export * from './job-metrics';
-export * from './application-overview';
-export * from './application-detail';
+import { InjectionToken } from '@angular/core';
+
+import { ModuleConfig } from '@flink-runtime-web/core/module-config';
+
+export type ApplicationModuleConfig = Pick<ModuleConfig, 'routerTabs'>;
+
+export const APPLICATION_MODULE_DEFAULT_CONFIG: Required<ApplicationModuleConfig> = {
+  routerTabs: [{ title: 'Overview', path: 'overview' }]
+};
+
+export const APPLICATION_MODULE_CONFIG = new InjectionToken<ApplicationModuleConfig>('application-module-config', {
+  providedIn: 'root',
+  factory: () => APPLICATION_MODULE_DEFAULT_CONFIG
+});
