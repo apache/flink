@@ -33,7 +33,10 @@ import org.apache.flink.types.variant.VariantBuilder;
 
 import java.util.List;
 
+import static org.apache.flink.table.api.Expressions.$;
+
 /** Semantic tests for {@link DataTypes#VARIANT()} type. */
+@SuppressWarnings("checkstyle:LocalFinalVariableName")
 public class VariantSemanticTest extends SemanticTestBase {
 
     static final VariantBuilder BUILDER = Variant.newBuilder();
@@ -253,6 +256,185 @@ public class VariantSemanticTest extends SemanticTestBase {
                     .runSql("INSERT INTO sink_t SELECT k, SUM(v) AS total FROM t GROUP BY k")
                     .build();
 
+    static final TableTestProgram VARIANT_ARRAY_ACCESS_SQL;
+
+    static final TableTestProgram VARIANT_ARRAY_ACCESS_TABLE_API;
+
+    static final TableTestProgram VARIANT_OBJECT_ACCESS_SQL;
+
+    static final TableTestProgram VARIANT_OBJECT_ACCESS_TABLE_API;
+
+    static final TableTestProgram VARIANT_NESTED_ACCESS_SQL;
+
+    static final TableTestProgram VARIANT_NESTED_ACCESS_TABLE_API;
+
+    public static final SourceTestStep VARIANT_ARRAY_SOURCE =
+            SourceTestStep.newBuilder("t")
+                    .addSchema("v VARIANT")
+                    .producedValues(
+                            Row.of(
+                                    BUILDER.array()
+                                            .add(BUILDER.of(1))
+                                            .add(BUILDER.of("hello"))
+                                            .add(BUILDER.of(3.14))
+                                            .build()),
+                            Row.of(
+                                    BUILDER.array()
+                                            .add(BUILDER.of(10))
+                                            .add(BUILDER.of("world"))
+                                            .build()),
+                            new Row(1))
+                    .build();
+
+    public static final SinkTestStep VARIANT_ARRAY_SINK =
+            SinkTestStep.newBuilder("sink_t")
+                    .addSchema("v0 VARIANT", "v1 VARIANT", "v2 VARIANT")
+                    .consumedValues(
+                            Row.of(BUILDER.of(1), BUILDER.of("hello"), BUILDER.of(3.14)),
+                            Row.of(BUILDER.of(10), BUILDER.of("world"), null),
+                            new Row(3))
+                    .build();
+
+    public static final SourceTestStep VARIANT_OBJECT_SOURCE =
+            SourceTestStep.newBuilder("t")
+                    .addSchema("v VARIANT")
+                    .producedValues(
+                            Row.of(
+                                    BUILDER.object()
+                                            .add("name", BUILDER.of("Alice"))
+                                            .add("age", BUILDER.of(30))
+                                            .add("city", BUILDER.of("NYC"))
+                                            .build()),
+                            Row.of(
+                                    BUILDER.object()
+                                            .add("name", BUILDER.of("Bob"))
+                                            .add("age", BUILDER.of(25))
+                                            .build()),
+                            new Row(1))
+                    .build();
+
+    public static final SinkTestStep VARIANT_OBJECT_SINK =
+            SinkTestStep.newBuilder("sink_t")
+                    .addSchema("name VARIANT", "age VARIANT", "city VARIANT")
+                    .consumedValues(
+                            Row.of(BUILDER.of("Alice"), BUILDER.of(30), BUILDER.of("NYC")),
+                            Row.of(BUILDER.of("Bob"), BUILDER.of(25), null),
+                            new Row(3))
+                    .build();
+
+    public static final SourceTestStep VARIANT_NESTED_SOURCE =
+            SourceTestStep.newBuilder("t")
+                    .addSchema("v VARIANT")
+                    .producedValues(
+                            Row.of(
+                                    BUILDER.object()
+                                            .add(
+                                                    "users",
+                                                    BUILDER.array()
+                                                            .add(
+                                                                    BUILDER.object()
+                                                                            .add(
+                                                                                    "id",
+                                                                                    BUILDER.of(1))
+                                                                            .add(
+                                                                                    "name",
+                                                                                    BUILDER.of(
+                                                                                            "Alice"))
+                                                                            .build())
+                                                            .build())
+                                            .build()),
+                            new Row(1))
+                    .build();
+
+    public static final SinkTestStep VARIANT_NESTED_SINK =
+            SinkTestStep.newBuilder("sink_t")
+                    .addSchema("user_id VARIANT", "user_name VARIANT")
+                    .consumedValues(Row.of(BUILDER.of(1), BUILDER.of("Alice")), new Row(2))
+                    .build();
+
+    static {
+        VARIANT_ARRAY_ACCESS_SQL =
+                TableTestProgram.of(
+                                "variant-array-access-sql",
+                                "validates variant array access using [] operator")
+                        .setupTableSource(VARIANT_ARRAY_SOURCE)
+                        .setupTableSink(VARIANT_ARRAY_SINK)
+                        .runSql("INSERT INTO sink_t SELECT v[1], v[2], v[3] FROM t")
+                        .build();
+
+        VARIANT_ARRAY_ACCESS_TABLE_API =
+                TableTestProgram.of(
+                                "variant-array-access-table-api",
+                                "validates variant array access using Table API at()")
+                        .setupTableSource(VARIANT_ARRAY_SOURCE)
+                        .setupTableSink(VARIANT_ARRAY_SINK)
+                        .runTableApi(
+                                t ->
+                                        t.from("t")
+                                                .select(
+                                                        $("v").at(1).as("v0"),
+                                                        $("v").at(2).as("v1"),
+                                                        $("v").at(3).as("v2")),
+                                "sink_t")
+                        .build();
+
+        VARIANT_OBJECT_ACCESS_SQL =
+                TableTestProgram.of(
+                                "variant-object-access-sql",
+                                "validates variant object field access using [] operator")
+                        .setupTableSource(VARIANT_OBJECT_SOURCE)
+                        .setupTableSink(VARIANT_OBJECT_SINK)
+                        .runSql("INSERT INTO sink_t SELECT v['name'], v['age'], v['city'] FROM t")
+                        .build();
+
+        VARIANT_OBJECT_ACCESS_TABLE_API =
+                TableTestProgram.of(
+                                "variant-object-access-table-api",
+                                "validates variant object access using Table API at()")
+                        .setupTableSource(VARIANT_OBJECT_SOURCE)
+                        .setupTableSink(VARIANT_OBJECT_SINK)
+                        .runTableApi(
+                                t ->
+                                        t.from("t")
+                                                .select(
+                                                        $("v").at("name").as("name"),
+                                                        $("v").at("age").as("age"),
+                                                        $("v").at("city").as("city")),
+                                "sink_t")
+                        .build();
+
+        VARIANT_NESTED_ACCESS_SQL =
+                TableTestProgram.of(
+                                "variant-nested-access-sql",
+                                "validates variant nested access using [] operator")
+                        .setupTableSource(VARIANT_NESTED_SOURCE)
+                        .setupTableSink(VARIANT_NESTED_SINK)
+                        .runSql(
+                                "INSERT INTO sink_t SELECT v['users'][1]['id'], v['users'][1]['name'] FROM t")
+                        .build();
+
+        VARIANT_NESTED_ACCESS_TABLE_API =
+                TableTestProgram.of(
+                                "variant-nested-access-table-api",
+                                "validates variant nested access using Table API at()")
+                        .setupTableSource(VARIANT_NESTED_SOURCE)
+                        .setupTableSink(VARIANT_NESTED_SINK)
+                        .runTableApi(
+                                t ->
+                                        t.from("t")
+                                                .select(
+                                                        $("v").at("users")
+                                                                .at(1)
+                                                                .at("id")
+                                                                .as("user_id"),
+                                                        $("v").at("users")
+                                                                .at(1)
+                                                                .at("name")
+                                                                .as("user_name")),
+                                "sink_t")
+                        .build();
+    }
+
     @Override
     public List<TableTestProgram> programs() {
         return List.of(
@@ -264,7 +446,13 @@ public class VariantSemanticTest extends SemanticTestBase {
                 BUILTIN_AGG_WITH_RETRACTION,
                 VARIANT_AS_UDF_ARG,
                 VARIANT_AS_UDAF_ARG,
-                VARIANT_AS_AGG_KEY);
+                VARIANT_AS_AGG_KEY,
+                VARIANT_ARRAY_ACCESS_SQL,
+                VARIANT_ARRAY_ACCESS_TABLE_API,
+                VARIANT_OBJECT_ACCESS_SQL,
+                VARIANT_OBJECT_ACCESS_TABLE_API,
+                VARIANT_NESTED_ACCESS_SQL,
+                VARIANT_NESTED_ACCESS_TABLE_API);
     }
 
     public static class MyUdf extends ScalarFunction {
