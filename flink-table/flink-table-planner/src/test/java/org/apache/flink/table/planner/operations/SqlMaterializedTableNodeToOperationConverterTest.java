@@ -952,7 +952,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "  `c1` AS [CURRENT_TIMESTAMP],\n"
                                 + "  `a` BIGINT NOT NULL,\n"
                                 + "  `b` STRING,\n"
-                                + "  `topic` METADATA VIRTUAL COMMENT 'kafka topic',\n"
+                                + "  `topic` STRING METADATA VIRTUAL COMMENT 'kafka topic',\n"
                                 + "  `c` INT,\n"
                                 + "  `d` STRING,\n"
                                 + "  WATERMARK FOR `c1` AS [`c1` - INTERVAL '1' SECOND],\n"

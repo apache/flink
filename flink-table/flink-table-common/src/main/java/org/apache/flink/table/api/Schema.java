@@ -948,8 +948,7 @@ public final class Schema {
         @Override
         public String toString() {
             final StringBuilder sb = new StringBuilder();
-            sb.append(super.toString());
-            sb.append(" METADATA");
+            sb.append(String.format("%s %s METADATA", super.toString(), dataType.toString()));
             if (metadataKey != null) {
                 sb.append(" FROM '");
                 sb.append(EncodingUtils.escapeSingleQuotes(metadataKey));

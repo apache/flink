@@ -51,9 +51,9 @@ class SchemaTest(PyFlinkTestCase):
   `id` INT NOT NULL,
   `counter` INT NOT NULL,
   `payload` [ROW<name STRING, age INT, flag BOOLEAN>],
-  `topic` METADATA VIRTUAL,
+  `topic` STRING METADATA VIRTUAL,
   `ts` AS [orig_ts - INTERVAL '60' MINUTE],
-  `orig_ts` METADATA FROM 'timestamp',
+  `orig_ts` TIMESTAMP(3) METADATA FROM 'timestamp',
   `proctime` AS [PROCTIME()],
   WATERMARK FOR `ts` AS [ts - INTERVAL '5' SECOND],
   CONSTRAINT `primary_constraint` PRIMARY KEY (`id`) NOT ENFORCED
