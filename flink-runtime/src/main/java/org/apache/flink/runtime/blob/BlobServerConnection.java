@@ -96,6 +96,7 @@ class BlobServerConnection extends Thread {
         try {
             final InputStream inputStream = this.clientSocket.getInputStream();
             final OutputStream outputStream = this.clientSocket.getOutputStream();
+            byte[] buffer = null;
 
             while (true) {
                 // Read the requested operation
@@ -105,12 +106,16 @@ class BlobServerConnection extends Thread {
                     return;
                 }
 
+                if (buffer == null) {
+                    buffer = new byte[BUFFER_SIZE];
+                }
+
                 switch (operation) {
                     case PUT_OPERATION:
-                        put(inputStream, outputStream, new byte[BUFFER_SIZE]);
+                        put(inputStream, outputStream, buffer);
                         break;
                     case GET_OPERATION:
-                        get(inputStream, outputStream, new byte[BUFFER_SIZE]);
+                        get(inputStream, outputStream, buffer);
                         break;
                     default:
                         throw new IOException("Unknown operation " + operation);
