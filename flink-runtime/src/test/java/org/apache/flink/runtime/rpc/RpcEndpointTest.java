@@ -40,6 +40,8 @@ import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** Tests for the RpcEndpoint, its self gateways and MainThreadExecutor scheduling command. */
 class RpcEndpointTest {
@@ -467,6 +469,32 @@ class RpcEndpointTest {
             assertThat(throwable).isNotNull().isInstanceOf(TimeoutException.class);
         } finally {
             latch.countDown();
+            RpcUtils.terminateRpcEndpoint(endpoint);
+            endpoint.validateResourceClosed();
+        }
+    }
+
+    /** Test schedule task when the RPC is running. */
+    @Test
+    public void testScheduleTaskAfterStart() throws Exception {
+        final RpcEndpoint endpoint = new BaseEndpoint(rpcService);
+        final CompletableFuture<Void> taskCompletedFuture = new CompletableFuture<>();
+        try {
+            final Duration expectedDelay = Duration.ofSeconds(0);
+            ScheduledFuture<?> future =
+                    endpoint.getMainThreadExecutor()
+                            .schedule(
+                                    () -> taskCompletedFuture.complete(null),
+                                    expectedDelay.toMillis(),
+                                    TimeUnit.MILLISECONDS);
+            assertThrows(
+                    TimeoutException.class,
+                    () ->
+                            taskCompletedFuture.get(
+                                    expectedDelay.toMillis() + 3000L, TimeUnit.MILLISECONDS));
+            assertFalse(taskCompletedFuture.isDone());
+            assertFalse(future.isDone());
+        } finally {
             RpcUtils.terminateRpcEndpoint(endpoint);
             endpoint.validateResourceClosed();
         }
