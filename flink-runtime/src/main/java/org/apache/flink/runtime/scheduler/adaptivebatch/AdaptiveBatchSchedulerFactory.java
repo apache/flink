@@ -285,7 +285,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                         executionPlan,
                         jobRecoveryHandler instanceof DefaultBatchJobRecoveryHandler,
                         userCodeLoader,
-                        futureExecutor);
+                        futureExecutor,
+                        jobMasterConfiguration);
 
         return new AdaptiveBatchScheduler(
                 log,
