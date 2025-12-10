@@ -1724,23 +1724,27 @@ object ScalarOperatorGens {
       resultTerm: String,
       nullTerm: String): String = {
     s"""
-       |  if ($variantTerm instanceof $BINARY_VARIANT) {
-       |    $BINARY_VARIANT $binaryVariantTerm = ($BINARY_VARIANT) $variantTerm;
+       |  if ($variantTerm.isObject()){
+       |    if ($variantTerm instanceof $BINARY_VARIANT) {
+       |      $BINARY_VARIANT $binaryVariantTerm = ($BINARY_VARIANT) $variantTerm;
        |
-       |    String keyStr = null;
-       |    if ($keyTerm instanceof $BINARY_STRING) {
-       |      keyStr = (($BINARY_STRING) $keyTerm).toString();
-       |    } else {
-       |      keyStr = String.valueOf($keyTerm);
-       |    }
+       |      String keyStr = null;
+       |      if ($keyTerm instanceof $BINARY_STRING) {
+       |       keyStr = (($BINARY_STRING) $keyTerm).toString();
+       |      } else {
+       |       keyStr = String.valueOf($keyTerm);
+       |      }
        |
-       |    if (keyStr != null) {
-       |      $resultTerm = $binaryVariantTerm.getField(keyStr);
+       |      if (keyStr != null) {
+       |        $resultTerm = $binaryVariantTerm.getField(keyStr);
+       |      } else {
+       |        $nullTerm = true;
+       |      }
        |    } else {
-       |      $nullTerm = true;
+       |     $nullTerm = true;
        |    }
        |  } else {
-       |    $nullTerm = true;
+       |    throw new org.apache.flink.table.api.TableRuntimeException("String key access on variant requires an object variant, but a non-object variant was provided.");
        |  }
     """.stripMargin
   }
@@ -1752,12 +1756,17 @@ object ScalarOperatorGens {
       resultTerm: String,
       nullTerm: String): String = {
     s"""
-       |  if ($variantTerm instanceof $BINARY_VARIANT) {
-       |    $BINARY_VARIANT $binaryVariantTerm = ($BINARY_VARIANT) $variantTerm;
-       |    $resultTerm = $binaryVariantTerm.getElement((int)$keyTerm - 1);
+       |  if ($variantTerm.isArray()){
+       |    if ($variantTerm instanceof $BINARY_VARIANT) {
+       |      $BINARY_VARIANT $binaryVariantTerm = ($BINARY_VARIANT) $variantTerm;
+       |      $resultTerm = $binaryVariantTerm.getElement((int)$keyTerm - 1);
+       |    } else {
+       |      $nullTerm = true;
+       |    }
        |  } else {
-       |    $nullTerm = true;
+       |    throw new org.apache.flink.table.api.TableRuntimeException("Integer index access on variant requires an array variant, but a non-array variant was provided.");
        |  }
+       |
     """.stripMargin
   }
 

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableRuntimeException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.SemanticTestBase;
@@ -256,17 +257,15 @@ public class VariantSemanticTest extends SemanticTestBase {
                     .runSql("INSERT INTO sink_t SELECT k, SUM(v) AS total FROM t GROUP BY k")
                     .build();
 
-    static final TableTestProgram VARIANT_ARRAY_ACCESS_SQL;
+    static final TableTestProgram VARIANT_ARRAY_ACCESS;
 
-    static final TableTestProgram VARIANT_ARRAY_ACCESS_TABLE_API;
+    static final TableTestProgram VARIANT_OBJECT_ACCESS;
 
-    static final TableTestProgram VARIANT_OBJECT_ACCESS_SQL;
+    static final TableTestProgram VARIANT_NESTED_ACCESS;
 
-    static final TableTestProgram VARIANT_OBJECT_ACCESS_TABLE_API;
+    static final TableTestProgram VARIANT_ARRAY_ERROR_ACCESS;
 
-    static final TableTestProgram VARIANT_NESTED_ACCESS_SQL;
-
-    static final TableTestProgram VARIANT_NESTED_ACCESS_TABLE_API;
+    static final TableTestProgram VARIANT_OBJECT_ERROR_ACCESS;
 
     public static final SourceTestStep VARIANT_ARRAY_SOURCE =
             SourceTestStep.newBuilder("t")
@@ -288,7 +287,7 @@ public class VariantSemanticTest extends SemanticTestBase {
 
     public static final SinkTestStep VARIANT_ARRAY_SINK =
             SinkTestStep.newBuilder("sink_t")
-                    .addSchema("v0 VARIANT", "v1 VARIANT", "v2 VARIANT")
+                    .addSchema("v1 VARIANT", "v2 VARIANT", "v3 VARIANT")
                     .consumedValues(
                             Row.of(BUILDER.of(1), BUILDER.of("hello"), BUILDER.of(3.14)),
                             Row.of(BUILDER.of(10), BUILDER.of("world"), null),
@@ -353,46 +352,30 @@ public class VariantSemanticTest extends SemanticTestBase {
                     .build();
 
     static {
-        VARIANT_ARRAY_ACCESS_SQL =
+        VARIANT_ARRAY_ACCESS =
                 TableTestProgram.of(
-                                "variant-array-access-sql",
-                                "validates variant array access using [] operator")
+                                "variant-array-access",
+                                "validates variant array access using [] operator in sql and at() in table api")
                         .setupTableSource(VARIANT_ARRAY_SOURCE)
                         .setupTableSink(VARIANT_ARRAY_SINK)
                         .runSql("INSERT INTO sink_t SELECT v[1], v[2], v[3] FROM t")
-                        .build();
-
-        VARIANT_ARRAY_ACCESS_TABLE_API =
-                TableTestProgram.of(
-                                "variant-array-access-table-api",
-                                "validates variant array access using Table API at()")
-                        .setupTableSource(VARIANT_ARRAY_SOURCE)
-                        .setupTableSink(VARIANT_ARRAY_SINK)
                         .runTableApi(
                                 t ->
                                         t.from("t")
                                                 .select(
-                                                        $("v").at(1).as("v0"),
-                                                        $("v").at(2).as("v1"),
-                                                        $("v").at(3).as("v2")),
+                                                        $("v").at(1).as("v1"),
+                                                        $("v").at(2).as("v2"),
+                                                        $("v").at(3).as("v3")),
                                 "sink_t")
                         .build();
 
-        VARIANT_OBJECT_ACCESS_SQL =
+        VARIANT_OBJECT_ACCESS =
                 TableTestProgram.of(
-                                "variant-object-access-sql",
-                                "validates variant object field access using [] operator")
+                                "variant-object-access",
+                                "validates variant object field access using [] operator in sql and at() in table api")
                         .setupTableSource(VARIANT_OBJECT_SOURCE)
                         .setupTableSink(VARIANT_OBJECT_SINK)
                         .runSql("INSERT INTO sink_t SELECT v['name'], v['age'], v['city'] FROM t")
-                        .build();
-
-        VARIANT_OBJECT_ACCESS_TABLE_API =
-                TableTestProgram.of(
-                                "variant-object-access-table-api",
-                                "validates variant object access using Table API at()")
-                        .setupTableSource(VARIANT_OBJECT_SOURCE)
-                        .setupTableSink(VARIANT_OBJECT_SINK)
                         .runTableApi(
                                 t ->
                                         t.from("t")
@@ -403,22 +386,14 @@ public class VariantSemanticTest extends SemanticTestBase {
                                 "sink_t")
                         .build();
 
-        VARIANT_NESTED_ACCESS_SQL =
+        VARIANT_NESTED_ACCESS =
                 TableTestProgram.of(
-                                "variant-nested-access-sql",
-                                "validates variant nested access using [] operator")
+                                "variant-nested-access",
+                                "validates variant nested access using [] operator in sql and at() in table api")
                         .setupTableSource(VARIANT_NESTED_SOURCE)
                         .setupTableSink(VARIANT_NESTED_SINK)
                         .runSql(
                                 "INSERT INTO sink_t SELECT v['users'][1]['id'], v['users'][1]['name'] FROM t")
-                        .build();
-
-        VARIANT_NESTED_ACCESS_TABLE_API =
-                TableTestProgram.of(
-                                "variant-nested-access-table-api",
-                                "validates variant nested access using Table API at()")
-                        .setupTableSource(VARIANT_NESTED_SOURCE)
-                        .setupTableSink(VARIANT_NESTED_SINK)
                         .runTableApi(
                                 t ->
                                         t.from("t")
@@ -432,6 +407,42 @@ public class VariantSemanticTest extends SemanticTestBase {
                                                                 .at("name")
                                                                 .as("user_name")),
                                 "sink_t")
+                        .build();
+
+        VARIANT_ARRAY_ERROR_ACCESS =
+                TableTestProgram.of(
+                                "variant-array-error-access",
+                                "validates variant array access using [] operator in sql and at() in table api with string")
+                        .setupTableSource(VARIANT_ARRAY_SOURCE)
+                        .runFailingSql(
+                                "SELECT v['1'], v['2'], v['3'] FROM t",
+                                TableRuntimeException.class,
+                                "String key access on variant requires an object variant, but a non-object variant was provided.")
+                        .runFailingSql(
+                                "SELECT v[1.5], v[4.2], v[3.3] FROM t",
+                                ValidationException.class,
+                                "Cannot apply 'ITEM' to arguments of type 'ITEM(<VARIANT>, <DECIMAL(2, 1)>)'. Supported form(s): <ARRAY>[<INTEGER>]\n"
+                                        + "<MAP>[<ANY>]\n"
+                                        + "<ROW>[<CHARACTER>|<INTEGER>]\n"
+                                        + "<VARIANT>[<ANY>]")
+                        .build();
+
+        VARIANT_OBJECT_ERROR_ACCESS =
+                TableTestProgram.of(
+                                "variant-object-error-access",
+                                "validates variant object field access using [] operator in sql and at() in table api")
+                        .setupTableSource(VARIANT_OBJECT_SOURCE)
+                        .runFailingSql(
+                                "SELECT v[1], v[2], v[3] FROM t",
+                                TableRuntimeException.class,
+                                "Integer index access on variant requires an array variant, but a non-array variant was provided.")
+                        .runFailingSql(
+                                "SELECT v[1.5], v[4.2], v[3.3] FROM t",
+                                ValidationException.class,
+                                "Cannot apply 'ITEM' to arguments of type 'ITEM(<VARIANT>, <DECIMAL(2, 1)>)'. Supported form(s): <ARRAY>[<INTEGER>]\n"
+                                        + "<MAP>[<ANY>]\n"
+                                        + "<ROW>[<CHARACTER>|<INTEGER>]\n"
+                                        + "<VARIANT>[<ANY>]")
                         .build();
     }
 
@@ -447,12 +458,11 @@ public class VariantSemanticTest extends SemanticTestBase {
                 VARIANT_AS_UDF_ARG,
                 VARIANT_AS_UDAF_ARG,
                 VARIANT_AS_AGG_KEY,
-                VARIANT_ARRAY_ACCESS_SQL,
-                VARIANT_ARRAY_ACCESS_TABLE_API,
-                VARIANT_OBJECT_ACCESS_SQL,
-                VARIANT_OBJECT_ACCESS_TABLE_API,
-                VARIANT_NESTED_ACCESS_SQL,
-                VARIANT_NESTED_ACCESS_TABLE_API);
+                VARIANT_ARRAY_ACCESS,
+                VARIANT_OBJECT_ACCESS,
+                VARIANT_NESTED_ACCESS,
+                VARIANT_ARRAY_ERROR_ACCESS,
+                VARIANT_OBJECT_ERROR_ACCESS);
     }
 
     public static class MyUdf extends ScalarFunction {
