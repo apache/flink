@@ -23,7 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
-import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.resourceunit.ResourceUnitCount;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -83,7 +83,7 @@ public class TestingDeclarativeSlotPoolBuilder {
                     Collection<SlotOffer>>
             registerSlotsFunction =
                     (slotOffers, ignoredB, ignoredC, ignoredD) -> new ArrayList<>(slotOffers);
-    private Supplier<Map<ResourceID, LoadingWeight>> taskExecutorsLoadingWeightSupplier =
+    private Supplier<Map<ResourceID, ResourceUnitCount>> taskExecutorsLoadingWeightSupplier =
             HashMap::new;
 
     public TestingDeclarativeSlotPoolBuilder setIncreaseResourceRequirementsByConsumer(
