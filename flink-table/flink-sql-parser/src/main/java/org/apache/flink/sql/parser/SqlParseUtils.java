@@ -20,9 +20,11 @@ package org.apache.flink.sql.parser;
 
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 
+import org.apache.calcite.runtime.CalciteContextException;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
+import org.apache.calcite.sql.validate.SqlValidatorException;
 import org.apache.calcite.util.NlsString;
 
 import javax.annotation.Nullable;
@@ -87,7 +89,19 @@ public class SqlParseUtils {
         }
         return propList.getList().stream()
                 .map(p -> (SqlTableOption) p)
-                .collect(Collectors.toMap(k -> k.getKeyString(), SqlTableOption::getValueString));
+                .collect(
+                        Collectors.toMap(
+                                k -> k.getKeyString(),
+                                SqlTableOption::getValueString,
+                                (s, s2) -> {
+                                    throw new CalciteContextException(
+                                            "",
+                                            new SqlValidatorException(
+                                                    String.format(
+                                                            "Table option must be unique, there is a duplicate for key '%s'",
+                                                            s),
+                                                    null));
+                                }));
     }
 
     public static List<String> extractList(
