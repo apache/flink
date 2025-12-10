@@ -18,13 +18,13 @@
 
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, Subject } from 'rxjs';
-import { mergeMap, share, takeUntil } from 'rxjs/operators';
+import { combineLatest, Observable, Subject } from 'rxjs';
+import { map, mergeMap, share, takeUntil } from 'rxjs/operators';
 
 import { ApplicationListComponent } from '@flink-runtime-web/components/application-list/application-list.component';
-import { ApplicationItem } from '@flink-runtime-web/interfaces';
+import { ApplicationItem, OverviewWithApplicationStatistics } from '@flink-runtime-web/interfaces';
 import { OverviewStatisticComponent } from '@flink-runtime-web/pages/overview/statistic/overview-statistic.component';
-import { ApplicationService, StatusService } from '@flink-runtime-web/services';
+import { ApplicationService, OverviewService, StatusService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-overview',
@@ -35,19 +35,44 @@ import { ApplicationService, StatusService } from '@flink-runtime-web/services';
 })
 export class OverviewComponent implements OnInit, OnDestroy {
   public applicationData$: Observable<ApplicationItem[]>;
+  public statisticData$: Observable<OverviewWithApplicationStatistics>;
 
   private readonly destroy$ = new Subject<void>();
 
   constructor(
     private readonly statusService: StatusService,
     private readonly applicationService: ApplicationService,
+    private readonly overviewService: OverviewService,
     private router: Router
   ) {}
 
   public ngOnInit(): void {
-    this.applicationData$ = this.statusService.refresh$.pipe(
+    const applications$ = this.statusService.refresh$.pipe(
       takeUntil(this.destroy$),
       mergeMap(() => this.applicationService.loadApplications()),
+      share()
+    );
+
+    this.applicationData$ = applications$;
+    this.statisticData$ = this.statusService.refresh$.pipe(
+      takeUntil(this.destroy$),
+      mergeMap(() => combineLatest([this.overviewService.loadOverview(), applications$])),
+      map(([clusterOverview, applications]) => {
+        const applicationStats: OverviewWithApplicationStatistics = {
+          'applications-running': applications.filter(app => app.status === 'RUNNING').length,
+          'applications-finished': applications.filter(app => app.status === 'FINISHED').length,
+          'applications-cancelled': applications.filter(app => app.status === 'CANCELED').length,
+          'applications-failed': applications.filter(app => app.status === 'FAILED').length,
+          taskmanagers: clusterOverview['taskmanagers'],
+          'taskmanagers-blocked': clusterOverview['taskmanagers-blocked'],
+          'slots-total': clusterOverview['slots-total'],
+          'slots-available': clusterOverview['slots-available'],
+          'slots-free-and-blocked': clusterOverview['slots-free-and-blocked'],
+          'flink-version': clusterOverview['flink-version'],
+          'flink-commit': clusterOverview['flink-commit']
+        };
+        return applicationStats;
+      }),
       share()
     );
   }
