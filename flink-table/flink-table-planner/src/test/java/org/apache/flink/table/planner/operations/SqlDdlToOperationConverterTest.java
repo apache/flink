@@ -81,6 +81,7 @@ import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 import org.apache.flink.table.types.DataType;
 
+import org.apache.calcite.runtime.CalciteContextException;
 import org.apache.calcite.sql.SqlNode;
 import org.assertj.core.api.HamcrestCondition;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -120,10 +121,10 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
     @Test
     void testAlterCatalog() {
         // test alter catalog options
-        final String sql1 = "ALTER CATALOG cat2 SET ('K1' = 'V1', 'k2' = 'v2', 'k2' = 'v2_new')";
+        final String sql1 = "ALTER CATALOG cat2 SET ('K1' = 'V1', 'k2' = 'v2')";
         final Map<String, String> expectedOptions = new HashMap<>();
         expectedOptions.put("K1", "V1");
-        expectedOptions.put("k2", "v2_new");
+        expectedOptions.put("k2", "v2");
 
         Operation operation = parse(sql1);
         assertThat(operation)
@@ -135,7 +136,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                         AlterCatalogOptionsOperation::getProperties)
                 .containsExactly(
                         "cat2",
-                        "ALTER CATALOG cat2\n  SET 'K1' = 'V1',\n  SET 'k2' = 'v2_new'",
+                        "ALTER CATALOG cat2\n  SET 'K1' = 'V1',\n  SET 'k2' = 'v2'",
                         expectedOptions);
 
         // test alter catalog reset
@@ -156,6 +157,13 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         assertThatThrownBy(() -> parse("ALTER CATALOG cat2 RESET ()"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("ALTER CATALOG RESET does not support empty key");
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "ALTER CATALOG cat2 SET ('K1' = 'V1', 'k2' = 'v2', 'k2' = 'another_value')"))
+                .isInstanceOf(CalciteContextException.class)
+                .hasMessageContaining(
+                        "Table option must be unique, there is a duplicate for key 'v2'");
 
         // test alter catalog comment
         operation = parse("ALTER CATALOG cat2 COMMENT 'comment for catalog ''cat2'''");
@@ -1147,6 +1155,14 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         assertThatThrownBy(() -> parse("alter table cat1.db1.tb1 reset ()"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("ALTER TABLE RESET does not support empty key");
+
+        assertThatThrownBy(
+                        () ->
+                                parse(
+                                        "ALTER TABLE cat1.db1.tb1 SET ('K1' = 'V1', 'k2' = 'v2', 'k2' = 'another_value')"))
+                .isInstanceOf(CalciteContextException.class)
+                .hasMessageContaining(
+                        "Table option must be unique, there is a duplicate for key 'v2'");
     }
 
     @Test
