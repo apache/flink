@@ -108,7 +108,8 @@ public final class ItemAtIndexArgumentTypeStrategy implements ArgumentTypeStrate
             } else {
                 return callContext.fail(
                         throwOnFailure,
-                        "Variant values can only be accessed with a CHARACTER STRING key or indexed with an INTEGER NUMERIC index.");
+                        "Incorrect type %s supplied for the variant value. Variant values can only be accessed with a CHARACTER STRING map key or an INTEGER NUMERIC array index.",
+                        indexType.getLogicalType().toString());
             }
         }
 

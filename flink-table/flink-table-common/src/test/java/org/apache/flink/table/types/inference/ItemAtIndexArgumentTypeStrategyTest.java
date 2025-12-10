@@ -97,6 +97,6 @@ class ItemAtIndexArgumentTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 ITEM_AT_INPUT_STRATEGY)
                         .calledWithArgumentTypes(DataTypes.VARIANT(), DataTypes.DOUBLE().notNull())
                         .expectErrorMessage(
-                                "Variant can be indexed using an INTEGER NUMERIC type or accessed by a CHARACTER STRING key."));
+                                "Incorrect type DOUBLE NOT NULL supplied for the variant value. Variant values can only be accessed with a CHARACTER STRING map key or an INTEGER NUMERIC array index."));
     }
 }
