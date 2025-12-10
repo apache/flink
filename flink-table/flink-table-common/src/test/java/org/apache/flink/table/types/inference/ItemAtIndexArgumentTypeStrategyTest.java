@@ -42,7 +42,7 @@ class ItemAtIndexArgumentTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 DataTypes.ARRAY(DataTypes.STRING().notNull()),
                                 DataTypes.SMALLINT().notNull())
                         .expectSignature(
-                                "f([<ARRAY> | <MAP> | <VARIANT>], [<INTEGER NUMERIC> | <MAP_KEY_TYPE> | <CHARACTER STRING> or <INTEGER NUMERIC>])")
+                                "f([<ARRAY> | <MAP> | <VARIANT>], [<CHARACTER STRING> | <INTEGER NUMERIC> | <MAP_KEY_TYPE>])")
                         .expectArgumentTypes(
                                 DataTypes.ARRAY(DataTypes.STRING().notNull()),
                                 DataTypes.SMALLINT().notNull()),
@@ -58,7 +58,7 @@ class ItemAtIndexArgumentTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING().notNull()),
                                 DataTypes.SMALLINT())
                         .expectSignature(
-                                "f([<ARRAY> | <MAP> | <VARIANT>], [<INTEGER NUMERIC> | <MAP_KEY_TYPE> | <CHARACTER STRING> or <INTEGER NUMERIC>])")
+                                "f([<ARRAY> | <MAP> | <VARIANT>], [<CHARACTER STRING> | <INTEGER NUMERIC> | <MAP_KEY_TYPE>])")
                         .expectArgumentTypes(
                                 DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING().notNull()),
                                 DataTypes.BIGINT()),
@@ -78,7 +78,7 @@ class ItemAtIndexArgumentTypeStrategyTest extends InputTypeStrategiesTestBase {
                         .calledWithArgumentTypes(
                                 DataTypes.VARIANT(), DataTypes.SMALLINT().notNull())
                         .expectSignature(
-                                "f([<ARRAY> | <MAP> | <VARIANT>], [<INTEGER NUMERIC> | <MAP_KEY_TYPE> | <CHARACTER STRING> or <INTEGER NUMERIC>])")
+                                "f([<ARRAY> | <MAP> | <VARIANT>], [<CHARACTER STRING> | <INTEGER NUMERIC> | <MAP_KEY_TYPE>])")
                         .expectArgumentTypes(DataTypes.VARIANT(), DataTypes.SMALLINT().notNull()),
                 TestSpec.forStrategy(
                                 "Validate incorrect index for a variant", ITEM_AT_INPUT_STRATEGY)
@@ -90,7 +90,7 @@ class ItemAtIndexArgumentTypeStrategyTest extends InputTypeStrategiesTestBase {
                 TestSpec.forStrategy("Validate string key for a variant", ITEM_AT_INPUT_STRATEGY)
                         .calledWithArgumentTypes(DataTypes.VARIANT(), DataTypes.STRING().notNull())
                         .expectSignature(
-                                "f([<ARRAY> | <MAP> | <VARIANT>], [<INTEGER NUMERIC> | <MAP_KEY_TYPE> | <CHARACTER STRING> or <INTEGER NUMERIC>])")
+                                "f([<ARRAY> | <MAP> | <VARIANT>], [<CHARACTER STRING> | <INTEGER NUMERIC> | <MAP_KEY_TYPE>])")
                         .expectArgumentTypes(DataTypes.VARIANT(), DataTypes.STRING().notNull()),
                 TestSpec.forStrategy(
                                 "Validate incorrect variant key for a variant",

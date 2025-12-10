@@ -119,7 +119,6 @@ public final class ItemAtIndexArgumentTypeStrategy implements ArgumentTypeStrate
     @Override
     public Signature.Argument getExpectedArgument(
             FunctionDefinition functionDefinition, int argumentPos) {
-        return Signature.Argument.of(
-                "[<INTEGER NUMERIC> | <MAP_KEY_TYPE> | <CHARACTER STRING> or <INTEGER NUMERIC>]");
+        return Signature.Argument.of("[<CHARACTER STRING> | <INTEGER NUMERIC> | <MAP_KEY_TYPE>]");
     }
 }
