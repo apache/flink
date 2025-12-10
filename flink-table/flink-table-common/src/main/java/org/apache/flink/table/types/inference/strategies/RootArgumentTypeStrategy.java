@@ -61,7 +61,7 @@ public final class RootArgumentTypeStrategy implements ArgumentTypeStrategy {
         if (Objects.equals(expectedNullability, Boolean.FALSE) && actualType.isNullable()) {
             return callContext.fail(
                     throwOnFailure,
-                    "Unsupported argument type. Expected nullable type of root '%s' but actual type was '%s'.",
+                    "Unsupported argument type. Expected NOT NULL type of root '%s' but actual type was '%s'.",
                     expectedRoot,
                     actualType);
         }
