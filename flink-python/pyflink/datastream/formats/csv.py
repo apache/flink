@@ -237,6 +237,7 @@ class CsvSchemaBuilder(object):
         Set literal for null value, default to empty sequence.
         """
         self._j_schema_builder.setNullValue(null_value)
+        return self
 
     def disable_quote_char(self):
         """

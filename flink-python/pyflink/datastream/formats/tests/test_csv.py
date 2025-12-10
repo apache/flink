@@ -77,6 +77,12 @@ class FileSourceCsvReaderFormatTests(object):
         self.env.execute('test_csv_strict_headers')
         _check_csv_strict_headers_results(self, self.test_sink.get_results(True, False))
 
+    def test_csv_default_null_value(self):
+        schema, lines = _create_csv_default_null_value_schema_and_lines()
+        self._build_csv_job(schema, lines)
+        self.env.execute('test_csv_default_null_value')
+        _check_csv_default_null_value_results(self, self.test_sink.get_results(True, False))
+
     def test_csv_default_quote_char(self):
         schema, lines = _create_csv_default_quote_char_schema_and_lines()
         self._build_csv_job(schema, lines)
@@ -341,6 +347,24 @@ def _create_csv_use_header_schema_and_lines() -> Tuple[CsvSchema, List[str]]:
 def _check_csv_use_header_results(test, results):
     row = results[0]
     test.assertEqual(row['string'], 'string')
+    test.assertEqual(row['number'], 123)
+
+
+def _create_csv_default_null_value_schema_and_lines() -> Tuple[CsvSchema, List[str]]:
+    schema = CsvSchema.builder() \
+        .add_string_column('string') \
+        .add_number_column('number') \
+        .set_null_value('') \
+        .build()
+    lines = [
+        ',123\n'
+    ]
+    return schema, lines
+
+
+def _check_csv_default_null_value_results(test, results):
+    row = results[0]
+    test.assertEqual(row['string'], None)
     test.assertEqual(row['number'], 123)
 
 
