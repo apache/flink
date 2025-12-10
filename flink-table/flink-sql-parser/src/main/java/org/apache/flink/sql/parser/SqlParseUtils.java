@@ -87,7 +87,11 @@ public class SqlParseUtils {
         }
         return propList.getList().stream()
                 .map(p -> (SqlTableOption) p)
-                .collect(Collectors.toMap(k -> k.getKeyString(), SqlTableOption::getValueString));
+                .collect(
+                        Collectors.toMap(
+                                k -> k.getKeyString(),
+                                SqlTableOption::getValueString,
+                                (v1, v2) -> v2));
     }
 
     public static List<String> extractList(

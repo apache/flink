@@ -18,8 +18,8 @@
 
 package org.apache.flink.sql.parser.ddl.catalog;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.SqlUnparseUtils;
-import org.apache.flink.sql.parser.ddl.SqlTableOption;
 
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
@@ -30,7 +30,6 @@ import org.apache.calcite.util.ImmutableNullableList;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static java.util.Objects.requireNonNull;
 
@@ -55,13 +54,7 @@ public class SqlAlterCatalogOptions extends SqlAlterCatalog {
     }
 
     public Map<String, String> getProperties() {
-        return propertyList.stream()
-                .map(p -> (SqlTableOption) p)
-                .collect(
-                        Collectors.toMap(
-                                SqlTableOption::getKeyString,
-                                SqlTableOption::getValueString,
-                                (option1, option2) -> option2));
+        return SqlParseUtils.extractMap(propertyList);
     }
 
     @Override
