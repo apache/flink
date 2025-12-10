@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.scheduler.ParallelismOverrideUtil;
 import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.DynamicCodeLoadingException;
@@ -46,6 +48,8 @@ public class AdaptiveExecutionHandlerFactory {
      * @param enableBatchJobRecovery Whether to enable batch job recovery.
      * @param userClassLoader The class loader for the user code.
      * @param serializationExecutor The executor used for serialization tasks.
+     * @param jobMasterConfiguration The job master configuration containing potential parallelism
+     *     overrides.
      * @return An instance of {@link AdaptiveExecutionHandler}.
      * @throws IllegalArgumentException if the execution plan is neither a {@link JobGraph} nor a
      *     {@link StreamGraph}.
@@ -54,7 +58,8 @@ public class AdaptiveExecutionHandlerFactory {
             ExecutionPlan executionPlan,
             boolean enableBatchJobRecovery,
             ClassLoader userClassLoader,
-            Executor serializationExecutor)
+            Executor serializationExecutor,
+            Configuration jobMasterConfiguration)
             throws DynamicCodeLoadingException {
         if (executionPlan instanceof JobGraph) {
             return new NonAdaptiveExecutionHandler((JobGraph) executionPlan);
@@ -62,7 +67,10 @@ public class AdaptiveExecutionHandlerFactory {
             checkState(executionPlan instanceof StreamGraph, "Unsupported execution plan.");
             if (enableBatchJobRecovery) {
                 StreamGraph streamGraph = (StreamGraph) executionPlan;
-                return new NonAdaptiveExecutionHandler(streamGraph.getJobGraph(userClassLoader));
+                JobGraph jobGraph = streamGraph.getJobGraph(userClassLoader);
+                // Apply parallelism overrides after StreamGraph -> JobGraph conversion
+                ParallelismOverrideUtil.applyParallelismOverrides(jobGraph, jobMasterConfiguration);
+                return new NonAdaptiveExecutionHandler(jobGraph);
             } else {
                 return new DefaultAdaptiveExecutionHandler(
                         userClassLoader, (StreamGraph) executionPlan, serializationExecutor);
