@@ -41,7 +41,10 @@ import java.util.Optional;
  * or {@link LogicalTypeRoot#MULTISET}
  *
  * <p>the type to be equal to the key type of {@link LogicalTypeRoot#MAP} if the first argument is a
- * map.
+ * map
+ *
+ * <p>a {@link LogicalTypeFamily#NUMERIC} type or {LogicalTypeFamily.CHARACTER_STRING} type if the
+ * first argument is a {@link LogicalTypeRoot#VARIANT}.
  */
 @Internal
 public final class ItemAtIndexArgumentTypeStrategy implements ArgumentTypeStrategy {
@@ -86,12 +89,36 @@ public final class ItemAtIndexArgumentTypeStrategy implements ArgumentTypeStrate
             }
         }
 
+        if (collectionType.is(LogicalTypeRoot.VARIANT)) {
+            if (indexType.getLogicalType().is(LogicalTypeFamily.INTEGER_NUMERIC)) {
+
+                if (callContext.isArgumentLiteral(1)) {
+                    Optional<Integer> literalVal = callContext.getArgumentValue(1, Integer.class);
+                    if (literalVal.isPresent() && literalVal.get() <= 0) {
+                        return callContext.fail(
+                                throwOnFailure,
+                                "The provided index must be a valid SQL index starting from 1, but was '%s'",
+                                literalVal.get());
+                    }
+                }
+
+                return Optional.of(indexType);
+            } else if (indexType.getLogicalType().is(LogicalTypeFamily.CHARACTER_STRING)) {
+                return Optional.of(indexType);
+            } else {
+                return callContext.fail(
+                        throwOnFailure,
+                        "Incorrect type %s supplied for the variant value. Variant values can only be accessed with a CHARACTER STRING map key or an INTEGER NUMERIC array index.",
+                        indexType.getLogicalType().toString());
+            }
+        }
+
         return Optional.empty();
     }
 
     @Override
     public Signature.Argument getExpectedArgument(
             FunctionDefinition functionDefinition, int argumentPos) {
-        return Signature.Argument.of("[<INTEGER NUMERIC> | <MAP_KEY_TYPE>]");
+        return Signature.Argument.of("[<CHARACTER STRING> | <INTEGER NUMERIC> | <MAP_KEY_TYPE>]");
     }
 }
