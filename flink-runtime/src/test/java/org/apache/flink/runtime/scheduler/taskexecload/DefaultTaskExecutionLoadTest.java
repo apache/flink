@@ -16,26 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler.loading;
+package org.apache.flink.runtime.scheduler.taskexecload;
 
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Test for {@link DefaultLoadingWeight}. */
-class DefaultLoadingWeightTest {
+/** Test for {@link DefaultTaskExecutionLoad}. */
+class DefaultTaskExecutionLoadTest {
 
     @Test
     void testInvalidLoading() {
-        assertThatThrownBy(() -> new DefaultLoadingWeight(-1f))
+        assertThatThrownBy(() -> new DefaultTaskExecutionLoad(-1f))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testMerge() {
-        assertThat(new DefaultLoadingWeight(0).merge(null).getLoading()).isZero();
-        assertThat(new DefaultLoadingWeight(0).merge(new DefaultLoadingWeight(1.2f)).getLoading())
+        assertThat(new DefaultTaskExecutionLoad(0).merge(null).getLoadValue()).isZero();
+        assertThat(
+                        new DefaultTaskExecutionLoad(0)
+                                .merge(new DefaultTaskExecutionLoad(1.2f))
+                                .getLoadValue())
                 .isEqualTo(1.2f);
+    }
+
+    @Test
+    void testGetLoadValueAsInt() {
+        assertThat(new DefaultTaskExecutionLoad(2.9f).getLoadValueAsInt()).isEqualTo(2);
+        assertThat(new DefaultTaskExecutionLoad(3e10f).getLoadValueAsInt())
+                .isEqualTo(Integer.MAX_VALUE);
     }
 }

@@ -16,36 +16,34 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler.loading;
+package org.apache.flink.runtime.scheduler.taskexecload;
 
 import org.apache.flink.annotation.Internal;
-
-import javax.annotation.Nonnull;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * The interface that holds the {@link LoadingWeight} getter is required for corresponding
+ * The interface that holds the {@link TaskExecutionLoad} getter is required for corresponding
  * abstractions.
  */
 @Internal
-public interface WeightLoadable {
+public interface HasTaskExecutionLoad {
 
     /**
-     * Get the loading weight.
+     * Retrieves the task execution load.
      *
-     * @return An implementation object of {@link LoadingWeight}.
+     * @return a {@link TaskExecutionLoad} instance
      */
-    @Nonnull
-    LoadingWeight getLoading();
+    TaskExecutionLoad getTaskExecutionLoad();
 
-    static <T extends WeightLoadable> List<T> sortByLoadingDescend(Collection<T> weightLoadables) {
-        return weightLoadables.stream()
+    static <T extends HasTaskExecutionLoad> List<T> sortByTaskExecutionLoadDesc(Collection<T> c) {
+        return c.stream()
                 .sorted(
                         (leftReq, rightReq) ->
-                                rightReq.getLoading().compareTo(leftReq.getLoading()))
+                                rightReq.getTaskExecutionLoad()
+                                        .compareTo(leftReq.getTaskExecutionLoad()))
                 .collect(Collectors.toList());
     }
 }
