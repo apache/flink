@@ -16,36 +16,35 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler.loading;
+package org.apache.flink.runtime.scheduler.resourceunit;
 
 import org.apache.flink.annotation.Internal;
 
-import javax.annotation.Nonnull;
+import java.io.Serializable;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.stream.Collectors;
-
-/**
- * The interface that holds the {@link LoadingWeight} getter is required for corresponding
- * abstractions.
- */
+/** The class is used to represent the load weight abstraction. */
 @Internal
-public interface WeightLoadable {
+public interface ResourceUnitCount extends Comparable<ResourceUnitCount>, Serializable {
 
     /**
-     * Get the loading weight.
+     * Returns the resource unit count.
      *
-     * @return An implementation object of {@link LoadingWeight}.
+     * @return the current resource unit count
      */
-    @Nonnull
-    LoadingWeight getLoading();
+    float getCount();
 
-    static <T extends WeightLoadable> List<T> sortByLoadingDescend(Collection<T> weightLoadables) {
-        return weightLoadables.stream()
-                .sorted(
-                        (leftReq, rightReq) ->
-                                rightReq.getLoading().compareTo(leftReq.getLoading()))
-                .collect(Collectors.toList());
-    }
+    /**
+     * Returns the resource unit count as an integer, truncated if necessary.
+     *
+     * @return the current resource unit count
+     */
+    int getCountAsInt();
+
+    /**
+     * Merge the other resource unit count and this one into a new object.
+     *
+     * @param other A loading weight object.
+     * @return the new merged {@link ResourceUnitCount}.
+     */
+    ResourceUnitCount merge(ResourceUnitCount other);
 }

@@ -22,8 +22,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
-import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
-import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.resourceunit.DefaultResourceUnitCount;
+import org.apache.flink.runtime.scheduler.resourceunit.ResourceUnitCount;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -158,11 +158,11 @@ class TasksBalancedSlotMatchingResolverTest extends AbstractSlotMatchingResolver
                                                                     s.getTargetAs(
                                                                                     ExecutionSlotSharingGroup
                                                                                             .class)
-                                                                            .getLoading())
+                                                                            .getResourceUnitCount())
                                                     .reduce(
-                                                            DefaultLoadingWeight.EMPTY,
-                                                            LoadingWeight::merge)
-                                                    .getLoading())
+                                                            DefaultResourceUnitCount.EMPTY,
+                                                            ResourceUnitCount::merge)
+                                                    .getCount())
                                     .isGreaterThanOrEqualTo(9f);
                         });
     }

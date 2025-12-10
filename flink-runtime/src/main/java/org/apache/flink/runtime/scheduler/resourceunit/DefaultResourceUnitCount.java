@@ -16,44 +16,44 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler.loading;
+package org.apache.flink.runtime.scheduler.resourceunit;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nonnull;
-
 import java.util.Objects;
 
-/** The default implementation of {@link LoadingWeight}. */
+/** The default implementation of {@link ResourceUnitCount}. */
 @Internal
-public class DefaultLoadingWeight implements LoadingWeight {
+public class DefaultResourceUnitCount implements ResourceUnitCount {
 
-    public static final LoadingWeight EMPTY = new DefaultLoadingWeight(0f);
+    public static final ResourceUnitCount EMPTY = new DefaultResourceUnitCount(0f);
 
-    private final float loading;
+    private final float count;
 
-    public DefaultLoadingWeight(float loading) {
-        Preconditions.checkArgument(loading >= 0.0f);
-        this.loading = loading;
+    public DefaultResourceUnitCount(float count) {
+        Preconditions.checkArgument(count >= 0.0f);
+        this.count = count;
     }
 
     @Override
-    public float getLoading() {
-        return loading;
+    public float getCount() {
+        return count;
     }
 
     @Override
-    public LoadingWeight merge(LoadingWeight other) {
-        if (other == null) {
-            return this;
-        }
-        return new DefaultLoadingWeight(loading + other.getLoading());
+    public int getCountAsInt() {
+        return (int) count;
     }
 
     @Override
-    public int compareTo(@Nonnull LoadingWeight o) {
-        return Float.compare(loading, o.getLoading());
+    public ResourceUnitCount merge(ResourceUnitCount other) {
+        return other == null ? this : new DefaultResourceUnitCount(count + other.getCount());
+    }
+
+    @Override
+    public int compareTo(ResourceUnitCount o) {
+        return Float.compare(count, o.getCount());
     }
 
     @Override
@@ -64,17 +64,17 @@ public class DefaultLoadingWeight implements LoadingWeight {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        DefaultLoadingWeight that = (DefaultLoadingWeight) o;
-        return Float.compare(loading, that.loading) == 0f;
+        DefaultResourceUnitCount that = (DefaultResourceUnitCount) o;
+        return compareTo(that) == 0f;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(loading);
+        return Objects.hash(count);
     }
 
     @Override
     public String toString() {
-        return "DefaultLoadingWeight{loading=" + loading + '}';
+        return "DefaultResourceUnitCount{count=" + count + '}';
     }
 }
