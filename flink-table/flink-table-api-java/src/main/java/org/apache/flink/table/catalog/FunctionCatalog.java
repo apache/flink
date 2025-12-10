@@ -691,7 +691,7 @@ public final class FunctionCatalog {
             }
             // Skip validation if it's not a UserDefinedFunction.
         } else if (function.getFunctionLanguage() == FunctionLanguage.JAVA) {
-            // If the jar resource of UDF used is not empty, register it to classloader before
+            // If the artifact resource of UDF used is not empty, register it to classloader before
             // validate.
             List<ResourceUri> resourceUris = function.getFunctionResources();
             try {
@@ -702,7 +702,7 @@ public final class FunctionCatalog {
             } catch (Exception e) {
                 throw new TableException(
                         String.format(
-                                "Failed to register function jar resource '%s' of function '%s'.",
+                                "Failed to register function artifact resource '%s' of function '%s'.",
                                 resourceUris, name),
                         e);
             }
@@ -730,7 +730,7 @@ public final class FunctionCatalog {
         if (function.getFunctionLanguage() == FunctionLanguage.PYTHON) {
             resourceManager.registerPythonResources();
         }
-        // If the jar resource of UDF used is not empty, register it to classloader before
+        // If the artifact resource of UDF used is not empty, register it to classloader before
         // validate.
         registerFunctionJarResources(name, function.getFunctionResources());
 
@@ -745,12 +745,14 @@ public final class FunctionCatalog {
     public void registerFunctionJarResources(String functionName, List<ResourceUri> resourceUris) {
         try {
             if (!resourceUris.isEmpty()) {
-                resourceManager.registerJarResources(resourceUris);
+                // Use generic registerArtifactResources to support all resource types
+                // (JAR, ARTIFACT, ARCHIVE) instead of JAR-only registerJarResources
+                resourceManager.registerArtifactResources(resourceUris, true);
             }
         } catch (Exception e) {
             throw new TableException(
                     String.format(
-                            "Failed to register jar resource '%s' of function '%s'.",
+                            "Failed to register artifact resource '%s' of function '%s'.",
                             resourceUris, functionName),
                     e);
         }
