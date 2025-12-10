@@ -22,7 +22,11 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nonnull;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -162,5 +166,13 @@ public class FineGrainedTaskManagerRegistration implements TaskManagerInfo {
         }
         slots.put(allocationId, taskManagerSlot);
         idleSince = Long.MAX_VALUE;
+    }
+
+    @Nonnull
+    @Override
+    public LoadingWeight getLoading() {
+        return slots.values().stream()
+                .map(TaskManagerSlotInformation::getLoading)
+                .reduce(DefaultLoadingWeight.EMPTY, LoadingWeight::merge);
     }
 }

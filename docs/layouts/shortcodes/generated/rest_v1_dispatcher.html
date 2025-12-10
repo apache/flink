@@ -5240,6 +5240,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "freeSlots" : {
             "type" : "integer"
           },
+          "assignedTasks" : {
+            "type" : "integer"
+          },
           "hardware" : {
             "type" : "object",
             "id" : "urn:jsonschema:org:apache:flink:runtime:instance:HardwareDescription",
@@ -5441,6 +5444,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "jobId" : {
             "type" : "any"
           },
+          "assignedTasks" : {
+            "type" : "integer"
+          },
           "resource" : {
             "type" : "object",
             "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo"
@@ -5459,6 +5465,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
       "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo"
     },
     "freeSlots" : {
+      "type" : "integer"
+    },
+    "assignedTasks" : {
       "type" : "integer"
     },
     "hardware" : {

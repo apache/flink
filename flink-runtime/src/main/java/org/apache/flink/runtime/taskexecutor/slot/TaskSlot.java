@@ -23,6 +23,9 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FlinkException;
@@ -31,6 +34,8 @@ import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nonnull;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -61,7 +66,7 @@ import java.util.stream.Collectors;
  *
  * @param <T> type of the {@link TaskSlotPayload} stored in this slot
  */
-public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
+public class TaskSlot<T extends TaskSlotPayload> implements WeightLoadable, AutoCloseableAsync {
     private static final Logger LOG = LoggerFactory.getLogger(TaskSlot.class);
 
     /** Index of the task slot. */
@@ -139,6 +144,12 @@ public class TaskSlot<T extends TaskSlotPayload> implements AutoCloseableAsync {
 
     public boolean isEmpty() {
         return tasks.isEmpty();
+    }
+
+    @Nonnull
+    @Override
+    public LoadingWeight getLoading() {
+        return new DefaultLoadingWeight(tasks.size());
     }
 
     public boolean isActive(JobID activeJobId, AllocationID activeAllocationId) {

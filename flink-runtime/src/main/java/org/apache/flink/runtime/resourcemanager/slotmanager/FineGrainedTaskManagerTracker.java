@@ -24,6 +24,8 @@ import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.instance.InstanceID;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.runtime.resourcemanager.registration.TaskExecutorConnection;
+import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
 
@@ -313,6 +315,15 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
                 totalAndDefaultSlotProfilesToPendingTaskManagers.getOrDefault(
                         Tuple2.of(totalResourceProfile, defaultSlotResourceProfile),
                         Collections.emptySet()));
+    }
+
+    @Override
+    public LoadingWeight getLoadingWeightOf(InstanceID instanceId) {
+        FineGrainedTaskManagerRegistration taskManagerRegistration =
+                taskManagerRegistrations.get(instanceId);
+        return taskManagerRegistration == null
+                ? DefaultLoadingWeight.EMPTY
+                : taskManagerRegistration.getLoading();
     }
 
     @Override

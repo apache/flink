@@ -59,6 +59,8 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
 
     public static final String FIELD_NAME_NUMBER_AVAILABLE_SLOTS = "freeSlots";
 
+    public static final String FIELD_NAME_ASSIGNED_TASKS = "assignedTasks";
+
     public static final String FIELD_NAME_TOTAL_RESOURCE = "totalResource";
 
     public static final String FIELD_NAME_AVAILABLE_RESOURCE = "freeResource";
@@ -93,6 +95,9 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
     @JsonProperty(FIELD_NAME_NUMBER_AVAILABLE_SLOTS)
     private final int numberAvailableSlots;
 
+    @JsonProperty(FIELD_NAME_ASSIGNED_TASKS)
+    private final int assignedTasks;
+
     @JsonProperty(FIELD_NAME_TOTAL_RESOURCE)
     private final ResourceProfileInfo totalResource;
 
@@ -121,6 +126,7 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
             @JsonProperty(FIELD_NAME_LAST_HEARTBEAT) long lastHeartbeat,
             @JsonProperty(FIELD_NAME_NUMBER_SLOTS) int numberSlots,
             @JsonProperty(FIELD_NAME_NUMBER_AVAILABLE_SLOTS) int numberAvailableSlots,
+            @JsonProperty(FIELD_NAME_ASSIGNED_TASKS) int assignedTasks,
             @JsonProperty(FIELD_NAME_TOTAL_RESOURCE) ResourceProfileInfo totalResource,
             @JsonProperty(FIELD_NAME_AVAILABLE_RESOURCE) ResourceProfileInfo freeResource,
             @JsonProperty(FIELD_NAME_HARDWARE) HardwareDescription hardwareDescription,
@@ -133,6 +139,7 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
         this.lastHeartbeat = lastHeartbeat;
         this.numberSlots = numberSlots;
         this.numberAvailableSlots = numberAvailableSlots;
+        this.assignedTasks = assignedTasks;
         this.totalResource = totalResource;
         this.freeResource = freeResource;
         this.hardwareDescription = Preconditions.checkNotNull(hardwareDescription);
@@ -148,6 +155,7 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
             long lastHeartbeat,
             int numberSlots,
             int numberAvailableSlots,
+            int assignedTasks,
             ResourceProfile totalResource,
             ResourceProfile freeResource,
             HardwareDescription hardwareDescription,
@@ -161,6 +169,7 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
                 lastHeartbeat,
                 numberSlots,
                 numberAvailableSlots,
+                assignedTasks,
                 ResourceProfileInfo.fromResourceProfile(totalResource),
                 ResourceProfileInfo.fromResourceProfile(freeResource),
                 hardwareDescription,
@@ -204,6 +213,11 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
     }
 
     @JsonIgnore
+    public int getAssignedTasks() {
+        return assignedTasks;
+    }
+
+    @JsonIgnore
     public ResourceProfileInfo getTotalResource() {
         return totalResource;
     }
@@ -242,6 +256,7 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
                 && lastHeartbeat == that.lastHeartbeat
                 && numberSlots == that.numberSlots
                 && numberAvailableSlots == that.numberAvailableSlots
+                && Objects.equals(assignedTasks, that.assignedTasks)
                 && Objects.equals(totalResource, that.totalResource)
                 && Objects.equals(freeResource, that.freeResource)
                 && Objects.equals(resourceId, that.resourceId)
@@ -261,6 +276,7 @@ public class TaskManagerInfo implements ResponseBody, Serializable {
                 lastHeartbeat,
                 numberSlots,
                 numberAvailableSlots,
+                assignedTasks,
                 totalResource,
                 freeResource,
                 hardwareDescription,
