@@ -62,5 +62,11 @@
             <td>String</td>
             <td>The deployment target for the execution. This can take one of the following values when calling <code class="highlighter-rouge">bin/flink run</code>:<ul><li>remote</li><li>local</li><li>yarn-application</li><li>yarn-session</li><li>kubernetes-application</li><li>kubernetes-session</li></ul></td>
         </tr>
+        <tr>
+            <td><h5>execution.terminate-application-on-any-job-terminated-exceptionally</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>When it is set to true, the application will complete exceptionally if any job fails or is canceled. When it is set to false, the application will finish after all jobs reach terminal states.</td>
+        </tr>
     </tbody>
 </table>
