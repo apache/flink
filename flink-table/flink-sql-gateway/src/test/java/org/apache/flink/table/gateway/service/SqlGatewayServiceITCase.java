@@ -375,7 +375,7 @@ public class SqlGatewayServiceITCase {
                         });
         startRunningLatch.await();
 
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 () ->
                         service.getOperationInfo(sessionHandle, operationHandle)
                                 .getStatus()
@@ -840,7 +840,7 @@ public class SqlGatewayServiceITCase {
             executor.submit(() -> service.closeOperation(sessionHandle, operationHandle));
         }
 
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 () ->
                         service.getSession(sessionHandle).getOperationManager().getOperationCount()
                                 == 0,
@@ -965,7 +965,7 @@ public class SqlGatewayServiceITCase {
                     success.countDown();
                     return getDefaultResultSet();
                 });
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 () -> success.getCount() == 0, Duration.ofSeconds(10), "Should come to end.");
     }
 

@@ -116,7 +116,7 @@ class RecreateOnResetOperatorCoordinatorTest {
                 (RecreateOnResetOperatorCoordinator) provider.create(context, closingTimeoutMs);
 
         coordinator.resetToCheckpoint(2L, new byte[0]);
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 context::isJobFailed,
                 Duration.ofSeconds(5),
                 "The job should fail due to resetToCheckpoint() timeout.");
@@ -260,7 +260,7 @@ class RecreateOnResetOperatorCoordinatorTest {
         }
         coordinator.close();
         TestingOperatorCoordinator internalCoordinator = getInternalCoordinator(coordinator);
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 internalCoordinator::isClosed,
                 Duration.ofSeconds(5),
                 "Timed out when waiting for the coordinator to close.");
