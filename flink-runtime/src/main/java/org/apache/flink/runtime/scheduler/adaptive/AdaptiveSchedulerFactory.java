@@ -42,6 +42,7 @@ import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.scheduler.DefaultExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
+import org.apache.flink.runtime.scheduler.ParallelismOverrideUtil;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator;
@@ -98,6 +99,9 @@ public class AdaptiveSchedulerFactory implements SchedulerNGFactory {
             throw new FlinkException(
                     "Unsupported execution plan " + executionPlan.getClass().getCanonicalName());
         }
+
+        // Apply parallelism overrides after StreamGraph -> JobGraph conversion
+        ParallelismOverrideUtil.applyParallelismOverrides(jobGraph, jobMasterConfiguration);
 
         final DeclarativeSlotPool declarativeSlotPool =
                 slotPoolService

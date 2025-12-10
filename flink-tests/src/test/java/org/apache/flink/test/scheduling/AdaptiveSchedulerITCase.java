@@ -28,12 +28,15 @@ import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
+import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -45,10 +48,12 @@ import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobExceptionsHeaders;
 import org.apache.flink.runtime.rest.messages.JobExceptionsInfoWithHistory;
 import org.apache.flink.runtime.rest.messages.JobExceptionsInfoWithHistory.RootExceptionInfo;
+import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.JobExceptionsMessageParameters;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointStoppingException;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -77,7 +82,9 @@ import java.io.File;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -607,6 +614,63 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         @Override
         public void notifyCheckpointComplete(long checkpointId) throws Exception {
             throw new RuntimeException("Test exception.");
+        }
+    }
+
+    /**
+     * Tests that parallelism overrides work correctly with the Adaptive scheduler. This verifies
+     * the fix for FLINK-38770.
+     */
+    @Test
+    public void testParallelismOverridesWithAdaptiveScheduler() throws Exception {
+        JobVertex vertex = new JobVertex("test-vertex");
+        vertex.setParallelism(1);
+        vertex.setInvokableClass(BlockingNoOpInvokable.class);
+
+        JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(vertex);
+
+        // Configure parallelism override to change parallelism from 1 to 2
+        Map<String, String> overrides = new HashMap<>();
+        overrides.put(vertex.getID().toHexString(), "2");
+        jobGraph.getJobConfiguration().set(PipelineOptions.PARALLELISM_OVERRIDES, overrides);
+
+        final RestClusterClient<?> restClusterClient =
+                MINI_CLUSTER_WITH_CLIENT_RESOURCE.getRestClusterClient();
+        restClusterClient.submitJob(jobGraph).join();
+        JobID jobId = jobGraph.getJobID();
+
+        try {
+            // Wait for job to be running with 2 tasks
+            CommonTestUtils.waitUntilCondition(
+                    () -> {
+                        JobDetailsInfo jobDetails = restClusterClient.getJobDetails(jobId).join();
+                        int runningTasks =
+                                jobDetails.getJobVertexInfos().stream()
+                                        .map(JobDetailsInfo.JobVertexDetailsInfo::getTasksPerState)
+                                        .map(
+                                                tasksPerState ->
+                                                        tasksPerState.get(ExecutionState.RUNNING))
+                                        .mapToInt(Integer::intValue)
+                                        .sum();
+                        return runningTasks == 2;
+                    });
+
+            // Verify actual parallelism is 2, not 1
+            JobDetailsInfo jobDetails = restClusterClient.getJobDetails(jobId).join();
+            int actualParallelism =
+                    jobDetails.getJobVertexInfos().stream()
+                            .filter(v -> v.getJobVertexID().equals(vertex.getID()))
+                            .findFirst()
+                            .map(JobDetailsInfo.JobVertexDetailsInfo::getParallelism)
+                            .orElseThrow(
+                                    () ->
+                                            new AssertionError(
+                                                    "Vertex "
+                                                            + vertex.getID()
+                                                            + " not found in job details"));
+            assertThat(actualParallelism).as("Parallelism override should be applied").isEqualTo(2);
+        } finally {
+            restClusterClient.cancel(jobId).join();
         }
     }
 }

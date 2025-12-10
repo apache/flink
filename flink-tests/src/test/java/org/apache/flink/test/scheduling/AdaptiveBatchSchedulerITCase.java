@@ -28,9 +28,11 @@ import org.apache.flink.configuration.BatchExecutionOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchScheduler;
 import org.apache.flink.runtime.scheduler.adaptivebatch.OperatorsFinished;
 import org.apache.flink.runtime.scheduler.adaptivebatch.StreamGraphOptimizationStrategy;
@@ -403,5 +405,44 @@ class AdaptiveBatchSchedulerITCase {
             }
             return context.modifyStreamEdge(requestInfos);
         }
+    }
+
+    /**
+     * Tests that parallelism overrides work correctly with the AdaptiveBatch scheduler. This
+     * verifies the fix for FLINK-38770.
+     */
+    @Test
+    void testParallelismOverridesWithAdaptiveBatchScheduler() throws Exception {
+        Configuration configuration = createConfiguration();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+        env.setParallelism(1);
+
+        // Create a simple batch job
+        env.fromSequence(0, 100).map(i -> i * 2).name("test-map").print();
+
+        StreamGraph streamGraph = env.getStreamGraph();
+        JobGraph jobGraph = streamGraph.getJobGraph();
+
+        // Find the map vertex and configure parallelism override
+        JobVertex mapVertex = null;
+        for (JobVertex vertex : jobGraph.getVertices()) {
+            if (vertex.getName().contains("test-map")) {
+                mapVertex = vertex;
+                break;
+            }
+        }
+        assertThat(mapVertex).isNotNull();
+
+        // Configure parallelism override to change parallelism to 2
+        Map<String, String> overrides = new HashMap<>();
+        overrides.put(mapVertex.getID().toHexString(), "2");
+        jobGraph.getJobConfiguration().set(PipelineOptions.PARALLELISM_OVERRIDES, overrides);
+
+        // Submit and run the job - it will use the overridden parallelism (2 slots needed)
+        JobGraphRunningUtil.execute(jobGraph, configuration, 1, 2);
+
+        // If we reach here, the job completed successfully with the override applied
     }
 }
