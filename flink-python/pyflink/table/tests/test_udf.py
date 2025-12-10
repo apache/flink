@@ -364,6 +364,13 @@ class UserDefinedFunctionTests(object):
                 'timestamp_param is wrong value %s !' % timestamp_param
             return timestamp_param
 
+        @udf(result_type=DataTypes.TIMESTAMP_LTZ(3))
+        def timestamp_ltz_func(timestamp_ltz_param):
+            from datetime import datetime, timezone
+            assert timestamp_ltz_param == datetime(2018, 3, 11, 3, 0, 0, 123000, timezone.utc), \
+                'timestamp_ltz_param is wrong value %s !' % timestamp_ltz_param
+            return timestamp_ltz_param
+
         @udf(result_type=DataTypes.ARRAY(DataTypes.BIGINT()))
         def array_func(array_param):
             assert array_param == [[1, 2, 3]] or array_param == ((1, 2, 3),), \
@@ -427,7 +434,8 @@ class UserDefinedFunctionTests(object):
                 q DECIMAL(38, 18),
                 r BINARY(5),
                 s CHAR(7),
-                t VARCHAR(10)
+                t VARCHAR(10),
+                u TIMESTAMP_LTZ(3)
             ) WITH ('connector'='test-sink')
         """
         self.t_env.execute_sql(sink_table_ddl)
@@ -441,7 +449,8 @@ class UserDefinedFunctionTests(object):
               datetime.datetime(2018, 3, 11, 3, 0, 0, 123000), [[1, 2, 3]],
               {1: 'flink', 2: 'pyflink'}, decimal.Decimal('1000000000000000000.05'),
               decimal.Decimal('1000000000000000000.05999999999999999899999999999'),
-              bytearray(b'flink'), 'pyflink', 'pyflink')],
+              bytearray(b'flink'), 'pyflink', 'pyflink',
+             datetime.datetime(2018, 3, 11, 3, 0, 0, 123000, datetime.timezone.utc))],
             DataTypes.ROW(
                 [DataTypes.FIELD("a", DataTypes.BIGINT()),
                  DataTypes.FIELD("b", DataTypes.BIGINT()),
@@ -462,7 +471,8 @@ class UserDefinedFunctionTests(object):
                  DataTypes.FIELD("q", DataTypes.DECIMAL(38, 18)),
                  DataTypes.FIELD("r", DataTypes.BINARY(5)),
                  DataTypes.FIELD("s", DataTypes.CHAR(7)),
-                 DataTypes.FIELD("t", DataTypes.VARCHAR(10))]))
+                 DataTypes.FIELD("t", DataTypes.VARCHAR(10)),
+                 DataTypes.FIELD("u", DataTypes.TIMESTAMP_LTZ(3))]))
 
         t.select(
             bigint_func(t.a),
@@ -484,7 +494,8 @@ class UserDefinedFunctionTests(object):
             decimal_cut_func(t.q),
             binary_func(t.r),
             char_func(t.s),
-            varchar_func(t.t)) \
+            varchar_func(t.t),
+            timestamp_ltz_func(t.u)) \
             .execute_insert(sink_table).wait()
         actual = source_sink_utils.results()
         # Currently the sink result precision of DataTypes.TIME(precision) only supports 0.
@@ -494,7 +505,7 @@ class UserDefinedFunctionTests(object):
                             "2018-03-11T03:00:00.123, [1, 2, 3], "
                             "{1=flink, 2=pyflink}, 1000000000000000000.050000000000000000, "
                             "1000000000000000000.059999999999999999, [102, 108, 105, 110, 107], "
-                            "pyflink, pyflink]"])
+                            "pyflink, pyflink, 2018-03-11T03:00:00.123Z]"])
 
     def test_all_data_types(self):
         def boolean_func(bool_param):
@@ -971,9 +982,7 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
                 "non-callable-udf", udf(Plus(), DataTypes.BIGINT(), DataTypes.BIGINT()))
 
     def test_data_types(self):
-        timezone = self.t_env.get_config().get_local_timezone()
-        local_datetime = pytz.timezone(timezone).localize(
-            datetime.datetime(1970, 1, 1, 0, 0, 0, 123000))
+        local_datetime = datetime.datetime(1970, 1, 1, 0, 0, 0, 123000, datetime.timezone.utc)
 
         @udf(result_type=DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3))
         def local_zoned_timestamp_func(local_zoned_timestamp_param):
@@ -1160,6 +1169,8 @@ def echo(i: str):
 
 if __name__ == '__main__':
     import unittest
+
+    os.environ['_python_worker_execution_mode'] = "loopback"
 
     try:
         import xmlrunner
