@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
@@ -199,4 +200,11 @@ public interface ExecutionPlan extends Serializable {
      * @return The serialized execution configuration object
      */
     SerializedValue<ExecutionConfig> getSerializedExecutionConfig();
+
+    /**
+     * Gets the unique identifier of the application this job belongs to.
+     *
+     * @return the application id
+     */
+    ApplicationID getApplicationId();
 }

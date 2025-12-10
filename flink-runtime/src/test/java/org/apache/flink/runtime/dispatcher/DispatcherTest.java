@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.operators.ResourceSpec;
@@ -28,6 +29,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.application.AbstractApplication;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
@@ -101,6 +103,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableMap;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -137,6 +140,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -935,6 +939,43 @@ public class DispatcherTest extends AbstractDispatcherTest {
         assertThat(jobManagerRunnerFactory.getQueueSize())
                 .as("No JobMaster should have been started.")
                 .isZero();
+    }
+
+    @Test
+    public void testApplicationBootstrap() throws Exception {
+        final OneShotLatch bootstrapLatch = new OneShotLatch();
+        final ApplicationID applicationId = new ApplicationID();
+        final AbstractApplication application =
+                new TestingApplication(
+                        applicationId,
+                        (ignored -> {
+                            bootstrapLatch.trigger();
+                            return CompletableFuture.completedFuture(Acknowledge.get());
+                        }));
+        dispatcher =
+                createTestingDispatcherBuilder()
+                        .setDispatcherBootstrapFactory(
+                                (ignoredDispatcherGateway,
+                                        ignoredScheduledExecutor,
+                                        ignoredFatalErrorHandler) ->
+                                        new ApplicationBootstrap(application))
+                        .build(rpcService);
+
+        dispatcher.start();
+
+        // ensure that the application execution is triggered
+        bootstrapLatch.await();
+
+        assertThat(dispatcher.getApplications().size()).isEqualTo(1);
+        assertThat(dispatcher.getApplications().keySet()).contains(applicationId);
+
+        jobGraph.setApplicationId(applicationId);
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
+
+        assertThat(application.getJobs().size()).isEqualTo(1);
+        assertThat(application.getJobs()).contains(jobGraph.getJobID());
     }
 
     @Test
@@ -2104,6 +2145,59 @@ public class DispatcherTest extends AbstractDispatcherTest {
                             .build();
             runner.getTerminationFuture().thenRun(onClose::run);
             return runner;
+        }
+    }
+
+    private static class TestingApplication extends AbstractApplication {
+        private final Function<ExecuteParams, CompletableFuture<Acknowledge>> executeFunction;
+
+        public TestingApplication(
+                ApplicationID applicationId,
+                Function<ExecuteParams, CompletableFuture<Acknowledge>> executeFunction) {
+            super(applicationId);
+            this.executeFunction = executeFunction;
+        }
+
+        @Override
+        public CompletableFuture<Acknowledge> execute(
+                DispatcherGateway dispatcherGateway,
+                ScheduledExecutor scheduledExecutor,
+                Executor mainThreadExecutor,
+                FatalErrorHandler errorHandler) {
+
+            ExecuteParams params =
+                    new ExecuteParams(
+                            dispatcherGateway, scheduledExecutor, mainThreadExecutor, errorHandler);
+            return executeFunction.apply(params);
+        }
+
+        @Override
+        public void cancel() {}
+
+        @Override
+        public void dispose() {}
+
+        @Override
+        public String getName() {
+            return "TestingApplication";
+        }
+
+        public static class ExecuteParams {
+            public final DispatcherGateway dispatcherGateway;
+            public final ScheduledExecutor scheduledExecutor;
+            public final Executor mainThreadExecutor;
+            public final FatalErrorHandler errorHandler;
+
+            public ExecuteParams(
+                    DispatcherGateway dispatcherGateway,
+                    ScheduledExecutor scheduledExecutor,
+                    Executor mainThreadExecutor,
+                    FatalErrorHandler errorHandler) {
+                this.dispatcherGateway = dispatcherGateway;
+                this.scheduledExecutor = scheduledExecutor;
+                this.mainThreadExecutor = mainThreadExecutor;
+                this.errorHandler = errorHandler;
+            }
         }
     }
 }

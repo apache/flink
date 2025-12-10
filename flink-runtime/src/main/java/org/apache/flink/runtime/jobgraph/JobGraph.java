@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.jobgraph;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.InvalidProgramException;
 import org.apache.flink.api.common.JobID;
@@ -83,6 +84,9 @@ public class JobGraph implements ExecutionPlan {
     /** ID of this job. May be set if specific job id is desired (e.g. session management) */
     private JobID jobID;
 
+    /** ID of the application this job belongs to. */
+    private ApplicationID applicationId;
+
     /** Name of this job. */
     private final String jobName;
 
@@ -134,20 +138,21 @@ public class JobGraph implements ExecutionPlan {
      * @param jobName The name of the job.
      */
     public JobGraph(String jobName) {
-        this(null, jobName);
+        this(null, null, jobName);
     }
 
     /**
      * Constructs a new job graph with the given job ID (or a random ID, if {@code null} is passed),
-     * the given name and the given execution configuration (see {@link ExecutionConfig}). The
-     * ExecutionConfig will be serialized and can't be modified afterwards.
+     * the given application ID, the given name and the given execution configuration (see {@link
+     * ExecutionConfig}). The ExecutionConfig will be serialized and can't be modified afterwards.
      *
      * @param jobId The id of the job. A random ID is generated, if {@code null} is passed.
      * @param jobName The name of the job.
      */
-    public JobGraph(@Nullable JobID jobId, String jobName) {
+    public JobGraph(@Nullable JobID jobId, @Nullable ApplicationID applicationId, String jobName) {
         this.jobID = jobId == null ? new JobID() : jobId;
         this.jobName = jobName == null ? "(unnamed job)" : jobName;
+        this.applicationId = applicationId;
 
         try {
             setExecutionConfig(new ExecutionConfig());
@@ -167,7 +172,7 @@ public class JobGraph implements ExecutionPlan {
      * @param vertices The vertices to add to the graph.
      */
     public JobGraph(@Nullable JobID jobId, String jobName, JobVertex... vertices) {
-        this(jobId, jobName);
+        this(jobId, null, jobName);
 
         for (JobVertex vertex : vertices) {
             addVertex(vertex);
@@ -189,6 +194,21 @@ public class JobGraph implements ExecutionPlan {
     /** Sets the ID of the job. */
     public void setJobID(JobID jobID) {
         this.jobID = jobID;
+    }
+
+    /**
+     * Returns the ID of the application this job belongs to.
+     *
+     * @return the ID of the application
+     */
+    @Override
+    public ApplicationID getApplicationId() {
+        return applicationId;
+    }
+
+    /** Sets the ID of the application. */
+    public void setApplicationId(ApplicationID applicationId) {
+        this.applicationId = checkNotNull(applicationId);
     }
 
     /**

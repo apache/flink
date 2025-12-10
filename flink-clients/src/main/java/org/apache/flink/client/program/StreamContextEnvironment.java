@@ -19,6 +19,7 @@ package org.apache.flink.client.program;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.cli.ClientOptions;
@@ -41,6 +42,8 @@ import org.apache.flink.shaded.guava33.com.google.common.collect.Maps;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -72,6 +75,8 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
     private final boolean programConfigEnabled;
     private final Collection<String> programConfigWildcards;
 
+    @Nullable private final ApplicationID applicationId;
+
     public StreamContextEnvironment(
             final PipelineExecutorServiceLoader executorServiceLoader,
             final Configuration configuration,
@@ -89,7 +94,6 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
                 Collections.emptyList());
     }
 
-    @Internal
     public StreamContextEnvironment(
             final PipelineExecutorServiceLoader executorServiceLoader,
             final Configuration clusterConfiguration,
@@ -99,6 +103,29 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
             final boolean suppressSysout,
             final boolean programConfigEnabled,
             final Collection<String> programConfigWildcards) {
+        this(
+                executorServiceLoader,
+                clusterConfiguration,
+                configuration,
+                userCodeClassLoader,
+                enforceSingleJobExecution,
+                suppressSysout,
+                programConfigEnabled,
+                programConfigWildcards,
+                null);
+    }
+
+    @Internal
+    public StreamContextEnvironment(
+            final PipelineExecutorServiceLoader executorServiceLoader,
+            final Configuration clusterConfiguration,
+            final Configuration configuration,
+            final ClassLoader userCodeClassLoader,
+            final boolean enforceSingleJobExecution,
+            final boolean suppressSysout,
+            final boolean programConfigEnabled,
+            final Collection<String> programConfigWildcards,
+            @Nullable final ApplicationID applicationId) {
         super(executorServiceLoader, configuration, userCodeClassLoader);
         this.suppressSysout = suppressSysout;
         this.enforceSingleJobExecution = enforceSingleJobExecution;
@@ -106,6 +133,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
         this.jobCounter = 0;
         this.programConfigEnabled = programConfigEnabled;
         this.programConfigWildcards = programConfigWildcards;
+        this.applicationId = applicationId;
     }
 
     @Override
@@ -185,6 +213,9 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
     public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
         checkNotAllowedConfigurations();
         validateAllowedExecution();
+        if (applicationId != null) {
+            streamGraph.setApplicationId(applicationId);
+        }
         final JobClient jobClient = super.executeAsync(streamGraph);
 
         if (!suppressSysout) {
@@ -209,7 +240,8 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
             final Configuration clusterConfiguration,
             final ClassLoader userCodeClassLoader,
             final boolean enforceSingleJobExecution,
-            final boolean suppressSysout) {
+            final boolean suppressSysout,
+            @Nullable final ApplicationID applicationId) {
         final StreamExecutionEnvironmentFactory factory =
                 envInitConfig -> {
                     final boolean programConfigEnabled =
@@ -227,7 +259,8 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
                             enforceSingleJobExecution,
                             suppressSysout,
                             programConfigEnabled,
-                            programConfigWildcards);
+                            programConfigWildcards,
+                            applicationId);
                 };
         initializeContextEnvironment(factory);
     }

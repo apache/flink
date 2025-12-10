@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -36,10 +37,12 @@ import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.application.AbstractApplication;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+import org.apache.flink.runtime.client.DuplicateApplicationSubmissionException;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -212,6 +215,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
      */
     private final Set<JobID> pendingJobResourceRequirementsUpdates = new HashSet<>();
 
+    private final Map<ApplicationID, AbstractApplication> applications = new HashMap<>();
+
+    private final Map<ApplicationID, Set<JobID>> recoveredApplicationJobIds = new HashMap<>();
+
     /** Enum to distinguish between initial job submission and re-submission for recovery. */
     protected enum ExecutionType {
         SUBMISSION,
@@ -366,6 +373,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                         getSelfGateway(DispatcherGateway.class),
                         this.getRpcService().getScheduledExecutor(),
                         this::onFatalError);
+
+        if (dispatcherBootstrap instanceof ApplicationBootstrap) {
+            submitApplication(((ApplicationBootstrap) dispatcherBootstrap).getApplication()).get();
+        }
     }
 
     private void startDispatcherServices() throws Exception {
@@ -409,6 +420,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private void runRecoveredJob(final ExecutionPlan recoveredJob) {
         checkNotNull(recoveredJob);
+
+        recoveredApplicationJobIds
+                .computeIfAbsent(recoveredJob.getApplicationId(), ignored -> new HashSet<>())
+                .add(recoveredJob.getJobID());
 
         initJobClientExpiredTime(recoveredJob);
 
@@ -497,6 +512,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 () -> {
                     dispatcherBootstrap.stop();
 
+                    for (AbstractApplication application : applications.values()) {
+                        application.dispose();
+                    }
+
                     stopDispatcherServices();
 
                     log.info("Stopped dispatcher {}.", getAddress());
@@ -579,6 +598,34 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         return archiveExecutionGraphToHistoryServer(executionGraphInfo);
     }
 
+    /** This method must be called from the main thread. */
+    private CompletableFuture<Acknowledge> submitApplication(AbstractApplication application) {
+        final ApplicationID applicationId = application.getApplicationId();
+        log.info(
+                "Received application submission '{}' ({}).", application.getName(), applicationId);
+
+        if (applications.containsKey(applicationId)) {
+            log.warn("Application with id {} already submitted.", applicationId);
+            throw new CompletionException(
+                    new DuplicateApplicationSubmissionException(applicationId));
+        }
+        applications.put(applicationId, application);
+        Set<JobID> jobs = recoveredApplicationJobIds.remove(applicationId);
+        if (jobs != null) {
+            jobs.forEach(application::addJob);
+        }
+        return application.execute(
+                getSelfGateway(DispatcherGateway.class),
+                getRpcService().getScheduledExecutor(),
+                getMainThreadExecutor(),
+                this::onFatalError);
+    }
+
+    @VisibleForTesting
+    Map<ApplicationID, AbstractApplication> getApplications() {
+        return applications;
+    }
+
     /**
      * Checks whether the given job has already been executed.
      *
@@ -595,7 +642,17 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
             applyParallelismOverrides((JobGraph) executionPlan);
         }
 
-        log.info("Submitting job '{}' ({}).", executionPlan.getName(), executionPlan.getJobID());
+        final JobID jobId = executionPlan.getJobID();
+        final String jobName = executionPlan.getName();
+        final ApplicationID applicationId = executionPlan.getApplicationId();
+        log.info("Submitting job '{}' ({}).", jobName, jobId);
+
+        if (applications.containsKey(applicationId)) {
+            applications.get(applicationId).addJob(jobId);
+        } else {
+            log.warn(
+                    "Application ({}) for job '{}' ({}) not found.", applicationId, jobName, jobId);
+        }
 
         // track as an outstanding job
         submittedAndWaitingTerminationJobIDs.add(executionPlan.getJobID());
