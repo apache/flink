@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.configuration.MemorySize.MemoryUnit.BYTES;
@@ -287,6 +289,16 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
             throw new NumberFormatException("text does not start with a number");
         }
 
+        String unitsRegex = MemoryUnit.getRegularExpressionForAllUnits();
+        Pattern regexPattern = Pattern.compile("^(\\d+)\\s*" + unitsRegex + "?$");
+        Matcher matcher = regexPattern.matcher(trimmed.toLowerCase(Locale.US));
+
+        if (!matcher.matches()) {
+            throw new IllegalArgumentException(
+                    "Memory size must be an integer value optionally followed by a unit. Found: "
+                            + text);
+        }
+
         final long value;
         try {
             value = Long.parseLong(number); // this throws a NumberFormatException on overflow
@@ -386,6 +398,21 @@ public class MemorySize implements java.io.Serializable, Comparable<MemorySize> 
                     MEGA_BYTES.getUnits(),
                     GIGA_BYTES.getUnits(),
                     TERA_BYTES.getUnits());
+        }
+
+        public static String getRegularExpressionForAllUnits() {
+            String delimiter = "|";
+            String units =
+                    String.join(
+                            delimiter,
+                            new String[] {
+                                String.join(delimiter, BYTES.getUnits()),
+                                String.join(delimiter, KILO_BYTES.getUnits()),
+                                String.join(delimiter, MEGA_BYTES.getUnits()),
+                                String.join(delimiter, GIGA_BYTES.getUnits()),
+                                String.join(delimiter, TERA_BYTES.getUnits()),
+                            });
+            return "(" + units + ")";
         }
 
         public static boolean hasUnit(String text) {
