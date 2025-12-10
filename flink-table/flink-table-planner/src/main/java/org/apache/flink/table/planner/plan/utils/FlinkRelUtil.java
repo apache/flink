@@ -141,7 +141,6 @@ public class FlinkRelUtil {
         for (int i = 0; i < bottomProjectList.size(); i++) {
             RexNode project = bottomProjectList.get(i);
             if (project instanceof RexCall
-                    //        && SqlKind.FUNCTION.contains(((RexCall) project).op.getKind())
                     && ((RexCall) project).op.isDeterministic()) {
                 indexSet.add(i);
             }
