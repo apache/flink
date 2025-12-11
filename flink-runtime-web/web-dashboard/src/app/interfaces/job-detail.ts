@@ -60,6 +60,7 @@ export interface JobDetail {
   plan: Plan;
   'stream-graph': StreamGraph;
   'pending-operators': number;
+  'application-id': string;
 }
 
 interface Plan {

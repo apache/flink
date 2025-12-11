@@ -148,6 +148,7 @@ public class JobDetailsHandler
 
         return new JobDetailsInfo(
                 executionGraph.getJobID(),
+                executionGraph.getApplicationId().orElse(null),
                 executionGraph.getJobName(),
                 executionGraph.isStoppable(),
                 executionGraph.getState(),

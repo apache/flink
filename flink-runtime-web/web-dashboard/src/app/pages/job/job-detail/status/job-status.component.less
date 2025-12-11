@@ -38,4 +38,22 @@
     display: flex;
     align-items: center;
   }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    color: @link-color;
+    text-decoration: none;
+    margin-right: @margin-xs;
+    font-size: @font-size-base;
+    cursor: pointer;
+
+    &:hover {
+      color: @link-hover-color;
+    }
+
+    &::before {
+      margin-right: @margin-xs;
+    }
+  }
 }

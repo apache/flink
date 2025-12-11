@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rest.messages.job;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -27,6 +28,8 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.IOMetricsInfo;
+import org.apache.flink.runtime.rest.messages.json.ApplicationIDDeserializer;
+import org.apache.flink.runtime.rest.messages.json.ApplicationIDSerializer;
 import org.apache.flink.runtime.rest.messages.json.JobIDDeserializer;
 import org.apache.flink.runtime.rest.messages.json.JobIDSerializer;
 import org.apache.flink.runtime.rest.messages.json.JobVertexIDDeserializer;
@@ -90,6 +93,8 @@ public class JobDetailsInfo implements ResponseBody {
 
     public static final String FIELD_NAME_PENDING_OPERATORS = "pending-operators";
 
+    public static final String FIELD_NAME_APPLICATION_ID = "application-id";
+
     @JsonProperty(FIELD_NAME_JOB_ID)
     @JsonSerialize(using = JobIDSerializer.class)
     private final JobID jobId;
@@ -118,6 +123,10 @@ public class JobDetailsInfo implements ResponseBody {
     @JsonProperty(FIELD_NAME_MAX_PARALLELISM)
     private final long maxParallelism;
 
+    @JsonProperty(FIELD_NAME_APPLICATION_ID)
+    @JsonSerialize(using = ApplicationIDSerializer.class)
+    private final ApplicationID applicationId;
+
     @JsonProperty(FIELD_NAME_NOW)
     private final long now;
 
@@ -145,6 +154,9 @@ public class JobDetailsInfo implements ResponseBody {
     public JobDetailsInfo(
             @JsonDeserialize(using = JobIDDeserializer.class) @JsonProperty(FIELD_NAME_JOB_ID)
                     JobID jobId,
+            @JsonDeserialize(using = ApplicationIDDeserializer.class)
+                    @JsonProperty(FIELD_NAME_APPLICATION_ID)
+                    ApplicationID applicationId,
             @JsonProperty(FIELD_NAME_JOB_NAME) String name,
             @JsonProperty(FIELD_NAME_IS_STOPPABLE) boolean isStoppable,
             @JsonProperty(FIELD_NAME_JOB_STATUS) JobStatus jobStatus,
@@ -164,6 +176,7 @@ public class JobDetailsInfo implements ResponseBody {
                     JobPlanInfo.RawJson streamGraphJson,
             @JsonProperty(FIELD_NAME_PENDING_OPERATORS) int pendingOperators) {
         this.jobId = Preconditions.checkNotNull(jobId);
+        this.applicationId = applicationId;
         this.name = Preconditions.checkNotNull(name);
         this.isStoppable = isStoppable;
         this.jobStatus = Preconditions.checkNotNull(jobStatus);
@@ -200,6 +213,7 @@ public class JobDetailsInfo implements ResponseBody {
                 && Objects.equals(name, that.name)
                 && jobStatus == that.jobStatus
                 && jobType == that.jobType
+                && Objects.equals(applicationId, that.applicationId)
                 && Objects.equals(timestamps, that.timestamps)
                 && Objects.equals(jobVertexInfos, that.jobVertexInfos)
                 && Objects.equals(jobVerticesPerState, that.jobVerticesPerState)
@@ -220,6 +234,7 @@ public class JobDetailsInfo implements ResponseBody {
                 endTime,
                 duration,
                 maxParallelism,
+                applicationId,
                 now,
                 timestamps,
                 jobVertexInfos,
@@ -237,6 +252,11 @@ public class JobDetailsInfo implements ResponseBody {
     @JsonIgnore
     public String getName() {
         return name;
+    }
+
+    @JsonIgnore
+    public ApplicationID getApplicationId() {
+        return applicationId;
     }
 
     @JsonIgnore

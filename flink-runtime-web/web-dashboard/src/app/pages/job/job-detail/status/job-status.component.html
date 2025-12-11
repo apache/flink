@@ -16,6 +16,15 @@
   ~ limitations under the License.
   -->
 
+<ng-template #titleTpl>
+  <div class="title-wrapper">
+    <a *ngIf="jobDetail['application-id']" (click)="navigateToApplication()" class="back-link">
+      ← Return to Application
+    </a>
+    <span>{{ jobDetail.name }}</span>
+  </div>
+</ng-template>
+
 <ng-template #extraTpl>
   <div class="operate-action">
     <span *ngIf="statusTips">{{ statusTips }}</span>
@@ -41,7 +50,7 @@
 
 <ng-container *ngIf="jobDetail && !isLoading">
   <nz-descriptions
-    [nzTitle]="jobDetail.name"
+    [nzTitle]="titleTpl"
     [nzExtra]="extraTpl"
     nzBordered
     nzSize="small"
