@@ -18,7 +18,7 @@
 
 import { DatePipe, NgIf } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Inject, Input, OnDestroy, OnInit } from '@angular/core';
-import { RouterLinkWithHref } from '@angular/router';
+import { Router, RouterLinkWithHref } from '@angular/router';
 import { merge, Subject } from 'rxjs';
 import { distinctUntilKeyChanged, mergeMap, take, takeUntil, tap } from 'rxjs/operators';
 
@@ -75,6 +75,7 @@ export class JobStatusComponent implements OnInit, OnDestroy {
     private readonly jobManagerService: JobManagerService,
     private readonly statusService: StatusService,
     private readonly cdr: ChangeDetectorRef,
+    private readonly router: Router,
     @Inject(JOB_MODULE_CONFIG) readonly moduleConfig: JobModuleConfig
   ) {
     this.listOfNavigation = moduleConfig.routerTabs || JOB_MODULE_DEFAULT_CONFIG.routerTabs;
@@ -137,5 +138,11 @@ export class JobStatusComponent implements OnInit, OnDestroy {
       this.listOfNavigation.splice(index, 1);
     }
     this.cdr.markForCheck();
+  }
+
+  navigateToApplication(): void {
+    if (this.jobDetail['application-id']) {
+      this.router.navigate(['/', 'application', 'running', this.jobDetail['application-id']]).then();
+    }
   }
 }
