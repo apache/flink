@@ -148,7 +148,7 @@ Flink SQL> INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE pro
 The following grammar gives an overview about the available syntax:
 
 ```text
-CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
+CREATE [TEMPORARY] TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
   (
     { <physical_column_definition> | <metadata_column_definition> | <computed_column_definition> }[ , ...n]
     [ <watermark_definition> ]
@@ -197,6 +197,15 @@ CREATE TABLE [IF NOT EXISTS] [catalog_name.][db_name.]table_name
 
 The statement above creates a table with the given name. If a table with the same name already exists
 in the catalog, an exception is thrown.
+
+For information about CREATE MATERIALIZED TABLE, please refer to [Materialized Table Statements]({{< ref "docs/dev/table/materialized-table/statements" >}}).
+
+**TEMPORARY**
+
+Temporary tables are always stored in memory and only exist for the duration of
+the Flink session they are created within.
+
+Check out more details at [Temporary vs Permanent tables]({{< ref "docs/dev/table/common" >}}#temporary-vs-permanent-tables).
 
 ### Columns
 
@@ -288,7 +297,7 @@ CREATE TABLE MyTable (
   `timestamp` BIGINT METADATA,       -- part of the query-to-sink schema
   `offset` BIGINT METADATA VIRTUAL,  -- not part of the query-to-sink schema
   `user_id` BIGINT,
-  `name` STRING,
+  `name` STRING
 ) WITH (
   'connector' = 'kafka'
   ...
@@ -595,7 +604,7 @@ CREATE TABLE my_ctas_table (
     desc STRING,
     quantity DOUBLE,   
     cost AS price * quantity,
-    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND,
+    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND
 ) WITH (
     'connector' = 'kafka',
     ...
