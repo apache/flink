@@ -107,19 +107,19 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
 
         // finalize catalog table with option hints
         final Map<String, String> hintedOptions = FlinkHints.getHintedOptions(hints);
-        final ContextResolvedTable catalogTable =
+        final ContextResolvedTable contextTableWithHints =
                 computeContextResolvedTable(context, hintedOptions);
 
         // create table source
         final DynamicTableSource tableSource =
-                createDynamicTableSource(context, catalogTable.getResolvedTable());
+                createDynamicTableSource(context, contextTableWithHints.getResolvedTable());
 
         // prepare table source and convert to RelNode
         return DynamicSourceUtils.convertSourceToRel(
                 !schemaTable.isStreamingMode(),
                 context.getTableConfig(),
                 relBuilder,
-                schemaTable.getContextResolvedTable(),
+                contextTableWithHints,
                 schemaTable.getStatistic(),
                 hints,
                 tableSource);
