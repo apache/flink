@@ -210,7 +210,9 @@ public class FileSystemOutputFormat<T>
     @Override
     public void close() throws IOException {
         try {
-            writer.close();
+            if (writer != null) {
+                writer.close();
+            }
         } catch (Exception e) {
             throw new TableException("Exception in close", e);
         }

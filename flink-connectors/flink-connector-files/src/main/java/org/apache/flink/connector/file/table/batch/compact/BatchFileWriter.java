@@ -124,7 +124,9 @@ public class BatchFileWriter<T> extends AbstractStreamOperator<CoordinatorInput>
     public void close() throws Exception {
         try {
             staticPartitions.clear();
-            writer.close();
+            if (writer != null) {
+                writer.close();
+            }
         } catch (Exception e) {
             throw new TableException("Exception in close", e);
         }
