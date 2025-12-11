@@ -1,0 +1,149 @@
+{
+  "flinkVersion" : "2.3",
+  "nodes" : [ {
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_2",
+    "scanTableSource" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`source_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "name",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "score",
+              "dataType" : "INT"
+            } ]
+          }
+        }
+      }
+    },
+    "outputType" : "ROW<`name` VARCHAR(2147483647), `score` INT>",
+    "description" : "TableSourceScan(table=[[default_catalog, default_database, source_t]], fields=[name, score])"
+  }, {
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
+    "projection" : [ {
+      "kind" : "CALL",
+      "internalName" : "$UPPER$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 0,
+        "type" : "VARCHAR(2147483647)"
+      } ],
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "INT"
+      } ],
+      "type" : "BIGINT"
+    }, {
+      "kind" : "INPUT_REF",
+      "inputIndex" : 0,
+      "type" : "VARCHAR(2147483647)"
+    }, {
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
+      "operands" : [ {
+        "kind" : "INPUT_REF",
+        "inputIndex" : 1,
+        "type" : "INT"
+      } ],
+      "type" : "BIGINT"
+    } ],
+    "condition" : null,
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`name` VARCHAR(2147483647), `score` BIGINT, `nameMetadata` VARCHAR(2147483647), `scoreMetadata` BIGINT>",
+    "description" : "Calc(select=[UPPER(name) AS name, CAST(score AS BIGINT) AS score, name AS nameMetadata, CAST(score AS BIGINT) AS scoreMetadata])"
+  }, {
+    "id" : 3,
+    "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.rowtime-inserter" : "ENABLED",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
+    "dynamicTableSink" : {
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink_t`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "name",
+              "dataType" : "VARCHAR(2147483647) NOT NULL"
+            }, {
+              "name" : "scoreMetadata",
+              "kind" : "METADATA",
+              "dataType" : "BIGINT",
+              "isVirtual" : false
+            }, {
+              "name" : "score",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "nameMetadata",
+              "kind" : "METADATA",
+              "dataType" : "VARCHAR(2147483647)",
+              "isVirtual" : false
+            } ],
+            "primaryKey" : {
+              "name" : "PK_name",
+              "type" : "PRIMARY_KEY",
+              "columns" : [ "name" ]
+            }
+          }
+        }
+      },
+      "abilities" : [ {
+        "type" : "WritingMetadata",
+        "metadataKeys" : [ "nameMetadata", "scoreMetadata" ],
+        "consumedType" : "ROW<`name` VARCHAR(2147483647) NOT NULL, `score` BIGINT, `nameMetadata` VARCHAR(2147483647), `scoreMetadata` BIGINT> NOT NULL"
+      } ]
+    },
+    "inputChangelogMode" : [ "INSERT", "UPDATE_BEFORE", "UPDATE_AFTER", "DELETE" ],
+    "requireUpsertMaterialize" : true,
+    "state" : [ {
+      "index" : 0,
+      "ttl" : "0 ms",
+      "name" : "sinkMaterializeState"
+    } ],
+    "inputProperties" : [ {
+      "requiredDistribution" : {
+        "type" : "UNKNOWN"
+      },
+      "damBehavior" : "PIPELINED",
+      "priority" : 0
+    } ],
+    "outputType" : "ROW<`name` VARCHAR(2147483647), `score` BIGINT, `nameMetadata` VARCHAR(2147483647), `scoreMetadata` BIGINT>",
+    "description" : "Sink(table=[default_catalog.default_database.sink_t], fields=[name, score, nameMetadata, scoreMetadata], upsertMaterialize=[true])"
+  } ],
+  "edges" : [ {
+    "source" : 1,
+    "target" : 2,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  }, {
+    "source" : 2,
+    "target" : 3,
+    "shuffle" : {
+      "type" : "FORWARD"
+    },
+    "shuffleMode" : "PIPELINED"
+  } ]
+}
