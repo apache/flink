@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.common.TableSinkTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 
 /** Restore tests for {@link StreamExecSink}. */
 public class TableSinkRestoreTest extends RestoreTestBase {
@@ -44,6 +46,20 @@ public class TableSinkRestoreTest extends RestoreTestBase {
                 TableSinkTestPrograms.SINK_WRITING_METADATA,
                 TableSinkTestPrograms.SINK_NDF_PRIMARY_KEY,
                 TableSinkTestPrograms.SINK_PARTIAL_INSERT,
-                TableSinkTestPrograms.SINK_UPSERT);
+                TableSinkTestPrograms.SINK_UPSERT,
+                TableSinkTestPrograms.INSERT_RETRACT_WITH_WRITABLE_METADATA_FOR_LEGACY_TYPE,
+                TableSinkTestPrograms.INSERT_RETRACT_WITH_WRITABLE_METADATA);
+    }
+
+    @Override
+    protected Stream<String> getSavepointPaths(
+            TableTestProgram program, ExecNodeMetadata metadata) {
+        // disable the writable metadata test for sink node with version 1. it fails after the
+        // restore
+        if (program.id.equals(TableSinkTestPrograms.INSERT_RETRACT_WITH_WRITABLE_METADATA.id)
+                && metadata.version() == 1) {
+            return Stream.empty();
+        }
+        return super.getSavepointPaths(program, metadata);
     }
 }

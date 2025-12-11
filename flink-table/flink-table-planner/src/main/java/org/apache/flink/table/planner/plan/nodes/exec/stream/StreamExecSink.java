@@ -106,6 +106,9 @@ import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXE
         minStateVersion = FlinkVersion.v1_15)
 // Version 2: Fixed the data type used for creating constraint enforcer and sink upsert
 // materializer. Since this version the sink works correctly with persisted metadata columns.
+// We introduced a new version, because statements that were never rolling back to a value from
+// state could run succesfully. We allow those jobs to be upgraded. Without a new versions such jobs
+// would fail on restore, because the state serializer would differ
 @ExecNodeMetadata(
         name = "stream-exec-sink",
         version = 2,
