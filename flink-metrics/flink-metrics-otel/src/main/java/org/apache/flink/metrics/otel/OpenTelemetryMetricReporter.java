@@ -100,9 +100,11 @@ public class OpenTelemetryMetricReporter extends OpenTelemetryReporterBase
 
     @Override
     public void close() {
-        exporter.flush();
-        lastResult.join(1, TimeUnit.MINUTES);
-        exporter.close();
+        if (exporter != null) {
+            exporter.flush();
+            lastResult.join(1, TimeUnit.MINUTES);
+            exporter.close();
+        }
     }
 
     @Override
