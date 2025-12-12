@@ -25,9 +25,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
@@ -95,12 +93,6 @@ public class StreamExecTableSourceScan extends CommonExecTableSourceScan
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(
-            PlannerBase planner, ExecNodeConfig config) {
-        return createTransformation(planner, config, legacyUidsEnabled());
-    }
-
-    @Override
     public Transformation<RowData> createInputFormatTransformation(
             StreamExecutionEnvironment env,
             InputFormat<RowData, ?> inputFormat,
@@ -111,7 +103,8 @@ public class StreamExecTableSourceScan extends CommonExecTableSourceScan
         return env.createInput(inputFormat, outputTypeInfo).name(operatorName).getTransformation();
     }
 
-    private boolean legacyUidsEnabled() {
+    @Override
+    protected final boolean legacyUidsEnabled() {
         return getVersion() == 1;
     }
 }

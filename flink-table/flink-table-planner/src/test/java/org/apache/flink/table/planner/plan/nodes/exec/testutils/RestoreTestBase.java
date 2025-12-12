@@ -205,6 +205,18 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
                                                                                         savepointPath))));
     }
 
+    // ====================================================================================
+    // Extension points for adjusting test combinations
+    // ====================================================================================
+
+    /**
+     * Can be overridden with a collection of programs that should be ignored for a particular
+     * version of the node under test.
+     */
+    protected Map<Integer, List<TableTestProgram>> programsToIgnore() {
+        return Collections.emptyMap();
+    }
+
     /**
      * The method can be overridden in a subclass to test multiple savepoint files for a given
      * program and a node in a particular version. This can be useful e.g. to test a node against
@@ -212,9 +224,16 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
      */
     protected Stream<String> getSavepointPaths(
             TableTestProgram program, ExecNodeMetadata metadata) {
-        return Stream.of(getSavepointPath(program, metadata, null));
+        if (programsToIgnore()
+                .getOrDefault(metadata.version(), Collections.emptyList())
+                .contains(program)) {
+            return Stream.empty();
+        } else {
+            return Stream.of(getSavepointPath(program, metadata, null));
+        }
     }
 
+    /** Can be used in {@link #getSavepointPaths(TableTestProgram, ExecNodeMetadata)}. */
     protected final String getSavepointPath(
             TableTestProgram program,
             ExecNodeMetadata metadata,
@@ -228,6 +247,10 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
 
         return builder.toString();
     }
+
+    // ====================================================================================
+    // End of extension points
+    // ====================================================================================
 
     private void registerSinkObserver(
             final List<CompletableFuture<?>> futures,

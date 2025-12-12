@@ -24,6 +24,7 @@ import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /** Restore tests for {@link StreamExecSink}. */
 public class TableSinkRestoreTest extends RestoreTestBase {
@@ -44,6 +45,16 @@ public class TableSinkRestoreTest extends RestoreTestBase {
                 TableSinkTestPrograms.SINK_WRITING_METADATA,
                 TableSinkTestPrograms.SINK_NDF_PRIMARY_KEY,
                 TableSinkTestPrograms.SINK_PARTIAL_INSERT,
-                TableSinkTestPrograms.SINK_UPSERT);
+                TableSinkTestPrograms.SINK_UPSERT,
+                TableSinkTestPrograms.INSERT_RETRACT_WITH_WRITABLE_METADATA_FOR_LEGACY_TYPE,
+                TableSinkTestPrograms.INSERT_RETRACT_WITH_WRITABLE_METADATA);
+    }
+
+    @Override
+    protected Map<Integer, List<TableTestProgram>> programsToIgnore() {
+        return Map.of(
+                // disable the writable metadata test for sink node with version 1. it fails after
+                // the restore
+                1, List.of(TableSinkTestPrograms.INSERT_RETRACT_WITH_WRITABLE_METADATA));
     }
 }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.test.program.SinkTestStep;
@@ -27,6 +28,9 @@ import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
 import java.util.Arrays;
+
+import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY;
 
 /** {@link TableTestProgram} definitions for testing {@link StreamExecSink}. */
 public class TableSinkTestPrograms {
@@ -222,4 +226,75 @@ public class TableSinkTestPrograms {
                                     .build())
                     .runSql("INSERT INTO sink_t SELECT * FROM source_t")
                     .build();
+
+    // The queries could run as long as the value was never rolled back to one from state, which is
+    // possible. We validate those can restore and still run
+    public static final TableTestProgram INSERT_RETRACT_WITH_WRITABLE_METADATA_FOR_LEGACY_TYPE =
+            getInsertRetractWithWritableMetadata(true);
+
+    public static final TableTestProgram INSERT_RETRACT_WITH_WRITABLE_METADATA =
+            getInsertRetractWithWritableMetadata(false);
+
+    private static TableTestProgram getInsertRetractWithWritableMetadata(
+            boolean forLegacyPhysicalType) {
+        final Row producedAfterRestore;
+        final String consumedAfterRestore;
+        if (forLegacyPhysicalType) {
+            producedAfterRestore = Row.ofKind(RowKind.INSERT, "Bob", 7);
+            consumedAfterRestore = "+U[BOB, 7, Bob, 7]";
+        } else {
+            // retract the last record, which should roll back to
+            // the previous state
+            producedAfterRestore = Row.ofKind(RowKind.DELETE, "Bob", 6);
+            consumedAfterRestore = "+U[BOB, 5, Bob, 5]";
+        }
+        return TableTestProgram.of(
+                        "insert-into-upsert-with-sink-upsert-materializer-writable-metadata"
+                                + (forLegacyPhysicalType ? "-v1" : ""),
+                        "The query requires a sink upsert materializer and the sink"
+                                + " uses writable metadata columns. The scenario showcases a"
+                                + " bug where a wrong type was used in sinks which did not"
+                                + " consider metadata columns. There needs to be multiple"
+                                + " requirements for the bug to show up. 1. We need to use "
+                                + " rocksdb, so that we use a serializer when putting records"
+                                + " into state in SinkUpsertMaterializer. 2. We need to retract"
+                                + " to a previous value taken from the state, otherwise we"
+                                + " forward the incoming record. 3. There need to be persisted"
+                                + " metadata columns.")
+                .setupConfig(
+                        TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY,
+                        ExecutionConfigOptions.SinkUpsertMaterializeStrategy.LEGACY)
+                .setupConfig(STATE_BACKEND, "rocksdb")
+                .setupTableSource(
+                        SourceTestStep.newBuilder("source_t")
+                                .addSchema("name STRING", "score INT")
+                                .addOption("changelog-mode", "I,UB,UA,D")
+                                .producedBeforeRestore(
+                                        Row.ofKind(RowKind.INSERT, "Bob", 5),
+                                        Row.ofKind(RowKind.INSERT, "Bob", 6))
+                                .producedAfterRestore(producedAfterRestore)
+                                .build())
+                .setupTableSink(
+                        SinkTestStep.newBuilder("sink_t")
+                                .addSchema(
+                                        "name STRING PRIMARY KEY NOT ENFORCED",
+                                        "scoreMetadata BIGINT METADATA",
+                                        "score BIGINT",
+                                        "nameMetadata STRING METADATA")
+                                .addOption("sink-changelog-mode-enforced", "I,UA,D")
+                                // The test sink lists metadata columns
+                                // (SupportsWritingMetadata#listWritableMetadata) in
+                                // alphabetical order, this is also the order in the record of
+                                // a sink, irrespective of the table schema
+                                .addOption(
+                                        "writable-metadata",
+                                        "nameMetadata:STRING,scoreMetadata:BIGINT")
+                                // physical columns first, then metadata columns, sorted
+                                // alphabetically by columns name (test sink property)
+                                .consumedBeforeRestore("+I[BOB, 5, Bob, 5]", "+U[BOB, 6, Bob, 6]")
+                                .consumedAfterRestore(consumedAfterRestore)
+                                .build())
+                .runSql("INSERT INTO sink_t SELECT UPPER(name), score, score, name FROM source_t")
+                .build();
+    }
 }
