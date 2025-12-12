@@ -28,7 +28,7 @@ public interface ParserResource {
     /** Resources. */
     ParserResource RESOURCE = Resources.create(ParserResource.class);
 
-    @Resources.BaseMessage("Multiple WATERMARK statements is not supported yet.")
+    @Resources.BaseMessage("Multiple WATERMARK declarations are not supported yet.")
     Resources.ExInst<ParseException> multipleWatermarksUnsupported();
 
     @Resources.BaseMessage("OVERWRITE expression is only used with INSERT statement.")

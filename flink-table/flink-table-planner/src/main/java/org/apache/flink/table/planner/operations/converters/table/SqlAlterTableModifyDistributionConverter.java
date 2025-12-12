@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterTable;
-import org.apache.flink.sql.parser.ddl.SqlAlterTableDistribution;
-import org.apache.flink.sql.parser.ddl.SqlAlterTableDistribution.SqlAlterTableModifyDistribution;
+import org.apache.flink.sql.parser.ddl.table.SqlAlterTable;
+import org.apache.flink.sql.parser.ddl.table.SqlAlterTableDistribution;
+import org.apache.flink.sql.parser.ddl.table.SqlAlterTableDistribution.SqlAlterTableModifyDistribution;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;

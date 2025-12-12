@@ -679,7 +679,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "watermark for ts as ts - interval '1' second,\n"
                         + "^watermark^ for f1 as now()\n"
                         + ")")
-                .fails("Multiple WATERMARK statements is not supported yet.");
+                .fails("Multiple WATERMARK declarations are not supported yet.");
     }
 
     @Test
@@ -856,7 +856,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "watermark for ts as ts - interval '1' second,\n"
                         + "^watermark^ for f1 as now()\n"
                         + ")")
-                .fails("Multiple WATERMARK statements is not supported yet.");
+                .fails("Multiple WATERMARK declarations are not supported yet.");
     }
 
     @Test
@@ -1692,7 +1692,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "    'connector' = 'kafka', \n"
                         + "    'kafka.topic' = 'log.test'\n"
                         + ")\n";
-        sql(sql).fails("Multiple WATERMARK statements is not supported yet.");
+        sql(sql).fails("Multiple WATERMARK declarations are not supported yet.");
     }
 
     @Test

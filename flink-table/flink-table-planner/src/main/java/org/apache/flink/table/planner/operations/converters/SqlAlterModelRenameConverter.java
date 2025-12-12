@@ -18,14 +18,14 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterModelRename;
+import org.apache.flink.sql.parser.ddl.model.SqlAlterModelRename;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterModelRenameOperation;
 
-/** A converter for {@link org.apache.flink.sql.parser.ddl.SqlAlterModelRename}. */
+/** A converter for {@link SqlAlterModelRename}. */
 public class SqlAlterModelRenameConverter
         extends AbstractSqlAlterModelConverter<SqlAlterModelRename> {
 

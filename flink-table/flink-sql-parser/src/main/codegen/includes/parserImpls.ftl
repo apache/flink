@@ -2133,7 +2133,7 @@ SqlAlterMaterializedTable SqlAlterMaterializedTable() :
             }
         |
         <ADD>
-            (
+        (
             <DISTRIBUTION> {
                 return new SqlAlterMaterializedTableAddDistribution(
                 startPos.plus(getPos()),
@@ -2158,11 +2158,30 @@ SqlAlterMaterializedTable SqlAlterMaterializedTable() :
               ctx.watermark);
         }
         |
-        <MODIFY> <DISTRIBUTION> {
-            return new SqlAlterMaterializedTableModifyDistribution(
-              startPos.plus(getPos()),
-              tableIdentifier,
-              SqlDistribution(getPos()));
+        <MODIFY>
+        (
+          <DISTRIBUTION> {
+          return new SqlAlterMaterializedTableModifyDistribution(
+            startPos.plus(getPos()),
+            tableIdentifier, SqlDistribution(getPos()));
+        }
+        |
+            AlterTableAddOrModify(ctx)
+        |
+            <LPAREN>
+            AlterTableAddOrModify(ctx)
+            (
+                <COMMA> AlterTableAddOrModify(ctx)
+            )*
+            <RPAREN>
+        )
+        {
+          return new SqlAlterMaterializedTableModifySchema(
+            startPos.plus(getPos()),
+            tableIdentifier,
+            new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
+            ctx.constraints,
+            ctx.watermark);
         }
         |
         <DROP> <DISTRIBUTION> {

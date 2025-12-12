@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTable;
+import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTable;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -33,7 +33,7 @@ import org.apache.flink.table.operations.utils.ValidationUtils;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-/** Abstract converter for {@link org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTable}. */
+/** Abstract converter for {@link SqlAlterMaterializedTable}. */
 public abstract class AbstractAlterMaterializedTableConverter<T extends SqlAlterMaterializedTable>
         implements SqlNodeConverter<T> {
 

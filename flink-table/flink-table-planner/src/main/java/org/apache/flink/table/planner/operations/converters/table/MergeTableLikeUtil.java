@@ -18,16 +18,16 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
-import org.apache.flink.sql.parser.ddl.SqlCreateTable;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlComputedColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlMetadataColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
-import org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption;
-import org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy;
-import org.apache.flink.sql.parser.ddl.SqlTableLike.SqlTableLikeOption;
 import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
+import org.apache.flink.sql.parser.ddl.table.SqlCreateTable;
+import org.apache.flink.sql.parser.ddl.table.SqlTableLike.FeatureOption;
+import org.apache.flink.sql.parser.ddl.table.SqlTableLike.MergingStrategy;
+import org.apache.flink.sql.parser.ddl.table.SqlTableLike.SqlTableLikeOption;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Schema.UnresolvedColumn;
 import org.apache.flink.table.api.Schema.UnresolvedComputedColumn;
@@ -267,7 +267,8 @@ class MergeTableLikeUtil {
             for (UnresolvedColumn sourceColumn : sourceSchema.getColumns()) {
                 if (sourceColumn instanceof UnresolvedPhysicalColumn) {
                     LogicalType columnType =
-                            getLogicalType((UnresolvedPhysicalColumn) sourceColumn);
+                            getLogicalType(
+                                    dataTypeFactory, (UnresolvedPhysicalColumn) sourceColumn);
                     physicalFieldNamesToTypes.put(
                             sourceColumn.getName(),
                             typeFactory.createFieldTypeFromLogicalType(columnType));

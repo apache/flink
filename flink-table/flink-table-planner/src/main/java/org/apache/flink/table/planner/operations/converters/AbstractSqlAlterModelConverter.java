@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
+import org.apache.flink.sql.parser.ddl.model.SqlAlterModel;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ContextResolvedModel;
@@ -29,7 +30,7 @@ import org.apache.calcite.sql.SqlNode;
 
 import java.util.Optional;
 
-/** Abstract converter for {@link org.apache.flink.sql.parser.ddl.SqlAlterModel}. */
+/** Abstract converter for {@link SqlAlterModel}. */
 public abstract class AbstractSqlAlterModelConverter<T extends SqlNode>
         implements SqlNodeConverter<T> {
 

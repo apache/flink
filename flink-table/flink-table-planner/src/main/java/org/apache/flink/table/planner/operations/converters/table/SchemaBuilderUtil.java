@@ -51,6 +51,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType;
+import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsImplicitCast;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /** A utility class for {@link MergeTableAsUtil} and {@link MergeTableLikeUtil} classes. */
@@ -254,7 +255,8 @@ public class SchemaBuilderUtil {
      * Gets the column data type of {@link UnresolvedPhysicalColumn} column and convert it to a
      * {@link LogicalType}.
      */
-    LogicalType getLogicalType(UnresolvedPhysicalColumn column) {
+    static LogicalType getLogicalType(
+            DataTypeFactory dataTypeFactory, UnresolvedPhysicalColumn column) {
         return dataTypeFactory.createDataType(column.getDataType()).getLogicalType();
     }
 
@@ -262,12 +264,56 @@ public class SchemaBuilderUtil {
      * Gets the column data type of {@link UnresolvedMetadataColumn} column and convert it to a
      * {@link LogicalType}.
      */
-    LogicalType getLogicalType(UnresolvedMetadataColumn column) {
+    static LogicalType getLogicalType(
+            DataTypeFactory dataTypeFactory, UnresolvedMetadataColumn column) {
         return dataTypeFactory.createDataType(column.getDataType()).getLogicalType();
     }
 
     RelDataType toRelDataType(SqlDataTypeSpec type) {
         boolean nullable = type.getNullable() == null || type.getNullable();
         return type.deriveType(sqlValidator, nullable);
+    }
+
+    public static void validateImplicitCastCompatibility(
+            DataTypeFactory dataTypeFactory,
+            String columnName,
+            int columnPos,
+            Schema.UnresolvedColumn sourceColumn,
+            Schema.UnresolvedColumn sinkColumn) {
+        LogicalType sinkColumnType;
+
+        if (sinkColumn instanceof UnresolvedPhysicalColumn) {
+            sinkColumnType =
+                    getLogicalType(dataTypeFactory, ((UnresolvedPhysicalColumn) sinkColumn));
+        } else if ((sinkColumn instanceof UnresolvedMetadataColumn)) {
+            if (((UnresolvedMetadataColumn) sinkColumn).isVirtual()) {
+                throw new ValidationException(
+                        String.format(
+                                "A column named '%s' already exists in the source schema. "
+                                        + "Virtual metadata columns cannot overwrite "
+                                        + "columns from source.",
+                                columnName));
+            }
+
+            sinkColumnType =
+                    getLogicalType(dataTypeFactory, ((UnresolvedMetadataColumn) sinkColumn));
+        } else {
+            throw new ValidationException(
+                    String.format(
+                            "A column named '%s' already exists in the source schema. "
+                                    + "Computed columns cannot overwrite columns from source.",
+                            columnName));
+        }
+
+        LogicalType sourceColumnType =
+                getLogicalType(dataTypeFactory, ((UnresolvedPhysicalColumn) sourceColumn));
+        if (!supportsImplicitCast(sourceColumnType, sinkColumnType)) {
+            throw new ValidationException(
+                    String.format(
+                            "Incompatible types for sink column '%s' at position %d. "
+                                    + "The source column has type '%s', "
+                                    + "while the target column has type '%s'.",
+                            columnName, columnPos, sourceColumnType, sinkColumnType));
+        }
     }
 }

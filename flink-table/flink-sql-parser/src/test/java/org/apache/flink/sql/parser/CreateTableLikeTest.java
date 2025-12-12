@@ -18,11 +18,11 @@
 
 package org.apache.flink.sql.parser;
 
-import org.apache.flink.sql.parser.ddl.SqlCreateTableLike;
-import org.apache.flink.sql.parser.ddl.SqlTableLike;
-import org.apache.flink.sql.parser.ddl.SqlTableLike.FeatureOption;
-import org.apache.flink.sql.parser.ddl.SqlTableLike.MergingStrategy;
-import org.apache.flink.sql.parser.ddl.SqlTableLike.SqlTableLikeOption;
+import org.apache.flink.sql.parser.ddl.table.SqlCreateTableLike;
+import org.apache.flink.sql.parser.ddl.table.SqlTableLike;
+import org.apache.flink.sql.parser.ddl.table.SqlTableLike.FeatureOption;
+import org.apache.flink.sql.parser.ddl.table.SqlTableLike.MergingStrategy;
+import org.apache.flink.sql.parser.ddl.table.SqlTableLike.SqlTableLikeOption;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 

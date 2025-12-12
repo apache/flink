@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterCatalogComment;
+import org.apache.flink.sql.parser.ddl.catalog.SqlAlterCatalogComment;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterCatalogCommentOperation;
 
