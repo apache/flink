@@ -112,8 +112,9 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         return tableSourceSpec;
     }
 
-    protected Transformation<RowData> createTransformation(
-            PlannerBase planner, ExecNodeConfig config, boolean legacyUidsEnabled) {
+    @Override
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final Transformation<RowData> sourceTransform;
         final StreamExecutionEnvironment env = planner.getExecEnv();
         final TransformationMetadata metadata =
@@ -186,7 +187,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                     ((DataStreamScanProvider) provider)
                             .produceDataStream(createProviderContext(metadata, config), env)
                             .getTransformation();
-            if (legacyUidsEnabled) {
+            if (legacyUidsEnabled()) {
                 metadata.fill(sourceTransform);
             }
             sourceTransform.setOutputType(outputTypeInfo);
@@ -194,7 +195,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
             sourceTransform =
                     ((TransformationScanProvider) provider)
                             .createTransformation(createProviderContext(metadata, config));
-            if (legacyUidsEnabled) {
+            if (legacyUidsEnabled()) {
                 metadata.fill(sourceTransform);
             }
             sourceTransform.setOutputType(outputTypeInfo);
@@ -369,4 +370,6 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
             InputFormat<RowData, ?> inputFormat,
             InternalTypeInfo<RowData> outputTypeInfo,
             String operatorName);
+
+    protected abstract boolean legacyUidsEnabled();
 }
