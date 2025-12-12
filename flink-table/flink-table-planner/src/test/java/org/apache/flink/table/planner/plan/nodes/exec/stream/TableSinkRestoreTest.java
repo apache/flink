@@ -18,14 +18,13 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.common.TableSinkTestPrograms;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.RestoreTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.Map;
 
 /** Restore tests for {@link StreamExecSink}. */
 public class TableSinkRestoreTest extends RestoreTestBase {
@@ -52,14 +51,10 @@ public class TableSinkRestoreTest extends RestoreTestBase {
     }
 
     @Override
-    protected Stream<String> getSavepointPaths(
-            TableTestProgram program, ExecNodeMetadata metadata) {
-        // disable the writable metadata test for sink node with version 1. it fails after the
-        // restore
-        if (program.id.equals(TableSinkTestPrograms.INSERT_RETRACT_WITH_WRITABLE_METADATA.id)
-                && metadata.version() == 1) {
-            return Stream.empty();
-        }
-        return super.getSavepointPaths(program, metadata);
+    protected Map<Integer, List<TableTestProgram>> programsToIgnore() {
+        return Map.of(
+                // disable the writable metadata test for sink node with version 1. it fails after
+                // the restore
+                1, List.of(TableSinkTestPrograms.INSERT_RETRACT_WITH_WRITABLE_METADATA));
     }
 }
