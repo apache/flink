@@ -638,6 +638,31 @@ HashAggregate(isMerge=[true], groupBy=[a3, b3], select=[a3, b3, Final_COUNT(coun
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testImperativeAggWithAuxiliaryGrouping">
+    <Resource name="sql">
+      <![CDATA[SELECT a4, c4, COUNT(b4) FROM (SELECT a4, c4, ARRAY_AGG(b4) AS b4 FROM T4 GROUP BY a4, c4, TUMBLE(d4, INTERVAL '15' MINUTE)) t GROUP BY a4, c4]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT($2)])
++- LogicalProject(a4=[$0], c4=[$1], b4=[$3])
+   +- LogicalAggregate(group=[{0, 1, 2}], b4=[ARRAY_AGG($3)])
+      +- LogicalProject(a4=[$0], c4=[$2], $f2=[$TUMBLE($3, 900000:INTERVAL MINUTE)], b4=[$1])
+         +- LogicalTableScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashAggregate(isMerge=[false], groupBy=[a4], auxGrouping=[c4], select=[a4, c4, COUNT(b4) AS EXPR$2])
++- Exchange(distribution=[hash[a4]])
+   +- SortWindowAggregate(groupBy=[a4], auxGrouping=[c4], window=[TumblingGroupWindow('w$, d4, 900000)], select=[a4, c4, ARRAY_AGG(b4) AS b4])
+      +- Exchange(distribution=[forward])
+         +- Sort(orderBy=[a4 ASC, d4 ASC])
+            +- Exchange(distribution=[hash[a4]])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, T4, source: [TestTableSource(a4, b4, c4, d4)]]], fields=[a4, b4, c4, d4])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMultiAggs1">
     <Resource name="sql">
       <![CDATA[SELECT a1, b1, c1, d1, m, COUNT(*) FROM (SELECT a1, b1, c1, COUNT(d1) AS d1, MAX(d1) AS m FROM T1 GROUP BY a1, b1, c1) t GROUP BY a1, b1, c1, d1, m]]>
