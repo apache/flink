@@ -229,10 +229,10 @@ public class TableSinkTestPrograms {
 
     // The queries could run as long as the value was never rolled back to one from state, which is
     // possible. We validate those can restore and still run
-    public static TableTestProgram INSERT_RETRACT_WITH_WRITABLE_METADATA_FOR_LEGACY_TYPE =
+    public static final TableTestProgram INSERT_RETRACT_WITH_WRITABLE_METADATA_FOR_LEGACY_TYPE =
             getInsertRetractWithWritableMetadata(true);
 
-    public static TableTestProgram INSERT_RETRACT_WITH_WRITABLE_METADATA =
+    public static final TableTestProgram INSERT_RETRACT_WITH_WRITABLE_METADATA =
             getInsertRetractWithWritableMetadata(false);
 
     private static TableTestProgram getInsertRetractWithWritableMetadata(
