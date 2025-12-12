@@ -233,7 +233,7 @@ public abstract class RestoreTestBase implements TableTestProgramRunner {
         }
     }
 
-    /** Can be used in {@link #getSavepointPaths(TableTestProgram, ExecNodeMetadata)} */
+    /** Can be used in {@link #getSavepointPaths(TableTestProgram, ExecNodeMetadata)}. */
     protected final String getSavepointPath(
             TableTestProgram program,
             ExecNodeMetadata metadata,
