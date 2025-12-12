@@ -65,25 +65,6 @@ import java.util.List;
         },
         minPlanVersion = FlinkVersion.v2_0,
         minStateVersion = FlinkVersion.v2_0)
-// Version 2: Fixed the data type used for creating constraint enforcer and sink upsert
-// materializer. Since this version the sink works correctly with persisted metadata columns.
-// We introduced a new version, because statements that were never rolling back to a value from
-// state could run succesfully. We allow those jobs to be upgraded. Without a new versions such jobs
-// would fail on restore, because the state serializer would differ
-@ExecNodeMetadata(
-        name = "batch-exec-sink",
-        version = 2,
-        consumedOptions = {
-            "table.exec.sink.not-null-enforcer",
-            "table.exec.sink.type-length-enforcer",
-        },
-        producedTransformations = {
-            CommonExecSink.CONSTRAINT_VALIDATOR_TRANSFORMATION,
-            CommonExecSink.PARTITIONER_TRANSFORMATION,
-            CommonExecSink.SINK_TRANSFORMATION
-        },
-        minPlanVersion = FlinkVersion.v2_3,
-        minStateVersion = FlinkVersion.v2_3)
 public class BatchExecSink extends CommonExecSink implements BatchExecNode<Object> {
     public BatchExecSink(
             ReadableConfig tableConfig,
@@ -218,6 +199,6 @@ public class BatchExecSink extends CommonExecSink implements BatchExecNode<Objec
 
     @Override
     protected final boolean legacyPhysicalTypeEnabled() {
-        return getVersion() == 1;
+        return false;
     }
 }
