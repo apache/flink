@@ -116,7 +116,9 @@ public class TableTestProgram {
 
     @Override
     public boolean equals(Object o) {
-        if (o == null || getClass() != o.getClass()) return false;
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         TableTestProgram that = (TableTestProgram) o;
         return id.equals(that.id);
