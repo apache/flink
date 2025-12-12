@@ -467,7 +467,7 @@ class MaterializedTableStatementParserTest {
                         + "watermark for ts as ts - interval '1' second,\n"
                         + "^watermark^ for f1 as now()\n"
                         + ")")
-                .fails("Multiple WATERMARK statements is not supported yet.");
+                .fails("Multiple WATERMARK declarations are not supported yet.");
     }
 
     @Test
@@ -554,7 +554,7 @@ class MaterializedTableStatementParserTest {
                         + "watermark for ts as ts - interval '1' second,\n"
                         + "^watermark^ for f1 as now()\n"
                         + ")")
-                .fails("Multiple WATERMARK statements is not supported yet.");
+                .fails("Multiple WATERMARK declarations are not supported yet.");
     }
 
     @Test

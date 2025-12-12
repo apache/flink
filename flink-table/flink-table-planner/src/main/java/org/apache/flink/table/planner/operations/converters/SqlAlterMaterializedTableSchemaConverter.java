@@ -22,9 +22,16 @@ import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTab
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableSchema.SqlAlterMaterializedTableAddSchema;
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableSchema.SqlAlterMaterializedTableModifySchema;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Schema.UnresolvedColumn;
+import org.apache.flink.table.api.Schema.UnresolvedComputedColumn;
+import org.apache.flink.table.api.Schema.UnresolvedMetadataColumn;
+import org.apache.flink.table.api.Schema.UnresolvedPhysicalColumn;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.Column.ComputedColumn;
+import org.apache.flink.table.catalog.Column.MetadataColumn;
+import org.apache.flink.table.catalog.Column.PhysicalColumn;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -108,9 +115,9 @@ public abstract class SqlAlterMaterializedTableSchemaConverter<
                 map.put(column.getName(), column);
             }
 
-            List<Schema.UnresolvedColumn> columns = newSchema.getColumns();
+            List<UnresolvedColumn> columns = newSchema.getColumns();
             for (int i = 0; i < columns.size(); i++) {
-                Schema.UnresolvedColumn col = columns.get(i);
+                UnresolvedColumn col = columns.get(i);
                 final String name = col.getName();
                 if (map.containsKey(name) && !columnTypeKept(col, map.get(name))) {
                     throw new ValidationException(
@@ -121,7 +128,7 @@ public abstract class SqlAlterMaterializedTableSchemaConverter<
                                     name,
                                     getColumnKind(col.getClass())));
                 }
-                if (col instanceof Schema.UnresolvedComputedColumn) {
+                if (col instanceof UnresolvedComputedColumn) {
                     continue;
                 }
 
@@ -138,28 +145,26 @@ public abstract class SqlAlterMaterializedTableSchemaConverter<
             }
         }
 
-        private LogicalType createDataType(
-                DataTypeFactory dataTypeFactory, Schema.UnresolvedColumn col) {
-            if (col instanceof Schema.UnresolvedMetadataColumn) {
+        private LogicalType createDataType(DataTypeFactory dataTypeFactory, UnresolvedColumn col) {
+            if (col instanceof UnresolvedMetadataColumn) {
                 return dataTypeFactory
-                        .createDataType(((Schema.UnresolvedMetadataColumn) col).getDataType())
+                        .createDataType(((UnresolvedMetadataColumn) col).getDataType())
                         .getLogicalType();
-            } else if (col instanceof Schema.UnresolvedPhysicalColumn) {
+            } else if (col instanceof UnresolvedPhysicalColumn) {
                 return dataTypeFactory
-                        .createDataType(((Schema.UnresolvedPhysicalColumn) col).getDataType())
+                        .createDataType(((UnresolvedPhysicalColumn) col).getDataType())
                         .getLogicalType();
             } else {
-                throw new ValidationException("Mot expected column type " + col.getClass());
+                throw new ValidationException("Unexpected column type " + col.getClass());
             }
         }
 
-        private boolean columnTypeKept(Schema.UnresolvedColumn col, Column oldColumn) {
-            return col instanceof Schema.UnresolvedPhysicalColumn
-                            && oldColumn instanceof Column.PhysicalColumn
-                    || col instanceof Schema.UnresolvedComputedColumn
-                            && oldColumn instanceof Column.ComputedColumn
-                    || col instanceof Schema.UnresolvedMetadataColumn
-                            && oldColumn instanceof Column.MetadataColumn;
+        private boolean columnTypeKept(UnresolvedColumn col, Column oldColumn) {
+            return col instanceof UnresolvedPhysicalColumn && oldColumn instanceof PhysicalColumn
+                    || col instanceof UnresolvedComputedColumn
+                            && oldColumn instanceof ComputedColumn
+                    || col instanceof UnresolvedMetadataColumn
+                            && oldColumn instanceof MetadataColumn;
         }
 
         private String getColumnKind(Class<?> clazz) {
