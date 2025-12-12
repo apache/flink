@@ -397,7 +397,7 @@ class BatchPhysicalWindowAggregateRule
       case (udf, aggIndex) =>
         aggBufferFieldNames(aggIndex) = udf match {
           case _: AggregateFunction[_, _] =>
-            Array(aggNames(aggIndex))
+            Array(aggNames(aggIndex + auxGroupSet.length))
           case agf: DeclarativeAggregateFunction =>
             agf.aggBufferAttributes.map {
               attr =>

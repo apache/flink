@@ -342,6 +342,14 @@ abstract class AggregateReduceGroupingTestBase(withExecPlan: Boolean) extends Ta
       "SELECT a1, d1, COUNT(DISTINCT c1), MAX(DISTINCT b1), SUM(b1) FROM T1 GROUP BY a1, d1")
   }
 
+  @Test
+  def testImperativeAggWithAuxiliaryGrouping(): Unit = {
+    verifyPlan(
+      "SELECT a4, c4, COUNT(b4) FROM " +
+        "(SELECT a4, c4, ARRAY_AGG(b4) AS b4 FROM T4 " +
+        "GROUP BY a4, c4, TUMBLE(d4, INTERVAL '15' MINUTE)) t GROUP BY a4, c4")
+  }
+
   def verifyPlan(sqlQuery: String): Unit = {
     if (withExecPlan) {
       util.verifyExecPlan(sqlQuery)
