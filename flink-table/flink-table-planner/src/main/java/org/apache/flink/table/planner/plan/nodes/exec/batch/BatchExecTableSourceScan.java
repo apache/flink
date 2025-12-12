@@ -124,7 +124,7 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
     protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
         final Transformation<RowData> transformation =
-                super.createTransformation(planner, config, false);
+                super.translateToPlanInternal(planner, config);
         // the boundedness has been checked via the runtime provider already, so we can safely
         // declare all legacy transformations as bounded to make the stream graph generator happy
         ExecNodeUtil.makeLegacySourceTransformationsBounded(transformation);
@@ -162,6 +162,11 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
         final InputFormatSourceFunction<RowData> function =
                 new InputFormatSourceFunction<>(inputFormat, outputTypeInfo);
         return env.addSource(function, operatorName, outputTypeInfo).getTransformation();
+    }
+
+    @Override
+    protected final boolean legacyUidsEnabled() {
+        return false;
     }
 
     public BatchExecTableSourceScan copyAndRemoveInputs() {
