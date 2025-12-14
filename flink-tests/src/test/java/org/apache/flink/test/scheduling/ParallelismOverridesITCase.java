@@ -19,6 +19,8 @@
 package org.apache.flink.test.scheduling;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.functions.OpenContext;
+import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
@@ -33,6 +35,7 @@ import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.testtasks.BlockingNoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.junit5.InjectClusterClient;
 import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.test.junit5.MiniClusterExtension;
@@ -45,6 +48,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -59,6 +63,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class ParallelismOverridesITCase {
 
     private static final int NUMBER_OF_SLOTS = 8;
+
+    /** Used to capture the actual parallelism at runtime in Application Mode tests. */
+    private static final AtomicInteger CAPTURED_PARALLELISM = new AtomicInteger(0);
 
     @RegisterExtension
     private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
@@ -83,6 +90,7 @@ public class ParallelismOverridesITCase {
             @InjectMiniCluster MiniCluster miniCluster) {
         this.restClusterClient = restClusterClient;
         this.miniCluster = miniCluster;
+        CAPTURED_PARALLELISM.set(0);
     }
 
     /**
@@ -255,5 +263,56 @@ public class ParallelismOverridesITCase {
                 .map(tasksPerState -> tasksPerState.get(ExecutionState.RUNNING))
                 .mapToInt(Integer::intValue)
                 .sum();
+    }
+
+    /**
+     * Tests parallelism overrides in Application Mode (using StreamGraph submission via
+     * env.execute()). This verifies the fix for FLINK-38770 works in Application Mode by capturing
+     * the actual parallelism at runtime using a RichMapFunction.
+     *
+     * <p>The test uses a fixed UID on the map operator to ensure predictable vertex IDs, allowing
+     * us to configure the parallelism override before building the job.
+     */
+    @Test
+    void testParallelismOverridesInApplicationMode() throws Exception {
+        final String mapOperatorUid = "test-map-uid";
+        final String vertexIdHex =
+                org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator.generateOperatorID(
+                                mapOperatorUid)
+                        .toHexString();
+
+        Configuration config = new Configuration();
+        Map<String, String> overrides = new HashMap<>();
+        overrides.put(vertexIdHex, "3");
+        config.set(PipelineOptions.PARALLELISM_OVERRIDES, overrides);
+
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+        env.setParallelism(1);
+        env.disableOperatorChaining();
+        env.fromSequence(1, 10)
+                .map(new ParallelismCapturingMapFunction())
+                .uid(mapOperatorUid)
+                .name("test-map")
+                .sinkTo(new org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink<>());
+
+        env.execute("test-job");
+
+        assertThat(CAPTURED_PARALLELISM.get())
+                .as("Parallelism override should be applied (expected 3, not 1)")
+                .isEqualTo(3);
+    }
+
+    private static class ParallelismCapturingMapFunction extends RichMapFunction<Long, Long> {
+
+        @Override
+        public void open(OpenContext openContext) throws Exception {
+            int parallelism = getRuntimeContext().getTaskInfo().getNumberOfParallelSubtasks();
+            CAPTURED_PARALLELISM.set(parallelism);
+        }
+
+        @Override
+        public Long map(Long value) throws Exception {
+            return value * 2;
+        }
     }
 }
