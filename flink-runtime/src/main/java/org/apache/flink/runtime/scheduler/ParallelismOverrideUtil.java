@@ -60,14 +60,19 @@ public class ParallelismOverrideUtil {
         Map<String, String> overrides = new HashMap<>();
 
         // Add overrides from job master configuration
-        overrides.putAll(jobMasterConfiguration.get(PipelineOptions.PARALLELISM_OVERRIDES));
+        Map<String, String> masterConfigOverrides =
+                jobMasterConfiguration.get(PipelineOptions.PARALLELISM_OVERRIDES);
+        overrides.putAll(masterConfigOverrides);
 
         // Add overrides from job configuration (these take precedence)
-        overrides.putAll(jobGraph.getJobConfiguration().get(PipelineOptions.PARALLELISM_OVERRIDES));
+        Map<String, String> jobConfigOverrides =
+                jobGraph.getJobConfiguration().get(PipelineOptions.PARALLELISM_OVERRIDES);
+        overrides.putAll(jobConfigOverrides);
 
         // Apply overrides to each vertex
         for (JobVertex vertex : jobGraph.getVertices()) {
-            String override = overrides.get(vertex.getID().toHexString());
+            String vertexIdHex = vertex.getID().toHexString();
+            String override = overrides.get(vertexIdHex);
             if (override != null) {
                 int currentParallelism = vertex.getParallelism();
                 int overrideParallelism = Integer.parseInt(override);
