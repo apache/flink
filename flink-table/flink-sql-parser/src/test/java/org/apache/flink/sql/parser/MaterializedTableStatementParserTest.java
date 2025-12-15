@@ -569,8 +569,8 @@ class MaterializedTableStatementParserTest {
     }
 
     @Test
-    void testModifyMultipleColumn() {
-        final String sql1 =
+    void testModifyMultipleColumns() {
+        final String sql =
                 "alter materialized table mt1 modify (\n"
                         + "col_int int,\n"
                         + "log_ts string comment 'log timestamp string' first,\n"
@@ -580,7 +580,7 @@ class MaterializedTableStatementParserTest {
                         + "unique(a, b),\n"
                         + "watermark for ts as ts - interval '3' second\n"
                         + ")";
-        final String expected1 =
+        final String expected =
                 "ALTER MATERIALIZED TABLE `MT1` MODIFY (\n"
                         + "  `COL_INT` INTEGER,\n"
                         + "  `LOG_TS` STRING COMMENT 'log timestamp string' FIRST,\n"
@@ -590,7 +590,7 @@ class MaterializedTableStatementParserTest {
                         + "  UNIQUE (`A`, `B`),\n"
                         + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n"
                         + ")";
-        sql(sql1).ok(expected1);
+        sql(sql).ok(expected);
     }
 
     @Test
