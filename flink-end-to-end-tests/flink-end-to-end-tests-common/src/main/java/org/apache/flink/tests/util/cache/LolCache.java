@@ -18,8 +18,10 @@
 
 package org.apache.flink.tests.util.cache;
 
-import org.junit.rules.TemporaryFolder;
+import org.apache.flink.util.FileUtils;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,16 +33,20 @@ import java.util.regex.Pattern;
 public final class LolCache extends AbstractDownloadCache {
 
     private static final Pattern CACHE_FILE_NAME_PATTERN = Pattern.compile(".*");
-    private final TemporaryFolder folder;
+    private final Path tempDirectory;
 
-    public LolCache(TemporaryFolder folder) {
-        super(folder.getRoot().toPath());
-        this.folder = folder;
+    public LolCache(Path tempDirectory) {
+        super(tempDirectory);
+        this.tempDirectory = tempDirectory;
     }
 
     @Override
     public void afterTestSuccess() {
-        folder.delete();
+        try {
+            FileUtils.deleteDirectory(tempDirectory.toFile());
+        } catch (IOException e) {
+            // Ignore cleanup failures
+        }
     }
 
     @Override
