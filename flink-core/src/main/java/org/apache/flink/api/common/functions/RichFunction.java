@@ -18,6 +18,7 @@
 
 package org.apache.flink.api.common.functions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 
@@ -112,4 +113,13 @@ public interface RichFunction extends Function {
      * @param t The runtime context.
      */
     void setRuntimeContext(RuntimeContext t);
+
+    /**
+     * Can be overridden to enable splittable timers for this particular function even if config
+     * option is enabled. By default, splittable timers are disabled.
+     */
+    @Internal
+    default boolean useInterruptibleTimers() {
+        return false;
+    }
 }
