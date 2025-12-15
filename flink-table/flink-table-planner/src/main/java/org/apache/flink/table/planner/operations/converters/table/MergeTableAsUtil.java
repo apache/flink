@@ -27,7 +27,6 @@ import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
 import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Schema.UnresolvedColumn;
-import org.apache.flink.table.api.Schema.UnresolvedMetadataColumn;
 import org.apache.flink.table.api.Schema.UnresolvedPhysicalColumn;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
@@ -65,8 +64,6 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.supportsImplicitCast;
 
 /** A utility class with logic for handling the {@code CREATE TABLE ... AS SELECT} clause. */
 public class MergeTableAsUtil {
@@ -313,7 +310,11 @@ public class MergeTableAsUtil {
                     // If the column is already defined in the source schema, then check if
                     // the types are compatible.
                     validateImplicitCastCompatibility(
-                            name, sinkColumnPos, sourceSchemaCols.get(name), unresolvedSinkColumn);
+                            dataTypeFactory,
+                            name,
+                            sinkColumnPos,
+                            sourceSchemaCols.get(name),
+                            unresolvedSinkColumn);
 
                     // Replace the source schema column with the new sink schema column, which
                     // keeps the position of the source schema column but with the data type
@@ -385,51 +386,12 @@ public class MergeTableAsUtil {
                 }
 
                 String name = column.getName();
-                LogicalType sourceColumnType = getLogicalType(((UnresolvedPhysicalColumn) column));
+                LogicalType sourceColumnType =
+                        getLogicalType(dataTypeFactory, ((UnresolvedPhysicalColumn) column));
 
                 schemaCols.put(column.getName(), column);
                 regularAndMetadataFieldNamesToTypes.put(
                         name, typeFactory.createFieldTypeFromLogicalType(sourceColumnType));
-            }
-        }
-
-        private void validateImplicitCastCompatibility(
-                String columnName,
-                int columnPos,
-                UnresolvedColumn sourceColumn,
-                UnresolvedColumn sinkColumn) {
-            LogicalType sinkColumnType;
-
-            if (sinkColumn instanceof UnresolvedPhysicalColumn) {
-                sinkColumnType = getLogicalType(((UnresolvedPhysicalColumn) sinkColumn));
-            } else if ((sinkColumn instanceof UnresolvedMetadataColumn)) {
-                if (((UnresolvedMetadataColumn) sinkColumn).isVirtual()) {
-                    throw new ValidationException(
-                            String.format(
-                                    "A column named '%s' already exists in the source schema. "
-                                            + "Virtual metadata columns cannot overwrite "
-                                            + "columns from source.",
-                                    columnName));
-                }
-
-                sinkColumnType = getLogicalType(((UnresolvedMetadataColumn) sinkColumn));
-            } else {
-                throw new ValidationException(
-                        String.format(
-                                "A column named '%s' already exists in the source schema. "
-                                        + "Computed columns cannot overwrite columns from source.",
-                                columnName));
-            }
-
-            LogicalType sourceColumnType =
-                    getLogicalType(((UnresolvedPhysicalColumn) sourceColumn));
-            if (!supportsImplicitCast(sourceColumnType, sinkColumnType)) {
-                throw new ValidationException(
-                        String.format(
-                                "Incompatible types for sink column '%s' at position %d. "
-                                        + "The source column has type '%s', "
-                                        + "while the target column has type '%s'.",
-                                columnName, columnPos, sourceColumnType, sinkColumnType));
             }
         }
 

@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.ddl.SqlCreateOrAlterMaterializedTable;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
+import org.apache.flink.sql.parser.ddl.materializedtable.SqlCreateOrAlterMaterializedTable;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
@@ -60,7 +60,7 @@ public class SqlCreateOrAlterMaterializedTableConverter
             SqlCreateOrAlterMaterializedTable sqlCreateOrAlterMaterializedTable,
             ConvertContext context) {
         final ObjectIdentifier identifier =
-                this.getIdentifier(sqlCreateOrAlterMaterializedTable, context);
+                getIdentifier(sqlCreateOrAlterMaterializedTable, context);
 
         if (createOrAlterOperation(sqlCreateOrAlterMaterializedTable)) {
             return handleCreateOrAlter(sqlCreateOrAlterMaterializedTable, context, identifier);
@@ -119,7 +119,7 @@ public class SqlCreateOrAlterMaterializedTableConverter
             final ConvertContext context,
             final ObjectIdentifier identifier) {
         final ResolvedCatalogMaterializedTable resolvedTable =
-                this.getResolvedCatalogMaterializedTable(sqlCreateOrAlterTable, context);
+                getResolvedCatalogMaterializedTable(sqlCreateOrAlterTable, context);
 
         return new CreateMaterializedTableOperation(identifier, resolvedTable);
     }
@@ -129,7 +129,7 @@ public class SqlCreateOrAlterMaterializedTableConverter
             final ResolvedCatalogMaterializedTable oldTable,
             final ConvertContext context) {
         List<TableChange> changes = new ArrayList<>();
-        final MergeContext mergeContext = this.getMergeContext(sqlCreateOrAlterTable, context);
+        final MergeContext mergeContext = getMergeContext(sqlCreateOrAlterTable, context);
 
         final ResolvedSchema oldSchema = oldTable.getResolvedSchema();
         final List<Column> newColumns =
@@ -151,17 +151,17 @@ public class SqlCreateOrAlterMaterializedTableConverter
 
         // Add new columns if this is an alter operation
         final ResolvedSchema oldSchema = oldTable.getResolvedSchema();
-        final MergeContext mergeContext = this.getMergeContext(sqlCreateOrAlterTable, context);
+        final MergeContext mergeContext = getMergeContext(sqlCreateOrAlterTable, context);
         final List<Column> newColumns =
                 MaterializedTableUtils.validateAndExtractNewColumns(
                         oldSchema, mergeContext.getMergedQuerySchema());
         newColumns.forEach(col -> schemaBuilder.column(col.getName(), col.getDataType()));
 
         final String comment = sqlCreateOrAlterTable.getComment();
-        final IntervalFreshness freshness = this.getDerivedFreshness(sqlCreateOrAlterTable);
+        final IntervalFreshness freshness = getDerivedFreshness(sqlCreateOrAlterTable);
         final LogicalRefreshMode logicalRefreshMode =
-                this.getDerivedLogicalRefreshMode(sqlCreateOrAlterTable);
-        final RefreshMode refreshMode = this.getDerivedRefreshMode(logicalRefreshMode);
+                getDerivedLogicalRefreshMode(sqlCreateOrAlterTable);
+        final RefreshMode refreshMode = getDerivedRefreshMode(logicalRefreshMode);
 
         CatalogMaterializedTable.Builder builder =
                 CatalogMaterializedTable.newBuilder()

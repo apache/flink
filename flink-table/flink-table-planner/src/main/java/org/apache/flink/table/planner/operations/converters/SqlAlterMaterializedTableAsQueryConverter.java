@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableAsQuery;
+import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableAsQuery;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.Column;

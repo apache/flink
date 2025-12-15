@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterTableOptions;
+import org.apache.flink.sql.parser.ddl.table.SqlAlterTableOptions;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogPartition;
 import org.apache.flink.table.catalog.CatalogPartitionImpl;

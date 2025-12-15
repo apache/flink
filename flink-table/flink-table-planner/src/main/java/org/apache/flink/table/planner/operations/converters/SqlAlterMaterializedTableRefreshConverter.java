@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.SqlParseUtils;
-import org.apache.flink.sql.parser.ddl.SqlAlterMaterializedTableRefresh;
+import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableRefresh;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;

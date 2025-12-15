@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.operations;
 
 import org.apache.flink.core.testutils.FlinkAssertions;
-import org.apache.flink.sql.parser.ddl.SqlCreateTable;
+import org.apache.flink.sql.parser.ddl.table.SqlCreateTable;
 import org.apache.flink.sql.parser.error.SqlValidateException;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;

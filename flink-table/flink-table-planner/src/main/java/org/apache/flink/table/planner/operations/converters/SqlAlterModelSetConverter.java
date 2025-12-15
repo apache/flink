@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.ddl.SqlAlterModelSet;
+import org.apache.flink.sql.parser.ddl.model.SqlAlterModelSet;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ModelChange;
 import org.apache.flink.table.catalog.ResolvedCatalogModel;
@@ -31,7 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** A converter for {@link org.apache.flink.sql.parser.ddl.SqlAlterModelSet}. */
+/** A converter for {@link org.apache.flink.sql.parser.ddl.model.SqlAlterModelSet}. */
 public class SqlAlterModelSetConverter extends AbstractSqlAlterModelConverter<SqlAlterModelSet> {
 
     @Override
