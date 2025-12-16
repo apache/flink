@@ -1134,7 +1134,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                         TableChange.set("k1", "v1"),
                         TableChange.set("k2", "v2"),
                         TableChange.set("K2", "V2")),
-                "ALTER TABLE IF EXISTS cat1.db1.tb1\n  SET 'k1' = 'v1',\n  SET 'K2' = 'V2',\n  SET 'k2' = 'v2'");
+                "ALTER TABLE IF EXISTS cat1.db1.tb1\n  SET 'k1' = 'v1',\n  SET 'k2' = 'v2',\n  SET 'K2' = 'V2'");
 
         // test alter table reset
         checkAlterNonExistTable("alter table %s nonexistent reset ('k')");
