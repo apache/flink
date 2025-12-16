@@ -1117,19 +1117,24 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         // test alter table options
         checkAlterNonExistTable("alter table %s nonexistent set ('k1' = 'v1', 'K2' = 'V2')");
         Operation operation =
-                parse("alter table if exists cat1.db1.tb1 set ('k1' = 'v1', 'K2' = 'V2')");
+                parse(
+                        "alter table if exists cat1.db1.tb1 set ('k1' = 'v1', 'k2' = 'v2', 'K2' = 'V1', 'K2' = 'V2')");
         Map<String, String> expectedOptions = new HashMap<>();
         expectedOptions.put("connector", "dummy");
         expectedOptions.put("k", "v");
         expectedOptions.put("k1", "v1");
+        expectedOptions.put("k2", "v2");
         expectedOptions.put("K2", "V2");
 
         assertAlterTableOptions(
                 operation,
                 expectedIdentifier,
                 expectedOptions,
-                Arrays.asList(TableChange.set("k1", "v1"), TableChange.set("K2", "V2")),
-                "ALTER TABLE IF EXISTS cat1.db1.tb1\n  SET 'k1' = 'v1',\n  SET 'K2' = 'V2'");
+                List.of(
+                        TableChange.set("k1", "v1"),
+                        TableChange.set("k2", "v2"),
+                        TableChange.set("K2", "V2")),
+                "ALTER TABLE IF EXISTS cat1.db1.tb1\n  SET 'k1' = 'v1',\n  SET 'k2' = 'v2',\n  SET 'K2' = 'V2'");
 
         // test alter table reset
         checkAlterNonExistTable("alter table %s nonexistent reset ('k')");
@@ -1137,8 +1142,8 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         assertAlterTableOptions(
                 operation,
                 expectedIdentifier,
-                Collections.singletonMap("connector", "dummy"),
-                Collections.singletonList(TableChange.reset("k")),
+                Map.of("connector", "dummy"),
+                List.of(TableChange.reset("k")),
                 "ALTER TABLE IF EXISTS cat1.db1.tb1\n  RESET 'k'");
         assertThatThrownBy(() -> parse("alter table cat1.db1.tb1 reset ('connector')"))
                 .isInstanceOf(ValidationException.class)
@@ -2885,7 +2890,8 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         assertThat(alterTableOptionsOperation.getTableIdentifier()).isEqualTo(expectedIdentifier);
         assertThat(alterTableOptionsOperation.getNewTable().getOptions())
                 .isEqualTo(expectedOptions);
-        assertThat(expectedChanges).isEqualTo(alterTableOptionsOperation.getTableChanges());
+        assertThat(expectedChanges)
+                .containsExactlyInAnyOrderElementsOf(alterTableOptionsOperation.getTableChanges());
         assertThat(alterTableOptionsOperation.asSummaryString()).isEqualTo(expectedSummary);
     }
 
