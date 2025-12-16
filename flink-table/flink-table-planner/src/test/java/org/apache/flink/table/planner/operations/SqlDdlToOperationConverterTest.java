@@ -1130,7 +1130,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                 operation,
                 expectedIdentifier,
                 expectedOptions,
-                Set.of(
+                List.of(
                         TableChange.set("k1", "v1"),
                         TableChange.set("k2", "v2"),
                         TableChange.set("K2", "V2")),
@@ -1143,7 +1143,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                 operation,
                 expectedIdentifier,
                 Map.of("connector", "dummy"),
-                Set.of(TableChange.reset("k")),
+                List.of(TableChange.reset("k")),
                 "ALTER TABLE IF EXISTS cat1.db1.tb1\n  RESET 'k'");
         assertThatThrownBy(() -> parse("alter table cat1.db1.tb1 reset ('connector')"))
                 .isInstanceOf(ValidationException.class)
@@ -2882,7 +2882,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
             Operation operation,
             ObjectIdentifier expectedIdentifier,
             Map<String, String> expectedOptions,
-            Set<TableChange> expectedChanges,
+            List<TableChange> expectedChanges,
             String expectedSummary) {
         assertThat(operation).isInstanceOf(AlterTableChangeOperation.class);
         final AlterTableChangeOperation alterTableOptionsOperation =
