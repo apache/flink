@@ -172,7 +172,7 @@ public class DescriptiveStatisticsHistogramStatistics extends HistogramStatistic
             if (percentilesImpl == null) {
                 percentilesImpl = new Percentile().withNaNStrategy(NaNStrategy.FIXED);
             }
-            if (data != null) {
+            if (data != null && data.length > 0) {
                 percentilesImpl.setData(data);
             } else {
                 percentilesImpl.setData(new double[] {0.0});
