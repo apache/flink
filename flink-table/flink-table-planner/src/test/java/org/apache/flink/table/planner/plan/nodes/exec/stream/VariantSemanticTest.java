@@ -424,7 +424,7 @@ public class VariantSemanticTest extends SemanticTestBase {
                                 "Cannot apply 'ITEM' to arguments of type 'ITEM(<VARIANT>, <DECIMAL(2, 1)>)'. Supported form(s): <ARRAY>[<INTEGER>]\n"
                                         + "<MAP>[<ANY>]\n"
                                         + "<ROW>[<CHARACTER>|<INTEGER>]\n"
-                                        + "<VARIANT>[<ANY>]")
+                                        + "<VARIANT>[<CHARACTER>|<INTEGER>]")
                         .build();
 
         VARIANT_OBJECT_ERROR_ACCESS =
@@ -442,7 +442,7 @@ public class VariantSemanticTest extends SemanticTestBase {
                                 "Cannot apply 'ITEM' to arguments of type 'ITEM(<VARIANT>, <DECIMAL(2, 1)>)'. Supported form(s): <ARRAY>[<INTEGER>]\n"
                                         + "<MAP>[<ANY>]\n"
                                         + "<ROW>[<CHARACTER>|<INTEGER>]\n"
-                                        + "<VARIANT>[<ANY>]")
+                                        + "<VARIANT>[<CHARACTER>|<INTEGER>]")
                         .build();
     }
 
