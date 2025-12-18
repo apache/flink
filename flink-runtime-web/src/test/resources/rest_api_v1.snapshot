@@ -1,5 +1,167 @@
 {
   "calls" : [ {
+    "url" : "/applications/overview",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:messages:webmonitor:MultipleApplicationsDetails",
+      "properties" : {
+        "applications" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:messages:webmonitor:ApplicationDetails",
+            "properties" : {
+              "id" : {
+                "type" : "any"
+              },
+              "name" : {
+                "type" : "string"
+              },
+              "start-time" : {
+                "type" : "integer"
+              },
+              "end-time" : {
+                "type" : "integer"
+              },
+              "duration" : {
+                "type" : "integer"
+              },
+              "status" : {
+                "type" : "string"
+              },
+              "jobs" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "integer"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/applications/:applicationid",
+    "method" : "GET",
+    "status-code" : "200 OK",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "applicationid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:messages:webmonitor:ApplicationDetailsInfo",
+      "properties" : {
+        "id" : {
+          "type" : "any"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "status" : {
+          "type" : "string"
+        },
+        "start-time" : {
+          "type" : "integer"
+        },
+        "end-time" : {
+          "type" : "integer"
+        },
+        "duration" : {
+          "type" : "integer"
+        },
+        "timestamps" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "integer"
+          }
+        },
+        "jobs" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:messages:webmonitor:JobDetails",
+            "properties" : {
+              "jid" : {
+                "type" : "any"
+              },
+              "name" : {
+                "type" : "string"
+              },
+              "start-time" : {
+                "type" : "integer"
+              },
+              "end-time" : {
+                "type" : "integer"
+              },
+              "duration" : {
+                "type" : "integer"
+              },
+              "state" : {
+                "type" : "string",
+                "enum" : [ "INITIALIZING", "CREATED", "RUNNING", "FAILING", "FAILED", "CANCELLING", "CANCELED", "FINISHED", "RESTARTING", "SUSPENDED", "RECONCILING" ]
+              },
+              "last-modification" : {
+                "type" : "integer"
+              },
+              "tasks" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "integer"
+                }
+              },
+              "pending-operators" : {
+                "type" : "integer"
+              }
+            }
+          }
+        }
+      }
+    }
+  }, {
+    "url" : "/applications/:applicationid/cancel",
+    "method" : "POST",
+    "status-code" : "202 Accepted",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "applicationid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyRequestBody"
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:EmptyResponseBody"
+    }
+  }, {
     "url" : "/cluster",
     "method" : "DELETE",
     "status-code" : "200 OK",
