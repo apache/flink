@@ -18,13 +18,16 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.runtime.application.ArchivedApplication;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
+import org.apache.flink.runtime.messages.webmonitor.MultipleApplicationsDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -65,8 +68,20 @@ public class NonLeaderRetrievalRestfulGateway implements RestfulGateway {
     }
 
     @Override
+    public CompletableFuture<Acknowledge> cancelApplication(
+            ApplicationID applicationId, Duration timeout) {
+        throw new UnsupportedOperationException(MESSAGE);
+    }
+
+    @Override
     public CompletableFuture<ExecutionGraphInfo> requestExecutionGraphInfo(
             JobID jobId, Duration timeout) {
+        throw new UnsupportedOperationException(MESSAGE);
+    }
+
+    @Override
+    public CompletableFuture<ArchivedApplication> requestApplication(
+            ApplicationID applicationId, Duration timeout) {
         throw new UnsupportedOperationException(MESSAGE);
     }
 
@@ -83,6 +98,12 @@ public class NonLeaderRetrievalRestfulGateway implements RestfulGateway {
 
     @Override
     public CompletableFuture<MultipleJobsDetails> requestMultipleJobDetails(Duration timeout) {
+        throw new UnsupportedOperationException(MESSAGE);
+    }
+
+    @Override
+    public CompletableFuture<MultipleApplicationsDetails> requestMultipleApplicationDetails(
+            Duration timeout) {
         throw new UnsupportedOperationException(MESSAGE);
     }
 

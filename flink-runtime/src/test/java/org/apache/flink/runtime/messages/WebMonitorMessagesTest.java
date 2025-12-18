@@ -18,23 +18,31 @@
 
 package org.apache.flink.runtime.messages;
 
+import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.ApplicationState;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.messages.webmonitor.ApplicationDetails;
+import org.apache.flink.runtime.messages.webmonitor.ApplicationDetailsInfo;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobIdsWithStatusOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
+import org.apache.flink.runtime.messages.webmonitor.MultipleApplicationsDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobDetails;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsOverview;
 import org.apache.flink.runtime.messages.webmonitor.RequestJobsWithIDsOverview;
 import org.apache.flink.runtime.messages.webmonitor.RequestStatusOverview;
+import org.apache.flink.util.CollectionUtil;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 class WebMonitorMessagesTest {
@@ -154,6 +162,108 @@ class WebMonitorMessagesTest {
                             lastModified,
                             numVerticesPerState,
                             numTotal);
+        }
+        return Arrays.asList(details);
+    }
+
+    @Test
+    void testApplicationDetailsMessage() throws Exception {
+        final Random rnd = new Random();
+
+        Map<String, Integer> jobInfo = new HashMap<>();
+
+        for (int i = 0; i < JobStatus.values().length; i++) {
+            int count = rnd.nextInt(55);
+            jobInfo.put(JobStatus.values()[i].name(), count);
+        }
+
+        long time = rnd.nextLong();
+        long endTime = rnd.nextBoolean() ? -1L : time + rnd.nextInt();
+
+        String name = GenericMessageTester.randomString(rnd);
+        ApplicationID id = GenericMessageTester.randomApplicationId(rnd);
+        ApplicationState status = GenericMessageTester.randomApplicationState(rnd);
+
+        ApplicationDetails msg1 =
+                new ApplicationDetails(
+                        id, name, time, endTime, endTime - time, status.toString(), jobInfo);
+        ApplicationDetails msg2 =
+                new ApplicationDetails(
+                        id, name, time, endTime, endTime - time, status.toString(), jobInfo);
+
+        GenericMessageTester.testMessageInstances(msg1, msg2);
+    }
+
+    @Test
+    void testApplicationDetailsInfoMessage() throws Exception {
+        final Random rnd = new Random();
+
+        Map<String, Long> timestamps =
+                CollectionUtil.newHashMapWithExpectedSize(ApplicationState.values().length);
+
+        for (ApplicationState status : ApplicationState.values()) {
+            timestamps.put(status.toString(), rnd.nextLong());
+        }
+
+        long time = rnd.nextLong();
+        long endTime = rnd.nextBoolean() ? -1L : time + rnd.nextInt();
+
+        String name = GenericMessageTester.randomString(rnd);
+        ApplicationID id = GenericMessageTester.randomApplicationId(rnd);
+        ApplicationState status = GenericMessageTester.randomApplicationState(rnd);
+        Collection<JobDetails> jobs = randomJobDetails(rnd);
+
+        ApplicationDetailsInfo msg1 =
+                new ApplicationDetailsInfo(
+                        id,
+                        name,
+                        status.toString(),
+                        time,
+                        endTime,
+                        endTime - time,
+                        timestamps,
+                        jobs);
+        ApplicationDetailsInfo msg2 =
+                new ApplicationDetailsInfo(
+                        id,
+                        name,
+                        status.toString(),
+                        time,
+                        endTime,
+                        endTime - time,
+                        timestamps,
+                        jobs);
+
+        GenericMessageTester.testMessageInstances(msg1, msg2);
+    }
+
+    @Test
+    void testMultipleApplicationDetails() throws Exception {
+        final Random rnd = new Random();
+        GenericMessageTester.testMessageInstance(
+                new MultipleApplicationsDetails(randomApplicationDetails(rnd)));
+    }
+
+    private Collection<ApplicationDetails> randomApplicationDetails(Random rnd) {
+        final ApplicationDetails[] details = new ApplicationDetails[rnd.nextInt(10)];
+        for (int k = 0; k < details.length; k++) {
+            Map<String, Integer> jobInfo = new HashMap<>();
+
+            for (int i = 0; i < JobStatus.values().length; i++) {
+                int count = rnd.nextInt(55);
+                jobInfo.put(JobStatus.values()[i].name(), count);
+            }
+
+            long time = rnd.nextLong();
+            long endTime = rnd.nextBoolean() ? -1L : time + rnd.nextInt();
+
+            String name = GenericMessageTester.randomString(rnd);
+            ApplicationID id = GenericMessageTester.randomApplicationId(rnd);
+            ApplicationState status = GenericMessageTester.randomApplicationState(rnd);
+
+            details[k] =
+                    new ApplicationDetails(
+                            id, name, time, endTime, endTime - time, status.toString(), jobInfo);
         }
         return Arrays.asList(details);
     }

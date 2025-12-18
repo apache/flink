@@ -33,6 +33,9 @@ import org.apache.flink.runtime.rest.RestServerEndpoint;
 import org.apache.flink.runtime.rest.handler.AbstractRestHandler;
 import org.apache.flink.runtime.rest.handler.RestHandlerConfiguration;
 import org.apache.flink.runtime.rest.handler.RestHandlerSpecification;
+import org.apache.flink.runtime.rest.handler.application.ApplicationCancellationHandler;
+import org.apache.flink.runtime.rest.handler.application.ApplicationDetailsHandler;
+import org.apache.flink.runtime.rest.handler.application.ApplicationsOverviewHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterConfigHandler;
 import org.apache.flink.runtime.rest.handler.cluster.ClusterOverviewHandler;
 import org.apache.flink.runtime.rest.handler.cluster.DashboardConfigHandler;
@@ -107,6 +110,8 @@ import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerProfilingLis
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerStdoutFileHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagerThreadDumpHandler;
 import org.apache.flink.runtime.rest.handler.taskmanager.TaskManagersHandler;
+import org.apache.flink.runtime.rest.messages.ApplicationCancellationHeaders;
+import org.apache.flink.runtime.rest.messages.ApplicationsOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.ClusterConfigurationInfoHeaders;
 import org.apache.flink.runtime.rest.messages.ClusterOverviewHeaders;
 import org.apache.flink.runtime.rest.messages.DashboardConfigurationHeaders;
@@ -130,6 +135,7 @@ import org.apache.flink.runtime.rest.messages.TaskManagerLogUrlHeaders;
 import org.apache.flink.runtime.rest.messages.TerminationModeQueryParameter;
 import org.apache.flink.runtime.rest.messages.YarnCancelJobTerminationHeaders;
 import org.apache.flink.runtime.rest.messages.YarnStopJobTerminationHeaders;
+import org.apache.flink.runtime.rest.messages.application.ApplicationDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointConfigHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointStatisticDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointingStatisticsHeaders;
@@ -341,6 +347,13 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         responseHeaders,
                         JobsOverviewHeaders.getInstance());
 
+        ApplicationsOverviewHandler applicationsOverviewHandler =
+                new ApplicationsOverviewHandler(
+                        leaderRetriever,
+                        timeout,
+                        responseHeaders,
+                        ApplicationsOverviewHeaders.getInstance());
+
         ClusterConfigHandler clusterConfigurationHandler =
                 new ClusterConfigHandler(
                         leaderRetriever,
@@ -480,6 +493,13 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         executionGraphCache,
                         executor,
                         metricFetcher);
+
+        ApplicationDetailsHandler applicationDetailsHandler =
+                new ApplicationDetailsHandler(
+                        leaderRetriever,
+                        timeout,
+                        responseHeaders,
+                        ApplicationDetailsHeaders.getInstance());
 
         JobAccumulatorsHandler jobAccumulatorsHandler =
                 new JobAccumulatorsHandler(
@@ -629,6 +649,13 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         JobVertexBackPressureHeaders.getInstance(),
                         metricFetcher);
 
+        final ApplicationCancellationHandler applicationCancellationHandler =
+                new ApplicationCancellationHandler(
+                        leaderRetriever,
+                        timeout,
+                        responseHeaders,
+                        ApplicationCancellationHeaders.getInstance());
+
         final JobCancellationHandler jobCancelTerminationHandler =
                 new JobCancellationHandler(
                         leaderRetriever,
@@ -753,6 +780,10 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
         handlers.add(Tuple2.of(jobIdsHandler.getMessageHeaders(), jobIdsHandler));
         handlers.add(Tuple2.of(jobStatusHandler.getMessageHeaders(), jobStatusHandler));
         handlers.add(Tuple2.of(jobsOverviewHandler.getMessageHeaders(), jobsOverviewHandler));
+        handlers.add(
+                Tuple2.of(
+                        applicationsOverviewHandler.getMessageHeaders(),
+                        applicationsOverviewHandler));
         handlers.add(Tuple2.of(jobConfigHandler.getMessageHeaders(), jobConfigHandler));
         handlers.add(
                 Tuple2.of(checkpointConfigHandler.getMessageHeaders(), checkpointConfigHandler));
@@ -779,6 +810,9 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         subtasksAllAccumulatorsHandler.getMessageHeaders(),
                         subtasksAllAccumulatorsHandler));
         handlers.add(Tuple2.of(jobDetailsHandler.getMessageHeaders(), jobDetailsHandler));
+        handlers.add(
+                Tuple2.of(
+                        applicationDetailsHandler.getMessageHeaders(), applicationDetailsHandler));
         handlers.add(Tuple2.of(jobAccumulatorsHandler.getMessageHeaders(), jobAccumulatorsHandler));
         handlers.add(Tuple2.of(taskManagersHandler.getMessageHeaders(), taskManagersHandler));
         handlers.add(
@@ -873,6 +907,10 @@ public class WebMonitorEndpoint<T extends RestfulGateway> extends RestServerEndp
                         jobVertexFlameGraphHandler.getMessageHeaders(),
                         jobVertexFlameGraphHandler));
 
+        handlers.add(
+                Tuple2.of(
+                        applicationCancellationHandler.getMessageHeaders(),
+                        applicationCancellationHandler));
         handlers.add(
                 Tuple2.of(
                         jobCancelTerminationHandler.getMessageHeaders(),

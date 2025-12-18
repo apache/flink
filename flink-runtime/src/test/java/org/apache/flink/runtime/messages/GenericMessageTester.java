@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.messages;
 
+import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.ApplicationState;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.testutils.CommonTestUtils;
@@ -128,8 +130,16 @@ public class GenericMessageTester {
         return new JobID(rnd.nextLong(), rnd.nextLong());
     }
 
+    public static ApplicationID randomApplicationId(Random rnd) {
+        return new ApplicationID(rnd.nextLong(), rnd.nextLong());
+    }
+
     public static JobStatus randomJobStatus(Random rnd) {
         return JobStatus.values()[rnd.nextInt(JobStatus.values().length)];
+    }
+
+    public static ApplicationState randomApplicationState(Random rnd) {
+        return ApplicationState.values()[rnd.nextInt(ApplicationState.values().length)];
     }
 
     // ------------------------------------------------------------------------
