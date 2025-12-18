@@ -221,8 +221,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
     @Test
     public void testDuplicateJobSubmissionWithGloballyTerminatedButDirtyJob() throws Exception {
         final JobResult jobResult =
-                TestingJobResultStore.createJobResult(
-                        jobGraph.getJobID(), ApplicationStatus.SUCCEEDED);
+                TestingJobResultStore.createJobResult(jobGraph.getJobID(), JobStatus.FINISHED);
         haServices.getJobResultStore().createDirtyResultAsync(new JobResultEntry(jobResult)).get();
         assertDuplicateJobSubmission();
     }
@@ -230,8 +229,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
     @Test
     public void testDuplicateJobSubmissionWithGloballyTerminatedAndCleanedJob() throws Exception {
         final JobResult jobResult =
-                TestingJobResultStore.createJobResult(
-                        jobGraph.getJobID(), ApplicationStatus.SUCCEEDED);
+                TestingJobResultStore.createJobResult(jobGraph.getJobID(), JobStatus.FINISHED);
         haServices.getJobResultStore().createDirtyResultAsync(new JobResultEntry(jobResult)).get();
         haServices.getJobResultStore().markResultAsCleanAsync(jobGraph.getJobID()).get();
 
@@ -450,8 +448,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         assertThatFuture(dispatcherGateway.requestJobResult(jobGraph.getJobID(), TIMEOUT))
                 .eventuallySucceeds()
-                .extracting(JobResult::getApplicationStatus)
-                .isEqualTo(ApplicationStatus.CANCELED);
+                .extracting(jobResult -> jobResult.getJobStatus().orElse(null))
+                .isEqualTo(JobStatus.CANCELED);
     }
 
     @Test
@@ -910,7 +908,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                 Collections.singleton(
                                         new JobResult.Builder()
                                                 .jobId(jobIdOfRecoveredDirtyJobs)
-                                                .applicationStatus(ApplicationStatus.SUCCEEDED)
+                                                .jobStatus(JobStatus.FINISHED)
                                                 .netRuntime(1)
                                                 .build()))
                         .setDispatcherBootstrapFactory(
@@ -983,7 +981,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         dispatcher.close();
 
         final JobResult jobResult = jobResultFuture.get();
-        assertThat(jobResult.getApplicationStatus()).isSameAs(ApplicationStatus.UNKNOWN);
+        assertThat(jobResult.getJobStatus().isPresent()).isFalse();
     }
 
     @Test

@@ -31,7 +31,6 @@ import org.apache.flink.core.execution.PipelineExecutorFactory;
 import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.JobResult.Builder;
@@ -195,7 +194,7 @@ public class RemoteStreamEnvironmentTest extends TestLogger {
                     new Builder()
                             .jobId(this.jobId)
                             .netRuntime(0)
-                            .applicationStatus(ApplicationStatus.SUCCEEDED)
+                            .jobStatus(JobStatus.FINISHED)
                             .build();
             return CompletableFuture.completedFuture(jobResult);
         }

@@ -18,6 +18,7 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.JobSubmissionResult;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.OpenContext;
@@ -31,7 +32,6 @@ import org.apache.flink.changelog.fs.FsStateChangelogStorageFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
@@ -286,7 +286,7 @@ public abstract class ChangelogRecoveryITCaseBase extends TestLogger {
         if (jobResult.getSerializedThrowable().isPresent()) {
             throw jobResult.getSerializedThrowable().get();
         }
-        assertSame(ApplicationStatus.SUCCEEDED, jobResult.getApplicationStatus());
+        assertSame(JobStatus.FINISHED, jobResult.getJobStatus().orElse(null));
     }
 
     private Configuration configure() throws IOException {

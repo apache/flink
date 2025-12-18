@@ -33,7 +33,6 @@ import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
@@ -131,9 +130,7 @@ class ApplicationDispatcherBootstrapITCase {
             final CompletableFuture<JobResult> firstJobResult = cluster.requestJobResult(jobId);
             haServices.revokeDispatcherLeadership();
             // make sure the leadership is revoked to avoid race conditions
-            assertThat(firstJobResult.get())
-                    .extracting(JobResult::getApplicationStatus)
-                    .isEqualTo(ApplicationStatus.UNKNOWN);
+            assertThat(firstJobResult.get().getJobStatus().isPresent()).isFalse();
             haServices.grantDispatcherLeadership();
 
             // job is suspended, wait until it's running
@@ -145,8 +142,7 @@ class ApplicationDispatcherBootstrapITCase {
             // and wait for it to actually finish
             final JobResult secondJobResult = cluster.requestJobResult(jobId).get();
             assertThat(secondJobResult.isSuccess()).isTrue();
-            assertThat(secondJobResult.getApplicationStatus())
-                    .isEqualTo(ApplicationStatus.SUCCEEDED);
+            assertThat(secondJobResult.getJobStatus().orElse(null)).isEqualTo(JobStatus.FINISHED);
 
             // the cluster should shut down automatically once the application completes
             awaitClusterStopped(cluster);

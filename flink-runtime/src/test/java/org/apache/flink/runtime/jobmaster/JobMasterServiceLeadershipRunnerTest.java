@@ -22,7 +22,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
@@ -677,8 +676,7 @@ class JobMasterServiceLeadershipRunnerTest {
     @Test
     void testJobAlreadyDone() throws Exception {
         final JobID jobId = new JobID();
-        final JobResult jobResult =
-                TestingJobResultStore.createJobResult(jobId, ApplicationStatus.UNKNOWN);
+        final JobResult jobResult = TestingJobResultStore.createJobResult(jobId, null);
         jobResultStore.createDirtyResultAsync(new JobResultEntry(jobResult)).get();
         try (JobManagerRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()

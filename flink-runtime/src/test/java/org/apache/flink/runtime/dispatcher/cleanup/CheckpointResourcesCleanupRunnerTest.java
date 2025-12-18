@@ -29,7 +29,6 @@ import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.TestingCompletedCheckpointStore;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.UnavailableDispatcherOperationException;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerRunnerResult;
@@ -386,7 +385,7 @@ class CheckpointResourcesCleanupRunnerTest {
         final JobID jobId = new JobID();
         final CheckpointResourcesCleanupRunner testInstance =
                 new TestInstanceBuilder()
-                        .withJobResult(createJobResult(jobId, ApplicationStatus.CANCELED))
+                        .withJobResult(createJobResult(jobId, JobStatus.CANCELED))
                         .build();
         assertThat(testInstance.getJobID()).isEqualTo(jobId);
     }
@@ -454,7 +453,7 @@ class CheckpointResourcesCleanupRunnerTest {
                 actualExecutionGraph ->
                         actualExecutionGraph
                                 .getState()
-                                .equals(jobResult.getApplicationStatus().deriveJobStatus()));
+                                .equals(jobResult.getJobStatus().orElseThrow()));
     }
 
     @Test
@@ -509,24 +508,20 @@ class CheckpointResourcesCleanupRunnerTest {
     }
 
     private static JobResult createDummySuccessJobResult() {
-        return createJobResult(new JobID(), ApplicationStatus.SUCCEEDED);
+        return createJobResult(new JobID(), JobStatus.FINISHED);
     }
 
     private static JobResult createJobResultWithFailure(SerializedThrowable throwable) {
         return new JobResult.Builder()
                 .jobId(new JobID())
-                .applicationStatus(ApplicationStatus.FAILED)
+                .jobStatus(JobStatus.FAILED)
                 .serializedThrowable(throwable)
                 .netRuntime(1)
                 .build();
     }
 
-    private static JobResult createJobResult(JobID jobId, ApplicationStatus applicationStatus) {
-        return new JobResult.Builder()
-                .jobId(jobId)
-                .applicationStatus(applicationStatus)
-                .netRuntime(1)
-                .build();
+    private static JobResult createJobResult(JobID jobId, JobStatus jobStatus) {
+        return new JobResult.Builder().jobId(jobId).jobStatus(jobStatus).netRuntime(1).build();
     }
 
     private static CheckpointRecoveryFactory createCheckpointRecoveryFactory() {
