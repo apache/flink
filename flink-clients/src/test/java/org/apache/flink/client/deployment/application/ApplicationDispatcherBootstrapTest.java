@@ -55,6 +55,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -260,7 +262,7 @@ class ApplicationDispatcherBootstrapTest {
         final CompletableFuture<Void> applicationFuture = runApplication(dispatcherBuilder, 2);
         final UnsuccessfulExecutionException exception =
                 assertException(applicationFuture, UnsuccessfulExecutionException.class);
-        assertThat(exception.getStatus()).isEqualTo(ApplicationStatus.FAILED);
+        assertThat(exception.getStatus().orElse(null)).isEqualTo(JobStatus.FAILED);
     }
 
     @Test
@@ -435,8 +437,7 @@ class ApplicationDispatcherBootstrapTest {
                         .setRequestJobResultFunction(
                                 jobId ->
                                         CompletableFuture.completedFuture(
-                                                createJobResult(
-                                                        jobId, ApplicationStatus.SUCCEEDED)))
+                                                createJobResult(jobId, JobStatus.FINISHED)))
                         .setClusterShutdownFunction(status -> shutdownFunction.get());
 
         // we're "listening" on this to be completed to verify that the error handler is called.
@@ -820,8 +821,7 @@ class ApplicationDispatcherBootstrapTest {
                                 jobId ->
                                         submitted.thenApply(
                                                 ignored ->
-                                                        createJobResult(
-                                                                jobId, ApplicationStatus.FAILED)))
+                                                        createJobResult(jobId, JobStatus.FAILED)))
                         .build();
 
         final ApplicationDispatcherBootstrap bootstrap =
@@ -886,10 +886,7 @@ class ApplicationDispatcherBootstrapTest {
                                 jobId -> CompletableFuture.completedFuture(jobStatus));
         if (jobStatus != JobStatus.RUNNING) {
             builder.setRequestJobResultFunction(
-                    jobID ->
-                            CompletableFuture.completedFuture(
-                                    createJobResult(
-                                            jobID, ApplicationStatus.fromJobStatus(jobStatus))));
+                    jobID -> CompletableFuture.completedFuture(createJobResult(jobID, jobStatus)));
         }
         return builder;
     }
@@ -979,25 +976,21 @@ class ApplicationDispatcherBootstrapTest {
     }
 
     private static JobResult createFailedJobResult(final JobID jobId) {
-        return createJobResult(jobId, ApplicationStatus.FAILED);
+        return createJobResult(jobId, JobStatus.FAILED);
     }
 
     private static JobResult createUnknownJobResult(final JobID jobId) {
-        return createJobResult(jobId, ApplicationStatus.UNKNOWN);
+        return createJobResult(jobId, null);
     }
 
     private static JobResult createJobResult(
-            final JobID jobID, final ApplicationStatus applicationStatus) {
+            final JobID jobID, @Nullable final JobStatus jobStatus) {
         JobResult.Builder builder =
-                new JobResult.Builder()
-                        .jobId(jobID)
-                        .netRuntime(2L)
-                        .applicationStatus(applicationStatus);
-        if (applicationStatus == ApplicationStatus.CANCELED) {
+                new JobResult.Builder().jobId(jobID).netRuntime(2L).jobStatus(jobStatus);
+        if (jobStatus == JobStatus.CANCELED) {
             builder.serializedThrowable(
                     new SerializedThrowable(new JobCancellationException(jobID, "Hello", null)));
-        } else if (applicationStatus == ApplicationStatus.FAILED
-                || applicationStatus == ApplicationStatus.UNKNOWN) {
+        } else if (jobStatus == JobStatus.FAILED || jobStatus == null) {
             builder.serializedThrowable(
                     new SerializedThrowable(new JobExecutionException(jobID, "bla bla bla")));
         }

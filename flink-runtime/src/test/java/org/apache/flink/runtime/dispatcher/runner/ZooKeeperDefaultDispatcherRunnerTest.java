@@ -18,13 +18,13 @@
 
 package org.apache.flink.runtime.dispatcher.runner;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.DispatcherOperationCaches;
@@ -227,7 +227,7 @@ class ZooKeeperDefaultDispatcherRunnerTest {
                 // a successful cancellation should eventually remove all job information
                 final JobResult jobResult = jobResultFuture.get();
 
-                assertThat(jobResult.getApplicationStatus()).isEqualTo(ApplicationStatus.CANCELED);
+                assertThat(jobResult.getJobStatus().orElse(null)).isEqualTo(JobStatus.CANCELED);
 
                 dispatcherLeaderElection.notLeader();
 

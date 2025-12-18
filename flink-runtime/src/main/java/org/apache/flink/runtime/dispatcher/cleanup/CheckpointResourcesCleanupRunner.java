@@ -216,7 +216,7 @@ public class CheckpointResourcesCleanupRunner implements JobManagerRunner {
     }
 
     private static JobStatus getJobStatus(JobResult jobResult) {
-        return jobResult.getApplicationStatus().deriveJobStatus();
+        return jobResult.getJobStatus().orElseThrow();
     }
 
     private static ExecutionGraphInfo generateExecutionGraphInfo(

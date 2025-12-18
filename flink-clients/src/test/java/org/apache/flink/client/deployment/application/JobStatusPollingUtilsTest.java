@@ -20,7 +20,6 @@ package org.apache.flink.client.deployment.application;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.SerializedThrowable;
@@ -164,7 +163,7 @@ class JobStatusPollingUtilsTest {
         return new JobResult.Builder()
                 .jobId(jobId)
                 .netRuntime(2L)
-                .applicationStatus(ApplicationStatus.FAILED)
+                .jobStatus(JobStatus.FAILED)
                 .serializedThrowable(new SerializedThrowable(new Exception("bla bla bla")))
                 .build();
     }
@@ -173,7 +172,7 @@ class JobStatusPollingUtilsTest {
         return new JobResult.Builder()
                 .jobId(jobId)
                 .netRuntime(2L)
-                .applicationStatus(ApplicationStatus.SUCCEEDED)
+                .jobStatus(JobStatus.FINISHED)
                 .build();
     }
 }

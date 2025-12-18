@@ -201,7 +201,8 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
     private Optional<ApplicationStatus> extractApplicationStatus(Throwable t) {
         final Optional<UnsuccessfulExecutionException> maybeException =
                 ExceptionUtils.findThrowable(t, UnsuccessfulExecutionException.class);
-        return maybeException.map(UnsuccessfulExecutionException::getStatus);
+        return maybeException.map(
+                exception -> ApplicationStatus.fromJobStatus(exception.getStatus().orElse(null)));
     }
 
     private CompletableFuture<Void> fixJobIdAndRunApplicationAsync(
@@ -377,7 +378,7 @@ public class ApplicationDispatcherBootstrap implements DispatcherBootstrap {
                     exception ->
                             new JobResult.Builder()
                                     .jobId(jobId)
-                                    .applicationStatus(ApplicationStatus.UNKNOWN)
+                                    .jobStatus(null)
                                     .netRuntime(Long.MAX_VALUE)
                                     .build());
         }
