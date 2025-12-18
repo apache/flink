@@ -26,7 +26,7 @@ import org.apache.flink.streaming.api.graph.ExecutionPlan;
 import java.util.Collection;
 
 /** {@link DispatcherFactory} which creates a {@link StandaloneDispatcher}. */
-public enum SessionDispatcherFactory implements DispatcherFactory {
+public enum DefaultDispatcherFactory implements DispatcherFactory {
     INSTANCE;
 
     @Override
