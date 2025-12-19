@@ -132,6 +132,11 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     }
 
     @Override
+    public final String getTypeAsString() {
+        return context.getTypeAsString();
+    }
+
+    @Override
     public final int getVersion() {
         return context.getVersion();
     }
@@ -343,6 +348,11 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
                     return Optional.of(createTransformationUid(name, config));
                 }
                 return Optional.empty();
+            }
+
+            @Override
+            public String getContainerNodeType() {
+                return getTypeAsString();
             }
 
             @Override

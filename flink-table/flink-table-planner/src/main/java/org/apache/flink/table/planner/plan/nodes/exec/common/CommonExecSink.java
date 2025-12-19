@@ -432,6 +432,11 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                             }
 
                             @Override
+                            public String getContainerNodeType() {
+                                return providerContext.getContainerNodeType();
+                            }
+
+                            @Override
                             public String getName() {
                                 return providerContext.getName();
                             }
