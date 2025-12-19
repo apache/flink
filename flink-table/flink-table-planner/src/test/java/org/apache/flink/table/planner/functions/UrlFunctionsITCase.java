@@ -59,6 +59,57 @@ public class UrlFunctionsITCase extends BuiltInFunctionTestBase {
                                 STRING())
                         .testResult($("f4").urlDecode(), "url_decode(f4)", "", STRING())
                         .testResult($("f5").urlDecode(), "url_decode(f5)", null, STRING()),
+
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.URL_DECODE_RECURSIVE)
+                        .onFieldsWithData(
+                                "https%253A%252F%252Fflink.apache.org%252F",
+                                "https://flink.apache.org/",
+                                null,
+                                "inva+lid%253A%252F%252Fuser%253Apass%2540host%252Ffile%253Bparam%253Fquery%253Bp2",
+                                "",
+                                "illegal escape pattern test%")
+                        .andDataTypes(STRING(), STRING(), STRING(), STRING(), STRING(), STRING())
+                        .testResult(
+                                call("URL_DECODE_RECURSIVE", $("f0"), false),
+                                "url_decode_recursive(f0, false)",
+                                "https%3A%2F%2Fflink.apache.org%2F",
+                                STRING())
+                        .testResult(
+                                call("URL_DECODE_RECURSIVE", $("f0"), true),
+                                "url_decode_recursive(f0, true)",
+                                "https://flink.apache.org/",
+                                STRING())
+                        .testResult(
+                                call("URL_DECODE_RECURSIVE", $("f1"), true),
+                                "url_decode_recursive(f1, true)",
+                                "https://flink.apache.org/",
+                                STRING())
+                        .testResult(
+                                call("URL_DECODE_RECURSIVE", $("f2"), true),
+                                "url_decode_recursive(f2, true)",
+                                null,
+                                STRING().nullable())
+                        .testResult(
+                                call("URL_DECODE_RECURSIVE", $("f3"), false),
+                                "url_decode_recursive(f3, false)",
+                                "inva+lid%3A%2F%2Fuser%3Apass%40host%2Ffile%3Bparam%3Fquery%3Bp2",
+                                STRING())
+                        .testResult(
+                                call("URL_DECODE_RECURSIVE", $("f3"), true),
+                                "url_decode_recursive(f3, true)",
+                                "inva lid://user:pass@host/file;param?query;p2",
+                                STRING())
+                        .testResult(
+                                call("URL_DECODE_RECURSIVE", $("f4"), true),
+                                "url_decode_recursive(f4, true)",
+                                "",
+                                STRING())
+                        .testResult(
+                                call("URL_DECODE_RECURSIVE", $("f5"), true),
+                                "url_decode_recursive(f5, true)",
+                                null,
+                                STRING()),
+
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.URL_ENCODE)
                         .onFieldsWithData(
                                 "https://flink.apache.org/",

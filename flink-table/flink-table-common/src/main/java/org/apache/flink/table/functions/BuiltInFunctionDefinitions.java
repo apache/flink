@@ -453,6 +453,18 @@ public final class BuiltInFunctionDefinitions {
                             "org.apache.flink.table.runtime.functions.scalar.UrlDecodeFunction")
                     .build();
 
+    public static final BuiltInFunctionDefinition URL_DECODE_RECURSIVE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("URL_DECODE_RECURSIVE")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(sequence(
+                            logical(LogicalTypeFamily.CHARACTER_STRING),
+                            logical(LogicalTypeRoot.BOOLEAN)))
+                    .outputTypeStrategy(explicit(DataTypes.STRING().nullable()))
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.scalar.UrlDecodeFunction")
+                    .build();
+
     public static final BuiltInFunctionDefinition URL_ENCODE =
             BuiltInFunctionDefinition.newBuilder()
                     .name("URL_ENCODE")
