@@ -413,7 +413,7 @@ class TransformationsTest {
     }
 
     private static CompiledPlan planFromFlink2_2MultiTransformSource(TableEnvironment env) {
-        createMultiTransformSource(env);
+        createMultiTransformSource(env, "stream-exec-table-source-scan_1");
         // plan content is compiled from
         // planFromCurrentFlinkMultiTransformSource() using Flink release-2.2
         return env.loadPlan(
@@ -421,13 +421,14 @@ class TransformationsTest {
     }
 
     private static CompiledPlan planFromCurrentFlinkMultiTransformSource(TableEnvironment env) {
-        createMultiTransformSource(env);
+        createMultiTransformSource(env, "stream-exec-table-source-scan_2");
         return env.from("T")
                 .insertInto(TableDescriptor.forConnector("blackhole").build())
                 .compilePlan();
     }
 
-    private static void createMultiTransformSource(TableEnvironment env) {
+    private static void createMultiTransformSource(
+            TableEnvironment env, String expectedSourceExecNode) {
         final DataStreamScanProvider scanProvider =
                 new DataStreamScanProvider() {
                     @Override
@@ -438,6 +439,10 @@ class TransformationsTest {
                     @Override
                     public DataStream<RowData> produceDataStream(
                             ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
+
+                        assertThat(providerContext.getContainerNodeType())
+                                .isEqualTo(expectedSourceExecNode);
+
                         // UID 1
                         final SingleOutputStreamOperator<Integer> ints = execEnv.fromData(1, 2, 3);
                         providerContext.generateUid("my-source").ifPresent(ints::uid);

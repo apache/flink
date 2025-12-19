@@ -62,6 +62,16 @@ public interface ProviderContext {
     Optional<String> generateUid(String name);
 
     /**
+     * Returns the framework's node type in which this connector is embedded.
+     *
+     * <p>In other words: It returns the ExecNode's name and version as contained in the compiled
+     * plan. For example, "stream-exec-table-source-scan_2" or "stream-exec-sink_1".
+     */
+    default String getContainerNodeType() {
+        return "";
+    }
+
+    /**
      * Returns the display name provided by the framework to label the connector.
      *
      * <p>If multiple transformations are present, the implementer can decide which one is the

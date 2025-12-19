@@ -66,11 +66,25 @@ public interface ExecNode<T> extends ExecNodeTranslator<T>, FusionCodegenExecNod
     int getId();
 
     /**
+     * The node's type as contained in {@link CompiledPlan} (e.g. "stream-exec-table-source-scan_2"
+     * consisting of name and version).
+     *
+     * <p>A new type including its version can be added by declaring a {@link ExecNodeMetadata}
+     * annotation.
+     *
+     * @see ExecNodeContext#getTypeAsString()
+     */
+    @JsonIgnore
+    String getTypeAsString();
+
+    /**
      * The version of the node.
      *
      * <p>A new version can be added by declaring a {@link ExecNodeMetadata} annotation, potentially
      * by copying the old annotation. You can use this method to get the current compiled version
      * and execute version-specific logic accordingly.
+     *
+     * @see ExecNodeContext#getVersion()
      */
     @JsonIgnore
     int getVersion();
