@@ -1388,10 +1388,11 @@ public abstract class BaseExpressions<InType, OutType> {
      * decoding process, or the encoding scheme is not supported, will return null.
      *
      * @param recursive if true, performs recursive decoding until no further decoding is possible;
-     *                  if false, performs only a single decode operation
+     *     if false, performs only a single decode operation
      */
     public OutType urlDecode(boolean recursive) {
-        return toApiSpecificExpression(unresolvedCall(URL_DECODE_RECURSIVE, toExpr(), valueLiteral(recursive)));
+        return toApiSpecificExpression(
+                unresolvedCall(URL_DECODE_RECURSIVE, toExpr(), valueLiteral(recursive)));
     }
 
     /**

@@ -59,7 +59,6 @@ public class UrlFunctionsITCase extends BuiltInFunctionTestBase {
                                 STRING())
                         .testResult($("f4").urlDecode(), "url_decode(f4)", "", STRING())
                         .testResult($("f5").urlDecode(), "url_decode(f5)", null, STRING()),
-
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.URL_DECODE_RECURSIVE)
                         .onFieldsWithData(
                                 "https%253A%252F%252Fflink.apache.org%252F",
@@ -109,7 +108,6 @@ public class UrlFunctionsITCase extends BuiltInFunctionTestBase {
                                 "url_decode_recursive(f5, true)",
                                 null,
                                 STRING()),
-
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.URL_ENCODE)
                         .onFieldsWithData(
                                 "https://flink.apache.org/",
