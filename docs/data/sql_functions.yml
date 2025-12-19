@@ -1167,6 +1167,16 @@ variant:
       parser will keep the last occurrence of all fields with the same key, otherwise when 
       `allowDuplicateKeys` is false it will throw an error. The default value of 
       `allowDuplicateKeys` is false.
+  - sql: variant '[' INT ']'
+    table: VARIANT.at(INT)
+    description: |
+      If the VARIANT is an ARRAY value, returns a VARIANT whose value is the element at
+      the specified index. Otherwise, NULL is returned.
+  - sql: variant '[' STRING ']'
+    table: VARIANT.at(STRING)
+    description: |
+      If the VARIANT is a MAP value that has an element with this key, a VARIANT holding
+      the associated value is returned. Otherwise, NULL is returned.
 
 valueconstruction:
   - sql: |
