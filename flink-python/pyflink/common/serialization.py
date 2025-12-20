@@ -25,7 +25,8 @@ __all__ = [
     'SimpleStringSchema',
     'ByteArraySchema',
     'Encoder',
-    'BulkWriterFactory'
+    'BulkWriterFactory',
+    'RowFieldExtractorSchema',
 ]
 
 
@@ -126,3 +127,47 @@ class RowDataBulkWriterFactory(BulkWriterFactory):
 
     def get_row_type(self):
         return self._row_type
+
+
+class RowFieldExtractorSchema(SerializationSchema):
+    """
+    Serialization schema that extracts a specific field from a Row and serializes it as a
+    UTF-8 encoded byte array.
+
+    This schema is particularly useful when using Flink with Kafka, where you may want to use a
+    specific field as the message key for partition routing.
+
+    Example usage with Kafka:
+        >>> from pyflink.common.serialization import RowFieldExtractorSchema
+        >>> from pyflink.datastream.connectors.kafka import KafkaSink, \
+            KafkaRecordSerializationSchema
+        >>> sink = KafkaSink.builder() \\
+        ...     .set_bootstrap_servers("localhost:9092") \\
+        ...     .set_record_serializer(
+        ...         KafkaRecordSerializationSchema.builder()
+        ...             .set_topic("my-topic")
+        ...             .set_key_serialization_schema(RowFieldExtractorSchema(0))
+                        # Field 0 as key
+        ...             .set_value_serialization_schema(RowFieldExtractorSchema(1))
+                        # Field 1 as value
+        ...             .build()
+        ...     ) \\
+        ...     .build()
+
+    :param field_index: The zero-based index of the field to extract from the Row.
+    """
+
+    def __init__(self, field_index: int):
+        """
+        Creates a new RowFieldExtractorSchema that extracts the field at the specified index.
+
+        :param field_index: The zero-based index of the field to extract (must be non-negative).
+        :raises ValueError: If field_index is negative.
+        """
+        if field_index < 0:
+            raise ValueError(f"Field index must be non-negative, got: {field_index}")
+        gateway = get_gateway()
+        j_row_field_extractor_schema = gateway.jvm.org.apache.flink.api.common.serialization \
+            .RowFieldExtractorSchema(field_index)
+        super(RowFieldExtractorSchema, self).__init__(
+            j_serialization_schema=j_row_field_extractor_schema)
