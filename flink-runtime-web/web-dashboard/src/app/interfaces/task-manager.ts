@@ -38,6 +38,7 @@ export interface TaskManagerDetail {
 
 export interface AllocatedSlot {
   jobId: string;
+  assignedTasks: number;
   resource: Resources;
 }
 
