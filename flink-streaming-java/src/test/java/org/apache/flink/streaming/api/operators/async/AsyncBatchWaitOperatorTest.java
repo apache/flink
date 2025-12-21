@@ -508,6 +508,292 @@ class AsyncBatchWaitOperatorTest {
         }
     }
 
+    // ================================================================================
+    //  Metrics tests
+    // ================================================================================
+
+    /**
+     * Test that batch size histogram is correctly updated.
+     *
+     * <p>Process 5 elements with maxBatchSize = 3, expect histogram to record batch sizes [3, 2].
+     */
+    @Test
+    void testBatchSizeMetric() throws Exception {
+        final int maxBatchSize = 3;
+
+        AsyncBatchFunction<Integer, Integer> function =
+                (inputs, resultFuture) -> {
+                    resultFuture.complete(inputs);
+                };
+
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarness(function, maxBatchSize)) {
+
+            testHarness.open();
+
+            // Get the operator to access metrics
+            AsyncBatchWaitOperator<Integer, Integer> operator =
+                    (AsyncBatchWaitOperator<Integer, Integer>) testHarness.getOperator();
+
+            // Process 5 elements
+            for (int i = 1; i <= 5; i++) {
+                testHarness.processElement(new StreamRecord<>(i, i));
+            }
+
+            testHarness.endInput();
+
+            // Verify batch size histogram recorded 2 batches
+            assertThat(operator.getBatchSizeHistogram().getCount()).isEqualTo(2);
+        }
+    }
+
+    /**
+     * Test that total batches and records counters are correctly updated.
+     *
+     * <p>Process 7 elements with maxBatchSize = 3, expect 3 batches and 7 records.
+     */
+    @Test
+    void testBatchAndRecordCounters() throws Exception {
+        final int maxBatchSize = 3;
+
+        AsyncBatchFunction<Integer, Integer> function =
+                (inputs, resultFuture) -> {
+                    resultFuture.complete(inputs);
+                };
+
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarness(function, maxBatchSize)) {
+
+            testHarness.open();
+
+            AsyncBatchWaitOperator<Integer, Integer> operator =
+                    (AsyncBatchWaitOperator<Integer, Integer>) testHarness.getOperator();
+
+            // Process 7 elements: should result in batches of [3, 3, 1]
+            for (int i = 1; i <= 7; i++) {
+                testHarness.processElement(new StreamRecord<>(i, i));
+            }
+
+            testHarness.endInput();
+
+            // Verify counters
+            assertThat(operator.getTotalBatchesProcessedCounter().getCount()).isEqualTo(3);
+            assertThat(operator.getTotalRecordsProcessedCounter().getCount()).isEqualTo(7);
+        }
+    }
+
+    /**
+     * Test that async call duration histogram is updated on completion.
+     *
+     * <p>Process elements and verify duration is recorded.
+     */
+    @Test
+    void testAsyncCallDurationMetric() throws Exception {
+        final int maxBatchSize = 2;
+
+        AsyncBatchFunction<Integer, Integer> function =
+                (inputs, resultFuture) -> {
+                    // Simulate some processing time
+                    CompletableFuture.runAsync(
+                                    () -> {
+                                        try {
+                                            Thread.sleep(10); // Small delay
+                                        } catch (InterruptedException e) {
+                                            Thread.currentThread().interrupt();
+                                        }
+                                    })
+                            .thenRun(() -> resultFuture.complete(inputs));
+                };
+
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarness(function, maxBatchSize)) {
+
+            testHarness.open();
+
+            AsyncBatchWaitOperator<Integer, Integer> operator =
+                    (AsyncBatchWaitOperator<Integer, Integer>) testHarness.getOperator();
+
+            // Process 2 elements to trigger a batch
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+            testHarness.processElement(new StreamRecord<>(2, 2L));
+
+            testHarness.endInput();
+
+            // Verify async call duration was recorded
+            assertThat(operator.getAsyncCallDurationHistogram().getCount()).isEqualTo(1);
+        }
+    }
+
+    /**
+     * Test that async call failure counter is incremented on exception.
+     *
+     * <p>Process elements with a failing function and verify failure counter.
+     */
+    @Test
+    void testAsyncCallFailureMetric() throws Exception {
+        final int maxBatchSize = 2;
+
+        AsyncBatchFunction<Integer, Integer> function =
+                (inputs, resultFuture) -> {
+                    resultFuture.completeExceptionally(new ExpectedTestException());
+                };
+
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarness(function, maxBatchSize)) {
+
+            testHarness.open();
+
+            AsyncBatchWaitOperator<Integer, Integer> operator =
+                    (AsyncBatchWaitOperator<Integer, Integer>) testHarness.getOperator();
+
+            // Process 2 elements to trigger a batch (which will fail)
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+            testHarness.processElement(new StreamRecord<>(2, 2L));
+
+            testHarness.endInput();
+
+            // Verify failure counter was incremented
+            assertThat(operator.getAsyncCallFailuresCounter().getCount()).isEqualTo(1);
+        }
+    }
+
+    /**
+     * Test that in-flight count is correctly tracked during processing.
+     *
+     * <p>This test verifies the gauge correctly reflects concurrent operations.
+     */
+    @Test
+    void testInflightBatchesTracking() throws Exception {
+        final int maxBatchSize = 2;
+        final CompletableFuture<Void> blockingFuture = new CompletableFuture<>();
+
+        AsyncBatchFunction<Integer, Integer> function =
+                (inputs, resultFuture) -> {
+                    // Wait for explicit completion signal
+                    blockingFuture.thenRun(() -> resultFuture.complete(inputs));
+                };
+
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarness(function, maxBatchSize)) {
+
+            testHarness.open();
+
+            AsyncBatchWaitOperator<Integer, Integer> operator =
+                    (AsyncBatchWaitOperator<Integer, Integer>) testHarness.getOperator();
+
+            // Initially no in-flight batches
+            assertThat(operator.getInFlightCount()).isEqualTo(0);
+
+            // Process 2 elements to trigger a batch
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+            testHarness.processElement(new StreamRecord<>(2, 2L));
+
+            // Now there should be 1 in-flight batch
+            assertThat(operator.getInFlightCount()).isEqualTo(1);
+
+            // Complete the blocking future to allow processing
+            blockingFuture.complete(null);
+
+            testHarness.endInput();
+
+            // After completion, should be 0
+            assertThat(operator.getInFlightCount()).isEqualTo(0);
+        }
+    }
+
+    /**
+     * Test that batch latency histogram is recorded correctly.
+     *
+     * <p>Using timeout-based batching to measure latency.
+     */
+    @Test
+    void testBatchLatencyMetric() throws Exception {
+        final int maxBatchSize = 10;
+        final long batchTimeoutMs = 100L;
+
+        AsyncBatchFunction<Integer, Integer> function =
+                (inputs, resultFuture) -> {
+                    resultFuture.complete(inputs);
+                };
+
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarnessWithTimeout(function, maxBatchSize, batchTimeoutMs)) {
+
+            testHarness.open();
+            testHarness.setProcessingTime(0L);
+
+            AsyncBatchWaitOperator<Integer, Integer> operator =
+                    (AsyncBatchWaitOperator<Integer, Integer>) testHarness.getOperator();
+
+            // Process 1 element
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+
+            // Advance time to trigger timeout flush
+            testHarness.setProcessingTime(batchTimeoutMs + 1);
+
+            testHarness.endInput();
+
+            // Verify batch latency was recorded
+            assertThat(operator.getBatchLatencyHistogram().getCount()).isEqualTo(1);
+        }
+    }
+
+    /**
+     * Test metrics with multiple batches of different sizes.
+     *
+     * <p>Comprehensive test covering various batch sizes and timing scenarios.
+     */
+    @Test
+    void testMetricsWithMultipleBatches() throws Exception {
+        final int maxBatchSize = 3;
+        final long batchTimeoutMs = 100L;
+
+        AsyncBatchFunction<Integer, Integer> function =
+                (inputs, resultFuture) -> {
+                    resultFuture.complete(inputs);
+                };
+
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarnessWithTimeout(function, maxBatchSize, batchTimeoutMs)) {
+
+            testHarness.open();
+            testHarness.setProcessingTime(0L);
+
+            AsyncBatchWaitOperator<Integer, Integer> operator =
+                    (AsyncBatchWaitOperator<Integer, Integer>) testHarness.getOperator();
+
+            // First batch: size-triggered (3 elements)
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+            testHarness.processElement(new StreamRecord<>(2, 2L));
+            testHarness.processElement(new StreamRecord<>(3, 3L));
+
+            // Second batch: timeout-triggered (1 element)
+            testHarness.setProcessingTime(200L);
+            testHarness.processElement(new StreamRecord<>(4, 4L));
+            testHarness.setProcessingTime(301L);
+
+            // Third batch: size-triggered (3 elements)
+            testHarness.setProcessingTime(400L);
+            testHarness.processElement(new StreamRecord<>(5, 5L));
+            testHarness.processElement(new StreamRecord<>(6, 6L));
+            testHarness.processElement(new StreamRecord<>(7, 7L));
+
+            // Fourth batch: end-of-input (2 elements)
+            testHarness.processElement(new StreamRecord<>(8, 8L));
+            testHarness.processElement(new StreamRecord<>(9, 9L));
+
+            testHarness.endInput();
+
+            // Verify metrics
+            assertThat(operator.getTotalBatchesProcessedCounter().getCount()).isEqualTo(4);
+            assertThat(operator.getTotalRecordsProcessedCounter().getCount()).isEqualTo(9);
+            assertThat(operator.getBatchSizeHistogram().getCount()).isEqualTo(4);
+            assertThat(operator.getBatchLatencyHistogram().getCount()).isEqualTo(4);
+            assertThat(operator.getAsyncCallDurationHistogram().getCount()).isEqualTo(4);
+            assertThat(operator.getAsyncCallFailuresCounter().getCount()).isEqualTo(0);
+        }
+    }
+
     private static OneInputStreamOperatorTestHarness<Integer, Integer> createTestHarness(
             AsyncBatchFunction<Integer, Integer> function, int maxBatchSize) throws Exception {
         return new OneInputStreamOperatorTestHarness<>(
