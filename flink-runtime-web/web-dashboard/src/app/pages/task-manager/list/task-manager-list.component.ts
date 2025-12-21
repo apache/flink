@@ -49,6 +49,7 @@ export class TaskManagerListComponent implements OnInit, OnDestroy {
   public readonly sortHeartBeatFn = createSortFn(item => item.timeSinceLastHeartbeat);
   public readonly sortSlotsNumberFn = createSortFn(item => item.slotsNumber);
   public readonly sortFreeSlotsFn = createSortFn(item => item.freeSlots);
+  public readonly sortAssignedTasksFn = createSortFn(item => item.assignedTasks);
   public readonly sortCpuCoresFn = createSortFn(item => item.hardware?.cpuCores);
   public readonly sortPhysicalMemoryFn = createSortFn(item => item.hardware?.physicalMemory);
   public readonly sortFreeMemoryFn = createSortFn(item => item.hardware?.freeMemory);

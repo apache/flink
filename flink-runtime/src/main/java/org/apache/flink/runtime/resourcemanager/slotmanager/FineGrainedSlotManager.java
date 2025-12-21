@@ -755,6 +755,12 @@ public class FineGrainedSlotManager implements SlotManager {
     // Legacy APIs
     // ---------------------------------------------------------------------------------------------
 
+    @Nullable
+    @Override
+    public Integer getAssignedTasksOf(InstanceID instanceId) {
+        return taskManagerTracker.getAssignedTasks(instanceId);
+    }
+
     @Override
     public int getNumberRegisteredSlots() {
         return taskManagerTracker.getNumberRegisteredSlots();
