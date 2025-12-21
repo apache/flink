@@ -19,8 +19,14 @@
 package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Histogram;
+import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
 import org.apache.flink.streaming.api.functions.async.AsyncBatchFunction;
 import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
@@ -64,6 +70,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *   <li>At most one timer is active at any time
  * </ul>
  *
+ * <h3>Metrics</h3>
+ *
+ * <p>This operator exposes the following metrics for monitoring AI/ML inference workloads:
+ *
+ * <ul>
+ *   <li>{@code batchSize} - Histogram of batch sizes (number of records per batch)
+ *   <li>{@code batchLatencyMs} - Histogram of batch latency in milliseconds (time from first
+ *       element buffered to batch flush)
+ *   <li>{@code asyncCallDurationMs} - Histogram of async call duration in milliseconds (time from
+ *       async invocation to completion)
+ *   <li>{@code inflightBatches} - Gauge showing current number of in-flight async batch operations
+ *   <li>{@code totalBatchesProcessed} - Counter of total batches processed
+ *   <li>{@code totalRecordsProcessed} - Counter of total records processed
+ *   <li>{@code asyncCallFailures} - Counter of failed async calls
+ * </ul>
+ *
  * <p>Future enhancements may include:
  *
  * <ul>
@@ -71,7 +93,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *   <li>Event-time based batching
  *   <li>Multiple inflight batches
  *   <li>Retry logic
- *   <li>Metrics
  * </ul>
  *
  * @param <IN> Input type for the operator.
@@ -85,6 +106,38 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
 
     /** Constant indicating timeout is disabled. */
     private static final long NO_TIMEOUT = 0L;
+
+    /** Default window size for histogram metrics. */
+    private static final int METRICS_HISTOGRAM_WINDOW_SIZE = 1000;
+
+    // ================================================================================
+    //  Metric names - exposed as constants for testing and documentation
+    // ================================================================================
+
+    /** Metric name for batch size histogram. */
+    public static final String METRIC_BATCH_SIZE = "batchSize";
+
+    /** Metric name for batch latency histogram (in milliseconds). */
+    public static final String METRIC_BATCH_LATENCY_MS = "batchLatencyMs";
+
+    /** Metric name for async call duration histogram (in milliseconds). */
+    public static final String METRIC_ASYNC_CALL_DURATION_MS = "asyncCallDurationMs";
+
+    /** Metric name for in-flight batches gauge. */
+    public static final String METRIC_INFLIGHT_BATCHES = "inflightBatches";
+
+    /** Metric name for total batches processed counter. */
+    public static final String METRIC_TOTAL_BATCHES_PROCESSED = "totalBatchesProcessed";
+
+    /** Metric name for total records processed counter. */
+    public static final String METRIC_TOTAL_RECORDS_PROCESSED = "totalRecordsProcessed";
+
+    /** Metric name for async call failures counter. */
+    public static final String METRIC_ASYNC_CALL_FAILURES = "asyncCallFailures";
+
+    // ================================================================================
+    //  Configuration fields
+    // ================================================================================
 
     /** The async batch function to invoke. */
     private final AsyncBatchFunction<IN, OUT> asyncBatchFunction;
@@ -119,6 +172,44 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
 
     /** Whether a timer is currently registered for the current batch. */
     private transient boolean timerRegistered;
+
+    // ================================================================================
+    //  Metrics fields
+    // ================================================================================
+
+    /**
+     * Histogram tracking the size of each batch. Useful for monitoring batch efficiency and tuning
+     * maxBatchSize parameter.
+     */
+    private transient Histogram batchSizeHistogram;
+
+    /**
+     * Histogram tracking batch latency in milliseconds. Measures time from when first element is
+     * added to buffer until batch is flushed. Helps identify buffering overhead.
+     */
+    private transient Histogram batchLatencyHistogram;
+
+    /**
+     * Histogram tracking async call duration in milliseconds. Measures time from async invocation
+     * to completion callback. Critical for monitoring inference latency.
+     */
+    private transient Histogram asyncCallDurationHistogram;
+
+    /**
+     * Gauge showing current number of in-flight batches. Useful for monitoring backpressure and
+     * concurrency.
+     */
+    @SuppressWarnings("unused") // Registered as gauge, kept as field reference
+    private transient Gauge<Integer> inflightBatchesGauge;
+
+    /** Counter for total batches processed. */
+    private transient Counter totalBatchesProcessedCounter;
+
+    /** Counter for total records processed. */
+    private transient Counter totalRecordsProcessedCounter;
+
+    /** Counter for failed async calls. */
+    private transient Counter asyncCallFailuresCounter;
 
     /**
      * Creates an AsyncBatchWaitOperator with size-based batching only (no timeout).
@@ -168,6 +259,49 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
         this.inFlightCount = 0;
         this.currentBatchStartTime = 0L;
         this.timerRegistered = false;
+
+        // Initialize metrics
+        registerMetrics();
+    }
+
+    /**
+     * Registers all metrics for this operator.
+     *
+     * <p>Metrics are registered under the operator's metric group and provide visibility into batch
+     * processing behavior for AI/ML inference workloads.
+     */
+    private void registerMetrics() {
+        MetricGroup metricGroup = metrics;
+
+        // Histogram for batch sizes
+        this.batchSizeHistogram =
+                metricGroup.histogram(
+                        METRIC_BATCH_SIZE,
+                        new DescriptiveStatisticsHistogram(METRICS_HISTOGRAM_WINDOW_SIZE));
+
+        // Histogram for batch latency (time from first element to flush)
+        this.batchLatencyHistogram =
+                metricGroup.histogram(
+                        METRIC_BATCH_LATENCY_MS,
+                        new DescriptiveStatisticsHistogram(METRICS_HISTOGRAM_WINDOW_SIZE));
+
+        // Histogram for async call duration
+        this.asyncCallDurationHistogram =
+                metricGroup.histogram(
+                        METRIC_ASYNC_CALL_DURATION_MS,
+                        new DescriptiveStatisticsHistogram(METRICS_HISTOGRAM_WINDOW_SIZE));
+
+        // Gauge for in-flight batches
+        this.inflightBatchesGauge = metricGroup.gauge(METRIC_INFLIGHT_BATCHES, () -> inFlightCount);
+
+        // Counter for total batches processed
+        this.totalBatchesProcessedCounter = metricGroup.counter(METRIC_TOTAL_BATCHES_PROCESSED);
+
+        // Counter for total records processed
+        this.totalRecordsProcessedCounter = metricGroup.counter(METRIC_TOTAL_RECORDS_PROCESSED);
+
+        // Counter for failed async calls
+        this.asyncCallFailuresCounter = metricGroup.counter(METRIC_ASYNC_CALL_FAILURES);
     }
 
     @Override
@@ -176,6 +310,11 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
         if (buffer.isEmpty() && isTimeoutEnabled()) {
             currentBatchStartTime = getProcessingTimeService().getCurrentProcessingTime();
             registerBatchTimer();
+        }
+
+        // Record batch start time for latency tracking (even without timeout)
+        if (buffer.isEmpty() && !isTimeoutEnabled()) {
+            currentBatchStartTime = System.currentTimeMillis();
         }
 
         buffer.add(element.getValue());
@@ -208,6 +347,15 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
             return;
         }
 
+        // Calculate batch latency (time from first element to now)
+        long batchLatencyMs;
+        if (isTimeoutEnabled()) {
+            batchLatencyMs =
+                    getProcessingTimeService().getCurrentProcessingTime() - currentBatchStartTime;
+        } else {
+            batchLatencyMs = System.currentTimeMillis() - currentBatchStartTime;
+        }
+
         // Clear timer state since we're flushing the batch
         clearTimerState();
 
@@ -215,11 +363,21 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
         List<IN> batch = new ArrayList<>(buffer);
         buffer.clear();
 
+        // Update metrics
+        int batchSize = batch.size();
+        batchSizeHistogram.update(batchSize);
+        batchLatencyHistogram.update(batchLatencyMs);
+        totalBatchesProcessedCounter.inc();
+        totalRecordsProcessedCounter.inc(batchSize);
+
         // Increment in-flight counter
         inFlightCount++;
 
+        // Record async call start time for duration tracking
+        long asyncCallStartTime = System.currentTimeMillis();
+
         // Create result handler for this batch
-        BatchResultHandler resultHandler = new BatchResultHandler();
+        BatchResultHandler resultHandler = new BatchResultHandler(asyncCallStartTime);
 
         // Invoke the async batch function
         asyncBatchFunction.asyncInvokeBatch(batch, resultHandler);
@@ -269,9 +427,56 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
         currentBatchStartTime = 0L;
     }
 
+    // ================================================================================
+    //  Test accessors
+    // ================================================================================
+
     /** Returns the current buffer size. Visible for testing. */
+    @VisibleForTesting
     int getBufferSize() {
         return buffer != null ? buffer.size() : 0;
+    }
+
+    /** Returns the current in-flight count. Visible for testing. */
+    @VisibleForTesting
+    int getInFlightCount() {
+        return inFlightCount;
+    }
+
+    /** Returns the batch size histogram. Visible for testing. */
+    @VisibleForTesting
+    Histogram getBatchSizeHistogram() {
+        return batchSizeHistogram;
+    }
+
+    /** Returns the batch latency histogram. Visible for testing. */
+    @VisibleForTesting
+    Histogram getBatchLatencyHistogram() {
+        return batchLatencyHistogram;
+    }
+
+    /** Returns the async call duration histogram. Visible for testing. */
+    @VisibleForTesting
+    Histogram getAsyncCallDurationHistogram() {
+        return asyncCallDurationHistogram;
+    }
+
+    /** Returns the total batches processed counter. Visible for testing. */
+    @VisibleForTesting
+    Counter getTotalBatchesProcessedCounter() {
+        return totalBatchesProcessedCounter;
+    }
+
+    /** Returns the total records processed counter. Visible for testing. */
+    @VisibleForTesting
+    Counter getTotalRecordsProcessedCounter() {
+        return totalRecordsProcessedCounter;
+    }
+
+    /** Returns the async call failures counter. Visible for testing. */
+    @VisibleForTesting
+    Counter getAsyncCallFailuresCounter() {
+        return asyncCallFailuresCounter;
     }
 
     /** A handler for the results of a batch async invocation. */
@@ -279,6 +484,13 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
 
         /** Guard against multiple completions. */
         private final AtomicBoolean completed = new AtomicBoolean(false);
+
+        /** Start time of the async call for duration tracking. */
+        private final long asyncCallStartTime;
+
+        BatchResultHandler(long asyncCallStartTime) {
+            this.asyncCallStartTime = asyncCallStartTime;
+        }
 
         @Override
         public void complete(Collection<OUT> results) {
@@ -299,6 +511,13 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
             if (!completed.compareAndSet(false, true)) {
                 return;
             }
+
+            // Update failure metric
+            asyncCallFailuresCounter.inc();
+
+            // Record async call duration even for failures
+            long duration = System.currentTimeMillis() - asyncCallStartTime;
+            asyncCallDurationHistogram.update(duration);
 
             // Signal failure through the containing task
             getContainingTask()
@@ -324,6 +543,13 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
                         try {
                             processResults(supplier.get());
                         } catch (Throwable t) {
+                            // Update failure metric
+                            asyncCallFailuresCounter.inc();
+
+                            // Record async call duration even for failures
+                            long duration = System.currentTimeMillis() - asyncCallStartTime;
+                            asyncCallDurationHistogram.update(duration);
+
                             getContainingTask()
                                     .getEnvironment()
                                     .failExternally(
@@ -335,6 +561,10 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
         }
 
         private void processResults(Collection<OUT> results) {
+            // Record async call duration
+            long duration = System.currentTimeMillis() - asyncCallStartTime;
+            asyncCallDurationHistogram.update(duration);
+
             // Emit all results downstream
             for (OUT result : results) {
                 output.collect(new StreamRecord<>(result));
