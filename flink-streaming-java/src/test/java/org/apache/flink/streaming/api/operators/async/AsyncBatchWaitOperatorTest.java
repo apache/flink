@@ -296,10 +296,230 @@ class AsyncBatchWaitOperatorTest {
         }
     }
 
+    // ================================================================================
+    //  Timeout-based batching tests
+    // ================================================================================
+
+    /**
+     * Test that timeout triggers batch flush even when batch size is not reached.
+     *
+     * <p>maxBatchSize = 10, batchTimeoutMs = 50
+     *
+     * <p>Send 1 record, advance processing time, expect asyncInvokeBatch called with size 1
+     */
+    @Test
+    void testTimeoutFlush() throws Exception {
+        final int maxBatchSize = 10;
+        final long batchTimeoutMs = 50L;
+        final List<Integer> batchSizes = new CopyOnWriteArrayList<>();
+
+        AsyncBatchFunction<Integer, Integer> function =
+                (inputs, resultFuture) -> {
+                    batchSizes.add(inputs.size());
+                    resultFuture.complete(inputs);
+                };
+
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarnessWithTimeout(function, maxBatchSize, batchTimeoutMs)) {
+
+            testHarness.open();
+
+            // Set initial processing time
+            testHarness.setProcessingTime(0L);
+
+            // Process 1 element - should start the timer
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+
+            // Batch size not reached, no flush yet
+            assertThat(batchSizes).isEmpty();
+
+            // Advance processing time past timeout threshold
+            testHarness.setProcessingTime(batchTimeoutMs + 1);
+
+            // Timer should have fired, triggering batch flush with size 1
+            assertThat(batchSizes).containsExactly(1);
+
+            testHarness.endInput();
+        }
+    }
+
+    /**
+     * Test that size-triggered flush happens before timeout when batch fills up quickly.
+     *
+     * <p>maxBatchSize = 2, batchTimeoutMs = 1 hour (3600000 ms)
+     *
+     * <p>Send 2 records immediately, verify batch is flushed by size, not by timeout
+     */
+    @Test
+    void testSizeBeatsTimeout() throws Exception {
+        final int maxBatchSize = 2;
+        final long batchTimeoutMs = 3600000L; // 1 hour - should never be reached
+        final List<Integer> batchSizes = new CopyOnWriteArrayList<>();
+
+        AsyncBatchFunction<Integer, Integer> function =
+                (inputs, resultFuture) -> {
+                    batchSizes.add(inputs.size());
+                    resultFuture.complete(inputs);
+                };
+
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarnessWithTimeout(function, maxBatchSize, batchTimeoutMs)) {
+
+            testHarness.open();
+
+            // Set initial processing time
+            testHarness.setProcessingTime(0L);
+
+            // Process 2 elements immediately - should trigger batch by size
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+            testHarness.processElement(new StreamRecord<>(2, 2L));
+
+            // Batch should have been flushed by size (not timeout)
+            assertThat(batchSizes).containsExactly(2);
+
+            // Even if we advance time, no additional flush should happen since buffer is empty
+            testHarness.setProcessingTime(batchTimeoutMs + 1);
+            assertThat(batchSizes).containsExactly(2);
+
+            testHarness.endInput();
+        }
+    }
+
+    /**
+     * Test that timer is properly reset after batch flush.
+     *
+     * <p>First batch flushed by timeout, second batch starts a new timer.
+     */
+    @Test
+    void testTimerResetAfterFlush() throws Exception {
+        final int maxBatchSize = 10;
+        final long batchTimeoutMs = 100L;
+        final List<Integer> batchSizes = new CopyOnWriteArrayList<>();
+
+        AsyncBatchFunction<Integer, Integer> function =
+                (inputs, resultFuture) -> {
+                    batchSizes.add(inputs.size());
+                    resultFuture.complete(inputs);
+                };
+
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarnessWithTimeout(function, maxBatchSize, batchTimeoutMs)) {
+
+            testHarness.open();
+
+            // === First batch ===
+            testHarness.setProcessingTime(0L);
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+
+            // Advance time to trigger first timeout flush
+            testHarness.setProcessingTime(batchTimeoutMs + 1);
+            assertThat(batchSizes).containsExactly(1);
+
+            // === Second batch ===
+            // Start second batch at time 200
+            testHarness.setProcessingTime(200L);
+            testHarness.processElement(new StreamRecord<>(2, 2L));
+            testHarness.processElement(new StreamRecord<>(3, 3L));
+
+            // No flush yet - batch size not reached
+            assertThat(batchSizes).containsExactly(1);
+
+            // Advance time to trigger second timeout flush (200 + 100 + 1 = 301)
+            testHarness.setProcessingTime(301L);
+            assertThat(batchSizes).containsExactly(1, 2);
+
+            testHarness.endInput();
+        }
+    }
+
+    /** Test timeout with multiple batches interleaving size and timeout triggers. */
+    @Test
+    void testMixedSizeAndTimeoutTriggers() throws Exception {
+        final int maxBatchSize = 3;
+        final long batchTimeoutMs = 100L;
+        final List<Integer> batchSizes = new CopyOnWriteArrayList<>();
+
+        AsyncBatchFunction<Integer, Integer> function =
+                (inputs, resultFuture) -> {
+                    batchSizes.add(inputs.size());
+                    resultFuture.complete(inputs);
+                };
+
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarnessWithTimeout(function, maxBatchSize, batchTimeoutMs)) {
+
+            testHarness.open();
+            testHarness.setProcessingTime(0L);
+
+            // First batch: size-triggered
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+            testHarness.processElement(new StreamRecord<>(2, 2L));
+            testHarness.processElement(new StreamRecord<>(3, 3L));
+            assertThat(batchSizes).containsExactly(3);
+
+            // Second batch: timeout-triggered
+            testHarness.setProcessingTime(200L);
+            testHarness.processElement(new StreamRecord<>(4, 4L));
+            assertThat(batchSizes).containsExactly(3); // Not flushed yet
+
+            testHarness.setProcessingTime(301L); // 200 + 100 + 1
+            assertThat(batchSizes).containsExactly(3, 1);
+
+            // Third batch: size-triggered again
+            testHarness.setProcessingTime(400L);
+            testHarness.processElement(new StreamRecord<>(5, 5L));
+            testHarness.processElement(new StreamRecord<>(6, 6L));
+            testHarness.processElement(new StreamRecord<>(7, 7L));
+            assertThat(batchSizes).containsExactly(3, 1, 3);
+
+            testHarness.endInput();
+        }
+    }
+
+    /** Test that timeout is disabled when batchTimeoutMs <= 0. */
+    @Test
+    void testTimeoutDisabled() throws Exception {
+        final int maxBatchSize = 10;
+        final long batchTimeoutMs = 0L; // Disabled
+        final List<Integer> batchSizes = new CopyOnWriteArrayList<>();
+
+        AsyncBatchFunction<Integer, Integer> function =
+                (inputs, resultFuture) -> {
+                    batchSizes.add(inputs.size());
+                    resultFuture.complete(inputs);
+                };
+
+        try (OneInputStreamOperatorTestHarness<Integer, Integer> testHarness =
+                createTestHarnessWithTimeout(function, maxBatchSize, batchTimeoutMs)) {
+
+            testHarness.open();
+            testHarness.setProcessingTime(0L);
+
+            // Process 1 element
+            testHarness.processElement(new StreamRecord<>(1, 1L));
+
+            // Advance time significantly - should not trigger flush since timeout is disabled
+            testHarness.setProcessingTime(1000000L);
+            assertThat(batchSizes).isEmpty();
+
+            // Flush happens only on endInput
+            testHarness.endInput();
+            assertThat(batchSizes).containsExactly(1);
+        }
+    }
+
     private static OneInputStreamOperatorTestHarness<Integer, Integer> createTestHarness(
             AsyncBatchFunction<Integer, Integer> function, int maxBatchSize) throws Exception {
         return new OneInputStreamOperatorTestHarness<>(
                 new AsyncBatchWaitOperatorFactory<>(function, maxBatchSize),
+                IntSerializer.INSTANCE);
+    }
+
+    private static OneInputStreamOperatorTestHarness<Integer, Integer> createTestHarnessWithTimeout(
+            AsyncBatchFunction<Integer, Integer> function, int maxBatchSize, long batchTimeoutMs)
+            throws Exception {
+        return new OneInputStreamOperatorTestHarness<>(
+                new AsyncBatchWaitOperatorFactory<>(function, maxBatchSize, batchTimeoutMs),
                 IntSerializer.INSTANCE);
     }
 }
