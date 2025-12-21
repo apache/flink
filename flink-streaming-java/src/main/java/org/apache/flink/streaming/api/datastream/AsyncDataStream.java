@@ -345,6 +345,39 @@ public class AsyncDataStream {
      */
     public static <IN, OUT> SingleOutputStreamOperator<OUT> unorderedWaitBatch(
             DataStream<IN> in, AsyncBatchFunction<IN, OUT> func, int maxBatchSize) {
+        return unorderedWaitBatch(in, func, maxBatchSize, 0L);
+    }
+
+    /**
+     * Adds an AsyncBatchWaitOperator to process elements in batches with timeout support. The order
+     * of output stream records may be reordered (unordered mode).
+     *
+     * <p>This method is particularly useful for high-latency inference workloads where batching can
+     * significantly improve throughput, such as machine learning model inference.
+     *
+     * <p>The operator buffers incoming elements and triggers the async batch function when either:
+     *
+     * <ul>
+     *   <li>The buffer reaches {@code maxBatchSize}
+     *   <li>The {@code batchTimeoutMs} has elapsed since the first buffered element (if timeout is
+     *       enabled)
+     * </ul>
+     *
+     * <p>Remaining elements are flushed when the input ends.
+     *
+     * @param in Input {@link DataStream}
+     * @param func {@link AsyncBatchFunction} to process batches of elements
+     * @param maxBatchSize Maximum number of elements to batch before triggering async invocation
+     * @param batchTimeoutMs Batch timeout in milliseconds; <= 0 means timeout is disabled
+     * @param <IN> Type of input record
+     * @param <OUT> Type of output record
+     * @return A new {@link SingleOutputStreamOperator}
+     */
+    public static <IN, OUT> SingleOutputStreamOperator<OUT> unorderedWaitBatch(
+            DataStream<IN> in,
+            AsyncBatchFunction<IN, OUT> func,
+            int maxBatchSize,
+            long batchTimeoutMs) {
         Preconditions.checkArgument(maxBatchSize > 0, "maxBatchSize must be greater than 0");
 
         TypeInformation<OUT> outTypeInfo =
@@ -361,11 +394,11 @@ public class AsyncDataStream {
         // create transform
         AsyncBatchWaitOperatorFactory<IN, OUT> operatorFactory =
                 new AsyncBatchWaitOperatorFactory<>(
-                        in.getExecutionEnvironment().clean(func), maxBatchSize);
+                        in.getExecutionEnvironment().clean(func), maxBatchSize, batchTimeoutMs);
 
         return in.transform("async batch wait operator", outTypeInfo, operatorFactory);
     }
 
     // TODO: Add orderedWaitBatch in follow-up PR
-    // TODO: Add time-based batching support in follow-up PR
+    // TODO: Add event-time based batching support in follow-up PR
 }
