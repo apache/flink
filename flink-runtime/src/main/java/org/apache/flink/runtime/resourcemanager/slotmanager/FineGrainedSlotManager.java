@@ -756,6 +756,11 @@ public class FineGrainedSlotManager implements SlotManager {
     // ---------------------------------------------------------------------------------------------
 
     @Override
+    public int getAssignedTasksOf(InstanceID instanceId) {
+        return taskManagerTracker.getAssignedTasks(instanceId);
+    }
+
+    @Override
     public int getNumberRegisteredSlots() {
         return taskManagerTracker.getNumberRegisteredSlots();
     }

@@ -45,6 +45,9 @@ import java.util.concurrent.Executor;
  * failure, respectively.
  */
 public interface SlotManager extends AutoCloseable {
+
+    int getAssignedTasksOf(InstanceID instanceId);
+
     int getNumberRegisteredSlots();
 
     int getNumberRegisteredSlotsOf(InstanceID instanceId);

@@ -173,6 +173,7 @@ class TaskManagerDetailsHandlerTest {
                 0L,
                 0,
                 0,
+                0,
                 ResourceProfile.ZERO,
                 ResourceProfile.ZERO,
                 new HardwareDescription(0, 0L, 0L, 0L),

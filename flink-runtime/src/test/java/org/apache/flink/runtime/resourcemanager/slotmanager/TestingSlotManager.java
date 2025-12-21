@@ -55,6 +55,11 @@ public class TestingSlotManager implements SlotManager {
     }
 
     @Override
+    public int getAssignedTasksOf(InstanceID instanceId) {
+        return 0;
+    }
+
+    @Override
     public int getNumberRegisteredSlots() {
         return 0;
     }
