@@ -39,13 +39,36 @@ public class AsyncBatchWaitOperatorFactory<IN, OUT> extends AbstractStreamOperat
 
     private static final long serialVersionUID = 1L;
 
+    /** Constant indicating timeout is disabled. */
+    private static final long NO_TIMEOUT = 0L;
+
     private final AsyncBatchFunction<IN, OUT> asyncBatchFunction;
     private final int maxBatchSize;
+    private final long batchTimeoutMs;
 
+    /**
+     * Creates a factory with size-based batching only (no timeout).
+     *
+     * @param asyncBatchFunction The async batch function
+     * @param maxBatchSize Maximum batch size before triggering async invocation
+     */
     public AsyncBatchWaitOperatorFactory(
             AsyncBatchFunction<IN, OUT> asyncBatchFunction, int maxBatchSize) {
+        this(asyncBatchFunction, maxBatchSize, NO_TIMEOUT);
+    }
+
+    /**
+     * Creates a factory with size-based and optional timeout-based batching.
+     *
+     * @param asyncBatchFunction The async batch function
+     * @param maxBatchSize Maximum batch size before triggering async invocation
+     * @param batchTimeoutMs Batch timeout in milliseconds; <= 0 means disabled
+     */
+    public AsyncBatchWaitOperatorFactory(
+            AsyncBatchFunction<IN, OUT> asyncBatchFunction, int maxBatchSize, long batchTimeoutMs) {
         this.asyncBatchFunction = asyncBatchFunction;
         this.maxBatchSize = maxBatchSize;
+        this.batchTimeoutMs = batchTimeoutMs;
         this.chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
@@ -55,7 +78,11 @@ public class AsyncBatchWaitOperatorFactory<IN, OUT> extends AbstractStreamOperat
             StreamOperatorParameters<OUT> parameters) {
         AsyncBatchWaitOperator<IN, OUT> operator =
                 new AsyncBatchWaitOperator<>(
-                        parameters, asyncBatchFunction, maxBatchSize, getMailboxExecutor());
+                        parameters,
+                        asyncBatchFunction,
+                        maxBatchSize,
+                        batchTimeoutMs,
+                        getMailboxExecutor());
         return (T) operator;
     }
 
