@@ -48,7 +48,8 @@ class TaskManagerDetailsInfoTest extends RestResponseMarshallingTestBase<TaskMan
         final TaskManagerInfoWithSlots taskManagerInfoWithSlots =
                 new TaskManagerInfoWithSlots(
                         TaskManagerInfoTest.createRandomTaskManagerInfo(),
-                        Collections.singletonList(new SlotInfo(new JobID(), ResourceProfile.ANY)));
+                        Collections.singletonList(
+                                new SlotInfo(new JobID(), ResourceProfile.ANY, 0)));
         final TaskManagerMetricsInfo taskManagerMetricsInfo = createRandomTaskManagerMetricsInfo();
 
         return new TaskManagerDetailsInfo(taskManagerInfoWithSlots, taskManagerMetricsInfo);

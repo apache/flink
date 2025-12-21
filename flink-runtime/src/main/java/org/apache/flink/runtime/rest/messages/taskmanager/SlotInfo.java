@@ -32,6 +32,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -46,6 +48,8 @@ public class SlotInfo implements ResponseBody, Serializable {
 
     public static final String FIELD_NAME_JOB_ID = "jobId";
 
+    public static final String FIELD_NAME_ASSIGNED_TASKS = "assignedTasks";
+
     @JsonProperty(FIELD_NAME_RESOURCE)
     private final ResourceProfileInfo resource;
 
@@ -53,22 +57,33 @@ public class SlotInfo implements ResponseBody, Serializable {
     @JsonSerialize(using = JobIDSerializer.class)
     private final JobID jobId;
 
+    @JsonProperty(FIELD_NAME_ASSIGNED_TASKS)
+    private final @Nullable Integer assignedTasks;
+
     @JsonCreator
     public SlotInfo(
             @JsonDeserialize(using = JobIDDeserializer.class) @JsonProperty(FIELD_NAME_JOB_ID)
                     JobID jobId,
-            @JsonProperty(FIELD_NAME_RESOURCE) ResourceProfileInfo resource) {
+            @JsonProperty(FIELD_NAME_RESOURCE) ResourceProfileInfo resource,
+            @Nullable @JsonProperty(FIELD_NAME_ASSIGNED_TASKS) Integer assignedTasks) {
         this.jobId = Preconditions.checkNotNull(jobId);
         this.resource = Preconditions.checkNotNull(resource);
+        this.assignedTasks = assignedTasks;
     }
 
-    public SlotInfo(JobID jobId, ResourceProfile resource) {
-        this(jobId, ResourceProfileInfo.fromResourceProfile(resource));
+    public SlotInfo(JobID jobId, ResourceProfile resource, @Nullable Integer assignedTasks) {
+        this(jobId, ResourceProfileInfo.fromResourceProfile(resource), assignedTasks);
     }
 
     @JsonIgnore
     public JobID getJobId() {
         return jobId;
+    }
+
+    @Nullable
+    @JsonIgnore
+    public Integer getAssignedTasks() {
+        return assignedTasks;
     }
 
     @JsonIgnore
@@ -85,11 +100,13 @@ public class SlotInfo implements ResponseBody, Serializable {
             return false;
         }
         SlotInfo that = (SlotInfo) o;
-        return Objects.equals(jobId, that.jobId) && Objects.equals(resource, that.resource);
+        return Objects.equals(jobId, that.jobId)
+                && Objects.equals(resource, that.resource)
+                && Objects.equals(assignedTasks, that.assignedTasks);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(jobId, resource);
+        return Objects.hash(jobId, resource, assignedTasks);
     }
 }

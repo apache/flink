@@ -60,4 +60,19 @@ public interface TaskManagerSlotInformation {
      * @return resource profile of this slot
      */
     ResourceProfile getResourceProfile();
+
+    /**
+     * Set the number of tasks assigned to the current slot.
+     *
+     * @param assignedTasks The number of tasks assigned to the current slot.
+     */
+    void setAssignedTasks(int assignedTasks);
+
+    /**
+     * Get the number of tasks assigned to the current slot.
+     *
+     * @return The number of tasks assigned to the current slot.
+     */
+    @Nullable
+    Integer getAssignedTasks();
 }
