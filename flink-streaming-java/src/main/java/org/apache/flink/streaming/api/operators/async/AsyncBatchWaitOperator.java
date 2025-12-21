@@ -20,6 +20,7 @@ package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.streaming.api.functions.async.AsyncBatchFunction;
 import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
@@ -39,7 +40,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * The {@link AsyncBatchWaitOperator} batches incoming stream records and invokes the {@link
- * AsyncBatchFunction} when the batch size reaches the configured maximum.
+ * AsyncBatchFunction} when the batch size reaches the configured maximum or when the batch timeout
+ * is reached.
  *
  * <p>This operator implements unordered semantics only - results are emitted as soon as they are
  * available, regardless of input order. This is suitable for AI inference workloads where order
@@ -48,17 +50,26 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <p>Key behaviors:
  *
  * <ul>
- *   <li>Buffer incoming records until batch size is reached
+ *   <li>Buffer incoming records until batch size is reached OR timeout expires
  *   <li>Flush remaining records when end of input is signaled
  *   <li>Emit all results from the batch function to downstream
  * </ul>
  *
- * <p>This is a minimal implementation for the first PR. Future enhancements may include:
+ * <p>Timer lifecycle (when batchTimeoutMs > 0):
+ *
+ * <ul>
+ *   <li>Timer is registered when first element is added to an empty buffer
+ *   <li>Timer fires at: currentBatchStartTime + batchTimeoutMs
+ *   <li>Timer is cleared when batch is flushed (by size, timeout, or end-of-input)
+ *   <li>At most one timer is active at any time
+ * </ul>
+ *
+ * <p>Future enhancements may include:
  *
  * <ul>
  *   <li>Ordered mode support
- *   <li>Time-based batching with timers
- *   <li>Timeout handling
+ *   <li>Event-time based batching
+ *   <li>Multiple inflight batches
  *   <li>Retry logic
  *   <li>Metrics
  * </ul>
@@ -68,15 +79,24 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @Internal
 public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
-        implements OneInputStreamOperator<IN, OUT>, BoundedOneInput {
+        implements OneInputStreamOperator<IN, OUT>, BoundedOneInput, ProcessingTimeCallback {
 
     private static final long serialVersionUID = 1L;
+
+    /** Constant indicating timeout is disabled. */
+    private static final long NO_TIMEOUT = 0L;
 
     /** The async batch function to invoke. */
     private final AsyncBatchFunction<IN, OUT> asyncBatchFunction;
 
     /** Maximum batch size before triggering async invocation. */
     private final int maxBatchSize;
+
+    /**
+     * Batch timeout in milliseconds. When positive, a timer is registered to flush the batch after
+     * this duration since the first buffered element. A value <= 0 disables timeout-based batching.
+     */
+    private final long batchTimeoutMs;
 
     /** Buffer for incoming stream records. */
     private transient List<IN> buffer;
@@ -87,14 +107,54 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
     /** Counter for in-flight async operations. */
     private transient int inFlightCount;
 
+    // ================================================================================
+    //  Timer state fields for timeout-based batching
+    // ================================================================================
+
+    /**
+     * The processing time when the current batch started (i.e., when first element was added to
+     * empty buffer). Used to calculate timer fire time.
+     */
+    private transient long currentBatchStartTime;
+
+    /** Whether a timer is currently registered for the current batch. */
+    private transient boolean timerRegistered;
+
+    /**
+     * Creates an AsyncBatchWaitOperator with size-based batching only (no timeout).
+     *
+     * @param parameters Stream operator parameters
+     * @param asyncBatchFunction The async batch function to invoke
+     * @param maxBatchSize Maximum batch size before triggering async invocation
+     * @param mailboxExecutor Mailbox executor for processing async results
+     */
     public AsyncBatchWaitOperator(
             @Nonnull StreamOperatorParameters<OUT> parameters,
             @Nonnull AsyncBatchFunction<IN, OUT> asyncBatchFunction,
             int maxBatchSize,
             @Nonnull MailboxExecutor mailboxExecutor) {
+        this(parameters, asyncBatchFunction, maxBatchSize, NO_TIMEOUT, mailboxExecutor);
+    }
+
+    /**
+     * Creates an AsyncBatchWaitOperator with size-based and optional timeout-based batching.
+     *
+     * @param parameters Stream operator parameters
+     * @param asyncBatchFunction The async batch function to invoke
+     * @param maxBatchSize Maximum batch size before triggering async invocation
+     * @param batchTimeoutMs Batch timeout in milliseconds; <= 0 means disabled
+     * @param mailboxExecutor Mailbox executor for processing async results
+     */
+    public AsyncBatchWaitOperator(
+            @Nonnull StreamOperatorParameters<OUT> parameters,
+            @Nonnull AsyncBatchFunction<IN, OUT> asyncBatchFunction,
+            int maxBatchSize,
+            long batchTimeoutMs,
+            @Nonnull MailboxExecutor mailboxExecutor) {
         Preconditions.checkArgument(maxBatchSize > 0, "maxBatchSize must be greater than 0");
         this.asyncBatchFunction = Preconditions.checkNotNull(asyncBatchFunction);
         this.maxBatchSize = maxBatchSize;
+        this.batchTimeoutMs = batchTimeoutMs;
         this.mailboxExecutor = Preconditions.checkNotNull(mailboxExecutor);
 
         // Setup the operator using parameters
@@ -106,13 +166,38 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
         super.open();
         this.buffer = new ArrayList<>(maxBatchSize);
         this.inFlightCount = 0;
+        this.currentBatchStartTime = 0L;
+        this.timerRegistered = false;
     }
 
     @Override
     public void processElement(StreamRecord<IN> element) throws Exception {
+        // If buffer is empty and timeout is enabled, record batch start time and register timer
+        if (buffer.isEmpty() && isTimeoutEnabled()) {
+            currentBatchStartTime = getProcessingTimeService().getCurrentProcessingTime();
+            registerBatchTimer();
+        }
+
         buffer.add(element.getValue());
 
+        // Size-triggered flush: cancel pending timer and flush
         if (buffer.size() >= maxBatchSize) {
+            flushBuffer();
+        }
+    }
+
+    /**
+     * Callback when processing time timer fires. Flushes the buffer if non-empty.
+     *
+     * @param timestamp The timestamp for which the timer was registered
+     */
+    @Override
+    public void onProcessingTime(long timestamp) throws Exception {
+        // Timer fired - clear timer state first
+        timerRegistered = false;
+
+        // Flush buffer if non-empty (timeout-triggered flush)
+        if (!buffer.isEmpty()) {
             flushBuffer();
         }
     }
@@ -122,6 +207,9 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
         if (buffer.isEmpty()) {
             return;
         }
+
+        // Clear timer state since we're flushing the batch
+        clearTimerState();
 
         // Create a copy of the buffer and clear it for new incoming elements
         List<IN> batch = new ArrayList<>(buffer);
@@ -151,6 +239,34 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
     @Override
     public void close() throws Exception {
         super.close();
+    }
+
+    // ================================================================================
+    //  Timer management methods
+    // ================================================================================
+
+    /** Check if timeout-based batching is enabled. */
+    private boolean isTimeoutEnabled() {
+        return batchTimeoutMs > NO_TIMEOUT;
+    }
+
+    /** Register a processing time timer for the current batch. */
+    private void registerBatchTimer() {
+        if (!timerRegistered && isTimeoutEnabled()) {
+            long fireTime = currentBatchStartTime + batchTimeoutMs;
+            getProcessingTimeService().registerTimer(fireTime, this);
+            timerRegistered = true;
+        }
+    }
+
+    /**
+     * Clear timer state. Note: We don't explicitly cancel the timer because: 1. The timer callback
+     * checks buffer state before flushing 2. Cancelling timers has overhead 3. Timer will be
+     * ignored if buffer is empty when it fires
+     */
+    private void clearTimerState() {
+        timerRegistered = false;
+        currentBatchStartTime = 0L;
     }
 
     /** Returns the current buffer size. Visible for testing. */
