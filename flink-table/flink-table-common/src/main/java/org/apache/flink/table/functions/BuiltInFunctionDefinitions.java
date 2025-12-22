@@ -36,7 +36,6 @@ import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.StaticArgument;
 import org.apache.flink.table.types.inference.StaticArgumentTrait;
 import org.apache.flink.table.types.inference.TypeStrategies;
-import org.apache.flink.table.types.inference.strategies.ArrayOfStringArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -82,6 +81,7 @@ import static org.apache.flink.table.types.inference.InputTypeStrategies.NO_ARGS
 import static org.apache.flink.table.types.inference.InputTypeStrategies.OUTPUT_IF_NULL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.TYPE_LITERAL;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.and;
+import static org.apache.flink.table.types.inference.InputTypeStrategies.arrayOf;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.commonArrayType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.commonMapType;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.commonMultipleArrayType;
@@ -410,10 +410,10 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(
                             or(
                                     sequence(
-                                            new ArrayOfStringArgumentTypeStrategy(),
+                                            arrayOf(LogicalTypeFamily.CHARACTER_STRING),
                                             logical(LogicalTypeFamily.CHARACTER_STRING)),
                                     sequence(
-                                            new ArrayOfStringArgumentTypeStrategy(),
+                                            arrayOf(LogicalTypeFamily.CHARACTER_STRING),
                                             logical(LogicalTypeFamily.CHARACTER_STRING),
                                             logical(LogicalTypeFamily.CHARACTER_STRING))))
                     .outputTypeStrategy(nullableIfArgs(explicit(DataTypes.STRING().nullable())))
