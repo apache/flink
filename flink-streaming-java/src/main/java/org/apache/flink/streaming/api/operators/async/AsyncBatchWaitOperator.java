@@ -28,6 +28,9 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.metrics.DescriptiveStatisticsHistogram;
 import org.apache.flink.streaming.api.functions.async.AsyncBatchFunction;
+import org.apache.flink.streaming.api.functions.async.AsyncBatchRetryPredicate;
+import org.apache.flink.streaming.api.functions.async.AsyncBatchRetryStrategy;
+import org.apache.flink.streaming.api.functions.async.AsyncBatchTimeoutPolicy;
 import org.apache.flink.streaming.api.functions.async.CollectionSupplier;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -35,6 +38,7 @@ import org.apache.flink.streaming.api.operators.BoundedOneInput;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.util.retryable.AsyncBatchRetryStrategies;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -42,7 +46,12 @@ import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 
 /**
  * The {@link AsyncBatchWaitOperator} batches incoming stream records and invokes the {@link
@@ -70,6 +79,28 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *   <li>At most one timer is active at any time
  * </ul>
  *
+ * <h3>Retry Support</h3>
+ *
+ * <p>This operator supports retry strategies for failed batch operations:
+ *
+ * <ul>
+ *   <li>Configure via {@link AsyncBatchRetryStrategy}
+ *   <li>Supports fixed delay and exponential backoff strategies
+ *   <li>Retries are triggered based on exception or result predicates
+ *   <li>Retry count metric: {@code batchRetryCount}
+ * </ul>
+ *
+ * <h3>Timeout Support</h3>
+ *
+ * <p>This operator supports timeout policies for async batch operations:
+ *
+ * <ul>
+ *   <li>Configure via {@link AsyncBatchTimeoutPolicy}
+ *   <li>Supports fail-on-timeout or allow-partial-results behaviors
+ *   <li>Timeout applies to individual async invocations (not batching)
+ *   <li>Timeout count metric: {@code batchTimeoutCount}
+ * </ul>
+ *
  * <h3>Metrics</h3>
  *
  * <p>This operator exposes the following metrics for monitoring AI/ML inference workloads:
@@ -84,6 +115,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *   <li>{@code totalBatchesProcessed} - Counter of total batches processed
  *   <li>{@code totalRecordsProcessed} - Counter of total records processed
  *   <li>{@code asyncCallFailures} - Counter of failed async calls
+ *   <li>{@code batchRetryCount} - Counter of batch retry attempts
+ *   <li>{@code batchTimeoutCount} - Counter of batch timeouts
  * </ul>
  *
  * <p>Future enhancements may include:
@@ -92,7 +125,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *   <li>Ordered mode support
  *   <li>Event-time based batching
  *   <li>Multiple inflight batches
- *   <li>Retry logic
  * </ul>
  *
  * @param <IN> Input type for the operator.
@@ -135,6 +167,12 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
     /** Metric name for async call failures counter. */
     public static final String METRIC_ASYNC_CALL_FAILURES = "asyncCallFailures";
 
+    /** Metric name for batch retry count counter. */
+    public static final String METRIC_BATCH_RETRY_COUNT = "batchRetryCount";
+
+    /** Metric name for batch timeout count counter. */
+    public static final String METRIC_BATCH_TIMEOUT_COUNT = "batchTimeoutCount";
+
     // ================================================================================
     //  Configuration fields
     // ================================================================================
@@ -150,6 +188,12 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
      * this duration since the first buffered element. A value <= 0 disables timeout-based batching.
      */
     private final long batchTimeoutMs;
+
+    /** Retry strategy for failed batch operations. */
+    private final AsyncBatchRetryStrategy<OUT> retryStrategy;
+
+    /** Timeout policy for async batch operations. */
+    private final AsyncBatchTimeoutPolicy timeoutPolicy;
 
     /** Buffer for incoming stream records. */
     private transient List<IN> buffer;
@@ -211,24 +255,40 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
     /** Counter for failed async calls. */
     private transient Counter asyncCallFailuresCounter;
 
+    /** Counter for batch retry attempts. */
+    private transient Counter batchRetryCounter;
+
+    /** Counter for batch timeouts. */
+    private transient Counter batchTimeoutCounter;
+
     /**
-     * Creates an AsyncBatchWaitOperator with size-based batching only (no timeout).
+     * Creates an AsyncBatchWaitOperator with size-based batching only (no timeout, no retry, no
+     * async timeout).
      *
      * @param parameters Stream operator parameters
      * @param asyncBatchFunction The async batch function to invoke
      * @param maxBatchSize Maximum batch size before triggering async invocation
      * @param mailboxExecutor Mailbox executor for processing async results
      */
+    @SuppressWarnings("unchecked")
     public AsyncBatchWaitOperator(
             @Nonnull StreamOperatorParameters<OUT> parameters,
             @Nonnull AsyncBatchFunction<IN, OUT> asyncBatchFunction,
             int maxBatchSize,
             @Nonnull MailboxExecutor mailboxExecutor) {
-        this(parameters, asyncBatchFunction, maxBatchSize, NO_TIMEOUT, mailboxExecutor);
+        this(
+                parameters,
+                asyncBatchFunction,
+                maxBatchSize,
+                NO_TIMEOUT,
+                mailboxExecutor,
+                AsyncBatchRetryStrategies.noRetry(),
+                AsyncBatchTimeoutPolicy.NO_TIMEOUT_POLICY);
     }
 
     /**
-     * Creates an AsyncBatchWaitOperator with size-based and optional timeout-based batching.
+     * Creates an AsyncBatchWaitOperator with size-based and optional timeout-based batching (no
+     * retry, no async timeout).
      *
      * @param parameters Stream operator parameters
      * @param asyncBatchFunction The async batch function to invoke
@@ -236,17 +296,54 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
      * @param batchTimeoutMs Batch timeout in milliseconds; <= 0 means disabled
      * @param mailboxExecutor Mailbox executor for processing async results
      */
+    @SuppressWarnings("unchecked")
     public AsyncBatchWaitOperator(
             @Nonnull StreamOperatorParameters<OUT> parameters,
             @Nonnull AsyncBatchFunction<IN, OUT> asyncBatchFunction,
             int maxBatchSize,
             long batchTimeoutMs,
             @Nonnull MailboxExecutor mailboxExecutor) {
+        this(
+                parameters,
+                asyncBatchFunction,
+                maxBatchSize,
+                batchTimeoutMs,
+                mailboxExecutor,
+                AsyncBatchRetryStrategies.noRetry(),
+                AsyncBatchTimeoutPolicy.NO_TIMEOUT_POLICY);
+    }
+
+    /**
+     * Creates an AsyncBatchWaitOperator with full configuration including retry and timeout
+     * policies.
+     *
+     * @param parameters Stream operator parameters
+     * @param asyncBatchFunction The async batch function to invoke
+     * @param maxBatchSize Maximum batch size before triggering async invocation
+     * @param batchTimeoutMs Batch timeout in milliseconds; <= 0 means disabled
+     * @param mailboxExecutor Mailbox executor for processing async results
+     * @param retryStrategy Retry strategy for failed batch operations
+     * @param timeoutPolicy Timeout policy for async batch operations
+     */
+    @SuppressWarnings("unchecked")
+    public AsyncBatchWaitOperator(
+            @Nonnull StreamOperatorParameters<OUT> parameters,
+            @Nonnull AsyncBatchFunction<IN, OUT> asyncBatchFunction,
+            int maxBatchSize,
+            long batchTimeoutMs,
+            @Nonnull MailboxExecutor mailboxExecutor,
+            @Nonnull AsyncBatchRetryStrategy<OUT> retryStrategy,
+            @Nonnull AsyncBatchTimeoutPolicy timeoutPolicy) {
         Preconditions.checkArgument(maxBatchSize > 0, "maxBatchSize must be greater than 0");
         this.asyncBatchFunction = Preconditions.checkNotNull(asyncBatchFunction);
         this.maxBatchSize = maxBatchSize;
         this.batchTimeoutMs = batchTimeoutMs;
         this.mailboxExecutor = Preconditions.checkNotNull(mailboxExecutor);
+        this.retryStrategy =
+                (AsyncBatchRetryStrategy<OUT>)
+                        Preconditions.checkNotNull(retryStrategy, "retryStrategy must not be null");
+        this.timeoutPolicy =
+                Preconditions.checkNotNull(timeoutPolicy, "timeoutPolicy must not be null");
 
         // Setup the operator using parameters
         setup(parameters.getContainingTask(), parameters.getStreamConfig(), parameters.getOutput());
@@ -302,6 +399,12 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
 
         // Counter for failed async calls
         this.asyncCallFailuresCounter = metricGroup.counter(METRIC_ASYNC_CALL_FAILURES);
+
+        // Counter for batch retries
+        this.batchRetryCounter = metricGroup.counter(METRIC_BATCH_RETRY_COUNT);
+
+        // Counter for batch timeouts
+        this.batchTimeoutCounter = metricGroup.counter(METRIC_BATCH_TIMEOUT_COUNT);
     }
 
     @Override
@@ -376,11 +479,14 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
         // Record async call start time for duration tracking
         long asyncCallStartTime = System.currentTimeMillis();
 
-        // Create result handler for this batch
-        BatchResultHandler resultHandler = new BatchResultHandler(asyncCallStartTime);
+        // Create result handler for this batch with retry support
+        BatchResultHandler resultHandler = new BatchResultHandler(batch, asyncCallStartTime);
 
         // Invoke the async batch function
         asyncBatchFunction.asyncInvokeBatch(batch, resultHandler);
+
+        // Register timeout if configured
+        resultHandler.registerTimeout();
     }
 
     @Override
@@ -479,7 +585,29 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
         return asyncCallFailuresCounter;
     }
 
-    /** A handler for the results of a batch async invocation. */
+    /** Returns the batch retry counter. Visible for testing. */
+    @VisibleForTesting
+    Counter getBatchRetryCounter() {
+        return batchRetryCounter;
+    }
+
+    /** Returns the batch timeout counter. Visible for testing. */
+    @VisibleForTesting
+    Counter getBatchTimeoutCounter() {
+        return batchTimeoutCounter;
+    }
+
+    /**
+     * A handler for the results of a batch async invocation.
+     *
+     * <p>This handler supports:
+     *
+     * <ul>
+     *   <li>Normal completion with results
+     *   <li>Exceptional completion with retry support
+     *   <li>Timeout handling with configurable behavior
+     * </ul>
+     */
     private class BatchResultHandler implements ResultFuture<OUT> {
 
         /** Guard against multiple completions. */
@@ -488,8 +616,83 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
         /** Start time of the async call for duration tracking. */
         private final long asyncCallStartTime;
 
-        BatchResultHandler(long asyncCallStartTime) {
+        /** The batch of inputs for potential retry. */
+        private final List<IN> batch;
+
+        /** Current retry attempt count. */
+        private final AtomicInteger currentAttempts = new AtomicInteger(1);
+
+        /** Scheduled timeout future, if timeout is enabled. */
+        private volatile ScheduledFuture<?> timeoutFuture;
+
+        /** Flag to track if timeout has occurred. */
+        private final AtomicBoolean timedOut = new AtomicBoolean(false);
+
+        BatchResultHandler(List<IN> batch, long asyncCallStartTime) {
+            this.batch = batch;
             this.asyncCallStartTime = asyncCallStartTime;
+        }
+
+        /** Register timeout if timeout policy is enabled. */
+        void registerTimeout() {
+            if (timeoutPolicy.isTimeoutEnabled()) {
+                // Use ProcessingTimeService to register timeout timer
+                long timeoutFireTime =
+                        getProcessingTimeService().getCurrentProcessingTime()
+                                + timeoutPolicy.getTimeoutMs();
+                timeoutFuture =
+                        getProcessingTimeService()
+                                .registerTimer(timeoutFireTime, timestamp -> handleTimeout());
+            }
+        }
+
+        /** Handle timeout expiration. */
+        private void handleTimeout() {
+            if (timedOut.compareAndSet(false, true) && !completed.get()) {
+                // Cancel any pending operations
+                cancelTimeoutFuture();
+
+                // Update timeout metric
+                batchTimeoutCounter.inc();
+
+                // Record duration
+                long duration = System.currentTimeMillis() - asyncCallStartTime;
+                asyncCallDurationHistogram.update(duration);
+
+                if (timeoutPolicy.shouldAllowPartialOnTimeout()) {
+                    // Allow partial results - emit empty collection
+                    mailboxExecutor.execute(
+                            () -> {
+                                if (completed.compareAndSet(false, true)) {
+                                    // Emit empty results (no results available on timeout)
+                                    inFlightCount--;
+                                }
+                            },
+                            "AsyncBatchWaitOperator#handleTimeoutPartial");
+                } else {
+                    // Fail on timeout
+                    if (completed.compareAndSet(false, true)) {
+                        asyncCallFailuresCounter.inc();
+                        getContainingTask()
+                                .getEnvironment()
+                                .failExternally(
+                                        new TimeoutException(
+                                                "Async batch operation timed out after "
+                                                        + timeoutPolicy.getTimeoutMs()
+                                                        + " ms"));
+                        mailboxExecutor.execute(
+                                () -> inFlightCount--,
+                                "AsyncBatchWaitOperator#decrementInFlightOnTimeout");
+                    }
+                }
+            }
+        }
+
+        /** Cancel the timeout future if it exists. */
+        private void cancelTimeoutFuture() {
+            if (timeoutFuture != null && !timeoutFuture.isDone()) {
+                timeoutFuture.cancel(false);
+            }
         }
 
         @Override
@@ -497,9 +700,30 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
             Preconditions.checkNotNull(
                     results, "Results must not be null, use empty collection to emit nothing");
 
+            // Check if already timed out
+            if (timedOut.get()) {
+                return;
+            }
+
+            // Check if retry is needed based on result predicate
+            AsyncBatchRetryPredicate<OUT> retryPredicate = retryStrategy.getRetryPredicate();
+            Optional<Predicate<Collection<OUT>>> resultPredicateOpt =
+                    retryPredicate.resultPredicate();
+
+            if (resultPredicateOpt.isPresent()
+                    && resultPredicateOpt.get().test(results)
+                    && retryStrategy.canRetry(currentAttempts.get())) {
+                // Schedule retry
+                scheduleRetry(null);
+                return;
+            }
+
             if (!completed.compareAndSet(false, true)) {
                 return;
             }
+
+            // Cancel timeout
+            cancelTimeoutFuture();
 
             // Process results in the mailbox thread
             mailboxExecutor.execute(
@@ -508,9 +732,30 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
 
         @Override
         public void completeExceptionally(Throwable error) {
+            // Check if already timed out
+            if (timedOut.get()) {
+                return;
+            }
+
+            // Check if retry is needed based on exception predicate
+            AsyncBatchRetryPredicate<OUT> retryPredicate = retryStrategy.getRetryPredicate();
+            Optional<Predicate<Throwable>> exceptionPredicateOpt =
+                    retryPredicate.exceptionPredicate();
+
+            if (exceptionPredicateOpt.isPresent()
+                    && exceptionPredicateOpt.get().test(error)
+                    && retryStrategy.canRetry(currentAttempts.get())) {
+                // Schedule retry
+                scheduleRetry(error);
+                return;
+            }
+
             if (!completed.compareAndSet(false, true)) {
                 return;
             }
+
+            // Cancel timeout
+            cancelTimeoutFuture();
 
             // Update failure metric
             asyncCallFailuresCounter.inc();
@@ -534,9 +779,17 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
             Preconditions.checkNotNull(
                     supplier, "Supplier must not be null, return empty collection to emit nothing");
 
+            // Check if already timed out
+            if (timedOut.get()) {
+                return;
+            }
+
             if (!completed.compareAndSet(false, true)) {
                 return;
             }
+
+            // Cancel timeout
+            cancelTimeoutFuture();
 
             mailboxExecutor.execute(
                     () -> {
@@ -558,6 +811,59 @@ public class AsyncBatchWaitOperator<IN, OUT> extends AbstractStreamOperator<OUT>
                         }
                     },
                     "AsyncBatchWaitOperator#processResultsFromSupplier");
+        }
+
+        /**
+         * Schedule a retry attempt after the backoff delay.
+         *
+         * @param previousError the error that triggered the retry, or null if retry is based on
+         *     result
+         */
+        private void scheduleRetry(Throwable previousError) {
+            int attempt = currentAttempts.getAndIncrement();
+            long backoffMs = retryStrategy.getBackoffTimeMillis(attempt);
+
+            // Update retry metric
+            batchRetryCounter.inc();
+
+            // Schedule retry using ProcessingTimeService timer
+            long retryFireTime = getProcessingTimeService().getCurrentProcessingTime() + backoffMs;
+            getProcessingTimeService()
+                    .registerTimer(retryFireTime, timestamp -> executeRetry(previousError));
+        }
+
+        /**
+         * Execute a retry attempt.
+         *
+         * @param previousError the error that triggered the retry, or null if retry is based on
+         *     result
+         */
+        private void executeRetry(Throwable previousError) {
+            // Check if already timed out or completed
+            if (timedOut.get() || completed.get()) {
+                return;
+            }
+
+            try {
+                // Create a new result handler for this retry (reusing current handler state)
+                asyncBatchFunction.asyncInvokeBatch(batch, this);
+            } catch (Exception e) {
+                // Retry invocation failed immediately
+                Throwable cause = previousError != null ? previousError : e;
+                if (completed.compareAndSet(false, true)) {
+                    cancelTimeoutFuture();
+                    asyncCallFailuresCounter.inc();
+                    long duration = System.currentTimeMillis() - asyncCallStartTime;
+                    asyncCallDurationHistogram.update(duration);
+                    getContainingTask()
+                            .getEnvironment()
+                            .failExternally(
+                                    new Exception("Async batch operation retry failed.", cause));
+                    mailboxExecutor.execute(
+                            () -> inFlightCount--,
+                            "AsyncBatchWaitOperator#decrementInFlightOnRetryFail");
+                }
+            }
         }
 
         private void processResults(Collection<OUT> results) {
