@@ -56,6 +56,8 @@ __all__ = [
     'KeyedBroadcastProcessFunction',
     'AsyncFunction',
     'AsyncFunctionDescriptor',
+    'AsyncBatchFunction',
+    'AsyncBatchFunctionDescriptor',
     'AsyncRetryPredicate',
     'AsyncRetryStrategy',
 ]
@@ -1022,6 +1024,123 @@ class AsyncFunctionDescriptor(object):
         self.timeout = timeout
         self.capacity = capacity
         self.async_retry_strategy = async_retry_strategy
+        self.output_mode = output_mode
+
+
+class AsyncBatchFunction(Function, Generic[IN, OUT]):
+    """
+    A function to trigger Async I/O operation with batch processing support.
+
+    This function is designed for AI/ML inference scenarios and other high-latency external
+    service calls where batching can significantly improve throughput.
+
+    Unlike :class:`AsyncFunction` which processes one element at a time, this function
+    receives a batch of input elements and processes them together. This is particularly
+    beneficial for:
+
+    - Machine learning model inference where batching improves GPU utilization
+    - External service calls that support batch APIs
+    - Database queries that can be batched for efficiency
+
+    For each batch, an async operation is triggered via :func:`async_invoke_batch`.
+    The batch is formed by the Java-side AsyncBatchWaitOperator based on configured
+    batch size and timeout parameters.
+
+    Example usage::
+
+        class MyAsyncBatchFunction(AsyncBatchFunction):
+
+            async def async_invoke_batch(self, inputs: List[Row]) -> List[int]:
+                # Process batch of inputs together
+                results = []
+                for value in inputs:
+                    # Simulate async processing
+                    await asyncio.sleep(0.1)
+                    results.append(value[0] + value[1])
+                return results
+
+        # Apply to data stream
+        ds = AsyncDataStream.unordered_wait_batch(
+            ds, MyAsyncBatchFunction(),
+            timeout=Time.seconds(10),
+            batch_size=32,
+            batch_timeout=Time.milliseconds(100)
+        )
+
+    .. versionadded:: 2.1.0
+
+    .. note:: This is a :class:`PublicEvolving` API and may change in future versions.
+    """
+
+    @abstractmethod
+    async def async_invoke_batch(self, inputs: List[IN]) -> List[OUT]:
+        """
+        Trigger async operation for a batch of stream inputs.
+
+        The batch is formed by the runtime based on the configured batch_size and batch_timeout.
+        The implementation should process all inputs in the batch and return a list of results.
+
+        Important notes:
+        - The returned list should have the same length as the input list
+        - Each result corresponds to the input at the same index
+        - In case of a user code error, you can raise an exception to make the task fail
+          and trigger the fail-over process
+
+        :param inputs: List of input elements collected into a batch.
+        :return: List of output elements, one for each input element.
+        """
+        pass
+
+    def timeout_batch(self, inputs: List[IN]) -> List[OUT]:
+        """
+        Called when :func:`async_invoke_batch` times out.
+
+        By default, it raises a timeout exception. Override this method to provide
+        custom timeout handling, such as returning default values.
+
+        :param inputs: The batch of input elements that timed out.
+        :return: List of output elements to emit as fallback results.
+        """
+        raise TimeoutError(
+            "Async batch function call has timed out for inputs: " + str(inputs))
+
+
+class AsyncBatchFunctionDescriptor(object):
+    """
+    Descriptor for AsyncBatchFunction that holds the function and its configuration.
+
+    This descriptor is used internally to pass the batch function and its parameters
+    to the Python worker for execution.
+
+    .. versionadded:: 2.1.0
+    """
+
+    class OutputMode(Enum):
+        ORDERED = 0
+        UNORDERED = 1
+
+    def __init__(self,
+                 async_batch_function: AsyncBatchFunction,
+                 timeout,
+                 batch_size: int,
+                 batch_timeout,
+                 capacity: int,
+                 output_mode: 'AsyncBatchFunctionDescriptor.OutputMode'):
+        """
+        Creates a new AsyncBatchFunctionDescriptor.
+
+        :param async_batch_function: The AsyncBatchFunction to execute.
+        :param timeout: The overall timeout for async operations.
+        :param batch_size: Maximum number of elements to batch together.
+        :param batch_timeout: Maximum time to wait before flushing a partial batch.
+        :param capacity: The max number of async operations that can be triggered.
+        :param output_mode: Whether to emit results in order or unordered.
+        """
+        self.async_batch_function = async_batch_function
+        self.timeout = timeout
+        self.batch_size = batch_size
+        self.batch_timeout = batch_timeout
+        self.capacity = capacity
         self.output_mode = output_mode
 
 
