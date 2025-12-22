@@ -31,6 +31,14 @@ public enum FunctionKind {
 
     ASYNC_TABLE,
 
+    /**
+     * A batch-oriented async table function that processes multiple inputs together. Primarily used
+     * for AI/ML inference scenarios where batching improves throughput.
+     *
+     * @see org.apache.flink.table.functions.AsyncBatchLookupFunction
+     */
+    ASYNC_BATCH_TABLE,
+
     AGGREGATE,
 
     TABLE_AGGREGATE,
