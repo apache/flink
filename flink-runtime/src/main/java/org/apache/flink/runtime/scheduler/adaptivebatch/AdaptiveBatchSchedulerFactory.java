@@ -60,6 +60,7 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
 import org.apache.flink.runtime.scheduler.ExecutionOperations;
 import org.apache.flink.runtime.scheduler.ExecutionSlotAllocatorFactory;
 import org.apache.flink.runtime.scheduler.ExecutionVertexVersioner;
+import org.apache.flink.runtime.scheduler.ParallelismOverrideUtil;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.scheduler.SimpleExecutionSlotAllocator;
@@ -122,17 +123,22 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
             Collection<FailureEnricher> failureEnrichers,
             BlocklistOperations blocklistOperations)
             throws Exception {
-        ExecutionConfig executionConfig;
+        final JobGraph jobGraph;
+        final ExecutionConfig executionConfig;
 
         if (executionPlan instanceof JobGraph) {
+            jobGraph = (JobGraph) executionPlan;
             executionConfig =
                     executionPlan.getSerializedExecutionConfig().deserializeValue(userCodeLoader);
         } else if (executionPlan instanceof StreamGraph) {
+            jobGraph = ((StreamGraph) executionPlan).getJobGraph(userCodeLoader);
             executionConfig = ((StreamGraph) executionPlan).getExecutionConfig();
         } else {
             throw new FlinkException(
                     "Unsupported execution plan " + executionPlan.getClass().getCanonicalName());
         }
+
+        ParallelismOverrideUtil.applyParallelismOverrides(jobGraph, jobMasterConfiguration);
 
         final SlotPool slotPool =
                 slotPoolService
@@ -175,7 +181,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
 
         return createScheduler(
                 log,
-                executionPlan,
+                jobGraph,
                 executionConfig,
                 ioExecutor,
                 jobMasterConfiguration,
@@ -285,7 +291,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                         executionPlan,
                         jobRecoveryHandler instanceof DefaultBatchJobRecoveryHandler,
                         userCodeLoader,
-                        futureExecutor);
+                        futureExecutor,
+                        jobMasterConfiguration);
 
         return new AdaptiveBatchScheduler(
                 log,
