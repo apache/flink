@@ -48,6 +48,7 @@ import java.time.Instant
 import java.util
 
 import scala.collection.JavaConversions._
+import scala.collection.JavaConverters.asScalaIteratorConverter
 
 class CalcITCase extends StreamingTestBase {
 
@@ -821,5 +822,27 @@ class CalcITCase extends StreamingTestBase {
 
     val expected = List("16")
     assertThat(sink.getAppendResults.sorted).isEqualTo(expected.sorted)
+  }
+
+  @Test
+  def testPrimitiveDefaultValues(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  a[1]
+        |  ,b[1]
+        |FROM (
+        |  VALUES (CAST(ARRAY[1,2] AS ARRAY<SMALLINT>), CAST(ARRAY[2,3] AS ARRAY<TINYINT>))
+        |) t(a, b)
+        |""".stripMargin
+
+    val result = tEnv
+      .executeSql(sql)
+      .collect()
+      .asScala
+      .toList
+      .map(_.toString)
+    val expected = List("1,2")
+    assertThat(result).isEqualTo(expected)
   }
 }
