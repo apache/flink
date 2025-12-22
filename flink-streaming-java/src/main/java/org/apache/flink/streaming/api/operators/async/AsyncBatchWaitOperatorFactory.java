@@ -20,12 +20,15 @@ package org.apache.flink.streaming.api.operators.async;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.async.AsyncBatchFunction;
+import org.apache.flink.streaming.api.functions.async.AsyncBatchRetryStrategy;
+import org.apache.flink.streaming.api.functions.async.AsyncBatchTimeoutPolicy;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
 import org.apache.flink.streaming.api.operators.legacy.YieldingOperatorFactory;
+import org.apache.flink.streaming.util.retryable.AsyncBatchRetryStrategies;
 
 /**
  * The factory of {@link AsyncBatchWaitOperator}.
@@ -45,9 +48,11 @@ public class AsyncBatchWaitOperatorFactory<IN, OUT> extends AbstractStreamOperat
     private final AsyncBatchFunction<IN, OUT> asyncBatchFunction;
     private final int maxBatchSize;
     private final long batchTimeoutMs;
+    private final AsyncBatchRetryStrategy<OUT> retryStrategy;
+    private final AsyncBatchTimeoutPolicy timeoutPolicy;
 
     /**
-     * Creates a factory with size-based batching only (no timeout).
+     * Creates a factory with size-based batching only (no timeout, no retry, no async timeout).
      *
      * @param asyncBatchFunction The async batch function
      * @param maxBatchSize Maximum batch size before triggering async invocation
@@ -58,17 +63,44 @@ public class AsyncBatchWaitOperatorFactory<IN, OUT> extends AbstractStreamOperat
     }
 
     /**
-     * Creates a factory with size-based and optional timeout-based batching.
+     * Creates a factory with size-based and optional timeout-based batching (no retry, no async
+     * timeout).
      *
      * @param asyncBatchFunction The async batch function
      * @param maxBatchSize Maximum batch size before triggering async invocation
      * @param batchTimeoutMs Batch timeout in milliseconds; <= 0 means disabled
      */
+    @SuppressWarnings("unchecked")
     public AsyncBatchWaitOperatorFactory(
             AsyncBatchFunction<IN, OUT> asyncBatchFunction, int maxBatchSize, long batchTimeoutMs) {
+        this(
+                asyncBatchFunction,
+                maxBatchSize,
+                batchTimeoutMs,
+                AsyncBatchRetryStrategies.noRetry(),
+                AsyncBatchTimeoutPolicy.NO_TIMEOUT_POLICY);
+    }
+
+    /**
+     * Creates a factory with full configuration including retry and timeout policies.
+     *
+     * @param asyncBatchFunction The async batch function
+     * @param maxBatchSize Maximum batch size before triggering async invocation
+     * @param batchTimeoutMs Batch timeout in milliseconds; <= 0 means disabled
+     * @param retryStrategy Retry strategy for failed batch operations
+     * @param timeoutPolicy Timeout policy for async batch operations
+     */
+    public AsyncBatchWaitOperatorFactory(
+            AsyncBatchFunction<IN, OUT> asyncBatchFunction,
+            int maxBatchSize,
+            long batchTimeoutMs,
+            AsyncBatchRetryStrategy<OUT> retryStrategy,
+            AsyncBatchTimeoutPolicy timeoutPolicy) {
         this.asyncBatchFunction = asyncBatchFunction;
         this.maxBatchSize = maxBatchSize;
         this.batchTimeoutMs = batchTimeoutMs;
+        this.retryStrategy = retryStrategy;
+        this.timeoutPolicy = timeoutPolicy;
         this.chainingStrategy = ChainingStrategy.ALWAYS;
     }
 
@@ -82,7 +114,9 @@ public class AsyncBatchWaitOperatorFactory<IN, OUT> extends AbstractStreamOperat
                         asyncBatchFunction,
                         maxBatchSize,
                         batchTimeoutMs,
-                        getMailboxExecutor());
+                        getMailboxExecutor(),
+                        retryStrategy,
+                        timeoutPolicy);
         return (T) operator;
     }
 

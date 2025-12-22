@@ -21,6 +21,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.functions.async.AsyncBatchFunction;
+import org.apache.flink.streaming.api.functions.async.AsyncBatchRetryStrategy;
+import org.apache.flink.streaming.api.functions.async.AsyncBatchTimeoutPolicy;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
 import org.apache.flink.streaming.api.operators.async.AsyncBatchWaitOperatorFactory;
@@ -476,6 +478,132 @@ public class AsyncDataStream {
         return orderedWaitBatch(in, func, maxBatchSize, Duration.ZERO);
     }
 
+    // ================================================================================
+    //  Batch Async Operations with Retry and Timeout Support
+    // ================================================================================
+
+    /**
+     * Adds an AsyncBatchWaitOperator to process elements in batches with retry and timeout support.
+     * The order of output stream records may be reordered (unordered mode).
+     *
+     * <p>This method is particularly useful for high-latency inference workloads where:
+     *
+     * <ul>
+     *   <li>Batching can significantly improve throughput (e.g., ML model inference)
+     *   <li>Retry logic is needed for transient failures
+     *   <li>Timeout handling is required to prevent indefinite waiting
+     * </ul>
+     *
+     * <p>The operator buffers incoming elements and triggers the async batch function when either:
+     *
+     * <ul>
+     *   <li>The buffer reaches {@code maxBatchSize}
+     *   <li>The {@code batchTimeoutMs} has elapsed since the first buffered element
+     * </ul>
+     *
+     * @param in Input {@link DataStream}
+     * @param func {@link AsyncBatchFunction} to process batches of elements
+     * @param maxBatchSize Maximum number of elements to batch before triggering async invocation
+     * @param batchTimeoutMs Batch timeout in milliseconds; <= 0 means timeout is disabled
+     * @param retryStrategy Retry strategy for failed batch operations
+     * @param asyncTimeoutPolicy Timeout policy for async batch operations
+     * @param <IN> Type of input record
+     * @param <OUT> Type of output record
+     * @return A new {@link SingleOutputStreamOperator}
+     */
+    public static <IN, OUT> SingleOutputStreamOperator<OUT> unorderedWaitBatch(
+            DataStream<IN> in,
+            AsyncBatchFunction<IN, OUT> func,
+            int maxBatchSize,
+            long batchTimeoutMs,
+            AsyncBatchRetryStrategy<OUT> retryStrategy,
+            AsyncBatchTimeoutPolicy asyncTimeoutPolicy) {
+        Preconditions.checkArgument(maxBatchSize > 0, "maxBatchSize must be greater than 0");
+        Preconditions.checkNotNull(retryStrategy, "retryStrategy must not be null");
+        Preconditions.checkNotNull(asyncTimeoutPolicy, "asyncTimeoutPolicy must not be null");
+
+        TypeInformation<OUT> outTypeInfo =
+                TypeExtractor.getUnaryOperatorReturnType(
+                        func,
+                        AsyncBatchFunction.class,
+                        0,
+                        1,
+                        new int[] {1, 0},
+                        in.getType(),
+                        Utils.getCallLocationName(),
+                        true);
+
+        // create transform
+        AsyncBatchWaitOperatorFactory<IN, OUT> operatorFactory =
+                new AsyncBatchWaitOperatorFactory<>(
+                        in.getExecutionEnvironment().clean(func),
+                        maxBatchSize,
+                        batchTimeoutMs,
+                        retryStrategy,
+                        asyncTimeoutPolicy);
+
+        return in.transform("async batch wait operator", outTypeInfo, operatorFactory);
+    }
+
+    /**
+     * Adds an AsyncBatchWaitOperator with retry support only. The order of output stream records
+     * may be reordered (unordered mode).
+     *
+     * @param in Input {@link DataStream}
+     * @param func {@link AsyncBatchFunction} to process batches of elements
+     * @param maxBatchSize Maximum number of elements to batch before triggering async invocation
+     * @param batchTimeoutMs Batch timeout in milliseconds; <= 0 means timeout is disabled
+     * @param retryStrategy Retry strategy for failed batch operations
+     * @param <IN> Type of input record
+     * @param <OUT> Type of output record
+     * @return A new {@link SingleOutputStreamOperator}
+     */
+    public static <IN, OUT> SingleOutputStreamOperator<OUT> unorderedWaitBatchWithRetry(
+            DataStream<IN> in,
+            AsyncBatchFunction<IN, OUT> func,
+            int maxBatchSize,
+            long batchTimeoutMs,
+            AsyncBatchRetryStrategy<OUT> retryStrategy) {
+        return unorderedWaitBatch(
+                in,
+                func,
+                maxBatchSize,
+                batchTimeoutMs,
+                retryStrategy,
+                AsyncBatchTimeoutPolicy.NO_TIMEOUT_POLICY);
+    }
+
+    /**
+     * Adds an AsyncBatchWaitOperator with timeout support only. The order of output stream records
+     * may be reordered (unordered mode).
+     *
+     * @param in Input {@link DataStream}
+     * @param func {@link AsyncBatchFunction} to process batches of elements
+     * @param maxBatchSize Maximum number of elements to batch before triggering async invocation
+     * @param batchTimeoutMs Batch timeout in milliseconds; <= 0 means timeout is disabled
+     * @param asyncTimeoutPolicy Timeout policy for async batch operations
+     * @param <IN> Type of input record
+     * @param <OUT> Type of output record
+     * @return A new {@link SingleOutputStreamOperator}
+     */
+    @SuppressWarnings("unchecked")
+    public static <IN, OUT> SingleOutputStreamOperator<OUT> unorderedWaitBatchWithTimeout(
+            DataStream<IN> in,
+            AsyncBatchFunction<IN, OUT> func,
+            int maxBatchSize,
+            long batchTimeoutMs,
+            AsyncBatchTimeoutPolicy asyncTimeoutPolicy) {
+        return unorderedWaitBatch(
+                in,
+                func,
+                maxBatchSize,
+                batchTimeoutMs,
+                (AsyncBatchRetryStrategy<OUT>)
+                        org.apache.flink.streaming.util.retryable.AsyncBatchRetryStrategies
+                                .NO_RETRY_STRATEGY,
+                asyncTimeoutPolicy);
+    }
+
     // TODO: Add event-time based batching support in follow-up PR
-    // TODO: Add retry strategies for batch operations in follow-up PR
+    // TODO: Add ordered batch operations with retry/timeout in follow-up PR
 }
