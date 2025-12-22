@@ -91,8 +91,8 @@ object CodeGenUtilsTest {
     java.util.stream.Stream.of(
       // Basic primitive types
       Arguments.of(new BooleanType(), "false"),
-      Arguments.of(new TinyIntType(), "-1"),
-      Arguments.of(new SmallIntType(), "-1"),
+      Arguments.of(new TinyIntType(), "((byte) -1)"),
+      Arguments.of(new SmallIntType(), "((short) -1)"),
       Arguments.of(new IntType(), "-1"),
       Arguments.of(new BigIntType(), "-1L"),
       Arguments.of(new FloatType(), "-1.0f"),
@@ -141,12 +141,12 @@ object CodeGenUtilsTest {
         DistinctType
           .newBuilder(objectIdentifier, new SmallIntType())
           .build(),
-        "-1"),
+        "((short) -1)"),
       Arguments.of(
         DistinctType
           .newBuilder(objectIdentifier, new TinyIntType())
           .build(),
-        "-1"),
+        "((byte) -1)"),
       Arguments.of(
         DistinctType
           .newBuilder(objectIdentifier, new BigIntType())
