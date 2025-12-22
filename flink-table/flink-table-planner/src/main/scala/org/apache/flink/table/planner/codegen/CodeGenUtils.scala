@@ -301,8 +301,6 @@ object CodeGenUtils {
     // ordered by type root definition
     case CHAR | VARCHAR => s"$BINARY_STRING.EMPTY_UTF8"
     case BOOLEAN => "false"
-    // Janino does not support implicit narrowing for ternary expressions,
-    // so explicit casts are required for byte and short default values.
     case TINYINT => "((byte) -1)"
     case SMALLINT => "((short) -1)"
     case INTEGER | DATE | TIME_WITHOUT_TIME_ZONE | INTERVAL_YEAR_MONTH => "-1"
