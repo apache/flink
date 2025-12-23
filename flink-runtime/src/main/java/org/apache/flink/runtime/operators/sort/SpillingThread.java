@@ -470,14 +470,11 @@ final class SpillingThread<E> extends ThreadBase<E> {
             final List<MemorySegment> writeBuffers)
             throws IOException {
         // A channel list with length maxFanIn<sup>i</sup> can be merged to maxFanIn files in i-1
-        // rounds where every merge
-        // is a full merge with maxFanIn input channels. A partial round includes merges with fewer
-        // than maxFanIn
-        // inputs. It is most efficient to perform the partial round first.
-        final double scale = Math.ceil(Math.log(channelIDs.size()) / Math.log(this.maxFanIn)) - 1;
-
+        // rounds where every merge is a full merge with maxFanIn input channels. A partial round
+        // includes merges with fewer
+        // than maxFanIn inputs. It is most efficient to perform the partial round first.
         final int numStart = channelIDs.size();
-        final int numEnd = (int) Math.pow(this.maxFanIn, scale);
+        final int numEnd = computeMergeScaleForChannelSize(numStart);
 
         final int numMerges = (int) Math.ceil((numStart - numEnd) / (double) (this.maxFanIn - 1));
 
@@ -510,6 +507,35 @@ final class SpillingThread<E> extends ThreadBase<E> {
         }
 
         return mergedChannelIDs;
+    }
+
+    /**
+     * Computes the merge "scale" value for the given channel size to efficiently perform a full or
+     * partial merge operation.
+     *
+     * <p>This method determines the largest power of {@code maxFanIn} that is still strictly less
+     * than the number of channels being merged. In other words, we will repeatedly multiply by
+     * {@code maxFanIn} until doing so would meet or exceed {@code channelSize}, and then return the
+     * last valid value.
+     *
+     * @param channelSize The number of channels participating in the current merging run.
+     * @return The largest power of {@code maxFanIn} that is strictly less than {@code channelSize}
+     *     (i.e., {@code maxFanIn<sup>i</sup> < channelSize}).
+     */
+    private int computeMergeScaleForChannelSize(final int channelSize) {
+        // Trivial case (a size of 0 or 1 cannot be scaled down).
+        if (channelSize <= 1) {
+            return 1;
+        }
+
+        // Calculate the maximum power of maxInFan via an iterative, exponential search
+        int numEnd = 1;
+        while ((long) numEnd * maxFanIn < channelSize) {
+            // Continue scaling to the next available power
+            numEnd *= maxFanIn;
+        }
+
+        return numEnd;
     }
 
     /**
