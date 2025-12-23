@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers.utils;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.PackagedProgramUtils;
@@ -35,6 +36,7 @@ import org.apache.flink.runtime.rest.messages.MessageParameters;
 import org.apache.flink.runtime.webmonitor.handlers.EntryClassQueryParameter;
 import org.apache.flink.runtime.webmonitor.handlers.JarIdPathParameter;
 import org.apache.flink.runtime.webmonitor.handlers.JarRequestBody;
+import org.apache.flink.runtime.webmonitor.handlers.JarRunApplicationRequestBody;
 import org.apache.flink.runtime.webmonitor.handlers.ParallelismQueryParameter;
 import org.apache.flink.runtime.webmonitor.handlers.ProgramArgQueryParameter;
 
@@ -52,6 +54,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -76,18 +79,21 @@ public class JarHandlerUtils {
         private final List<String> programArgs;
         private final int parallelism;
         private final JobID jobId;
+        @Nullable final ApplicationID applicationId;
 
         private JarHandlerContext(
                 Path jarFile,
                 String entryClass,
                 List<String> programArgs,
                 int parallelism,
-                JobID jobId) {
+                JobID jobId,
+                @Nullable ApplicationID applicationId) {
             this.jarFile = jarFile;
             this.entryClass = entryClass;
             this.programArgs = programArgs;
             this.parallelism = parallelism;
             this.jobId = jobId;
+            this.applicationId = applicationId;
         }
 
         public static <R extends JarRequestBody> JarHandlerContext fromRequest(
@@ -128,7 +134,18 @@ public class JarHandlerUtils {
                             null, // Delegate default job ID to actual JobGraph generation
                             log);
 
-            return new JarHandlerContext(jarFile, entryClass, programArgs, parallelism, jobId);
+            final ApplicationID applicationId;
+            if (requestBody instanceof JarRunApplicationRequestBody) {
+                applicationId =
+                        ((JarRunApplicationRequestBody) requestBody)
+                                .getApplicationId()
+                                .orElse(null);
+            } else {
+                applicationId = null;
+            }
+
+            return new JarHandlerContext(
+                    jarFile, entryClass, programArgs, parallelism, jobId, applicationId);
         }
 
         public void applyToConfiguration(
@@ -216,6 +233,10 @@ public class JarHandlerUtils {
         @VisibleForTesting
         JobID getJobId() {
             return jobId;
+        }
+
+        public Optional<ApplicationID> getApplicationId() {
+            return Optional.ofNullable(applicationId);
         }
     }
 
