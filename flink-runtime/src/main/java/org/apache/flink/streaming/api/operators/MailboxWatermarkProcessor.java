@@ -26,6 +26,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.function.Consumer;
+
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -41,7 +43,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class MailboxWatermarkProcessor<OUT> {
     protected static final Logger LOG = LoggerFactory.getLogger(MailboxWatermarkProcessor.class);
 
-    private final Output<StreamRecord<OUT>> output;
+    private final Consumer<Watermark> output;
     private final MailboxExecutor mailboxExecutor;
     private final InternalTimeServiceManager<?> internalTimeServiceManager;
 
@@ -55,6 +57,13 @@ public class MailboxWatermarkProcessor<OUT> {
 
     public MailboxWatermarkProcessor(
             Output<StreamRecord<OUT>> output,
+            MailboxExecutor mailboxExecutor,
+            InternalTimeServiceManager<?> internalTimeServiceManager) {
+        this(output::emitWatermark, mailboxExecutor, internalTimeServiceManager);
+    }
+
+    public MailboxWatermarkProcessor(
+            Consumer<Watermark> output,
             MailboxExecutor mailboxExecutor,
             InternalTimeServiceManager<?> internalTimeServiceManager) {
         this.output = checkNotNull(output);
@@ -73,7 +82,7 @@ public class MailboxWatermarkProcessor<OUT> {
         if (internalTimeServiceManager.tryAdvanceWatermark(
                 maxInputWatermark, mailboxExecutor::shouldInterrupt)) {
             // In case output watermark has fully progressed emit it downstream.
-            output.emitWatermark(maxInputWatermark);
+            output.accept(maxInputWatermark);
         } else if (!progressWatermarkScheduled) {
             progressWatermarkScheduled = true;
             // We still have work to do, but we need to let other mails to be processed first.

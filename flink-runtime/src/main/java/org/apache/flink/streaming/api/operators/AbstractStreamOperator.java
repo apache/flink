@@ -73,7 +73,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -124,6 +127,8 @@ public abstract class AbstractStreamOperator<OUT>
 
     private transient @Nullable MailboxWatermarkProcessor watermarkProcessor;
 
+    private final WatermarkConsumerSupplier<OUT> watermarkConsumerSupplier;
+
     // ---------------- key/value state ------------------
 
     /**
@@ -160,9 +165,17 @@ public abstract class AbstractStreamOperator<OUT>
     protected transient RecordAttributes lastRecordAttributes1;
     protected transient RecordAttributes lastRecordAttributes2;
 
-    public AbstractStreamOperator() {}
+    public AbstractStreamOperator() {
+        this(null);
+    }
 
     public AbstractStreamOperator(StreamOperatorParameters<OUT> parameters) {
+        this(parameters, WatermarkConsumerSupplier.defaultSupplier());
+    }
+
+    public AbstractStreamOperator(
+            StreamOperatorParameters<OUT> parameters,
+            WatermarkConsumerSupplier<OUT> watermarkConsumerSupplier) {
         if (parameters != null) {
             setup(
                     parameters.getContainingTask(),
@@ -171,12 +184,12 @@ public abstract class AbstractStreamOperator<OUT>
             this.processingTimeService =
                     Preconditions.checkNotNull(parameters.getProcessingTimeService());
         }
+        this.watermarkConsumerSupplier = checkNotNull(watermarkConsumerSupplier);
     }
 
     // ------------------------------------------------------------------------
     //  Life Cycle
     // ------------------------------------------------------------------------
-
     protected void setup(
             StreamTask<?, ?> containingTask,
             StreamConfig config,
@@ -381,7 +394,9 @@ public abstract class AbstractStreamOperator<OUT>
                 && getTimeServiceManager().isPresent()) {
             this.watermarkProcessor =
                     new MailboxWatermarkProcessor(
-                            output, mailboxExecutor, getTimeServiceManager().get());
+                            watermarkConsumerSupplier.apply(output),
+                            mailboxExecutor,
+                            getTimeServiceManager().get());
         }
     }
 
@@ -769,5 +784,44 @@ public abstract class AbstractStreamOperator<OUT>
     @Experimental
     public void processWatermark2(WatermarkEvent watermark) throws Exception {
         output.emitWatermark(watermark);
+    }
+
+    public interface WatermarkConsumerSupplier<OUT>
+            extends Function<Output<StreamRecord<OUT>>, Consumer<Watermark>>, Serializable {
+
+        static <OUT> WatermarkConsumerSupplier<OUT> defaultSupplier() {
+            return new DirectWatermarkConsumerSupplier<>();
+        }
+
+        static <OUT> WatermarkConsumerSupplier<OUT> delayedSupplier(long delay) {
+            return new DelayedWatermarkConsumerSupplier<>(delay);
+        }
+
+        class DirectWatermarkConsumerSupplier<OUT> implements WatermarkConsumerSupplier<OUT> {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            public Consumer<Watermark> apply(Output<StreamRecord<OUT>> output) {
+                return output::emitWatermark;
+            }
+        }
+
+        class DelayedWatermarkConsumerSupplier<OUT> implements WatermarkConsumerSupplier<OUT> {
+            private static final long serialVersionUID = 1L;
+
+            private final long watermarkDelay;
+
+            public DelayedWatermarkConsumerSupplier(long watermarkDelay) {
+                Preconditions.checkArgument(
+                        watermarkDelay > 0, "The watermark delay should be positive.");
+                this.watermarkDelay = watermarkDelay;
+            }
+
+            @Override
+            public Consumer<Watermark> apply(Output<StreamRecord<OUT>> out) {
+                return mark ->
+                        out.emitWatermark(new Watermark(mark.getTimestamp() - watermarkDelay));
+            }
+        }
     }
 }

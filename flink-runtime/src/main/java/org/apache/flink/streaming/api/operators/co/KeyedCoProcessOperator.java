@@ -54,7 +54,13 @@ public class KeyedCoProcessOperator<K, IN1, IN2, OUT>
     private transient OnTimerContextImpl<K, IN1, IN2, OUT> onTimerContext;
 
     public KeyedCoProcessOperator(KeyedCoProcessFunction<K, IN1, IN2, OUT> keyedCoProcessFunction) {
-        super(keyedCoProcessFunction);
+        this(keyedCoProcessFunction, WatermarkConsumerSupplier.defaultSupplier());
+    }
+
+    public KeyedCoProcessOperator(
+            KeyedCoProcessFunction<K, IN1, IN2, OUT> keyedCoProcessFunction,
+            WatermarkConsumerSupplier<OUT> watermarkConsumerSupplier) {
+        super(null, keyedCoProcessFunction, watermarkConsumerSupplier);
     }
 
     @Override

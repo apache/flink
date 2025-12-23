@@ -107,12 +107,23 @@ public abstract class AbstractStreamOperatorV2<OUT>
     protected final LatencyStats latencyStats;
     protected final ProcessingTimeService processingTimeService;
     protected final RecordAttributes[] lastRecordAttributes;
+    private final AbstractStreamOperator.WatermarkConsumerSupplier<OUT> watermarkConsumerSupplier;
 
     protected StreamOperatorStateHandler stateHandler;
     protected InternalTimeServiceManager<?> timeServiceManager;
     private @Nullable MailboxWatermarkProcessor watermarkProcessor;
 
     public AbstractStreamOperatorV2(StreamOperatorParameters<OUT> parameters, int numberOfInputs) {
+        this(
+                parameters,
+                numberOfInputs,
+                AbstractStreamOperator.WatermarkConsumerSupplier.defaultSupplier());
+    }
+
+    public AbstractStreamOperatorV2(
+            StreamOperatorParameters<OUT> parameters,
+            int numberOfInputs,
+            AbstractStreamOperator.WatermarkConsumerSupplier<OUT> watermarkConsumerSupplier) {
         final Environment environment = parameters.getContainingTask().getEnvironment();
         config = parameters.getStreamConfig();
         output = parameters.getOutput();
@@ -148,6 +159,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
                         environment.getExternalResourceInfoProvider());
 
         mailboxExecutor = parameters.getMailboxExecutor();
+        this.watermarkConsumerSupplier = watermarkConsumerSupplier;
     }
 
     private LatencyStats createLatencyStats(
@@ -241,7 +253,9 @@ public abstract class AbstractStreamOperatorV2<OUT>
                 && getTimeServiceManager().isPresent()) {
             watermarkProcessor =
                     new MailboxWatermarkProcessor(
-                            output, mailboxExecutor, getTimeServiceManager().get());
+                            watermarkConsumerSupplier.apply(output),
+                            mailboxExecutor,
+                            getTimeServiceManager().get());
         }
     }
 
