@@ -23,11 +23,13 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.planner.factories.TestValuesModelFactory;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
+import org.apache.flink.table.test.program.ModelTestStep;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.SqlTestStep;
@@ -103,6 +105,7 @@ public abstract class BatchRestoreTestBase implements TableTestProgramRunner {
         return EnumSet.of(
                 TestKind.CONFIG,
                 TestKind.FUNCTION,
+                TestKind.MODEL,
                 TestKind.SOURCE_WITH_RESTORE_DATA,
                 TestKind.SOURCE_WITH_DATA,
                 TestKind.SINK_WITH_RESTORE_DATA,
@@ -152,6 +155,13 @@ public abstract class BatchRestoreTestBase implements TableTestProgramRunner {
                         TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS,
                         TableConfigOptions.CatalogPlanCompilation.SCHEMA);
 
+        for (ModelTestStep modelTestStep : program.getSetupModelTestSteps()) {
+            final Map<String, String> options = new HashMap<>();
+            options.put("provider", "values");
+            options.put("data-id", TestValuesModelFactory.registerData(modelTestStep.data));
+            modelTestStep.apply(tEnv, options);
+        }
+
         for (SourceTestStep sourceTestStep : program.getSetupSourceTestSteps()) {
             final String id = TestValuesTableFactory.registerData(sourceTestStep.dataBeforeRestore);
             final Map<String, String> options = new HashMap<>();
@@ -198,8 +208,14 @@ public abstract class BatchRestoreTestBase implements TableTestProgramRunner {
 
         program.getSetupConfigOptionTestSteps().forEach(s -> s.apply(tEnv));
 
-        for (SourceTestStep sourceTestStep : program.getSetupSourceTestSteps()) {
+        for (ModelTestStep modelTestStep : program.getSetupModelTestSteps()) {
+            final Map<String, String> options = new HashMap<>();
+            options.put("provider", "values");
+            options.put("data-id", TestValuesModelFactory.registerData(modelTestStep.data));
+            modelTestStep.apply(tEnv, options);
+        }
 
+        for (SourceTestStep sourceTestStep : program.getSetupSourceTestSteps()) {
             List<Row> data = new ArrayList<>();
             data.addAll(sourceTestStep.dataBeforeRestore);
             data.addAll(sourceTestStep.dataAfterRestore);

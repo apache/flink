@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.physical.stream;
+package org.apache.flink.table.planner.plan.rules.physical.common;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
@@ -27,8 +27,11 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.ml.AsyncPredictRuntimeProvider;
 import org.apache.flink.table.ml.PredictRuntimeProvider;
 import org.apache.flink.table.planner.calcite.RexModelCall;
+import org.apache.flink.table.planner.plan.nodes.FlinkConvention;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
+import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalMLPredictTableFunction;
+import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalMLPredictTableFunction;
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -57,22 +60,30 @@ import static org.apache.flink.table.types.logical.LogicalTypeFamily.CHARACTER_S
 
 /**
  * Rule to convert a {@link FlinkLogicalTableFunctionScan} with ml_predict call into a {@link
- * StreamPhysicalMLPredictTableFunction}.
+ * BatchPhysicalMLPredictTableFunction} or {@link StreamPhysicalMLPredictTableFunction}.
  */
-public class StreamPhysicalMLPredictTableFunctionRule extends ConverterRule {
+public class PhysicalMLPredictTableFunctionRule extends ConverterRule {
 
     private static final String CONFIG_ERROR_MESSAGE =
             "Config parameter of ML_PREDICT function should be a MAP data type consisting String literals.";
 
-    public static final StreamPhysicalMLPredictTableFunctionRule INSTANCE =
-            new StreamPhysicalMLPredictTableFunctionRule(
+    public static final PhysicalMLPredictTableFunctionRule BATCH_INSTANCE =
+            new PhysicalMLPredictTableFunctionRule(
+                    Config.INSTANCE.withConversion(
+                            FlinkLogicalTableFunctionScan.class,
+                            FlinkConventions.LOGICAL(),
+                            FlinkConventions.BATCH_PHYSICAL(),
+                            "PhysicalMLPredictTableFunctionRule:Batch"));
+
+    public static final PhysicalMLPredictTableFunctionRule STREAM_INSTANCE =
+            new PhysicalMLPredictTableFunctionRule(
                     Config.INSTANCE.withConversion(
                             FlinkLogicalTableFunctionScan.class,
                             FlinkConventions.LOGICAL(),
                             FlinkConventions.STREAM_PHYSICAL(),
-                            "StreamPhysicalModelTableFunctionRule"));
+                            "PhysicalMLPredictTableFunctionRule:Stream"));
 
-    private StreamPhysicalMLPredictTableFunctionRule(Config config) {
+    private PhysicalMLPredictTableFunctionRule(Config config) {
         super(config);
     }
 
@@ -93,23 +104,34 @@ public class StreamPhysicalMLPredictTableFunctionRule extends ConverterRule {
     @Override
     public @Nullable RelNode convert(RelNode rel) {
         final FlinkLogicalTableFunctionScan scan = (FlinkLogicalTableFunctionScan) rel;
-        final RelNode newInput =
-                RelOptRule.convert(scan.getInput(0), FlinkConventions.STREAM_PHYSICAL());
+        final FlinkConvention convention = (FlinkConvention) getOutConvention();
+        final RelNode newInput = RelOptRule.convert(scan.getInput(0), convention);
 
-        final RelTraitSet providedTraitSet =
-                rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
+        final RelTraitSet providedTraitSet = rel.getTraitSet().replace(convention);
 
         // Extract and validate configuration from the 4th operand if present
         final RexCall rexCall = (RexCall) scan.getCall();
         final Map<String, String> runtimeConfig = buildRuntimeConfig(rexCall);
 
-        return new StreamPhysicalMLPredictTableFunction(
-                scan.getCluster(),
-                providedTraitSet,
-                newInput,
-                scan,
-                scan.getRowType(),
-                runtimeConfig);
+        if (convention == FlinkConventions.BATCH_PHYSICAL()) {
+            return new BatchPhysicalMLPredictTableFunction(
+                    scan.getCluster(),
+                    providedTraitSet,
+                    newInput,
+                    scan,
+                    scan.getRowType(),
+                    runtimeConfig);
+        } else if (convention == FlinkConventions.STREAM_PHYSICAL()) {
+            return new StreamPhysicalMLPredictTableFunction(
+                    scan.getCluster(),
+                    providedTraitSet,
+                    newInput,
+                    scan,
+                    scan.getRowType(),
+                    runtimeConfig);
+        } else {
+            throw new UnsupportedOperationException("Unsupported convention: " + convention);
+        }
     }
 
     public static boolean isMLPredictFunction(FunctionDefinition definition) {
