@@ -249,6 +249,8 @@ Example Program
 The following program is a complete, working example of streaming window word count application, that counts the
 words coming from a web socket in 5 second windows. You can copy &amp; paste the code to run it locally.
 
+Find dependencies needed to run code here https://nightlies.apache.org/flink/flink-docs-release-1.14/docs/dev/datastream/project-configuration/.
+
 {{< tabs "7ef5e21b-c24f-404f-af39-e21231b15e0d" >}}
 {{< tab "Java" >}}
 
