@@ -769,6 +769,83 @@
       }
     }
   }, {
+    "url" : "/jars/:jarid/run-application",
+    "method" : "POST",
+    "status-code" : "202 Accepted",
+    "file-upload" : false,
+    "path-parameters" : {
+      "pathParameters" : [ {
+        "key" : "jarid"
+      } ]
+    },
+    "query-parameters" : {
+      "queryParameters" : [ {
+        "key" : "allowNonRestoredState",
+        "mandatory" : false
+      }, {
+        "key" : "savepointPath",
+        "mandatory" : false
+      }, {
+        "key" : "programArg",
+        "mandatory" : false
+      }, {
+        "key" : "entry-class",
+        "mandatory" : false
+      }, {
+        "key" : "parallelism",
+        "mandatory" : false
+      } ]
+    },
+    "request" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarRunApplicationRequestBody",
+      "properties" : {
+        "entryClass" : {
+          "type" : "string"
+        },
+        "programArgsList" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "parallelism" : {
+          "type" : "integer"
+        },
+        "jobId" : {
+          "type" : "any"
+        },
+        "allowNonRestoredState" : {
+          "type" : "boolean"
+        },
+        "savepointPath" : {
+          "type" : "string"
+        },
+        "claimMode" : {
+          "type" : "string",
+          "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
+        },
+        "flinkConfiguration" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "string"
+          }
+        },
+        "applicationId" : {
+          "type" : "any"
+        }
+      }
+    },
+    "response" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:flink:runtime:webmonitor:handlers:JarRunApplicationResponseBody",
+      "properties" : {
+        "applicationid" : {
+          "type" : "any"
+        }
+      }
+    }
+  }, {
     "url" : "/jobmanager/config",
     "method" : "GET",
     "status-code" : "200 OK",

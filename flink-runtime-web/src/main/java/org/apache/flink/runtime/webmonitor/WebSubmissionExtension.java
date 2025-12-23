@@ -32,6 +32,8 @@ import org.apache.flink.runtime.webmonitor.handlers.JarListHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.JarPlanGetHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.JarPlanHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JarPlanPostHeaders;
+import org.apache.flink.runtime.webmonitor.handlers.JarRunApplicationHandler;
+import org.apache.flink.runtime.webmonitor.handlers.JarRunApplicationHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.JarRunHandler;
 import org.apache.flink.runtime.webmonitor.handlers.JarRunHeaders;
 import org.apache.flink.runtime.webmonitor.handlers.JarUploadHandler;
@@ -60,6 +62,7 @@ public class WebSubmissionExtension implements WebMonitorExtension {
     // for easier access during testing
     private final JarUploadHandler jarUploadHandler;
     private final JarRunHandler jarRunHandler;
+    private final JarRunApplicationHandler jarRunApplicationHandler;
 
     public WebSubmissionExtension(
             Configuration configuration,
@@ -132,6 +135,15 @@ public class WebSubmissionExtension implements WebMonitorExtension {
                         jarRunExecutor,
                         applicationRunnerSupplier);
 
+        jarRunApplicationHandler =
+                new JarRunApplicationHandler(
+                        leaderRetriever,
+                        timeout,
+                        responseHeaders,
+                        JarRunApplicationHeaders.getInstance(),
+                        jarDir,
+                        configuration);
+
         final JarDeleteHandler jarDeleteHandler =
                 new JarDeleteHandler(
                         leaderRetriever,
@@ -164,6 +176,8 @@ public class WebSubmissionExtension implements WebMonitorExtension {
         webSubmissionHandlers.add(Tuple2.of(JarUploadHeaders.getInstance(), jarUploadHandler));
         webSubmissionHandlers.add(Tuple2.of(JarListHeaders.getInstance(), jarListHandler));
         webSubmissionHandlers.add(Tuple2.of(JarRunHeaders.getInstance(), jarRunHandler));
+        webSubmissionHandlers.add(
+                Tuple2.of(JarRunApplicationHeaders.getInstance(), jarRunApplicationHandler));
         webSubmissionHandlers.add(Tuple2.of(JarDeleteHeaders.getInstance(), jarDeleteHandler));
         webSubmissionHandlers.add(Tuple2.of(JarPlanGetHeaders.getInstance(), jarPlanHandler));
         webSubmissionHandlers.add(Tuple2.of(JarPlanPostHeaders.getInstance(), postJarPlanHandler));
@@ -187,5 +201,10 @@ public class WebSubmissionExtension implements WebMonitorExtension {
     @VisibleForTesting
     JarRunHandler getJarRunHandler() {
         return jarRunHandler;
+    }
+
+    @VisibleForTesting
+    JarRunApplicationHandler getJarRunApplicationHandler() {
+        return jarRunApplicationHandler;
     }
 }
