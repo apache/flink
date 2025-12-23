@@ -51,6 +51,8 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
 
     @Nullable private VertexParallelism availableVertexParallelism;
 
+    private boolean hasDesiredResources = false;
+
     public void setExpectCancelling(Consumer<ExecutingTest.CancellingArguments> asserter) {
         cancellingStateValidator.expectInput(asserter);
     }
@@ -66,6 +68,15 @@ class MockRestartingContext extends MockStateWithExecutionGraphContext
     public void setAvailableVertexParallelism(
             @Nullable VertexParallelism availableVertexParallelism) {
         this.availableVertexParallelism = availableVertexParallelism;
+    }
+
+    public void setHasDesiredResources(boolean hasDesiredResources) {
+        this.hasDesiredResources = hasDesiredResources;
+    }
+
+    @Override
+    public boolean hasDesiredResources() {
+        return hasDesiredResources;
     }
 
     @Override
