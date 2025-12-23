@@ -118,24 +118,83 @@ public class ResourceManager implements Closeable {
      * Due to anyone of the resource in list maybe fail during register, so we should stage it
      * before actual register to guarantee transaction process. If all the resources are available,
      * register them into the {@link ResourceManager}.
+     *
+     * <p>This method is specifically for JAR resources. For generic artifact resources (including
+     * JAR, ZIP, tar.gz, etc.), use {@link #registerArtifactResources(List, boolean)} instead.
+     *
+     * @param resourceUris list of JAR resource URIs. All resources must be of type JAR.
+     * @throws ValidationException if any resource is not of type JAR
      */
     public void registerJarResources(List<ResourceUri> resourceUris) throws IOException {
-        registerResources(
-                prepareStagingResources(
-                        resourceUris,
-                        ResourceType.JAR,
-                        true,
-                        url -> {
-                            try {
-                                JarUtils.checkJarFile(url);
-                            } catch (IOException e) {
-                                throw new ValidationException(
-                                        String.format("Failed to register jar resource [%s]", url),
-                                        e);
-                            }
-                        },
-                        false),
-                true);
+        // Validate all resources are JAR type for backward compatibility
+        for (ResourceUri uri : resourceUris) {
+            if (uri.getResourceType() != ResourceType.JAR) {
+                throw new ValidationException(
+                        String.format(
+                                "registerJarResources() only accepts JAR resources, but got %s for resource [%s]",
+                                uri.getResourceType(), uri.getUri()));
+            }
+        }
+        registerArtifactResources(resourceUris, true);
+    }
+
+    /**
+     * Register artifact resources (JAR, ZIP, tar.gz, or other archive formats) into the {@link
+     * ResourceManager}. This is a generic method that supports multiple resource types.
+     *
+     * <p>Due to anyone of the resource in list maybe fail during register, so we should stage it
+     * before actual register to guarantee transaction process. If all the resources are available,
+     * register them into the {@link ResourceManager}.
+     *
+     * @param resourceUris list of artifact resource URIs. Can contain mixed resource types (JAR,
+     *     ARTIFACT, ARCHIVE).
+     * @param addToClassLoader whether to add resources to the classloader. Set to true for JAR
+     *     files that need to be on the classpath.
+     */
+    public void registerArtifactResources(List<ResourceUri> resourceUris, boolean addToClassLoader)
+            throws IOException {
+        if (resourceUris.isEmpty()) {
+            return;
+        }
+
+        // Group resources by type for efficient processing
+        Map<ResourceType, List<ResourceUri>> resourcesByType =
+                resourceUris.stream().collect(Collectors.groupingBy(ResourceUri::getResourceType));
+
+        Map<ResourceUri, URL> allStagingResources = new HashMap<>();
+
+        for (Map.Entry<ResourceType, List<ResourceUri>> entry : resourcesByType.entrySet()) {
+            ResourceType resourceType = entry.getKey();
+            List<ResourceUri> typeResources = entry.getValue();
+
+            Map<ResourceUri, URL> stagingResources =
+                    prepareStagingResources(
+                            typeResources,
+                            resourceType,
+                            true,
+                            url -> {
+                                // Only validate JAR files with JarUtils
+                                // ARTIFACT and ARCHIVE types don't need JAR-specific validation
+                                if (resourceType == ResourceType.JAR) {
+                                    try {
+                                        JarUtils.checkJarFile(url);
+                                    } catch (IOException e) {
+                                        throw new ValidationException(
+                                                String.format(
+                                                        "Failed to register jar resource [%s]",
+                                                        url),
+                                                e);
+                                    }
+                                }
+                                // For other resource types, basic validation (existence, not
+                                // directory) is already performed in checkPath()
+                            },
+                            false);
+
+            allStagingResources.putAll(stagingResources);
+        }
+
+        registerResources(allStagingResources, addToClassLoader);
     }
 
     /**
@@ -166,22 +225,41 @@ public class ResourceManager implements Closeable {
      * remote, it will be copied to a local file. The declared resource will not be added to
      * resources and classloader if it is not used in the job.
      *
-     * @param resourceUris the resource uri for function.
+     * <p>This method supports multiple resource types (JAR, ARTIFACT, ARCHIVE, FILE). For JAR
+     * resources, it performs JAR-specific validation. For other resource types, only basic
+     * validation (existence, not a directory) is performed.
+     *
+     * @param resourceUris the resource uri for function. Can contain mixed resource types.
      */
     public void declareFunctionResources(Set<ResourceUri> resourceUris) throws IOException {
-        prepareStagingResources(
-                resourceUris,
-                ResourceType.JAR,
-                true,
-                url -> {
-                    try {
-                        JarUtils.checkJarFile(url);
-                    } catch (IOException e) {
-                        throw new ValidationException(
-                                String.format("Failed to register jar resource [%s]", url), e);
-                    }
-                },
-                true);
+        if (resourceUris.isEmpty()) {
+            return;
+        }
+
+        // Process each resource individually to handle different resource types
+        for (ResourceUri resourceUri : resourceUris) {
+            ResourceType resourceType = resourceUri.getResourceType();
+            prepareStagingResources(
+                    Collections.singleton(resourceUri),
+                    resourceType,
+                    true,
+                    url -> {
+                        // Only validate JAR files with JarUtils
+                        // ARTIFACT, ARCHIVE, and FILE types don't need JAR-specific validation
+                        if (resourceType == ResourceType.JAR) {
+                            try {
+                                JarUtils.checkJarFile(url);
+                            } catch (IOException e) {
+                                throw new ValidationException(
+                                        String.format("Failed to validate jar resource [%s]", url),
+                                        e);
+                            }
+                        }
+                        // For other resource types, basic validation (existence, not directory)
+                        // is already performed in checkPath()
+                    },
+                    true);
+        }
     }
 
     /**
@@ -514,7 +592,8 @@ public class ResourceManager implements Closeable {
 
             URL localUrl;
             ResourceUri localResourceUri = resourceUri;
-            if (expectedType == ResourceType.JAR
+            // Optimization: reuse already-declared function resources for JAR and ARTIFACT types
+            if ((expectedType == ResourceType.JAR || expectedType == ResourceType.ARTIFACT)
                     && functionResourceInfos.containsKey(resourceUri)) {
                 // Get local url from function resource infos.
                 localUrl = functionResourceInfos.get(resourceUri).url;

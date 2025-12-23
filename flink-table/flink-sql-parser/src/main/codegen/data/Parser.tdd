@@ -189,6 +189,7 @@
   # Please keep the keyword in alphabetical order if new keyword is added.
   keywords: [
     "ANALYZE"
+    "ARTIFACT"
     "BUCKETS"
     "BYTES"
     "CATALOGS"
@@ -264,6 +265,7 @@
     "ALWAYS"
     "APPLY"
     "ARRAY_AGG"
+    "ARTIFACT"
     "ASC"
     "ASSERTION"
     "ASSIGNMENT"
