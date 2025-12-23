@@ -298,6 +298,16 @@ public class PackagedProgramApplication extends AbstractApplication {
         return finishApplicationFuture;
     }
 
+    @VisibleForTesting
+    public Configuration getConfiguration() {
+        return configuration;
+    }
+
+    @VisibleForTesting
+    public PackagedProgram getPackagedProgram() {
+        return program;
+    }
+
     private CompletableFuture<Acknowledge> onApplicationCanceledOrFailed(
             final DispatcherGateway dispatcherGateway,
             final ScheduledExecutor scheduledExecutor,
