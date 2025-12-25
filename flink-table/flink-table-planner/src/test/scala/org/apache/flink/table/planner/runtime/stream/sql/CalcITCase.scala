@@ -926,4 +926,26 @@ class CalcITCase extends StreamingTestBase {
     assertThat(arr.apply(1).get("nested2").asInstanceOf[Array[String]])
       .isEqualTo(Array("Test2", "False"))
   }
+
+  @Test
+  def testPrimitiveDefaultValues(): Unit = {
+    val sql =
+      """
+        |SELECT
+        |  a[1]
+        |  ,b[1]
+        |FROM (
+        |  VALUES (CAST(ARRAY[1,2] AS ARRAY<SMALLINT>), CAST(ARRAY[2,3] AS ARRAY<TINYINT>))
+        |) t(a, b)
+        |""".stripMargin
+
+    val result = tEnv
+      .executeSql(sql)
+      .collect()
+      .asScala
+      .toList
+      .map(_.toString)
+    val expected = List("1,2")
+    assertThat(result).isEqualTo(expected)
+  }
 }
