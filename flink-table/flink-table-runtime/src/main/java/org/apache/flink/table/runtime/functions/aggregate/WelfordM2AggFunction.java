@@ -35,7 +35,7 @@ import static org.apache.flink.table.types.utils.DataTypeUtils.toInternalDataTyp
 
 /**
  * Internal built-in WELFORD_M2 aggregate function to calculate the m2 term in Welford's online
- * algorithm. This is a helper function for variance related functions rewritten.
+ * algorithm. This is a helper function for rewriting variance related functions.
  *
  * @see <a
  *     href="https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm">Welford's
@@ -115,9 +115,9 @@ public abstract class WelfordM2AggFunction
     @Override
     public Double getValue(WelfordM2Accumulator acc) {
         // Theoretically, acc.m2 should always be non-negative.
-        // But in practice it may be negative if records are out of order, which is different from
-        // the negative variance caused by precision issue in naive algorithm.
-        // Therefore, in this case, return null to indicate the result is invalid.
+        // But in practice it may become negative due to unmatched retractions.
+        // (e.g., [+I, 1], [+I, 2] followed by [-D, 3], which results in acc.m2 = -4)
+        // Therefore, return null in such cases to indicate an invalid result.
         return acc.n <= 0 || acc.m2 < 0 ? null : acc.m2;
     }
 
