@@ -33,6 +33,7 @@ class StreamingTestBase extends StreamAbstractTestBase {
   var env: StreamExecutionEnvironment = _
   var tEnv: StreamTableEnvironment = _
   var enableObjectReuse = true
+  var enableFailedBefore = true
 
   @TempDir
   var tempFolder: Path = _
