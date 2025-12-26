@@ -327,25 +327,21 @@ class FlinkRelMdUpsertKeysTest extends FlinkRelMdHandlerTestBase {
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalInnerJoinWithoutEquiCond).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalInnerJoinWithEquiAndNonEquiCond).toSet)
 
-    assertEquals(
-      toBitSet(Array(1), Array(1, 5), Array(1, 5, 6)),
-      mq.getUpsertKeys(logicalLeftJoinOnUniqueKeys).toSet)
+    assertEquals(toBitSet(Array(1)), mq.getUpsertKeys(logicalLeftJoinOnUniqueKeys).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalLeftJoinNotOnUniqueKeys).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalLeftJoinOnRHSUniqueKeys).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalLeftJoinWithoutEquiCond).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalLeftJoinWithEquiAndNonEquiCond).toSet)
 
     assertEquals(
-      toBitSet(Array(5), Array(1, 5), Array(5, 6), Array(1, 5, 6)),
+      toBitSet(Array(5), Array(5, 6)),
       mq.getUpsertKeys(logicalRightJoinOnUniqueKeys).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalRightJoinNotOnUniqueKeys).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalRightJoinOnLHSUniqueKeys).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalRightJoinWithoutEquiCond).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalRightJoinWithEquiAndNonEquiCond).toSet)
 
-    assertEquals(
-      toBitSet(Array(1, 5), Array(1, 5, 6)),
-      mq.getUpsertKeys(logicalFullJoinOnUniqueKeys).toSet)
+    assertEquals(toBitSet(), mq.getUpsertKeys(logicalFullJoinOnUniqueKeys).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalFullJoinNotOnUniqueKeys).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalFullJoinOnRHSUniqueKeys).toSet)
     assertEquals(toBitSet(), mq.getUpsertKeys(logicalFullJoinWithoutEquiCond).toSet)
