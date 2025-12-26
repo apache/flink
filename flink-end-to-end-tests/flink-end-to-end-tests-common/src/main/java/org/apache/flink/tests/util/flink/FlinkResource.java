@@ -19,8 +19,8 @@
 package org.apache.flink.tests.util.flink;
 
 import org.apache.flink.test.util.JobSubmission;
+import org.apache.flink.tests.util.ExternalResource;
 import org.apache.flink.tests.util.util.FactoryUtils;
-import org.apache.flink.util.ExternalResource;
 
 import java.io.IOException;
 import java.time.Duration;
