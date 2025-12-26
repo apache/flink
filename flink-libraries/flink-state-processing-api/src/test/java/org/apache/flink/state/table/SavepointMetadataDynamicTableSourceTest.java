@@ -53,9 +53,9 @@ public class SavepointMetadataDynamicTableSourceTest {
         Iterator<Row> it = result.iterator();
         assertThat(it.next().toString())
                 .isEqualTo(
-                        "+I[2, Source: broadcast-source, broadcast-source-uid, 3a6f51704798c4f418be51bfb6813b77, 1, 128, 0, 0, 0]");
+                        "+I[10, Source: broadcast-source, broadcast-source-uid, 3a6f51704798c4f418be51bfb6813b77, 1, 128, 0, 0, 0]");
         assertThat(it.next().toString())
                 .isEqualTo(
-                        "+I[2, keyed-broadcast-process, keyed-broadcast-process-uid, 413c1d6f88ee8627fe4b8bc533b4cf1b, 2, 128, 2, 0, 4548]");
+                        "+I[10, keyed-broadcast-process, keyed-broadcast-process-uid, 413c1d6f88ee8627fe4b8bc533b4cf1b, 2, 128, 2, 0, 4548]");
     }
 }
