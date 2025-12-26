@@ -18,6 +18,7 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.functions.sql.BuiltInSqlFunction
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
@@ -26,7 +27,12 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.Calc
-import org.apache.calcite.rex.RexProgram
+import org.apache.calcite.rex.{RexCall, RexLocalRef, RexNode, RexProgram, RexShuttle}
+import org.apache.calcite.sql.{SqlFunction, SqlKind}
+
+import java.util
+import java.util.List
+import java.util.function.BiFunction
 
 import scala.collection.JavaConversions._
 
@@ -44,7 +50,12 @@ class StreamPhysicalCalc(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    val projection = calcProgram.getProjectList.map(calcProgram.expandLocalRef)
+    val funtionToCountMap = new util.HashMap[RexNode, Integer]()
+    val shuttle = new FunctionRefCounter(calcProgram.getExprList, funtionToCountMap)
+
+    calcProgram.getProjectList.map(ref => ref.accept(shuttle))
+    val projection = calcProgram.getProjectList.map(
+      ref => ref.accept(new ExpansionShuttle(calcProgram.getExprList, funtionToCountMap)))
     val condition = if (calcProgram.getCondition != null) {
       calcProgram.expandLocalRef(calcProgram.getCondition)
     } else {
@@ -58,5 +69,50 @@ class StreamPhysicalCalc(
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)
+  }
+
+  private def isDeterministicFunction(rexNode: RexNode): Boolean = {
+    SqlKind.FUNCTION.contains(rexNode.getKind) && rexNode.isInstanceOf[RexCall] && rexNode
+      .asInstanceOf[RexCall]
+      .op
+      .isInstanceOf[SqlFunction] && rexNode
+      .asInstanceOf[RexCall]
+      .op
+      .asInstanceOf[SqlFunction]
+      .isDeterministic
+  }
+
+  private class ExpansionShuttle(
+      private val exprs: util.List[RexNode],
+      val map: util.Map[RexNode, Integer])
+    extends RexShuttle {
+    override def visitLocalRef(localRef: RexLocalRef): RexNode = {
+      val tree: RexNode = this.exprs.get(localRef.getIndex)
+      if (
+        isDeterministicFunction(tree) && map
+          .get(tree) > 1
+      ) {
+        for (op <- tree.asInstanceOf[RexCall].operands) {
+          if (op.isInstanceOf[RexLocalRef]) {
+            return tree.accept(this)
+          }
+        }
+        return localRef
+      }
+      tree.accept(this)
+    }
+  }
+
+  private class FunctionRefCounter(
+      private val exprs: util.List[RexNode],
+      val map: util.Map[RexNode, Integer])
+    extends RexShuttle {
+    override def visitLocalRef(localRef: RexLocalRef): RexNode = {
+      val tree: RexNode = this.exprs.get(localRef.getIndex)
+      if (isDeterministicFunction(tree)) {
+        map.merge(tree, 1, (x, y) => x + y)
+      }
+      tree.accept(this)
+    }
   }
 }
