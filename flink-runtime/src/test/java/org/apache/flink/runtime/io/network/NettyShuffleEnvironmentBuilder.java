@@ -292,6 +292,6 @@ public class NettyShuffleEnvironmentBuilder {
                 metricGroup,
                 ioExecutor,
                 DEFAULT_NUM_SLOTS,
-                DEFAULT_TEMP_DIRS);
+                DEFAULT_TEMP_DIRS.length);
     }
 }
