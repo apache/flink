@@ -549,23 +549,33 @@ class InputTypeStrategiesTest extends InputTypeStrategiesTestBase {
                                 sequence(
                                         logical(LogicalTypeFamily.CHARACTER_STRING, true),
                                         logical(LogicalTypeFamily.EXACT_NUMERIC),
+                                        logical(LogicalTypeFamily.EXACT_NUMERIC, true),
                                         logical(LogicalTypeFamily.APPROXIMATE_NUMERIC),
                                         logical(LogicalTypeFamily.APPROXIMATE_NUMERIC),
                                         logical(LogicalTypeFamily.APPROXIMATE_NUMERIC, false)))
                         .calledWithArgumentTypes(
                                 DataTypes.NULL(),
                                 DataTypes.TINYINT(),
+                                DataTypes.SMALLINT().notNull(),
                                 DataTypes.INT(),
                                 DataTypes.BIGINT().notNull(),
                                 DataTypes.DECIMAL(10, 2).notNull())
                         .expectSignature(
-                                "f(<CHARACTER_STRING NULL>, <EXACT_NUMERIC>, <APPROXIMATE_NUMERIC>, <APPROXIMATE_NUMERIC>, <APPROXIMATE_NUMERIC NOT NULL>)")
+                                "f(<CHARACTER_STRING NULL>, <EXACT_NUMERIC>, <EXACT_NUMERIC NULL>, <APPROXIMATE_NUMERIC>, <APPROXIMATE_NUMERIC>, <APPROXIMATE_NUMERIC NOT NULL>)")
                         .expectArgumentTypes(
                                 DataTypes.VARCHAR(1),
                                 DataTypes.TINYINT(),
+                                DataTypes.SMALLINT(),
                                 DataTypes.DOUBLE(), // widening with preserved nullability
                                 DataTypes.DOUBLE().notNull(), // widening with preserved nullability
                                 DataTypes.DOUBLE().notNull()),
+                TestSpec.forStrategy(
+                                "Logical type family with invalid nullability",
+                                sequence(logical(LogicalTypeFamily.EXACT_NUMERIC, false)))
+                        .calledWithArgumentTypes(DataTypes.INT())
+                        .expectSignature("f(<EXACT_NUMERIC NOT NULL>)")
+                        .expectErrorMessage(
+                                "Unsupported argument type. Expected NOT NULL type of family 'EXACT_NUMERIC' but actual type was 'INT'."),
                 TestSpec.forStrategy(
                                 "Logical type family with invalid type",
                                 sequence(logical(LogicalTypeFamily.EXACT_NUMERIC)))
