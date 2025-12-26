@@ -40,6 +40,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** Base class for all applications. */
 public abstract class AbstractApplication implements Serializable {
 
@@ -62,7 +64,7 @@ public abstract class AbstractApplication implements Serializable {
     private final Set<JobID> jobs = new HashSet<>();
 
     public AbstractApplication(ApplicationID applicationId) {
-        this.applicationId = applicationId;
+        this.applicationId = checkNotNull(applicationId);
         this.statusTimestamps = new long[ApplicationState.values().length];
         this.applicationState = ApplicationState.CREATED;
         this.statusTimestamps[ApplicationState.CREATED.ordinal()] = System.currentTimeMillis();

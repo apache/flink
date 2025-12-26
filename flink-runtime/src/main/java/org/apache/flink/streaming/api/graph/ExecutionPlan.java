@@ -19,6 +19,7 @@
 package org.apache.flink.streaming.api.graph;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
@@ -35,6 +36,7 @@ import java.io.Serializable;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * An interface representing a general execution plan, which can be implemented by different types
@@ -199,4 +201,18 @@ public interface ExecutionPlan extends Serializable {
      * @return The serialized execution configuration object
      */
     SerializedValue<ExecutionConfig> getSerializedExecutionConfig();
+
+    /**
+     * Gets the unique identifier of the application this job belongs to.
+     *
+     * @return the application id, or empty if not associated with an application
+     */
+    Optional<ApplicationID> getApplicationId();
+
+    /**
+     * Sets the unique identifier of the application this job belongs to.
+     *
+     * @param applicationId the application id
+     */
+    void setApplicationId(ApplicationID applicationId);
 }

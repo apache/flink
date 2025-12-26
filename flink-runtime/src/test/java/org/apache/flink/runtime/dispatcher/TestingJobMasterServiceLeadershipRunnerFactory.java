@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.failure.FailureEnricher;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmaster.JobManagerSharedServices;
@@ -58,6 +59,7 @@ public class TestingJobMasterServiceLeadershipRunnerFactory extends TestingJobMa
             JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
             FatalErrorHandler fatalErrorHandler,
             Collection<FailureEnricher> failureEnrichers,
+            JobStatusListener singleJobApplication,
             long initializationTimestamp)
             throws Exception {
         return offerTestingJobManagerRunner(executionPlan.getJobID());

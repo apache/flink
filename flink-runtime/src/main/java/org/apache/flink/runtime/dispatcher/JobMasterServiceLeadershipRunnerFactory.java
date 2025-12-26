@@ -23,6 +23,7 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultStore;
@@ -62,6 +63,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
             JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
             FatalErrorHandler fatalErrorHandler,
             Collection<FailureEnricher> failureEnrichers,
+            JobStatusListener singleJobApplication,
             long initializationTimestamp)
             throws Exception {
 
@@ -119,6 +121,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
                         fatalErrorHandler,
                         userCodeClassLoader,
                         failureEnrichers,
+                        singleJobApplication,
                         initializationTimestamp);
 
         final DefaultJobMasterServiceProcessFactory jobMasterServiceProcessFactory =

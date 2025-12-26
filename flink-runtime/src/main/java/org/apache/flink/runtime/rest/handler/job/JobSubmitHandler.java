@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.handler.job;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.application.SingleJobApplication;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
@@ -123,7 +124,11 @@ public final class JobSubmitHandler
 
         CompletableFuture<Acknowledge> jobSubmissionFuture =
                 finalizedExecutionPlanFuture.thenCompose(
-                        executionPlan -> gateway.submitJob(executionPlan, timeout));
+                        executionPlan -> {
+                            SingleJobApplication application =
+                                    new SingleJobApplication(executionPlan);
+                            return gateway.submitApplication(application, timeout);
+                        });
 
         return jobSubmissionFuture.thenCombine(
                 executionPlanFuture,
