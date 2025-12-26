@@ -68,7 +68,12 @@ class NettyConnectionManagerTest {
             Bootstrap boostrap = connectionManager.getClient().getBootstrap();
             EventLoopGroup group = boostrap.config().group();
 
-            Field f = group.getClass().getSuperclass().getSuperclass().getDeclaredField("children");
+            Field f =
+                    group.getClass()
+                            .getSuperclass()
+                            .getSuperclass()
+                            .getSuperclass()
+                            .getDeclaredField("children");
             f.setAccessible(true);
             Object[] eventExecutors = (Object[]) f.get(group);
 
@@ -80,7 +85,12 @@ class NettyConnectionManagerTest {
             ServerBootstrap bootstrap = connectionManager.getServer().getBootstrap();
             EventLoopGroup group = bootstrap.config().group();
 
-            Field f = group.getClass().getSuperclass().getSuperclass().getDeclaredField("children");
+            Field f =
+                    group.getClass()
+                            .getSuperclass()
+                            .getSuperclass()
+                            .getSuperclass()
+                            .getDeclaredField("children");
             f.setAccessible(true);
             Object[] eventExecutors = (Object[]) f.get(group);
 
@@ -92,7 +102,12 @@ class NettyConnectionManagerTest {
             ServerBootstrap bootstrap = connectionManager.getServer().getBootstrap();
             EventLoopGroup group = bootstrap.childGroup();
 
-            Field f = group.getClass().getSuperclass().getSuperclass().getDeclaredField("children");
+            Field f =
+                    group.getClass()
+                            .getSuperclass()
+                            .getSuperclass()
+                            .getSuperclass()
+                            .getDeclaredField("children");
             f.setAccessible(true);
             Object[] eventExecutors = (Object[]) f.get(group);
 
