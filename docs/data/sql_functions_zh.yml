@@ -1241,7 +1241,6 @@ variant:
       同键的字段，否则当 allowDuplicateKeys 为 false 时，它会抛出一个错误。默认情况下，
       allowDuplicateKeys 的值为 false。
 
-
   - sql: TRY_PARSE_JSON(json_string[, allow_duplicate_keys])
     description: |
       尽可能将 JSON 字符串解析为 Variant。如果 JSON 字符串无效，则返回 NULL。如果希望抛出错误而不是返回 NULL，
@@ -1250,6 +1249,16 @@ variant:
       如果输入的 JSON 字符串中存在重复的键，当 allowDuplicateKeys 为 true 时，解析器会保留最后一个出现的具有相
       同键的字段，否则当 allowDuplicateKeys 为 false 时，它会抛出一个错误。默认情况下，
       allowDuplicateKeys 的值为 false。
+
+  - sql: variant '[' INT ']'
+    table: VARIANT.at(INT)
+    description: |
+      如果这是一个 ARRAY 类型的 VARIANT，则返回一个 VARIANT，其值为指定索引处的元素。否则返回 NULL。
+
+  - sql: variant '[' STRING ']'
+    table: VARIANT.at(STRING)
+    description: |
+      如果这是一个 MAP 类型的 VARIANT，则返回一个 VARIANT，其值为与指定键关联的值。否则返回 NULL。
 
 
 valueconstruction:

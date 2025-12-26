@@ -743,7 +743,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
           case LogicalTypeRoot.ROW | LogicalTypeRoot.STRUCTURED_TYPE =>
             generateDot(ctx, operands)
 
-          case _ => throw new CodeGenException("Expect an array, a map or a row.")
+          case LogicalTypeRoot.VARIANT =>
+            val key = operands(1)
+            generateVariantGet(ctx, operands.head, key)
+
+          case _ => throw new CodeGenException("Expect an array, a map, a row or a variant.")
         }
 
       case CARDINALITY =>

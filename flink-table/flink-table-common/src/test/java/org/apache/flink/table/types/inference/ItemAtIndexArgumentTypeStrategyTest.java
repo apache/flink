@@ -42,7 +42,7 @@ class ItemAtIndexArgumentTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 DataTypes.ARRAY(DataTypes.STRING().notNull()),
                                 DataTypes.SMALLINT().notNull())
                         .expectSignature(
-                                "f([<ARRAY> | <MAP>], [<INTEGER NUMERIC> | <MAP_KEY_TYPE>])")
+                                "f([<ARRAY> | <MAP> | <VARIANT>], [<CHARACTER STRING> | <INTEGER NUMERIC> | <MAP_KEY_TYPE>])")
                         .expectArgumentTypes(
                                 DataTypes.ARRAY(DataTypes.STRING().notNull()),
                                 DataTypes.SMALLINT().notNull()),
@@ -58,7 +58,7 @@ class ItemAtIndexArgumentTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING().notNull()),
                                 DataTypes.SMALLINT())
                         .expectSignature(
-                                "f([<ARRAY> | <MAP>], [<INTEGER NUMERIC> | <MAP_KEY_TYPE>])")
+                                "f([<ARRAY> | <MAP> | <VARIANT>], [<CHARACTER STRING> | <INTEGER NUMERIC> | <MAP_KEY_TYPE>])")
                         .expectArgumentTypes(
                                 DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING().notNull()),
                                 DataTypes.BIGINT()),
@@ -67,11 +67,36 @@ class ItemAtIndexArgumentTypeStrategyTest extends InputTypeStrategiesTestBase {
                                 DataTypes.MAP(DataTypes.BIGINT(), DataTypes.STRING().notNull()),
                                 DataTypes.STRING())
                         .expectErrorMessage("Expected index for a MAP to be of type: BIGINT"),
-                TestSpec.forStrategy("Validate incorrect index", ITEM_AT_INPUT_STRATEGY)
+                TestSpec.forStrategy(
+                                "Validate incorrect index for an array", ITEM_AT_INPUT_STRATEGY)
                         .calledWithArgumentTypes(
                                 DataTypes.ARRAY(DataTypes.BIGINT()), DataTypes.INT().notNull())
                         .calledWithLiteralAt(1, 0)
                         .expectErrorMessage(
-                                "The provided index must be a valid SQL index starting from 1, but was '0'"));
+                                "The provided index must be a valid SQL index starting from 1, but was '0'"),
+                TestSpec.forStrategy("Validate integer index for a variant", ITEM_AT_INPUT_STRATEGY)
+                        .calledWithArgumentTypes(
+                                DataTypes.VARIANT(), DataTypes.SMALLINT().notNull())
+                        .expectSignature(
+                                "f([<ARRAY> | <MAP> | <VARIANT>], [<CHARACTER STRING> | <INTEGER NUMERIC> | <MAP_KEY_TYPE>])")
+                        .expectArgumentTypes(DataTypes.VARIANT(), DataTypes.SMALLINT().notNull()),
+                TestSpec.forStrategy(
+                                "Validate incorrect index for a variant", ITEM_AT_INPUT_STRATEGY)
+                        .calledWithArgumentTypes(
+                                DataTypes.VARIANT(), DataTypes.SMALLINT().notNull())
+                        .calledWithLiteralAt(1, 0)
+                        .expectErrorMessage(
+                                "The provided index must be a valid SQL index starting from 1, but was '0'"),
+                TestSpec.forStrategy("Validate string key for a variant", ITEM_AT_INPUT_STRATEGY)
+                        .calledWithArgumentTypes(DataTypes.VARIANT(), DataTypes.STRING().notNull())
+                        .expectSignature(
+                                "f([<ARRAY> | <MAP> | <VARIANT>], [<CHARACTER STRING> | <INTEGER NUMERIC> | <MAP_KEY_TYPE>])")
+                        .expectArgumentTypes(DataTypes.VARIANT(), DataTypes.STRING().notNull()),
+                TestSpec.forStrategy(
+                                "Validate incorrect variant key for a variant",
+                                ITEM_AT_INPUT_STRATEGY)
+                        .calledWithArgumentTypes(DataTypes.VARIANT(), DataTypes.DOUBLE().notNull())
+                        .expectErrorMessage(
+                                "Incorrect type DOUBLE NOT NULL supplied for the variant value. Variant values can only be accessed with a CHARACTER STRING map key or an INTEGER NUMERIC array index."));
     }
 }

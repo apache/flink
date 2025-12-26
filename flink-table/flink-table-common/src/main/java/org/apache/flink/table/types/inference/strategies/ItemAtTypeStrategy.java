@@ -20,6 +20,7 @@ package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
+import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.KeyValueDataType;
@@ -33,27 +34,29 @@ import java.util.Optional;
 /**
  * An output type strategy for {@link BuiltInFunctionDefinitions#AT}.
  *
- * <p>Returns either the element of an {@link LogicalTypeFamily#COLLECTION} type or the value of
- * {@link LogicalTypeRoot#MAP}.
+ * <p>Returns either the element of an {@link LogicalTypeFamily#COLLECTION} type, the value of
+ * {@link LogicalTypeRoot#MAP}, or the variant itself for {@link LogicalTypeRoot#VARIANT}.
  */
 @Internal
 public final class ItemAtTypeStrategy implements TypeStrategy {
     @Override
     public Optional<DataType> inferType(CallContext callContext) {
 
-        DataType arrayOrMapType = callContext.getArgumentDataTypes().get(0);
+        DataType containerType = callContext.getArgumentDataTypes().get(0);
         final Optional<DataType> legacyArrayElement =
-                StrategyUtils.extractLegacyArrayElement(arrayOrMapType);
+                StrategyUtils.extractLegacyArrayElement(containerType);
 
         if (legacyArrayElement.isPresent()) {
             return legacyArrayElement;
         }
 
-        if (arrayOrMapType.getLogicalType().is(LogicalTypeRoot.ARRAY)) {
+        if (containerType.getLogicalType().is(LogicalTypeRoot.ARRAY)) {
             return Optional.of(
-                    ((CollectionDataType) arrayOrMapType).getElementDataType().nullable());
-        } else if (arrayOrMapType instanceof KeyValueDataType) {
-            return Optional.of(((KeyValueDataType) arrayOrMapType).getValueDataType().nullable());
+                    ((CollectionDataType) containerType).getElementDataType().nullable());
+        } else if (containerType instanceof KeyValueDataType) {
+            return Optional.of(((KeyValueDataType) containerType).getValueDataType().nullable());
+        } else if (containerType.getLogicalType().is(LogicalTypeRoot.VARIANT)) {
+            return Optional.of(((AtomicDataType) containerType).nullable());
         }
 
         return Optional.empty();

@@ -1668,6 +1668,108 @@ object ScalarOperatorGens {
     generateUnaryOperatorIfNotNull(ctx, resultType, map)(_ => s"${map.resultTerm}.size()")
   }
 
+  def generateVariantGet(
+      ctx: CodeGeneratorContext,
+      variant: GeneratedExpression,
+      key: GeneratedExpression): GeneratedExpression = {
+    val Seq(resultTerm, nullTerm) = newNames(ctx, "result", "isNull")
+    val binaryVariantTerm = newName(ctx, "binaryVariantTerm")
+
+    val variantType = variant.resultType.asInstanceOf[VariantType]
+    val keyType = key.resultType
+
+    val variantTypeTerm = primitiveTypeTermForType(variantType)
+    val variantDefault = primitiveDefaultValue(variantType)
+    val variantTerm = variant.resultTerm
+    val keyTerm = key.resultTerm
+
+    val accessCode = if (isInteger(keyType)) {
+      generateIntegerKeyAccess(
+        variantTerm,
+        binaryVariantTerm,
+        keyTerm,
+        resultTerm,
+        nullTerm
+      )
+    } else if (isCharacterString(keyType)) {
+      generateCharacterStringKeyAccess(
+        variantTerm,
+        binaryVariantTerm,
+        keyTerm,
+        resultTerm,
+        nullTerm
+      )
+    } else {
+      throw new CodeGenException(s"Unsupported key type for variant: $keyType")
+    }
+
+    val finalCode =
+      s"""
+         |${variant.code}
+         |${key.code}
+         |boolean $nullTerm = (${variant.nullTerm}|| ${key.nullTerm});
+         |$variantTypeTerm $resultTerm = $variantDefault;
+         |if (!$nullTerm) {
+         |  $accessCode
+         |}
+      """.stripMargin
+
+    GeneratedExpression(resultTerm, nullTerm, finalCode, variantType)
+  }
+
+  private def generateCharacterStringKeyAccess(
+      variantTerm: String,
+      binaryVariantTerm: String,
+      keyTerm: String,
+      resultTerm: String,
+      nullTerm: String): String = {
+    s"""
+       |  if ($variantTerm.isObject()){
+       |    if ($variantTerm instanceof $BINARY_VARIANT) {
+       |      $BINARY_VARIANT $binaryVariantTerm = ($BINARY_VARIANT) $variantTerm;
+       |
+       |      String keyStr = null;
+       |      if ($keyTerm instanceof $BINARY_STRING) {
+       |       keyStr = (($BINARY_STRING) $keyTerm).toString();
+       |      } else {
+       |       keyStr = String.valueOf($keyTerm);
+       |      }
+       |
+       |      if (keyStr != null) {
+       |        $resultTerm = $binaryVariantTerm.getField(keyStr);
+       |      } else {
+       |        $nullTerm = true;
+       |      }
+       |    } else {
+       |     $nullTerm = true;
+       |    }
+       |  } else {
+       |    throw new org.apache.flink.table.api.TableRuntimeException("String key access on variant requires an object variant, but a non-object variant was provided.");
+       |  }
+    """.stripMargin
+  }
+
+  private def generateIntegerKeyAccess(
+      variantTerm: String,
+      binaryVariantTerm: String,
+      keyTerm: String,
+      resultTerm: String,
+      nullTerm: String): String = {
+    s"""
+       |  if ($variantTerm.isArray()){
+       |    if ($variantTerm instanceof $BINARY_VARIANT) {
+       |      $BINARY_VARIANT $binaryVariantTerm = ($BINARY_VARIANT) $variantTerm;
+       |      $resultTerm = $binaryVariantTerm.getElement((int)$keyTerm - 1);
+       |    } else {
+       |      $nullTerm = true;
+       |    }
+       |  } else {
+       |    throw new org.apache.flink.table.api.TableRuntimeException("Integer index access on variant requires an array variant, but a non-array variant was provided.");
+       |  }
+       |
+    """.stripMargin
+  }
+
   // ----------------------------------------------------------------------------------------
   // private generate utils
   // ----------------------------------------------------------------------------------------
