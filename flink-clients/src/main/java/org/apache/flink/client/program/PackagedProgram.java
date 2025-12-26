@@ -135,8 +135,8 @@ public class PackagedProgram implements AutoCloseable {
         // whether the job is a Python job.
         this.isPython = isPython(entryPointClassName);
 
-        // load the jar file if exists
-        this.jarFile = loadJarFile(jarFile);
+        // check the jar file if valid
+        this.jarFile = checkJarFile(jarFile);
 
         assert this.jarFile != null || entryPointClassName != null;
 
@@ -288,7 +288,7 @@ public class PackagedProgram implements AutoCloseable {
     /** Returns all provided libraries needed to run the program. */
     public static List<URL> getJobJarAndDependencies(
             File jarFile, @Nullable String entryPointClassName) throws ProgramInvocationException {
-        URL jarFileUrl = loadJarFile(jarFile);
+        URL jarFileUrl = checkJarFile(jarFile);
 
         List<File> extractedTempLibraries =
                 jarFileUrl == null
@@ -456,7 +456,7 @@ public class PackagedProgram implements AutoCloseable {
     }
 
     @Nullable
-    private static URL loadJarFile(File jar) throws ProgramInvocationException {
+    private static URL checkJarFile(File jar) throws ProgramInvocationException {
         if (jar != null) {
             URL jarFileUrl;
 
