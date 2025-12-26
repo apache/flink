@@ -16,6 +16,8 @@
  */
 package org.apache.calcite.rel.rules;
 
+import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import org.apache.calcite.plan.RelOptCluster;
@@ -61,24 +63,28 @@ import java.util.function.Predicate;
  * to simpler forms. This rule is copied to fix the correctness issue in Flink before upgrading to
  * the corresponding Calcite version. Flink modifications:
  *
- * <p>Lines 561 ~ 571 to fix CALCITE-7192.
+ * <p>Lines 321 ~ 345, 529 ~ 632, adds Welford's online algorithm for stddev calculation.
  *
  * <p>Rewrites:
  *
  * <ul>
  *   <li>AVG(x) &rarr; SUM(x) / COUNT(x)
- *   <li>STDDEV_POP(x) &rarr; SQRT( (SUM(x * x) - SUM(x) * SUM(x) / COUNT(x)) / COUNT(x))
- *   <li>STDDEV_SAMP(x) &rarr; SQRT( (SUM(x * x) - SUM(x) * SUM(x) / COUNT(x)) / CASE COUNT(x) WHEN
- *       1 THEN NULL ELSE COUNT(x) - 1 END)
- *   <li>VAR_POP(x) &rarr; (SUM(x * x) - SUM(x) * SUM(x) / COUNT(x)) / COUNT(x)
- *   <li>VAR_SAMP(x) &rarr; (SUM(x * x) - SUM(x) * SUM(x) / COUNT(x)) / CASE COUNT(x) WHEN 1 THEN
- *       NULL ELSE COUNT(x) - 1 END
+ *   <li>STDDEV_POP(x) &rarr; SQRT(M2(x) / COUNT(x))
+ *   <li>STDDEV_SAMP(x) &rarr; SQRT(M2(x) / CASE COUNT(x) WHEN 1 THEN NULL ELSE COUNT(x) - 1 END)
+ *   <li>VAR_POP(x) &rarr; M2(x) / COUNT(x)
+ *   <li>VAR_SAMP(x) &rarr; M2(x) / CASE COUNT(x) WHEN 1 THEN NULL ELSE COUNT(x) - 1 END
  *   <li>COVAR_POP(x, y) &rarr; (SUM(x * y) - SUM(x, y) * SUM(y, x) / REGR_COUNT(x, y)) /
  *       REGR_COUNT(x, y)
  *   <li>COVAR_SAMP(x, y) &rarr; (SUM(x * y) - SUM(x, y) * SUM(y, x) / REGR_COUNT(x, y)) / CASE
  *       REGR_COUNT(x, y) WHEN 1 THEN NULL ELSE REGR_COUNT(x, y) - 1 END
  *   <li>REGR_SXX(x, y) &rarr; REGR_COUNT(x, y) * VAR_POP(y)
  *   <li>REGR_SYY(x, y) &rarr; REGR_COUNT(x, y) * VAR_POP(x)
+ * </ul>
+ *
+ * <p>Helper functions:
+ *
+ * <ul>
+ *   <li>M2(x) &rarr; sigma((x - mean(x)) * (x - mean(x)))
  * </ul>
  *
  * <p>Since many of these rewrites introduce multiple occurrences of simpler forms like {@code
@@ -312,32 +318,31 @@ public class AggregateReduceFunctionsRule extends RelRule<AggregateReduceFunctio
                     //noinspection SuspiciousNameCombination
                     return reduceRegrSzz(
                             oldAggRel, oldCall, newCalls, aggCallMapping, inputExprs, x, x, y);
+                // FLINK MODIFICATION BEGIN
+                // M2(x) = sigma((x - mean(x)) * (x - mean(x)))
                 case STDDEV_POP:
                     // replace original STDDEV_POP(x) with
                     //   SQRT(
-                    //     (SUM(x * x) - SUM(x) * SUM(x) / COUNT(x))
+                    //     M2(x)
                     //     / COUNT(x))
-                    return reduceStddev(
-                            oldAggRel, oldCall, true, true, newCalls, aggCallMapping, inputExprs);
+                    return reduceStddev(oldAggRel, oldCall, true, true, newCalls, aggCallMapping);
                 case STDDEV_SAMP:
-                    // replace original STDDEV_POP(x) with
+                    // replace original STDDEV_SAMP(x) with
                     //   SQRT(
-                    //     (SUM(x * x) - SUM(x) * SUM(x) / COUNT(x))
+                    //     M2(x)
                     //     / CASE COUNT(x) WHEN 1 THEN NULL ELSE COUNT(x) - 1 END)
-                    return reduceStddev(
-                            oldAggRel, oldCall, false, true, newCalls, aggCallMapping, inputExprs);
+                    return reduceStddev(oldAggRel, oldCall, false, true, newCalls, aggCallMapping);
                 case VAR_POP:
                     // replace original VAR_POP(x) with
-                    //     (SUM(x * x) - SUM(x) * SUM(x) / COUNT(x))
+                    //     M2(x)
                     //     / COUNT(x)
-                    return reduceStddev(
-                            oldAggRel, oldCall, true, false, newCalls, aggCallMapping, inputExprs);
+                    return reduceStddev(oldAggRel, oldCall, true, false, newCalls, aggCallMapping);
                 case VAR_SAMP:
-                    // replace original VAR_POP(x) with
-                    //     (SUM(x * x) - SUM(x) * SUM(x) / COUNT(x))
+                    // replace original VAR_SAMP(x) with
+                    //     M2(x)
                     //     / CASE COUNT(x) WHEN 1 THEN NULL ELSE COUNT(x) - 1 END
-                    return reduceStddev(
-                            oldAggRel, oldCall, false, false, newCalls, aggCallMapping, inputExprs);
+                    return reduceStddev(oldAggRel, oldCall, false, false, newCalls, aggCallMapping);
+                // FLINK MODIFICATION END
                 default:
                     throw Util.unexpected(kind);
             }
@@ -521,70 +526,41 @@ public class AggregateReduceFunctionsRule extends RelRule<AggregateReduceFunctio
                 sumZeroRef);
     }
 
+    // FLINK MODIFICATION BEGIN
     private static RexNode reduceStddev(
             Aggregate oldAggRel,
             AggregateCall oldCall,
             boolean biased,
             boolean sqrt,
             List<AggregateCall> newCalls,
-            Map<AggregateCall, RexNode> aggCallMapping,
-            List<RexNode> inputExprs) {
-        // stddev_pop(x) ==>
-        //   power(
-        //     (sum(x * x) - sum(x) * sum(x) / count(x))
-        //     / count(x),
-        //     .5)
-        //
-        // stddev_samp(x) ==>
-        //   power(
-        //     (sum(x * x) - sum(x) * sum(x) / count(x))
-        //     / nullif(count(x) - 1, 0),
-        //     .5)
+            Map<AggregateCall, RexNode> aggCallMapping) {
         final int nGroups = oldAggRel.getGroupCount();
         final RelOptCluster cluster = oldAggRel.getCluster();
         final RexBuilder rexBuilder = cluster.getRexBuilder();
-        final RelDataTypeFactory typeFactory = cluster.getTypeFactory();
-
-        assert oldCall.getArgList().size() == 1 : oldCall.getArgList();
         final int argOrdinal = oldCall.getArgList().get(0);
-        final IntPredicate fieldIsNullable = oldAggRel.getInput()::fieldIsNullable;
-        final RelDataType oldCallType =
-                typeFactory.createTypeWithNullability(
-                        oldCall.getType(), fieldIsNullable.test(argOrdinal));
 
-        final RexNode argRef = rexBuilder.ensureType(oldCallType, inputExprs.get(argOrdinal), true);
+        // The Welford's online algorithm is introduced to avoid catastrophic cancellation.
+        // https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
 
-        final RexNode argSquared =
-                rexBuilder.makeCall(SqlStdOperatorTable.MULTIPLY, argRef, argRef);
-        final int argSquaredOrdinal = lookupOrAdd(inputExprs, argSquared);
+        // Welford m2 formula ==>
+        //   n_new = n_old + 1
+        //   delta = x - mean_old
+        //   mean_new = mean_old + delta / n_new
+        //   delta2 = x - mean_new
+        //   m2_new = m2_old + delta * delta2
+        //
+        // stddev_pop(x)  ==> power(m2(x) / count(x), .5)
+        // stddev_samp(x) ==> power(m2(x) / nullif(count(x) - 1, 0), .5)
+        // var_pop(x)     ==> m2(x) / count(x)
+        // var_samp(x)    ==> m2(x) / nullif(count(x) - 1, 0)
 
-        // FLINK MODIFICATION BEGIN
-        final AggregateCall sumArgSquaredAggCall =
-                createAggregateCallWithBinding(
-                        typeFactory,
-                        SqlStdOperatorTable.SUM,
-                        argSquared.getType(),
-                        oldAggRel,
-                        oldCall,
-                        argSquaredOrdinal,
-                        oldCall.filterArg);
-        // FLINK MODIFICATION END
-
-        final RexNode sumArgSquared =
-                rexBuilder.addAggCall(
-                        sumArgSquaredAggCall,
-                        nGroups,
-                        newCalls,
-                        aggCallMapping,
-                        oldAggRel.getInput()::fieldIsNullable);
-
-        final AggregateCall sumArgAggCall =
+        final AggregateCall m2AggCall =
                 AggregateCall.create(
-                        SqlStdOperatorTable.SUM,
+                        FlinkSqlOperatorTable.INTERNAL_WELFORD_M2,
                         oldCall.isDistinct(),
                         oldCall.isApproximate(),
                         oldCall.ignoreNulls(),
-                        oldCall.rexList,
+                        ImmutableList.of(),
                         ImmutableIntList.of(argOrdinal),
                         oldCall.filterArg,
                         oldCall.distinctKeys,
@@ -594,16 +570,13 @@ public class AggregateReduceFunctionsRule extends RelRule<AggregateReduceFunctio
                         null,
                         null);
 
-        final RexNode sumArg =
+        final RexNode m2Ref =
                 rexBuilder.addAggCall(
-                        sumArgAggCall,
+                        m2AggCall,
                         nGroups,
                         newCalls,
                         aggCallMapping,
                         oldAggRel.getInput()::fieldIsNullable);
-        final RexNode sumArgCast = rexBuilder.ensureType(oldCallType, sumArg, true);
-        final RexNode sumSquaredArg =
-                rexBuilder.makeCall(SqlStdOperatorTable.MULTIPLY, sumArgCast, sumArgCast);
 
         final AggregateCall countArgAggCall =
                 AggregateCall.create(
@@ -611,7 +584,7 @@ public class AggregateReduceFunctionsRule extends RelRule<AggregateReduceFunctio
                         oldCall.isDistinct(),
                         oldCall.isApproximate(),
                         oldCall.ignoreNulls(),
-                        oldCall.rexList,
+                        ImmutableList.of(),
                         oldCall.getArgList(),
                         oldCall.filterArg,
                         oldCall.distinctKeys,
@@ -629,18 +602,34 @@ public class AggregateReduceFunctionsRule extends RelRule<AggregateReduceFunctio
                         aggCallMapping,
                         oldAggRel.getInput()::fieldIsNullable);
 
-        final RexNode div = divide(biased, rexBuilder, sumArgSquared, sumSquaredArg, countArg);
+        final RexNode denominator;
+        if (biased) {
+            denominator = countArg;
+        } else {
+            final RexLiteral one = rexBuilder.makeExactLiteral(BigDecimal.ONE);
+            final RexNode nul = rexBuilder.makeNullLiteral(countArg.getType());
+            final RexNode countMinusOne =
+                    rexBuilder.makeCall(SqlStdOperatorTable.MINUS, countArg, one);
+            final RexNode countEqOne =
+                    rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, countArg, one);
+            denominator =
+                    rexBuilder.makeCall(SqlStdOperatorTable.CASE, countEqOne, nul, countMinusOne);
+        }
+
+        RexNode variance = rexBuilder.makeCall(SqlStdOperatorTable.DIVIDE, m2Ref, denominator);
 
         final RexNode result;
         if (sqrt) {
             final RexNode half = rexBuilder.makeExactLiteral(new BigDecimal("0.5"));
-            result = rexBuilder.makeCall(SqlStdOperatorTable.POWER, div, half);
+            result = rexBuilder.makeCall(SqlStdOperatorTable.POWER, variance, half);
         } else {
-            result = div;
+            result = variance;
         }
 
         return rexBuilder.makeCast(oldCall.getType(), result);
     }
+
+    // FLINK MODIFICATION END
 
     private static RexNode reduceAggCallByGrouping(Aggregate oldAggRel, AggregateCall oldCall) {
 
