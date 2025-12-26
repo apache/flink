@@ -50,6 +50,12 @@ under the License.
 	</scm>
 
 	<repositories>
+		<repository>
+			<id>temporary-shaded-rc</id>
+			<url>https://repository.apache.org/content/repositories/orgapacheflink-1875/</url>
+		</repository>
+
+
 		<!-- Add Redhat GA repository for jackson-mapper-asl -->
 		<repository>
 			<id>redhat</id>
@@ -127,9 +133,9 @@ under the License.
 		<flink.forkCountUnitTest>4</flink.forkCountUnitTest>
 		<flink.reuseForks>true</flink.reuseForks>
 		<flink.surefire.baseArgLine>-XX:+UseG1GC -Xms256m -XX:+IgnoreUnrecognizedVMOptions ${surefire.module.config}</flink.surefire.baseArgLine>
-		<flink.shaded.version>20.0</flink.shaded.version>
-		<flink.shaded.jackson.version>2.18.2</flink.shaded.jackson.version>
-		<flink.shaded.jsonpath.version>2.9.0</flink.shaded.jsonpath.version>
+		<flink.shaded.version>21.0</flink.shaded.version>
+		<flink.shaded.jackson.version>2.20.1</flink.shaded.jackson.version>
+		<flink.shaded.jsonpath.version>2.10.0</flink.shaded.jsonpath.version>
 		<flink.markBundledAsOptional>true</flink.markBundledAsOptional>
 		<source.java.version>11</source.java.version>
 		<target.java.version>17</target.java.version>
@@ -355,13 +361,13 @@ under the License.
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-asm-9</artifactId>
-				<version>9.6-${flink.shaded.version}</version>
+				<version>9.9.1-${flink.shaded.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-guava</artifactId>
-				<version>33.4.0-jre-${flink.shaded.version}</version>
+				<version>33.5.0-jre-${flink.shaded.version}</version>
 			</dependency>
 
 			<dependency>
@@ -379,13 +385,13 @@ under the License.
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-netty</artifactId>
-				<version>4.1.100.Final-${flink.shaded.version}</version>
+				<version>4.2.6.Final-${flink.shaded.version}</version>
 			</dependency>
 
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-netty-tcnative-dynamic</artifactId>
-				<version>2.0.62.Final-${flink.shaded.version}</version>
+				<version>2.0.74.Final-${flink.shaded.version}</version>
 				<scope>test</scope>
 			</dependency>
 
@@ -914,7 +920,7 @@ under the License.
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-bom</artifactId>
-				<version>4.1.100.Final</version>
+				<version>4.2.6.Final</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
