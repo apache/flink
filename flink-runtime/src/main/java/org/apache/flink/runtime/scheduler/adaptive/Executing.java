@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.JobException;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsListener;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
@@ -64,6 +65,13 @@ class Executing extends StateWithExecutionGraph
     // null indicates that there was no change event observed, yet
     @Nullable private AtomicInteger failedCheckpointCountdown;
 
+    private final boolean rescaleActiveCheckpointEnabled;
+    private final Duration rescaleActiveCheckpointTimeout;
+    private final int rescaleActiveCheckpointMaxRetries;
+    private final Duration rescaleActiveCheckpointBackoff;
+
+    private boolean waitingForRescaleCheckpoint;
+
     Executing(
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
@@ -74,7 +82,11 @@ class Executing extends StateWithExecutionGraph
             List<ExceptionHistoryEntry> failureCollection,
             Function<StateTransitionManager.Context, StateTransitionManager>
                     stateTransitionManagerFactory,
-            int rescaleOnFailedCheckpointCount) {
+            int rescaleOnFailedCheckpointCount,
+            boolean rescaleActiveCheckpointEnabled,
+            Duration rescaleActiveCheckpointTimeout,
+            int rescaleActiveCheckpointMaxRetries,
+            Duration rescaleActiveCheckpointBackoff) {
         super(
                 context,
                 executionGraph,
@@ -94,6 +106,11 @@ class Executing extends StateWithExecutionGraph
                 "The rescaleOnFailedCheckpointCount should be larger than 0.");
         this.rescaleOnFailedCheckpointCount = rescaleOnFailedCheckpointCount;
         this.failedCheckpointCountdown = null;
+        this.rescaleActiveCheckpointEnabled = rescaleActiveCheckpointEnabled;
+        this.rescaleActiveCheckpointTimeout = rescaleActiveCheckpointTimeout;
+        this.rescaleActiveCheckpointMaxRetries = rescaleActiveCheckpointMaxRetries;
+        this.rescaleActiveCheckpointBackoff = rescaleActiveCheckpointBackoff;
+        this.waitingForRescaleCheckpoint = false;
 
         deploy();
 
@@ -104,6 +121,34 @@ class Executing extends StateWithExecutionGraph
                     stateTransitionManager.onChange();
                     stateTransitionManager.onTrigger();
                 },
+                Duration.ZERO);
+    }
+
+    // Backwards-compatible constructor for tests and existing call sites
+    Executing(
+            ExecutionGraph executionGraph,
+            ExecutionGraphHandler executionGraphHandler,
+            OperatorCoordinatorHandler operatorCoordinatorHandler,
+            Logger logger,
+            Context context,
+            ClassLoader userCodeClassLoader,
+            List<ExceptionHistoryEntry> failureCollection,
+            Function<StateTransitionManager.Context, StateTransitionManager>
+                    stateTransitionManagerFactory,
+            int rescaleOnFailedCheckpointCount) {
+        this(
+                executionGraph,
+                executionGraphHandler,
+                operatorCoordinatorHandler,
+                logger,
+                context,
+                userCodeClassLoader,
+                failureCollection,
+                stateTransitionManagerFactory,
+                rescaleOnFailedCheckpointCount,
+                false,
+                Duration.ZERO,
+                0,
                 Duration.ZERO);
     }
 
@@ -149,6 +194,64 @@ class Executing extends StateWithExecutionGraph
 
     @Override
     public void transitionToSubsequentState() {
+        if (!rescaleActiveCheckpointEnabled) {
+            proceedToRestartingImmediately();
+            return;
+        }
+
+        final ExecutionGraph executionGraph = getExecutionGraph();
+        if (executionGraph.getCheckpointCoordinatorConfiguration() == null
+                || !executionGraph
+                        .getCheckpointCoordinatorConfiguration()
+                        .isCheckpointingEnabled()) {
+            getLogger()
+                    .info(
+                            "Active checkpoint triggering disabled: checkpointing not enabled. Proceeding to rescale.");
+            proceedToRestartingImmediately();
+            return;
+        }
+
+        final CheckpointCoordinator checkpointCoordinator =
+                executionGraph.getCheckpointCoordinator();
+        if (checkpointCoordinator == null) {
+            getLogger()
+                    .info(
+                            "Active checkpoint triggering disabled: no CheckpointCoordinator. Proceeding to rescale.");
+            proceedToRestartingImmediately();
+            return;
+        }
+
+        if (waitingForRescaleCheckpoint) {
+            getLogger()
+                    .info(
+                            "Already awaiting active rescale checkpoint completion. Skipping new trigger.");
+            return;
+        }
+
+        if (checkpointCoordinator.isTriggering()
+                || checkpointCoordinator.getNumberOfPendingCheckpoints() > 0) {
+            getLogger()
+                    .info(
+                            "Skip active checkpoint trigger: checkpoint in flight. Waiting for completion with timeout {}.",
+                            rescaleActiveCheckpointTimeout);
+            waitingForRescaleCheckpoint = true;
+            scheduleRescaleTimeoutFallback();
+            return;
+        }
+
+        waitingForRescaleCheckpoint = true;
+        getLogger()
+                .info(
+                        "Triggering active checkpoint for rescale (respectMinPause={} timeout={} maxRetries={} backoff={}).",
+                        true,
+                        rescaleActiveCheckpointTimeout,
+                        rescaleActiveCheckpointMaxRetries,
+                        rescaleActiveCheckpointBackoff);
+
+        attemptActiveCheckpointWithRetries(0);
+    }
+
+    private void proceedToRestartingImmediately() {
         context.goToRestarting(
                 getExecutionGraph(),
                 getExecutionGraphHandler(),
@@ -160,6 +263,90 @@ class Executing extends StateWithExecutionGraph
                                         new IllegalStateException(
                                                 "Resources must be available when rescaling.")),
                 getFailures());
+    }
+
+    private void attemptActiveCheckpointWithRetries(int attempt) {
+        final ExecutionGraph executionGraph = getExecutionGraph();
+        final CheckpointCoordinator checkpointCoordinator =
+                executionGraph.getCheckpointCoordinator();
+
+        if (checkpointCoordinator == null) {
+            getLogger().info("No CheckpointCoordinator available. Proceeding to rescale.");
+            waitingForRescaleCheckpoint = false;
+            proceedToRestartingImmediately();
+            return;
+        }
+
+        final java.util.concurrent.CompletableFuture<CompletedCheckpoint> future =
+                checkpointCoordinator.triggerCheckpoint(true);
+        final ScheduledFuture<?> timeoutFuture =
+                context.runIfState(
+                        this,
+                        () -> {
+                            if (waitingForRescaleCheckpoint) {
+                                getLogger()
+                                        .warn(
+                                                "Active rescale checkpoint timed out after {}. Falling back to periodic checkpoint.",
+                                                rescaleActiveCheckpointTimeout);
+                                waitingForRescaleCheckpoint = false;
+                                stateTransitionManager.onTrigger();
+                            }
+                        },
+                        rescaleActiveCheckpointTimeout);
+
+        future.whenCompleteAsync(
+                (CompletedCheckpoint completed, Throwable error) -> {
+                    timeoutFuture.cancel(false);
+                    if (!waitingForRescaleCheckpoint) {
+                        return;
+                    }
+                    if (error == null) {
+                        getLogger()
+                                .info(
+                                        "Active rescale checkpoint {} completed. Proceeding to rescale.",
+                                        completed.getCheckpointID());
+                        waitingForRescaleCheckpoint = false;
+                        proceedToRestartingImmediately();
+                    } else {
+                        if (attempt < rescaleActiveCheckpointMaxRetries) {
+                            getLogger()
+                                    .warn(
+                                            "Active rescale checkpoint failed (attempt {}/{}). Retrying after {}. Reason: {}",
+                                            attempt + 1,
+                                            rescaleActiveCheckpointMaxRetries,
+                                            rescaleActiveCheckpointBackoff,
+                                            error.toString());
+                            context.runIfState(
+                                    this,
+                                    () -> attemptActiveCheckpointWithRetries(attempt + 1),
+                                    rescaleActiveCheckpointBackoff);
+                        } else {
+                            getLogger()
+                                    .warn(
+                                            "Active rescale checkpoint failed after {} attempts. Falling back to periodic checkpoint.",
+                                            rescaleActiveCheckpointMaxRetries);
+                            waitingForRescaleCheckpoint = false;
+                            stateTransitionManager.onTrigger();
+                        }
+                    }
+                },
+                context.getMainThreadExecutor());
+    }
+
+    private void scheduleRescaleTimeoutFallback() {
+        context.runIfState(
+                this,
+                () -> {
+                    if (waitingForRescaleCheckpoint) {
+                        getLogger()
+                                .warn(
+                                        "Waiting for in-flight checkpoint exceeded {}. Falling back to periodic checkpoint.",
+                                        rescaleActiveCheckpointTimeout);
+                        waitingForRescaleCheckpoint = false;
+                        stateTransitionManager.onTrigger();
+                    }
+                },
+                rescaleActiveCheckpointTimeout);
     }
 
     @Override
@@ -332,6 +519,11 @@ class Executing extends StateWithExecutionGraph
          * @return {@code true} if we have sufficient resources; otherwise {@code false}
          */
         boolean hasSufficientResources();
+
+        /** Provides scheduler settings for active checkpoint triggering. */
+        default AdaptiveScheduler.Settings getSettings() {
+            return null;
+        }
     }
 
     static class Factory implements StateFactory<Executing> {
@@ -383,7 +575,11 @@ class Executing extends StateWithExecutionGraph
                     userCodeClassLoader,
                     failureCollection,
                     stateTransitionManagerFactory,
-                    rescaleOnFailedCheckpointCount);
+                    rescaleOnFailedCheckpointCount,
+                    context.getSettings().isRescaleActiveCheckpointEnabled(),
+                    context.getSettings().getRescaleActiveCheckpointTimeout(),
+                    context.getSettings().getRescaleActiveCheckpointMaxRetries(),
+                    context.getSettings().getRescaleActiveCheckpointBackoff());
         }
     }
 }
