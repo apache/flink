@@ -176,14 +176,17 @@ public class SavepointRestoreSettings implements Serializable {
     public static void toConfiguration(
             final SavepointRestoreSettings savepointRestoreSettings,
             final Configuration configuration) {
-        configuration.set(
-                StateRecoveryOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE,
-                savepointRestoreSettings.allowNonRestoredState());
-        configuration.set(
-                StateRecoveryOptions.RESTORE_MODE, savepointRestoreSettings.getRecoveryClaimMode());
-        final String savepointPath = savepointRestoreSettings.getRestorePath();
-        if (savepointPath != null) {
-            configuration.set(StateRecoveryOptions.SAVEPOINT_PATH, savepointPath);
+        if (!savepointRestoreSettings.equals(SavepointRestoreSettings.none())) {
+            configuration.set(
+                    StateRecoveryOptions.SAVEPOINT_IGNORE_UNCLAIMED_STATE,
+                    savepointRestoreSettings.allowNonRestoredState());
+            configuration.set(
+                    StateRecoveryOptions.RESTORE_MODE,
+                    savepointRestoreSettings.getRecoveryClaimMode());
+            final String savepointPath = savepointRestoreSettings.getRestorePath();
+            if (savepointPath != null) {
+                configuration.set(StateRecoveryOptions.SAVEPOINT_PATH, savepointPath);
+            }
         }
     }
 
