@@ -193,16 +193,6 @@ class StreamTableEnvironmentImpl(
     createTable(queryOperation)
   }
 
-  override def toAppendStream[T: TypeInformation](table: Table): DataStream[T] = {
-    val returnType = createTypeInformation[T]
-
-    val modifyOperation = new OutputConversionModifyOperation(
-      table.getQueryOperation,
-      TypeConversions.fromLegacyInfoToDataType(returnType),
-      OutputConversionModifyOperation.UpdateMode.APPEND)
-    toStreamInternal[T](table, modifyOperation)
-  }
-
   override def toRetractStream[T: TypeInformation](table: Table): DataStream[(Boolean, T)] = {
     val returnType = createTypeInformation[(Boolean, T)]
 
