@@ -79,6 +79,15 @@ The `fast` and `skip-webui-build` profiles have a significant impact on the buil
     # the version printed here must be 3.9, 3.10, 3.11 or 3.12
     ```
 
+3. Uv for building, installing and managing Python environments (optional)
+
+    The tool [uv](https://docs.astral.sh/uv/) is a Python package and project manager that can make building and installing PyFlink from source much easier.
+    To verify that it is installed:
+
+    ```shell
+    $ uv --version
+    ```
+
 3. Build PyFlink with Cython extension support (optional)
 
     To build PyFlink with Cython extension support, you’ll need a C compiler. It's a little different on how to install the C compiler on different operating systems:
@@ -87,7 +96,13 @@ The `fast` and `skip-webui-build` profiles have a significant impact on the buil
 
     * **Mac OS X** To install GCC on Mac OS X, you need to download and install "[Command Line Tools for Xcode](https://developer.apple.com/downloads/index.action)", which is available in Apple’s developer page.
 
-    You also need to install the dependencies with following command:
+    You also need to install the dependencies with following commands. Either with `uv`:
+
+    ```shell
+    $ uv pip install --group flink-python/pyproject.toml:dev
+    ```
+
+    or with `python` and `pip`:
 
     ```shell
     $ python -m pip install --group flink-python/pyproject.toml:dev
@@ -95,13 +110,35 @@ The `fast` and `skip-webui-build` profiles have a significant impact on the buil
 
 #### Installation
 
-Then go to the root directory of flink source code and run this command to build the sdist package and wheel package of `apache-flink` and `apache-flink-libraries`:
+##### With `uv`
+
+To build and install the `apache-flink` and `apache-flink-libraries` packages with `uv`, go to the root directory of flink source code and run the following:
+
+```bash
+cd flink-python; uv build; uv build apache-flink-libraries --sdist;
+```
+
+The sdist package of `apache-flink-libraries` will be found under `./flink-python/apache-flink-libraries/dist/`. It can be installed as follows:
+
+```bash
+uv pip install apache-flink-libraries/dist/*.tar.gz
+```
+
+The sdist and wheel packages of `apache-flink` will be found under `./flink-python/dist/`. Either of them could be used for installation, such as:
+
+```bash
+uv pip install dist/*.whl
+```
+
+##### With `python` and `pip`
+
+To build and install the `apache-flink` and `apache-flink-libraries` packages with `python` and `pip`, go to the root directory of flink source code and run the following:
 
 ```bash
 cd flink-python; python setup.py sdist bdist_wheel; cd apache-flink-libraries; python setup.py sdist; cd ..;
 ```
 
-The sdist package of `apache-flink-libraries` will be found under `./flink-python/apache-flink-libraries/dist/`. It could be installed as following:
+The sdist package of `apache-flink-libraries` will be found under `./flink-python/apache-flink-libraries/dist/`. It can be installed as follows:
 
 ```bash
 python -m pip install apache-flink-libraries/dist/*.tar.gz

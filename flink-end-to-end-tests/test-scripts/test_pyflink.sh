@@ -97,19 +97,7 @@ cd "${FLINK_PYTHON_DIR}"
 
 rm -rf dist
 
-uv pip install --group dev
-
-python setup.py sdist
-
-pushd apache-flink-libraries
-
-python setup.py sdist
-
-uv pip install dist/*
-
-popd
-
-uv pip install dist/*
+uv pip install --group dev .
 
 cd dev
 
