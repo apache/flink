@@ -21,6 +21,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.ApplicationState;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -38,6 +39,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.application.AbstractApplication;
+import org.apache.flink.runtime.application.ArchivedApplication;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
@@ -72,11 +74,15 @@ import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.factories.DefaultJobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.FlinkApplicationNotFoundException;
+import org.apache.flink.runtime.messages.FlinkApplicationTerminatedWithoutCancellationException;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.FlinkJobTerminatedWithoutCancellationException;
+import org.apache.flink.runtime.messages.webmonitor.ApplicationDetails;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
+import org.apache.flink.runtime.messages.webmonitor.MultipleApplicationsDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
@@ -903,6 +909,28 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     }
 
     @Override
+    public CompletableFuture<Acknowledge> cancelApplication(
+            ApplicationID applicationId, Duration timeout) {
+        if (!applications.containsKey(applicationId)) {
+            return FutureUtils.completedExceptionally(
+                    new FlinkApplicationNotFoundException(applicationId));
+        }
+        AbstractApplication application = applications.get(applicationId);
+        ApplicationState current = application.getApplicationStatus();
+        if (current.isTerminalState()) {
+            if (current == ApplicationState.CANCELED) {
+                return CompletableFuture.completedFuture(Acknowledge.get());
+            } else {
+                return FutureUtils.completedExceptionally(
+                        new FlinkApplicationTerminatedWithoutCancellationException(
+                                applicationId, current));
+            }
+        }
+        applications.get(applicationId).cancel();
+        return CompletableFuture.completedFuture(Acknowledge.get());
+    }
+
+    @Override
     public CompletableFuture<ClusterOverview> requestClusterOverview(Duration timeout) {
         CompletableFuture<ResourceOverview> taskManagerOverviewFuture =
                 runResourceManagerCommand(
@@ -965,6 +993,84 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
                     return new MultipleJobsDetails(orderedDeduplicatedJobs);
                 });
+    }
+
+    @Override
+    public CompletableFuture<MultipleApplicationsDetails> requestMultipleApplicationDetails(
+            Duration timeout) {
+        List<CompletableFuture<ApplicationDetails>> applicationDetailsFutures =
+                applications.values().stream()
+                        .map(
+                                application ->
+                                        requestApplication(application, timeout)
+                                                .thenApply(
+                                                        ApplicationDetails
+                                                                ::fromArchivedApplication))
+                        .collect(Collectors.toList());
+        return FutureUtils.combineAll(applicationDetailsFutures)
+                .thenCompose(
+                        combinedApplicationDetails ->
+                                CompletableFuture.completedFuture(
+                                        new MultipleApplicationsDetails(
+                                                combinedApplicationDetails)));
+    }
+
+    @Override
+    public CompletableFuture<ArchivedApplication> requestApplication(
+            ApplicationID applicationId, Duration timeout) {
+        if (!applications.containsKey(applicationId)) {
+            return FutureUtils.completedExceptionally(
+                    new FlinkApplicationNotFoundException(applicationId));
+        }
+
+        return requestApplication(applications.get(applicationId), timeout);
+    }
+
+    private CompletableFuture<ArchivedApplication> requestApplication(
+            AbstractApplication application, Duration timeout) {
+        long[] stateTimestamps = new long[ApplicationState.values().length];
+        for (ApplicationState applicationState : ApplicationState.values()) {
+            final int ordinal = applicationState.ordinal();
+            stateTimestamps[ordinal] = application.getStatusTimestamp(applicationState);
+        }
+
+        List<CompletableFuture<ArchivedExecutionGraph>> jobFutures =
+                application.getJobs().stream()
+                        .map(
+                                jobId ->
+                                        requestExecutionGraphInfo(jobId, timeout)
+                                                .thenApply(
+                                                        ExecutionGraphInfo
+                                                                ::getArchivedExecutionGraph))
+                        .collect(Collectors.toList());
+
+        return FutureUtils.combineAll(jobFutures)
+                .thenCompose(
+                        combinedJobs ->
+                                CompletableFuture.completedFuture(
+                                        new ArchivedApplication(
+                                                application.getApplicationId(),
+                                                application.getName(),
+                                                application.getApplicationStatus(),
+                                                stateTimestamps,
+                                                combinedJobs)));
+    }
+
+    private CompletableFuture<JobDetails> requestJobDetails(JobID jobId, Duration timeout) {
+        Optional<JobManagerRunner> maybeJob = getJobManagerRunner(jobId);
+        return maybeJob.map(job -> job.requestJobDetails(timeout))
+                .orElseGet(
+                        () -> {
+                            // is it a completed job?
+                            final JobDetails jobDetails =
+                                    executionGraphInfoStore.getAvailableJobDetails(jobId);
+                            if (jobDetails == null) {
+                                return FutureUtils.completedExceptionally(
+                                        new FlinkJobNotFoundException(jobId));
+                            } else {
+                                return CompletableFuture.completedFuture(jobDetails);
+                            }
+                        });
     }
 
     @Override
