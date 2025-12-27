@@ -32,7 +32,7 @@ under the License.
 
 	<properties>
 		<kubernetes.client.version>7.3.1</kubernetes.client.version>
-		<netty.override.version>4.1.108.Final</netty.override.version>
+		<netty.override.version>4.1.127.Final-redhat-00001</netty.override.version>
 		<surefire.module.config><!--
 			CommonTestUtils#setEnv
 			-->--add-opens=java.base/java.util=ALL-UNNAMED
