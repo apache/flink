@@ -244,9 +244,10 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
                                 slotId,
                                 taskSlot.getResourceProfile(),
                                 taskSlot.getJobId(),
-                                taskSlot.getAllocationId());
+                                taskSlot.getAllocationId(),
+                                taskSlot.getAssignedTasks());
             } else {
-                slotStatus = new SlotStatus(slotId, defaultSlotResourceProfile, null, null);
+                slotStatus = new SlotStatus(slotId, defaultSlotResourceProfile, null, null, 0);
             }
 
             slotStatuses.add(slotStatus);
@@ -259,14 +260,13 @@ public class TaskSlotTableImpl<T extends TaskSlotPayload> implements TaskSlotTab
                                 new SlotID(resourceId, taskSlot.getIndex()),
                                 taskSlot.getResourceProfile(),
                                 taskSlot.getJobId(),
-                                taskSlot.getAllocationId());
+                                taskSlot.getAllocationId(),
+                                taskSlot.getAssignedTasks());
                 slotStatuses.add(slotStatus);
             }
         }
 
-        final SlotReport slotReport = new SlotReport(slotStatuses);
-
-        return slotReport;
+        return new SlotReport(slotStatuses);
     }
 
     // ---------------------------------------------------------------------

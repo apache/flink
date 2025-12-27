@@ -30,6 +30,8 @@ import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.concurrent.Executor;
 
@@ -45,6 +47,10 @@ import java.util.concurrent.Executor;
  * failure, respectively.
  */
 public interface SlotManager extends AutoCloseable {
+
+    @Nullable
+    Integer getAssignedTasksOf(InstanceID instanceId);
+
     int getNumberRegisteredSlots();
 
     int getNumberRegisteredSlotsOf(InstanceID instanceId);

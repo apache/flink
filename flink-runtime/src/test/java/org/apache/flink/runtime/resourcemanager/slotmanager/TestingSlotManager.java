@@ -30,6 +30,8 @@ import org.apache.flink.runtime.rest.messages.taskmanager.SlotInfo;
 import org.apache.flink.runtime.slots.ResourceRequirements;
 import org.apache.flink.runtime.taskexecutor.SlotReport;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.Executor;
@@ -52,6 +54,12 @@ public class TestingSlotManager implements SlotManager {
         this.processRequirementsConsumer = processRequirementsConsumer;
         this.clearRequirementsConsumer = clearRequirementsConsumer;
         this.triggerRequirementsCheckConsumer = triggerRequirementsCheckConsumer;
+    }
+
+    @Nullable
+    @Override
+    public Integer getAssignedTasksOf(InstanceID instanceId) {
+        return null;
     }
 
     @Override

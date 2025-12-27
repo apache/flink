@@ -30,11 +30,14 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -313,6 +316,28 @@ public class FineGrainedTaskManagerTracker implements TaskManagerTracker {
                 totalAndDefaultSlotProfilesToPendingTaskManagers.getOrDefault(
                         Tuple2.of(totalResourceProfile, defaultSlotResourceProfile),
                         Collections.emptySet()));
+    }
+
+    @Nullable
+    @Override
+    public Integer getAssignedTasks(InstanceID instanceId) {
+        FineGrainedTaskManagerRegistration taskManagerRegistration =
+                taskManagerRegistrations.get(instanceId);
+        if (Objects.isNull(taskManagerRegistration)) {
+            return null;
+        }
+        Integer totalAssignedTasks = null;
+        for (TaskManagerSlotInformation slot :
+                taskManagerRegistration.getAllocatedSlots().values()) {
+            Integer assignedTasks = slot.getAssignedTasks();
+            if (Objects.isNull(totalAssignedTasks) && Objects.isNull(assignedTasks)) {
+                continue;
+            }
+            totalAssignedTasks = Objects.isNull(totalAssignedTasks) ? 0 : totalAssignedTasks;
+            assignedTasks = Objects.isNull(assignedTasks) ? 0 : assignedTasks;
+            totalAssignedTasks = totalAssignedTasks + assignedTasks;
+        }
+        return totalAssignedTasks;
     }
 
     @Override
