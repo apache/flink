@@ -35,7 +35,6 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.FlinkApplicationNotFoundException;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
-import org.apache.flink.runtime.messages.webmonitor.ApplicationDetailsInfo;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
 import org.apache.flink.runtime.messages.webmonitor.MultipleApplicationsDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
@@ -98,10 +97,10 @@ public interface RestfulGateway extends RpcGateway {
     }
 
     /**
-     * Requests the {@link ApplicationDetailsInfo} for the given applicationId. If there is no such
+     * Requests the {@link ArchivedApplication } for the given applicationId. If there is no such
      * application, then the future is completed with a {@link FlinkApplicationNotFoundException}.
      *
-     * @param applicationId identifying the application whose {@link ApplicationDetailsInfo} is
+     * @param applicationId identifying the application whose {@link ArchivedApplication} is
      *     requested
      * @param timeout for the asynchronous operation
      * @return Future containing the {@link ArchivedApplication} for the given applicationId,

@@ -20,7 +20,7 @@ package org.apache.flink.runtime.application;
 
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.ApplicationState;
-import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 
 import java.io.Serializable;
 import java.util.Arrays;
@@ -39,14 +39,14 @@ public class ArchivedApplication implements Serializable {
 
     private final long[] statusTimestamps;
 
-    private final Collection<JobDetails> jobs;
+    private final Collection<ArchivedExecutionGraph> jobs;
 
     public ArchivedApplication(
             ApplicationID applicationId,
             String applicationName,
             ApplicationState applicationState,
             long[] statusTimestamps,
-            Collection<JobDetails> jobs) {
+            Collection<ArchivedExecutionGraph> jobs) {
         this.applicationId = applicationId;
         this.applicationName = applicationName;
         this.applicationState = applicationState;
@@ -70,7 +70,7 @@ public class ArchivedApplication implements Serializable {
         return this.statusTimestamps[status.ordinal()];
     }
 
-    public Collection<JobDetails> getJobs() {
+    public Collection<ArchivedExecutionGraph> getJobs() {
         return jobs;
     }
 

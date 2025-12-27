@@ -36,6 +36,7 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /** Details about an application. */
 public class ApplicationDetailsInfo implements ResponseBody, Serializable {
@@ -210,6 +211,10 @@ public class ApplicationDetailsInfo implements ResponseBody, Serializable {
         for (ApplicationState status : ApplicationState.values()) {
             timestamps.put(status.toString(), archivedApplication.getStatusTimestamp(status));
         }
+        final Collection<JobDetails> jobs =
+                archivedApplication.getJobs().stream()
+                        .map(JobDetails::createDetailsForJob)
+                        .collect(Collectors.toList());
         return new ApplicationDetailsInfo(
                 archivedApplication.getApplicationId(),
                 archivedApplication.getApplicationName(),
@@ -218,6 +223,6 @@ public class ApplicationDetailsInfo implements ResponseBody, Serializable {
                 endTime,
                 duration,
                 timestamps,
-                archivedApplication.getJobs());
+                jobs);
     }
 }

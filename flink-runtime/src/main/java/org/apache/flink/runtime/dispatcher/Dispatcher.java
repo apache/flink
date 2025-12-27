@@ -1034,21 +1034,26 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
             stateTimestamps[ordinal] = application.getStatusTimestamp(applicationState);
         }
 
-        List<CompletableFuture<JobDetails>> jobDetailsFutures =
+        List<CompletableFuture<ArchivedExecutionGraph>> jobFutures =
                 application.getJobs().stream()
-                        .map(jobId -> requestJobDetails(jobId, timeout))
+                        .map(
+                                jobId ->
+                                        requestExecutionGraphInfo(jobId, timeout)
+                                                .thenApply(
+                                                        ExecutionGraphInfo
+                                                                ::getArchivedExecutionGraph))
                         .collect(Collectors.toList());
 
-        return FutureUtils.combineAll(jobDetailsFutures)
+        return FutureUtils.combineAll(jobFutures)
                 .thenCompose(
-                        combinedJobDetails ->
+                        combinedJobs ->
                                 CompletableFuture.completedFuture(
                                         new ArchivedApplication(
                                                 application.getApplicationId(),
                                                 application.getName(),
                                                 application.getApplicationStatus(),
                                                 stateTimestamps,
-                                                combinedJobDetails)));
+                                                combinedJobs)));
     }
 
     private CompletableFuture<JobDetails> requestJobDetails(JobID jobId, Duration timeout) {
