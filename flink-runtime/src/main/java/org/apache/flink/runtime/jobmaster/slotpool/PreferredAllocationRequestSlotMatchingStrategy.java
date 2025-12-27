@@ -21,7 +21,7 @@ package org.apache.flink.runtime.jobmaster.slotpool;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.resourceunit.ResourceUnitCount;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nonnull;
@@ -58,7 +58,7 @@ public class PreferredAllocationRequestSlotMatchingStrategy implements RequestSl
     public Collection<RequestSlotMatch> matchRequestsAndSlots(
             Collection<? extends PhysicalSlot> slots,
             Collection<PendingRequest> pendingRequests,
-            Map<ResourceID, LoadingWeight> taskExecutorsLoadingWeight) {
+            Map<ResourceID, ResourceUnitCount> taskExecutorsLoadingWeight) {
         final Collection<RequestSlotMatch> requestSlotMatches = new ArrayList<>();
 
         final Map<AllocationID, PhysicalSlot> freeSlots =
@@ -97,7 +97,7 @@ public class PreferredAllocationRequestSlotMatchingStrategy implements RequestSl
                                 .getPreferredAllocations()
                                 .contains(freeSlot.getAllocationId())) {
                     requestSlotMatches.add(RequestSlotMatch.createFor(pendingRequest, freeSlot));
-                    LoadingWeight deltaLoading = pendingRequest.getLoading();
+                    ResourceUnitCount deltaLoading = pendingRequest.getResourceUnitCount();
                     taskExecutorsLoadingWeight.compute(
                             freeSlot.getTaskManagerLocation().getResourceID(),
                             (ignoredId, oldLoad) ->

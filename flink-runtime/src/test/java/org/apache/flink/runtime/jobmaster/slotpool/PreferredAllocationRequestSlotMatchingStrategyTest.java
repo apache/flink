@@ -22,7 +22,7 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
-import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
+import org.apache.flink.runtime.scheduler.resourceunit.DefaultResourceUnitCount;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.util.TestLoggerExtension;
@@ -103,12 +103,12 @@ class PreferredAllocationRequestSlotMatchingStrategyTest {
                         PendingRequest.createNormalRequest(
                                 new SlotRequestId(),
                                 ResourceProfile.UNKNOWN,
-                                DefaultLoadingWeight.EMPTY,
+                                DefaultResourceUnitCount.EMPTY,
                                 Collections.singleton(allocationId2)),
                         PendingRequest.createNormalRequest(
                                 new SlotRequestId(),
                                 ResourceProfile.UNKNOWN,
-                                DefaultLoadingWeight.EMPTY,
+                                DefaultResourceUnitCount.EMPTY,
                                 Collections.singleton(allocationId1)));
 
         final Collection<RequestSlotMatchingStrategy.RequestSlotMatch> requestSlotMatches =
@@ -204,7 +204,7 @@ class PreferredAllocationRequestSlotMatchingStrategyTest {
         return PendingRequest.createNormalRequest(
                 new SlotRequestId(),
                 requestProfile,
-                new DefaultLoadingWeight(loading),
+                new DefaultResourceUnitCount(loading),
                 preferAllocationIds);
     }
 
