@@ -20,16 +20,18 @@ under the License.
     Partial that renders before the content on every page.
 -->
 {{ if $.Site.Params.ShowOutDatedWarning }}
+{{ $stableURL := replaceRE "/flink-docs-[^/]+/" "/flink-docs-stable/" .Permalink }}
 <article class="markdown">
     <blockquote style="border-color:#f66">
-        {{ markdownify "This documentation is for an out-of-date version of Apache Flink. We recommend you use the latest [stable version](https://nightlies.apache.org/flink/flink-docs-stable/)."}}
+        {{ markdownify (printf "This documentation is for an out-of-date version of Apache Flink. We recommend you use the latest [stable version](%s)." $stableURL) }}
     </blockquote>
 </article>
 {{ end }}
 {{ if (not $.Site.Params.IsStable) }}
+{{ $stableURL := replaceRE "/flink-docs-[^/]+/" "/flink-docs-stable/" .Permalink }}
 <article class="markdown">
     <blockquote style="border-color:#f66">
-        {{ markdownify "This documentation is for an unreleased version of Apache Flink. We recommend you use the latest [stable version](https://nightlies.apache.org/flink/flink-docs-stable/)."}}
+        {{ markdownify (printf "This documentation is for an unreleased version of Apache Flink. We recommend you use the latest [stable version](%s)." $stableURL) }}
     </blockquote>
 </article>
 {{ end }}
