@@ -57,7 +57,7 @@ EXPLAIN 语句用于解释 query 或 INSERT 语句的执行逻辑，也用于优
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-EXPLAIN 语句可以在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中执行。
+EXPLAIN 语句可以在 [SQL CLI]({{< ref "docs/sql/sql-client" >}}) 中执行。
 
 以下示例展示了如何在 SQL CLI 中执行一条 EXPLAIN 语句。
 
@@ -345,7 +345,7 @@ TableSourceScan(..., cumulative cost ={1.0E8 rows, 1.0E8 cpu, 2.4E9 io, 0.0 netw
 **CHANGELOG_MODE**
 
 指定 `CHANGELOG_MODE` 将使得优化器（optimizer）将 changelog mode 附加在每个物理节点上输出。
-关于 changelog mode 更多信息请参阅 [动态表]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#table-to-stream-conversion)。
+关于 changelog mode 更多信息请参阅 [动态表]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}#table-to-stream-conversion)。
 
 ```text
 == Optimized Physical Plan ==
@@ -374,8 +374,8 @@ GroupAggregate(..., changelogMode=[I,UA,D])
 | NODE_LEVEL  | 针对单个物理节点的建议  |
 
 `PLAN_ADVICE` 提供针对如下问题的建议
-- 分组聚合（Group Aggregation）时产生的数据倾斜（更多信息请参阅 [分组聚合]({{< ref "docs/dev/table/sql/queries/group-agg" >}}#group-aggregation) 和 [性能调优]({{< ref "docs/dev/table/tuning" >}}#local-global-aggregation)）
-- 非确定性更新（*abbr.* NDU，更多信息请参阅 [流上的确定性]({{< ref "docs/dev/table/concepts/determinism" >}}#3-determinism-in-streaming-processing)）
+- 分组聚合（Group Aggregation）时产生的数据倾斜（更多信息请参阅 [分组聚合]({{< ref "docs/sql/reference/queries/group-agg" >}}#group-aggregation) 和 [性能调优]({{< ref "docs/dev/table/tuning" >}}#local-global-aggregation)）
+- 非确定性更新（*abbr.* NDU，更多信息请参阅 [流上的确定性]({{< ref "docs/concepts/sql-table-concepts/determinism" >}}#3-determinism-in-streaming-processing)）
 
 
 若检测到分组聚合可以启用两阶段优化但未开启时，优化器（optimizer）将会把建议 id 附在 `GroupAggregate` 节点内作为索引，在最后附上建议内容。
@@ -534,5 +534,5 @@ insert_statement;
 END;
 ```
 
-关于 query 的语法，请查阅 [Queries]({{< ref "docs/dev/table/sql/queries" >}}#supported-syntax) 页面。
-关于 INSERT 的语法，请查阅 [INSERT]({{< ref "docs/dev/table/sql/insert" >}}) 页面。
+关于 query 的语法，请查阅 [Queries]({{< ref "docs/sql/reference/queries" >}}#supported-syntax) 页面。
+关于 INSERT 的语法，请查阅 [INSERT]({{< ref "docs/sql/reference/insert" >}}) 页面。

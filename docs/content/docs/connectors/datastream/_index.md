@@ -1,7 +1,7 @@
 ---
 title: DataStream Connectors
 bookCollapseSection: true
-weight: 1
+weight: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

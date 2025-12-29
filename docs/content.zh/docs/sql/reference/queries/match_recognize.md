@@ -86,7 +86,7 @@ Flink 的 `MATCH_RECOGNIZE` 子句实现是一个完整标准子集。仅支持�
 
 或者，也可以将依赖项添加到集群的 classpath（查看 [dependency section]({{< ref "docs/dev/configuration/overview" >}}) 获取更多相关依赖信息）。
 
-如果你想在 [SQL Client]({{< ref "docs/dev/table/sqlClient" >}}) 中使用 `MATCH_RECOGNIZE` 子句，你无需执行任何操作，因为默认情况下包含所有依赖项。
+如果你想在 [SQL Client]({{< ref "docs/sql/sql-client" >}}) 中使用 `MATCH_RECOGNIZE` 子句，你无需执行任何操作，因为默认情况下包含所有依赖项。
 
 <a name="sql-semantics"></a>
 
@@ -102,7 +102,7 @@ Flink 的 `MATCH_RECOGNIZE` 子句实现是一个完整标准子集。仅支持�
 * [PATTERN](#defining-a-pattern) - 允许使用类似于 _正则表达式_ 的语法构造搜索的模式。
 * [DEFINE](#define--measures) - 本部分定义了模式变量必须满足的条件。
 
-<span class="label label-danger">注意</span> 目前，`MATCH_RECOGNIZE` 子句只能应用于[追加表]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#update-and-append-queries)。此外，它也总是生成一个追加表。
+<span class="label label-danger">注意</span> 目前，`MATCH_RECOGNIZE` 子句只能应用于[追加表]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}#update-and-append-queries)。此外，它也总是生成一个追加表。
 
 <a name="examples"></a>
 
@@ -198,11 +198,11 @@ ACME       01-APR-11 10:00:04  01-APR-11 10:00:07  01-APR-11 10:00:08
 事件顺序
 ---------------
 
-Apache Flink 可以根据时间（[处理时间或者事件时间]({{< ref "docs/dev/table/concepts/time_attributes" >}})）进行模式搜索。
+Apache Flink 可以根据时间（[处理时间或者事件时间]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}})）进行模式搜索。
 
 如果是事件时间，则在将事件传递到内部模式状态机之前对其进行排序。所以，无论行添加到表的顺序如何，生成的输出都是正确的。而模式是按照每行中所包含的时间指定顺序计算的。
 
-`MATCH_RECOGNIZE` 子句假定升序的 [时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}) 是 `ORDER BY` 子句的第一个参数。
+`MATCH_RECOGNIZE` 子句假定升序的 [时间属性]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}) 是 `ORDER BY` 子句的第一个参数。
 
 对于示例 `Ticker` 表，诸如 `ORDER BY rowtime ASC, price DESC` 的定义是有效的，但 `ORDER BY price, rowtime` 或者 `ORDER BY rowtime DESC, price ASC` 是无效的。
 
@@ -219,7 +219,7 @@ Define & Measures
 
 ### Aggregations
 
-Aggregations 可以在 `DEFINE` 和 `MEASURES` 子句中使用。支持[内置函数]({{< ref "docs/dev/table/functions/systemfunctions" >}})和[用户自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})。
+Aggregations 可以在 `DEFINE` 和 `MEASURES` 子句中使用。支持[内置函数]({{< ref "docs/sql/built-in-functions" >}})和[用户自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})。
 
 对相应匹配项的行子集可以使用 Aggregate functions。请查看[事件流导航](#pattern-navigation)部分以了解如何计算这些子集。
 
@@ -913,7 +913,7 @@ FROM Ticker
 时间属性
 ---------------
 
-为了在 `MATCH_RECOGNIZE` 之上应用一些后续查询，可能需要使用[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。有两个函数可供选择：
+为了在 `MATCH_RECOGNIZE` 之上应用一些后续查询，可能需要使用[时间属性]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}})。有两个函数可供选择：
 
 <table class="table table-bordered">
   <thead>
@@ -931,7 +931,7 @@ FROM Ticker
       <td>
         <p>返回映射到给定模式的最后一行的时间戳。</p>
         <p>函数可以没有入参，这种情况下函数返回结果是 TIMESTAMP 类型且具有事件时间属性；也可以有一个入参，这个参数值必须是 TIMESTAMP 类型或者 TIMESTAMP_LTZ 类型，且必须有事件时间属性，这种情况下函数返回结果的数据类型和输入参数的一致，且必须有事件时间属性。</p>
-        <p>结果属性是<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">事件时间属性</a>，可用于后续基于时间的操作，例如 <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
+        <p>结果属性是<a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}">事件时间属性</a>，可用于后续基于时间的操作，例如 <a href="{{< ref "docs/sql/reference/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
       </td>
     </tr>
     <tr>
@@ -939,7 +939,7 @@ FROM Ticker
         <code>MATCH_PROCTIME()</code><br/>
       </td>
       <td>
-        <p>返回<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time">处理时间属性</a>，该属性可用于随后的基于时间的操作，例如 <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
+        <p>返回<a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}#processing-time">处理时间属性</a>，该属性可用于随后的基于时间的操作，例如 <a href="{{< ref "docs/sql/reference/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
       </td>
     </tr>
   </tbody>

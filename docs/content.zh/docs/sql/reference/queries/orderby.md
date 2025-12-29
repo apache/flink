@@ -28,7 +28,7 @@ under the License.
 
 `ORDER BY` 子句使结果行根据指定的表达式进行排序。 如果两行根据最左边的表达式相等，则根据下一个表达式进行比较，依此类推。 如果根据所有指定的表达式它们相等，则它们以与实现相关的顺序返回。
 
-在流模式下运行时，表的主要排序顺序必须按[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})升序。 所有后续的 orders 都可以自由选择。 但是批处理模式没有这个限制。
+在流模式下运行时，表的主要排序顺序必须按[时间属性]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}})升序。 所有后续的 orders 都可以自由选择。 但是批处理模式没有这个限制。
 
 ```sql
 SELECT *

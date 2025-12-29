@@ -30,7 +30,7 @@ under the License.
 
 
 
-ALTER 语句用于修改一个已经在 [Catalog]({{< ref "docs/dev/table/catalogs" >}}) 中注册的表、视图或函数定义，或 catalog 本身的定义。
+ALTER 语句用于修改一个已经在 [Catalog]({{< ref "docs/sql/catalogs" >}}) 中注册的表、视图或函数定义，或 catalog 本身的定义。
 
 Flink SQL 目前支持以下 ALTER 语句：
 
@@ -65,7 +65,7 @@ Flink SQL 目前支持以下 ALTER 语句：
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-可以在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中执行 ALTER 语句。
+可以在 [SQL CLI]({{< ref "docs/sql/sql-client" >}}) 中执行 ALTER 语句。
 
 以下的例子展示了如何在 SQL CLI 中执行一个 ALTER 语句。
 
@@ -386,7 +386,7 @@ ALTER TABLE [IF EXISTS] table_name {
 若表不存在，则不进行任何操作。
 
 ### ADD
-使用 `ADD` 语句向已有表中增加 [columns]({{< ref "docs/dev/table/sql/create" >}}#columns)，[constraints]({{< ref "docs/dev/table/sql/create" >}}#primary-key)，[watermark]({{< ref "docs/dev/table/sql/create" >}}#watermark)，[partitions]({{< ref "docs/dev/table/sql/create" >}}#partitioned-by) 和 [distribution]({{< ref "docs/dev/table/sql/create" >}}#distributed)。
+使用 `ADD` 语句向已有表中增加 [columns]({{< ref "docs/sql/reference/create" >}}#columns)，[constraints]({{< ref "docs/sql/reference/create" >}}#primary-key)，[watermark]({{< ref "docs/sql/reference/create" >}}#watermark)，[partitions]({{< ref "docs/sql/reference/create" >}}#partitioned-by) 和 [distribution]({{< ref "docs/sql/reference/create" >}}#distributed)。
 
 向表新增列时可通过 `FIRST` or `AFTER col_name` 指定位置，不指定位置时默认追加在最后。
 
@@ -547,7 +547,7 @@ ALTER [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
 
 如果 language tag 是 JAVA 或者 SCALA ，则 identifier 是 UDF 实现类的全限定名。关于 JAVA/SCALA UDF 的实现，请参考 [自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})。
 
-如果 language tag 是 PYTHON ， 则 identifier 是 UDF 对象的全限定名，例如 `pyflink.table.tests.test_udf.add`。关于 PYTHON UDF 的实现，请参考 [Python UDFs]({{< ref "docs/dev/python/table/udfs/python_udfs" >}})。
+如果 language tag 是 PYTHON ， 则 identifier 是 UDF 对象的全限定名，例如 `pyflink.table.tests.test_udf.add`。关于 PYTHON UDF 的实现，请参考 [Python UDFs]({{< ref "docs/dev/table/python/udfs/python_udfs" >}})。
 
 **TEMPORARY**
 

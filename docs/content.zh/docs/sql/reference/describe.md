@@ -52,7 +52,7 @@ DESCRIBE 语句用于描述表或视图的 schema，或catalog 的元数据，�
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-DESCRIBE 语句可以在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中执行。
+DESCRIBE 语句可以在 [SQL CLI]({{< ref "docs/sql/sql-client" >}}) 中执行。
 
 以下示例展示了如何在 SQL CLI 中执行一条 DESCRIBE 语句。
 
@@ -485,7 +485,7 @@ Flink SQL> DESC JOB '228d70913eab60dda85c5e7f78b5782c';
 { DESCRIBE | DESC } JOB '<job_id>'
 ```
 
-<span class="label label-danger">Attention</span> DESCRIBE JOB 语句仅适用于 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 或者 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+<span class="label label-danger">Attention</span> DESCRIBE JOB 语句仅适用于 [SQL CLI]({{< ref "docs/sql/sql-client" >}}) 或者 [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}).
 
 ### DESCRIBE MODEL
 ```sql

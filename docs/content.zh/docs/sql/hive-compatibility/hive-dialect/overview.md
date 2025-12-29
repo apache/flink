@@ -35,14 +35,14 @@ Flink 目前支持两种 SQL 方言: `default` 和 `hive`。你需要先切换�
 
 - 为了使用 Hive 方言, 你必须首先添加和 Hive 相关的依赖. 请参考 [Hive dependencies]({{< ref "docs/connectors/table/hive/overview" >}}#dependencies) 如何添加这些依赖。
 - 请确保当前的 Catalog 是 [HiveCatalog]({{< ref "docs/connectors/table/hive/hive_catalog" >}}). 否则, 将使用 Flink 的默认方言。
-  在启动了 [HiveServer2 Endpoint]({{< ref "docs/dev/table/hive-compatibility/hiveserver2" >}}) 的 SQL Gateway 下，默认当前的 Catalog 就是 HiveCatalog。
+  在启动了 [HiveServer2 Endpoint]({{< ref "docs/sql/hive-compatibility/hiveserver2" >}}) 的 SQL Gateway 下，默认当前的 Catalog 就是 HiveCatalog。
 - 为了实现更好的语法和语义的兼容，强烈建议首先加载 [HiveModule]({{< ref "docs/connectors/table/hive/hive_functions" >}}#use-hive-built-in-functions-via-hivemodule) 并将其放在 Module 列表的首位，以便在函数解析时优先使用 Hive 内置函数。
   请参考文档 [here]({{< ref "docs/dev/table/modules" >}}#how-to-load-unload-use-and-list-modules) 来将 HiveModule 放在 Module 列表的首。
   在启动了 HiveServer2 endpoint 的 SQL Gateway，HiveModule 已经被加载进来了。
 - Hive 方言只支持 `db.table` 这种两级的标识符，不支持带有 Catalog 名字的标识符。
 - 虽然所有 Hive 版本支持相同的语法，但是一些特定的功能是否可用仍取决于你使用的 [Hive 版本]({{< ref "docs/connectors/table/hive/overview" >}}#支持的hive版本)。例如，更新数据库位置
   只在 Hive-2.4.0 或更高版本支持。
-- Hive 方言主要是在批模式下使用的，某些 Hive 的语法([Sort/Cluster/Distributed BY]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/sort-cluster-distribute-by" >}}), [Transform]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/transform" >}}), 等)还没有在流模式下支持。
+- Hive 方言主要是在批模式下使用的，某些 Hive 的语法([Sort/Cluster/Distributed BY]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/sort-cluster-distribute-by" >}}), [Transform]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/transform" >}}), 等)还没有在流模式下支持。
 {{< /hint >}}
 
 ### SQL Client

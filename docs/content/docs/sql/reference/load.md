@@ -53,7 +53,7 @@ The following examples show how to run a LOAD statement in `TableEnvironment`.
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-LOAD statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+LOAD statements can be executed in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 The following examples show how to run a LOAD statement in SQL CLI.
 

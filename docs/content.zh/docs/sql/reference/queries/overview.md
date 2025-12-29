@@ -36,7 +36,7 @@ SQL 和 Table API 查询可以无缝混合，并进行整体优化并转换为�
 
 为了在SQL查询中访问表，它必须[注册在 TableEnvironment]({{< ref "docs/dev/table/common" >}}#register-tables-in-the-catalog)。
 表使用下列方式注册：[TableSource]({{< ref "docs/dev/table/common" >}}#register-a-tablesource)， [Table]({{< ref "docs/dev/table/common" >}}#register-a-table)，[CREATE TABLE 语句](#create-table)，[DataStream]({{< ref "docs/dev/table/common" >}}#register-a-datastream)。
-也可以通过[在 TableEnvironment 中注册 Catalog]({{< ref "docs/dev/table/catalogs" >}}) 来指定数据源的位置。
+也可以通过[在 TableEnvironment 中注册 Catalog]({{< ref "docs/sql/catalogs" >}}) 来指定数据源的位置。
 
 为了方便起见，`Table.toString()` 自动在 `TableEnvironment` 中注册一个名称唯一的表，并返回表名。
 所以`Table`对象可以直接内嵌入 SQL 中查询使用，如下示例所示。
@@ -445,21 +445,21 @@ Example: `SELECT e'\u0061\x61\141' AS c` or `SELECT E'\u0061\x61\141' AS c`;
 
 ## 操作
 
-- [WITH 子句]({{< ref "docs/dev/table/sql/queries/with" >}})
-- [SELECT & WHERE]({{< ref "docs/dev/table/sql/queries/select" >}})
-- [SELECT DISTINCT]({{< ref "docs/dev/table/sql/queries/select-distinct" >}})
-- [窗口函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})
-- [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})
-- [分组聚合]({{< ref "docs/dev/table/sql/queries/group-agg" >}})
-- [Over聚合]({{< ref "docs/dev/table/sql/queries/over-agg" >}})
-- [Joins]({{< ref "docs/dev/table/sql/queries/joins" >}})
-- [集合操作]({{< ref "docs/dev/table/sql/queries/set-ops" >}})
-- [ORDER BY 语句]({{< ref "docs/dev/table/sql/queries/orderby" >}})
-- [LIMIT 语句]({{< ref "docs/dev/table/sql/queries/limit" >}})
-- [Top-N]({{< ref "docs/dev/table/sql/queries/topn" >}})
-- [窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn" >}})
-- [去重]({{< ref "docs/dev/table/sql/queries/deduplication" >}})
-- [模式识别]({{< ref "docs/dev/table/sql/queries/match_recognize" >}})
-- [时间旅行]({{< ref "docs/dev/table/sql/queries/time-travel" >}})
+- [WITH 子句]({{< ref "docs/sql/reference/queries/with" >}})
+- [SELECT & WHERE]({{< ref "docs/sql/reference/queries/select" >}})
+- [SELECT DISTINCT]({{< ref "docs/sql/reference/queries/select-distinct" >}})
+- [窗口函数]({{< ref "docs/sql/reference/queries/window-tvf" >}})
+- [窗口聚合]({{< ref "docs/sql/reference/queries/window-agg" >}})
+- [分组聚合]({{< ref "docs/sql/reference/queries/group-agg" >}})
+- [Over聚合]({{< ref "docs/sql/reference/queries/over-agg" >}})
+- [Joins]({{< ref "docs/sql/reference/queries/joins" >}})
+- [集合操作]({{< ref "docs/sql/reference/queries/set-ops" >}})
+- [ORDER BY 语句]({{< ref "docs/sql/reference/queries/orderby" >}})
+- [LIMIT 语句]({{< ref "docs/sql/reference/queries/limit" >}})
+- [Top-N]({{< ref "docs/sql/reference/queries/topn" >}})
+- [窗口 Top-N]({{< ref "docs/sql/reference/queries/window-topn" >}})
+- [去重]({{< ref "docs/sql/reference/queries/deduplication" >}})
+- [模式识别]({{< ref "docs/sql/reference/queries/match_recognize" >}})
+- [时间旅行]({{< ref "docs/sql/reference/queries/time-travel" >}})
 
 {{< top >}}

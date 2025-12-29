@@ -25,16 +25,16 @@ under the License.
 # Window Deduplication
 {{< label Streaming >}}
 
-Window Deduplication is a special [Deduplication]({{< ref "docs/dev/table/sql/queries/deduplication" >}}) which removes rows that duplicate over a set of columns, keeping the first one or the last one for each window and partitioned keys. 
+Window Deduplication is a special [Deduplication]({{< ref "docs/sql/reference/queries/deduplication" >}}) which removes rows that duplicate over a set of columns, keeping the first one or the last one for each window and partitioned keys. 
 
 For streaming queries, unlike regular Deduplicate on continuous tables, Window Deduplication does not emit intermediate results but only a final result at the end of the window. Moreover, window Deduplication purges all intermediate state when no longer needed.
-Therefore, Window Deduplication queries have better performance if users don't need results updated per record. Usually, Window Deduplication is used with [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) directly. Besides, Window Deduplication could be used with other operations based on [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}), such as [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}) and [Window Join]({{< ref "docs/dev/table/sql/queries/window-join">}}). 
+Therefore, Window Deduplication queries have better performance if users don't need results updated per record. Usually, Window Deduplication is used with [Windowing TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}) directly. Besides, Window Deduplication could be used with other operations based on [Windowing TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}), such as [Window Aggregation]({{< ref "docs/sql/reference/queries/window-agg" >}}), [Window TopN]({{< ref "docs/sql/reference/queries/window-topn">}}) and [Window Join]({{< ref "docs/sql/reference/queries/window-join">}}). 
 
-Window Deduplication can be defined in the same syntax as regular Deduplication, see [Deduplication documentation]({{< ref "docs/dev/table/sql/queries/deduplication" >}}) for more information.
+Window Deduplication can be defined in the same syntax as regular Deduplication, see [Deduplication documentation]({{< ref "docs/sql/reference/queries/deduplication" >}}) for more information.
 Besides that, Window Deduplication requires the `PARTITION BY` clause contains `window_start` and `window_end` columns of the relation.
 Otherwise, the optimizer won’t be able to translate the query.
 
-Flink uses `ROW_NUMBER()` to remove duplicates, just like the way of [Window Top-N query]({{< ref "docs/dev/table/sql/queries/window-topn" >}}). In theory, Window Deduplication is a special case of Window Top-N in which the N is one and order by the processing time or event time.
+Flink uses `ROW_NUMBER()` to remove duplicates, just like the way of [Window Top-N query]({{< ref "docs/sql/reference/queries/window-topn" >}}). In theory, Window Deduplication is a special case of Window Top-N in which the N is one and order by the processing time or event time.
 
 The following shows the syntax of the Window Deduplication statement:
 
@@ -52,7 +52,7 @@ WHERE (rownum = 1 | rownum <=1 | rownum < 2) [AND conditions]
 
 - `ROW_NUMBER()`: Assigns an unique, sequential number to each row, starting with one.
 - `PARTITION BY window_start, window_end [, col_key1...]`: Specifies the partition columns which contain `window_start`, `window_end` and other partition keys.
-- `ORDER BY time_attr [asc|desc]`: Specifies the ordering column, it must be a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}). Currently Flink supports [processing time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time) and [event time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time). Ordering by ASC means keeping the first row, ordering by DESC means keeping the last row.
+- `ORDER BY time_attr [asc|desc]`: Specifies the ordering column, it must be a [time attribute]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}). Currently Flink supports [processing time attribute]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}#processing-time) and [event time attribute]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}#event-time). Ordering by ASC means keeping the first row, ordering by DESC means keeping the last row.
 - `WHERE (rownum = 1 | rownum <=1 | rownum < 2)`: The `rownum = 1 | rownum <=1 | rownum < 2` is required for the optimizer to recognize the query could be translated to Window Deduplication.
 
 {{< hint info >}}
@@ -106,10 +106,10 @@ Flink SQL> SELECT *
 ## Limitation
 
 ### Limitation on Window Deduplication which follows after Windowing TVFs directly
-Currently, if Window Deduplication follows after [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}), the [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) has to be with Tumble Windows, Hop Windows or Cumulate Windows instead of Session windows. Session windows will be supported in the near future.
+Currently, if Window Deduplication follows after [Windowing TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}), the [Windowing TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}) has to be with Tumble Windows, Hop Windows or Cumulate Windows instead of Session windows. Session windows will be supported in the near future.
 
 ### Limitation on time attribute of order key
-Currently, Window Deduplication requires order key must be [event time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time) instead of [processing time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time). Ordering by processing-time would be supported in the near future.
+Currently, Window Deduplication requires order key must be [event time attribute]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}#event-time) instead of [processing time attribute]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}#processing-time). Ordering by processing-time would be supported in the near future.
 
 
 {{< top >}}

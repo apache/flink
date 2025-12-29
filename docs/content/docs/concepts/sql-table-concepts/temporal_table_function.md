@@ -27,7 +27,7 @@ under the License.
 # Temporal Table Function
 
 A Temporal table function provides access to the version of a temporal table at a specific point in time.
-In order to access the data in a temporal table, one must pass a [time attribute]({{<ref "docs/dev/table/concepts/time_attributes">}}) that determines the version of the table that will be returned.
+In order to access the data in a temporal table, one must pass a [time attribute]({{<ref "docs/concepts/sql-table-concepts/time_attributes">}}) that determines the version of the table that will be returned.
 Flink uses the SQL syntax of [table functions]({{<ref "docs/dev/table/functions/udfs" >}}#table-functions) to provide a way to express it.
 
 Unlike a versioned table, temporal table functions can only be defined on top of append-only streams 

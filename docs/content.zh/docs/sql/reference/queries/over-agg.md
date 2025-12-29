@@ -56,7 +56,7 @@ FROM ...
 
 ### ORDER BY
 
-`OVER` 窗口需要数据是有序的。因为表没有固定的排序，所以 `ORDER BY` 子句是强制的。对于流式查询，Flink 目前只支持 `OVER` 窗口定义在升序（asc）的 [时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}) 上。其他的排序不支持。
+`OVER` 窗口需要数据是有序的。因为表没有固定的排序，所以 `ORDER BY` 子句是强制的。对于流式查询，Flink 目前只支持 `OVER` 窗口定义在升序（asc）的 [时间属性]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}) 上。其他的排序不支持。
 
 ### PARTITION BY
 

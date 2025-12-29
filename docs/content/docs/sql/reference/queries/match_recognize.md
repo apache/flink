@@ -101,7 +101,7 @@ Alternatively, you can also add the dependency to the cluster classpath (see the
 [dependency section]({{< ref "docs/dev/configuration/overview" >}}) for more information).
 
 If you want to use the `MATCH_RECOGNIZE` clause in the
-[SQL Client]({{< ref "docs/dev/table/sqlClient" >}}), you don't have to do anything as all the
+[SQL Client]({{< ref "docs/sql/sql-client" >}}), you don't have to do anything as all the
 dependencies are included by default.
 
 ### SQL Semantics
@@ -123,7 +123,7 @@ Every `MATCH_RECOGNIZE` query consists of the following clauses:
   satisfy.
 
 <span class="label label-danger">Attention</span> Currently, the `MATCH_RECOGNIZE` clause can only
-be applied to an [append table]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#update-and-append-queries). Furthermore, it
+be applied to an [append table]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}#update-and-append-queries). Furthermore, it
 always produces an append table as well.
 
 ### Examples
@@ -234,14 +234,14 @@ Order of Events
 ---------------
 
 Apache Flink allows for searching for patterns based on time; either
-[processing time or event time]({{< ref "docs/dev/table/concepts/time_attributes" >}}).
+[processing time or event time]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}).
 
 In case of event time, the events are sorted before they are passed to the internal pattern state
 machine. As a consequence, the produced output will be correct regardless of the order in which
 rows are appended to the table. Instead, the pattern is evaluated in the order specified by the
 time contained in each row.
 
-The `MATCH_RECOGNIZE` clause assumes a [time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}) with ascending
+The `MATCH_RECOGNIZE` clause assumes a [time attribute]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}) with ascending
 ordering as the first argument to `ORDER BY` clause.
 
 For the example `Ticker` table, a definition like `ORDER BY rowtime ASC, price DESC` is valid but
@@ -267,7 +267,7 @@ look at the [event stream navigation](#pattern-navigation) section.
 ### Aggregations
 
 Aggregations can be used in `DEFINE` and `MEASURES` clauses. Both
-[built-in]({{< ref "docs/dev/table/functions/systemfunctions" >}}) and custom
+[built-in]({{< ref "docs/sql/built-in-functions" >}}) and custom
 [user defined]({{< ref "docs/dev/table/functions/udfs" >}}) functions are supported.
 
 Aggregate functions are applied to each subset of rows mapped to a match. In order to understand
@@ -1022,7 +1022,7 @@ Time attributes
 ---------------
 
 In order to apply some subsequent queries on top of the `MATCH_RECOGNIZE` it might be required to
-use [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). To select those there are available two functions:
+use [time attributes]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}). To select those there are available two functions:
 
 <table class="table table-bordered">
   <thead>
@@ -1039,18 +1039,18 @@ use [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). To
       </td>
       <td><p>Returns the timestamp of the last row that was mapped to the given pattern.</p>
       <p>The function accepts zero or one operand which is a field reference with rowtime attribute. If there is no operand, the function will return rowtime attribute with TIMESTAMP type. Otherwise, the return type will be same with the operand type.</p>
-      <p>The resulting attribute is a <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">rowtime attribute</a>
+      <p>The resulting attribute is a <a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}">rowtime attribute</a>
          that can be used in subsequent time-based operations such as
-         <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> and <a href="#aggregations">group window or over
+         <a href="{{< ref "docs/sql/reference/queries/joins" >}}#interval-joins">interval joins</a> and <a href="#aggregations">group window or over
          window aggregations</a>.</p></td>
     </tr>
     <tr>
       <td>
         <code>MATCH_PROCTIME()</code><br/>
       </td>
-      <td><p>Returns a <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time">proctime attribute</a>
+      <td><p>Returns a <a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}#processing-time">proctime attribute</a>
           that can be used in subsequent time-based operations such as
-          <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> and <a href="#aggregations">group window or over
+          <a href="{{< ref "docs/sql/reference/queries/joins" >}}#interval-joins">interval joins</a> and <a href="#aggregations">group window or over
           window aggregations</a>.</p></td>
     </tr>
   </tbody>

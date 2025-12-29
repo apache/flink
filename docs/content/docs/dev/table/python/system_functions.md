@@ -24,4 +24,4 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-<meta http-equiv="refresh" content="0; url={{< ref "docs/dev/table/functions/systemfunctions" >}} "/>
+<meta http-equiv="refresh" content="0; url={{< ref "docs/sql/built-in-functions" >}} "/>

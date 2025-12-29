@@ -31,7 +31,7 @@ under the License.
 因为向量化 Python 用户自定义函数可以大大减少序列化/反序列化的开销和调用开销。
 此外，用户可以利用流行的 Python 库（例如 Pandas，Numpy 等）来实现向量化 Python 用户自定义函数的逻辑。
 这些 Python 库通常经过高度优化，并提供了高性能的数据结构和功能。
-向量化用户自定义函数的定义，与[非向量化用户自定义函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}})具有相似的方式，
+向量化用户自定义函数的定义，与[非向量化用户自定义函数]({{< ref "docs/dev/table/python/udfs/python_udfs" >}})具有相似的方式，
 用户只需要在调用 `udf` 或者 `udaf` 装饰器时添加一个额外的参数 `func_type="pandas"`，将其标记为一个向量化用户自定义函数即可。
 
 **注意:** 要执行 Python 向量化自定义函数，客户端和集群端都需要安装 Python 3.9 以上版本(3.9、3.10、3.11 或 3.12)，并安装 PyFlink。

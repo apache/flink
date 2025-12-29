@@ -51,7 +51,7 @@ The following examples show how to run a DESCRIBE statement in `TableEnvironment
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-DESCRIBE statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+DESCRIBE statements can be executed in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 The following examples show how to run a DESCRIBE statement in SQL CLI.
 
@@ -524,7 +524,7 @@ The result of the above example is:
 { DESCRIBE | DESC } JOB '<job_id>'
 ```
 
-<span class="label label-danger">Attention</span> DESCRIBE JOB statements only work in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+<span class="label label-danger">Attention</span> DESCRIBE JOB statements only work in [SQL CLI]({{< ref "docs/sql/sql-client" >}}) or [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}).
 
 ### DESCRIBE MODEL
 ```sql

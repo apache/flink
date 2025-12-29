@@ -2,6 +2,8 @@
 title: Data Pipelines & ETL
 weight: 4
 type: docs
+aliases:
+  - /docs/learn-flink/etl/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

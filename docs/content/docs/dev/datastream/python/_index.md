@@ -1,7 +1,9 @@
 ---
-title: DataStream API
+title: Python DataStream API
 bookCollapseSection: true
-weight: 25
+weight: 100
+aliases:
+  - /docs/dev/datastream/python/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

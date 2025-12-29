@@ -133,7 +133,7 @@ $ curl --request GET ${nextResultUri}
 ### Deploying a Script
 
 SQL Gateway supports deploying a script in [Application Mode]({{< ref "docs/deployment/overview" >}}). In application mode, [JobManager]({{< ref "docs/concepts/flink-architecture" >}}#jobmanager) is responsible for compiling the script.
-If you want to use custom resources in the script, e.g. Kafka Source, please use [ADD JAR]({{< ref "docs/dev/table/sql/jar">}}) command to download the [required artifacts]({{< ref "docs/dev/configuration/connector" >}}#available-artifacts). 
+If you want to use custom resources in the script, e.g. Kafka Source, please use [ADD JAR]({{< ref "docs/sql/reference/jar">}}) command to download the [required artifacts]({{< ref "docs/dev/configuration/connector" >}}#available-artifacts). 
 
 Here is an example for deploying a script to a Flink native K8S Cluster with cluster id `CLUSTER_ID`.
 
@@ -268,7 +268,7 @@ $ ./sql-gateway -Dkey=value
 Supported Endpoints
 ----------------
 
-Flink natively supports [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}) and [HiveServer2 Endpoint]({{< ref "docs/dev/table/sql-gateway/hiveserver2" >}}).
+Flink natively supports [REST Endpoint]({{< ref "docs/sql/sql-gateway/rest" >}}) and [HiveServer2 Endpoint]({{< ref "docs/sql/sql-gateway/hiveserver2" >}}).
 The SQL Gateway is bundled with the REST Endpoint by default. With the flexible architecture, users are able to start the SQL Gateway with the specified endpoints by calling 
 
 ```bash

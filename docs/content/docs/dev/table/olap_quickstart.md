@@ -35,7 +35,7 @@ This chapter will introduce you to the overall architecture of Flink OLAP servic
 
 Flink OLAP service consists of three parts: Client, Flink SQL Gateway and Flink Session Cluster.
 
-* **Client**: Could be any client that can interact with [Flink SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}), such as [SQL Client]({{< ref "docs/dev/table/sqlClient" >}}), [Flink JDBC Driver]({{< ref "docs/dev/table/jdbcDriver" >}}) and so on.
+* **Client**: Could be any client that can interact with [Flink SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}), such as [SQL Client]({{< ref "docs/sql/sql-client" >}}), [Flink JDBC Driver]({{< ref "docs/sql/jdbc-driver" >}}) and so on.
 * **Flink SQL Gateway**: The SQL Gateway provides an easy way to parse the sql query, look up the metadata, analyze table stats, optimize the plan and submit JobGraphs to cluster.
 * **Flink Session Cluster**: OLAP queries run on [session cluster]({{< ref "/docs/deployment/resource-providers/native_kubernetes#starting-a-flink-session-on-kubernetes" >}}), mainly to avoid the overhead of cluster startup.
 
@@ -58,7 +58,7 @@ In this chapter, you will learn how to build Flink OLAP services locally.
 
 ### Downloading Flink
 
-The same as [Local Installation]({{< ref "docs/try-flink/local_installation" >}}). Flink runs on all UNIX-like environments, i.e. Linux, Mac OS X, and Cygwin (for Windows). User need to have at __Java 11__ installed. To check the Java version installed, user can type in the terminal:
+The same as [Local Installation]({{< ref "docs/getting-started/local_installation" >}}). Flink runs on all UNIX-like environments, i.e. Linux, Mac OS X, and Cygwin (for Windows). User need to have at __Java 11__ installed. To check the Java version installed, user can type in the terminal:
 
 ```
 java -version
@@ -121,7 +121,7 @@ This section guides you through setting up a production ready Flink OLAP service
 
 #### Flink JDBC Driver
 
-You should use Flink JDBC Driver when submitting queries to SQL Gateway since it provides low-level connection management. When used in production, you should pay attention to reuse the JDBC connection to avoid frequently creating/closing sessions in the Gateway and then reduce the E2E query latency. For detailed information, please refer to the [Flink JDBC Driver]({{ <ref "docs/dev/table/jdbcDriver"> }}).
+You should use Flink JDBC Driver when submitting queries to SQL Gateway since it provides low-level connection management. When used in production, you should pay attention to reuse the JDBC connection to avoid frequently creating/closing sessions in the Gateway and then reduce the E2E query latency. For detailed information, please refer to the [Flink JDBC Driver]({{ <ref "docs/sql/jdbc-driver"> }}).
 
 ### Cluster Deployment
 
@@ -133,13 +133,13 @@ For Flink Session Cluster, you can deploy it on Native Kubernetes using session 
 
 #### SQL Gateway
 
-For Flink SQL Gateway, you should deploy it as a stateless microservice and register the instance on service discovery component. Through this way, client can balance the query between instances easily. For more information, please refer to [SQL Gateway Overview]({{< ref "docs/dev/table/sql-gateway/overview">}}).
+For Flink SQL Gateway, you should deploy it as a stateless microservice and register the instance on service discovery component. Through this way, client can balance the query between instances easily. For more information, please refer to [SQL Gateway Overview]({{< ref "docs/sql/sql-gateway/overview">}}).
 
 ### Datasource Configurations
 
 #### Catalogs
 
-In OLAP scenario, you should configure `FileCatalogStore` provided by [Catalogs]({{< ref "docs/dev/table/catalogs">}}) as the catalog used by cluster. As a long-running service, Flink OLAP cluster's catalog information will not change frequently and should be re-used cross sessions to reduce the cold-start cost. For more information, please refer to the [Catalog Store]({{< ref "docs/dev/table/catalogs#catalog-store">}}).
+In OLAP scenario, you should configure `FileCatalogStore` provided by [Catalogs]({{< ref "docs/sql/catalogs">}}) as the catalog used by cluster. As a long-running service, Flink OLAP cluster's catalog information will not change frequently and should be re-used cross sessions to reduce the cold-start cost. For more information, please refer to the [Catalog Store]({{< ref "docs/sql/catalogs#catalog-store">}}).
 
 #### Connectors
 
@@ -155,7 +155,7 @@ In OLAP scenario, appropriate configurations that can greatly help users improve
 |:----------------------------------------------------------------------------------------------------------------------------------|:----------|:------------|
 | [table.optimizer.join-reorder-enabled]({{<ref "docs/dev/table/config#table-optimizer-join-reorder-enabled">}})                    | false     | true        |
 | [pipeline.object-reuse]({{< ref "docs/deployment/config#pipeline-object-reuse" >}})                                               | false     | true        |
-| [sql-gateway.session.plan-cache.enabled]({{<ref "docs/dev/table/sql-gateway/overview#sql-gateway-session-plan-cache-enabled">}})  | false     | true        |
+| [sql-gateway.session.plan-cache.enabled]({{<ref "docs/sql/sql-gateway/overview#sql-gateway-session-plan-cache-enabled">}})  | false     | true        |
 
 #### Runtime Options
 

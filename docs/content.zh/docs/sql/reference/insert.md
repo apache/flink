@@ -58,7 +58,7 @@ INSERT 语句用来向表中添加行。
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-可以在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中执行 INSERT 语句
+可以在 [SQL CLI]({{< ref "docs/sql/sql-client" >}}) 中执行 INSERT 语句
 
 以下的例子展示了如何在 SQL CLI 中执行一条 INSERT 语句。
 

@@ -89,7 +89,7 @@ path
         ├── part-0.parquet
 ```
 
-The file system table supports both partition inserting and overwrite inserting. See [INSERT Statement]({{< ref "docs/dev/table/sql/insert" >}}). When you insert overwrite to a partitioned table, only the corresponding partition will be overwritten, not the entire table.
+The file system table supports both partition inserting and overwrite inserting. See [INSERT Statement]({{< ref "docs/sql/reference/insert" >}}). When you insert overwrite to a partitioned table, only the corresponding partition will be overwritten, not the entire table.
 
 ## File Formats
 

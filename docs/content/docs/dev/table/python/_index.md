@@ -1,7 +1,9 @@
 ---
-title: Table API
+title: Python Table API
 bookCollapseSection: true
-weight: 24
+weight: 100
+aliases:
+  - /docs/dev/table/python/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -78,7 +78,7 @@ SHOW CREATE 语句用于打印给定对象的创建 DDL 语句。当前的 SHOW 
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-可以在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中执行 SHOW 语句。
+可以在 [SQL CLI]({{< ref "docs/sql/sql-client" >}}) 中执行 SHOW 语句。
 
 以下的例子展示了如何在 SQL CLI 中执行一个 SHOW 语句。
 
@@ -1041,9 +1041,9 @@ SHOW [FULL] MODULES
 SHOW JARS
 ```
 
-展示所有通过 [`ADD JAR`]({{< ref "docs/dev/table/sql/jar" >}}#add-jar) 语句加入到 session classloader 中的 jar。
+展示所有通过 [`ADD JAR`]({{< ref "docs/sql/reference/jar" >}}#add-jar) 语句加入到 session classloader 中的 jar。
 
-<span class="label label-danger">Attention</span> 当前 SHOW JARS 命令只能在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 或者 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}) 中使用.
+<span class="label label-danger">Attention</span> 当前 SHOW JARS 命令只能在 [SQL CLI]({{< ref "docs/sql/sql-client" >}}) 或者 [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}) 中使用.
 
 ## SHOW JOBS
 
@@ -1053,7 +1053,7 @@ SHOW JOBS
 
 展示集群中所有作业。
 
-<span class="label label-danger">Attention</span> 当前 SHOW JOBS 命令只能在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 或者 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}) 中使用.
+<span class="label label-danger">Attention</span> 当前 SHOW JOBS 命令只能在 [SQL CLI]({{< ref "docs/sql/sql-client" >}}) 或者 [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}) 中使用.
 
 ## SHOW MODELS
 

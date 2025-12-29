@@ -29,7 +29,7 @@ under the License.
 The syntax of `time travel` is used for querying historical data. It allows users to specify a point in time and query the corresponding table data.
 
 <span class="label label-danger">Attention</span> Currently, `time travel` requires the corresponding catalog that the table belongs to implementing the {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/catalog/Catalog.java" name="getTable(ObjectPath tablePath, long timestamp)" >}} method.
-See more details in [Catalog]({{< ref "/docs/dev/table/catalogs" >}}#interface-in-catalog-for-supporting-time-travel).
+See more details in [Catalog]({{< ref "/docs/sql/catalogs" >}}#interface-in-catalog-for-supporting-time-travel).
 
 The syntax with time travel clause is:
 ```sql

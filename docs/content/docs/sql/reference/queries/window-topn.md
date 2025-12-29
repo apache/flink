@@ -25,17 +25,17 @@ under the License.
 # Window Top-N
 {{< label Batch >}} {{< label Streaming >}}
 
-Window Top-N is a special [Top-N]({{< ref "docs/dev/table/sql/queries/topn" >}}) which returns the N smallest or largest values for each window and other partitioned keys.
+Window Top-N is a special [Top-N]({{< ref "docs/sql/reference/queries/topn" >}}) which returns the N smallest or largest values for each window and other partitioned keys.
 
 For streaming queries, unlike regular Top-N on continuous tables, window Top-N does not emit intermediate results but only a final result, the total top N records at the end of the window. Moreover, window Top-N purges all intermediate state when no longer needed.
-Therefore, window Top-N queries have better performance if users don't need results updated per record. Usually, Window Top-N is used with [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) directly. Besides, Window Top-N could be used with other operations based on [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}), such as [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}) and [Window Join]({{< ref "docs/dev/table/sql/queries/window-join">}}). 
+Therefore, window Top-N queries have better performance if users don't need results updated per record. Usually, Window Top-N is used with [Windowing TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}) directly. Besides, Window Top-N could be used with other operations based on [Windowing TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}), such as [Window Aggregation]({{< ref "docs/sql/reference/queries/window-agg" >}}), [Window TopN]({{< ref "docs/sql/reference/queries/window-topn">}}) and [Window Join]({{< ref "docs/sql/reference/queries/window-join">}}). 
 
 {{< hint info >}}
 Note: `SESSION` Window Top-N is not supported in batch mode now.
 {{< /hint >}}
 
-Window Top-N can be defined in the same syntax as regular Top-N, see [Top-N documentation]({{< ref "docs/dev/table/sql/queries/topn" >}}) for more information.
-Besides that, Window Top-N requires the `PARTITION BY` clause contains `window_start` and `window_end` columns of the relation applied [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) or [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}).
+Window Top-N can be defined in the same syntax as regular Top-N, see [Top-N documentation]({{< ref "docs/sql/reference/queries/topn" >}}) for more information.
+Besides that, Window Top-N requires the `PARTITION BY` clause contains `window_start` and `window_end` columns of the relation applied [Windowing TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}) or [Window Aggregation]({{< ref "docs/sql/reference/queries/window-agg" >}}).
 Otherwise, the optimizer won’t be able to translate the query.
 
 
@@ -133,7 +133,7 @@ Flink SQL> SELECT *
 
 ## Limitation
 
-Currently, Flink only supports Window Top-N follows after [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) with Tumble Windows, Hop Windows and Cumulate Windows. Window Top-N follows after [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) with Session windows will be supported in the near future.
+Currently, Flink only supports Window Top-N follows after [Windowing TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}) with Tumble Windows, Hop Windows and Cumulate Windows. Window Top-N follows after [Windowing TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}) with Session windows will be supported in the near future.
 
 
 {{< top >}}

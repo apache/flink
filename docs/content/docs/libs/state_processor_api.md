@@ -511,7 +511,7 @@ savepointWriter
 
 ### Getting started
 
-Before you interrogate state using the table API, make sure to review our [Flink SQL]({{< ref "docs/dev/table/sql/overview" >}}) guidelines.
+Before you interrogate state using the table API, make sure to review our [Flink SQL]({{< ref "docs/sql/reference/overview" >}}) guidelines.
 
 IMPORTANT NOTE: State Table API only supports keyed state.
 

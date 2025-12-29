@@ -1,9 +1,10 @@
 ---
 title: "SQL JDBC Driver"
-weight: 91
+weight: 4
 type: docs
 aliases:
-- /dev/table/jdbcDriver.html
+  - /zh/dev/table/jdbcDriver.html
+  - /zh/docs/sql/jdbc-driver/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -26,7 +27,7 @@ under the License.
 
 # Flink JDBC Driver
 
-Flink JDBC Driver is a Java library for connecting and submitting SQL statements to [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}) as the JDBC server.
+Flink JDBC Driver is a Java library for connecting and submitting SQL statements to [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}) as the JDBC server.
 
 # Usage
 

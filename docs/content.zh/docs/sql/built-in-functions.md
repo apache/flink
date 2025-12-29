@@ -1,9 +1,10 @@
 ---
 title: "系统（内置）函数"
-weight: 32
+weight: 7
 type: docs
 aliases:
   - /zh/dev/table/functions/systemFunctions.html
+  - /zh/docs/sql/built-in-functions/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -1,9 +1,11 @@
 ---
 title: "数据类型"
-weight: 21
+weight: 8
 type: docs
 aliases:
   - /zh/dev/table/types.html
+  - /zh/docs/dev/table/types/
+  - /zh/docs/sql/reference/data-types/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -56,7 +56,7 @@ There are two refresh modes: FULL and CONTINUOUS. By default, the refresh mode i
 
 ## Query Definition
 
-The query definition of a materialized table supports all Flink SQL [Queries]({{< ref "docs/dev/table/sql/queries/overview" >}}). The query results are used to populate the materialized table. In CONTINUOUS mode, the query results are updated to the materialized table continuously, while in FULL mode, the query results overwrite the materialized table each time.
+The query definition of a materialized table supports all Flink SQL [Queries]({{< ref "docs/sql/reference/queries/overview" >}}). The query results are used to populate the materialized table. In CONTINUOUS mode, the query results are updated to the materialized table continuously, while in FULL mode, the query results overwrite the materialized table each time.
 
 ## Schema
 

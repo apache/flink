@@ -36,7 +36,7 @@ SQL and Table API queries can be seamlessly mixed and are holistically optimized
 
 In order to access a table in a SQL query, it must be [registered in the TableEnvironment]({{< ref "docs/dev/table/common" >}}#register-tables-in-the-catalog).
 A table can be registered from a [TableSource]({{< ref "docs/dev/table/common" >}}#register-a-tablesource), [Table]({{< ref "docs/dev/table/common" >}}#register-a-table), [CREATE TABLE statement](#create-table), [DataStream]({{< ref "docs/dev/table/common" >}}#register-a-datastream).
-Alternatively, users can also [register catalogs in a TableEnvironment]({{< ref "docs/dev/table/catalogs" >}}) to specify the location of the data sources.
+Alternatively, users can also [register catalogs in a TableEnvironment]({{< ref "docs/sql/catalogs" >}}) to specify the location of the data sources.
 
 For convenience, `Table.toString()` automatically registers the table under a unique name in its `TableEnvironment` and returns the name.
 So, `Table` objects can be directly inlined into SQL queries as shown in the examples below.
@@ -445,21 +445,21 @@ Example: `SELECT e'\u0061\x61\141' AS c` or `SELECT E'\u0061\x61\141' AS c`;
 
 ## Operations
 
-- [WITH clause]({{< ref "docs/dev/table/sql/queries/with" >}})
-- [SELECT & WHERE]({{< ref "docs/dev/table/sql/queries/select" >}})
-- [SELECT DISTINCT]({{< ref "docs/dev/table/sql/queries/select-distinct" >}})
-- [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})
-- [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}})
-- [Group Aggregation]({{< ref "docs/dev/table/sql/queries/group-agg" >}})
-- [Over Aggregation]({{< ref "docs/dev/table/sql/queries/over-agg" >}})
-- [Joins]({{< ref "docs/dev/table/sql/queries/joins" >}})
-- [Set Operations]({{< ref "docs/dev/table/sql/queries/set-ops" >}})
-- [ORDER BY clause]({{< ref "docs/dev/table/sql/queries/orderby" >}})
-- [LIMIT clause]({{< ref "docs/dev/table/sql/queries/limit" >}})
-- [Top-N]({{< ref "docs/dev/table/sql/queries/topn" >}})
-- [Window Top-N]({{< ref "docs/dev/table/sql/queries/window-topn" >}})
-- [Deduplication]({{< ref "docs/dev/table/sql/queries/deduplication" >}})
-- [Pattern Recognition]({{< ref "docs/dev/table/sql/queries/match_recognize" >}})
-- [Time Travel]({{< ref "docs/dev/table/sql/queries/time-travel" >}})
+- [WITH clause]({{< ref "docs/sql/reference/queries/with" >}})
+- [SELECT & WHERE]({{< ref "docs/sql/reference/queries/select" >}})
+- [SELECT DISTINCT]({{< ref "docs/sql/reference/queries/select-distinct" >}})
+- [Windowing TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}})
+- [Window Aggregation]({{< ref "docs/sql/reference/queries/window-agg" >}})
+- [Group Aggregation]({{< ref "docs/sql/reference/queries/group-agg" >}})
+- [Over Aggregation]({{< ref "docs/sql/reference/queries/over-agg" >}})
+- [Joins]({{< ref "docs/sql/reference/queries/joins" >}})
+- [Set Operations]({{< ref "docs/sql/reference/queries/set-ops" >}})
+- [ORDER BY clause]({{< ref "docs/sql/reference/queries/orderby" >}})
+- [LIMIT clause]({{< ref "docs/sql/reference/queries/limit" >}})
+- [Top-N]({{< ref "docs/sql/reference/queries/topn" >}})
+- [Window Top-N]({{< ref "docs/sql/reference/queries/window-topn" >}})
+- [Deduplication]({{< ref "docs/sql/reference/queries/deduplication" >}})
+- [Pattern Recognition]({{< ref "docs/sql/reference/queries/match_recognize" >}})
+- [Time Travel]({{< ref "docs/sql/reference/queries/time-travel" >}})
 
 {{< top >}}

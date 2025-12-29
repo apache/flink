@@ -89,7 +89,7 @@ CREATE TABLE print_table (
 )
 ```
 
-或者，也可以通过 [LIKE子句]({{< ref "docs/dev/table/sql/create" >}}#create-table) 基于已有表的结构去创建新表。
+或者，也可以通过 [LIKE子句]({{< ref "docs/sql/reference/create" >}}#create-table) 基于已有表的结构去创建新表。
 
 {{< tabs "0baef2bc-71e4-4507-9152-349bdf2420a4" >}}
 {{< tab "SQL" >}}

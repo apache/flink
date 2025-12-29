@@ -1,7 +1,9 @@
 ---
-title: SQL
+title: SQL Reference
 bookCollapseSection: true
-weight: 32
+weight: 6
+aliases:
+  - /zh/docs/sql/reference/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

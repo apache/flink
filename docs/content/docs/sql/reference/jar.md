@@ -39,7 +39,7 @@ Flink SQL supports the following JAR statements for now:
 {{< tabs "add jar statement" >}}
 {{< tab "SQL CLI" >}}
 
-The following examples show how to run `JAR` statements in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+The following examples show how to run `JAR` statements in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 {{< /tab >}}
 {{< /tabs >}}
@@ -94,6 +94,6 @@ REMOVE JAR '<path_to_filename>.jar'
 
 Remove the specified jar that is added by the [`ADD JAR`](#add-jar) statements.
 
-<span class="label label-danger">Attention</span> REMOVE JAR statements only work in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+<span class="label label-danger">Attention</span> REMOVE JAR statements only work in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 {{< top >}}

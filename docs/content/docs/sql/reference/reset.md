@@ -33,7 +33,7 @@ under the License.
 {{< tabs "reset statement" >}}
 {{< tab "SQL CLI" >}}
 
-`RESET` statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+`RESET` statements can be executed in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 The following examples show how to run a `RESET` statement in SQL CLI.
 

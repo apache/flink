@@ -1,9 +1,10 @@
 ---
 title: "SQL Client"
-weight: 91
+weight: 2
 type: docs
 aliases:
   - /dev/table/sqlClient.html
+  - /docs/sql/sql-client/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -44,7 +45,7 @@ The SQL Client is bundled in the regular Flink distribution and thus runnable ou
 ```
 ### Starting the SQL Client CLI
 
-The SQL Client scripts are also located in the binary directory of Flink. Users have two options for starting the SQL Client CLI, either by starting an embedded standalone process or by connecting to a remote [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+The SQL Client scripts are also located in the binary directory of Flink. Users have two options for starting the SQL Client CLI, either by starting an embedded standalone process or by connecting to a remote [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}).
 SQL Client default mode is `embedded`. 
 
 You can start the CLI in embedded mode by calling:
@@ -92,7 +93,7 @@ EOF)
 
 By default, the SQL Client will use the truststore configured using the `security.ssl.rest.truststore` and `security.ssl.rest.truststore-password` properties in the [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}}) on the SQL client side. If these properties aren't explicitly configured, the client will use the default certificate stores provided by the JDK.
 
-<span class="label label-danger">Note</span> SQL Client only supports connecting to the [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}#rest-api) since version v2.
+<span class="label label-danger">Note</span> SQL Client only supports connecting to the [REST Endpoint]({{< ref "docs/sql/sql-gateway/rest" >}}#rest-api) since version v2.
 
 See [SQL Client startup options](#sql-client-startup-options) below for more details.
 
@@ -167,7 +168,7 @@ There is a list of available key-strokes in SQL Client
 
 The documentation of the SQL Client commands can be accessed by typing the `HELP` command.
 
-See also the general [SQL]({{< ref "docs/dev/table/sql/overview" >}}) documentation.
+See also the general [SQL]({{< ref "docs/sql/reference/overview" >}}) documentation.
 
 {{< top >}}
 
@@ -376,7 +377,7 @@ R Refresh                  - Dec Refresh              L Last Page               
 ```
 
 The **changelog mode** does not materialize results and visualizes the result stream that is produced
-by a [continuous query]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#continuous-queries) consisting of insertions (`+`) and retractions (`-`).
+by a [continuous query]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}#continuous-queries) consisting of insertions (`+`) and retractions (`-`).
 
 ```text
 SET 'sql-client.execution.result-mode' = 'changelog';
@@ -773,8 +774,8 @@ Job ID: 6f922fe5cba87406ff23ae4a7bb79044
 <span class="label label-danger">Attention</span> The SQL Client does not track the status of the
 running Flink job after submission. The CLI process can be shutdown after the submission without
 affecting the detached query. Flink's `restart strategy` takes care of the fault-tolerance. Please
-use the job statements to [monitor the detached query status]({{< ref "docs/dev/table/sqlClient" >}}#monitoring-job-status)
-or [stop the detached query]({{< ref "docs/dev/table/sqlClient" >}}#terminating-a-job).
+use the job statements to [monitor the detached query status]({{< ref "docs/sql/sql-client" >}}#monitoring-job-status)
+or [stop the detached query]({{< ref "docs/sql/sql-client" >}}#terminating-a-job).
 
 However, for batch users, it's more common that the next DML statement requires waiting until the
 previous DML statement finishes. In order to execute DML statements synchronously, you can set
@@ -865,7 +866,7 @@ Flink SQL> STOP JOB '228d70913eab60dda85c5e7f78b5782c' WITH SAVEPOINT;
 The savepoint path could be specified with [execution.checkpointing.savepoint-dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) 
 either in the cluster configuration or session configuration (the latter would take precedence).
 
-For more details about stopping jobs, please refer to [Job Statements]({{< ref "docs/dev/table/sql/job" >}}#stop-job).
+For more details about stopping jobs, please refer to [Job Statements]({{< ref "docs/sql/reference/job" >}}#stop-job).
 
 ### SQL Syntax highlighting
 

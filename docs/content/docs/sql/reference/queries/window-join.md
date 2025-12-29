@@ -29,7 +29,7 @@ A window join adds the dimension of time into the join criteria themselves. In d
 
 For streaming queries, unlike other joins on continuous tables, window join does not emit intermediate results but only emits final results at the end of the window. Moreover, window join purge all intermediate state when no longer needed.
 
-Usually, Window Join is used with [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}). Besides, Window Join could follow after other operations based on [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}), such as [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}) and [Window Join]({{< ref "docs/dev/table/sql/queries/window-join">}}).
+Usually, Window Join is used with [Windowing TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}). Besides, Window Join could follow after other operations based on [Windowing TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}), such as [Window Aggregation]({{< ref "docs/sql/reference/queries/window-agg" >}}), [Window TopN]({{< ref "docs/sql/reference/queries/window-topn">}}) and [Window Join]({{< ref "docs/sql/reference/queries/window-join">}}).
 
 {{< hint info >}}
 Note: `SESSION` Window Join is not supported in batch mode now.
@@ -193,6 +193,6 @@ Currently, The window join requires the join on condition contains window starts
 Currently, the windowing TVFs must be the same of left and right inputs. This can be extended in the future, for example, tumbling windows join sliding windows with the same window size.
 
 ### Limitation on Window Join which follows after Windowing TVFs directly
-Currently, if Window Join follows after [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}), the [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) has to be with Tumble Windows, Hop Windows or Cumulate Windows instead of Session windows.
+Currently, if Window Join follows after [Windowing TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}), the [Windowing TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}) has to be with Tumble Windows, Hop Windows or Cumulate Windows instead of Session windows.
 
 {{< top >}}

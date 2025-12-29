@@ -55,7 +55,7 @@ The following examples show how to run an EXPLAIN statement in `TableEnvironment
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-EXPLAIN statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+EXPLAIN statements can be executed in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 The following examples show how to run an EXPLAIN statement in SQL CLI.
 
@@ -339,7 +339,7 @@ TableSourceScan(..., cumulative cost ={1.0E8 rows, 1.0E8 cpu, 2.4E9 io, 0.0 netw
 
 **CHANGELOG_MODE**
 
-Specify `CHANGELOG_MODE` will inform the optimizer to attach the changelog mode (see more details at [Dynamic Tables]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#table-to-stream-conversion)) of each physical rel node to the ouptput.
+Specify `CHANGELOG_MODE` will inform the optimizer to attach the changelog mode (see more details at [Dynamic Tables]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}#table-to-stream-conversion)) of each physical rel node to the ouptput.
 
 ```text
 == Optimized Physical Plan ==
@@ -368,8 +368,8 @@ Plan advice is categorized by **Kind** and **Scope**.
 | NODE_LEVEL   | It provides advice to a specific rel node                         |
 
 Flink SQL provides the plan advice targeting the following issues
-- Data Skewness caused by Group Aggregation (see more details at [Group Aggregation]({{< ref "docs/dev/table/sql/queries/group-agg" >}}#group-aggregation) and [Performance Tuning]({{< ref "docs/dev/table/tuning" >}}#local-global-aggregation))
-- Non-deterministic Updates (*abbr.* NDU, see more details at [Determinism In Continuous Queries]({{< ref "docs/dev/table/concepts/determinism" >}}#3-determinism-in-streaming-processing))
+- Data Skewness caused by Group Aggregation (see more details at [Group Aggregation]({{< ref "docs/sql/reference/queries/group-agg" >}}#group-aggregation) and [Performance Tuning]({{< ref "docs/dev/table/tuning" >}}#local-global-aggregation))
+- Non-deterministic Updates (*abbr.* NDU, see more details at [Determinism In Continuous Queries]({{< ref "docs/concepts/sql-table-concepts/determinism" >}}#3-determinism-in-streaming-processing))
 
 
 If `GroupAggregate` is detected and can be optimized to the local-global aggregation, the optimizer will tag advice id to the `GroupAggregate` rel node, and suggests users to update configurations.
@@ -527,5 +527,5 @@ insert_statement;
 END;
 ```
 
-For query syntax, please refer to [Queries]({{< ref "docs/dev/table/sql/queries/overview" >}}) page.
-For insert syntax, please refer to [INSERT]({{< ref "docs/dev/table/sql/insert" >}}) page.
+For query syntax, please refer to [Queries]({{< ref "docs/sql/reference/queries/overview" >}}) page.
+For insert syntax, please refer to [INSERT]({{< ref "docs/sql/reference/insert" >}}) page.

@@ -1,6 +1,6 @@
 ---
 title: "Table API"
-weight: 31
+weight: 3
 type: docs
 aliases:
   - /zh/dev/table/tableApi.html
@@ -30,9 +30,9 @@ under the License.
 
 Table API 是批处理和流处理的统一的关系型 API。Table API 的查询不需要修改代码就可以采用批输入或流输入来运行。Table API 是 SQL 语言的超集，并且是针对 Apache Flink 专门设计的。Table API 集成了 Scala，Java 和 Python 语言的 API。Table API 的查询是使用  Java，Scala 或 Python 语言嵌入的风格定义的，有诸如自动补全和语法校验的 IDE 支持，而不是像普通 SQL 一样使用字符串类型的值来指定查询。
 
-Table API 和 Flink SQL 共享许多概念以及部分集成的 API。通过查看[公共概念 & API]({{< ref "docs/dev/table/common" >}})来学习如何注册表或如何创建一个`表`对象。[流概念]({{< ref "docs/dev/table/concepts/overview" >}})页面讨论了诸如动态表和时间属性等流特有的概念。
+Table API 和 Flink SQL 共享许多概念以及部分集成的 API。通过查看[公共概念 & API]({{< ref "docs/dev/table/common" >}})来学习如何注册表或如何创建一个`表`对象。[流概念]({{< ref "docs/concepts/sql-table-concepts/overview" >}})页面讨论了诸如动态表和时间属性等流特有的概念。
 
-下面的例子中假定有一张叫 `Orders` 的表，表中有属性 `(a, b, c, rowtime)` 。`rowtime` 字段是流任务中的逻辑[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})或是批任务中的普通时间戳字段。
+下面的例子中假定有一张叫 `Orders` 的表，表中有属性 `(a, b, c, rowtime)` 。`rowtime` 字段是流任务中的逻辑[时间属性]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}})或是批任务中的普通时间戳字段。
 
 概述 & 示例
 -----------------------------
@@ -221,7 +221,7 @@ result = orders.filter(col("a").is_not_null & col("b").is_not_null & col("c").is
 {{< /tab >}}
 {{< /tabs >}}
 
-因为 Table API 的批数据 API 和流数据 API 是统一的，所以这两个例子程序不需要修改代码就可以运行在流输入或批输入上。在这两种情况下，只要流任务没有数据延时，程序将会输出相同的结果（查看[流概念]({{< ref "docs/dev/table/concepts/overview" >}})获取详情)。
+因为 Table API 的批数据 API 和流数据 API 是统一的，所以这两个例子程序不需要修改代码就可以运行在流输入或批输入上。在这两种情况下，只要流任务没有数据延时，程序将会输出相同的结果（查看[流概念]({{< ref "docs/concepts/sql-table-concepts/overview" >}})获取详情)。
 
 {{< top >}}
 
@@ -730,7 +730,7 @@ result = orders.over_window(Over.partition_by(col("a")).order_by(col("rowtime"))
 {{< /tab >}}
 {{< /tabs >}}
 
-所有的聚合必须定义在同一个窗口上，比如同一个分区、排序和范围内。目前只支持 PRECEDING 到当前行范围（无界或有界）的窗口。尚不支持 FOLLOWING 范围的窗口。ORDER BY 操作必须指定一个单一的[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。
+所有的聚合必须定义在同一个窗口上，比如同一个分区、排序和范围内。目前只支持 PRECEDING 到当前行范围（无界或有界）的窗口。尚不支持 FOLLOWING 范围的窗口。ORDER BY 操作必须指定一个单一的[时间属性]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}})。
 
 #### Distinct 聚合
 
@@ -1627,7 +1627,7 @@ table = input.window([w: GroupWindow].alias("w")) \
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>as</code></td>
@@ -1665,7 +1665,7 @@ table = input.window([w: GroupWindow].alias("w")) \
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>as</code></td>
@@ -1703,7 +1703,7 @@ table = input.window([w: GroupWindow].alias("w")) \
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>alias</code></td>
@@ -1752,7 +1752,7 @@ table = input.window([w: GroupWindow].alias("w")) \
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>as</code></td>
@@ -1800,7 +1800,7 @@ table = input.window([w: GroupWindow].alias("w")) \
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>as</code></td>
@@ -1842,7 +1842,7 @@ table = input.window([w: GroupWindow].alias("w")) \
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>alias</code></td>
@@ -1887,7 +1887,7 @@ table = input.window([w: GroupWindow].alias("w")) \
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>as</code></td>
@@ -1922,7 +1922,7 @@ table = input.window([w: GroupWindow].alias("w")) \
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>as</code></td>
@@ -1957,7 +1957,7 @@ table = input.window([w: GroupWindow].alias("w")) \
     </tr>
     <tr>
       <td><code>on</code></td>
-      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
+      <td>要对数据进行分组（时间间隔）或排序（行计数）的时间属性。批处理查询支持任意 Long 或 Timestamp 类型的属性。流处理查询仅支持<a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}">声明的事件时间或处理时间属性</a>。</td>
     </tr>
     <tr>
       <td><code>alias</code></td>
@@ -2208,7 +2208,7 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-使用 python 的[通用标量函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#scalar-functions)或[向量化标量函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions)执行 map 操作。如果输出类型是复合类型，则输出将被展平。
+使用 python 的[通用标量函数]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#scalar-functions)或[向量化标量函数]({{< ref "docs/dev/table/python/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions)执行 map 操作。如果输出类型是复合类型，则输出将被展平。
 
 ```python
 from pyflink.common import Row
@@ -2294,7 +2294,7 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-通过 python [表函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-functions)执行 `flat_map` 操作。
+通过 python [表函数]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#table-functions)执行 `flat_map` 操作。
 
 ```python
 from pyflink.table.udf import udtf
@@ -2425,7 +2425,7 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-使用 python 的[通用聚合函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#aggregate-functions)或 [向量化聚合函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions)来执行聚合操作。你必须使用 select 子句关闭 `aggregate` ，并且 select 子句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
+使用 python 的[通用聚合函数]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#aggregate-functions)或 [向量化聚合函数]({{< ref "docs/dev/table/python/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions)来执行聚合操作。你必须使用 select 子句关闭 `aggregate` ，并且 select 子句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
 
 ```python
 from pyflink.common import Row
@@ -2678,7 +2678,7 @@ val result = orders
 {{< /tab >}}
 {{< tab "Python" >}}
 
-使用 python 通用 [Table Aggregate Function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-aggregate-functions) 执行 flat_aggregate 操作。
+使用 python 通用 [Table Aggregate Function]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#table-aggregate-functions) 执行 flat_aggregate 操作。
 
 和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 子句关闭 `flat_aggregate`。并且 select 子句不支持聚合函数。
 
@@ -2847,11 +2847,11 @@ val asyncPredictResult = model.predict(
 数据类型
 ----------
 
-请查看[数据类型]({{< ref "docs/dev/table/types" >}})的专门页面。
+请查看[数据类型]({{< ref "docs/sql/data-types" >}})的专门页面。
 
 行中的字段可以是一般类型和(嵌套)复合类型(比如 POJO、元组、行、 Scala 案例类)。
 
-任意嵌套的复合类型的字段都可以通过[值访问函数]({{< ref "docs/dev/table/functions/systemFunctions" >}}#value-access-functions)来访问。
+任意嵌套的复合类型的字段都可以通过[值访问函数]({{< ref "docs/sql/built-in-functions" >}}#value-access-functions)来访问。
 
 [用户自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})可以将泛型当作黑匣子一样传输和处理。
 

@@ -27,7 +27,7 @@ under the License.
 
 # Streaming Concepts
 
-Flink's [Table API]({{< ref "docs/dev/table/tableApi" >}}) and [SQL support]({{< ref "docs/dev/table/sql/overview" >}}) are unified APIs for batch and stream processing.
+Flink's [Table API]({{< ref "docs/dev/table/tableApi" >}}) and [SQL support]({{< ref "docs/sql/reference/overview" >}}) are unified APIs for batch and stream processing.
 This means that Table API and SQL queries have the same semantics regardless whether their input is bounded batch input or unbounded stream input.
 
 The following pages explain concepts, practical limitations, and stream-specific configuration parameters of Flink's relational APIs on streaming data.
@@ -52,20 +52,20 @@ result. A pipeline is optimized to claim as little state as possible given the c
 rules.
 {{< hint info >}}
 Conceptually, source tables are never kept entirely in state. An implementer deals with logical tables
-(i.e. [dynamic tables]({{< ref "docs/dev/table/concepts/dynamic_tables" >}})). Their state requirements
+(i.e. [dynamic tables]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}})). Their state requirements
 depend on the used operations.
 {{< /hint >}}
 
 #### Stateful Operators
 
-Queries contain stateful operations such as [joins]({{< ref "docs/dev/table/sql/queries/joins" >}}), [aggregations]({{< ref "docs/dev/table/sql/queries/group-agg" >}}), 
-or [deduplication]({{< ref "docs/dev/table/sql/queries/deduplication" >}})
+Queries contain stateful operations such as [joins]({{< ref "docs/sql/reference/queries/joins" >}}), [aggregations]({{< ref "docs/sql/reference/queries/group-agg" >}}), 
+or [deduplication]({{< ref "docs/sql/reference/queries/deduplication" >}})
 require keeping intermediate results in a fault-tolerant storage for which Flink's state abstractions are used.
 
 For example, a regular SQL join of two tables requires the operator to keep both input tables in state
 entirely. For correct SQL semantics, the runtime needs to assume that a matching could occur at any
-point in time from both sides. Flink provides [optimized window and interval joins]({{< ref "docs/dev/table/sql/queries/joins" >}})
-that aim to keep the state size small by exploiting the concept of [watermarks]({{< ref "docs/dev/table/concepts/time_attributes" >}}).
+point in time from both sides. Flink provides [optimized window and interval joins]({{< ref "docs/sql/reference/queries/joins" >}})
+that aim to keep the state size small by exploiting the concept of [watermarks]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}).
 
 Another example is the following query that computes the word count.
 
@@ -98,7 +98,7 @@ Consequently, the total state size of the query is continuously growing as more 
 Queries such as `SELECT ... FROM ... WHERE` which only consist of field projections or filters are usually
 stateless pipelines.
 However, under some situations, the stateful operation is implicitly derived through the trait of input (*e.g.*, input is a changelog without *UPDATE_BEFORE*, see
-[Table to Stream Conversion]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#table-to-stream-conversion)), 
+[Table to Stream Conversion]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}#table-to-stream-conversion)), 
 or through user configuration (see [`table-exec-source-cdc-events-duplicate`]({{< ref "docs/dev/table/config" >}}#table-exec-source-cdc-events-duplicate)).
 
 The following figure illustrates a `SELECT ... FROM` statement that querying an [upsert kafka source]({{< ref "docs/connectors/table/upsert-kafka" >}}).
@@ -155,7 +155,7 @@ that the count of a `word` would start again at `0`.
 	<td>SELECT /*+ STATE_TTL(...) */ ... </td>
 	<td>{{<label SQL>}}</td>
 	<td>Operator level with only regular join and group aggregation support.</td>
-	<td>The hint precedes the default table.exec.state.ttl. This value will be serialized to the CompiledPlan during the plan translation phase. See more at <a href="{{< ref "docs/dev/table/sql/queries/hints" >}}#state-ttl-hints">State TTL Hint</a>. </td>
+	<td>The hint precedes the default table.exec.state.ttl. This value will be serialized to the CompiledPlan during the plan translation phase. See more at <a href="{{< ref "docs/sql/reference/queries/hints" >}}#state-ttl-hints">State TTL Hint</a>. </td>
 </tr>
 <tr>
 	<td>Modify serialized JSON content of CompiledPlan </td>
@@ -184,16 +184,16 @@ Specifically, `OneInputStreamOperator` can configure the TTL for one state, whil
 More generally, for `MultipleInputStreamOperator` which has K inputs, K state TTLs can be configured.
 
 Typical use cases are as follows: 
-- Set different TTLs for [regular joins]({{< ref "docs/dev/table/sql/queries/joins" >}}#regular-joins). 
+- Set different TTLs for [regular joins]({{< ref "docs/sql/reference/queries/joins" >}}#regular-joins). 
 Regular join generates a `TwoInputStreamOperator` with left state to keep left input and right state to keep right input. You can set the different state TTL for left state and right state. 
 - Set different TTLs for different transformations within one pipeline.
-For example, there is an ETL pipeline which uses `ROW_NUMBER` to perform [deduplication]({{< ref "docs/dev/table/sql/queries/deduplication" >}}),
-and then use `GROUP BY` to perform [aggregation]({{< ref "docs/dev/table/sql/queries/group-agg" >}}). 
+For example, there is an ETL pipeline which uses `ROW_NUMBER` to perform [deduplication]({{< ref "docs/sql/reference/queries/deduplication" >}}),
+and then use `GROUP BY` to perform [aggregation]({{< ref "docs/sql/reference/queries/group-agg" >}}). 
 This table program will generate two `OneInputStreamOperator`s with their own states. 
 Now you can set different state TTL for deduplicate state and aggregate state.
 
 {{< hint info >}}
-Window-based operations (like [Window Join]({{< ref "docs/dev/table/sql/queries/window-join" >}}), [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), [Window Top-N]({{< ref "docs/dev/table/sql/queries/window-topn" >}}) *etc.*) and [Interval Joins]({{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins) do not rely on `table.exec.state.ttl` to control the state retention, and their state TTLs cannot be configured at operator-level.
+Window-based operations (like [Window Join]({{< ref "docs/sql/reference/queries/window-join" >}}), [Window Aggregation]({{< ref "docs/sql/reference/queries/window-agg" >}}), [Window Top-N]({{< ref "docs/sql/reference/queries/window-topn" >}}) *etc.*) and [Interval Joins]({{< ref "docs/sql/reference/queries/joins" >}}#interval-joins) do not rely on `table.exec.state.ttl` to control the state retention, and their state TTLs cannot be configured at operator-level.
 
 {{< /hint >}}
 
@@ -602,11 +602,11 @@ to make this switching as convenient as possible.
 Where to go next?
 -----------------
 
-* [Dynamic Tables]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}): Describes the concept of dynamic tables.
-* [Time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}): Explains time attributes and how time attributes are handled in Table API & SQL.
-* [Versioned Tables]({{< ref "docs/dev/table/concepts/versioned_tables" >}}): Describes the Temporal Table concept.
-* [Joins in Continuous Queries]({{< ref "docs/dev/table/sql/queries/joins" >}}): Different supported types of Joins in Continuous Queries.
-* [Determinism in Continuous Queries]({{< ref "docs/dev/table/concepts/determinism" >}}): Determinism in Continuous Queries.
+* [Dynamic Tables]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}): Describes the concept of dynamic tables.
+* [Time attributes]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}): Explains time attributes and how time attributes are handled in Table API & SQL.
+* [Versioned Tables]({{< ref "docs/concepts/sql-table-concepts/versioned_tables" >}}): Describes the Temporal Table concept.
+* [Joins in Continuous Queries]({{< ref "docs/sql/reference/queries/joins" >}}): Different supported types of Joins in Continuous Queries.
+* [Determinism in Continuous Queries]({{< ref "docs/concepts/sql-table-concepts/determinism" >}}): Determinism in Continuous Queries.
 * [Query configuration]({{< ref "docs/dev/table/config" >}}): Lists Table API & SQL specific configuration options.
 
 {{< top >}}

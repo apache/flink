@@ -56,8 +56,8 @@ For more examples, you can also refer to {{< gh_link file="flink-python/pyflink/
 
 The reference documentation covers all the details. Some starting points:
 
-* [PyFlink DataStream API]({{< ref "docs/dev/python/datastream/intro_to_datastream_api" >}})
-* [PyFlink Table API &amp; SQL]({{< ref "docs/dev/python/table/intro_to_table_api" >}})
+* [PyFlink DataStream API]({{< ref "docs/dev/datastream/python/intro_to_datastream_api" >}})
+* [PyFlink Table API &amp; SQL]({{< ref "docs/dev/table/python/intro_to_table_api" >}})
 
 {{< /columns >}}
 

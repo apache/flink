@@ -98,13 +98,13 @@ env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 ```
 
-关于创建 `TableEnvironment` 的更多细节，请查阅 [TableEnvironment 文档]({{< ref "docs/dev/python/table/table_environment" >}}#create-a-tableenvironment)。
+关于创建 `TableEnvironment` 的更多细节，请查阅 [TableEnvironment 文档]({{< ref "docs/dev/table/python/table_environment" >}}#create-a-tableenvironment)。
 
 `TableEnvironment` 可以用来:
 
 * `Table` 管理：[创建表](#create-tables)、列举表、[Table 和 DataStream 互转]({{< ref "docs/dev/table/data_stream_api" >}}#converting-between-datastream-and-table)等。
-* 自定义函数管理：自定义函数的注册、删除、列举等。 关于 Python 自定义函数的更多细节，请参考[普通自定义函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) 和[向量化自定义函数]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}})章节的介绍。
-* 执行 [SQL]({{< ref "docs/dev/table/sql/overview" >}}) 语句：更多细节可查阅[SQL 查询](#write-sql-queries)章节的介绍。
+* 自定义函数管理：自定义函数的注册、删除、列举等。 关于 Python 自定义函数的更多细节，请参考[普通自定义函数]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}) 和[向量化自定义函数]({{< ref "docs/dev/table/python/udfs/vectorized_python_udfs" >}})章节的介绍。
+* 执行 [SQL]({{< ref "docs/sql/reference/overview" >}}) 语句：更多细节可查阅[SQL 查询](#write-sql-queries)章节的介绍。
 * 作业配置管理：更多细节可查阅[Python 配置]({{< ref "docs/dev/python/python_config" >}})章节的介绍。
 * Python 依赖管理：更多细节可查阅[依赖管理]({{< ref "docs/dev/python/dependency_management" >}})章节的介绍。
 * 作业提交：更多细节可查阅[作业提交](#emit-results)章节的介绍。
@@ -396,7 +396,7 @@ orders.map(map_function).execute().print()
 
 Flink 的 SQL 基于 [Apache Calcite](https://calcite.apache.org)，它实现了标准的 SQL。SQL 查询语句使用字符串来表达。
 
-[SQL]({{< ref "docs/dev/table/sql/overview" >}}) 文档描述了 Flink 对流和批处理所支持的 SQL。
+[SQL]({{< ref "docs/sql/reference/overview" >}}) 文档描述了 Flink 对流和批处理所支持的 SQL。
 
 下面示例展示了一个简单的 SQL 聚合查询：
 
@@ -609,7 +609,7 @@ with table_result.collect() as results:
 
 ### 将结果数据转换为Pandas DataFrame，并收集到客户端
 
-你可以调用 "to_pandas" 方法来 [将一个 `Table` 对象转化成 pandas DataFrame]({{< ref "docs/dev/python/table/conversion_of_pandas" >}}#convert-pyflink-table-to-pandas-dataframe):
+你可以调用 "to_pandas" 方法来 [将一个 `Table` 对象转化成 pandas DataFrame]({{< ref "docs/dev/table/python/conversion_of_pandas" >}}#convert-pyflink-table-to-pandas-dataframe):
 
 ```python
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
@@ -717,7 +717,7 @@ Table API 提供了一种机制来查看 `Table` 的逻辑查询计划和优化�
 2. 优化后的逻辑查询计划，
 3. 物理执行计划。
 
-`TableEnvironment.explain_sql()` 和 `TableEnvironment.execute_sql()` 支持执行 `EXPLAIN` 语句获得执行计划。更多细节请查阅 [EXPLAIN]({{< ref "docs/dev/table/sql/explain" >}})。
+`TableEnvironment.explain_sql()` 和 `TableEnvironment.execute_sql()` 支持执行 `EXPLAIN` 语句获得执行计划。更多细节请查阅 [EXPLAIN]({{< ref "docs/sql/reference/explain" >}})。
 
 以下代码展示了如何使用 `Table.explain()` 方法：
 

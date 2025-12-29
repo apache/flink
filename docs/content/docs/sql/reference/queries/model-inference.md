@@ -27,7 +27,7 @@ under the License.
 {{< label Streaming >}}
 
 Flink SQL provides the `ML_PREDICT` table-valued function (TVF) to perform model inference in SQL queries. This function allows you to apply machine learning models to your data streams directly in SQL.
-See [Model Creation]({{< ref "docs/dev/table/sql/create#create-model" >}}) about how to create a model.
+See [Model Creation]({{< ref "docs/sql/reference/create#create-model" >}}) about how to create a model.
 
 ## ML_PREDICT Function
 
@@ -128,7 +128,7 @@ The function will throw an exception in the following cases:
 
 ### Related Statements
 
-- [Model Creation]({{< ref "docs/dev/table/sql/create#create-model" >}})
-- [Model Alteration]({{< ref "docs/dev/table/sql/alter#alter-model" >}})
+- [Model Creation]({{< ref "docs/sql/reference/create#create-model" >}})
+- [Model Alteration]({{< ref "docs/sql/reference/alter#alter-model" >}})
 
 {{< top >}} 

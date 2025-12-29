@@ -1,7 +1,9 @@
 ---
 title: Materialized Table
 bookCollapseSection: true
-weight: 33
+weight: 11
+aliases:
+  - /zh/docs/sql/materialized-table/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

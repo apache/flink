@@ -319,7 +319,7 @@ tEnv.createTemporaryView("source", tEnv.fromValues(1L, 2L, 3L).as("a"));
 tEnv.executeSql("select add_one(a) as a from source").collect();
 ```
 
-You can refer to the SQL statement about [CREATE FUNCTION]({{< ref "docs/dev/table/sql/create" >}}#create-function)
+You can refer to the SQL statement about [CREATE FUNCTION]({{< ref "docs/sql/reference/create" >}}#create-function)
 for more details on how to create Python user-defined functions using SQL statements.
 
 The Python dependencies could then be specified via the Python [config options]({{< ref "docs/dev/python/python_config" >}}#python-options),

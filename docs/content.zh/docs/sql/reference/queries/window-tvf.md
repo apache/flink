@@ -39,19 +39,19 @@ Apache Flink 提供了如下 `窗口表值函数`（table-valued function, 缩�
 
 `窗口表值函数` 是 Flink 定义的多态表函数（Polymorphic Table Function，缩写PTF），PTF 是 SQL 2016 标准中的一种特殊的表函数，它可以把表作为一个参数。PTF 在对表的重塑上很强大。因为它们的调用出现在 `SELECT` 的 `FROM` 从句里。
 
-`窗口表值函数` 是 [分组窗口函数]({{< ref "docs/dev/table/sql/queries/window-agg" >}}#group-window-aggregation-deprecated) （已经过时）的替代方案。`窗口表值函数` 更符合 SQL 标准，在支持基于窗口的复杂计算上也更强大。例如：窗口 TopN、窗口 Join。而[分组窗口函数]({{< ref "docs/dev/table/sql/queries/window-agg" >}}#group-window-aggregation)只支持窗口聚合。
+`窗口表值函数` 是 [分组窗口函数]({{< ref "docs/sql/reference/queries/window-agg" >}}#group-window-aggregation-deprecated) （已经过时）的替代方案。`窗口表值函数` 更符合 SQL 标准，在支持基于窗口的复杂计算上也更强大。例如：窗口 TopN、窗口 Join。而[分组窗口函数]({{< ref "docs/sql/reference/queries/window-agg" >}}#group-window-aggregation)只支持窗口聚合。
 
 更多基于 `窗口表值函数` 的进阶用法:
-- [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})
-- [窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn">}})
-- [窗口 Join]({{< ref "docs/dev/table/sql/queries/window-join">}})
-- [窗口去重]({{< ref "docs/dev/table/sql/queries/window-deduplication">}})
+- [窗口聚合]({{< ref "docs/sql/reference/queries/window-agg" >}})
+- [窗口 Top-N]({{< ref "docs/sql/reference/queries/window-topn">}})
+- [窗口 Join]({{< ref "docs/sql/reference/queries/window-join">}})
+- [窗口去重]({{< ref "docs/sql/reference/queries/window-deduplication">}})
 
 ## 窗口函数
 
 Apache Flink 提供 4 个内置的窗口表值函数：`TUMBLE`，`HOP`，`CUMULATE` 和 `SESSION`。`窗口表值函数` 的返回值包括原生列和附加的三个指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。
 在流计算模式，`window_time` 是 `TIMESTAMP` 或者 `TIMESTAMP_LTZ` 类型（具体哪种类型取决于输入的时间字段类型）的字段。
-`window_time` 字段用于后续基于时间的操作，例如：其他的窗口表值函数，或者<a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a>，<a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over aggregations</a>。
+`window_time` 字段用于后续基于时间的操作，例如：其他的窗口表值函数，或者<a href="{{< ref "docs/sql/reference/queries/joins" >}}#interval-joins">interval joins</a>，<a href="{{< ref "docs/sql/reference/queries/over-agg" >}}">over aggregations</a>。
 它的值总是等于 `window_end - 1ms`。
 
 ### 滚动窗口（TUMBLE）
@@ -61,7 +61,7 @@ Apache Flink 提供 4 个内置的窗口表值函数：`TUMBLE`，`HOP`，`CUMUL
 {{< img src="/fig/tumbling-windows.svg" alt="Tumbling Windows" width="70%">}}
 
 `TUMBLE` 函数通过时间属性字段为每行数据分配一个窗口。
-在流计算模式，时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。
+在流计算模式，时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}})。
 在批计算模式，窗口表函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 的类型。
 `TUMBLE` 的返回值包括原始表的所有列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol” 将转换为一个常规的 timestamp 列。
 
@@ -144,7 +144,7 @@ Flink SQL> SELECT window_start, window_end, SUM(price) AS total_price
 {{< img src="/fig/sliding-windows.svg" alt="Hopping windows" width="70%">}}
 
 `HOP` 函数通过时间属性字段为每一行数据分配了一个窗口。
-在流计算模式，这个时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。
+在流计算模式，这个时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}})。
 在批计算模式，这个窗口表函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 的类型。
 `HOP` 的返回值包括原始表的所有列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol” 将转换为一个常规的 timestamp 列。
 
@@ -215,7 +215,7 @@ HOP(TABLE data, DESCRIPTOR(timecol), slide, size [, offset ])
 {{< img src="/fig/cumulating-windows.png" alt="Cumulating Windows" width="70%">}}
 
 `CUMULATE`　函数通过时间属性字段为每一行数据分配了一个窗口。
-在流计算模式，这个时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。
+在流计算模式，这个时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}})。
 在批计算模式，这个窗口表函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 的类型。
 `CUMULATE` 的返回值包括原始表的所有列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol” 将转换为一个常规的 timestamp 列。
 
@@ -306,7 +306,7 @@ CUMULATE(TABLE data, DESCRIPTOR(timecol), step, size)
 {{< img src="/fig/session-windows.svg" alt="Session windows" width="70%">}}
 
 `SESSION`　函数通过时间属性字段为每一行数据分配了一个窗口。
-在流计算模式，这个时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})。
+在流计算模式，这个时间属性字段必须被指定为 [事件或处理时间属性]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}})。
 `SESSION` 的返回值包括原始表的所有列和附加的三个用于指定窗口的列，分别是：“window_start”，“window_end”，“window_time”。函数运行后，原有的时间属性 “timecol” 将转换为一个常规的 timestamp 列。
 
 `SESSION` 有三个必填参数和一个可选参数：

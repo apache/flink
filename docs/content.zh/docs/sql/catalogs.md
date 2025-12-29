@@ -1,9 +1,10 @@
 ---
 title: "Catalogs"
-weight: 81
+weight: 5
 type: docs
 aliases:
   - /zh/dev/table/catalogs.html
+  - /zh/docs/sql/catalogs/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -67,7 +68,7 @@ Catalog 是可扩展的，用户可以通过实现 `Catalog` 接口来开发自�
 
 #### Catalog 中支持时间旅行的接口
 
-从 1.18 开始， Flink 框架开始支持[时间旅行]({{< ref "docs/dev/table/sql/queries/time-travel" >}})查询表的历史数据。如果要查询表的历史数据，需要这张表所属于的 `catalog` 实现 `getTable(ObjectPath tablePath, long timestamp)` 方法，如下所示:
+从 1.18 开始， Flink 框架开始支持[时间旅行]({{< ref "docs/sql/reference/queries/time-travel" >}})查询表的历史数据。如果要查询表的历史数据，需要这张表所属于的 `catalog` 实现 `getTable(ObjectPath tablePath, long timestamp)` 方法，如下所示:
 
 ```java
 public class MyCatalogSupportTimeTravel implements Catalog {
@@ -191,7 +192,7 @@ mytable
 {{< /tabs >}}
 
 
-更多详细信息，请参考[Flink SQL CREATE DDL]({{< ref "docs/dev/table/sql/create" >}})。
+更多详细信息，请参考[Flink SQL CREATE DDL]({{< ref "docs/sql/reference/create" >}})。
 
 ### 使用 Java/Scala
 
@@ -302,7 +303,7 @@ tables = catalog.list_tables("mydb")
 ## Catalog API
 
 注意：这里只列出了编程方式的 Catalog API，用户可以使用 SQL DDL 实现许多相同的功能。
-关于 DDL 的详细信息请参考 [SQL CREATE DDL]({{< ref "docs/dev/table/sql/create" >}})。
+关于 DDL 的详细信息请参考 [SQL CREATE DDL]({{< ref "docs/sql/reference/create" >}})。
 
 
 ### 数据库操作

@@ -27,7 +27,7 @@ under the License.
 
 # 时态表（Temporal Tables）
 
-时态表（Temporal Table）是一张随时间变化的表 -- 在 Flink 中称为[动态表]({{< ref "docs/dev/table/concepts/dynamic_tables" >}})，时态表中的每条记录都关联了一个或多个时间段，所有的 Flink 表都是时态的（动态的）。
+时态表（Temporal Table）是一张随时间变化的表 -- 在 Flink 中称为[动态表]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}})，时态表中的每条记录都关联了一个或多个时间段，所有的 Flink 表都是时态的（动态的）。
 
 时态表包含表的一个或多个有版本的表快照，时态表可以是一张跟踪所有变更记录的表（例如数据库表的 changelog，包含多个表快照），也可以是物化所有变更之后的表（例如数据库表，只有最新表快照）。
 
@@ -180,7 +180,7 @@ currency_time currency  rate
 11:49:00      Pounds    108
 ```
 
-为了在 `RatesHistory` 上定义版本表，Flink 支持通过[去重查询]({{< ref "docs/dev/table/sql/queries/deduplication" >}}#去重)定义版本视图，
+为了在 `RatesHistory` 上定义版本表，Flink 支持通过[去重查询]({{< ref "docs/sql/reference/queries/deduplication" >}}#去重)定义版本视图，
 去重查询可以产出一个有序的 changelog 流，去重查询能够推断主键并保留原始数据流的事件时间属性。
 
 ```sql
@@ -230,7 +230,7 @@ currency_time currency   rate
 
 ### 声明普通表
  
-普通表的声明和 Flink 建表 DDL 一致，参考 [create table]({{< ref "docs/dev/table/sql/create" >}}#create-table) 页面获取更多如何建表的信息。
+普通表的声明和 Flink 建表 DDL 一致，参考 [create table]({{< ref "docs/sql/reference/create" >}}#create-table) 页面获取更多如何建表的信息。
  
 ```sql
 -- 用 DDL 定义一张 HBase 表，然后我们可以在 SQL 中将其当作一张时态表使用

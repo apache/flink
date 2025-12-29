@@ -1,7 +1,9 @@
 ---
 title: Hive 兼容性
 bookCollapseSection: true
-weight: 94
+weight: 12
+aliases:
+  - /zh/docs/sql/hive-compatibility/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

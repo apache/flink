@@ -33,7 +33,7 @@ under the License.
 {{< tabs "set statement" >}}
 {{< tab "SQL CLI" >}}
 
-`SET` statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+`SET` statements can be executed in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 The following examples show how to run a `SET` statement in SQL CLI.
 

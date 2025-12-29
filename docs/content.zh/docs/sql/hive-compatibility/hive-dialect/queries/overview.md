@@ -27,21 +27,21 @@ under the License.
 Hive dialect supports a commonly-used subset of Hive’s [DQL](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Select).
 The following lists some parts of HiveQL supported by the Hive dialect.
 
-- [Sort/Cluster/Distributed BY]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/sort-cluster-distribute-by" >}})
-- [Group By]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/group-by" >}})
-- [Join]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/join" >}})
-- [Set Operation]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/set-op" >}})
-- [Lateral View]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/lateral-view" >}})
-- [Window Functions]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/window-functions" >}})
-- [Sub-Queries]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/sub-queries" >}})
-- [CTE]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/cte" >}})
-- [Transform]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/transform" >}})
-- [Table Sample]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/table-sample" >}})
+- [Sort/Cluster/Distributed BY]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/sort-cluster-distribute-by" >}})
+- [Group By]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/group-by" >}})
+- [Join]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/join" >}})
+- [Set Operation]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/set-op" >}})
+- [Lateral View]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/lateral-view" >}})
+- [Window Functions]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/window-functions" >}})
+- [Sub-Queries]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/sub-queries" >}})
+- [CTE]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/cte" >}})
+- [Transform]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/transform" >}})
+- [Table Sample]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/table-sample" >}})
 
 ## Syntax
 
 The following section describes the overall query syntax.
-The SELECT clause can be part of a query which also includes [common table expressions (CTE)]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/cte" >}}), set operations, and various other clauses.
+The SELECT clause can be part of a query which also includes [common table expressions (CTE)]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/cte" >}}), set operations, and various other clauses.
 
 ```sql
 [WITH CommonTableExpression [ , ... ]]
@@ -55,24 +55,24 @@ SELECT [ALL | DISTINCT] select_expr [ , ... ]
   ]
  [LIMIT [offset,] rows]
 ```
-- The `SELECT` statement can be part of a [set]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/set-op" >}}) query or a [sub-query]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/sub-queries" >}}) of another query
+- The `SELECT` statement can be part of a [set]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/set-op" >}}) query or a [sub-query]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/sub-queries" >}}) of another query
 - `CommonTableExpression` is a temporary result set derived from a query specified in a `WITH` clause
-- `table_reference` indicates the input to the query. It can be a regular table, a view, a [join]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/join" >}}) or a [sub-query]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/sub-queries" >}}).
+- `table_reference` indicates the input to the query. It can be a regular table, a view, a [join]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/join" >}}) or a [sub-query]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/sub-queries" >}}).
 - Table names and column names are case-insensitive
 
 ### WHERE Clause
 
 The `WHERE` condition is a boolean expression. Hive dialect supports a number of [operators and UDFs](https://cwiki.apache.org/confluence/display/Hive/LanguageManual+UDF)
-in the `WHERE` clause. Some types of [sub-queries]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/sub-queries" >}}) are supported in `WHERE` clause.
+in the `WHERE` clause. Some types of [sub-queries]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/sub-queries" >}}) are supported in `WHERE` clause.
 
 ### GROUP BY Clause
 
-Please refer to [GROUP BY]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/group-by" >}}) for more details.
+Please refer to [GROUP BY]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/group-by" >}}) for more details.
 
 ### ORDER BY Clause
 
 The `ORDER BY` clause is used to return the result rows in a sorted manner in the user specified order.
-Different from [SORT BY]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/sort-cluster-distribute-by" >}}#sort-by), `ORDER BY` clause guarantees
+Different from [SORT BY]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/sort-cluster-distribute-by" >}}#sort-by), `ORDER BY` clause guarantees
 a global order in the output.
 
 {{< hint warning >}}
@@ -83,7 +83,7 @@ So if the number of rows in the output is too large, it could take a very long t
 
 ## CLUSTER/DISTRIBUTE/SORT BY
 
-Please refer to [Sort/Cluster/Distributed BY]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/sort-cluster-distribute-by" >}}) for more details.
+Please refer to [Sort/Cluster/Distributed BY]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/sort-cluster-distribute-by" >}}) for more details.
 
 ### ALL and DISTINCT Clauses
 
@@ -104,7 +104,7 @@ When a single argument is given, it stands for the maximum number of rows and th
 Following is an example of using hive dialect to run some queries.
 
 {{< hint warning >}}
-**Note:** Hive dialect no longer supports [Flink SQL queries]({{< ref "docs/dev/table/sql/queries/overview" >}}). Please switch to default dialect if you’d like to write in Flink syntax.
+**Note:** Hive dialect no longer supports [Flink SQL queries]({{< ref "docs/sql/reference/queries/overview" >}}). Please switch to default dialect if you’d like to write in Flink syntax.
 {{< /hint >}}
 
 ```bash

@@ -1,7 +1,9 @@
 ---
-title: 流式概念
+title: Streaming SQL & Table Concepts
 bookCollapseSection: true
 weight: 4
+aliases:
+  - /zh/docs/dev/table/concepts/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

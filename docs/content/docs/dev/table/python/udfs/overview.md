@@ -27,8 +27,8 @@ under the License.
 PyFlink Table API empowers users to do data transformations with Python user-defined functions.
 
 Currently, it supports two kinds of Python user-defined functions: the [general Python user-defined
-functions]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) which process data one row at a time and
-[vectorized Python user-defined functions]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}})
+functions]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}) which process data one row at a time and
+[vectorized Python user-defined functions]({{< ref "docs/dev/table/python/udfs/vectorized_python_udfs" >}})
 which process data one batch at a time.
 
 ## Bundling UDFs

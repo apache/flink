@@ -1,7 +1,7 @@
 ---
 title: Table API Connectors
 bookCollapseSection: true
-weight: 2
+weight: 3
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

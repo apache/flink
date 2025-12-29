@@ -28,7 +28,7 @@ under the License.
 
 {{< label Batch >}} {{< label Streaming >}}
 
-窗口聚合是通过 `GROUP BY` 子句定义的，其特征是包含 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 产生的 "window_start" 和 "window_end" 列。和普通的 `GROUP BY` 子句一样，窗口聚合对于每个组会计算出一行数据。
+窗口聚合是通过 `GROUP BY` 子句定义的，其特征是包含 [窗口表值函数]({{< ref "docs/sql/reference/queries/window-tvf" >}}) 产生的 "window_start" 和 "window_end" 列。和普通的 `GROUP BY` 子句一样，窗口聚合对于每个组会计算出一行数据。
 
 ```sql
 SELECT ...
@@ -41,7 +41,7 @@ GROUP BY window_start, window_end, ...
 ### 窗口表值函数
 
 Flink 支持在 `TUMBLE`，`HOP`，`CUMULATE` 和 `SESSION` 上进行窗口聚合。
-在流模式下，窗口表值函数的时间属性字段必须是 [事件时间或处理时间]({{< ref "docs/dev/table/concepts/time_attributes" >}})。关于窗口函数更多信息，参见 [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}})。
+在流模式下，窗口表值函数的时间属性字段必须是 [事件时间或处理时间]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}})。关于窗口函数更多信息，参见 [Windowing TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}})。
 在批模式下，窗口表值函数的时间属性字段必须是 `TIMESTAMP` 或 `TIMESTAMP_LTZ` 类型的。
 
 {{< hint info >}}
@@ -212,8 +212,8 @@ SELECT window_start, window_end, item, supplier_id, SUM(price) AS total_price
 ### 多级窗口聚合
 
 `window_start` 和 `window_end` 列是普通的时间戳字段，并不是时间属性。因此它们不能在后续的操作中当做时间属性进行基于时间的操作。
-为了传递时间属性，需要在 `GROUP BY` 子句中添加 `window_time` 列。`window_time` 是 [Windowing TVFs]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}#window-functions) 产生的三列之一，它是窗口的时间属性。
-`window_time` 添加到 `GROUP BY` 子句后就能被选定了。下面的查询可以把它用于后续基于时间的操作，比如：多级窗口聚合 和 [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}})。
+为了传递时间属性，需要在 `GROUP BY` 子句中添加 `window_time` 列。`window_time` 是 [Windowing TVFs]({{< ref "docs/sql/reference/queries/window-tvf" >}}#window-functions) 产生的三列之一，它是窗口的时间属性。
+`window_time` 添加到 `GROUP BY` 子句后就能被选定了。下面的查询可以把它用于后续基于时间的操作，比如：多级窗口聚合 和 [Window TopN]({{< ref "docs/sql/reference/queries/window-topn">}})。
 
 下面展示了一个多级窗口聚合：第一个窗口聚合后把时间属性传递给第二个窗口聚合。
 
@@ -241,7 +241,7 @@ SELECT window_start, window_end, SUM(partial_price) AS total_price
 "窗口表值函数聚合"相对于"分组窗口聚合"有如下优点：
 - 包含 [性能调优]({{< ref "docs/dev/table/tuning" >}}) 中提到的所有性能优化。
 - 支持标准的 `GROUPING SETS` 语法。 
-- 可以在窗口聚合结果上使用 [窗口 TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}})。
+- 可以在窗口聚合结果上使用 [窗口 TopN]({{< ref "docs/sql/reference/queries/window-topn">}})。
 - 等等。
 {{< /hint >}}
 
@@ -275,7 +275,7 @@ SELECT window_start, window_end, SUM(partial_price) AS total_price
 
 ### 时间属性
 
-在流处理模式，分组窗口函数的 `time_attr` 属性必须是一个有效的处理或事件时间。更多关于定义时间属性参见：[时间属性文档]({{< ref "docs/dev/table/concepts/time_attributes" >}})
+在流处理模式，分组窗口函数的 `time_attr` 属性必须是一个有效的处理或事件时间。更多关于定义时间属性参见：[时间属性文档]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}})
 
 在批处理模式，分组窗口函数的 `time_attr` 参数必须是一个 `TIMESTAMP` 类型的属性。
 
@@ -307,7 +307,7 @@ SELECT window_start, window_end, SUM(partial_price) AS total_price
         <code>SESSION_END(time_attr, interval)</code><br/>
       </td>
       <td><p>返回相应滚动窗口，跳跃窗口或会话窗口的上限的时间戳（exclusive），即窗口结束时间。</p>
-        <p><b>注意:</b> 上限时间戳（exlusive）<i>不能</i>作为 <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">rowtime attribute</a> 用于后续基于时间的操作，例如：<a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="{{< ref "docs/dev/table/sql/queries/window-agg" >}}">group window</a> 或 <a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over window aggregations</a>。</p></td>
+        <p><b>注意:</b> 上限时间戳（exlusive）<i>不能</i>作为 <a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}">rowtime attribute</a> 用于后续基于时间的操作，例如：<a href="{{< ref "docs/sql/reference/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="{{< ref "docs/sql/reference/queries/window-agg" >}}">group window</a> 或 <a href="{{< ref "docs/sql/reference/queries/over-agg" >}}">over window aggregations</a>。</p></td>
     </tr>
     <tr>
       <td>
@@ -316,7 +316,7 @@ SELECT window_start, window_end, SUM(partial_price) AS total_price
         <code>SESSION_ROWTIME(time_attr, interval)</code><br/>
       </td>
       <td><p>返回相应滚动窗口，跳跃窗口或会话窗口的上限的时间戳（inclusive），即窗口事件时间，或窗口处理时间。</p>
-      <p>返回的值是 <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">rowtime attribute</a>，可以用于后续基于时间的操作，比如：<a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="{{< ref "docs/dev/table/sql/queries/window-agg" >}}">group window</a> 或 <a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over window aggregations</a>。</p></td>
+      <p>返回的值是 <a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}">rowtime attribute</a>，可以用于后续基于时间的操作，比如：<a href="{{< ref "docs/sql/reference/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="{{< ref "docs/sql/reference/queries/window-agg" >}}">group window</a> 或 <a href="{{< ref "docs/sql/reference/queries/over-agg" >}}">over window aggregations</a>。</p></td>
     </tr>
     <tr>
       <td>
@@ -324,7 +324,7 @@ SELECT window_start, window_end, SUM(partial_price) AS total_price
         <code>HOP_PROCTIME(time_attr, interval, interval)</code><br/>
         <code>SESSION_PROCTIME(time_attr, interval)</code><br/>
       </td>
-      <td><p>返回的值是 <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time">proctime attribute</a>，可以用于后续基于时间的操作，比如： <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="{{< ref "docs/dev/table/sql/queries/window-agg" >}}">group window</a> 或 <a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over window aggregations</a>。</p></td>
+      <td><p>返回的值是 <a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}#processing-time">proctime attribute</a>，可以用于后续基于时间的操作，比如： <a href="{{< ref "docs/sql/reference/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="{{< ref "docs/sql/reference/queries/window-agg" >}}">group window</a> 或 <a href="{{< ref "docs/sql/reference/queries/over-agg" >}}">over window aggregations</a>。</p></td>
     </tr>
   </tbody>
 </table>

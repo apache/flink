@@ -44,7 +44,7 @@ similarity analysis capabilities for vector spaces. The VECTOR_SEARCH function i
 directly within Flink.
 
 See more details about the capabilities and usages of
-Flink's [Vector Search](https://nightlies.apache.org/flink/flink-docs-release-2.2/docs/dev/table/sql/queries/vector-search/).
+Flink's [Vector Search](https://nightlies.apache.org/flink/flink-docs-release-2.2/docs/sql/reference/queries/vector-search/).
 
 #### Realtime AI Function
 
@@ -61,7 +61,7 @@ Flink's [Model Inference](https://nightlies.apache.org/flink/flink-docs-release-
 
 ##### [FLINK-38532](https://issues.apache.org/jira/browse/FLINK-38532), [FLINK-38311](https://issues.apache.org/jira/browse/FLINK-38311)
 
-By specifying data freshness and query when creating [Materialized Table](https://nightlies.apache.org/flink/flink-docs-release-2.2/docs/dev/table/materialized-table/overview/),
+By specifying data freshness and query when creating [Materialized Table](https://nightlies.apache.org/flink/flink-docs-release-2.2/docs/sql/materialized-table/overview/),
 the engine automatically derives the schema for the materialized table and creates corresponding
 data refresh pipeline to achieve the specified freshness.
 

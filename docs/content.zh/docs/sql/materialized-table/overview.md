@@ -56,7 +56,7 @@ Data freshness is optional when creating a materialized table. If not specified,
 
 ## 查询定义
 
-物化表的查询定义支持所有 Flink SQL [查询]({{< ref "docs/dev/table/sql/queries/overview" >}})。查询结果用于填充物化表。在持续模式下，查询结果会持续更新到物化表中，而在全量模式下，每次查询结果都会覆盖更新到物化表。
+物化表的查询定义支持所有 Flink SQL [查询]({{< ref "docs/sql/reference/queries/overview" >}})。查询结果用于填充物化表。在持续模式下，查询结果会持续更新到物化表中，而在全量模式下，每次查询结果都会覆盖更新到物化表。
 
 ## Schema
 

@@ -28,7 +28,7 @@ under the License.
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Window aggregations are defined in the `GROUP BY` clause contains "window_start" and "window_end" columns of the relation applied [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}). Just like queries with regular `GROUP BY` clauses, queries with a group by window aggregation will compute a single result row per group.
+Window aggregations are defined in the `GROUP BY` clause contains "window_start" and "window_end" columns of the relation applied [Windowing TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}). Just like queries with regular `GROUP BY` clauses, queries with a group by window aggregation will compute a single result row per group.
 
 ```sql
 SELECT ...
@@ -41,7 +41,7 @@ Unlike other aggregations on continuous tables, window aggregation do not emit i
 ### Windowing TVFs
 
 Flink supports `TUMBLE`, `HOP`, `CUMULATE` and `SESSION` types of window aggregations.
-In streaming mode, the time attribute field of a window table-valued function must be on either [event or processing time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}). See [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) for more windowing functions information.
+In streaming mode, the time attribute field of a window table-valued function must be on either [event or processing time attributes]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}). See [Windowing TVF]({{< ref "docs/sql/reference/queries/window-tvf" >}}) for more windowing functions information.
 In batch mode, the time attribute field of a window table-valued function must be an attribute of type `TIMESTAMP` or `TIMESTAMP_LTZ`. 
 
 {{< hint info >}}
@@ -212,8 +212,8 @@ The start and end timestamps of group windows can be selected with the grouped `
 ### Cascading Window Aggregation
 
 The `window_start` and `window_end` columns are regular timestamp columns, not time attributes. Thus they can't be used as time attributes in subsequent time-based operations.
-In order to propagate time attributes, you need to additionally add `window_time` column into `GROUP BY` clause. The `window_time` is the third column produced by [Windowing TVFs]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}#window-functions) which is a time attribute of the assigned window.
-Adding `window_time` into `GROUP BY` clause makes `window_time` also to be group key that can be selected. Then following queries can use this column for subsequent time-based operations, such as cascading window aggregations and [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}).
+In order to propagate time attributes, you need to additionally add `window_time` column into `GROUP BY` clause. The `window_time` is the third column produced by [Windowing TVFs]({{< ref "docs/sql/reference/queries/window-tvf" >}}#window-functions) which is a time attribute of the assigned window.
+Adding `window_time` into `GROUP BY` clause makes `window_time` also to be group key that can be selected. Then following queries can use this column for subsequent time-based operations, such as cascading window aggregations and [Window TopN]({{< ref "docs/sql/reference/queries/window-topn">}}).
 
 The following shows a cascading window aggregation where the first window aggregation propagates the time attribute for the second window aggregation.
 
@@ -241,7 +241,7 @@ Warning: Group Window Aggregation is deprecated. It's encouraged to use Window T
 Compared to Group Window Aggregation, Window TVF Aggregation have many advantages, including:
 - Have all performance optimizations mentioned in [Performance Tuning]({{< ref "docs/dev/table/tuning" >}}).
 - Support standard `GROUPING SETS` syntax.
-- Can apply [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}) after window aggregation result.
+- Can apply [Window TopN]({{< ref "docs/sql/reference/queries/window-topn">}}) after window aggregation result.
 - and so on.
 {{< /hint >}}
 
@@ -275,7 +275,7 @@ Group Window Aggregations are defined in the `GROUP BY` clause of a SQL query. J
 
 ### Time Attributes
 
-In streaming mode, the `time_attr` argument of the group window function must refer to a valid time attribute that specifies the processing time or event time of rows. See the [documentation of time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) to learn how to define time attributes.
+In streaming mode, the `time_attr` argument of the group window function must refer to a valid time attribute that specifies the processing time or event time of rows. See the [documentation of time attributes]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}) to learn how to define time attributes.
 
 In batch mode, the `time_attr` argument of the group window function must be an attribute of type `TIMESTAMP`.
 
@@ -307,7 +307,7 @@ The start and end timestamps of group windows as well as time attributes can be 
         <code>SESSION_END(time_attr, interval)</code><br/>
       </td>
       <td><p>Returns the timestamp of the <i>exclusive</i> upper bound of the corresponding tumbling, hopping, or session window.</p>
-        <p><b>Note:</b> The exclusive upper bound timestamp <i>cannot</i> be used as a <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">rowtime attribute</a> in subsequent time-based operations, such as <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> and <a href="{{< ref "docs/dev/table/sql/queries/window-agg" >}}">group window</a> or <a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over window aggregations</a>.</p></td>
+        <p><b>Note:</b> The exclusive upper bound timestamp <i>cannot</i> be used as a <a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}">rowtime attribute</a> in subsequent time-based operations, such as <a href="{{< ref "docs/sql/reference/queries/joins" >}}#interval-joins">interval joins</a> and <a href="{{< ref "docs/sql/reference/queries/window-agg" >}}">group window</a> or <a href="{{< ref "docs/sql/reference/queries/over-agg" >}}">over window aggregations</a>.</p></td>
     </tr>
     <tr>
       <td>
@@ -316,7 +316,7 @@ The start and end timestamps of group windows as well as time attributes can be 
         <code>SESSION_ROWTIME(time_attr, interval)</code><br/>
       </td>
       <td><p>Returns the timestamp of the <i>inclusive</i> upper bound of the corresponding tumbling, hopping, or session window.</p>
-      <p>The resulting attribute is a <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">rowtime attribute</a> that can be used in subsequent time-based operations such as <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> and <a href="{{< ref "docs/dev/table/sql/queries/window-agg" >}}">group window</a> or <a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over window aggregations</a>.</p></td>
+      <p>The resulting attribute is a <a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}">rowtime attribute</a> that can be used in subsequent time-based operations such as <a href="{{< ref "docs/sql/reference/queries/joins" >}}#interval-joins">interval joins</a> and <a href="{{< ref "docs/sql/reference/queries/window-agg" >}}">group window</a> or <a href="{{< ref "docs/sql/reference/queries/over-agg" >}}">over window aggregations</a>.</p></td>
     </tr>
     <tr>
       <td>
@@ -324,7 +324,7 @@ The start and end timestamps of group windows as well as time attributes can be 
         <code>HOP_PROCTIME(time_attr, interval, interval)</code><br/>
         <code>SESSION_PROCTIME(time_attr, interval)</code><br/>
       </td>
-      <td><p>Returns a <a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time">proctime attribute</a> that can be used in subsequent time-based operations such as <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> and <a href="{{< ref "docs/dev/table/sql/queries/window-agg" >}}">group window</a> or <a href="{{< ref "docs/dev/table/sql/queries/over-agg" >}}">over window aggregations</a>.</p></td>
+      <td><p>Returns a <a href="{{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}#processing-time">proctime attribute</a> that can be used in subsequent time-based operations such as <a href="{{< ref "docs/sql/reference/queries/joins" >}}#interval-joins">interval joins</a> and <a href="{{< ref "docs/sql/reference/queries/window-agg" >}}">group window</a> or <a href="{{< ref "docs/sql/reference/queries/over-agg" >}}">over window aggregations</a>.</p></td>
     </tr>
   </tbody>
 </table>

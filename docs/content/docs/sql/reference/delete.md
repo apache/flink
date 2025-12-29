@@ -57,7 +57,7 @@ The following examples show how to run a single DELETE statement in `TableEnviro
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-DELETE statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+DELETE statements can be executed in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 The following examples show how to run a DELETE statement in SQL CLI.
 

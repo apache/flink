@@ -1,7 +1,9 @@
 ---
-title: Streaming Concepts
+title: Streaming SQL & Table Concepts
 bookCollapseSection: true
 weight: 4
+aliases:
+  - /docs/dev/table/concepts/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

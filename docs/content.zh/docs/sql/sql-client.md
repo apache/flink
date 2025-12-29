@@ -1,9 +1,10 @@
 ---
 title: "SQL 客户端"
-weight: 91
+weight: 2
 type: docs
 aliases:
   - /zh/dev/table/sqlClient.html
+  - /zh/docs/sql/sql-client/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -47,7 +48,7 @@ SQL 客户端捆绑在常规 Flink 发行版中，因此可以直接运行。它
 
 ### 启动 SQL 客户端命令行界面
 
-SQL Client 脚本也位于 Flink 的 bin 目录中。用户可以通过启动嵌入式 standalone 进程或通过连接到远程 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}) 来启动 SQL 客户端命令行界面。SQL 客户端默认使用 `embedded` 模式，你可以通过以下方式启动 CLI：
+SQL Client 脚本也位于 Flink 的 bin 目录中。用户可以通过启动嵌入式 standalone 进程或通过连接到远程 [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}) 来启动 SQL 客户端命令行界面。SQL 客户端默认使用 `embedded` 模式，你可以通过以下方式启动 CLI：
 
 ```bash
 ./bin/sql-client.sh
@@ -91,7 +92,7 @@ EOF)
 By default, the SQL Client will use the truststore configured using the `security.ssl.rest.truststore` and `security.ssl.rest.truststore-password` properties in the [Flink configuration file]({{< ref "docs/deployment/config#flink-配置文件" >}}) on the SQL client side. If these properties aren't explicitly configured, the client will use the default certificate stores provided by the JDK.
 
 
-<span class="label label-danger">Note</span> SQL 客户端目前只支持和 REST API 版本大于 v1 的 [REST Endpoint]({{< ref "docs/dev/table/sql-gateway/rest" >}}#rest-api) 通信。
+<span class="label label-danger">Note</span> SQL 客户端目前只支持和 REST API 版本大于 v1 的 [REST Endpoint]({{< ref "docs/sql/sql-gateway/rest" >}}#rest-api) 通信。
 
 参阅 [SQL Client startup options](#sql-client-startup-options) 了解更多启动命令。
 
@@ -229,7 +230,7 @@ There is a list of available key-strokes in SQL Client
 
 The documentation of the SQL Client commands can be accessed by typing the `HELP` command.
 
-See also the general [SQL]({{< ref "docs/dev/table/sql/overview" >}}) documentation.
+See also the general [SQL]({{< ref "docs/sql/reference/overview" >}}) documentation.
 
 {{< top >}}
 
@@ -438,7 +439,7 @@ R Refresh                  - Dec Refresh              L Last Page               
 ```
 
 The **changelog mode** does not materialize results and visualizes the result stream that is produced
-by a [continuous query]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#continuous-queries) consisting of insertions (`+`) and retractions (`-`).
+by a [continuous query]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}#continuous-queries) consisting of insertions (`+`) and retractions (`-`).
 
 ```text
 SET 'sql-client.execution.result-mode' = 'changelog';
@@ -835,8 +836,8 @@ Job ID: 6f922fe5cba87406ff23ae4a7bb79044
 <span class="label label-danger">Attention</span> The SQL Client does not track the status of the
 running Flink job after submission. The CLI process can be shutdown after the submission without
 affecting the detached query. Flink's `restart strategy` takes care of the fault-tolerance. Please
-use the job statements to [monitor the detached query status]({{< ref "docs/dev/table/sqlClient" >}}#monitoring-job-status)
-or [stop the detached query]({{< ref "docs/dev/table/sqlClient" >}}#terminating-a-job).
+use the job statements to [monitor the detached query status]({{< ref "docs/sql/sql-client" >}}#monitoring-job-status)
+or [stop the detached query]({{< ref "docs/sql/sql-client" >}}#terminating-a-job).
 
 However, for batch users, it's more common that the next DML statement requires waiting until the
 previous DML statement finishes. In order to execute DML statements synchronously, you can set
@@ -927,7 +928,7 @@ Flink SQL> STOP JOB '228d70913eab60dda85c5e7f78b5782c' WITH SAVEPOINT;
 The savepoint path could be specified with [execution.checkpointing.savepoint-dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir)
 either in the cluster configuration or session configuration (the latter would take precedence).
 
-For more details about stopping jobs, please refer to [Job Statements]({{< ref "docs/dev/table/sql/job" >}}#stop-job).
+For more details about stopping jobs, please refer to [Job Statements]({{< ref "docs/sql/reference/job" >}}#stop-job).
 
 ### SQL Syntax highlighting
 

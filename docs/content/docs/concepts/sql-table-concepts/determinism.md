@@ -136,7 +136,7 @@ The non-deterministic functions are executed at runtime (in clusters, evaluated 
 For more information see [System (Built-in) Function Determinism]( {{< ref "docs/dev/table/functions/udfs" >}}#system-built-in-function-determinism).
 
 ## 3. Determinism In Streaming Processing
-A core difference between streaming and batch is the unboundedness of the data. Flink SQL abstracts streaming processing as the [continuous query on dynamic tables]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries).
+A core difference between streaming and batch is the unboundedness of the data. Flink SQL abstracts streaming processing as the [continuous query on dynamic tables]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries).
 So the dynamic function in the batch query example is equivalent to a non-deterministic function in a streaming processing(where logically every change in the base table triggers the query to be executed).
 If the `clicks` log table in the example is from a Kafka topic that is continuously written, the same query in stream mode will return `CURRENT_TIMESTAMP` that will change over time
 ```sql
@@ -156,7 +156,7 @@ e.g,
 ### 3.1 Non-Determinism In Streaming
 In addition to the non-deterministic function, other factors that may generate non-determinism are mainly:
 1. non-deterministic back read of source connector
-2. query based on [Processing Time]({{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time) 
+2. query based on [Processing Time]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}#processing-time) 
 3. clear internal state data based on [TTL]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl)
 
 #### Non-Deterministic Back Read Of Source Connector
@@ -165,18 +165,18 @@ so the Source connector's implementation that cannot provide deterministic back 
 Common examples are inconsistent data for multiple reads from a same offset, or requests for data that no longer exists because of the retention time(e.g., the requested data beyond the configured ttl of Kafka topic).
 
 #### Query Based On Processing Time
-Unlike event time, processing time is based on the machine's local time, and this processing does not provide determinism. Related operations that rely on the time attribute include [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), [Interval Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins), [Temporal Join]({{< ref "docs/dev/table/sql/queries/joins" >}}temporal-joins), etc.
-Another typical operation is [Lookup Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#lookup-joins), which is semantically similar to Temporal Join based on processing time, where non-determinism arises when the accessed external table is changing over time.
+Unlike event time, processing time is based on the machine's local time, and this processing does not provide determinism. Related operations that rely on the time attribute include [Window Aggregation]({{< ref "docs/sql/reference/queries/window-agg" >}}), [Interval Join]({{< ref "docs/sql/reference/queries/joins" >}}#interval-joins), [Temporal Join]({{< ref "docs/sql/reference/queries/joins" >}}temporal-joins), etc.
+Another typical operation is [Lookup Join]({{< ref "docs/sql/reference/queries/joins" >}}#lookup-joins), which is semantically similar to Temporal Join based on processing time, where non-determinism arises when the accessed external table is changing over time.
 
 #### Clear Internal State Data Based On TTL
-Because of the unbounded nature of streaming processing, the internal state data maintained by long-running streaming queries in operations such as [Regular Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#regular-joins) and [Group Aggregation]({{< ref "docs/dev/table/sql/queries/group-agg" >}}) (non-windowed aggregation) may continuously get larger.
+Because of the unbounded nature of streaming processing, the internal state data maintained by long-running streaming queries in operations such as [Regular Join]({{< ref "docs/sql/reference/queries/joins" >}}#regular-joins) and [Group Aggregation]({{< ref "docs/sql/reference/queries/group-agg" >}}) (non-windowed aggregation) may continuously get larger.
 Setting a state TTL to clean up internal state data is often a necessary compromise, but this may also make the computation results non-deterministic.
 
 The impact of the non-determinism on different queries is different, for some queries it just produces non-deterministic results (the query works fine, but multiple runs fail to produce consistent results), while some queries can have more serious effects, such as incorrect results or runtime errors.
 The main reason for the latter one is 'non-deterministic update'.
 
 ### 3.2 Non-Deterministic Update In Streaming
-Flink SQL implements a complete incremental update mechanism based on the ['continuous query on dynamic tables']({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries) abstraction. All operations that need to generate incremental messages maintain complete internal state data, and the operation of the entire query pipeline(include the complete dag from source to sink operators) relies on the guarantee of correct delivery of update messages between operators, which can be broken by non-determinism leading to errors.
+Flink SQL implements a complete incremental update mechanism based on the ['continuous query on dynamic tables']({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries) abstraction. All operations that need to generate incremental messages maintain complete internal state data, and the operation of the entire query pipeline(include the complete dag from source to sink operators) relies on the guarantee of correct delivery of update messages between operators, which can be broken by non-determinism leading to errors.
 
 What is the 'Non-deterministic Update'(NDU)?
 Update messages(changelog) may contain kinds of message types: Insert (I), Delete (D), Update_Before (UB) and Update_After (UA). There's no NDU problem in an insert-only changelog pipeline.

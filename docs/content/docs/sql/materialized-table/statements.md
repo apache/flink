@@ -126,7 +126,7 @@ As shown in the above example, we specified the date-formatter option for the `d
 
 **FRESHNESS and Refresh Mode Relationship**
 
-FRESHNESS defines the maximum amount of time that the materialized table's content should lag behind updates to the base tables. When not specified, it uses the default value from configuration based on the refresh mode. It does two things: firstly it determines the [refresh mode]({{< ref "docs/dev/table/materialized-table/overview" >}}#refresh-mode) of the materialized table through [configuration]({{< ref "docs/dev/table/config" >}}#materialized-table-refresh-mode-freshness-threshold), followed by determining the data refresh frequency to meet the actual data freshness requirements.
+FRESHNESS defines the maximum amount of time that the materialized table's content should lag behind updates to the base tables. When not specified, it uses the default value from configuration based on the refresh mode. It does two things: firstly it determines the [refresh mode]({{< ref "docs/sql/materialized-table/overview" >}}#refresh-mode) of the materialized table through [configuration]({{< ref "docs/dev/table/config" >}}#materialized-table-refresh-mode-freshness-threshold), followed by determining the data refresh frequency to meet the actual data freshness requirements.
 
 **Explanation of FRESHNESS Parameter**
 
@@ -218,7 +218,7 @@ CREATE MATERIALIZED TABLE my_materialized_table
 
 ## AS <select_statement>
 
-This clause is used to define the query for populating materialized table data. The upstream table can be a materialized table, table, or view. The select statement supports all Flink SQL [Queries]({{< ref "docs/dev/table/sql/queries/overview" >}}).
+This clause is used to define the query for populating materialized table data. The upstream table can be a materialized table, table, or view. The select statement supports all Flink SQL [Queries]({{< ref "docs/sql/reference/queries/overview" >}}).
 
 **Example:**
 
@@ -474,7 +474,7 @@ The modification process depends on the refresh mode of the materialized table:
 2. Update the `schema` and `query definition` of the materialized table.
 3. Start a new refresh job to refresh the materialized table:
    - The new refresh job starts from the beginning and does not restore from the previous state.
-   - The starting offset of the data source is determined by the connector’s default implementation or the [dynamic hint]({{< ref "docs/dev/table/sql/queries/hints" >}}#dynamic-table-options) specified in the query.
+   - The starting offset of the data source is determined by the connector’s default implementation or the [dynamic hint]({{< ref "docs/sql/reference/queries/hints" >}}#dynamic-table-options) specified in the query.
 
 **Example:**
 

@@ -1,7 +1,7 @@
 ---
 title: '基于 Table API 实现实时报表'
 nav-title: '基于 Table API 实现实时报表'
-weight: 4
+weight: 3
 type: docs
 aliases:
   - /zh/try-flink/table_api.html
@@ -122,7 +122,7 @@ TableEnvironment tEnv = TableEnvironment.create(settings);
 
 #### 注册表
 
-接下来，在当前 [catalog]({{< ref "docs/dev/table/catalogs" >}}) 中创建表，这样就可以读写外部系统的数据，批流数据都可以。
+接下来，在当前 [catalog]({{< ref "docs/sql/catalogs" >}}) 中创建表，这样就可以读写外部系统的数据，批流数据都可以。
 表类型的 source 可以读取外部系统中的数据，这些外部系统可以是数据库、键值类型存储、消息队列或者文件系统。
 而表类型的 sink 则可以将表中的数据写到外部存储系统。
 不同的 source 或 sink 类型，有不同的表格式（formats），例如 CSV, JSON, Avro, 或者 Parquet。
@@ -191,11 +191,11 @@ TableEnvironment tEnv = TableEnvironment.create(settings);
 在作业拉起来的大体处理框架下，你可以再添加一些业务逻辑。
 现在的目标是创建一个报表，报表按照账户显示一天中每个小时的总支出。因此，毫秒粒度的时间戳字段需要向下舍入到小时。 
 
-Flink 支持使用纯 [SQL]({{< ref "docs/dev/table/sql/overview" >}}) 或者 [Table API]({{< ref "docs/dev/table/tableApi" >}}) 开发关系型数据应用。
+Flink 支持使用纯 [SQL]({{< ref "docs/sql/reference/overview" >}}) 或者 [Table API]({{< ref "docs/dev/table/tableApi" >}}) 开发关系型数据应用。
 
 其中，Table API 是受 SQL 启发设计出的一套链式 DSL，可以用 Python、Java 或者 Scala 开发，在 IDE 中也集成的很好。
 同时也如 SQL 查询一样，Table 应用可以按列查询，或者按列分组。
-通过类似 `floor` 以及 `sum` 这样的 [系统函数]({{< ref "docs/dev/table/functions/systemFunctions" >}})，你已经可以开发这个报表了。
+通过类似 `floor` 以及 `sum` 这样的 [系统函数]({{< ref "docs/sql/built-in-functions" >}})，你已经可以开发这个报表了。
 
 ```java
 public static Table report(Table transactions) {

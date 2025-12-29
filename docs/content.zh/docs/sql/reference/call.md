@@ -57,7 +57,7 @@ CALL 语句可以使用 `TableEnvironment` 中的 `execute_sql()` 方法执行�
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-可以在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中执行 CALL 语句。
+可以在 [SQL CLI]({{< ref "docs/sql/sql-client" >}}) 中执行 CALL 语句。
 
 以下的例子展示了如何在 SQL CLI 中执行一条 CALL 语句。
 

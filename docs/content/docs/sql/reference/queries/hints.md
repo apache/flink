@@ -550,7 +550,7 @@ can lookup on rowkey only (without secondary index), while builtin JDBC connecto
 powerful index-lookup capabilities on arbitrary columns, this is determined by the different physical
 storages.
 The lookup key mentioned here is the field or combination of fields for the index-lookup,
-as the example of [`lookup join`]({{< ref "docs/dev/table/sql/queries/joins" >}}#lookup-join), where
+as the example of [`lookup join`]({{< ref "docs/sql/reference/queries/joins" >}}#lookup-join), where
 `c.id` is the lookup key of the join condition "ON o.customer_id = c.id":
 
 ```sql
@@ -706,10 +706,10 @@ SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.
 
 {{< label Streaming >}}
 
-For stateful computation [Regular Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#regular-joins)
-and [Group Aggregation]({{< ref "docs/dev/table/sql/queries/group-agg" >}}), users can
+For stateful computation [Regular Join]({{< ref "docs/sql/reference/queries/joins" >}}#regular-joins)
+and [Group Aggregation]({{< ref "docs/sql/reference/queries/group-agg" >}}), users can
 use `STATE_TTL` hint to
-specify operator-level [Idle State Retention Time]({{< ref "docs/dev/table/concepts/overview" >}}#idle-state-retention-time),
+specify operator-level [Idle State Retention Time]({{< ref "docs/concepts/sql-table-concepts/overview" >}}#idle-state-retention-time),
 which enables the aforementioned operators to have a different TTL against the pipeline level configuration [table.exec.state.ttl]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl).
 
 ##### Regular Join Examples

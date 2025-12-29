@@ -1,9 +1,11 @@
 ---
-title: Try Flink
+title: 快速上手
 icon: <i class="fa fa-rocket title appetizer" aria-hidden="true"></i>
 bold: true
 bookCollapseSection: true
 weight: 1
+aliases:
+  - /zh/docs/getting-started/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

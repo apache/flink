@@ -28,7 +28,7 @@ This page describes how to use row-based operations in PyFlink Table API.
 
 ## Map
 
-Performs a `map` operation with a python [general scalar function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#scalar-functions) or [vectorized scalar function]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions).
+Performs a `map` operation with a python [general scalar function]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#scalar-functions) or [vectorized scalar function]({{< ref "docs/dev/table/python/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions).
 The output will be flattened if the output type is a composite type.
 
 ```python
@@ -77,7 +77,7 @@ table.map(func2).execute().print()
 
 <span class="label label-info">Note</span> The input columns should not be specified when using func2 in the map operation.
 
-It also supports to use [vectorized scalar function]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions) in the `map` operation.
+It also supports to use [vectorized scalar function]({{< ref "docs/dev/table/python/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions) in the `map` operation.
 It should be noted that the input type and output type should be pandas.DataFrame instead of Row in this case.
 
 ```python
@@ -99,7 +99,7 @@ table.map(func3).execute().print()
 
 ## FlatMap
 
-Performs a `flat_map` operation with a python [table function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-functions).
+Performs a `flat_map` operation with a python [table function]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#table-functions).
 
 ```python
 from pyflink.common import Row
@@ -128,7 +128,7 @@ table.flat_map(split).execute().print()
 #+-------------+--------------------------------+
 ```
 
-The python [table function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-functions) could also be used in `join_lateral` and `left_outer_join_lateral`.
+The python [table function]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#table-functions) could also be used in `join_lateral` and `left_outer_join_lateral`.
 
 ```python
 # use table function in `join_lateral` or `left_outer_join_lateral`
@@ -145,7 +145,7 @@ table.join_lateral(split.alias('a', 'b')).execute().print()
 
 ## Aggregate
 
-Performs an `aggregate` operation with a python [general aggregate function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#aggregate-functions) or [vectorized aggregate function]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions).
+Performs an `aggregate` operation with a python [general aggregate function]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#aggregate-functions) or [vectorized aggregate function]({{< ref "docs/dev/table/python/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions).
 
 ```python
 from pyflink.common import Row
@@ -231,7 +231,7 @@ Besides, the output of aggregate will be flattened if it is a composite type.
 
 ## FlatAggregate
 
-Performs a `flat_aggregate` operation with a python general [Table Aggregate Function]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-aggregate-functions)
+Performs a `flat_aggregate` operation with a python general [Table Aggregate Function]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#table-aggregate-functions)
 
 Similar to `GroupBy Aggregation`, `FlatAggregate` groups the inputs on the grouping keys.
 Different from `AggregateFunction`, `TableAggregateFunction` could return 0, 1, or more records for a grouping key.

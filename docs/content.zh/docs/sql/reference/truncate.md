@@ -61,7 +61,7 @@ TRUNCATE 语句用于删除表中的全部数据，但不会删除表本身。
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-TRUNCATE 语句可以在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中执行。
+TRUNCATE 语句可以在 [SQL CLI]({{< ref "docs/sql/sql-client" >}}) 中执行。
 
 以下示例展示了如何在 SQL CLI 中执行一条 TRUNCATE 语句。
 

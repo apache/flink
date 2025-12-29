@@ -42,7 +42,7 @@ JAR 语句用于将用户 jar 添加到 classpath、或将用户 jar 从 classpa
 {{< tabs "add jar statement" >}}
 {{< tab "SQL CLI" >}}
 
-以下示例展示了如何在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中运行 JAR 语句。
+以下示例展示了如何在 [SQL CLI]({{< ref "docs/sql/sql-client" >}}) 中运行 JAR 语句。
 
 {{< /tab >}}
 {{< /tabs >}}
@@ -104,6 +104,6 @@ REMOVE JAR '<path_to_filename>.jar'
 
 删除由 [`ADD JAR`](#add-jar) 语句添加的指定 jar。
 
-<span class="label label-danger">注意</span> REMOVE JAR 语句仅适用于 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}})。
+<span class="label label-danger">注意</span> REMOVE JAR 语句仅适用于 [SQL CLI]({{< ref "docs/sql/sql-client" >}})。
 
 {{< top >}}

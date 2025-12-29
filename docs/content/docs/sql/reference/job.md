@@ -38,7 +38,7 @@ Flink SQL supports the following JOB statements for now:
 {{< tabs "show jobs statement" >}}
 {{< tab "SQL CLI" >}}
 
-The following examples show how to run `JOB` statements in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+The following examples show how to run `JOB` statements in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 {{< /tab >}}
 {{< /tabs >}}
@@ -81,7 +81,7 @@ SHOW JOBS
 
 Show the jobs in the Flink cluster.
 
-<span class="label label-danger">Attention</span> SHOW JOBS statements only work in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+<span class="label label-danger">Attention</span> SHOW JOBS statements only work in [SQL CLI]({{< ref "docs/sql/sql-client" >}}) or [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}).
 
 ## DESCRIBE JOB
 
@@ -91,7 +91,7 @@ Show the jobs in the Flink cluster.
 
 Show the specified job in the Flink cluster.
 
-<span class="label label-danger">Attention</span> DESCRIBE JOB statements only work in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+<span class="label label-danger">Attention</span> DESCRIBE JOB statements only work in [SQL CLI]({{< ref "docs/sql/sql-client" >}}) or [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}).
 
 
 ## STOP JOB
@@ -111,6 +111,6 @@ the cluster configuration or via `SET` statements (the latter would take precede
 Increase the watermark to the maximum value before the last checkpoint barrier. Use it when you
 want to terminate the job permanently.
 
-<span class="label label-danger">Attention</span> STOP JOB statements only work in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+<span class="label label-danger">Attention</span> STOP JOB statements only work in [SQL CLI]({{< ref "docs/sql/sql-client" >}}) or [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}).
 
 {{< top >}}

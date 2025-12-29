@@ -3,7 +3,7 @@ title: "Windows"
 weight: 2
 type: docs
 aliases:
-- /docs/dev/python/datastream/operators/windows.html
+- /docs/dev/datastream/python/operators/windows.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

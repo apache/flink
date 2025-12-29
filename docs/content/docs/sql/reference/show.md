@@ -77,7 +77,7 @@ The following examples show how to run a SHOW statement in `TableEnvironment`.
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-SHOW statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+SHOW statements can be executed in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 The following examples show how to run a SHOW statement in SQL CLI.
 
@@ -1049,9 +1049,9 @@ Show all loaded modules and enabled status with resolution order.
 SHOW JARS
 ```
 
-Show all added jars in the session classloader which are added by [`ADD JAR`]({{< ref "docs/dev/table/sql/jar" >}}#add-jar) statements.
+Show all added jars in the session classloader which are added by [`ADD JAR`]({{< ref "docs/sql/reference/jar" >}}#add-jar) statements.
 
-<span class="label label-danger">Attention</span> Currently `SHOW JARS` statements only work in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+<span class="label label-danger">Attention</span> Currently `SHOW JARS` statements only work in the [SQL CLI]({{< ref "docs/sql/sql-client" >}}) or [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}).
 
 ## SHOW JOBS
 
@@ -1061,7 +1061,7 @@ SHOW JOBS
 
 Show the jobs in the Flink cluster.
 
-<span class="label label-danger">Attention</span> Currently `SHOW JOBS` statements only work in the [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) or [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+<span class="label label-danger">Attention</span> Currently `SHOW JOBS` statements only work in the [SQL CLI]({{< ref "docs/sql/sql-client" >}}) or [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}).
 
 ## SHOW MODELS
 

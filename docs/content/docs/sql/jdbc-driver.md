@@ -1,9 +1,10 @@
 ---
 title: "Flink JDBC Driver"
-weight: 91
+weight: 4
 type: docs
 aliases:
-- /dev/table/jdbcDriver.html
+  - /dev/table/jdbcDriver.html
+  - /docs/sql/jdbc-driver/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -26,15 +27,15 @@ under the License.
 
 # Flink JDBC Driver
 
-The Flink JDBC Driver is a Java library for enabling clients to send Flink SQL to your Flink cluster via the [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+The Flink JDBC Driver is a Java library for enabling clients to send Flink SQL to your Flink cluster via the [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}).
 
-You can also use the [Hive JDBC Driver]({{< ref "docs/dev/table/sql-gateway/hiveserver2#hive-jdbc" >}}) with Flink. This is beneficial if you are running [Hive dialect SQL]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/overview">}}) and want to make use of the Hive Catalog. To use Hive JDBC with Flink you need to run the [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}) with the [HiveServer2 endpoint]({{<ref "docs/dev/table/sql-gateway/hiveserver2">}}).
+You can also use the [Hive JDBC Driver]({{< ref "docs/sql/sql-gateway/hiveserver2#hive-jdbc" >}}) with Flink. This is beneficial if you are running [Hive dialect SQL]({{< ref "docs/sql/hive-compatibility/hive-dialect/overview">}}) and want to make use of the Hive Catalog. To use Hive JDBC with Flink you need to run the [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}) with the [HiveServer2 endpoint]({{<ref "docs/sql/sql-gateway/hiveserver2">}}).
 
 ## Usage
 
 Before using the Flink JDBC driver you need to start a SQL Gateway with REST endpoint. This acts as the JDBC server and binds it with your Flink cluster.
 
-The examples below assume that you have a [gateway started]({{< ref "docs/dev/table/sql-gateway/overview#starting-the-sql-gateway" >}}) and connected to a running Flink cluster.
+The examples below assume that you have a [gateway started]({{< ref "docs/sql/sql-gateway/overview#starting-the-sql-gateway" >}}) and connected to a running Flink cluster.
 
 ## Dependency
 

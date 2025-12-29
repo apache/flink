@@ -255,7 +255,7 @@ external data, such as a file, database table, or message queue.
 Tables may either be temporary, and tied to the lifecycle of a single Flink session, or permanent,
 and visible across multiple Flink sessions and clusters.
 
-Permanent tables require a [catalog]({{< ref "docs/dev/table/catalogs" >}}) (such as Hive Metastore)
+Permanent tables require a [catalog]({{< ref "docs/sql/catalogs" >}}) (such as Hive Metastore)
 to maintain metadata about the table. Once a permanent table is created, it is visible to any Flink
 session that is connected to the catalog and will continue to exist until the table is explicitly
 dropped.
@@ -545,7 +545,7 @@ revenue = orders \
 
 Flink's SQL integration is based on [Apache Calcite](https://calcite.apache.org), which implements the SQL standard. SQL queries are specified as regular Strings.
 
-The [SQL]({{< ref "docs/dev/table/sql/overview" >}}) document describes Flink's SQL support for streaming and batch tables.
+The [SQL]({{< ref "docs/sql/reference/overview" >}}) document describes Flink's SQL support for streaming and batch tables.
 
 The following example shows how to specify a query and return the result as a `Table`.
 
@@ -853,7 +853,7 @@ This is done through the `Table.explain()` method or `StatementSet.explain()` me
 2. the optimized logical query plan, and
 3. the physical execution plan.
 
-`TableEnvironment.explainSql()` and `TableEnvironment.executeSql()` support execute a `EXPLAIN` statement to get the plans, Please refer to [EXPLAIN]({{< ref "docs/dev/table/sql/explain" >}}) page.
+`TableEnvironment.explainSql()` and `TableEnvironment.executeSql()` support execute a `EXPLAIN` statement to get the plans, Please refer to [EXPLAIN]({{< ref "docs/sql/reference/explain" >}}) page.
 
 The following code shows an example and the corresponding output for given `Table` using `Table.explain()` method:
 

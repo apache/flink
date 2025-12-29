@@ -1,6 +1,6 @@
 ---
 title: "DataStream API Integration"
-weight: 3
+weight: 35
 type: docs
 ---
 <!--
@@ -326,7 +326,7 @@ types. It covers working with event-time and watermarks. It discusses how to dec
 changelog mode for the input and output streams.
 
 The example above shows how the final result is computed incrementally by continuously emitting [row-wise
-updates]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}) for each incoming record. However, in
+updates]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}) for each incoming record. However, in
 cases where the input streams are finite (i.e. *bounded*), a result can be computed more efficiently
 by leveraging batch processing principles.
 
@@ -1209,7 +1209,7 @@ implicit casts and reorders columns to map columns to fields of the (possibly ne
 to quickly create the desired data type reflectively.
 
 From a Table API's perspective, converting from and to DataStream API is similar to reading from or
-writing to a virtual table connector that has been defined using a [`CREATE TABLE` DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table)
+writing to a virtual table connector that has been defined using a [`CREATE TABLE` DDL]({{< ref "docs/sql/reference/create" >}}#create-table)
 in SQL.
 
 The schema part in the virtual `CREATE TABLE name (schema) WITH (options)` statement can be automatically
@@ -2126,7 +2126,7 @@ Handling of Changelog Streams
 -----------------------------
 
 Internally, Flink's table runtime is a changelog processor. The concepts page describes how
-[dynamic tables and streams relate]({{< ref "docs/dev/table/concepts/dynamic_tables" >}})
+[dynamic tables and streams relate]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}})
 to each other.
 
 A `StreamTableEnvironment` offers the following methods to expose these _change data capture_ (CDC)
@@ -2159,7 +2159,7 @@ to a changelog stream. The passed `ChangelogMode` helps the planner to distingui
 _upsert_, or _retract_ behavior.
 
 From a Table API's perspective, converting from and to DataStream API is similar to reading from or
-writing to a virtual table connector that has been defined using a [`CREATE TABLE` DDL]({{< ref "docs/dev/table/sql/create" >}}#create-table)
+writing to a virtual table connector that has been defined using a [`CREATE TABLE` DDL]({{< ref "docs/sql/reference/create" >}}#create-table)
 in SQL.
 
 Because `fromChangelogStream` behaves similar to `fromDataStream`, we recommend reading
@@ -2758,7 +2758,7 @@ env.execute()
 {{< /tabs >}}
 
 For more information about which conversions are supported for data types in Example 4, see the
-[Table API's Data Types page]({{< ref "docs/dev/table/types" >}}).
+[Table API's Data Types page]({{< ref "docs/sql/data-types" >}}).
 
 The behavior of `toChangelogStream(Table).executeAndCollect()` is equal to calling `Table.execute().collect()`.
 However, `toChangelogStream(Table)` might be more useful for tests because it allows to access the produced
@@ -3193,7 +3193,7 @@ val retractStream: DataStream[(Boolean, Row)] = tableEnv.toRetractStream[Row](ta
 {{< /tab >}}
 {{< /tabs >}}
 
-**注意：** 文档[动态表]({{< ref "docs/dev/table/concepts/dynamic_tables" >}})给出了有关动态表及其属性的详细讨论。
+**注意：** 文档[动态表]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}})给出了有关动态表及其属性的详细讨论。
 
 <span class="label label-danger">注意</span> **一旦 Table 被转化为 DataStream，必须使用 StreamExecutionEnvironment 的 execute 方法执行该 DataStream 作业。**
 

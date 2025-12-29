@@ -38,7 +38,7 @@ Job 语句用于管理作业的生命周期。
 {{< tabs "show jobs statement" >}}
 {{< tab "SQL CLI" >}}
 
-以下示例展示如何在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中执行 JOB 语句.
+以下示例展示如何在 [SQL CLI]({{< ref "docs/sql/sql-client" >}}) 中执行 JOB 语句.
 
 {{< /tab >}}
 {{< /tabs >}}
@@ -81,7 +81,7 @@ SHOW JOBS
 
 展示 Flink 集群上的作业。
 
-<span class="label label-danger">Attention</span> SHOW JOBS 语句仅适用于 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 或者 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+<span class="label label-danger">Attention</span> SHOW JOBS 语句仅适用于 [SQL CLI]({{< ref "docs/sql/sql-client" >}}) 或者 [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}).
 
 ## DESCRIBE JOB
 
@@ -91,7 +91,7 @@ SHOW JOBS
 
 展示 Flink 集群上的指定作业。
 
-<span class="label label-danger">Attention</span> DESCRIBE JOB 语句仅适用于 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 或者 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+<span class="label label-danger">Attention</span> DESCRIBE JOB 语句仅适用于 [SQL CLI]({{< ref "docs/sql/sql-client" >}}) 或者 [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}).
 
 ## STOP JOB
 
@@ -109,6 +109,6 @@ STOP JOB '<job_id>' [WITH SAVEPOINT] [WITH DRAIN]
 **WITH DRAIN**
 在触发 savepoint 之前将 Watermark 提升至最大。该操作会可能会触发窗口的计算。请您注意该操作可能导致您之后从该创建的 savepoint 恢复的作业结果不正确。
 
-<span class="label label-danger">Attention</span> STOP JOB 语句仅适用于 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 或者 [SQL Gateway]({{< ref "docs/dev/table/sql-gateway/overview" >}}).
+<span class="label label-danger">Attention</span> STOP JOB 语句仅适用于 [SQL CLI]({{< ref "docs/sql/sql-client" >}}) 或者 [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}).
 
 {{< top >}}

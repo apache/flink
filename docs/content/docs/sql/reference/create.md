@@ -26,7 +26,7 @@ under the License.
 
 # CREATE Statements
 
-CREATE statements are used to register a table/view/function into current or specified [Catalog]({{< ref "docs/dev/table/catalogs" >}}). A registered table/view/function can be used in SQL queries.
+CREATE statements are used to register a table/view/function into current or specified [Catalog]({{< ref "docs/sql/catalogs" >}}). A registered table/view/function can be used in SQL queries.
 
 Flink SQL supports the following CREATE statements for now:
 
@@ -62,7 +62,7 @@ The following examples show how to run a CREATE statement in `TableEnvironment`.
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-CREATE statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+CREATE statements can be executed in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 The following examples show how to run a CREATE statement in SQL CLI.
 
@@ -335,11 +335,11 @@ CREATE TABLE MyTable (
 The expression may contain any combination of columns, constants, or functions. The expression cannot
 contain a subquery.
 
-Computed columns are commonly used in Flink for defining [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}})
+Computed columns are commonly used in Flink for defining [time attributes]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}})
 in `CREATE TABLE` statements.
-- A [processing time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time)
+- A [processing time attribute]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}#processing-time)
 can be defined easily via `proc AS PROCTIME()` using the system's `PROCTIME()` function.
-- An [event time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time) timestamp
+- An [event time attribute]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}#event-time) timestamp
 can be pre-processed before the `WATERMARK` declaration. For example, the computed column can be used
 if the original field is not `TIMESTAMP(3)` type or is nested in a JSON string.
 
@@ -557,7 +557,7 @@ If you provide no like options, `INCLUDING ALL OVERWRITING OPTIONS` will be used
 
 Tables can also be created and populated by the results of a query in one create-table-as-select (CTAS) statement. CTAS is the simplest and fastest way to create and insert data into a table with a single command.
 
-There are two parts in CTAS, the SELECT part can be any [SELECT query]({{< ref "docs/dev/table/sql/queries/overview" >}}) supported by Flink SQL. The CREATE part takes the resulting schema from the SELECT part and creates the target table. Similar to `CREATE TABLE`, CTAS requires the required options of the target table must be specified in WITH clause.
+There are two parts in CTAS, the SELECT part can be any [SELECT query]({{< ref "docs/sql/reference/queries/overview" >}}) supported by Flink SQL. The CREATE part takes the resulting schema from the SELECT part and creates the target table. Similar to `CREATE TABLE`, CTAS requires the required options of the target table must be specified in WITH clause.
 
 The creating table operation of CTAS depends on the target Catalog. For example, Hive Catalog creates the physical table in Hive automatically. But the in-memory catalog registers the table metadata in the client's memory where the SQL is executed.
 
@@ -709,7 +709,7 @@ AS select_query
 
 Tables can be replaced(or created) and populated by the results of a query in one [CREATE OR] REPLACE TABLE AS SELECT(RTAS) statement. RTAS is the simplest and fastest way to replace(or create) and insert data into a table with a single command.
 
-There are two parts in RTAS: the SELECT part can be any [SELECT query]({{< ref "docs/dev/table/sql/queries/overview" >}}) supported by Flink SQL, the `REPLACE TABLE` part takes the resulting schema from the `SELECT` part and replace the target table. Similar to `CREATE TABLE` and `CTAS`, RTAS requires the required options of the target table must be specified in WITH clause.
+There are two parts in RTAS: the SELECT part can be any [SELECT query]({{< ref "docs/sql/reference/queries/overview" >}}) supported by Flink SQL, the `REPLACE TABLE` part takes the resulting schema from the `SELECT` part and replace the target table. Similar to `CREATE TABLE` and `CTAS`, RTAS requires the required options of the target table must be specified in WITH clause.
 
 Consider the example statement below:
 
@@ -810,7 +810,7 @@ If the catalog already exists, nothing happens.
 Catalog properties used to store extra information related to this catalog.
 The key and value of expression `key1=val1` should both be string literal.
 
-Check out more details at [Catalogs]({{< ref "docs/dev/table/catalogs" >}}).
+Check out more details at [Catalogs]({{< ref "docs/sql/catalogs" >}}).
 
 {{< top >}}
 
@@ -867,7 +867,7 @@ Create a catalog function that has catalog and database namespaces with the iden
 
 If the language tag is JAVA/SCALA, the identifier is the full classpath of the UDF. For the implementation of Java/Scala UDF, please refer to [User-defined Functions]({{< ref "docs/dev/table/functions/udfs" >}}) for more details.
 
-If the language tag is PYTHON, the identifier is the fully qualified name of the UDF, e.g. `pyflink.table.tests.test_udf.add`. For the implementation of Python UDF, please refer to [Python UDFs]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) for more details.
+If the language tag is PYTHON, the identifier is the fully qualified name of the UDF, e.g. `pyflink.table.tests.test_udf.add`. For the implementation of Python UDF, please refer to [Python UDFs]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}) for more details.
 
 If the language tag is PYTHON, however the current program is written in Java/Scala or pure SQL, then you need to [configure the Python dependencies]({{< ref "docs/dev/python/dependency_management" >}}#python-dependency-in-javascala-program).
 

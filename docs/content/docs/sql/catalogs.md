@@ -1,9 +1,10 @@
 ---
 title: "Catalogs"
-weight: 81
+weight: 5
 type: docs
 aliases:
   - /dev/table/catalogs.html
+  - /docs/sql/catalogs/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -73,7 +74,7 @@ User-defined catalogs should replace `Thread.currentThread().getContextClassLoad
 
 #### Interface in Catalog for supporting time travel
 
-Starting from version 1.18, the Flink framework supports [time travel]({{< ref "docs/dev/table/sql/queries/time-travel" >}}) to query historical data of a table. To query the historical data of a table, users should implement `getTable(ObjectPath tablePath, long timestamp)` method for the catalog that the table belongs to.
+Starting from version 1.18, the Flink framework supports [time travel]({{< ref "docs/sql/reference/queries/time-travel" >}}) to query historical data of a table. To query the historical data of a table, users should implement `getTable(ObjectPath tablePath, long timestamp)` method for the catalog that the table belongs to.
 
 ```java
 public class MyCatalogSupportTimeTravel implements Catalog {
@@ -197,7 +198,7 @@ mytable
 {{< /tabs >}}
 
 
-For detailed information, please check out [Flink SQL CREATE DDL]({{< ref "docs/dev/table/sql/create" >}}).
+For detailed information, please check out [Flink SQL CREATE DDL]({{< ref "docs/sql/reference/create" >}}).
 
 ### Using Java, Scala or Python
 
@@ -306,7 +307,7 @@ tables = catalog.list_tables("mydb")
 ## Catalog API
 
 Note: only catalog program APIs are listed here. Users can achieve many of the same functionalities with SQL DDL. 
-For detailed DDL information, please refer to [SQL CREATE DDL]({{< ref "docs/dev/table/sql/create" >}}).
+For detailed DDL information, please refer to [SQL CREATE DDL]({{< ref "docs/sql/reference/create" >}}).
 
 
 ### Database operations

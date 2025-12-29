@@ -127,7 +127,7 @@ How to use connectors
 Flink supports using SQL `CREATE TABLE` statements to register tables. One can define the table name,
 the table schema, and the table options for connecting to an external system.
 
-See the [SQL section for more information about creating a table]({{< ref "docs/dev/table/sql/create" >}}#create-table).
+See the [SQL section for more information about creating a table]({{< ref "docs/sql/reference/create" >}}#create-table).
 
 The following code shows a full example of how to connect to Kafka for reading and writing JSON records.
 
@@ -253,7 +253,7 @@ CREATE TABLE MyTable (
 ### Metadata
 
 Some connectors and formats expose additional metadata fields that can be accessed in metadata columns
-next to the physical payload columns. See the [`CREATE TABLE` section]({{< ref "docs/dev/table/sql/create" >}}#columns)
+next to the physical payload columns. See the [`CREATE TABLE` section]({{< ref "docs/sql/reference/create" >}}#columns)
 for more information about metadata columns.
 
 ### Primary Key
@@ -283,11 +283,11 @@ CREATE TABLE MyTable (
 
 Time attributes are essential when working with unbounded streaming tables. Therefore both proctime and rowtime attributes can be defined as part of the schema.
 
-For more information about time handling in Flink and especially event-time, we recommend the general [event-time section]({{< ref "docs/dev/table/concepts/time_attributes" >}}).
+For more information about time handling in Flink and especially event-time, we recommend the general [event-time section]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}).
 
 #### Proctime Attributes
 
-In order to declare a proctime attribute in the schema, you can use [Computed Column syntax]({{< ref "docs/dev/table/sql/create" >}}#create-table) to declare a computed column which is generated from `PROCTIME()` builtin function.
+In order to declare a proctime attribute in the schema, you can use [Computed Column syntax]({{< ref "docs/sql/reference/create" >}}#create-table) to declare a computed column which is generated from `PROCTIME()` builtin function.
 The computed column is a virtual column which is not stored in the physical data.
 
 {{< tabs "5d1f475b-a002-4e85-84f4-00ab0a55a548" >}}
@@ -309,7 +309,7 @@ CREATE TABLE MyTable (
 
 In order to control the event-time behavior for tables, Flink provides predefined timestamp extractors and watermark strategies.
 
-Please refer to [CREATE TABLE statements]({{< ref "docs/dev/table/sql/create" >}}#create-table) for more information about defining time attributes in DDL.
+Please refer to [CREATE TABLE statements]({{< ref "docs/sql/reference/create" >}}#create-table) for more information about defining time attributes in DDL.
 
 The following timestamp extractors are supported:
 
@@ -377,6 +377,6 @@ Make sure to always declare both timestamps and watermarks. Watermarks are requi
 
 ### SQL Types
 
-Please see the [Data Types]({{< ref "docs/dev/table/types" >}}) page about how to declare a type in SQL.
+Please see the [Data Types]({{< ref "docs/sql/data-types" >}}) page about how to declare a type in SQL.
 
 {{< top >}}

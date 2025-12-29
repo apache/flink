@@ -57,7 +57,7 @@ mkdir -p {savepoints_path}
 
 ## Resource Preparation
 
-The method here is similar to the steps recorded in [local installation]({{< ref "docs/try-flink/local_installation" >}}). Flink can run on any UNIX-like operating system, such as Linux, Mac OS X, and Cygwin (for Windows).
+The method here is similar to the steps recorded in [local installation]({{< ref "docs/getting-started/local_installation" >}}). Flink can run on any UNIX-like operating system, such as Linux, Mac OS X, and Cygwin (for Windows).
 
 [Download](https://flink.apache.org/downloads/) the latest Flink binary package and extract it:
 

@@ -89,7 +89,7 @@ CREATE TABLE print_table (
 );
 ```
 
-Alternatively, it may be based on  an existing schema using the [LIKE Clause]({{< ref "docs/dev/table/sql/create" >}}#create-table).
+Alternatively, it may be based on  an existing schema using the [LIKE Clause]({{< ref "docs/sql/reference/create" >}}#create-table).
 
 
 ```sql

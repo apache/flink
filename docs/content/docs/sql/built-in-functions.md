@@ -1,9 +1,10 @@
 ---
 title: "System (Built-in) Functions"
-weight: 32
+weight: 7
 type: docs
 aliases:
   - /dev/table/functions/systemFunctions.html
+  - /docs/sql/built-in-functions/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

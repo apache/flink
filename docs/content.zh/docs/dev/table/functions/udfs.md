@@ -45,7 +45,7 @@ under the License.
 - *表值聚合函数* 将多行数据里的标量值转换成新的行数据；
 - *Process table functions* map tables to new rows. Enabling user-defined operators with state and timers.
 
-<span class="label label-danger">注意</span> 标量和表值函数已经使用了新的基于[数据类型]({{< ref "docs/dev/table/types" >}})的类型系统，聚合函数仍然使用基于 `TypeInformation` 的旧类型系统。
+<span class="label label-danger">注意</span> 标量和表值函数已经使用了新的基于[数据类型]({{< ref "docs/sql/data-types" >}})的类型系统，聚合函数仍然使用基于 `TypeInformation` 的旧类型系统。
 
 以下示例展示了如何创建一个基本的标量函数，以及如何在 Table API 和 SQL 里调用这个函数。
 
@@ -335,7 +335,7 @@ class SumFunction extends ScalarFunction {
 
 ### 类型推导
 
-Table（类似于 SQL 标准）是一种强类型的 API。因此，函数的参数和返回类型都必须映射到[数据类型]({{< ref "docs/dev/table/types.zh.md" >}})。
+Table（类似于 SQL 标准）是一种强类型的 API。因此，函数的参数和返回类型都必须映射到[数据类型]({{< ref "docs/sql/data-types" >}})。
 
 从逻辑角度看，Planner 需要知道数据类型、精度和小数位数；从 JVM 角度来看，Planner 在调用自定义函数时需要知道如何将内部数据结构表示为 JVM 对象。
 
@@ -350,7 +350,7 @@ Flink 自定义函数实现了自动的类型推导提取，通过反射从函�
 
 自动类型推导会检查函数的类和求值方法，派生出函数参数和结果的数据类型， `@DataTypeHint` 和 `@FunctionHint` 注解支持自动类型推导。
 
-有关可以隐式映射到数据类型的类的完整列表，请参阅[数据类型]({{< ref "docs/dev/table/types.zh.md" >}}#数据类型注解)。
+有关可以隐式映射到数据类型的类的完整列表，请参阅[数据类型]({{< ref "docs/sql/data-types" >}}#数据类型注解)。
 
 **`@DataTypeHint`**
 
@@ -786,7 +786,7 @@ class NamedParameterClass extends ScalarFunction {
 
 `isDeterministic` 表示函数的确定性，声明返回 `false` 时将在运行时对每个记录进行计算。
 `isDynamicFunction` 声明返回 `true` 时意味着该函数只能在查询开始时被计算，对于批处理模式，它只在生成执行计划期间被执行，
-而对于流模式，它等效于一个非确定性的函数，这是因为查询在逻辑上是连续执行的（流模式对[动态表的连续查询抽象]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries)），所以动态函数在每次查询执行时也会被重新计算（当前实现下等效于每条记录计算）。
+而对于流模式，它等效于一个非确定性的函数，这是因为查询在逻辑上是连续执行的（流模式对[动态表的连续查询抽象]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}#dynamic-tables-amp-continuous-queries)），所以动态函数在每次查询执行时也会被重新计算（当前实现下等效于每条记录计算）。
 
 以下内置函数总是非确定性的（批和流模式下，都在运行时对每条记录进行计算）
 - UUID
@@ -902,7 +902,7 @@ env.sqlQuery("SELECT myField, hashCode(myField) FROM MyTable")
 标量函数
 ----------------
 
-自定义标量函数可以把 0 到多个标量值映射成 1 个标量值，[数据类型]({{< ref "docs/dev/table/types.zh.md" >}})里列出的任何数据类型都可作为求值方法的参数和返回值类型。
+自定义标量函数可以把 0 到多个标量值映射成 1 个标量值，[数据类型]({{< ref "docs/sql/data-types" >}})里列出的任何数据类型都可作为求值方法的参数和返回值类型。
 
 想要实现自定义标量函数，你需要扩展 `org.apache.flink.table.functions` 里面的 `ScalarFunction` 并且实现一个或者多个求值方法。标量函数的行为取决于你写的求值方法。求值方法必须是 `public` 的，而且名字必须是 `eval`。
 
@@ -972,7 +972,7 @@ env.sqlQuery("SELECT HashFunction(myField) FROM MyTable")
 {{< /tab >}}
 {{< /tabs >}}
 
-如果你打算使用 Python 实现或调用标量函数，详情可参考 [Python 标量函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#scalar-functions)。
+如果你打算使用 Python 实现或调用标量函数，详情可参考 [Python 标量函数]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#scalar-functions)。
 
 {{< top >}}
 
@@ -989,7 +989,7 @@ env.sqlQuery("SELECT HashFunction(myField) FROM MyTable")
 
 #### 定义 AsyncScalarFunction
 
-用户自定义的异步标量函数将零个、一个或多个标量值映射为新的标量值。[数据类型部分]({{< ref "docs/dev/table/types" >}})中列出的任何数据类型都可以用作求值方法的参数或返回类型。
+用户自定义的异步标量函数将零个、一个或多个标量值映射为新的标量值。[数据类型部分]({{< ref "docs/sql/data-types" >}})中列出的任何数据类型都可以用作求值方法的参数或返回类型。
 
 要定义异步标量函数，需要继承 `org.apache.flink.table.functions` 中的基类 `AsyncScalarFunction`，并实现一个或多个名为 `eval(...)` 的求值方法。第一个参数必须是 `CompletableFuture<...>`，用于返回结果，后续参数是传递给函数的参数。
 
@@ -1230,7 +1230,7 @@ env.sqlQuery(
 
 如果你打算使用 Scala，不要把表值函数声明为 Scala `object`，Scala `object` 是单例对象，将导致并发问题。
 
-如果你打算使用 Python 实现或调用表值函数，详情可参考 [Python 表值函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#table-functions)。
+如果你打算使用 Python 实现或调用表值函数，详情可参考 [Python 表值函数]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#table-functions)。
 
 {{< top >}}
 
@@ -1243,7 +1243,7 @@ Asynchronous interaction with an external system means that a single function in
 
 #### Defining an AsyncTableFunction
 
-A user-defined asynchronous table function maps zero, one, or multiple scalar values to zero, one, or multiple Rows. Any data type listed in the [data types section]({{< ref "docs/dev/table/types" >}}) can be used as a parameter or return type of an evaluation method.
+A user-defined asynchronous table function maps zero, one, or multiple scalar values to zero, one, or multiple Rows. Any data type listed in the [data types section]({{< ref "docs/sql/data-types" >}}) can be used as a parameter or return type of an evaluation method.
 
 In order to define an asynchronous table function, extend the base class `AsyncTableFunction` in `org.apache.flink.table.functions` and implement one or more evaluation methods named `eval(...)`.  The first argument must be a `CompletableFuture<...>` which is used to return the result, with subsequent arguments being the parameters passed to the function.
 
@@ -1789,7 +1789,7 @@ t_env.sql_query("SELECT user, wAvg(points, level) AS avgPoints FROM userScores G
 {{< /tab >}}
 {{< /tabs >}}
 
-如果你打算使用 Python 实现或调用聚合函数，详情可参考 [Python 聚合函数]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}#aggregate-functions)。
+如果你打算使用 Python 实现或调用聚合函数，详情可参考 [Python 聚合函数]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#aggregate-functions)。
 
 {{< top >}}
 

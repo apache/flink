@@ -58,7 +58,7 @@ mkdir -p {savepoints_path}
 
 ## 资源准备
 
-这里的方法和[本地安装]({{< ref "docs/try-flink/local_installation" >}})中记录的步骤类似。Flink 可以运行在任何类 UNIX 的操作系统下面，例如：Linux, Mac OS X 和 Cygwin (for Windows)。
+这里的方法和[本地安装]({{< ref "docs/getting-started/local_installation" >}})中记录的步骤类似。Flink 可以运行在任何类 UNIX 的操作系统下面，例如：Linux, Mac OS X 和 Cygwin (for Windows)。
 
 [下载](https://flink.apache.org/downloads/) Flink 最新的二进制包并进行解压：
 

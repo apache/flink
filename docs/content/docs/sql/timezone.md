@@ -1,7 +1,9 @@
 ---
 title: "Time Zone"
-weight: 22
+weight: 9
 type: docs
+aliases:
+  - /docs/dev/table/timezone/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -25,7 +27,7 @@ under the License.
 
 # Time Zone
 
-Flink provides rich data types for Date and Time, including `DATE`, `TIME`, `TIMESTAMP`, `TIMESTAMP_LTZ`, `INTERVAL YEAR TO MONTH`, `INTERVAL DAY TO SECOND` (please see [Date and Time]({{< ref "docs/dev/table/types" >}}#date-and-time) for detailed information).
+Flink provides rich data types for Date and Time, including `DATE`, `TIME`, `TIMESTAMP`, `TIMESTAMP_LTZ`, `INTERVAL YEAR TO MONTH`, `INTERVAL DAY TO SECOND` (please see [Date and Time]({{< ref "docs/sql/data-types" >}}#date-and-time) for detailed information).
 Flink supports setting time zone in session level (please see [table.local-time-zone]({{< ref "docs/dev/table/config">}}#table-local-time-zone) for detailed information).
 These timestamp data types and time zone support of Flink make it easy to process business data across time zones.
 
@@ -266,7 +268,7 @@ Flink SQL> SELECT * FROM MyView3;
 
 ## Time Attribute and Time Zone
 
-Please see [Time Attribute]({{< ref "docs/dev/table/concepts/time_attributes">}}#time-attributes) for more information about time attribute.
+Please see [Time Attribute]({{< ref "docs/concepts/sql-table-concepts/time_attributes">}}#time-attributes) for more information about time attribute.
 
 ### Processing Time and Time Zone
 Flink SQL defines process time attribute by function `PROCTIME()`, the function return type is `TIMESTAMP_LTZ`.

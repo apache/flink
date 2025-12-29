@@ -30,4 +30,4 @@ HiveServer2 Endpoint 兼容 [HiveServer2](https://cwiki.apache.org/confluence/di
 协议，允许用户使用 Hive JDBC、Beeline、DBeaver、Apache Superset 等 Hive 客户端和 Flink SQL Gateway 交互（例如提交 Hive SQL）。
 
 建议将 HiveServer2 Endpoint 和 Hive Catalog、Hive 方言一起使用，以获得与 HiveServer2 一样的使用体验。
-请参阅 [Hive Compatibility]({{< ref "docs/dev/table/hive-compatibility/hiveserver2" >}}) 了解更多详情。 
+请参阅 [Hive Compatibility]({{< ref "docs/sql/hive-compatibility/hiveserver2" >}}) 了解更多详情。 

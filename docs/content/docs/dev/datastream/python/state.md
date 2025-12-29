@@ -3,7 +3,7 @@ title: "State"
 weight: 31
 type: docs
 aliases:
-- /docs/dev/python/datastream/state.html
+- /docs/dev/datastream/python/state.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

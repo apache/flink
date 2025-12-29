@@ -84,7 +84,7 @@ ON Orders.product_id = Product.id
 Interval Joins
 --------------
 
-返回一个符合 join 条件和时间限制的简单笛卡尔积。Interval join 需要至少一个 equi-join 条件和一个 join 两边都包含的时间限定 join 条件。范围判断可以定义成就像一个条件（<, <=, >=, >），也可以是一个 BETWEEN 条件，或者两边表的一个相同类型（即：处理时间 或 事件时间）的[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}) 的等式判断。
+返回一个符合 join 条件和时间限制的简单笛卡尔积。Interval join 需要至少一个 equi-join 条件和一个 join 两边都包含的时间限定 join 条件。范围判断可以定义成就像一个条件（<, <=, >=, >），也可以是一个 BETWEEN 条件，或者两边表的一个相同类型（即：处理时间 或 事件时间）的[时间属性]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}) 的等式判断。
 
 例如：如果订单是在被接收到4小时后发货，这个查询会把所有订单和它们相应的 shipments join 起来。
 
@@ -107,12 +107,12 @@ AND o.order_time BETWEEN s.ship_time - INTERVAL '4' HOUR AND s.ship_time
 Temporal Joins
 --------------
 
-时态表（Temporal table）是一个随时间变化的表：在 Flink 中被称为[动态表]({{< ref "docs/dev/table/concepts/dynamic_tables" >}})。时态表中的行与一个或多个时间段相关联，所有 Flink 中的表都是时态的（Temporal）。
+时态表（Temporal table）是一个随时间变化的表：在 Flink 中被称为[动态表]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}})。时态表中的行与一个或多个时间段相关联，所有 Flink 中的表都是时态的（Temporal）。
 时态表包含一个或多个版本的表快照，它可以是一个变化的历史表，跟踪变化（例如，数据库变化日志，包含所有快照）或一个变化的维度表，也可以是一个将变更物化的维表（例如，存放最终快照的数据表）。
 
 ### 事件时间 Temporal Join
 
-基于事件时间的 Temporal join 允许对[版本表]({{< ref "docs/dev/table/concepts/versioned_tables" >}})进行 join。
+基于事件时间的 Temporal join 允许对[版本表]({{< ref "docs/concepts/sql-table-concepts/versioned_tables" >}})进行 join。
 这意味着一个表可以使用变化的元数据来丰富，并在某个时间点检索其具体值。
 
 Temporal Joins 使用任意表（左侧输入/探测端）的每一行与版本表中对应的行进行关联（右侧输入/构建端）。
@@ -272,7 +272,7 @@ processing-time temporal join 常常用在使用外部系统来丰富流的数�
 
 ### Temporal Table Function Join
 
-使用 [temporal table function]({{< ref "docs/dev/table/concepts/temporal_table_function" >}}) 去 join 表的语法和 [Table Function](#table-function) 相同。
+使用 [temporal table function]({{< ref "docs/concepts/sql-table-concepts/temporal_table_function" >}}) 去 join 表的语法和 [Table Function](#table-function) 相同。
 
 注意：目前只支持 inner join 和 left outer join。
 

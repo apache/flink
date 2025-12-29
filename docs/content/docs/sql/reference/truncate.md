@@ -57,7 +57,7 @@ The following examples show how to run a single TRUNCATE statement in `TableEnvi
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-TRUNCATE statement can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+TRUNCATE statement can be executed in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 The following examples show how to run a TRUNCATE statement in SQL CLI.
 

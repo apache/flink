@@ -53,7 +53,7 @@ CREATE TABLE blackhole_table (
 ```
 
 
-或者，可以基于现有模式使用 [LIKE 子句]({{< ref "docs/dev/table/sql/create" >}}#create-table) 创建。
+或者，可以基于现有模式使用 [LIKE 子句]({{< ref "docs/sql/reference/create" >}}#create-table) 创建。
 
 ```sql
 CREATE TABLE blackhole_table WITH ('connector' = 'blackhole')

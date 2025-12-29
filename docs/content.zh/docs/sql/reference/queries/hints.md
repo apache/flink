@@ -475,7 +475,7 @@ LookupTableSource 子类实现 SupportsLookupCustomShuffle 接口来支持这种
 
 #### 关于查找键及 'retry-predicate'='lookup_miss' 重试条件的说明
 对不同的连接器，提供的索引查找能力可能是不同的，例如内置的 HBase 连接器，默认仅提供了基于 `rowkey` 的索引查找能力（未启用二级索引），而对于内置的 JDBC 连接器，默认情况下任何字段都可以被用作索引查找，这是物理存储的特性不同所决定的。
-查找键即这里提到的作为索引查找的字段或字段组合，以 [`lookup join`]({{< ref "docs/dev/table/sql/queries/joins" >}}#lookup-join)
+查找键即这里提到的作为索引查找的字段或字段组合，以 [`lookup join`]({{< ref "docs/sql/reference/queries/joins" >}}#lookup-join)
 文档中的示例为例，联接条件 "ON o.customer_id = c.id" 中 `c.id` 即为查找键
 
 ```sql
@@ -608,7 +608,7 @@ SELECT /*+ BROADCAST(t1) SHUFFLE_HASH(t1) */ * FROM t1 FULL OUTER JOIN t2 ON t1.
 
 {{< label Streaming >}}
 
-对于有状态计算的[流连接]({{< ref "docs/dev/table/sql/queries/joins" >}}#regular-joins)和[分组聚合]({{< ref "docs/dev/table/sql/queries/group-agg" >}})操作，用户可以通过 `STATE_TTL` 来指定算子粒度的[空闲状态维持时间]({{< ref "docs/dev/table/concepts/overview" >}}#idle-state-retention-time)，该方式能够使得在上述状态算子中使用与作业级别 [table.exec.state.ttl]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) 不同的值。
+对于有状态计算的[流连接]({{< ref "docs/sql/reference/queries/joins" >}}#regular-joins)和[分组聚合]({{< ref "docs/sql/reference/queries/group-agg" >}})操作，用户可以通过 `STATE_TTL` 来指定算子粒度的[空闲状态维持时间]({{< ref "docs/concepts/sql-table-concepts/overview" >}}#idle-state-retention-time)，该方式能够使得在上述状态算子中使用与作业级别 [table.exec.state.ttl]({{< ref "docs/dev/table/config" >}}#table-exec-state-ttl) 不同的值。
 
 ##### 流连接示例
 

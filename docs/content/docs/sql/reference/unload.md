@@ -53,7 +53,7 @@ The following examples show how to run a UNLOAD statement in `TableEnvironment`.
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-UNLOAD statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+UNLOAD statements can be executed in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 The following examples show how to run a UNLOAD statement in SQL CLI.
 

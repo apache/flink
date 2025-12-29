@@ -29,7 +29,7 @@ under the License.
 
 在流式查询中，与其他连续表上的关联不同，窗口关联不产生中间结果，只在窗口结束产生一个最终的结果。另外，窗口关联会清除不需要的中间状态。
 
-通常，窗口关联和 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 一起使用。而且，窗口关联可以在其他基于 [窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 的操作后使用，例如 [窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})，[窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn">}}) 和 [窗口关联]({{< ref "docs/dev/table/sql/queries/window-join">}})。
+通常，窗口关联和 [窗口表值函数]({{< ref "docs/sql/reference/queries/window-tvf" >}}) 一起使用。而且，窗口关联可以在其他基于 [窗口表值函数]({{< ref "docs/sql/reference/queries/window-tvf" >}}) 的操作后使用，例如 [窗口聚合]({{< ref "docs/sql/reference/queries/window-agg" >}})，[窗口 Top-N]({{< ref "docs/sql/reference/queries/window-topn">}}) 和 [窗口关联]({{< ref "docs/sql/reference/queries/window-join">}})。
 
 {{< hint info >}}
 注意：`SESSION` 窗口关联目前不支持批模式。
@@ -193,6 +193,6 @@ Flink SQL> SELECT *
 目前，关联的左右两边必须使用相同的窗口表值函数。这个规则在未来可以扩展，比如：滚动和滑动窗口在窗口大小相同的情况下 join。
 
 ### 窗口表值函数之后直接使用窗口关联的限制
-目前窗口关联支持作用在滚动（TUMBLE）、滑动（HOP）和累积（CUMULATE）[窗口表值函数]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) 之上，但是还不支持会话窗口（SESSION）。
+目前窗口关联支持作用在滚动（TUMBLE）、滑动（HOP）和累积（CUMULATE）[窗口表值函数]({{< ref "docs/sql/reference/queries/window-tvf" >}}) 之上，但是还不支持会话窗口（SESSION）。
 
 {{< top >}}

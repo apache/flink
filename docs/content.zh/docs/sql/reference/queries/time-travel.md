@@ -28,7 +28,7 @@ under the License.
 `时间旅行`语法主要用于查询历史数据。它允许用户指定一个时间点，查询对应时间点 table 的数据。
 
 <span class="label label-danger">注意</span> 目前, `时间旅行`语法需要查询 table 所属的 catalog 实现了 {{< gh_link file="flink-table/flink-table-common/src/main/java/org/apache/flink/table/catalog/Catalog.java" name="getTable(ObjectPath tablePath, long timestamp)" >}} 接口。
-更多详细信息，请参考 [Catalog]({{< ref "docs/dev/table/catalogs" >}}#catalog-中支持时间旅行的接口)。
+更多详细信息，请参考 [Catalog]({{< ref "docs/sql/catalogs" >}}#catalog-中支持时间旅行的接口)。
 
 带有时间旅行子句的语法如下所示：
 ```sql

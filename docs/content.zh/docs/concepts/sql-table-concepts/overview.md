@@ -27,7 +27,7 @@ under the License.
 
 # 流式概念
 
-Flink 的 [Table API]({{< ref "docs/dev/table/tableApi" >}}) 和 [SQL]({{< ref "docs/dev/table/sql/overview" >}}) 是流批统一的 API。
+Flink 的 [Table API]({{< ref "docs/dev/table/tableApi" >}}) 和 [SQL]({{< ref "docs/sql/reference/overview" >}}) 是流批统一的 API。
 这意味着 Table API & SQL 在无论有限的批式输入还是无限的流式输入下，都具有相同的语义。
 因为传统的关系代数以及 SQL 最开始都是为了批式处理而设计的，
 关系型查询在流式场景下不如在批式场景下容易懂。
@@ -52,17 +52,17 @@ Flink 的 [Table API]({{< ref "docs/dev/table/tableApi" >}}) 和 [SQL]({{< ref "
 管道会被现有优化规则集优化成尽可能少地使用状态。
 
 {{< hint info >}}
-从概念上讲， 源表从来不会在状态中被完全保存。 实现者处理的是逻辑表（即[动态表]({{< ref "docs/dev/table/concepts/dynamic_tables" >}})）。
+从概念上讲， 源表从来不会在状态中被完全保存。 实现者处理的是逻辑表（即[动态表]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}})）。
 它们的状态取决于用到的操作。
 {{< /hint >}}
 
 #### 状态算子
 
-包含诸如[连接]({{< ref "docs/dev/table/sql/queries/joins" >}})、[聚合]({{< ref "docs/dev/table/sql/queries/group-agg" >}})或[去重]({{< ref "docs/dev/table/sql/queries/deduplication" >}}) 等操作的语句需要在 Flink 抽象的容错存储内保存中间结果。
+包含诸如[连接]({{< ref "docs/sql/reference/queries/joins" >}})、[聚合]({{< ref "docs/sql/reference/queries/group-agg" >}})或[去重]({{< ref "docs/sql/reference/queries/deduplication" >}}) 等操作的语句需要在 Flink 抽象的容错存储内保存中间结果。
 
 例如对两个表进行 join 操作的普通 SQL 需要算子保存两个表的全部输入。基于正确的 SQL 语义，运行时假设两表会在任意时间点进行匹配。
-Flink 提供了 [优化窗口和时段 Join 聚合]({{< ref "docs/dev/table/sql/queries/joins" >}}) 
-以利用 [watermarks]({{< ref "docs/dev/table/concepts/time_attributes" >}}) 概念来让保持较小的状态规模。
+Flink 提供了 [优化窗口和时段 Join 聚合]({{< ref "docs/sql/reference/queries/joins" >}}) 
+以利用 [watermarks]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}) 概念来让保持较小的状态规模。
 
 另一个计算词频的例子如下
 
@@ -92,7 +92,7 @@ GROUP BY word;
 
 形如 `SELECT ... FROM ... WHERE` 这种只包含字段映射或过滤器的查询语句通常是无状态的管道。
 然而在某些情况下，根据输入数据的特征（比如输入表是不带 *UPDATE_BEFORE* 的更新流，参考
-[表到流的转换]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}#table-to-stream-conversion)）或配置（参考 [`table-exec-source-cdc-events-duplicate`]({{< ref "docs/dev/table/config" >}}#table-exec-source-cdc-events-duplicate)），状态算子可能会被隐式地推导出来。
+[表到流的转换]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}#table-to-stream-conversion)）或配置（参考 [`table-exec-source-cdc-events-duplicate`]({{< ref "docs/dev/table/config" >}}#table-exec-source-cdc-events-duplicate)），状态算子可能会被隐式地推导出来。
 
 下面的例子展示了使用 `SELECT ... FROM` 语句查询 [upsert kafka 源表]({{< ref "docs/connectors/table/upsert-kafka" >}})。
 ```sql
@@ -145,7 +145,7 @@ SELECT * FROM upsert_kafka;
 	<td>SELECT /*+ STATE_TTL(...) */ ... </td>
 	<td>{{<label SQL>}}</td>
 	<td>有限算子粒度，当前支持连接和分组聚合算子</td>
-	<td>该值将会优先作用于相应算子的状态生命周期。查阅<a href="{{< ref "docs/dev/table/sql/queries/hints" >}}#状态生命周期提示">状态生命周期提示</a>获取更多信息。</td>
+	<td>该值将会优先作用于相应算子的状态生命周期。查阅<a href="{{< ref "docs/sql/reference/queries/hints" >}}#状态生命周期提示">状态生命周期提示</a>获取更多信息。</td>
 </tr>
 <tr>
 	<td>修改序列化为 JSON 的 CompiledPlan </td>
@@ -169,15 +169,15 @@ SELECT * FROM upsert_kafka;
 从 Flink v1.18 开始，Table API & SQL 支持配置细粒度的状态 TTL 来优化状态使用，可配置粒度为每个状态算子的入边数。具体而言，`OneInputStreamOperator` 可以配置一个状态的 TTL，而 `TwoInputStreamOperator`（例如双流 join）则可以分别为左状态和右状态配置 TTL。更一般地，对于具有 K 个输入的 `MultipleInputStreamOperator`，可以配置 K 个状态 TTL。
 
 一些典型的使用场景如下
-- 为 [双流 Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#regular-joins) 的左右流配置不同 TTL。 
+- 为 [双流 Join]({{< ref "docs/sql/reference/queries/joins" >}}#regular-joins) 的左右流配置不同 TTL。 
 双流 Join 会生成拥有两条输入边的 `TwoInputStreamOperator` 的状态算子，它用到了两个状态，分别来保存来自左流和右流的更新。
 - 在同一个作业中为不同的状态计算设置不同 TTL。
-举例来说，假设一个 ETL 作业使用 `ROW_NUMBER` 进行[去重]({{< ref "docs/dev/table/sql/queries/deduplication" >}})操作后，
-紧接着使用 `GROUP BY` 语句进行[聚合]({{< ref "docs/dev/table/sql/queries/group-agg" >}})操作。
+举例来说，假设一个 ETL 作业使用 `ROW_NUMBER` 进行[去重]({{< ref "docs/sql/reference/queries/deduplication" >}})操作后，
+紧接着使用 `GROUP BY` 语句进行[聚合]({{< ref "docs/sql/reference/queries/group-agg" >}})操作。
 该作业会分别生成两个拥有单条输入边的 `OneInputStreamOperator` 状态算子。您可以为去重算子和聚合算子的状态分别设置不同的 TTL。
 
 {{< hint info >}}
-由于基于窗口的操作（例如[窗口连接]({{< ref "docs/dev/table/sql/queries/window-join" >}})、[窗口聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}})、[窗口 Top-N]({{< ref "docs/dev/table/sql/queries/window-topn" >}}) 等）和 [Interval Join]({{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins) 不依赖于 `table.exec.state.ttl` 来控制状态保留，因此它们的状态无法在算子级别进行配置。
+由于基于窗口的操作（例如[窗口连接]({{< ref "docs/sql/reference/queries/window-join" >}})、[窗口聚合]({{< ref "docs/sql/reference/queries/window-agg" >}})、[窗口 Top-N]({{< ref "docs/sql/reference/queries/window-topn" >}}) 等）和 [Interval Join]({{< ref "docs/sql/reference/queries/joins" >}}#interval-joins) 不依赖于 `table.exec.state.ttl` 来控制状态保留，因此它们的状态无法在算子级别进行配置。
 {{< /hint >}}
 
 **生成 Compiled Plan**
@@ -575,11 +575,11 @@ Job ID: 79fbe3fa497e4689165dd81b1d225ea8
 接下来？
 -----------------
 
-* [动态表]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}): 描述了动态表的概念。
-* [时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}}): 解释了时间属性以及它是如何在 Table API & SQL 中使用的。
-* [时态（temporal）表]({{< ref "docs/dev/table/concepts/versioned_tables" >}}): 描述了时态表的概念。
-* [流上的 Join]({{< ref "docs/dev/table/sql/queries/joins" >}}): 支持的几种流上的 Join。
-* [流上的确定性]({{< ref "docs/dev/table/concepts/determinism" >}}): 解释了流计算的确定性。
+* [动态表]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}): 描述了动态表的概念。
+* [时间属性]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}): 解释了时间属性以及它是如何在 Table API & SQL 中使用的。
+* [时态（temporal）表]({{< ref "docs/concepts/sql-table-concepts/versioned_tables" >}}): 描述了时态表的概念。
+* [流上的 Join]({{< ref "docs/sql/reference/queries/joins" >}}): 支持的几种流上的 Join。
+* [流上的确定性]({{< ref "docs/concepts/sql-table-concepts/determinism" >}}): 解释了流计算的确定性。
 * [查询配置]({{< ref "docs/dev/table/config" >}}): Table API & SQL 特定的配置。
 
 {{< top >}}

@@ -3,7 +3,7 @@ title: Deployment
 icon: <i class="fa fa-sliders title maindish" aria-hidden="true"></i>
 bold: true
 bookCollapseSection: true
-weight: 7
+weight: 8
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

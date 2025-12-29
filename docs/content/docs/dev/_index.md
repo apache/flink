@@ -1,10 +1,11 @@
 ---
-title: Application Development
+title: Flink APIs
 icon: <i class="fa fa-code title maindish" aria-hidden="true"></i>
+aliases:
+  - /docs/dev/
 bold: true
-sectionBreak: true
 bookCollapseSection: true
-weight: 4
+weight: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

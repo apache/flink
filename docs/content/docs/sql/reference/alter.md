@@ -28,7 +28,7 @@ under the License.
 
 
 
-ALTER statements are used to modify the definition of a table, view or function that has already been registered in the [Catalog]({{< ref "docs/dev/table/catalogs" >}}), or the definition of a catalog itself.
+ALTER statements are used to modify the definition of a table, view or function that has already been registered in the [Catalog]({{< ref "docs/sql/catalogs" >}}), or the definition of a catalog itself.
 
 Flink SQL supports the following ALTER statements for now:
 
@@ -61,7 +61,7 @@ The following examples show how to run an ALTER statement in `TableEnvironment`.
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-ALTER statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+ALTER statements can be executed in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 The following examples show how to run an ALTER statement in SQL CLI.
 
@@ -383,7 +383,7 @@ ALTER TABLE [IF EXISTS] table_name {
 If the table does not exist, nothing happens.
 
 ### ADD
-Use `ADD` clause to add [columns]({{< ref "docs/dev/table/sql/create" >}}#columns), [constraints]({{< ref "docs/dev/table/sql/create" >}}#primary-key), a [watermark]({{< ref "docs/dev/table/sql/create" >}}#watermark), [partitions]({{< ref "docs/dev/table/sql/create" >}}#partitioned-by), and a [distribution]({{< ref "docs/dev/table/sql/create" >}}#distributed) to an existing table. 
+Use `ADD` clause to add [columns]({{< ref "docs/sql/reference/create" >}}#columns), [constraints]({{< ref "docs/sql/reference/create" >}}#primary-key), a [watermark]({{< ref "docs/sql/reference/create" >}}#watermark), [partitions]({{< ref "docs/sql/reference/create" >}}#partitioned-by), and a [distribution]({{< ref "docs/sql/reference/create" >}}#distributed) to an existing table. 
 
 To add a column at the specified position, use `FIRST` or `AFTER col_name`. By default, the column is appended at last.
 
@@ -545,7 +545,7 @@ Alter a catalog function with the new identifier and optional language tag. If a
 
 If the language tag is JAVA/SCALA, the identifier is the full classpath of the UDF. For the implementation of Java/Scala UDF, please refer to [User-defined Functions]({{< ref "docs/dev/table/functions/udfs" >}}) for more details.
 
-If the language tag is PYTHON, the identifier is the fully qualified name of the UDF, e.g. `pyflink.table.tests.test_udf.add`. For the implementation of Python UDF, please refer to [Python UDFs]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) for more details.
+If the language tag is PYTHON, the identifier is the fully qualified name of the UDF, e.g. `pyflink.table.tests.test_udf.add`. For the implementation of Python UDF, please refer to [Python UDFs]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}) for more details.
 
 **TEMPORARY**
 

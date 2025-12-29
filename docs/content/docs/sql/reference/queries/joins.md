@@ -89,7 +89,7 @@ If you are facing issues with the performance of your multiple chained joins and
 Interval Joins
 --------------
 
-Returns a simple Cartesian product restricted by the join condition and a time constraint. An interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Two appropriate range predicates can define such a condition (<, <=, >=, >), a BETWEEN predicate, or a single equality predicate that compares [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}}) of the same type (i.e., processing time or event time) of both input tables.
+Returns a simple Cartesian product restricted by the join condition and a time constraint. An interval join requires at least one equi-join predicate and a join condition that bounds the time on both sides. Two appropriate range predicates can define such a condition (<, <=, >=, >), a BETWEEN predicate, or a single equality predicate that compares [time attributes]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}) of the same type (i.e., processing time or event time) of both input tables.
 
 For example, this query will join all orders with their corresponding shipments if the order was shipped four hours after the order was received.
 
@@ -112,12 +112,12 @@ Since time attributes are quasi-monotonic increasing, Flink can remove old value
 Temporal Joins
 --------------
 
-A Temporal table is a table that evolves over time - otherwise known in Flink as a [dynamic table]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}). Rows in a temporal table are associated with one or more temporal periods and all Flink tables are temporal(dynamic).
+A Temporal table is a table that evolves over time - otherwise known in Flink as a [dynamic table]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}). Rows in a temporal table are associated with one or more temporal periods and all Flink tables are temporal(dynamic).
 The temporal table contains one or more versioned table snapshots, it can be a changing history table which tracks the changes(e.g. database changelog, contains all snapshots) or a changing dimensioned table which materializes the changes(e.g. database table which contains the latest snapshot). 
 
 ### Event Time Temporal Join
 
-Event Time temporal joins allow joining against a [versioned table]({{< ref "docs/dev/table/concepts/versioned_tables" >}}).
+Event Time temporal joins allow joining against a [versioned table]({{< ref "docs/concepts/sql-table-concepts/versioned_tables" >}}).
 This means a table can be enriched with changing metadata and retrieve its value at a certain point in time. 
 
 Temporal joins take an arbitrary table (left input/probe site) and correlate each row to the corresponding row's relevant version in the versioned table (right input/build side). 
@@ -277,7 +277,7 @@ Compared to [interval joins](#interval-joins), temporal table joins do not defin
 
 ### Temporal Table Function Join
 
-The syntax to join a table with a [temporal table function]({{< ref "docs/dev/table/concepts/temporal_table_function" >}}) is the same as in Join with [Table Function](#table-function).
+The syntax to join a table with a [temporal table function]({{< ref "docs/concepts/sql-table-concepts/temporal_table_function" >}}) is the same as in Join with [Table Function](#table-function).
 
 Note: Currently only inner join and left outer join with temporal tables are supported.
 

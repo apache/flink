@@ -30,32 +30,32 @@ This page describes the SQL language supported in Flink, including Data Definiti
 
 This page lists all the supported statements supported in Flink SQL for now:
 
-- [SELECT (Queries)]({{< ref "docs/dev/table/sql/queries/overview" >}})
-- [CREATE TABLE, CATALOG, DATABASE, VIEW, FUNCTION]({{< ref "docs/dev/table/sql/create" >}})
-- [DROP TABLE, DATABASE, VIEW, FUNCTION]({{< ref "docs/dev/table/sql/drop" >}})
-- [ALTER TABLE, DATABASE, FUNCTION]({{< ref "docs/dev/table/sql/alter" >}})
-- [ANALYZE TABLE]({{< ref "docs/dev/table/sql/analyze" >}})
-- [INSERT]({{< ref "docs/dev/table/sql/insert" >}})
-- [UPDATE]({{< ref "docs/dev/table/sql/update" >}})
-- [DELETE]({{< ref "docs/dev/table/sql/delete" >}})
-- [DESCRIBE]({{< ref "docs/dev/table/sql/describe" >}})
-- [EXPLAIN]({{< ref "docs/dev/table/sql/explain" >}})
-- [USE]({{< ref "docs/dev/table/sql/use" >}})
-- [SHOW]({{< ref "docs/dev/table/sql/show" >}})
-- [LOAD]({{< ref "docs/dev/table/sql/load" >}})
-- [UNLOAD]({{< ref "docs/dev/table/sql/unload" >}})
+- [SELECT (Queries)]({{< ref "docs/sql/reference/queries/overview" >}})
+- [CREATE TABLE, CATALOG, DATABASE, VIEW, FUNCTION]({{< ref "docs/sql/reference/create" >}})
+- [DROP TABLE, DATABASE, VIEW, FUNCTION]({{< ref "docs/sql/reference/drop" >}})
+- [ALTER TABLE, DATABASE, FUNCTION]({{< ref "docs/sql/reference/alter" >}})
+- [ANALYZE TABLE]({{< ref "docs/sql/reference/analyze" >}})
+- [INSERT]({{< ref "docs/sql/reference/insert" >}})
+- [UPDATE]({{< ref "docs/sql/reference/update" >}})
+- [DELETE]({{< ref "docs/sql/reference/delete" >}})
+- [DESCRIBE]({{< ref "docs/sql/reference/describe" >}})
+- [EXPLAIN]({{< ref "docs/sql/reference/explain" >}})
+- [USE]({{< ref "docs/sql/reference/use" >}})
+- [SHOW]({{< ref "docs/sql/reference/show" >}})
+- [LOAD]({{< ref "docs/sql/reference/load" >}})
+- [UNLOAD]({{< ref "docs/sql/reference/unload" >}})
 
 ## Data Types
 
-Please see the dedicated page about [data types]({{< ref "docs/dev/table/types" >}}).
+Please see the dedicated page about [data types]({{< ref "docs/sql/data-types" >}}).
 
 Generic types and (nested) composite types (e.g., POJOs, tuples, rows, Scala case classes) can be fields of a row as well.
 
-Fields of composite types with arbitrary nesting can be accessed with [value access functions]({{< ref "docs/dev/table/functions/systemFunctions" >}}#value-access-functions).
+Fields of composite types with arbitrary nesting can be accessed with [value access functions]({{< ref "docs/sql/built-in-functions" >}}#value-access-functions).
 
 Generic types are treated as a black box and can be passed on or processed by [user-defined functions]({{< ref "docs/dev/table/functions/udfs" >}}).
 
-For DDLs, we support full data types defined in page [Data Types]({{< ref "docs/dev/table/types" >}}).
+For DDLs, we support full data types defined in page [Data Types]({{< ref "docs/sql/data-types" >}}).
 
 **Notes:** Some of the data types are not supported in SQL queries yet (i.e. in cast expressions or literals). E.g. `STRING`, `BYTES`, `RAW`, `TIME(p) WITHOUT TIME ZONE`, `TIME(p) WITH LOCAL TIME ZONE`, `TIMESTAMP(p) WITHOUT TIME ZONE`, `TIMESTAMP(p) WITH LOCAL TIME ZONE`, `ARRAY`, `MULTISET`, `ROW`.
 

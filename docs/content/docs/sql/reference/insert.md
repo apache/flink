@@ -56,7 +56,7 @@ The following examples show how to run a single INSERT statement in `TableEnviro
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-Single INSERT statement can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+Single INSERT statement can be executed in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 The following examples show how to run a single INSERT statement in SQL CLI.
 

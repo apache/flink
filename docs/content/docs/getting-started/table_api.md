@@ -1,7 +1,7 @@
 ---
 title: 'Real Time Reporting with the Table API'
 nav-title: 'Real Time Reporting with the Table API'
-weight: 4
+weight: 3
 type: docs
 aliases:
   - /try-flink/table_api.html
@@ -124,7 +124,7 @@ TableEnvironment tEnv = TableEnvironment.create(settings);
 
 #### Registering Tables
 
-Next, tables are registered in the current [catalog]({{< ref "docs/dev/table/catalogs" >}}) that you can use to connect to external systems for reading and writing both batch and streaming data.
+Next, tables are registered in the current [catalog]({{< ref "docs/sql/catalogs" >}}) that you can use to connect to external systems for reading and writing both batch and streaming data.
 A table source provides access to data stored in external systems, such as a database, a key-value store, a message queue, or a file system.
 A table sink emits a table to an external storage system.
 Depending on the type of source and sink, they support different formats such as CSV, JSON, Avro, or Parquet.
@@ -197,10 +197,10 @@ Now with the skeleton of a Job set-up, you are ready to add some business logic.
 The goal is to build a report that shows the total spend for each account across each hour of the day.
 This means the timestamp column needs be be rounded down from millisecond to hour granularity. 
 
-Flink supports developing relational applications in pure [SQL]({{< ref "docs/dev/table/sql/overview" >}}) or using the [Table API]({{< ref "docs/dev/table/tableApi" >}}).
+Flink supports developing relational applications in pure [SQL]({{< ref "docs/sql/reference/overview" >}}) or using the [Table API]({{< ref "docs/dev/table/tableApi" >}}).
 The Table API is a fluent DSL inspired by SQL, that can be written in Java or Python and supports strong IDE integration.
 Just like a SQL query, Table programs can select the required fields and group by your keys.
-These features, along with [built-in functions]({{< ref "docs/dev/table/functions/systemFunctions" >}}) like `floor` and `sum`, enable you to write this report.
+These features, along with [built-in functions]({{< ref "docs/sql/built-in-functions" >}}) like `floor` and `sum`, enable you to write this report.
 
 ```java
 public static Table report(Table transactions) {

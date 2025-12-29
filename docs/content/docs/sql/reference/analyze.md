@@ -55,7 +55,7 @@ The following examples show how to run a `ANALYZE TABLE` statement in `TableEnvi
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-`ANALYZE TABLE` statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+`ANALYZE TABLE` statements can be executed in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 The following examples show how to run a `ANALYZE TABLE` statement in SQL CLI.
 

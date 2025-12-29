@@ -252,7 +252,7 @@ TableEnvironment API
         执行语句可以是 DDL/DML/DQL/SHOW/DESCRIBE/EXPLAIN/USE。 <br> <br>
         注意，对于 "INSERT INTO" 语句，这是一个异步操作，通常在向远程集群提交作业时才需要使用。
         但是，如果在本地集群或者 IDE 中执行作业时，你需要等待作业执行完成，这时你可以查阅 <a href="{{< ref "docs/dev/python/faq" >}}#wait-for-jobs-to-finish-when-executing-jobs-in-mini-cluster">这里</a> 来获取更多细节。 <br>
-        更多关于 SQL 语句的细节，可查阅 <a href="{{< ref "docs/dev/table/sql/overview" >}}">SQL</a> 文档。
+        更多关于 SQL 语句的细节，可查阅 <a href="{{< ref "docs/sql/reference/overview" >}}">SQL</a> 文档。
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.execute_sql" name="链接">}}
@@ -609,7 +609,7 @@ table_env.get_config().set("pipeline.name", "my_first_job")
 
 ### Catalog APIs
 
-这些 APIs 用于访问 catalog 和模块。你可以在 [模块]({{< ref "docs/dev/table/modules" >}}) 和 [catalog]({{< ref "docs/dev/table/catalogs" >}}) 文档中找到更详细的介绍。
+这些 APIs 用于访问 catalog 和模块。你可以在 [模块]({{< ref "docs/dev/table/modules" >}}) 和 [catalog]({{< ref "docs/sql/catalogs" >}}) 文档中找到更详细的介绍。
 
 <table class="table table-bordered">
   <thead>

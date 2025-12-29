@@ -1,7 +1,7 @@
 ---
 title: "项目配置"
 bookCollapseSection: true
-weight: 1
+weight: 4
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

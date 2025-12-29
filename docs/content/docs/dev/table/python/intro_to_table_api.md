@@ -99,13 +99,13 @@ env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 ```
 
-For more details about the different ways to create a `TableEnvironment`, please refer to the [TableEnvironment Documentation]({{< ref "docs/dev/python/table/table_environment" >}}#create-a-tableenvironment).
+For more details about the different ways to create a `TableEnvironment`, please refer to the [TableEnvironment Documentation]({{< ref "docs/dev/table/python/table_environment" >}}#create-a-tableenvironment).
 
 `TableEnvironment` is responsible for:
 
 * `Table` management: [Creating Tables](#create-tables), listing Tables, [Conversion between Table and DataStream]({{< ref "docs/dev/table/data_stream_api" >}}#converting-between-datastream-and-table), etc.
-* User-defined function management: User-defined function registration, dropping, listing, etc. See [General User-defined Functions]({{< ref "docs/dev/python/table/udfs/python_udfs" >}}) and [Vectorized User-defined Functions]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}) for more details about Python user-defined functions.
-* Executing [SQL]({{< ref "docs/dev/table/sql/overview" >}}) queries: See [Write SQL Queries](#write-sql-queries) for more details.
+* User-defined function management: User-defined function registration, dropping, listing, etc. See [General User-defined Functions]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}) and [Vectorized User-defined Functions]({{< ref "docs/dev/table/python/udfs/vectorized_python_udfs" >}}) for more details about Python user-defined functions.
+* Executing [SQL]({{< ref "docs/sql/reference/overview" >}}) queries: See [Write SQL Queries](#write-sql-queries) for more details.
 * Job configuration: See [Python Configuration]({{< ref "docs/dev/python/python_config" >}}) for more details.
 * Python dependency management: See [Dependency Management]({{< ref "docs/dev/python/dependency_management" >}}) for more details.
 * Job submission: See [Emit Results](#emit-results) for more details.
@@ -395,7 +395,7 @@ The results are as following:
 
 Flink's SQL integration is based on [Apache Calcite](https://calcite.apache.org), which implements the SQL standard. SQL queries are specified as Strings.
 
-The [SQL]({{< ref "docs/dev/table/sql/overview" >}}) documentation describes Flink's SQL support for streaming and batch tables.
+The [SQL]({{< ref "docs/sql/reference/overview" >}}) documentation describes Flink's SQL support for streaming and batch tables.
 
 The following example shows a simple SQL aggregation query:
 
@@ -608,7 +608,7 @@ The results are as following：
 
 ### Collect Results to Client by converting it to pandas DataFrame 
 
-You can call the "to_pandas" method to [convert a `Table` object to a pandas DataFrame]({{< ref "docs/dev/python/table/conversion_of_pandas" >}}#convert-pyflink-table-to-pandas-dataframe):
+You can call the "to_pandas" method to [convert a `Table` object to a pandas DataFrame]({{< ref "docs/dev/table/python/conversion_of_pandas" >}}#convert-pyflink-table-to-pandas-dataframe):
 
 ```python
 table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
@@ -717,7 +717,7 @@ This is done through the `Table.explain()` or `StatementSet.explain()` methods. 
 2. the optimized logical query plan, and
 3. the physical execution plan.
 
-`TableEnvironment.explain_sql()` and `TableEnvironment.execute_sql()` support executing an `EXPLAIN` statement to get the plans. Please refer to the [EXPLAIN]({{< ref "docs/dev/table/sql/explain" >}}) page for more details.
+`TableEnvironment.explain_sql()` and `TableEnvironment.execute_sql()` support executing an `EXPLAIN` statement to get the plans. Please refer to the [EXPLAIN]({{< ref "docs/sql/reference/explain" >}}) page for more details.
 
 The following code shows how to use the `Table.explain()` method:
 

@@ -57,7 +57,7 @@ INSERT { OVERWRITE TABLE | INTO [TABLE] } tablename
 - select_statement
 
   A statement for query.
-  See more details in [queries]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/overview" >}}).
+  See more details in [queries]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/overview" >}}).
 
 ### Synopsis
 
@@ -136,7 +136,7 @@ row_format:
 - select_statement
 
   A statement for query.
-  See more details in [queries]({{< ref "docs/dev/table/hive-compatibility/hive-dialect/queries/overview" >}}).
+  See more details in [queries]({{< ref "docs/sql/hive-compatibility/hive-dialect/queries/overview" >}}).
 
 - `STORED AS file_format`
 

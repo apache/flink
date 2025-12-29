@@ -252,7 +252,7 @@ These APIs are used to create/remove Table API/SQL Tables and write queries:
         The statement can be DDL/DML/DQL/SHOW/DESCRIBE/EXPLAIN/USE. <br> <br>
         Note that for "INSERT INTO" statement this is an asynchronous operation, which is usually expected when submitting a job to a remote cluster.
         However, when executing a job in a mini cluster or IDE, you need to wait until the job execution finished, then you can refer to <a href="{{< ref "docs/dev/python/faq" >}}#wait-for-jobs-to-finish-when-executing-jobs-in-mini-cluster">here</a> for more details. <br>
-        Please refer the <a href="{{< ref "docs/dev/table/sql/overview" >}}">SQL</a> documentation for more details about SQL statement.
+        Please refer the <a href="{{< ref "docs/sql/reference/overview" >}}">SQL</a> documentation for more details about SQL statement.
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.execute_sql" name="link">}}
@@ -613,7 +613,7 @@ table_env.get_config().set("pipeline.name", "my_first_job")
 
 ### Catalog APIs
 
-These APIs are used to access catalogs and modules. You can find more detailed introduction in [Modules]({{< ref "docs/dev/table/modules" >}}) and [Catalogs]({{< ref "docs/dev/table/catalogs" >}}) documentation.
+These APIs are used to access catalogs and modules. You can find more detailed introduction in [Modules]({{< ref "docs/dev/table/modules" >}}) and [Catalogs]({{< ref "docs/sql/catalogs" >}}) documentation.
 
 <table class="table table-bordered">
   <thead>

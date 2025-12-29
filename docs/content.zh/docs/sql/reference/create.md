@@ -30,7 +30,7 @@ under the License.
 
 
 
-CREATE 语句用于向当前或指定的 [Catalog]({{< ref "docs/dev/table/catalogs" >}}) 中注册表、视图或函数。注册后的表、视图和函数可以在 SQL 查询中使用。
+CREATE 语句用于向当前或指定的 [Catalog]({{< ref "docs/sql/catalogs" >}}) 中注册表、视图或函数。注册后的表、视图和函数可以在 SQL 查询中使用。
 
 目前 Flink SQL 支持下列 CREATE 语句：
 
@@ -69,7 +69,7 @@ CREATE 语句用于向当前或指定的 [Catalog]({{< ref "docs/dev/table/catal
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-可以在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中执行 CREATE 语句。
+可以在 [SQL CLI]({{< ref "docs/sql/sql-client" >}}) 中执行 CREATE 语句。
 
 以下的例子展示了如何在 SQL CLI 中执行一个 CREATE 语句。
 
@@ -340,11 +340,11 @@ CREATE TABLE MyTable (
 The expression may contain any combination of columns, constants, or functions. The expression cannot
 contain a subquery.
 
-Computed columns are commonly used in Flink for defining [time attributes]({{< ref "docs/dev/table/concepts/time_attributes" >}})
+Computed columns are commonly used in Flink for defining [time attributes]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}})
 in `CREATE TABLE` statements.
-- A [processing time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#processing-time)
+- A [processing time attribute]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}#processing-time)
 can be defined easily via `proc AS PROCTIME()` using the system's `PROCTIME()` function.
-- An [event time attribute]({{< ref "docs/dev/table/concepts/time_attributes" >}}#event-time) timestamp
+- An [event time attribute]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}#event-time) timestamp
 can be pre-processed before the `WATERMARK` declaration. For example, the computed column can be used
 if the original field is not `TIMESTAMP(3)` type or is nested in a JSON string.
 
@@ -568,7 +568,7 @@ LIKE Orders_in_file (
 
 表也可以通过一个 CTAS 语句中的查询结果来创建并填充数据，CTAS 是一种简单、快捷的创建表并插入数据的方法。
 
-CTAS 有两个部分，SELECT 部分可以是 Flink SQL 支持的任何 [SELECT 查询]({{< ref "docs/dev/table/sql/queries/overview" >}})。 CREATE 部分从 SELECT 查询中获取列信息，并创建目标表。 与 `CREATE TABLE` 类似，CTAS 要求必须在目标表的 WITH 子句中指定必填的表属性。
+CTAS 有两个部分，SELECT 部分可以是 Flink SQL 支持的任何 [SELECT 查询]({{< ref "docs/sql/reference/queries/overview" >}})。 CREATE 部分从 SELECT 查询中获取列信息，并创建目标表。 与 `CREATE TABLE` 类似，CTAS 要求必须在目标表的 WITH 子句中指定必填的表属性。
 
 CTAS 的建表操作需要依赖目标 Catalog。比如，Hive Catalog 会自动在 Hive 中创建物理表。但是基于内存的 Catalog 只会将表的元信息注册在执行 SQL 的 Client 的内存中。
 
@@ -726,7 +726,7 @@ AS select_query
 
 表可以通过一个 [CREATE OR] REPLACE TABLE AS SELECT（RTAS）语句中的查询结果来替换（或创建）并填充数据，RTAS 是一种简单快捷的替换（或创建）表并插入数据的方法。
 
-RTAS 有两个部分：SELECT 部分可以是 Flink SQL 支持的任何 [SELECT 查询]({{< ref "docs/dev/table/sql/queries/overview" >}})， `REPLACE TABLE` 部分会先删除已经存在的目标表，然后根据从 `SELECT` 查询中获取列信息，创建新的目标表。 与 `CREATE TABLE` 和 `CTAS` 类似，RTAS 要求必须在目标表的 WITH 子句中指定必填的表属性。
+RTAS 有两个部分：SELECT 部分可以是 Flink SQL 支持的任何 [SELECT 查询]({{< ref "docs/sql/reference/queries/overview" >}})， `REPLACE TABLE` 部分会先删除已经存在的目标表，然后根据从 `SELECT` 查询中获取列信息，创建新的目标表。 与 `CREATE TABLE` 和 `CTAS` 类似，RTAS 要求必须在目标表的 WITH 子句中指定必填的表属性。
 
 示例如下:
 
@@ -826,7 +826,7 @@ CREATE CATALOG [IF NOT EXISTS] catalog_name
 catalog 属性一般用于存储关于这个 catalog 的额外的信息。
 表达式 `key1=val1` 中的键和值都需要是字符串文本常量。
 
-详情见 [Catalogs]({{< ref "docs/dev/table/catalogs" >}})。
+详情见 [Catalogs]({{< ref "docs/sql/catalogs" >}})。
 
 {{< top >}}
 
@@ -883,7 +883,7 @@ CREATE [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
 
 如果 language tag 是 JAVA 或者 SCALA ，则 identifier 是 UDF 实现类的全限定名。关于 JAVA/SCALA UDF 的实现，请参考 [自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})。
 
-如果 language tag 是 PYTHON，则 identifier 是 UDF 对象的全限定名，例如 `pyflink.table.tests.test_udf.add`。关于 PYTHON UDF 的实现，请参考 [Python UDFs]({{< ref "docs/dev/python/table/udfs/python_udfs" >}})。
+如果 language tag 是 PYTHON，则 identifier 是 UDF 对象的全限定名，例如 `pyflink.table.tests.test_udf.add`。关于 PYTHON UDF 的实现，请参考 [Python UDFs]({{< ref "docs/dev/table/python/udfs/python_udfs" >}})。
 
 如果 language tag 是 PYTHON，而当前程序是 Java／Scala 程序或者纯 SQL 程序，则需要[配置 Python 相关的依赖]({{< ref "docs/dev/python/dependency_management" >}}#python-dependency-in-javascala-program)。
 

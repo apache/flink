@@ -253,7 +253,7 @@ t_env = StreamTableEnvironment.create(s_env)
 
 表可以是临时的，并与单个 Flink 会话（session）的生命周期相关，也可以是永久的，并且在多个 Flink 会话和群集（cluster）中可见。
 
-永久表需要 [catalog]({{< ref "docs/dev/table/catalogs" >}})（例如 Hive Metastore）以维护表的元数据。一旦永久表被创建，它将对任何连接到 catalog 的 Flink 会话可见且持续存在，直至被明确删除。
+永久表需要 [catalog]({{< ref "docs/sql/catalogs" >}})（例如 Hive Metastore）以维护表的元数据。一旦永久表被创建，它将对任何连接到 catalog 的 Flink 会话可见且持续存在，直至被明确删除。
 
 另一方面，临时表通常保存于内存中并且仅在创建它们的 Flink 会话持续期间存在。这些表对于其它会话是不可见的。它们不与任何 catalog 或者数据库绑定但可以在一个命名空间（namespace）中创建。即使它们对应的数据库被删除，临时表也不会被删除。
 
@@ -542,7 +542,7 @@ revenue = orders \
 
 Flink SQL 是基于实现了SQL标准的 [Apache Calcite](https://calcite.apache.org) 的。SQL 查询由常规字符串指定。
 
-文档 [SQL]({{< ref "docs/dev/table/sql/overview" >}}) 描述了Flink对流处理和批处理表的SQL支持。
+文档 [SQL]({{< ref "docs/sql/reference/overview" >}}) 描述了Flink对流处理和批处理表的SQL支持。
 
 下面的示例演示了如何指定查询并将结果作为 `Table` 对象返回。
 
@@ -860,7 +860,7 @@ Table API 提供了一种机制来解释计算 `Table` 的逻辑和优化查询�
 2. 优化的逻辑查询计划，以及
 3. 物理执行计划。
 
-可以用 `TableEnvironment.explainSql()` 方法和 `TableEnvironment.executeSql()` 方法支持执行一个 `EXPLAIN` 语句获取逻辑和优化查询计划，请参阅 [EXPLAIN]({{< ref "docs/dev/table/sql/explain" >}}) 页面.
+可以用 `TableEnvironment.explainSql()` 方法和 `TableEnvironment.executeSql()` 方法支持执行一个 `EXPLAIN` 语句获取逻辑和优化查询计划，请参阅 [EXPLAIN]({{< ref "docs/sql/reference/explain" >}}) 页面.
 
 以下代码展示了一个示例以及对给定 `Table` 使用 `Table.explain()` 方法的相应输出：
 

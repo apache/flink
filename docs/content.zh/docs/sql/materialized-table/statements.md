@@ -126,7 +126,7 @@ CREATE MATERIALIZED TABLE my_materialized_table
 
 **数据新鲜度与刷新模式关系**
 
-数据新鲜度定义了物化表内容滞后于基础表更新的最长时间。When not specified, it uses the default value from configuration based on the refresh mode. 它有两个作用，首先通过[配置]({{< ref "docs/dev/table/config" >}}#materialized-table-refresh-mode-freshness-threshold)确定物化表的[刷新模式]({{< ref "docs/dev/table/materialized-table/overview" >}}#刷新模式)，然后确定数据刷新频率以满足实际数据新鲜度要求。
+数据新鲜度定义了物化表内容滞后于基础表更新的最长时间。When not specified, it uses the default value from configuration based on the refresh mode. 它有两个作用，首先通过[配置]({{< ref "docs/dev/table/config" >}}#materialized-table-refresh-mode-freshness-threshold)确定物化表的[刷新模式]({{< ref "docs/sql/materialized-table/overview" >}}#刷新模式)，然后确定数据刷新频率以满足实际数据新鲜度要求。
 
 **FRESHNESS 参数详解**
 
@@ -218,7 +218,7 @@ CREATE MATERIALIZED TABLE my_materialized_table
 
 ## AS <select_statement>
 
-该子句用于定义填充物化表数据的查询。上游表可以是物化表、表或视图。select 语句支持所有 Flink SQL [查询]({{< ref "docs/dev/table/sql/queries/overview" >}})。
+该子句用于定义填充物化表数据的查询。上游表可以是物化表、表或视图。select 语句支持所有 Flink SQL [查询]({{< ref "docs/sql/reference/queries/overview" >}})。
 
 **示例：**
 
@@ -475,7 +475,7 @@ ALTER MATERIALIZED TABLE [catalog_name.][db_name.]table_name AS <select_statemen
 2. 更新物化表的 `schema` 和查询定义。
 3. 启动新的流式作业以刷新物化表：
    - 新的流式作业会从头开始，而不会从之前的流式作业状态恢复。
-   - 数据源的起始位点会由到连接器的默认实现或查询中设置的 [dynamic hint]({{< ref "docs/dev/table/sql/queries/hints" >}}#dynamic-table-options) 决定。
+   - 数据源的起始位点会由到连接器的默认实现或查询中设置的 [dynamic hint]({{< ref "docs/sql/reference/queries/hints" >}}#dynamic-table-options) 决定。
 
 **示例：**
 

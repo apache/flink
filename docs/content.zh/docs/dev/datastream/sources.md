@@ -1,9 +1,7 @@
 ---
-title: "系统（内置）函数"
-weight: 32
-type: docs
-aliases:
-- /zh/dev/python/table-api-users-guide/built_in_functions.html
+title: "Data Sources"
+layout: redirect
+redirect_to: /docs/internals/sources/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -23,5 +21,3 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 -->
-
-<meta http-equiv="refresh" content="0; url={{< ref "docs/dev/table/functions/systemfunctions" >}} "/>

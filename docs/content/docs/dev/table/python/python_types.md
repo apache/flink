@@ -39,7 +39,7 @@ A `DataType` instance declares the **logical type** which does not imply a concr
 or storage. All pre-defined data types are available in `pyflink.table.types` and can be instantiated with the utility methods
 defined in `pyflink.table.types.DataTypes`.
 
-A list of all pre-defined data types can be found [below]({{< ref "docs/dev/table/types" >}}#list-of-data-types).
+A list of all pre-defined data types can be found [below]({{< ref "docs/sql/data-types" >}}#list-of-data-types).
 
 Data Type and Python Type Mapping
 ------------------

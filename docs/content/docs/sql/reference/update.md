@@ -56,7 +56,7 @@ The following examples show how to run a single UPDATE statement in `TableEnviro
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-UPDATE statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+UPDATE statements can be executed in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 The following examples show how to run a UPDATE statement in SQL CLI.
 

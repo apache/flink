@@ -153,7 +153,7 @@ DataStream<String> mappedEvents = event
 
  
 有关详细信息，
- 请参阅 [table state management section]({{< ref "docs/dev/table/concepts/overview" >}}#state-management)。
+ 请参阅 [table state management section]({{< ref "docs/concepts/sql-table-concepts/overview" >}}#state-management)。
 
 ## 升级 Flink 框架版本
 

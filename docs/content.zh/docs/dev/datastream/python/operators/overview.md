@@ -82,7 +82,7 @@ mapped_stream = data_stream.map(my_map_func, output_type=Types.INT())
 
 Users could specify the output type information of the transformation explicitly in Python DataStream API. If not
 specified, the output type will be `Types.PICKLED_BYTE_ARRAY` by default, and the result data will be serialized using pickle serializer.
-For more details about the pickle serializer, please refer to [Pickle Serialization]({{< ref "docs/dev/python/datastream/data_types" >}}#pickle-serialization).
+For more details about the pickle serializer, please refer to [Pickle Serialization]({{< ref "docs/dev/datastream/python/data_types" >}}#pickle-serialization).
 
 Generally, the output type needs to be specified in the following scenarios.
 

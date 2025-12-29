@@ -1,9 +1,11 @@
 ---
 title: "Data Types"
-weight: 21
+weight: 8
 type: docs
 aliases:
   - /dev/table/types.html
+  - /docs/dev/table/types/
+  - /docs/sql/reference/data-types/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

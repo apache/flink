@@ -1,7 +1,9 @@
 ---
 title: SQL Gateway
 bookCollapseSection: true
-weight: 92
+weight: 3
+aliases:
+  - /docs/sql/sql-gateway/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -37,7 +37,7 @@ under the License.
 {{< tabs "set statement" >}}
 {{< tab "SQL CLI" >}}
 
-`SET` 语句可以在 [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}) 中执行。
+`SET` 语句可以在 [SQL CLI]({{< ref "docs/sql/sql-client" >}}) 中执行。
 
 以下示例展示了如何在 SQL CLI 中执行一条 `SET` 语句。
 

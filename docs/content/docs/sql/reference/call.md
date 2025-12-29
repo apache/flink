@@ -57,7 +57,7 @@ The following examples show how to execute a single CALL statement in `TableEnvi
 {{< /tab >}}
 {{< tab "SQL CLI" >}}
 
-CALL statements can be executed in [SQL CLI]({{< ref "docs/dev/table/sqlClient" >}}).
+CALL statements can be executed in [SQL CLI]({{< ref "docs/sql/sql-client" >}}).
 
 The following examples show how to execute a CALL statement in SQL CLI.
 

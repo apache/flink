@@ -38,7 +38,7 @@ Flink 应用程序可以通过连接器读取和写入各种外部系统。它�
 这同样适用于格式。请注意，某些连接器可能没有相应的 `flink-sql-connector-<NAME>` 组件，因为它们不需要第三方依赖项。
 
 {{< hint info >}}
-uber/fat JAR 主要与[SQL 客户端]({{< ref "docs/dev/table/sqlClient" >}})一起使用，但您也可以在任何 DataStream/Table 应用程序中使用它们。
+uber/fat JAR 主要与[SQL 客户端]({{< ref "docs/sql/sql-client" >}})一起使用，但您也可以在任何 DataStream/Table 应用程序中使用它们。
 {{< /hint >}}
 
 ## 使用组件

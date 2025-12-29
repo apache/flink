@@ -31,7 +31,7 @@ under the License.
 
 The DataGen connector allows for creating tables based on in-memory data generation.
 This is useful when developing queries locally without access to external systems such as Kafka.
-Tables can include [Computed Column syntax]({{< ref "docs/dev/table/sql/create" >}}#create-table) which allows for flexible record generation.
+Tables can include [Computed Column syntax]({{< ref "docs/sql/reference/create" >}}#create-table) which allows for flexible record generation.
 
 The DataGen connector is built-in, no additional dependencies are required.
 
