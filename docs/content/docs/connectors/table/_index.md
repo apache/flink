@@ -1,5 +1,5 @@
 ---
-title: Table API Connectors
+title: SQL & Table API Connectors
 bookCollapseSection: true
 weight: 3
 ---
