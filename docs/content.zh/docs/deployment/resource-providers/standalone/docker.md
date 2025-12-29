@@ -479,7 +479,7 @@ RUN pip3 install /apache_flink_libraries*.tar.gz && pip3 install /apache_flink*.
 ```
 
 {{< unstable >}}
-<span class="label label-info">Note</span> PyFlink packages could be built according to the [PyFlink installation guide]({{< ref "docs/dev/python/installation" >}})
+<span class="label label-info">Note</span> PyFlink packages could be built according to the [development guide]({{< github_repo >}}#building-apache-flink-from-source)
 {{< /unstable >}}
 
 Build the image named as **pyflink:latest**:

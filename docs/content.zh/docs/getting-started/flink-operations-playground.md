@@ -28,9 +28,24 @@ under the License.
 
 # Flink 操作场景
 
-Apache Flink 可以以多种方式在不同的环境中部署，抛开这种多样性而言，Flink 集群的基本构建方式和操作原则仍然是相同的。
+{{< hint warning >}}
+**需要 Docker：** 本练习场使用 Docker Compose 来运行完整的 Flink 集群和 Kafka。请确保已安装 [Docker](https://docs.docker.com/)（20.10+）和 [docker compose](https://docs.docker.com/compose/)（2.1+）。
+{{< /hint >}}
 
-在这篇文章里，你将会学习如何管理和运行 Flink 任务，了解如何部署和监控应用程序、Flink 如何从失败作业中进行恢复，同时你还会学习如何执行一些日常操作任务，如升级和扩容。
+本练习场专注于**运维** Flink，而非编写 Flink 应用程序。它非常适合平台工程师、DevOps 团队或想要了解如何在生产环境中运行和管理 Flink 的开发人员。
+
+## 你将学到什么
+
+在本练习场中，你将：
+
+- 使用 Web UI 部署和监控 Flink 应用程序
+- 观察 Flink 如何从故障中恢复并保证精确一次语义
+- 使用 savepoint 执行作业升级
+- 对作业进行扩缩容
+- 通过 REST API 查询作业指标
+- 使用 Flink CLI 执行运维任务
+
+Apache Flink 可以以多种方式在不同的环境中部署，抛开这种多样性而言，Flink 集群的基本构建方式和操作原则仍然是相同的。
 
 {{< unstable >}}
 {{< hint warning >}}
@@ -777,3 +792,26 @@ curl localhost:8081/jobs/<jod-id>
 *Click Event Count* 这个 Job 还有另外一个选项，该选项默认是关闭的，你可以在 *client* 容器的 `docker-compose.yaml` 文件中添加该选项从而观察该 Job 在反压下的表现，该选项描述如下：
 
 * `--backpressure` 将一个额外算子添加到 Job 中，该算子会在偶数分钟内产生严重的反压（比如：10:12 期间，而 10:13 期间不会）。这种现象可以通过多种[网络指标]({{< ref "docs/ops/metrics" >}}#default-shuffle-service)观察到，比如：`outputQueueLength` 和 `outPoolUsage` 指标，通过 WebUI 上的[反压监控]({{< ref "docs/ops/monitoring/back_pressure" >}}#monitoring-back-pressure)也可以观察到。
+
+{{< top >}}
+
+## 下一步
+
+现在你已经了解了如何运维 Flink，以下是一些继续学习的路径：
+
+### 生产部署
+
+- [部署概述]({{< ref "docs/deployment/overview" >}})：在 Kubernetes、YARN 或独立集群上部署 Flink
+- [配置]({{< ref "docs/deployment/config" >}})：为你的工作负载调优 Flink
+- [高可用]({{< ref "docs/deployment/ha/overview" >}})：为生产环境设置高可用
+
+### 运维与监控
+
+- [监控]({{< ref "docs/ops/monitoring/checkpoint_monitoring" >}})：监控检查点和作业健康状况
+- [指标]({{< ref "docs/ops/metrics" >}})：理解和使用 Flink 指标
+- [状态与容错]({{< ref "docs/ops/state/checkpoints" >}})：配置检查点和 savepoint
+
+### 学习编写 Flink 应用程序
+
+- [Flink SQL 教程]({{< ref "docs/getting-started/quickstart-sql" >}})：使用 SQL 查询数据
+- [Table API 教程]({{< ref "docs/getting-started/table_api" >}})：使用 Java/Scala 构建流处理管道

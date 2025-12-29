@@ -1,5 +1,5 @@
 ---
-title: "Intro to Flink SQL"
+title: "Flink SQL Tutorial"
 weight: 2
 type: docs
 aliases:
@@ -25,34 +25,46 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Intro to Flink SQL
+# Flink SQL Tutorial
 
-Flink SQL makes it simple to develop streaming applications using standard SQL. It is easy to learn Flink if you have ever worked with a database or SQL like system by remaining ANSI-SQL 2011 compliant. This tutorial will help you get started quickly with a Flink SQL development environment. 
+Flink SQL makes it simple to develop streaming applications using standard SQL. It is easy to learn Flink if you have ever worked with a database or SQL-like system by remaining ANSI-SQL 2011 compliant.
 
-### Prerequisites 
+## What You'll Learn
 
-You only need to have basic knowledge of SQL to follow along. No other programming experience is assumed. 
+In this tutorial, you will:
 
-### Installation
+- Start the Flink SQL Client
+- Run interactive SQL queries
+- Create source tables from external data
+- Write continuous queries that process streaming data
+- Output results to sink tables
 
-There are multiple ways to install Flink. For experimentation, the most common option is to download the binaries and run them locally. You can follow the steps in [local installation]({{< ref "docs/getting-started/local_installation" >}}) to set up an environment for the rest of the tutorial. 
+{{< hint info >}}
+**No coding required!** The SQL Client provides an interactive environment where you type SQL queries and see results immediately.
+{{< /hint >}}
 
-Once you're all set, use the following command to start a local cluster from the installation folder:
+## Prerequisites
+
+- Basic knowledge of SQL
+- A running Flink cluster (follow [First Steps]({{< ref "docs/getting-started/local_installation" >}}))
+
+## Starting the SQL Client
+
+The [SQL Client]({{< ref "docs/sql/sql-client" >}}) is an interactive client to submit SQL queries to Flink and visualize the results.
+
+If you used **Docker** in First Steps:
 
 ```bash
-./bin/start-cluster.sh
+$ docker compose run sql-client
 ```
- 
-Once started, the Flink WebUI on [localhost:8081](localhost:8081) is available locally, from which you can monitor the different jobs.
 
-### SQL Client
+If you used **local installation** in First Steps:
 
-The [SQL Client]({{< ref "docs/sql/sql-client" >}}) is an interactive client to submit SQL queries to Flink and visualize the results. 
-To start the SQL client, run the `sql-client` script from the installation folder.
+```bash
+$ ./bin/sql-client.sh
+```
 
- ```bash
-./bin/sql-client.sh
- ``` 
+To exit the SQL Client, type `exit;` and press Enter. 
 
 ### Hello World
 
@@ -89,22 +101,29 @@ Flink data processing pipelines begin with source tables. Source tables produce 
 
 Tables can be defined through the SQL client or using environment config file. The SQL client support [SQL DDL commands]({{< ref "docs/sql/reference/overview" >}}) similar to traditional SQL. Standard SQL DDL is used to [create]({{< ref "docs/sql/reference/create" >}}), [alter]({{< ref "docs/sql/reference/alter" >}}), [drop]({{< ref "docs/sql/reference/drop" >}}) tables. 
 
-Flink has a support for different [connectors]({{< ref "docs/connectors/table/overview" >}}) and [formats]({{< ref "docs/connectors/table/formats/overview" >}}) that can be used with tables. Following is an example to define a source table backed by a [CSV file]({{< ref "docs/connectors/table/formats/csv" >}}) with `emp_id`, `name`, `dept_id` as columns in a `CREATE` table statement.
+Flink supports different [connectors]({{< ref "docs/connectors/table/overview" >}}) and [formats]({{< ref "docs/connectors/table/formats/overview" >}}) that can be used with tables. Following is an example to define a source table using the [DataGen connector]({{< ref "docs/connectors/table/datagen" >}}), which generates sample data automatically.
 
 ```sql
 CREATE TABLE employee_information (
     emp_id INT,
-    name VARCHAR,
+    name STRING,
     dept_id INT
-) WITH ( 
-    'connector' = 'filesystem',
-    'path' = '/path/to/something.csv',
-    'format' = 'csv'
+) WITH (
+    'connector' = 'datagen',
+    'rows-per-second' = '10',
+    'fields.emp_id.kind' = 'sequence',
+    'fields.emp_id.start' = '1',
+    'fields.emp_id.end' = '1000000',
+    'fields.name.length' = '8',
+    'fields.dept_id.min' = '1',
+    'fields.dept_id.max' = '5'
 );
-``` 
+```
+
+This creates a table that generates 10 rows per second with sequential employee IDs, random 8-character names, and department IDs between 1 and 5. 
 
 A continuous query can be defined from this table that reads new rows as they are made available and immediately outputs their results. 
-For example, we can filter for just those employees who work in department `1`. 
+For example, you can filter for just those employees who work in department `1`. 
 
 ```sql
 SELECT * from employee_information WHERE dept_id = 1;
@@ -134,36 +153,67 @@ Such queries are considered _stateful_. Flink's advanced fault-tolerance mechani
 
 ## Sink Tables
 
-When running this query, the SQL client provides output in real-time but in a read-only fashion. Storing results - to power a report or dashboard - requires writing out to another table. This can be achieved using an `INSERT INTO` statement. The table referenced in this clause is known as a sink table. An `INSERT INTO` statement will be submitted as a detached query to the Flink cluster. 
+When running this query, the SQL client provides output in real-time but in a read-only fashion. Storing results (for example, to power a report or dashboard) requires writing out to another table. This can be achieved using an `INSERT INTO` statement. The table referenced in this clause is known as a sink table. An `INSERT INTO` statement will be submitted as a detached query to the Flink cluster.
 
- ```sql
+First, create the sink table. This example uses the `print` connector, which writes results to the TaskManager's log:
+
+```sql
+CREATE TABLE department_counts (
+    dept_id INT,
+    emp_count BIGINT
+) WITH (
+    'connector' = 'print'
+);
+```
+
+Now insert the aggregated results into this table:
+
+```sql
 INSERT INTO department_counts
- SELECT 
-	dept_id,
-	COUNT(*) as emp_count 
+SELECT
+    dept_id,
+    COUNT(*) as emp_count
 FROM employee_information
 GROUP BY dept_id;
- ``` 
- 
-Once submitted, this will run and store the results into the sink table directly, instead of loading the results into the system memory. 
+```
+
+Once submitted, this runs as a background job and continuously writes results to the sink table. You can view the output in the TaskManager logs:
+
+```bash
+$ docker compose logs -f taskmanager
+```
+
+In production, you would typically use connectors like [JDBC]({{< ref "docs/connectors/table/jdbc" >}}), [Kafka]({{< ref "docs/connectors/table/kafka" >}}), or [Filesystem]({{< ref "docs/connectors/table/filesystem" >}}) to write to external systems. 
 
 ---------------
 
 {{< top >}}
 
-## Looking for Help! 
+## Next Steps
+
+Now that you've experienced Flink SQL, here are some paths to continue learning:
+
+### Dive Deeper into Flink SQL
+
+- [SQL Reference]({{< ref "docs/sql/reference/overview" >}}): Complete SQL syntax and supported operations
+- [SQL Client]({{< ref "docs/sql/sql-client" >}}): Advanced SQL Client features and configuration
+- [Built-in Functions]({{< ref "docs/sql/built-in-functions" >}}): All available functions for SQL queries
+- [Connectors]({{< ref "docs/connectors/table/overview" >}}): Connect to Kafka, databases, filesystems, and more
+
+### Understand Streaming Concepts
+
+- [Dynamic Tables]({{< ref "docs/concepts/sql-table-concepts/dynamic_tables" >}}): How Flink SQL handles streaming data
+- [Time Attributes]({{< ref "docs/concepts/sql-table-concepts/time_attributes" >}}): Working with event time and processing time
+
+### Try Other Tutorials
+
+- [Table API Tutorial]({{< ref "docs/getting-started/table_api" >}}): Build a complete streaming pipeline with Java or Scala (requires Docker)
+- [Flink Operations Playground]({{< ref "docs/getting-started/flink-operations-playground" >}}): Learn to operate Flink clusters (requires Docker)
+
+## Getting Help
 
 If you get stuck, check out the [community support resources](https://flink.apache.org/community.html).
-In particular, Apache Flink's [user mailing list](https://flink.apache.org/community.html#mailing-lists) consistently ranks as one of the most active of any Apache project and a great way to get help quickly. 
-
-## Resources to Learn more
-
-* [SQL]({{< ref "docs/sql/reference/overview" >}}): Supported operations and syntax for SQL.
-* [SQL Client]({{< ref "docs/sql/sql-client" >}}): Play around with Flink SQL and submit a table program to a cluster without programming knowledge
-* [Concepts & Common API]({{< ref "docs/dev/table/common" >}}): Shared concepts and APIs of the Table API and SQL.
-* [Streaming Concepts]({{< ref "docs/concepts/sql-table-concepts/overview" >}}): Streaming-specific documentation for the Table API or SQL such as configuration of time attributes and handling of updating results.
-* [Built-in Functions]({{< ref "docs/sql/built-in-functions" >}}): Supported functions in Table API and SQL.
-* [Connect to External Systems]({{< ref "docs/connectors/table/overview" >}}): Available connectors and formats for reading and writing data to external systems.
+Apache Flink's [user mailing list](https://flink.apache.org/community.html#mailing-lists) is one of the most active of any Apache project and a great way to get help quickly.
 
 ---------------
 

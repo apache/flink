@@ -28,13 +28,24 @@ under the License.
 
 # Flink Operations Playground
 
-There are many ways to deploy and operate Apache Flink in various environments. Regardless of this
-variety, the fundamental building blocks of a Flink Cluster remain the same, and similar
-operational principles apply.
+{{< hint warning >}}
+**Docker Required:** This playground uses Docker Compose to run a complete Flink cluster with Kafka. Make sure you have [Docker](https://docs.docker.com/) (20.10+) and [docker compose](https://docs.docker.com/compose/) (2.1+) installed.
+{{< /hint >}}
 
-In this playground, you will learn how to manage and run Flink Jobs. You will see how to deploy and 
-monitor an application, experience how Flink recovers from Job failure, and perform everyday 
-operational tasks like upgrades and rescaling.
+This playground focuses on **operating** Flink rather than writing Flink applications. It's ideal for platform engineers, DevOps teams, or developers who want to understand how to run and manage Flink in production.
+
+## What You'll Learn
+
+In this playground, you will:
+
+- Deploy and monitor a Flink application using the Web UI
+- Observe how Flink recovers from failures with exactly-once guarantees
+- Perform job upgrades using savepoints
+- Scale jobs up and down (rescaling)
+- Query job metrics via the REST API
+- Use the Flink CLI for operational tasks
+
+There are many ways to deploy and operate Apache Flink in various environments. Regardless of this variety, the fundamental building blocks of a Flink Cluster remain the same, and similar operational principles apply.
 
 {{< unstable >}}
 {{< hint warning >}}
@@ -758,9 +769,32 @@ The *Click Event Count* application also has another option, turned off by defau
 enable to explore the behavior of this job under backpressure. You can add this option in the 
 command of the *client* container in `docker-compose.yaml`.
 
-* `--backpressure` adds an additional operator into the middle of the job that causes severe backpressure 
-during even-numbered minutes (e.g., during 10:12, but not during 10:13). This can be observed by 
-inspecting various [network metrics]({{< ref "docs/ops/metrics" >}}#default-shuffle-service) 
-such as `outputQueueLength` and `outPoolUsage`, and/or by using the 
-[backpressure monitoring]({{< ref "docs/ops/monitoring/back_pressure" >}}#monitoring-back-pressure) 
+* `--backpressure` adds an additional operator into the middle of the job that causes severe backpressure
+during even-numbered minutes (e.g., during 10:12, but not during 10:13). This can be observed by
+inspecting various [network metrics]({{< ref "docs/ops/metrics" >}}#default-shuffle-service)
+such as `outputQueueLength` and `outPoolUsage`, and/or by using the
+[backpressure monitoring]({{< ref "docs/ops/monitoring/back_pressure" >}}#monitoring-back-pressure)
 available in the WebUI.
+
+{{< top >}}
+
+## Next Steps
+
+Now that you understand how to operate Flink, here are some paths to continue:
+
+### Production Deployment
+
+- [Deployment Overview]({{< ref "docs/deployment/overview" >}}): Deploy Flink on Kubernetes, YARN, or standalone clusters
+- [Configuration]({{< ref "docs/deployment/config" >}}): Tune Flink for your workload
+- [High Availability]({{< ref "docs/deployment/ha/overview" >}}): Set up HA for production
+
+### Operations & Monitoring
+
+- [Monitoring]({{< ref "docs/ops/monitoring/checkpoint_monitoring" >}}): Monitor checkpoints and job health
+- [Metrics]({{< ref "docs/ops/metrics" >}}): Understand and use Flink metrics
+- [State & Fault Tolerance]({{< ref "docs/ops/state/checkpoints" >}}): Configure checkpoints and savepoints
+
+### Learn to Write Flink Applications
+
+- [Flink SQL Tutorial]({{< ref "docs/getting-started/quickstart-sql" >}}): Query data with SQL
+- [Table API Tutorial]({{< ref "docs/getting-started/table_api" >}}): Build streaming pipelines with Java/Scala

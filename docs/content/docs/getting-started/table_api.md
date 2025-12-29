@@ -28,20 +28,35 @@ under the License.
 
 # Real Time Reporting with the Table API
 
+{{< hint warning >}}
+**Docker Required:** This tutorial uses Docker Compose to run a complete environment with Kafka, MySQL, and Grafana. If you don't have Docker installed, consider starting with the [Intro to Flink SQL]({{< ref "docs/getting-started/quickstart-sql" >}}) tutorial instead, which only requires a local Flink cluster.
+{{< /hint >}}
+
 Apache Flink offers a Table API as a unified, relational API for batch and stream processing, i.e., queries are executed with the same semantics on unbounded, real-time streams or bounded, batch data sets and produce the same results.
 The Table API in Flink is commonly used to ease the definition of data analytics, data pipelining, and ETL applications.
 
-## What Will You Be Building? 
+## What You'll Build
 
-In this tutorial, you will learn how to build a real-time dashboard to track financial transactions by account.
-The pipeline will read data from Kafka and write the results to MySQL visualized via Grafana.
+In this tutorial, you will build a real-time dashboard to track financial transactions by account:
+
+```
+Kafka (transactions) → Flink (aggregation) → MySQL (storage) → Grafana (visualization)
+```
+
+You'll learn how to:
+
+- Set up a Table API streaming environment
+- Read from Kafka using SQL DDL
+- Write continuous aggregations to MySQL
+- Implement user-defined functions
+- Use time-based windows for aggregation
 
 ## Prerequisites
 
 This walkthrough assumes that you have some familiarity with Java, but you should be able to follow along even if you come from a different programming language.
 It also assumes that you are familiar with basic relational concepts such as `SELECT` and `GROUP BY` clauses.
 
-## Help, I’m Stuck! 
+## Help, I'm Stuck! 
 
 If you get stuck, check out the [community support resources](https://flink.apache.org/community.html).
 In particular, Apache Flink's [user mailing list](https://flink.apache.org/community.html#mailing-lists) consistently ranks as one of the most active of any Apache project and a great way to get help quickly. 
@@ -325,3 +340,23 @@ mysql> select count(*) from spend_report;
 Finally, go to [Grafana](http://localhost:3000/d/FOe0PbmGk/walkthrough?viewPanel=2&orgId=1&refresh=5s) to see the fully visualized result!
 
 {{< img src="/fig/spend-report-grafana.png" alt="Grafana" >}}
+
+## Next Steps
+
+Congratulations on completing this tutorial! Here are some ways to continue learning:
+
+### Learn More About the Table API
+
+- [Table API Overview]({{< ref "docs/dev/table/tableApi" >}}): Complete Table API reference
+- [User-Defined Functions]({{< ref "docs/dev/table/functions/udfs" >}}): Create custom functions for your pipelines
+- [Streaming Concepts]({{< ref "docs/concepts/sql-table-concepts/overview" >}}): Understand dynamic tables, time attributes, and more
+
+### Explore Other Tutorials
+
+- [Intro to Flink SQL]({{< ref "docs/getting-started/quickstart-sql" >}}): Interactive SQL queries without coding
+- [Flink Operations Playground]({{< ref "docs/getting-started/flink-operations-playground" >}}): Learn to operate Flink clusters
+
+### Production Deployment
+
+- [Deployment Overview]({{< ref "docs/deployment/overview" >}}): Deploy Flink in production
+- [Connectors]({{< ref "docs/connectors/table/overview" >}}): Connect to various data sources and sinks

@@ -28,13 +28,28 @@ under the License.
 
 # 基于 Table API 实现实时报表
 
+{{< hint warning >}}
+**需要 Docker：** 本教程使用 Docker Compose 来运行包含 Kafka、MySQL 和 Grafana 的完整环境。如果你没有安装 Docker，可以考虑先从 [Flink SQL 入门]({{< ref "docs/getting-started/quickstart-sql" >}}) 教程开始，该教程只需要本地 Flink 集群。
+{{< /hint >}}
+
 Apache Flink 提供了 Table API 作为批流统一的关系型 API。也就是说，在无界的实时流数据或者有界的批数据集上进行查询具有相同的语义，得到的结果一致。
 Flink 的 Table API 可以简化数据分析、构建数据流水线以及 ETL 应用的定义。
 
-## 你接下来要搭建的是什么系统？
+## 你将构建什么
 
-在本教程中，你将学习构建一个通过账户来追踪金融交易的实时看板。
-数据流水线为：先从 Kafka 中读取数据，再将结果写入到 MySQL 中，最后通过 Grafana 展示。
+在本教程中，你将构建一个通过账户追踪金融交易的实时看板：
+
+```
+Kafka（交易数据） → Flink（聚合） → MySQL（存储） → Grafana（可视化）
+```
+
+你将学习：
+
+- 设置 Table API 流处理环境
+- 使用 SQL DDL 从 Kafka 读取数据
+- 将连续聚合写入 MySQL
+- 实现用户自定义函数
+- 使用基于时间的窗口进行聚合
 
 ## 准备条件
 
@@ -320,3 +335,23 @@ mysql> select count(*) from spend_report;
 完整的可视化结果可以访问 [Grafana](http://localhost:3000/d/FOe0PbmGk/walkthrough?viewPanel=2&orgId=1&refresh=5s)！
 
 {{< img src="/fig/spend-report-grafana.png" alt="Grafana" >}}
+
+## 下一步
+
+恭喜你完成本教程！以下是一些继续学习的路径：
+
+### 深入了解 Table API
+
+- [Table API 概述]({{< ref "docs/dev/table/tableApi" >}})：完整的 Table API 参考
+- [用户自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})：为你的流水线创建自定义函数
+- [流式概念]({{< ref "docs/concepts/sql-table-concepts/overview" >}})：了解动态表、时间属性等概念
+
+### 探索其他教程
+
+- [Flink SQL 入门]({{< ref "docs/getting-started/quickstart-sql" >}})：无需编码的交互式 SQL 查询
+- [Flink 运维练习场]({{< ref "docs/getting-started/flink-operations-playground" >}})：学习操作 Flink 集群
+
+### 生产部署
+
+- [部署概述]({{< ref "docs/deployment/overview" >}})：在生产环境部署 Flink
+- [连接器]({{< ref "docs/connectors/table/overview" >}})：连接各种数据源和数据接收器

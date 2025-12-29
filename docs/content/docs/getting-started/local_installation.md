@@ -24,134 +24,191 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# First steps
+# First Steps
 
-<span style="font-size:larger;">Welcome to Flink! :)</span>
+Welcome to Apache Flink! This guide will help you get a Flink cluster up and running so you can start exploring Flink's capabilities.
 
-Flink is designed to process continuous streams of data at a lightning fast pace. This short guide
-will show you how to download the latest stable version of Flink, install, and run it. You will 
-also run an example Flink job and view it in the web UI. 
+## Prerequisites
 
+Choose one of the following installation methods:
 
-## Downloading Flink
+- **Docker**: No Java installation needed, includes SQL Client
+- **Local Installation**: Requires Java 11, 17, or 21
+- **PyFlink**: Requires Java and Python 3.9+
 
-{{< hint info >}}
-__Note:__ Flink is also available as a [Docker image](https://hub.docker.com/_/flink).
-{{< /hint >}}
+## Option A: Docker Installation
 
-Flink runs on all UNIX-like environments, i.e. Linux, Mac OS X, and Cygwin (for Windows). You need 
-to have __Java 11__ installed. To check the Java version installed, type in your terminal: 
+The fastest way to get started with Flink. No Java installation required.
+
+### Step 1: Get the docker-compose.yml file
+
+[Download docker-compose.yml](/downloads/docker-compose.yml) or create a file named `docker-compose.yml` with the following content:
+
+```yaml
+services:
+  jobmanager:
+    image: flink:latest
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+
+  taskmanager:
+    image: flink:latest
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    scale: 1
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 2
+
+  sql-client:
+    image: flink:latest
+    depends_on:
+      - jobmanager
+    command: bin/sql-client.sh
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        rest.address: jobmanager
+```
+
+### Step 2: Start the Cluster
+
+```bash
+$ docker compose up -d
+```
+
+### Step 3: Verify the Cluster is Running
+
+Open the Flink Web UI at [http://localhost:8081](http://localhost:8081) to verify the cluster is running.
+
+### Using the SQL Client
+
+To start an interactive SQL session:
+
+```bash
+$ docker compose run sql-client
+```
+
+To exit the SQL Client, type `exit;` and press Enter.
+
+### Stopping the Cluster
+
+```bash
+$ docker compose down
+```
+
+For more Docker options (scaling, Application Mode), see the [Docker deployment guide]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}).
+
+## Option B: Local Installation
+
+If you prefer to run Flink directly on your machine without Docker.
+
+### Step 1: Download Flink
+
+Flink runs on all UNIX-like environments, including Linux, Mac OS X, and Cygwin (for Windows).
+
+First, verify your Java version:
 
 ```bash
 $ java -version
 ```
 
-Next, [download the latest binary release]({{< downloads >}}) of Flink, 
-then extract the archive: 
+You need Java 11, 17, or 21 installed. Then, [download the latest binary release]({{< downloads >}}) and extract the archive:
 
 ```bash
 $ tar -xzf flink-*.tgz
+$ cd flink-*
 ```
 
-## Browsing the project directory
+### Step 2: Start the Cluster
 
-Navigate to the extracted directory and list the contents by issuing:
-
-```bash
-$ cd flink-* && ls -l
-```
-
-You should see something like:
-
-{{< img src="/fig/try-flink/projectdirectory.png" alt="project directory" >}}
-
-For now, you may want to note that:
-- __bin/__ directory contains the `flink` binary as well as several bash scripts that manage various jobs and tasks
-- __conf/__ directory contains configuration files, including [Flink configuration file]({{< ref "docs/deployment/config#flink-configuration-file" >}})
-- __examples/__ directory contains sample applications that can be used as is with Flink
-
-
-## Starting and stopping a local cluster
-
-To start a local cluster, run the bash script that comes with Flink:
+Start a local Flink cluster:
 
 ```bash
 $ ./bin/start-cluster.sh
 ```
 
-You should see an output like this:
+### Step 3: Verify the Cluster is Running
 
-{{< img src="/fig/try-flink/output.png" alt="output" >}}
+Open the Flink Web UI at [http://localhost:8081](http://localhost:8081) to verify the cluster is running. You should see the Flink dashboard showing one TaskManager with available task slots.
 
-Flink is now running as a background process. You can check its status with the following command:
+### Using the SQL Client
+
+To start an interactive SQL session:
 
 ```bash
-$ ps aux | grep flink
+$ ./bin/sql-client.sh
 ```
 
-You should be able to navigate to the web UI at [localhost:8081](http://localhost:8081) to view
-the Flink dashboard and see that the cluster is up and running. 
+To exit the SQL Client, type `exit;` and press Enter.
 
-To quickly stop the cluster and all running components, you can use the provided script:
+### Stopping the Cluster
+
+When you're done, stop the cluster with:
 
 ```bash
 $ ./bin/stop-cluster.sh
 ```
 
-## Submitting a Flink job
+## Option C: PyFlink Installation
 
-Flink provides a CLI tool, __bin/flink__, that can run programs packaged as Java ARchives (JAR)
-and control their execution. Submitting a [job]({{< ref "docs/concepts/glossary" >}}#ﬂink-job) means uploading the job’s JAR ﬁle and related dependencies to the running Flink cluster
-and executing it.
+For Python development with the Table API or DataStream API. No Flink cluster is required—PyFlink runs in local mode during development.
 
-Flink releases come with example jobs, which you can ﬁnd in the __examples/__ folder.
+### Step 1: Verify Prerequisites
 
-To deploy the example word count job to the running cluster, issue the following command:
+PyFlink requires Java and Python:
 
 ```bash
-$ ./bin/flink run examples/streaming/WordCount.jar
+$ java -version
+# Java 11, 17, or 21
+
+$ python --version
+# Python 3.9, 3.10, 3.11, or 3.12
 ```
 
-You can verify the output by viewing the logs:
+### Step 2: Install PyFlink
+
+{{< stable >}}
+```bash
+$ python -m pip install apache-flink=={{< version >}}
+```
+{{< /stable >}}
+{{< unstable >}}
+```bash
+$ python -m pip install apache-flink
+```
+{{< /unstable >}}
+
+{{< hint info >}}
+**Tip:** We recommend installing PyFlink in a [virtual environment](https://docs.python.org/3/library/venv.html) to keep your project dependencies isolated.
+{{< /hint >}}
+
+### Step 3: Verify Installation
 
 ```bash
-$ tail log/flink-*-taskexecutor-*.out
+$ python -c "import pyflink; print(pyflink.__version__)"
 ```
 
-Sample output:
+You're now ready to follow the [Table API Tutorial]({{< ref "docs/getting-started/table_api" >}}) or [DataStream API Tutorial]({{< ref "docs/getting-started/datastream" >}}) using the Python tabs.
 
-```bash
-  (nymph,1)
-  (in,3)
-  (thy,1)
-  (orisons,1)
-  (be,4)
-  (all,2)
-  (my,1)
-  (sins,1)
-  (remember,1)
-  (d,4)
-```
+## Next Steps
 
-Additionally, you can check Flink's [web UI](http://localhost:8081) to monitor the status of the cluster and running job.
+Choose a tutorial to start learning:
 
-You can view the data flow plan for the execution:
+| Tutorial | Description | Setup Required |
+|----------|-------------|----------------|
+| [Flink SQL Tutorial]({{< ref "docs/getting-started/quickstart-sql" >}}) | Query data interactively using SQL. No coding required. | Option A or B (cluster) |
+| [Table API Tutorial]({{< ref "docs/getting-started/table_api" >}}) | Build streaming pipelines with Java or Python. | Maven (Java) or Option C (Python) |
+| [DataStream API Tutorial]({{< ref "docs/getting-started/datastream" >}}) | Build stateful streaming applications with Java or Python. | Maven (Java) or Option C (Python) |
+| [Flink Operations Playground]({{< ref "docs/getting-started/flink-operations-playground" >}}) | Learn to operate Flink: scaling, failure recovery, and upgrades. | Docker |
 
-{{< img src="/fig/try-flink/dataflowplan.png" alt="data flow plan" >}}
-
-Here for the job execution, Flink has two operators. The ﬁrst is the source operator which reads data from the
-collection source. The second operator is the transformation operator which aggregates counts of words. Learn
-more about [DataStream operators]({{< ref "docs/dev/datastream/operators/overview" >}}).
-
-You can also look at the timeline of the job execution:
-
-{{< img src="/fig/try-flink/timeline.png" alt="data flow timeline" >}}
-
-You have successfully ran a [Flink application]({{< ref "docs/concepts/glossary" >}}#ﬂink-application)! Feel free to select any other JAR archive from the __examples/__
-folder or deploy your own job!
-
-# Summary
-
-In this guide, you downloaded Flink, explored the project directory, started and stopped a local cluster, and submitted a sample Flink job!
-
-To learn more about Flink fundamentals, check out the [concepts]({{< ref "docs/concepts/overview" >}}) section. If you want to try something more hands-on, try one of the tutorials.
+To learn more about Flink's core concepts, visit the [Concepts]({{< ref "docs/concepts/overview" >}}) section.
