@@ -30,6 +30,7 @@ import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.dispatcher.cleanup.TestingResourceCleanerFactory;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
@@ -731,6 +732,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                 JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
                 FatalErrorHandler fatalErrorHandler,
                 Collection<FailureEnricher> failureEnrichers,
+                JobStatusListener jobStatusListener,
                 long initializationTimestamp)
                 throws Exception {
             jobManagerRunnerCreationLatch.run();
@@ -746,6 +748,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                             jobManagerJobMetricGroupFactory,
                             fatalErrorHandler,
                             failureEnrichers,
+                            null,
                             initializationTimestamp);
 
             TestingJobMasterGateway testingJobMasterGateway =
@@ -795,6 +798,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                 JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
                 FatalErrorHandler fatalErrorHandler,
                 Collection<FailureEnricher> failureEnrichers,
+                JobStatusListener jobStatusListener,
                 long initializationTimestamp) {
             return Optional.ofNullable(jobManagerRunners.poll())
                     .orElseThrow(
@@ -822,6 +826,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                 JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
                 FatalErrorHandler fatalErrorHandler,
                 Collection<FailureEnricher> failureEnrichers,
+                JobStatusListener jobStatusListener,
                 long initializationTimestamp)
                 throws Exception {
             throw testException;

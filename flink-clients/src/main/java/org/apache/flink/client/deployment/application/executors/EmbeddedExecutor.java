@@ -32,6 +32,7 @@ import org.apache.flink.core.execution.PipelineExecutor;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
+import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.function.FunctionUtils;
@@ -184,7 +185,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
                         });
     }
 
-    private static CompletableFuture<JobID> submitJob(
+    private CompletableFuture<JobID> submitJob(
             final Configuration configuration,
             final DispatcherGateway dispatcherGateway,
             final StreamGraph streamGraph,
@@ -211,8 +212,15 @@ public class EmbeddedExecutor implements PipelineExecutor {
                                 throw new CompletionException(e);
                             }
 
-                            return dispatcherGateway.submitJob(streamGraph, rpcTimeout);
+                            return internalSubmit(dispatcherGateway, streamGraph, rpcTimeout);
                         })
                 .thenApply(ack -> streamGraph.getJobID());
+    }
+
+    CompletableFuture<Acknowledge> internalSubmit(
+            final DispatcherGateway dispatcherGateway,
+            final StreamGraph streamGraph,
+            final Duration rpcTimeout) {
+        return dispatcherGateway.submitJob(streamGraph, rpcTimeout);
     }
 }

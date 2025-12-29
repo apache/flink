@@ -18,11 +18,13 @@
 
 package org.apache.flink.runtime.webmonitor;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.application.ArchivedApplication;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -31,8 +33,10 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobgraph.JobResourceRequirements;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.messages.FlinkApplicationNotFoundException;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
 import org.apache.flink.runtime.messages.webmonitor.ClusterOverview;
+import org.apache.flink.runtime.messages.webmonitor.MultipleApplicationsDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
@@ -68,6 +72,16 @@ public interface RestfulGateway extends RpcGateway {
     CompletableFuture<Acknowledge> cancelJob(JobID jobId, @RpcTimeout Duration timeout);
 
     /**
+     * Cancel the given application.
+     *
+     * @param applicationId identifying the job to cancel
+     * @param timeout of the operation
+     * @return A future acknowledge if the cancellation succeeded
+     */
+    CompletableFuture<Acknowledge> cancelApplication(
+            ApplicationID applicationId, @RpcTimeout Duration timeout);
+
+    /**
      * Requests the {@link ArchivedExecutionGraph} for the given jobId. If there is no such graph,
      * then the future is completed with a {@link FlinkJobNotFoundException}.
      *
@@ -81,6 +95,19 @@ public interface RestfulGateway extends RpcGateway {
         return requestExecutionGraphInfo(jobId, timeout)
                 .thenApply(ExecutionGraphInfo::getArchivedExecutionGraph);
     }
+
+    /**
+     * Requests the {@link ArchivedApplication } for the given applicationId. If there is no such
+     * application, then the future is completed with a {@link FlinkApplicationNotFoundException}.
+     *
+     * @param applicationId identifying the application whose {@link ArchivedApplication} is
+     *     requested
+     * @param timeout for the asynchronous operation
+     * @return Future containing the {@link ArchivedApplication} for the given applicationId,
+     *     otherwise {@link FlinkApplicationNotFoundException}
+     */
+    CompletableFuture<ArchivedApplication> requestApplication(
+            ApplicationID applicationId, @RpcTimeout Duration timeout);
 
     /**
      * Requests the {@link ExecutionGraphInfo} containing additional information besides the {@link
@@ -121,6 +148,15 @@ public interface RestfulGateway extends RpcGateway {
      * @return Future containing the job details
      */
     CompletableFuture<MultipleJobsDetails> requestMultipleJobDetails(@RpcTimeout Duration timeout);
+
+    /**
+     * Requests application details currently being executed on the Flink cluster.
+     *
+     * @param timeout for the asynchronous operation
+     * @return Future containing the application details
+     */
+    CompletableFuture<MultipleApplicationsDetails> requestMultipleApplicationDetails(
+            @RpcTimeout Duration timeout);
 
     /**
      * Requests the cluster status overview.
