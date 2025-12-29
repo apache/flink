@@ -1,11 +1,15 @@
 ---
-title: 'Real Time Reporting with the Table API'
-nav-title: 'Real Time Reporting with the Table API'
+title: 'Table API Tutorial'
+nav-title: 'Table API Tutorial'
 weight: 3
 type: docs
 aliases:
   - /try-flink/table_api.html
   - /getting-started/walkthroughs/table_api.html
+  - /dev/python/table_api_tutorial.html
+  - /tutorials/python_table_api.html
+  - /getting-started/walkthroughs/python_table_api.html
+  - /try-flink/python_table_api.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -26,59 +30,59 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Real Time Reporting with the Table API
+# Table API Tutorial
 
-{{< hint warning >}}
-**Docker Required:** This tutorial uses Docker Compose to run a complete environment with Kafka, MySQL, and Grafana. If you don't have Docker installed, consider starting with the [Intro to Flink SQL]({{< ref "docs/getting-started/quickstart-sql" >}}) tutorial instead, which only requires a local Flink cluster.
-{{< /hint >}}
-
-Apache Flink offers a Table API as a unified, relational API for batch and stream processing, i.e., queries are executed with the same semantics on unbounded, real-time streams or bounded, batch data sets and produce the same results.
-The Table API in Flink is commonly used to ease the definition of data analytics, data pipelining, and ETL applications.
+Apache Flink offers a Table API as a unified, relational API for batch and stream processing. Queries are executed with the same semantics on unbounded, real-time streams or bounded, batch data sets and produce the same results. The Table API in Flink is commonly used for data analytics, data pipelining, and ETL applications.
 
 ## What You'll Build
 
-In this tutorial, you will build a real-time dashboard to track financial transactions by account:
+In this tutorial, you will build a spend report that aggregates transaction amounts by account and hour:
 
 ```
-Kafka (transactions) → Flink (aggregation) → MySQL (storage) → Grafana (visualization)
+Transactions (generated data) → Flink (Table API aggregation) → Console (results)
 ```
 
 You'll learn how to:
 
 - Set up a Table API streaming environment
-- Read from Kafka using SQL DDL
-- Write continuous aggregations to MySQL
-- Implement user-defined functions
+- Create tables using the Table API
+- Write continuous aggregations using Table API operations
+- Implement user-defined functions (UDFs)
 - Use time-based windows for aggregation
+- Test streaming applications in batch mode
 
 ## Prerequisites
 
-This walkthrough assumes that you have some familiarity with Java, but you should be able to follow along even if you come from a different programming language.
-It also assumes that you are familiar with basic relational concepts such as `SELECT` and `GROUP BY` clauses.
+This walkthrough assumes that you have some familiarity with Java or Python, but you should be able to follow along even if you come from a different programming language. It also assumes that you are familiar with basic relational concepts such as `SELECT` and `GROUP BY` clauses.
 
-## Help, I'm Stuck! 
+## Help, I'm Stuck!
 
 If you get stuck, check out the [community support resources](https://flink.apache.org/community.html).
-In particular, Apache Flink's [user mailing list](https://flink.apache.org/community.html#mailing-lists) consistently ranks as one of the most active of any Apache project and a great way to get help quickly. 
-
-{{< hint info >}}
-If running docker on Windows and your data generator container is failing to start, then please ensure that you're using the right shell.
-For example **docker-entrypoint.sh** for **table-walkthrough_data-generator_1** container requires bash.
-If unavailable, it will throw an error **standard_init_linux.go:211: exec user process caused "no such file or directory"**.
-A workaround is to switch the shell to **sh** on the first line of **docker-entrypoint.sh**.
-{{< /hint >}}
+In particular, Apache Flink's [user mailing list](https://flink.apache.org/community.html#mailing-lists) consistently ranks as one of the most active of any Apache project and a great way to get help quickly.
 
 ## How To Follow Along
 
-If you want to follow along, you will require a computer with: 
+If you want to follow along, you will require a computer with:
 
-* Java 11
-* Maven 
-* Docker
+{{< tabs "prerequisites" >}}
+{{< tab "Java" >}}
+* Java 11, 17, or 21
+* Maven
+{{< /tab >}}
+{{< tab "Python" >}}
+* Java 11, 17, or 21
+* Python 3.9, 3.10, 3.11, or 3.12
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< tabs "setup" >}}
+{{< tab "Java" >}}
+
+A provided Flink Maven Archetype will create a skeleton project with all the necessary dependencies quickly, so you only need to focus on filling out the business logic.
 
 {{< unstable >}}
 {{< hint warning >}}
-**Attention:** The Apache Flink Docker images used for this playground are only available for released versions of Apache Flink.
+**Attention:** The Maven archetype is only available for released versions of Apache Flink.
 
 Since you are currently looking at the latest SNAPSHOT
 version of the documentation, all version references below will not work.
@@ -86,155 +90,396 @@ Please switch the documentation to the latest released version via the release p
 {{< /hint >}}
 {{< /unstable >}}
 
-The required configuration files are available in the [flink-playgrounds](https://github.com/apache/flink-playgrounds) repository.
-Once downloaded, open the project `flink-playground/table-walkthrough` in your IDE and navigate to the file `SpendReport`. 
+```bash
+$ mvn archetype:generate \
+    -DarchetypeGroupId=org.apache.flink \
+    -DarchetypeArtifactId=flink-walkthrough-table-java \
+    -DarchetypeVersion={{< version >}} \
+    -DgroupId=spendreport \
+    -DartifactId=spendreport \
+    -Dversion=0.1 \
+    -Dpackage=spendreport \
+    -DinteractiveMode=false
+```
+
+You can edit the `groupId`, `artifactId` and `package` if you like. With the above parameters, Maven will create a folder named `spendreport` that contains a project with all the dependencies to complete this tutorial.
+
+After importing the project into your editor, you can find a file `SpendReport.java` with the following code which you can run directly inside your IDE.
+
+{{< hint info >}}
+**Running in an IDE:** If you encounter a `java.lang.NoClassDefFoundError` exception, this is likely because you do not have all required Flink dependencies on the classpath.
+
+* **IntelliJ IDEA:** Go to Run > Edit Configurations > Modify options > Select "include dependencies with 'Provided' scope".
+{{< /hint >}}
+
+{{< /tab >}}
+{{< tab "Python" >}}
+
+Using Python Table API requires installing PyFlink, which is available on [PyPI](https://pypi.org/project/apache-flink/) and can be easily installed using `pip`:
+
+```bash
+$ python -m pip install apache-flink
+```
+
+{{< hint info >}}
+**Tip:** We recommend installing PyFlink in a [virtual environment](https://docs.python.org/3/library/venv.html) to keep your project dependencies isolated.
+{{< /hint >}}
+
+Once PyFlink is installed, create a new file called `spend_report.py` where you will write the Table API program.
+
+{{< /tab >}}
+{{< /tabs >}}
+
+## The Complete Program
+
+Here is the complete code for the spend report program:
+
+{{< tabs "complete-program" >}}
+{{< tab "Java" >}}
 
 ```java
-EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
-TableEnvironment tEnv = TableEnvironment.create(settings);
+public class SpendReport {
 
-tEnv.executeSql("CREATE TABLE transactions (\n" +
-    "    account_id  BIGINT,\n" +
-    "    amount      BIGINT,\n" +
-    "    transaction_time TIMESTAMP(3),\n" +
-    "    WATERMARK FOR transaction_time AS transaction_time - INTERVAL '5' SECOND\n" +
-    ") WITH (\n" +
-    "    'connector' = 'kafka',\n" +
-    "    'topic'     = 'transactions',\n" +
-    "    'properties.bootstrap.servers' = 'kafka:9092',\n" +
-    "    'format'    = 'csv'\n" +
-    ")");
+    public static void main(String[] args) throws Exception {
+        // Create a Table environment for streaming
+        EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
+        TableEnvironment tEnv = TableEnvironment.create(settings);
 
-tEnv.executeSql("CREATE TABLE spend_report (\n" +
-    "    account_id BIGINT,\n" +
-    "    log_ts     TIMESTAMP(3),\n" +
-    "    amount     BIGINT\n," +
-    "    PRIMARY KEY (account_id, log_ts) NOT ENFORCED" +
-    ") WITH (\n" +
-    "   'connector'  = 'jdbc',\n" +
-    "   'url'        = 'jdbc:mysql://mysql:3306/sql-demo',\n" +
-    "   'table-name' = 'spend_report',\n" +
-    "   'driver'     = 'com.mysql.jdbc.Driver',\n" +
-    "   'username'   = 'sql-demo',\n" +
-    "   'password'   = 'demo-sql'\n" +
-    ")");
+        // Create the source table
+        // The DataGen connector generates an infinite stream of transactions
+        tEnv.createTemporaryTable("transactions",
+            TableDescriptor.forConnector("datagen")
+                .schema(Schema.newBuilder()
+                    .column("accountId", DataTypes.BIGINT())
+                    .column("amount", DataTypes.BIGINT())
+                    .column("transactionTime", DataTypes.TIMESTAMP(3))
+                    .watermark("transactionTime", "transactionTime - INTERVAL '5' SECOND")
+                    .build())
+                .option("rows-per-second", "100")
+                .option("fields.accountId.min", "1")
+                .option("fields.accountId.max", "5")
+                .option("fields.amount.min", "1")
+                .option("fields.amount.max", "1000")
+                .build());
 
-Table transactions = tEnv.from("transactions");
-report(transactions).executeInsert("spend_report");
+        // Read from the source table
+        Table transactions = tEnv.from("transactions");
 
+        // Apply the business logic
+        Table result = report(transactions);
+
+        // Print the results to the console
+        result.execute().print();
+    }
+
+    public static Table report(Table transactions) {
+        return transactions
+            .select(
+                $("accountId"),
+                $("transactionTime").floor(TimeIntervalUnit.HOUR).as("logTs"),
+                $("amount"))
+            .groupBy($("accountId"), $("logTs"))
+            .select(
+                $("accountId"),
+                $("logTs"),
+                $("amount").sum().as("amount"));
+    }
+}
 ```
+
+{{< /tab >}}
+{{< tab "Python" >}}
+
+```python
+from pyflink.table import TableEnvironment, EnvironmentSettings, TableDescriptor, Schema, DataTypes
+from pyflink.table.expression import TimeIntervalUnit
+from pyflink.table.expressions import col
+
+def main():
+    # Create a Table environment for streaming
+    settings = EnvironmentSettings.in_streaming_mode()
+    t_env = TableEnvironment.create(settings)
+
+    # Write all results to one file for easier viewing
+    t_env.get_config().set("parallelism.default", "1")
+
+    # Create the source table
+    # The DataGen connector generates an infinite stream of transactions
+    t_env.create_temporary_table(
+        "transactions",
+        TableDescriptor.for_connector("datagen")
+            .schema(Schema.new_builder()
+                .column("accountId", DataTypes.BIGINT())
+                .column("amount", DataTypes.BIGINT())
+                .column("transactionTime", DataTypes.TIMESTAMP(3))
+                .watermark("transactionTime", "transactionTime - INTERVAL '5' SECOND")
+                .build())
+            .option("rows-per-second", "100")
+            .option("fields.accountId.min", "1")
+            .option("fields.accountId.max", "5")
+            .option("fields.amount.min", "1")
+            .option("fields.amount.max", "1000")
+            .build())
+
+    # Read from the source table
+    transactions = t_env.from_path("transactions")
+
+    # Apply the business logic
+    result = report(transactions)
+
+    # Print the results to the console
+    result.execute().print()
+
+def report(transactions):
+    return transactions \
+        .select(
+            col("accountId"),
+            col("transactionTime").floor(TimeIntervalUnit.HOUR).alias("logTs"),
+            col("amount")) \
+        .group_by(col("accountId"), col("logTs")) \
+        .select(
+            col("accountId"),
+            col("logTs"),
+            col("amount").sum.alias("amount"))
+
+if __name__ == '__main__':
+    main()
+```
+
+{{< /tab >}}
+{{< /tabs >}}
 
 ## Breaking Down The Code
 
-#### The Execution Environment
+### The Execution Environment
 
-The first two lines set up your `TableEnvironment`.
-The table environment is how you can set properties for your Job, specify whether you are writing a batch or a streaming application, and create your sources.
-This walkthrough creates a standard table environment that uses the streaming execution.
+The first lines set up your `TableEnvironment`. The table environment is how you set properties for your Job, specify whether you are writing a batch or a streaming application, and create your sources. This walkthrough creates a standard table environment that uses streaming execution.
+
+{{< tabs "environment" >}}
+{{< tab "Java" >}}
 
 ```java
 EnvironmentSettings settings = EnvironmentSettings.inStreamingMode();
 TableEnvironment tEnv = TableEnvironment.create(settings);
 ```
 
-#### Registering Tables
+{{< /tab >}}
+{{< tab "Python" >}}
 
-Next, tables are registered in the current [catalog]({{< ref "docs/sql/catalogs" >}}) that you can use to connect to external systems for reading and writing both batch and streaming data.
-A table source provides access to data stored in external systems, such as a database, a key-value store, a message queue, or a file system.
-A table sink emits a table to an external storage system.
-Depending on the type of source and sink, they support different formats such as CSV, JSON, Avro, or Parquet.
-
-```java
-tEnv.executeSql("CREATE TABLE transactions (\n" +
-     "    account_id  BIGINT,\n" +
-     "    amount      BIGINT,\n" +
-     "    transaction_time TIMESTAMP(3),\n" +
-     "    WATERMARK FOR transaction_time AS transaction_time - INTERVAL '5' SECOND\n" +
-     ") WITH (\n" +
-     "    'connector' = 'kafka',\n" +
-     "    'topic'     = 'transactions',\n" +
-     "    'properties.bootstrap.servers' = 'kafka:9092',\n" +
-     "    'format'    = 'csv'\n" +
-     ")");
+```python
+settings = EnvironmentSettings.in_streaming_mode()
+t_env = TableEnvironment.create(settings)
 ```
 
-Two tables are registered; a transaction input table, and a spend report output table.
-The transactions (`transactions`) table lets us read credit card transactions, which contain account ID's (`account_id`), timestamps (`transaction_time`), and US$ amounts (`amount`).
-The table is a logical view over a Kafka topic called `transactions` containing CSV data.
+{{< /tab >}}
+{{< /tabs >}}
+
+### Creating Tables
+
+Next, a table is created that represents the transactions data. The DataGen connector generates an infinite stream of random transactions.
+
+{{< tabs "create-table" >}}
+{{< tab "Java" >}}
+
+Using `TableDescriptor`, you can define tables programmatically:
 
 ```java
-tEnv.executeSql("CREATE TABLE spend_report (\n" +
-    "    account_id BIGINT,\n" +
-    "    log_ts     TIMESTAMP(3),\n" +
-    "    amount     BIGINT\n," +
-    "    PRIMARY KEY (account_id, log_ts) NOT ENFORCED" +
-    ") WITH (\n" +
-    "    'connector'  = 'jdbc',\n" +
-    "    'url'        = 'jdbc:mysql://mysql:3306/sql-demo',\n" +
-    "    'table-name' = 'spend_report',\n" +
-    "    'driver'     = 'com.mysql.jdbc.Driver',\n" +
-    "    'username'   = 'sql-demo',\n" +
-    "    'password'   = 'demo-sql'\n" +
-    ")");
+tEnv.createTemporaryTable("transactions",
+    TableDescriptor.forConnector("datagen")
+        .schema(Schema.newBuilder()
+            .column("accountId", DataTypes.BIGINT())
+            .column("amount", DataTypes.BIGINT())
+            .column("transactionTime", DataTypes.TIMESTAMP(3))
+            .watermark("transactionTime", "transactionTime - INTERVAL '5' SECOND")
+            .build())
+        .option("rows-per-second", "100")
+        .option("fields.accountId.min", "1")
+        .option("fields.accountId.max", "5")
+        .option("fields.amount.min", "1")
+        .option("fields.amount.max", "1000")
+        .build());
 ```
 
-The second table, `spend_report`, stores the final results of the aggregation.
-Its underlying storage is a table in a MySql database.
+{{< /tab >}}
+{{< tab "Python" >}}
 
-#### The Query
+Using `TableDescriptor`, you can define tables programmatically:
+
+```python
+t_env.create_temporary_table(
+    "transactions",
+    TableDescriptor.for_connector("datagen")
+        .schema(Schema.new_builder()
+            .column("accountId", DataTypes.BIGINT())
+            .column("amount", DataTypes.BIGINT())
+            .column("transactionTime", DataTypes.TIMESTAMP(3))
+            .watermark("transactionTime", "transactionTime - INTERVAL '5' SECOND")
+            .build())
+        .option("rows-per-second", "100")
+        .option("fields.accountId.min", "1")
+        .option("fields.accountId.max", "5")
+        .option("fields.amount.min", "1")
+        .option("fields.amount.max", "1000")
+        .build())
+```
+
+{{< /tab >}}
+{{< /tabs >}}
+
+The transactions table generates credit card transactions with:
+- `accountId`: Account ID between 1 and 5
+- `amount`: Transaction amount between 1 and 1000
+- `transactionTime`: Timestamp with a watermark for handling late data
+
+### The Query
 
 With the environment configured and tables registered, you are ready to build your first application.
-From the `TableEnvironment` you can read `from` an input table to read its rows and then write those results into an output table using `executeInsert`.
-The `report` function is where you will implement your business logic.
-It is currently unimplemented.
+From the `TableEnvironment` you can read `from` an input table and apply Table API operations.
+The `report` function is where you implement your business logic.
+
+{{< tabs "query" >}}
+{{< tab "Java" >}}
 
 ```java
 Table transactions = tEnv.from("transactions");
-report(transactions).executeInsert("spend_report");
+Table result = report(transactions);
+result.execute().print();
 ```
 
-## Testing 
+{{< /tab >}}
+{{< tab "Python" >}}
 
-The project contains a secondary testing class `SpendReportTest` that validates the logic of the report.
-It creates a table environment in batch mode. 
-
-```java
-EnvironmentSettings settings = EnvironmentSettings.inBatchMode();
-TableEnvironment tEnv = TableEnvironment.create(settings); 
+```python
+transactions = t_env.from_path("transactions")
+result = report(transactions)
+result.execute().print()
 ```
 
-One of Flink's unique properties is that it provides consistent semantics across batch and streaming.
-This means you can develop and test applications in batch mode on static datasets, and deploy to production as streaming applications.
+{{< /tab >}}
+{{< /tabs >}}
 
-## Attempt One
+## Implementing the Report
 
-Now with the skeleton of a Job set-up, you are ready to add some business logic.
-The goal is to build a report that shows the total spend for each account across each hour of the day.
-This means the timestamp column needs be be rounded down from millisecond to hour granularity. 
+Now with the skeleton of a Job set up, you are ready to add some business logic. The goal is to build a report that shows the total spend for each account across each hour of the day. This means the timestamp column needs to be rounded down from millisecond to hour granularity.
 
-Flink supports developing relational applications in pure [SQL]({{< ref "docs/sql/reference/overview" >}}) or using the [Table API]({{< ref "docs/dev/table/tableApi" >}}).
-The Table API is a fluent DSL inspired by SQL, that can be written in Java or Python and supports strong IDE integration.
-Just like a SQL query, Table programs can select the required fields and group by your keys.
-These features, along with [built-in functions]({{< ref "docs/sql/built-in-functions" >}}) like `floor` and `sum`, enable you to write this report.
+Flink supports developing relational applications in pure [SQL]({{< ref "docs/sql/reference/overview" >}}) or using the [Table API]({{< ref "docs/dev/table/tableApi" >}}). The Table API is a fluent DSL inspired by SQL that can be written in Java or Python and supports strong IDE integration. Just like a SQL query, Table programs can select the required fields and group by your keys. These features, along with [built-in functions]({{< ref "docs/sql/built-in-functions" >}}) like `floor` and `sum`, enable you to write this report.
+
+{{< tabs "report-impl" >}}
+{{< tab "Java" >}}
 
 ```java
 public static Table report(Table transactions) {
-    return transactions.select(
-            $("account_id"),
-            $("transaction_time").floor(TimeIntervalUnit.HOUR).as("log_ts"),
-            $("amount"))
-        .groupBy($("account_id"), $("log_ts"))
+    return transactions
         .select(
-            $("account_id"),
-            $("log_ts"),
+            $("accountId"),
+            $("transactionTime").floor(TimeIntervalUnit.HOUR).as("logTs"),
+            $("amount"))
+        .groupBy($("accountId"), $("logTs"))
+        .select(
+            $("accountId"),
+            $("logTs"),
             $("amount").sum().as("amount"));
 }
 ```
 
+{{< /tab >}}
+{{< tab "Python" >}}
+
+```python
+def report(transactions):
+    return transactions \
+        .select(
+            col("accountId"),
+            col("transactionTime").floor(TimeIntervalUnit.HOUR).alias("logTs"),
+            col("amount")) \
+        .group_by(col("accountId"), col("logTs")) \
+        .select(
+            col("accountId"),
+            col("logTs"),
+            col("amount").sum.alias("amount"))
+```
+
+{{< /tab >}}
+{{< /tabs >}}
+
+## Testing
+
+{{< tabs "testing" >}}
+{{< tab "Java" >}}
+
+The project contains a test class `SpendReportTest` that validates the logic of the report using batch mode with static data.
+
+```java
+EnvironmentSettings settings = EnvironmentSettings.inBatchMode();
+TableEnvironment tEnv = TableEnvironment.create(settings);
+
+// Create test data using fromValues
+Table transactions = tEnv.fromValues(
+    DataTypes.ROW(
+        DataTypes.FIELD("accountId", DataTypes.BIGINT()),
+        DataTypes.FIELD("amount", DataTypes.BIGINT()),
+        DataTypes.FIELD("transactionTime", DataTypes.TIMESTAMP(3))
+    ),
+    Row.of(1L, 188L, LocalDateTime.of(2024, 1, 1, 9, 0, 0)),
+    Row.of(1L, 374L, LocalDateTime.of(2024, 1, 1, 9, 30, 0)),
+    // ... more test data
+);
+```
+
+{{< /tab >}}
+{{< tab "Python" >}}
+
+You can test the `report` function by switching to batch mode and using static test data. Create a separate test file (e.g., `test_spend_report.py`):
+
+```python
+from datetime import datetime
+from pyflink.table import TableEnvironment, EnvironmentSettings, DataTypes
+
+from spend_report import report
+
+def test_report():
+    settings = EnvironmentSettings.in_batch_mode()
+    t_env = TableEnvironment.create(settings)
+
+    # Create test data using from_elements
+    transactions = t_env.from_elements(
+        [
+            (1, 188, datetime(2024, 1, 1, 9, 0, 0)),
+            (1, 374, datetime(2024, 1, 1, 9, 30, 0)),
+            (2, 200, datetime(2024, 1, 1, 9, 15, 0)),
+        ],
+        DataTypes.ROW([
+            DataTypes.FIELD("accountId", DataTypes.BIGINT()),
+            DataTypes.FIELD("amount", DataTypes.BIGINT()),
+            DataTypes.FIELD("transactionTime", DataTypes.TIMESTAMP(3))
+        ])
+    )
+
+    # Test the report function
+    result = report(transactions)
+
+    # Collect results and verify
+    rows = [row for row in result.execute().collect()]
+    assert len(rows) == 2  # Two accounts
+
+if __name__ == '__main__':
+    test_report()
+    print("All tests passed!")
+```
+
+Run with `python test_spend_report.py` or `pytest test_spend_report.py`.
+
+{{< /tab >}}
+{{< /tabs >}}
+
+One of Flink's unique properties is that it provides consistent semantics across batch and streaming. This means you can develop and test applications in batch mode on static datasets, and deploy to production as streaming applications.
+
 ## User Defined Functions
 
-Flink contains a limited number of built-in functions, and sometimes you need to extend it with a [user-defined function]({{< ref "docs/dev/table/functions/udfs" >}}).
-If `floor` wasn't predefined, you could implement it yourself. 
+Flink contains a number of built-in functions, and sometimes you need to extend it with a [user-defined function]({{< ref "docs/dev/table/functions/udfs" >}}). If `floor` wasn't predefined, you could implement it yourself.
+
+{{< tabs "udf" >}}
+{{< tab "Java" >}}
 
 ```java
 import java.time.LocalDateTime;
@@ -253,93 +498,167 @@ public class MyFloor extends ScalarFunction {
 }
 ```
 
-And then quickly integrate it in your application.
-
-```java
-public static Table report(Table transactions) {
-    return transactions.select(
-            $("account_id"),
-            call(MyFloor.class, $("transaction_time")).as("log_ts"),
-            $("amount"))
-        .groupBy($("account_id"), $("log_ts"))
-        .select(
-            $("account_id"),
-            $("log_ts"),
-            $("amount").sum().as("amount"));
-}
-```
-
-This query consumes all records from the `transactions` table, calculates the report, and outputs the results in an efficient, scalable manner.
-Running the test with this implementation will pass. 
-
-## Adding Windows
-
-Grouping data based on time is a typical operation in data processing, especially when working with infinite streams.
-A grouping based on time is called a [window]({{< ref "docs/dev/datastream/operators/windows" >}}) and Flink offers flexible windowing semantics.
-The most basic type of window is called a `Tumble` window, which has a fixed size and whose buckets do not overlap.
+And then quickly integrate it in your application:
 
 ```java
 public static Table report(Table transactions) {
     return transactions
-        .window(Tumble.over(lit(1).hour()).on($("transaction_time")).as("log_ts"))
-        .groupBy($("account_id"), $("log_ts"))
         .select(
-            $("account_id"),
-            $("log_ts").start().as("log_ts"),
+            $("accountId"),
+            call(MyFloor.class, $("transactionTime")).as("logTs"),
+            $("amount"))
+        .groupBy($("accountId"), $("logTs"))
+        .select(
+            $("accountId"),
+            $("logTs"),
             $("amount").sum().as("amount"));
 }
 ```
 
-This defines your application as using one hour tumbling windows based on the timestamp column.
-So a row with timestamp `2019-06-01 01:23:47` is put in the `2019-06-01 01:00:00` window.
+{{< /tab >}}
+{{< tab "Python" >}}
 
+```python
+from pyflink.table.udf import udf
+from datetime import datetime
 
-Aggregations based on time are unique because time, as opposed to other attributes, generally moves forward in a continuous streaming application.
-Unlike `floor` and your UDF, window functions are [intrinsics](https://en.wikipedia.org/wiki/Intrinsic_function), which allows the runtime to apply additional optimizations.
-In a batch context, windows offer a convenient API for grouping records by a timestamp attribute.
-
-Running the test with this implementation will also pass. 
-
-## Once More, With Streaming!
-
-And that's it, a fully functional, stateful, distributed streaming application!
-The query continuously consumes the stream of transactions from Kafka, computes the hourly spendings, and emits results as soon as they are ready.
-Since the input is unbounded, the query keeps running until it is manually stopped.
-And because the Job uses time window-based aggregations, Flink can perform specific optimizations such as state clean up when the framework knows that no more records will arrive for a particular window.
-
-The table playground is fully dockerized and runnable locally as streaming application.
-The environment contains a Kafka topic, a continuous data generator, MySql, and Grafana. 
-
-From within the `table-walkthrough` folder start the docker-compose script.
-
-```bash
-$ docker compose build
-$ docker compose up -d
+@udf(result_type=DataTypes.TIMESTAMP(3))
+def my_floor(timestamp: datetime) -> datetime:
+    return timestamp.replace(minute=0, second=0, microsecond=0)
 ```
 
-You can see information on the running job via the [Flink console](http://localhost:8082/).
+And then integrate it in your application:
 
-{{< img src="/fig/spend-report-console.png" height="400px" width="800px" alt="Flink Console">}}
-
-Explore the results from inside MySQL.
-
-```bash
-$ docker compose exec mysql mysql -Dsql-demo -usql-demo -pdemo-sql
-
-mysql> use sql-demo;
-Database changed
-
-mysql> select count(*) from spend_report;
-+----------+
-| count(*) |
-+----------+
-|      110 |
-+----------+
+```python
+def report(transactions):
+    return transactions \
+        .select(
+            col("accountId"),
+            my_floor(col("transactionTime")).alias("logTs"),
+            col("amount")) \
+        .group_by(col("accountId"), col("logTs")) \
+        .select(
+            col("accountId"),
+            col("logTs"),
+            col("amount").sum.alias("amount"))
 ```
 
-Finally, go to [Grafana](http://localhost:3000/d/FOe0PbmGk/walkthrough?viewPanel=2&orgId=1&refresh=5s) to see the fully visualized result!
+{{< /tab >}}
+{{< /tabs >}}
 
-{{< img src="/fig/spend-report-grafana.png" alt="Grafana" >}}
+This query consumes all records from the `transactions` table, calculates the report, and outputs the results in an efficient, scalable manner. Running the test with this implementation will pass.
+
+## Process Table Functions (Java only)
+
+For more advanced row-by-row processing, Flink provides [Process Table Functions]({{< ref "docs/dev/table/functions/ptfs" >}}) (PTFs). PTFs can transform each row of a table and have access to powerful features like state and timers. Here's a simple stateless example that filters and formats high-value transactions:
+
+```java
+import org.apache.flink.table.annotation.ArgumentHint;
+import org.apache.flink.table.annotation.ArgumentTrait;
+import org.apache.flink.table.functions.ProcessTableFunction;
+import org.apache.flink.types.Row;
+
+public class HighValueAlerts extends ProcessTableFunction<String> {
+
+    private static final long HIGH_VALUE_THRESHOLD = 500;
+
+    public void eval(@ArgumentHint(ArgumentTrait.ROW_SEMANTIC_TABLE) Row transaction) {
+        Long amount = transaction.getFieldAs("amount");
+        if (amount > HIGH_VALUE_THRESHOLD) {
+            Long accountId = transaction.getFieldAs("accountId");
+            collect("Alert: Account " + accountId + " made a high-value transaction of " + amount);
+        }
+    }
+}
+```
+
+You can try this PTF by modifying your `main()` method. Replace or add alongside the existing `report()` call:
+
+```java
+// Instead of (or in addition to) the aggregation report:
+// Table result = report(transactions);
+// result.execute().print();
+
+// Try the PTF to see high-value transaction alerts:
+Table alerts = transactions.process(HighValueAlerts.class);
+alerts.execute().print();
+```
+
+This will output alerts only for transactions exceeding 500. PTFs become even more powerful when combined with state and timers for implementing complex event-driven logic - see the [PTF documentation]({{< ref "docs/dev/table/functions/ptfs" >}}) for more advanced examples.
+
+{{< hint info >}}
+**Note:** Process Table Functions are currently only available in Java. For Python, you can use [User-Defined Table Functions]({{< ref "docs/dev/table/functions/udfs" >}}#table-functions) (UDTFs) for similar row-by-row processing.
+{{< /hint >}}
+
+## Adding Windows
+
+Grouping data based on time is a typical operation in data processing, especially when working with infinite streams. A grouping based on time is called a [window]({{< ref "docs/dev/table/tableApi" >}}#groupby-window-aggregation) and Flink offers flexible windowing semantics. The most basic type of window is called a `Tumble` window, which has a fixed size and whose buckets do not overlap.
+
+**Try modifying your `report()` function to use windows instead of `floor()`:**
+
+{{< tabs "windows" >}}
+{{< tab "Java" >}}
+
+```java
+public static Table report(Table transactions) {
+    return transactions
+        .window(Tumble.over(lit(10).seconds()).on($("transactionTime")).as("logTs"))
+        .groupBy($("accountId"), $("logTs"))
+        .select(
+            $("accountId"),
+            $("logTs").start().as("logTs"),
+            $("amount").sum().as("amount"));
+}
+```
+
+{{< /tab >}}
+{{< tab "Python" >}}
+
+```python
+from pyflink.table.expressions import col, lit
+from pyflink.table.window import Tumble
+
+def report(transactions):
+    return transactions \
+        .window(Tumble.over(lit(10).seconds).on(col("transactionTime")).alias("logTs")) \
+        .group_by(col("accountId"), col("logTs")) \
+        .select(
+            col("accountId"),
+            col("logTs").start.alias("logTs"),
+            col("amount").sum.alias("amount"))
+```
+
+{{< /tab >}}
+{{< /tabs >}}
+
+This defines your application as using 10-second tumbling windows based on the timestamp column. So a row with timestamp `2024-01-01 01:23:47` is put in the `2024-01-01 01:23:40` window.
+
+Aggregations based on time are unique because time, as opposed to other attributes, generally moves forward in a continuous streaming application. Unlike `floor` and your UDF, window functions are [intrinsics](https://en.wikipedia.org/wiki/Intrinsic_function), which allows the runtime to apply additional optimizations. In a batch context, windows offer a convenient API for grouping records by a timestamp attribute.
+
+After making this change, run the application to see windowed results emitted every 10 seconds.
+
+## Running the Application
+
+And that's it, a fully functional, stateful, distributed streaming application! The query continuously generates transactions, computes the hourly spendings, and emits results as soon as they are ready. Since the input is unbounded, the query keeps running until it is manually stopped.
+
+{{< tabs "running" >}}
+{{< tab "Java" >}}
+
+Run the `SpendReport` class in your IDE to see the streaming results printed to the console.
+
+{{< /tab >}}
+{{< tab "Python" >}}
+
+Run the program from the command line:
+
+```bash
+$ python spend_report.py
+```
+
+The command builds and runs the Python Table API program in a local mini cluster. You can also submit the Python Table API program to a remote cluster. Refer to [Job Submission Examples]({{< ref "docs/deployment/cli" >}}#submitting-pyflink-jobs) for more details.
+
+{{< /tab >}}
+{{< /tabs >}}
 
 ## Next Steps
 
@@ -353,10 +672,11 @@ Congratulations on completing this tutorial! Here are some ways to continue lear
 
 ### Explore Other Tutorials
 
-- [Intro to Flink SQL]({{< ref "docs/getting-started/quickstart-sql" >}}): Interactive SQL queries without coding
+- [Flink SQL Tutorial]({{< ref "docs/getting-started/quickstart-sql" >}}): Interactive SQL queries without coding
+- [DataStream API Tutorial]({{< ref "docs/getting-started/datastream" >}}): Build stateful streaming applications with the DataStream API
 - [Flink Operations Playground]({{< ref "docs/getting-started/flink-operations-playground" >}}): Learn to operate Flink clusters
 
 ### Production Deployment
 
 - [Deployment Overview]({{< ref "docs/deployment/overview" >}}): Deploy Flink in production
-- [Connectors]({{< ref "docs/connectors/table/overview" >}}): Connect to various data sources and sinks
+- [Connectors]({{< ref "docs/connectors/table/overview" >}}): Connect to Kafka, databases, filesystems, and more
