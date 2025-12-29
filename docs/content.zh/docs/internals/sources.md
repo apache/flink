@@ -1,9 +1,11 @@
 ---
 title: "数据源"
-weight: 11
+weight: 1
 type: docs
 aliases:
   - /zh/dev/stream/sources.html
+  - /zh/docs/dev/datastream/sources/
+  - /zh/docs/connectors/sources/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

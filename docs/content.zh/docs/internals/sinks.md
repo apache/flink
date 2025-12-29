@@ -1,9 +1,11 @@
 ---
 title: "Data Sinks"
-weight: 12
+weight: 2
 type: docs
 aliases:
-  - /dev/stream/sinks.html
+  - /zh/dev/stream/sinks.html
+  - /zh/docs/dev/datastream/sinks/
+  - /zh/docs/connectors/sinks/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -113,7 +115,7 @@ The following figure shows the operator topology of using {{< gh_link file="flin
 
 {{< img src="/fig/dev/datastream/SupportsPreCommitTopology.png" class="center" >}}
 
-In the figure above, user add a `CollectCommit` operator in the `SupportsPreCommitTopology` topology, and collect all the commit messages from the `SinkWriter` to one subtask, then send to the `Committer` to process them centrally, this can reduce the number of interactions with the server.
+In the figure above, user add a `CollectCommit` operator in the `SupportsPreCommitTopology` topology, and collect all the commit messages from the `SinkWriter` to one subtask, then send to the `Committer` to process them centrally, this can reduce the number of interactions with the server. 
 
 Please note that the parallelism has only been modified here for display purposes. In fact, the parallelism can be set by user.
 
