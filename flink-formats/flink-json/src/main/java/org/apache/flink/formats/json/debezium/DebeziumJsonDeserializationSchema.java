@@ -33,6 +33,9 @@ import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -56,6 +59,9 @@ import static java.lang.String.format;
 @Internal
 public final class DebeziumJsonDeserializationSchema implements DeserializationSchema<RowData> {
     private static final long serialVersionUID = 1L;
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(DebeziumJsonDeserializationSchema.class);
 
     private static final String OP_READ = "r"; // snapshot read
     private static final String OP_CREATE = "c"; // insert
@@ -176,6 +182,10 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
                                     "Unknown \"op\" value \"%s\". The Debezium JSON message is '%s'",
                                     op, new String(message)));
                 }
+                LOG.debug(
+                        "Unknown \"op\" value '{}'. The Debezium JSON message is '{}'.",
+                        op,
+                        new String(message));
             }
         } catch (Throwable t) {
             // a big try catch to protect the processing.
@@ -183,6 +193,7 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
                 throw new IOException(
                         format("Corrupt Debezium JSON message '%s'.", new String(message)), t);
             }
+            LOG.debug("Corrupt Debezium JSON message '{}'.", new String(message), t);
         }
         for (GenericRowData genericRowData : genericRowDataList) {
             out.collect(genericRowData);
