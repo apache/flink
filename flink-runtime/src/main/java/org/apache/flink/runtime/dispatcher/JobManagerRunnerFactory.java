@@ -46,7 +46,7 @@ public interface JobManagerRunnerFactory {
             JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
             FatalErrorHandler fatalErrorHandler,
             Collection<FailureEnricher> failureEnrichers,
-            JobStatusListener singleJobApplication,
+            JobStatusListener jobStatusListener,
             long initializationTimestamp)
             throws Exception;
 }

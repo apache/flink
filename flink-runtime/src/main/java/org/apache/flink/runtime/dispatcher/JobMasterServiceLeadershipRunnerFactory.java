@@ -63,7 +63,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
             JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
             FatalErrorHandler fatalErrorHandler,
             Collection<FailureEnricher> failureEnrichers,
-            JobStatusListener singleJobApplication,
+            JobStatusListener jobStatusListener,
             long initializationTimestamp)
             throws Exception {
 
@@ -121,7 +121,7 @@ public enum JobMasterServiceLeadershipRunnerFactory implements JobManagerRunnerF
                         fatalErrorHandler,
                         userCodeClassLoader,
                         failureEnrichers,
-                        singleJobApplication,
+                        jobStatusListener,
                         initializationTimestamp);
 
         final DefaultJobMasterServiceProcessFactory jobMasterServiceProcessFactory =

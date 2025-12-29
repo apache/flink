@@ -42,7 +42,7 @@ public class WebSubmissionExecutor extends EmbeddedExecutor {
     }
 
     @Override
-    protected CompletableFuture<Acknowledge> internalSubmit(
+    CompletableFuture<Acknowledge> internalSubmit(
             final DispatcherGateway dispatcherGateway,
             final StreamGraph streamGraph,
             final Duration rpcTimeout) {

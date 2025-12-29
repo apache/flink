@@ -217,7 +217,7 @@ public class EmbeddedExecutor implements PipelineExecutor {
                 .thenApply(ack -> streamGraph.getJobID());
     }
 
-    protected CompletableFuture<Acknowledge> internalSubmit(
+    CompletableFuture<Acknowledge> internalSubmit(
             final DispatcherGateway dispatcherGateway,
             final StreamGraph streamGraph,
             final Duration rpcTimeout) {

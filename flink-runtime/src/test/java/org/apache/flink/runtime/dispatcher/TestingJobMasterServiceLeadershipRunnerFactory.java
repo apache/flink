@@ -59,7 +59,7 @@ public class TestingJobMasterServiceLeadershipRunnerFactory extends TestingJobMa
             JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
             FatalErrorHandler fatalErrorHandler,
             Collection<FailureEnricher> failureEnrichers,
-            JobStatusListener singleJobApplication,
+            JobStatusListener jobStatusListener,
             long initializationTimestamp)
             throws Exception {
         return offerTestingJobManagerRunner(executionPlan.getJobID());

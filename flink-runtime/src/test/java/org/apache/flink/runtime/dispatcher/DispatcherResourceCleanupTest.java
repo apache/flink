@@ -732,7 +732,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                 JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
                 FatalErrorHandler fatalErrorHandler,
                 Collection<FailureEnricher> failureEnrichers,
-                JobStatusListener singleJobApplication,
+                JobStatusListener jobStatusListener,
                 long initializationTimestamp)
                 throws Exception {
             jobManagerRunnerCreationLatch.run();
@@ -798,7 +798,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                 JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
                 FatalErrorHandler fatalErrorHandler,
                 Collection<FailureEnricher> failureEnrichers,
-                JobStatusListener singleJobApplication,
+                JobStatusListener jobStatusListener,
                 long initializationTimestamp) {
             return Optional.ofNullable(jobManagerRunners.poll())
                     .orElseThrow(
@@ -826,7 +826,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                 JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
                 FatalErrorHandler fatalErrorHandler,
                 Collection<FailureEnricher> failureEnrichers,
-                JobStatusListener singleJobApplication,
+                JobStatusListener jobStatusListener,
                 long initializationTimestamp)
                 throws Exception {
             throw testException;

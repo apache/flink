@@ -431,6 +431,20 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         recoveredJobs.clear();
     }
 
+    /**
+     * Runs a recovered job in HA mode.
+     *
+     * <p>This method handles the recovery of a job after a JobManager failover. In session mode,
+     * application information is typically lost during HA recovery, which can result in recovered
+     * jobs that are not associated with any application. To address this issue, this method
+     * provides a workaround through the {@code wrapIntoApplication} parameter. This workaround will
+     * become obsolete once proper HA support for persisting application information in session mode
+     * is implemented.
+     *
+     * @param recoveredJob the job to be recovered
+     * @param wrapIntoApplication whether to wrap the recovered job into a {@link
+     *     SingleJobApplication}
+     */
     private void runRecoveredJob(
             final ExecutionPlan recoveredJob, final boolean wrapIntoApplication) {
         checkNotNull(recoveredJob);
@@ -676,17 +690,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         final JobID jobId = executionPlan.getJobID();
         final String jobName = executionPlan.getName();
 
-        Optional<AbstractApplication> optionalApplication =
-                executionPlan
-                        .getApplicationId()
-                        .map(
-                                applicationId -> {
-                                    checkState(
-                                            applications.containsKey(applicationId),
-                                            "Application %s not found.",
-                                            applicationId);
-                                    return applications.get(applicationId);
-                                });
+        Optional<AbstractApplication> optionalApplication = getApplicationForJob(executionPlan);
         if (optionalApplication.isPresent()) {
             AbstractApplication application = optionalApplication.get();
             log.info(
@@ -767,13 +771,13 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     private JobManagerRunner createJobMasterRunner(ExecutionPlan executionPlan) throws Exception {
         checkState(!jobManagerRunnerRegistry.isRegistered(executionPlan.getJobID()));
 
-        JobStatusListener singleJobApplication = null;
+        JobStatusListener jobStatusListener = null;
         Optional<AbstractApplication> optionalApplication =
                 executionPlan.getApplicationId().map(applications::get);
         if (optionalApplication.isPresent()) {
             AbstractApplication application = optionalApplication.get();
-            if (application instanceof JobStatusListener) {
-                singleJobApplication = (JobStatusListener) application;
+            if (application instanceof SingleJobApplication) {
+                jobStatusListener = (JobStatusListener) application;
             }
         }
 
@@ -787,7 +791,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 new DefaultJobManagerJobMetricGroupFactory(jobManagerMetricGroup),
                 fatalErrorHandler,
                 failureEnrichers,
-                singleJobApplication,
+                jobStatusListener,
                 System.currentTimeMillis());
     }
 
