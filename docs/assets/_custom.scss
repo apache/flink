@@ -245,3 +245,47 @@ pre.chroma code {
 .table-inline {
     background: white;
 }
+
+// Code block copy button
+.code-block-wrapper {
+    position: relative;
+
+    .copy-code-button {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        padding: 0.25rem 0.5rem;
+        background: var(--gray-200);
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.2s ease-in-out, background 0.2s ease-in-out;
+        color: var(--body-font-color);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        &:hover {
+            background: var(--gray-300, #d0d0d0);
+        }
+
+        &.copied {
+            background: #28a745;
+            color: white;
+        }
+
+        &.error {
+            background: #dc3545;
+            color: white;
+        }
+    }
+
+    &:hover .copy-code-button {
+        opacity: 1;
+    }
+
+    pre {
+        margin: 0;
+    }
+}

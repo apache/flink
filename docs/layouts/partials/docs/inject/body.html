@@ -1,0 +1,90 @@
+{{/*
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+*/}}
+
+{{/* Only include the copy button script on pages that have code blocks */}}
+{{ if (findRE "<pre" .Content 1) }}
+<script>
+(function() {
+  var copyIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+  var checkIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+  var errorIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
+
+  // Add copy buttons to all code blocks
+  // Hugo generates: <div class="highlight"><pre><code>...</code></pre></div>
+  // Or without highlighting: <pre><code>...</code></pre>
+  document.querySelectorAll('pre > code').forEach(function(codeBlock) {
+    var pre = codeBlock.parentNode;
+
+    // Determine the container (highlight div or pre's parent)
+    var container = pre.parentNode.classList.contains('highlight')
+      ? pre.parentNode
+      : pre;
+
+    // Create wrapper div for positioning
+    var wrapper = document.createElement('div');
+    wrapper.className = 'code-block-wrapper';
+    container.parentNode.insertBefore(wrapper, container);
+    wrapper.appendChild(container);
+
+    // Create copy button
+    var button = document.createElement('button');
+    button.className = 'copy-code-button';
+    button.type = 'button';
+    button.setAttribute('aria-label', 'Copy code to clipboard');
+    button.innerHTML = copyIcon;
+
+    wrapper.appendChild(button);
+
+    button.addEventListener('click', function() {
+      // Get the code text
+      var text = codeBlock.innerText;
+
+      // Remove leading $ from each line (common in shell examples)
+      text = text.split('\n').map(function(line) {
+        return line.replace(/^\$ /, '');
+      }).join('\n').trim();
+
+      navigator.clipboard.writeText(text).then(function() {
+        // Chrome doesn't blur automatically, leaving button in focused state
+        button.blur();
+
+        // Show success feedback
+        button.innerHTML = checkIcon;
+        button.classList.add('copied');
+
+        setTimeout(function() {
+          button.innerHTML = copyIcon;
+          button.classList.remove('copied');
+        }, 2000);
+      }, function(error) {
+        // Show error feedback
+        button.blur();
+        button.innerHTML = errorIcon;
+        button.classList.add('error');
+
+        setTimeout(function() {
+          button.innerHTML = copyIcon;
+          button.classList.remove('error');
+        }, 2000);
+      });
+    });
+  });
+})();
+</script>
+{{ end }}
