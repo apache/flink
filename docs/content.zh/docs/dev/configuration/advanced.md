@@ -44,9 +44,9 @@ Flink 还在 `/opt` 文件夹下提供了额外的可选依赖项，可以通过
 
 如果您只使用 Flink 的 Java API，您可以使用任何 Scala 版本。如果您使用 Flink 的 Scala API，则需要选择与应用程序的 Scala 匹配的 Scala 版本。
 
-有关如何为特定 Scala 版本构建 Flink 的细节，请查阅[构建指南]({{< ref "docs/flinkDev/building" >}}#scala-versions)。
+有关如何为特定 Scala 版本构建 Flink 的细节，请查阅[构建指南]({{< github_repo >}}#building-apache-flink-from-source)。
 
-2.12.8 之后的 Scala 版本与之前的 2.12.x 版本二进制不兼容，使 Flink 项目无法将其 2.12.x 版本直接升级到 2.12.8 以上。您可以按照[构建指南]({{< ref "docs/flinkDev/building" >}}#scala-versions)在本地为更高版本的 Scala 构建 Flink 。为此，您需要在构建时添加 `-Djapicmp.skip` 以跳过二进制兼容性检查。
+2.12.8 之后的 Scala 版本与之前的 2.12.x 版本二进制不兼容，使 Flink 项目无法将其 2.12.x 版本直接升级到 2.12.8 以上。您可以按照[构建指南]({{< github_repo >}}#building-apache-flink-from-source)在本地为更高版本的 Scala 构建 Flink 。为此，您需要在构建时添加 `-Djapicmp.skip` 以跳过二进制兼容性检查。
 
 有关更多细节，请查阅 [Scala 2.12.8 版本说明](https://github.com/scala/scala/releases/tag/v2.12.8)。相关部分指出：
 

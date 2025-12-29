@@ -1,6 +1,6 @@
 ---
-title: DataStream API 简介
-weight: 5
+title: 学习 DataStream API
+weight: 6
 type: docs
 ---
 <!--
@@ -22,7 +22,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# DataStream API 简介
+# 学习 DataStream API
 
 该练习的重点是充分全面地了解 DataStream API，以便于编写流式应用入门。
 

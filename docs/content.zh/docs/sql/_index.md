@@ -1,10 +1,12 @@
 ---
-title: Flink Development
-icon: <i class="fa fa-cogs title dessert" aria-hidden="true"></i>
+title: Flink SQL
+icon: <i class="fa fa-database title maindish" aria-hidden="true"></i>
 bold: true
 sectionBreak: true
 bookCollapseSection: true
-weight: 9
+weight: 4
+aliases:
+  - /zh/docs/sql/reference/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

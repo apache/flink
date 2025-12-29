@@ -73,7 +73,7 @@ $ python -m pip install apache-flink
 ```
 {{< /unstable >}}
 
-You can also build PyFlink from source by following the [development guide]({{< ref "docs/flinkDev/building" >}}#build-pyflink).
+You can also build PyFlink from source by following the [development guide]({{< github_repo >}}#building-apache-flink-from-source).
 
 <span class="label label-info">Note</span> Starting from Flink 1.11, it’s also supported to run
 PyFlink jobs locally on Windows and so you could develop and debug PyFlink jobs on Windows.

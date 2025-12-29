@@ -1,6 +1,6 @@
 ---
 title: Event-driven Applications
-weight: 6
+weight: 4
 type: docs
 ---
 <!--

@@ -1,6 +1,6 @@
 ---
 title: Data Pipelines & ETL
-weight: 4
+weight: 3
 type: docs
 aliases:
   - /docs/learn-flink/etl/

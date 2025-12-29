@@ -1,42 +1,18 @@
----
-title: "Importing Flink into an IDE"
-weight: 4
-type: docs
-aliases:
-  - /flinkDev/ide_setup.html
-  - /internals/ide_setup.html
----
-<!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
+# Developing Apache Flink
 
-  http://www.apache.org/licenses/LICENSE-2.0
+This document provides detailed instructions for setting up a development environment for Apache Flink.
 
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
+For basic build instructions, see the [README.md](README.md#building-apache-flink-from-source).
 
-# Importing Flink into an IDE
+## Importing Flink into an IDE
 
 The sections below describe how to import the Flink project into an IDE
 for the development of Flink itself. For writing Flink programs, please
-refer to the [Java API]({{< ref "docs/dev/configuration/overview" >}})
-quickstart guides.
+refer to the [Getting Started documentation](https://nightlies.apache.org/flink/flink-docs-stable/docs/getting-started/first-steps/).
 
-{{< hint info >}}
-Whenever something is not working in your IDE, try with the Maven
-command line first (`mvn clean package -DskipTests`) as it might be your IDE
-that has a bug or is not properly set up.
-{{< /hint >}}
+> **Tip:** Whenever something is not working in your IDE, try with the Maven
+> command line first (`mvn clean package -DskipTests`) as it might be your IDE
+> that has a bug or is not properly set up.
 
 ## Preparation
 
@@ -97,13 +73,13 @@ adding a Copyright profile:
    to you under the Apache License, Version 2.0 (the
    "License"); you may not use this file except in compliance
    with the License.  You may obtain a copy of the License at
-   
+
        http://www.apache.org/licenses/LICENSE-2.0
-   
+
    Unless required by applicable law or agreed to in writing, software
    distributed under the License is distributed on an "AS IS" BASIS,
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and 
+   See the License for the specific language governing permissions and
    limitations under the License.
    ```
 4. Go to "Editor" → "Copyright" and choose the "Apache" profile as the default profile for this
@@ -160,11 +136,9 @@ You can also format the whole project (both Java and Scala) via Maven by using `
 
 [Checkstyle](https://checkstyle.sourceforge.io/) is used to enforce static coding guidelines.
 
-{{< hint info >}}
-Some modules are not covered by Checkstyle, e.g. flink-core, flink-optimizer, and flink-runtime.
-Nevertheless, please make sure to conform to the checkstyle rules in these modules if you work in
-any of these modules.
-{{< /hint >}}
+> **Note:** Some modules are not covered by Checkstyle, e.g. flink-core, flink-optimizer, and flink-runtime.
+> Nevertheless, please make sure to conform to the checkstyle rules in these modules if you work in
+> any of these modules.
 
 1. Go to "Settings" → "Tools" → "Checkstyle".
 2. Set "Scan Scope" to "Only Java sources (including tests)".
@@ -227,7 +201,7 @@ the Project SDK.
 
 When switching back to newer Flink versions you may have to revert this change again.
 
-#### Compilation fails with `package sun.misc does not exist`  
+#### Compilation fails with `package sun.misc does not exist`
 
 This happens if you are using JDK 11 and compile to Java 8 with the `--release` option. This option is currently incompatible with our build setup.
 Go to "Settings" → "Build, Execution, Deployment" → "Compiler" → "Java Compiler" and uncheck the "Use '--release' option for cross-compilation (Java 9 and later)".
@@ -270,5 +244,3 @@ versions.
 
 You can verify the setup by right-clicking on any file or folder in the flink-python project
 and running "External Tools" → "flake8".
-
-{{< top >}}

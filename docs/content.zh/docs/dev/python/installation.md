@@ -71,6 +71,6 @@ $ python -m pip install apache-flink
 ```
 {{< /unstable >}}
 
-你也可以从源码手动构建 PyFlink，具体可以参见[开发指南]({{< ref "docs/flinkDev/building" >}}#build-pyflink).
+你也可以从源码手动构建 PyFlink，具体可以参见[开发指南]({{< github_repo >}}#building-apache-flink-from-source).
 
 <span class="label label-info">注意</span> 从Flink 1.11版本开始, PyFlink 作业支持在 Windows 系统上运行，因此您也可以在 Windows 上开发和调试 PyFlink 作业了。

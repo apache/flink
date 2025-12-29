@@ -1,7 +1,8 @@
 ---
 title: Deployment
-icon: <i class="fa fa-sliders title maindish" aria-hidden="true"></i>
+icon: <i class="fa fa-sliders title dessert" aria-hidden="true"></i>
 bold: true
+sectionBreak: true
 bookCollapseSection: true
 weight: 8
 ---
