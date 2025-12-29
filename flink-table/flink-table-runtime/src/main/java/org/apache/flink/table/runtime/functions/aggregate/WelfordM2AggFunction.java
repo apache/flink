@@ -114,10 +114,6 @@ public abstract class WelfordM2AggFunction
 
     @Override
     public Double getValue(WelfordM2Accumulator acc) {
-        // Theoretically, acc.m2 should always be non-negative.
-        // But in practice it may become negative due to unmatched retractions.
-        // (e.g., [+I, 1], [+I, 2] followed by [-D, 3], which results in acc.m2 = -4)
-        // Therefore, return null in such cases to indicate an invalid result.
         return acc.n <= 0 || acc.m2 < 0 ? null : acc.m2;
     }
 
