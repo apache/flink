@@ -36,6 +36,9 @@ import org.apache.flink.util.Collector;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nullable;
 
 import java.io.IOException;
@@ -61,6 +64,8 @@ import static java.lang.String.format;
  */
 public final class CanalJsonDeserializationSchema implements DeserializationSchema<RowData> {
     private static final long serialVersionUID = 1L;
+
+    private static final Logger LOG = LoggerFactory.getLogger(CanalJsonDeserializationSchema.class);
 
     private static final String FIELD_OLD = "old";
     private static final String OP_INSERT = "INSERT";
@@ -288,6 +293,10 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                                     "Unknown \"type\" value \"%s\". The Canal JSON message is '%s'",
                                     type, new String(message)));
                 }
+                LOG.debug(
+                        "Unknown \"type\" value '{}'. The Canal JSON message is '{}'.",
+                        type,
+                        new String(message));
             }
         } catch (Throwable t) {
             // a big try catch to protect the processing.
@@ -295,6 +304,7 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                 throw new IOException(
                         format("Corrupt Canal JSON message '%s'.", new String(message)), t);
             }
+            LOG.debug("Corrupt Canal JSON message '{}'.", new String(message), t);
         }
         for (GenericRowData genericRowData : genericRowDataList) {
             out.collect(genericRowData);

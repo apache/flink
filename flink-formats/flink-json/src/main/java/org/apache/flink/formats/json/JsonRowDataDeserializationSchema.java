@@ -84,6 +84,7 @@ public class JsonRowDataDeserializationSchema extends AbstractJsonDeserializatio
                             // will be caught by outer try-catch
                             throw t;
                         }
+                        logParseError(message, t);
                     }
                 }
             } else {
@@ -97,6 +98,7 @@ public class JsonRowDataDeserializationSchema extends AbstractJsonDeserializatio
                 throw new IOException(
                         format("Failed to deserialize JSON '%s'.", new String(message)), t);
             }
+            logParseError(message, t);
         }
     }
 

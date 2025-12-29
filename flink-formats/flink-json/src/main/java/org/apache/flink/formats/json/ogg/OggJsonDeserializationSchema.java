@@ -33,6 +33,9 @@ import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Collector;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -56,6 +59,8 @@ import static java.lang.String.format;
 @Internal
 public final class OggJsonDeserializationSchema implements DeserializationSchema<RowData> {
     private static final long serialVersionUID = 1L;
+
+    private static final Logger LOG = LoggerFactory.getLogger(OggJsonDeserializationSchema.class);
 
     private static final String OP_CREATE = "I"; // insert
     private static final String OP_UPDATE = "U"; // update
@@ -198,6 +203,10 @@ public final class OggJsonDeserializationSchema implements DeserializationSchema
                                     "Unknown \"op_type\" value \"%s\". The Ogg JSON message is '%s'",
                                     op, new String(message)));
                 }
+                LOG.debug(
+                        "Unknown \"op_type\" value '{}'. The Ogg JSON message is '{}'.",
+                        op,
+                        new String(message));
             }
         } catch (Throwable t) {
             // a big try catch to protect the processing.
@@ -205,6 +214,7 @@ public final class OggJsonDeserializationSchema implements DeserializationSchema
                 throw new IOException(
                         format("Corrupt Ogg JSON message '%s'.", new String(message)), t);
             }
+            LOG.debug("Corrupt Ogg JSON message '{}'.", new String(message), t);
         }
         for (GenericRowData genericRowData : genericRowDataList) {
             out.collect(genericRowData);
