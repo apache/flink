@@ -20,7 +20,9 @@ package org.apache.flink.client.deployment.executors;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Pipeline;
+import org.apache.flink.client.program.LocalMiniClusterFactory;
 import org.apache.flink.client.program.PerJobMiniClusterFactory;
+import org.apache.flink.client.program.SessionMiniClusterFactory;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.core.execution.JobClient;
@@ -47,7 +49,9 @@ import static org.apache.flink.util.Preconditions.checkState;
 /** An {@link PipelineExecutor} for executing a {@link Pipeline} locally. */
 @Internal
 public class LocalExecutor implements PipelineExecutor {
+
     private static final Logger LOG = LoggerFactory.getLogger(LocalExecutor.class);
+
     private final ExecutorService executorService =
             Executors.newFixedThreadPool(1, new ExecutorThreadFactory("Flink-LocalExecutor-IO"));
 
@@ -97,8 +101,19 @@ public class LocalExecutor implements PipelineExecutor {
                 PipelineExecutorUtils.getStreamGraph(pipeline, configuration);
 
         streamGraph.serializeUserDefinedInstances();
-        return PerJobMiniClusterFactory.createWithFactory(effectiveConfig, miniClusterFactory)
-                .submitJob(streamGraph, userCodeClassloader)
+
+        DeploymentOptions.LocalExecutionMode localExecutionMode =
+                configuration.get(DeploymentOptions.LOCAL_EXECTION_MODE);
+
+        LocalMiniClusterFactory localMiniClusterFactory;
+        if (DeploymentOptions.LocalExecutionMode.PRE_JOB.equals(localExecutionMode)) {
+            localMiniClusterFactory =
+                    PerJobMiniClusterFactory.createWithFactory(effectiveConfig, miniClusterFactory);
+        } else {
+            localMiniClusterFactory = new SessionMiniClusterFactory();
+        }
+
+        return localMiniClusterFactory.submitJob(streamGraph, userCodeClassloader)
                 .whenComplete(
                         (ignored, throwable) -> {
                             if (throwable == null) {
