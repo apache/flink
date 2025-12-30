@@ -1312,7 +1312,7 @@
     },
     "joinType" : "INNER",
     "leftJoinKeys" : [ 4, 5 ],
-    "leftUpsertKey" : [ 3, 4, 5 ],
+    "leftUpsertKey" : [ 1, 2, 3 ],
     "rightJoinKeys" : [ 0, 1 ],
     "rightUpsertKey" : [ 0, 1 ],
     "lookupRightTableJoinSpec" : null,
