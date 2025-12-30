@@ -686,4 +686,302 @@ class JoinTest extends TableTestBase {
         "Key: 'table.exec.mini-batch.size' , default: -1 (fallback keys: []) must be > 0.")
       .isInstanceOf[IllegalArgumentException]
   }
+
+  // Tests for FLINK-38753: Enrich upsert keys by equiv expressions in joins
+  @Test
+  def testJoinUpsertKeyEnrichmentInnerJoinBasic(): Unit = {
+    // Basic case from FLINK-38753: src1 pk {a1}, src2 pk {a2, b2}, join a1 = a2
+    // sink pk {a1, b2} should NOT have upsertMaterialize because {a1, b2} can be derived
+    // from {a2, b2} by substituting a2 with a1
+    util.tableEnv.executeSql("""
+                               |create table src1 (
+                               | a1 varchar,
+                               | x1 varchar,
+                               | primary key (a1) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table src2 (
+                               | a2 varchar,
+                               | b2 varchar,
+                               | x2 varchar,
+                               | primary key (a2, b2) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table sink (
+                               | a1 varchar,
+                               | b2 varchar,
+                               | x1 varchar,
+                               | primary key (a1, b2) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
+
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src1.a1, src2.b2, src1.x1
+        |from src1 join src2 on src1.a1 = src2.a2
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEnrichmentInnerJoinReverse(): Unit = {
+    // Reverse direction: src1 pk {a1, b1}, src2 pk {a2}, join a1 = a2
+    // sink pk {a2, b1} should NOT have upsertMaterialize because {a2, b1} can be derived
+    // from {a1, b1} by substituting a1 with a2
+    util.tableEnv.executeSql("""
+                               |create table src1 (
+                               | a1 varchar,
+                               | b1 varchar,
+                               | x1 varchar,
+                               | primary key (a1, b1) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table src2 (
+                               | a2 varchar,
+                               | x2 varchar,
+                               | primary key (a2) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table sink (
+                               | a2 varchar,
+                               | b1 varchar,
+                               | x1 varchar,
+                               | primary key (a2, b1) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
+
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src2.a2, src1.b1, src1.x1
+        |from src1 join src2 on src1.a1 = src2.a2
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEnrichmentLeftJoin(): Unit = {
+    // Left join with right to left enrichment: src1 pk {a1}, src2 pk {a2, b2}, join a1 = a2
+    // sink pk {a1, b2} should NOT have upsertMaterialize
+    util.tableEnv.executeSql("""
+                               |create table src1 (
+                               | a1 varchar,
+                               | x1 varchar,
+                               | primary key (a1) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table src2 (
+                               | a2 varchar,
+                               | b2 varchar,
+                               | x2 varchar,
+                               | primary key (a2, b2) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table sink (
+                               | a1 varchar,
+                               | b2 varchar,
+                               | x1 varchar,
+                               | primary key (a1, b2) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
+
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src1.a1, src2.b2, src1.x1
+        |from src1 left join src2 on src1.a1 = src2.a2
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEnrichmentRightJoin(): Unit = {
+    // Right join with left to right enrichment: src1 pk {a1, b1}, src2 pk {a2}, join a1 = a2
+    // sink pk {a2, b1} should NOT have upsertMaterialize
+    util.tableEnv.executeSql("""
+                               |create table src1 (
+                               | a1 varchar,
+                               | b1 varchar,
+                               | x1 varchar,
+                               | primary key (a1, b1) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table src2 (
+                               | a2 varchar,
+                               | x2 varchar,
+                               | primary key (a2) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table sink (
+                               | a2 varchar,
+                               | b1 varchar,
+                               | x1 varchar,
+                               | primary key (a2, b1) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
+
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src2.a2, src1.b1, src1.x1
+        |from src1 right join src2 on src1.a1 = src2.a2
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEnrichmentMultipleEquiConditions(): Unit = {
+    // Multiple equi-conditions: src1 pk {a1, b1}, src2 pk {a2, b2}, join a1 = a2 AND b1 = b2
+    // sink pk {a1, b2} should NOT have upsertMaterialize
+    util.tableEnv.executeSql("""
+                               |create table src1 (
+                               | a1 varchar,
+                               | b1 varchar,
+                               | x1 varchar,
+                               | primary key (a1, b1) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table src2 (
+                               | a2 varchar,
+                               | b2 varchar,
+                               | x2 varchar,
+                               | primary key (a2, b2) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table sink (
+                               | a1 varchar,
+                               | b2 varchar,
+                               | x1 varchar,
+                               | primary key (a1, b2) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
+
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src1.a1, src2.b2, src1.x1
+        |from src1 join src2 on src1.a1 = src2.a2 AND src1.b1 = src2.b2
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
+  @Test
+  def testJoinUpsertKeyEnrichmentNegativeCase(): Unit = {
+    // Negative case: src1 pk {a1}, src2 pk {a2, b2}, join a1 = a2, sink pk {a1, c2}
+    // SHOULD have upsertMaterialize because c2 is not in the equi-join condition
+    util.tableEnv.executeSql("""
+                               |create table src1 (
+                               | a1 varchar,
+                               | x1 varchar,
+                               | primary key (a1) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table src2 (
+                               | a2 varchar,
+                               | b2 varchar,
+                               | c2 varchar,
+                               | primary key (a2, b2) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'changelog-mode' = 'I,UA,D'
+                               |)
+                               |""".stripMargin)
+
+    util.tableEnv.executeSql("""
+                               |create table sink (
+                               | a1 varchar,
+                               | c2 varchar,
+                               | x1 varchar,
+                               | primary key (a1, c2) not enforced
+                               |) with (
+                               | 'connector' = 'values',
+                               | 'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
+
+    util.verifyExplainInsert(
+      """
+        |insert into sink
+        |select src1.a1, src2.c2, src1.x1
+        |from src1 join src2 on src1.a1 = src2.a2
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
 }
