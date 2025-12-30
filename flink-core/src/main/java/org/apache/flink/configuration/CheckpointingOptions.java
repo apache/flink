@@ -646,6 +646,16 @@ public class CheckpointingOptions {
                                     + "It can reduce the number of small files when enable unaligned checkpoint. "
                                     + "Each subtask will create a new channel state file when this is configured to 1.");
 
+    @Experimental
+    public static final ConfigOption<Boolean> UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM =
+            ConfigOptions.key(
+                            "execution.checkpointing.unaligned.recover-output-on-downstream.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether recovering output buffers of upstream task on downstream task directly "
+                                    + "when job restores from the unaligned checkpoint.");
+
     /**
      * Determines whether checkpointing is enabled based on the configuration.
      *

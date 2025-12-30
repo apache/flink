@@ -37,6 +37,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.MissingTypeInfo;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.configuration.ExternalizedCheckpointRetention;
@@ -389,6 +390,10 @@ public class StreamGraph implements Pipeline, ExecutionPlan {
                                 cfg.getCheckpointIdOfIgnoredInFlightData())
                         .setAlignedCheckpointTimeout(cfg.getAlignedCheckpointTimeout().toMillis())
                         .setEnableCheckpointsAfterTasksFinish(isEnableCheckpointsAfterTasksFinish())
+                        .setRecoverOutputOnDownstreamTask(
+                                jobConfiguration.get(
+                                        CheckpointingOptions
+                                                .UNALIGNED_RECOVER_OUTPUT_ON_DOWNSTREAM))
                         .build(),
                 serializedStateBackend,
                 getJobConfiguration()
