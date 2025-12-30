@@ -1556,6 +1556,17 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
       return false
     }
 
+    // Only block UB drop if inputs actually produce UPDATE messages
+    // For batch sources with changelogMode=[I], there are no updates, so it's safe to allow UB drop
+    val leftModifyKindSet = getModifyKindSet(join.getLeft)
+    val rightModifyKindSet = getModifyKindSet(join.getRight)
+    if (
+      !leftModifyKindSet.contains(ModifyKind.UPDATE) &&
+      !rightModifyKindSet.contains(ModifyKind.UPDATE)
+    ) {
+      return false // No updates produced, safe to allow UB drop
+    }
+
     val condition = nonEquiCondOpt.get()
     val referencedFields = ImmutableBitSet.of(
       RexNodeExtractor.extractRefInputFields(Collections.singletonList(condition)): _*)
