@@ -16,26 +16,36 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler.loading;
+package org.apache.flink.runtime.scheduler.resourceunit;
 
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Test for {@link DefaultLoadingWeight}. */
-class DefaultLoadingWeightTest {
+/** Test for {@link DefaultResourceUnitCount}. */
+class DefaultResourceUnitCountTest {
 
     @Test
     void testInvalidLoading() {
-        assertThatThrownBy(() -> new DefaultLoadingWeight(-1f))
+        assertThatThrownBy(() -> new DefaultResourceUnitCount(-1f))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testMerge() {
-        assertThat(new DefaultLoadingWeight(0).merge(null).getLoading()).isZero();
-        assertThat(new DefaultLoadingWeight(0).merge(new DefaultLoadingWeight(1.2f)).getLoading())
+        assertThat(new DefaultResourceUnitCount(0).merge(null).getCount()).isZero();
+        assertThat(
+                        new DefaultResourceUnitCount(0)
+                                .merge(new DefaultResourceUnitCount(1.2f))
+                                .getCount())
                 .isEqualTo(1.2f);
+    }
+
+    @Test
+    void testGetCountAsInt() {
+        assertThat(new DefaultResourceUnitCount(2.9f).getCountAsInt()).isEqualTo(2);
+        assertThat(new DefaultResourceUnitCount(3e10f).getCountAsInt())
+                .isEqualTo(Integer.MAX_VALUE);
     }
 }

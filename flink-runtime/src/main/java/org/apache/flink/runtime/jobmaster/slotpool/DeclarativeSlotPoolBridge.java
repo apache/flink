@@ -28,7 +28,7 @@ import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableExceptio
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
-import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.resourceunit.ResourceUnitCount;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -66,13 +66,13 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
     private static final class FulfilledAllocation {
         final AllocationID allocationID;
         final ResourceID taskExecutorID;
-        final LoadingWeight loadingWeight;
+        final ResourceUnitCount resourceUnitCount;
 
-        FulfilledAllocation(PhysicalSlot slot, LoadingWeight loadingWeight) {
+        FulfilledAllocation(PhysicalSlot slot, ResourceUnitCount resourceUnitCount) {
             this.allocationID = Preconditions.checkNotNull(slot.getAllocationId());
             this.taskExecutorID =
                     Preconditions.checkNotNull(slot.getTaskManagerLocation().getResourceID());
-            this.loadingWeight = Preconditions.checkNotNull(loadingWeight);
+            this.resourceUnitCount = Preconditions.checkNotNull(resourceUnitCount);
         }
 
         @Override
@@ -83,7 +83,7 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
             FulfilledAllocation that = (FulfilledAllocation) o;
             return Objects.equals(allocationID, that.allocationID)
                     && Objects.equals(taskExecutorID, that.taskExecutorID)
-                    && Objects.equals(loadingWeight, that.loadingWeight);
+                    && Objects.equals(resourceUnitCount, that.resourceUnitCount);
         }
     }
 
@@ -261,16 +261,16 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
         }
     }
 
-    private Map<ResourceID, LoadingWeight> getTaskExecutorsLoadingView() {
-        final Map<ResourceID, LoadingWeight> result = new HashMap<>();
+    private Map<ResourceID, ResourceUnitCount> getTaskExecutorsLoadingView() {
+        final Map<ResourceID, ResourceUnitCount> result = new HashMap<>();
         Collection<FulfilledAllocation> fulfilledAllocations = fulfilledRequests.values();
         for (FulfilledAllocation allocation : fulfilledAllocations) {
             result.compute(
                     allocation.taskExecutorID,
                     (ignoredID, oldLoading) ->
                             Objects.isNull(oldLoading)
-                                    ? allocation.loadingWeight
-                                    : oldLoading.merge(allocation.loadingWeight));
+                                    ? allocation.resourceUnitCount
+                                    : oldLoading.merge(allocation.resourceUnitCount));
         }
         return result;
     }
@@ -353,7 +353,8 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
                 getDeclarativeSlotPool()
                         .reserveFreeSlot(allocationId, pendingRequest.getResourceProfile());
         fulfilledRequests.put(
-                slotRequestId, new FulfilledAllocation(slot, pendingRequest.getLoading()));
+                slotRequestId,
+                new FulfilledAllocation(slot, pendingRequest.getResourceUnitCount()));
         return slot;
     }
 
