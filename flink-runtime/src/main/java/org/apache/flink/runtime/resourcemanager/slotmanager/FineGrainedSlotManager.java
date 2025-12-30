@@ -756,6 +756,11 @@ public class FineGrainedSlotManager implements SlotManager {
     // ---------------------------------------------------------------------------------------------
 
     @Override
+    public int getAssignedTasksOf(InstanceID instanceId) {
+        return taskManagerTracker.getAssignedTasks(instanceId);
+    }
+
+    @Override
     public int getNumberRegisteredSlots() {
         return taskManagerTracker.getNumberRegisteredSlots();
     }
@@ -803,7 +808,12 @@ public class FineGrainedSlotManager implements SlotManager {
                 .map(Map::values)
                 .orElse(Collections.emptyList())
                 .stream()
-                .map(slot -> new SlotInfo(slot.getJobId(), slot.getResourceProfile()))
+                .map(
+                        slot ->
+                                new SlotInfo(
+                                        slot.getJobId(),
+                                        slot.getResourceProfile(),
+                                        slot.getAssignedTasks()))
                 .collect(Collectors.toList());
     }
 

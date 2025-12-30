@@ -4093,6 +4093,9 @@
               "freeSlots" : {
                 "type" : "integer"
               },
+              "assignedTasks" : {
+                "type" : "integer"
+              },
               "totalResource" : {
                 "type" : "object",
                 "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo",
@@ -4255,6 +4258,9 @@
         "freeSlots" : {
           "type" : "integer"
         },
+        "assignedTasks" : {
+          "type" : "integer"
+        },
         "totalResource" : {
           "type" : "object",
           "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo",
@@ -4351,6 +4357,9 @@
             "properties" : {
               "jobId" : {
                 "type" : "any"
+              },
+              "assignedTasks" : {
+                "type" : "integer"
               },
               "resource" : {
                 "type" : "object",

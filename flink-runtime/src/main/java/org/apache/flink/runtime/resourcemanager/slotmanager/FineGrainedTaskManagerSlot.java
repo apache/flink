@@ -51,6 +51,8 @@ public class FineGrainedTaskManagerSlot implements TaskManagerSlotInformation {
     /** Current state of this slot. Should be either PENDING or ALLOCATED. */
     private SlotState state;
 
+    private int assignedTasks = 0;
+
     public FineGrainedTaskManagerSlot(
             AllocationID allocationId,
             JobID jobId,
@@ -70,6 +72,16 @@ public class FineGrainedTaskManagerSlot implements TaskManagerSlotInformation {
     @Override
     public ResourceProfile getResourceProfile() {
         return resourceProfile;
+    }
+
+    @Override
+    public void setAssignedTasks(int assignedTasks) {
+        this.assignedTasks = assignedTasks;
+    }
+
+    @Override
+    public int getAssignedTasks() {
+        return assignedTasks;
     }
 
     @Override

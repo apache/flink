@@ -22,11 +22,14 @@
     <flink-blocked-badge *ngIf="taskManagerDetail?.blocked"></flink-blocked-badge>
   </div>
   <nz-descriptions *ngIf="taskManagerDetail" nzBordered nzSize="small">
-    <nz-descriptions-item [nzSpan]="2" nzTitle="Path">
+    <nz-descriptions-item [nzSpan]="1" nzTitle="Path">
       {{ taskManagerDetail.path }}
     </nz-descriptions-item>
     <nz-descriptions-item [nzSpan]="1" nzTitle="Free/All Slots">
       {{ taskManagerDetail.freeSlots }} / {{ taskManagerDetail.slotsNumber }}
+    </nz-descriptions-item>
+    <nz-descriptions-item [nzSpan]="1" nzTitle="Assigned Tasks">
+      {{ taskManagerDetail.assignedTasks }}
     </nz-descriptions-item>
     <nz-descriptions-item [nzSpan]="1" nzTitle="Last Heartbeat">
       {{ taskManagerDetail.timeSinceLastHeartbeat | date: 'yyyy-MM-dd HH:mm:ss' }}
