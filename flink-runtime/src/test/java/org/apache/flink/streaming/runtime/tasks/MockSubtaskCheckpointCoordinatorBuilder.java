@@ -34,7 +34,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor.IMMEDIATE;
-import static org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinatorImpl.openChannelStateWriter;
 
 /** A mock builder to build {@link SubtaskCheckpointCoordinator}. */
 public class MockSubtaskCheckpointCoordinatorBuilder {
@@ -100,16 +99,7 @@ public class MockSubtaskCheckpointCoordinatorBuilder {
         if (asyncExceptionHandler == null) {
             this.asyncExceptionHandler = new NonHandleAsyncException();
         }
-        ChannelStateWriter channelStateWriter =
-                unalignedCheckpointEnabled
-                        ? openChannelStateWriter(
-                                taskName,
-                                () ->
-                                        checkpointStorage.createCheckpointStorage(
-                                                environment.getJobID()),
-                                environment,
-                                maxSubtasksPerChannelStateFile)
-                        : ChannelStateWriter.NO_OP;
+        ChannelStateWriter channelStateWriter = this.environment.getChannelStateWriter();
 
         return new SubtaskCheckpointCoordinatorImpl(
                 checkpointStorage.createCheckpointStorage(environment.getJobID()),

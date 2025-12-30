@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -47,6 +48,7 @@ import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
 import org.apache.flink.util.UserCodeClassLoader;
@@ -118,6 +120,10 @@ public class RuntimeEnvironment implements Environment {
 
     ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory;
 
+    @Nullable private ChannelStateWriter channelStateWriter;
+
+    private final StateBackend stateBackend;
+
     // ------------------------------------------------------------------------
 
     public RuntimeEnvironment(
@@ -151,7 +157,8 @@ public class RuntimeEnvironment implements Environment {
             Task containingTask,
             ExternalResourceInfoProvider externalResourceInfoProvider,
             ChannelStateWriteRequestExecutorFactory channelStateExecutorFactory,
-            TaskManagerActions taskManagerActions) {
+            TaskManagerActions taskManagerActions,
+            StateBackend stateBackend) {
 
         this.jobId = checkNotNull(jobId);
         this.jobType = checkNotNull(jobType);
@@ -184,6 +191,7 @@ public class RuntimeEnvironment implements Environment {
         this.externalResourceInfoProvider = checkNotNull(externalResourceInfoProvider);
         this.channelStateExecutorFactory = checkNotNull(channelStateExecutorFactory);
         this.taskManagerActions = checkNotNull(taskManagerActions);
+        this.stateBackend = checkNotNull(stateBackend);
     }
 
     // ------------------------------------------------------------------------
@@ -407,5 +415,23 @@ public class RuntimeEnvironment implements Environment {
     @Override
     public ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory() {
         return channelStateExecutorFactory;
+    }
+        
+    public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+        checkState(
+            this.channelStateWriter == null, "Can not set channelStateWriter twice!");
+            this.channelStateWriter = channelStateWriter;
+    }
+        
+    @Override
+    public ChannelStateWriter getChannelStateWriter() {
+        return checkNotNull(
+                channelStateWriter, "channelStateWriter has not been initialized yet!");
+    }
+
+    @Override
+    public StateBackend getStateBackend() {
+        return checkNotNull(
+                stateBackend, "stateBackend has not been initialized yet!");
     }
 }
