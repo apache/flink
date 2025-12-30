@@ -163,12 +163,14 @@ public abstract class AbstractJsonDeserializationSchema implements Deserializati
     }
 
     /**
-     * Logs a debug message when a JSON parse error is ignored.
+     * Logs a debug message for parsing errors only when debug logs are enabled.
      *
      * @param message the original JSON message that failed to parse
      * @param t the throwable that was caught
      */
-    protected void logParseError(byte[] message, Throwable t) {
-        LOG.debug("Failed to deserialize JSON '{}'.", new String(message), t);
+    protected void logParseErrorIfDebugEnabled(byte[] message, Throwable t) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Failed to deserialize JSON '{}'.", new String(message), t);
+        }
     }
 }

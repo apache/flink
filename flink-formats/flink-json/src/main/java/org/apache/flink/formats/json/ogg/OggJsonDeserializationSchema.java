@@ -203,10 +203,12 @@ public final class OggJsonDeserializationSchema implements DeserializationSchema
                                     "Unknown \"op_type\" value \"%s\". The Ogg JSON message is '%s'",
                                     op, new String(message)));
                 }
-                LOG.debug(
-                        "Unknown \"op_type\" value '{}'. The Ogg JSON message is '{}'.",
-                        op,
-                        new String(message));
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            "Unknown \"op_type\" value '{}'. The Ogg JSON message is '{}'.",
+                            op,
+                            new String(message));
+                }
             }
         } catch (Throwable t) {
             // a big try catch to protect the processing.
@@ -214,7 +216,9 @@ public final class OggJsonDeserializationSchema implements DeserializationSchema
                 throw new IOException(
                         format("Corrupt Ogg JSON message '%s'.", new String(message)), t);
             }
-            LOG.debug("Corrupt Ogg JSON message '{}'.", new String(message), t);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Corrupt Ogg JSON message '{}'.", new String(message), t);
+            }
         }
         for (GenericRowData genericRowData : genericRowDataList) {
             out.collect(genericRowData);

@@ -293,10 +293,12 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                                     "Unknown \"type\" value \"%s\". The Canal JSON message is '%s'",
                                     type, new String(message)));
                 }
-                LOG.debug(
-                        "Unknown \"type\" value '{}'. The Canal JSON message is '{}'.",
-                        type,
-                        new String(message));
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            "Unknown \"type\" value '{}'. The Canal JSON message is '{}'.",
+                            type,
+                            new String(message));
+                }
             }
         } catch (Throwable t) {
             // a big try catch to protect the processing.
@@ -304,7 +306,9 @@ public final class CanalJsonDeserializationSchema implements DeserializationSche
                 throw new IOException(
                         format("Corrupt Canal JSON message '%s'.", new String(message)), t);
             }
-            LOG.debug("Corrupt Canal JSON message '{}'.", new String(message), t);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Corrupt Canal JSON message '{}'.", new String(message), t);
+            }
         }
         for (GenericRowData genericRowData : genericRowDataList) {
             out.collect(genericRowData);
