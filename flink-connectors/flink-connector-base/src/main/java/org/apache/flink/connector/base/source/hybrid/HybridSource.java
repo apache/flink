@@ -31,6 +31,8 @@ import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -155,10 +157,12 @@ public class HybridSource<T> implements Source<T, HybridSourceSplit, HybridSourc
      *
      * <p>Currently only the previous enumerator is exposed. The context interface allows for
      * backward compatible extension, i.e. additional information about the previous source can be
-     * supplied in the future.
+     * supplied in the future. However, since enumerator instances are not by default serializable
+     * or checkpointed, one must handle null returns here.
      */
     @PublicEvolving
     public interface SourceSwitchContext<EnumT> {
+        @Nullable
         EnumT getPreviousEnumerator();
     }
 

@@ -34,6 +34,8 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -273,6 +275,7 @@ public class HybridSourceSplitEnumerator
         HybridSource.SourceSwitchContext<?> switchContext =
                 new HybridSource.SourceSwitchContext<Object>() {
                     @Override
+                    @Nullable
                     public Object getPreviousEnumerator() {
                         return previousEnumerator;
                     }
