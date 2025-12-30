@@ -182,10 +182,12 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
                                     "Unknown \"op\" value \"%s\". The Debezium JSON message is '%s'",
                                     op, new String(message)));
                 }
-                LOG.debug(
-                        "Unknown \"op\" value '{}'. The Debezium JSON message is '{}'.",
-                        op,
-                        new String(message));
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            "Unknown \"op\" value '{}'. The Debezium JSON message is '{}'.",
+                            op,
+                            new String(message));
+                }
             }
         } catch (Throwable t) {
             // a big try catch to protect the processing.
@@ -193,7 +195,9 @@ public final class DebeziumJsonDeserializationSchema implements DeserializationS
                 throw new IOException(
                         format("Corrupt Debezium JSON message '%s'.", new String(message)), t);
             }
-            LOG.debug("Corrupt Debezium JSON message '{}'.", new String(message), t);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Corrupt Debezium JSON message '{}'.", new String(message), t);
+            }
         }
         for (GenericRowData genericRowData : genericRowDataList) {
             out.collect(genericRowData);

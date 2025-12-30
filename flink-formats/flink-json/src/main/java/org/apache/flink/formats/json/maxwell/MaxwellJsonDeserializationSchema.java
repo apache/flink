@@ -177,10 +177,12 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
                                     "Unknown \"type\" value \"%s\". The Maxwell JSON message is '%s'",
                                     type, new String(message)));
                 }
-                LOG.debug(
-                        "Unknown \"type\" value '{}'. The Maxwell JSON message is '{}'.",
-                        type,
-                        new String(message));
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            "Unknown \"type\" value '{}'. The Maxwell JSON message is '{}'.",
+                            type,
+                            new String(message));
+                }
             }
         } catch (Throwable t) {
             // a big try catch to protect the processing.
@@ -188,7 +190,9 @@ public class MaxwellJsonDeserializationSchema implements DeserializationSchema<R
                 throw new IOException(
                         format("Corrupt Maxwell JSON message '%s'.", new String(message)), t);
             }
-            LOG.debug("Corrupt Maxwell JSON message '{}'.", new String(message), t);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Corrupt Maxwell JSON message '{}'.", new String(message), t);
+            }
         }
         for (GenericRowData genericRowData : genericRowDataList) {
             out.collect(genericRowData);
