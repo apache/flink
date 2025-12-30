@@ -527,7 +527,13 @@ public class CoreOptions {
      * open. Unlimited be default.
      */
     public static ConfigOption<Integer> fileSystemConnectionLimit(String scheme) {
-        return ConfigOptions.key("fs." + scheme + ".limit.total").intType().defaultValue(-1);
+        return ConfigOptions.key("fs." + scheme + ".limit.total")
+                .intType()
+                .defaultValue(-1)
+                .withDescription(
+                        "The connection limit for the file system "
+                                + scheme
+                                + ". The valid value must >= -1. Values of -1 or 0 means there is no connection limit.");
     }
 
     /**
@@ -535,7 +541,13 @@ public class CoreOptions {
      * Unlimited be default.
      */
     public static ConfigOption<Integer> fileSystemConnectionLimitIn(String scheme) {
-        return ConfigOptions.key("fs." + scheme + ".limit.input").intType().defaultValue(-1);
+        return ConfigOptions.key("fs." + scheme + ".limit.input")
+                .intType()
+                .defaultValue(-1)
+                .withDescription(
+                        "Input connection limit for the file system "
+                                + scheme
+                                + ". The valid value must >= -1. Values of -1 or 0 means there is no input connection limit.");
     }
 
     /**
@@ -543,7 +555,13 @@ public class CoreOptions {
      * Unlimited be default.
      */
     public static ConfigOption<Integer> fileSystemConnectionLimitOut(String scheme) {
-        return ConfigOptions.key("fs." + scheme + ".limit.output").intType().defaultValue(-1);
+        return ConfigOptions.key("fs." + scheme + ".limit.output")
+                .intType()
+                .defaultValue(-1)
+                .withDescription(
+                        "Output connection limit for the file system "
+                                + scheme
+                                + ". The valid value must >= -1. Values of -1 or 0 means there is no output connection limit.");
     }
 
     /**
