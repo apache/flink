@@ -4,6 +4,7 @@ weight: 41
 type: docs
 aliases:
   - /dev/python/table-api-users-guide/conversion_of_pandas.html
+  - /docs/dev/table/python/conversion_of_pandas/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

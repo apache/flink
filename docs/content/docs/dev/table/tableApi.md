@@ -1,6 +1,6 @@
 ---
 title: "Table API"
-weight: 3
+weight: 4
 type: docs
 aliases:
   - /dev/table/tableApi.html
@@ -2207,7 +2207,7 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-Performs a map operation with a python [general scalar function]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#scalar-functions) or [vectorized scalar function]({{< ref "docs/dev/table/python/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions). The output will be flattened if the output type is a composite type.
+Performs a map operation with a python [general scalar function]({{< ref "docs/dev/table/functions/python-udfs" >}}#scalar-functions) or [vectorized scalar function]({{< ref "docs/dev/table/functions/python-udfs" >}}#vectorized-scalar-functions). The output will be flattened if the output type is a composite type.
 
 ```python
 from pyflink.common import Row
@@ -2293,7 +2293,7 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-Performs a `flat_map` operation with a python [table function]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#table-functions).
+Performs a `flat_map` operation with a python [table function]({{< ref "docs/dev/table/functions/python-udfs" >}}#table-functions).
 
 ```python
 from pyflink.table.udf import udtf
@@ -2302,10 +2302,15 @@ from pyflink.common import Row
 
 @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
 def split(x: Row) -> Row:
-    for s in x.b.split(","):
-        yield x.a, s
+    for s in x.data.split(","):
+        yield x.id, s
 
-input.flat_map(split)
+# use in flat_map
+table.flat_map(split)
+
+# the table function can also be used in join_lateral or left_outer_join_lateral
+table.join_lateral(split.alias('a', 'b'))
+table.left_outer_join_lateral(split.alias('a', 'b'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -2424,7 +2429,7 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-Performs an aggregate operation with a python [general aggregate function]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#aggregate-functions) or [vectorized aggregate function]({{< ref "docs/dev/table/python/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions). You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.
+Performs an aggregate operation with a python [general aggregate function]({{< ref "docs/dev/table/functions/python-udfs" >}}#aggregate-functions) or [vectorized aggregate function]({{< ref "docs/dev/table/functions/python-udfs" >}}#vectorized-aggregate-functions). You have to close the "aggregate" with a select statement and the select statement does not support aggregate functions. The output of aggregate will be flattened if the output type is a composite type.
 
 ```python
 from pyflink.common import Row
@@ -2678,7 +2683,7 @@ val result = orders
 {{< /tab >}}
 {{< tab "Python" >}}
 
-Performs a flat_aggregate operation with a python general [Table Aggregate Function]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#table-aggregate-functions)
+Performs a flat_aggregate operation with a python general [Table Aggregate Function]({{< ref "docs/dev/table/functions/python-udfs" >}}#table-aggregate-functions)
 
 Similar to a **GroupBy Aggregation**. Groups the rows on the grouping keys with the following running table aggregation operator to aggregate rows group-wise. The difference from an AggregateFunction is that TableAggregateFunction may return 0 or more records for a group. You have to close the "flat_aggregate" with a select statement. And the select statement does not support aggregate functions.
 

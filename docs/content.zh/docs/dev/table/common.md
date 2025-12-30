@@ -153,6 +153,8 @@ table_result = table1.execute_insert("SinkTable")
 * 注册自定义函数 （scalar、table 或 aggregation）
 * `DataStream` 和 `Table` 之间的转换(面向 `StreamTableEnvironment` )
 
+有关 `TableEnvironment` 所有方法的完整参考，请参阅 [TableEnvironment API]({{< ref "docs/dev/table/table_environment" >}}) 页面。
+
 `Table` 总是与特定的 `TableEnvironment` 绑定。
 不能在同一条查询中使用不同 TableEnvironment 中的表，例如，对它们进行 join 或 union 操作。
 `TableEnvironment` 可以通过静态方法 `TableEnvironment.create()` 创建。
@@ -795,6 +797,161 @@ result = ...
 # emit the result Table to the registered TableSink
 result.execute_insert("CsvSinkTable")
 
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+### 打印表
+
+可以通过调用 `Table.execute().print()` 将表的内容打印到控制台，用于调试和开发。
+
+{{< tabs "print-table" >}}
+{{< tab "Java" >}}
+```java
+Table table = tableEnv.fromValues(1, 2, 3);
+table.execute().print();
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+val table = tableEnv.fromValues(1, 2, 3)
+table.execute().print()
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
+table.execute().print()
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< hint info >}}
+这会触发表的物化并将内容收集到客户端的内存中。对于大型表，建议使用 `Table.limit()` 限制行数。
+{{< /hint >}}
+
+### 收集结果到客户端
+
+可以使用 `TableResult.collect()` 将表的结果收集到客户端。这会返回一个迭代器，可以用来编程式地处理结果。
+
+{{< tabs "collect-results" >}}
+{{< tab "Java" >}}
+```java
+Table table = tableEnv.fromValues(1, 2, 3);
+try (CloseableIterator<Row> it = table.execute().collect()) {
+    while (it.hasNext()) {
+        Row row = it.next();
+        // process row
+    }
+}
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+val table = tableEnv.fromValues(1, 2, 3)
+val it = table.execute().collect()
+try {
+  while (it.hasNext) {
+    val row = it.next()
+    // process row
+  }
+} finally {
+  it.close()
+}
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
+with table.execute().collect() as results:
+    for row in results:
+        print(row)
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< hint info >}}
+这会触发表的物化并将内容收集到客户端的内存中。对于大型表，建议使用 `Table.limit()` 限制行数。
+{{< /hint >}}
+
+### 输出结果到多个输出表
+
+可以使用 `StatementSet` 在单个作业中将多个表输出到多个输出表。这比执行多个独立的作业更高效。
+
+{{< tabs "statement-set" >}}
+{{< tab "Java" >}}
+```java
+// create source table
+Table sourceTable = tableEnv.from("SourceTable");
+
+// create sink tables
+tableEnv.executeSql("CREATE TABLE SinkTable1 (...) WITH (...)");
+tableEnv.executeSql("CREATE TABLE SinkTable2 (...) WITH (...)");
+
+// create a statement set
+StatementSet stmtSet = tableEnv.createStatementSet();
+
+// add insert statements
+stmtSet.add(sourceTable.insertInto("SinkTable1"));
+stmtSet.addInsertSql("INSERT INTO SinkTable2 SELECT * FROM SourceTable");
+
+// execute all statements together
+stmtSet.execute();
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+// create source table
+val sourceTable = tableEnv.from("SourceTable")
+
+// create sink tables
+tableEnv.executeSql("CREATE TABLE SinkTable1 (...) WITH (...)")
+tableEnv.executeSql("CREATE TABLE SinkTable2 (...) WITH (...)")
+
+// create a statement set
+val stmtSet = tableEnv.createStatementSet()
+
+// add insert statements
+stmtSet.add(sourceTable.insertInto("SinkTable1"))
+stmtSet.addInsertSql("INSERT INTO SinkTable2 SELECT * FROM SourceTable")
+
+// execute all statements together
+stmtSet.execute()
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+# create source table
+table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
+table_env.create_temporary_view("source_table", table)
+
+# create sink tables
+table_env.execute_sql("""
+    CREATE TABLE first_sink_table (
+        id BIGINT,
+        data VARCHAR
+    ) WITH (
+        'connector' = 'print'
+    )
+""")
+table_env.execute_sql("""
+    CREATE TABLE second_sink_table (
+        id BIGINT,
+        data VARCHAR
+    ) WITH (
+        'connector' = 'print'
+    )
+""")
+
+# create a statement set
+statement_set = table_env.create_statement_set()
+
+# add insert statements
+statement_set.add_insert("first_sink_table", table)
+statement_set.add_insert_sql("INSERT INTO second_sink_table SELECT * FROM source_table")
+
+# execute all statements together
+statement_set.execute().wait()
 ```
 {{< /tab >}}
 {{< /tabs >}}

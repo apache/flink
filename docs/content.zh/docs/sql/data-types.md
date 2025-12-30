@@ -6,6 +6,8 @@ aliases:
   - /zh/dev/table/types.html
   - /zh/docs/dev/table/types/
   - /zh/docs/sql/reference/data-types/
+  - /zh/dev/python/table-api-users-guide/python_types.html
+  - /zh/docs/dev/table/python/python_types/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -101,6 +103,35 @@ t = DataTypes.INTERVAL(DataTypes.DAY(), DataTypes.SECOND(3))
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+#### Data Type and Python Type Mapping
+
+For Python user-defined functions, the inputs will be converted to Python objects corresponding to the data type and the type of the user-defined function result must also match the defined data type.
+
+For vectorized Python UDFs, the input types and output type are `pandas.Series`. The element type of the `pandas.Series` corresponds to the specified data type.
+
+| Data Type | Python Type | Pandas Type |
+|-----------|-------------|-------------|
+| `BOOLEAN` | `bool` | `numpy.bool_` |
+| `TINYINT` | `int` | `numpy.int8` |
+| `SMALLINT` | `int` | `numpy.int16` |
+| `INT` | `int` | `numpy.int32` |
+| `BIGINT` | `int` | `numpy.int64` |
+| `FLOAT` | `float` | `numpy.float32` |
+| `DOUBLE` | `float` | `numpy.float64` |
+| `VARCHAR` | `str` | `str` |
+| `VARBINARY` | `bytes` | `bytes` |
+| `DECIMAL` | `decimal.Decimal` | `decimal.Decimal` |
+| `DATE` | `datetime.date` | `datetime.date` |
+| `TIME` | `datetime.time` | `datetime.time` |
+| `TIMESTAMP` | `datetime.datetime` | `datetime.datetime` |
+| `TIMESTAMP_LTZ` | `datetime.datetime` | `datetime.datetime` |
+| `INTERVAL YEAR TO MONTH` | `int` | Not supported |
+| `INTERVAL DAY TO SECOND` | `datetime.timedelta` | Not supported |
+| `ARRAY` | `list` | `numpy.ndarray` |
+| `MULTISET` | `list` | Not supported |
+| `MAP` | `dict` | Not supported |
+| `ROW` | `pyflink.common.Row` | `dict` |
 
 <a name="physical-hints"></a>
 

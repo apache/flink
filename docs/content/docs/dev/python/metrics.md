@@ -4,6 +4,7 @@ weight: 111
 type: docs
 aliases:
   - /dev/python/table-api-users-guide/metrics.html
+  - /docs/dev/table/python/metrics/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -30,7 +31,7 @@ PyFlink exposes a metric system that allows gathering and exposing metrics to ex
 
 ## Registering metrics
 
-You can access the metric system from a [Python user-defined function]({{< ref "docs/dev/table/python/udfs/python_udfs" >}})
+You can access the metric system from a [Python user-defined function]({{< ref "docs/dev/table/functions/python-udfs" >}})
 by calling `function_context.get_metric_group()` in the `open` method.
 The `get_metric_group()` method returns a `MetricGroup` object on which you can create
 and register new metrics.

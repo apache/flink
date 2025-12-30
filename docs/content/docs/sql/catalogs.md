@@ -5,6 +5,7 @@ type: docs
 aliases:
   - /dev/table/catalogs.html
   - /docs/sql/catalogs/
+  - /dev/python/table-api-users-guide/catalogs.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -47,7 +47,7 @@ Table API 和 SQL 两种 API 是紧密集成的，以及 DataStream API。你可
 
 有关如何为 Java 和 Scala 配置这些依赖项的更多细节，请查阅[项目配置]({{< ref "docs/dev/configuration/overview" >}})小节。
 
-如果您使用 Python，请查阅 [Python Table API]({{< ref "docs/dev/table/python" >}}) 文档。
+如果您使用 Python，请查阅 [PyFlink 文档]({{< ref "docs/dev/python" >}})。
 
 ## 接下来？
 
@@ -58,6 +58,6 @@ Table API 和 SQL 两种 API 是紧密集成的，以及 DataStream API。你可
 * [Table API 操作]({{< ref "docs/dev/table/tableApi" >}}): Table API 支持的操作。
 * [SQL 参考]({{< ref "docs/sql/reference/overview" >}}): SQL 支持的操作和语法。
 * [内置函数]({{< ref "docs/sql/built-in-functions" >}}): Table API 和 SQL 中的内置函数。
-* [Python Table API]({{< ref "docs/dev/table/python" >}}): Python 相关的 Table API 文档。
+* [PyFlink]({{< ref "docs/dev/python" >}}): Python 相关的 Flink 文档。
 
 {{< top >}}

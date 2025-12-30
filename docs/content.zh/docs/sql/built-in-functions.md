@@ -5,6 +5,7 @@ type: docs
 aliases:
   - /zh/dev/table/functions/systemFunctions.html
   - /zh/docs/sql/built-in-functions/
+  - /zh/dev/python/table-api-users-guide/built_in_functions.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

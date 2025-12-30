@@ -82,7 +82,7 @@ It will be added to the JVM Heap size and will be dedicated to Flink’s operato
 *Managed memory* is managed by Flink and is allocated as native memory (off-heap). The following workloads use *managed memory*:
 * Streaming jobs can use it for [RocksDB state backend]({{< ref "docs/ops/state/state_backends" >}}#the-rocksdbstatebackend).
 * Both streaming and batch jobs can use it for sorting, hash tables, caching of intermediate results.
-* Both streaming and batch jobs can use it for executing [User Defined Functions in Python processes]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}).
+* Both streaming and batch jobs can use it for executing [User Defined Functions in Python processes]({{< ref "docs/dev/table/functions/python-udfs" >}}).
 
 The size of *managed memory* can be
 * either configured explicitly via [`taskmanager.memory.managed.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-managed-size)

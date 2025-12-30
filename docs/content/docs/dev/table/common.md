@@ -153,6 +153,8 @@ The `TableEnvironment` is the entrypoint for Table API and SQL integration and i
 * Registering a user-defined (scalar, table, or aggregation) function
 * Converting between `DataStream` and `Table` (in case of `StreamTableEnvironment`)
 
+For a complete reference of all `TableEnvironment` methods, see the [TableEnvironment API]({{< ref "docs/dev/table/table_environment" >}}) page.
+
 A `Table` is always bound to a specific `TableEnvironment`.
 It is not possible to combine tables of different TableEnvironments in the same query, e.g., to join or union them.
 A `TableEnvironment` is created by calling the static `TableEnvironment.create()` method.
@@ -793,6 +795,161 @@ result = ...
 # emit the result Table to the registered TableSink
 result.execute_insert("CsvSinkTable")
 
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+### Print the Table
+
+You can print the content of a `Table` to the console for debugging and development purposes. This is done by calling `Table.execute().print()`.
+
+{{< tabs "print-table" >}}
+{{< tab "Java" >}}
+```java
+Table table = tableEnv.fromValues(1, 2, 3);
+table.execute().print();
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+val table = tableEnv.fromValues(1, 2, 3)
+table.execute().print()
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
+table.execute().print()
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< hint info >}}
+This triggers the materialization of the table and collects the content to the client's memory. For large tables, it's recommended to limit the number of rows using `Table.limit()`.
+{{< /hint >}}
+
+### Collect Results to Client
+
+You can collect the results of a `Table` to the client using `TableResult.collect()`. This returns an iterator that you can use to process results programmatically.
+
+{{< tabs "collect-results" >}}
+{{< tab "Java" >}}
+```java
+Table table = tableEnv.fromValues(1, 2, 3);
+try (CloseableIterator<Row> it = table.execute().collect()) {
+    while (it.hasNext()) {
+        Row row = it.next();
+        // process row
+    }
+}
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+val table = tableEnv.fromValues(1, 2, 3)
+val it = table.execute().collect()
+try {
+  while (it.hasNext) {
+    val row = it.next()
+    // process row
+  }
+} finally {
+  it.close()
+}
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
+with table.execute().collect() as results:
+    for row in results:
+        print(row)
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+{{< hint info >}}
+This triggers the materialization of the table and collects the content to the client's memory. For large tables, it's recommended to limit the number of rows using `Table.limit()`.
+{{< /hint >}}
+
+### Emit Results to Multiple Sink Tables
+
+You can use a `StatementSet` to emit multiple `Table`s to multiple sink tables in a single job. This is more efficient than executing multiple separate jobs.
+
+{{< tabs "statement-set" >}}
+{{< tab "Java" >}}
+```java
+// create source table
+Table sourceTable = tableEnv.from("SourceTable");
+
+// create sink tables
+tableEnv.executeSql("CREATE TABLE SinkTable1 (...) WITH (...)");
+tableEnv.executeSql("CREATE TABLE SinkTable2 (...) WITH (...)");
+
+// create a statement set
+StatementSet stmtSet = tableEnv.createStatementSet();
+
+// add insert statements
+stmtSet.add(sourceTable.insertInto("SinkTable1"));
+stmtSet.addInsertSql("INSERT INTO SinkTable2 SELECT * FROM SourceTable");
+
+// execute all statements together
+stmtSet.execute();
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+// create source table
+val sourceTable = tableEnv.from("SourceTable")
+
+// create sink tables
+tableEnv.executeSql("CREATE TABLE SinkTable1 (...) WITH (...)")
+tableEnv.executeSql("CREATE TABLE SinkTable2 (...) WITH (...)")
+
+// create a statement set
+val stmtSet = tableEnv.createStatementSet()
+
+// add insert statements
+stmtSet.add(sourceTable.insertInto("SinkTable1"))
+stmtSet.addInsertSql("INSERT INTO SinkTable2 SELECT * FROM SourceTable")
+
+// execute all statements together
+stmtSet.execute()
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+# create source table
+table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')], ['id', 'data'])
+table_env.create_temporary_view("source_table", table)
+
+# create sink tables
+table_env.execute_sql("""
+    CREATE TABLE first_sink_table (
+        id BIGINT,
+        data VARCHAR
+    ) WITH (
+        'connector' = 'print'
+    )
+""")
+table_env.execute_sql("""
+    CREATE TABLE second_sink_table (
+        id BIGINT,
+        data VARCHAR
+    ) WITH (
+        'connector' = 'print'
+    )
+""")
+
+# create a statement set
+statement_set = table_env.create_statement_set()
+
+# add insert statements
+statement_set.add_insert("first_sink_table", table)
+statement_set.add_insert_sql("INSERT INTO second_sink_table SELECT * FROM source_table")
+
+# execute all statements together
+statement_set.execute().wait()
 ```
 {{< /tab >}}
 {{< /tabs >}}

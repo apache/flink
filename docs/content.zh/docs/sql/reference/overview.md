@@ -4,6 +4,7 @@ weight: 1
 type: docs
 aliases:
   - /zh/dev/table/sql/
+  - /zh/dev/python/table-api-users-guide/sql.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

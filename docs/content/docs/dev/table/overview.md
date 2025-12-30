@@ -46,7 +46,7 @@ You will need to add the Table API as a dependency to a project in order to use 
 
 For more information on how to configure these dependencies for Java and Scala, please refer to the [project configuration]({{< ref "docs/dev/configuration/overview" >}}) section.
 
-If you are using Python, please refer to the documentation on the [Python Table API]({{< ref "docs/dev/table/python" >}}).
+If you are using Python, please refer to the [PyFlink documentation]({{< ref "docs/dev/python" >}}).
 
 ## Where to Go Next
 
@@ -57,6 +57,6 @@ If you are using Python, please refer to the documentation on the [Python Table 
 * [Table API Operations]({{< ref "docs/dev/table/tableApi" >}}): Supported operations and API for the Table API.
 * [SQL Reference]({{< ref "docs/sql/reference/overview" >}}): Supported operations and syntax for SQL.
 * [Built-in Functions]({{< ref "docs/sql/built-in-functions" >}}): Supported functions in Table API and SQL.
-* [Python Table API]({{< ref "docs/dev/table/python" >}}): Python-specific Table API documentation.
+* [PyFlink]({{< ref "docs/dev/python" >}}): Python-specific Flink documentation.
 
 {{< top >}}

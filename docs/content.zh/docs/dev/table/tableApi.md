@@ -1,6 +1,6 @@
 ---
 title: "Table API"
-weight: 3
+weight: 4
 type: docs
 aliases:
   - /zh/dev/table/tableApi.html
@@ -2208,7 +2208,7 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-使用 python 的[通用标量函数]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#scalar-functions)或[向量化标量函数]({{< ref "docs/dev/table/python/udfs/vectorized_python_udfs" >}}#vectorized-scalar-functions)执行 map 操作。如果输出类型是复合类型，则输出将被展平。
+使用 python 的[通用标量函数]({{< ref "docs/dev/table/functions/python-udfs" >}}#scalar-functions)或[向量化标量函数]({{< ref "docs/dev/table/functions/python-udfs" >}}#vectorized-scalar-functions)执行 map 操作。如果输出类型是复合类型，则输出将被展平。
 
 ```python
 from pyflink.common import Row
@@ -2294,7 +2294,7 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-通过 python [表函数]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#table-functions)执行 `flat_map` 操作。
+通过 python [表函数]({{< ref "docs/dev/table/functions/python-udfs" >}}#table-functions)执行 `flat_map` 操作。
 
 ```python
 from pyflink.table.udf import udtf
@@ -2303,10 +2303,15 @@ from pyflink.common import Row
 
 @udtf(result_types=[DataTypes.INT(), DataTypes.STRING()])
 def split(x: Row) -> Row:
-    for s in x.b.split(","):
-        yield x.a, s
+    for s in x.data.split(","):
+        yield x.id, s
 
-input.flat_map(split)
+# 在 flat_map 中使用
+table.flat_map(split)
+
+# 表函数也可以在 join_lateral 或 left_outer_join_lateral 中使用
+table.join_lateral(split.alias('a', 'b'))
+table.left_outer_join_lateral(split.alias('a', 'b'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -2425,7 +2430,7 @@ val table = input
 {{< /tab >}}
 {{< tab "Python" >}}
 
-使用 python 的[通用聚合函数]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#aggregate-functions)或 [向量化聚合函数]({{< ref "docs/dev/table/python/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions)来执行聚合操作。你必须使用 select 子句关闭 `aggregate` ，并且 select 子句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
+使用 python 的[通用聚合函数]({{< ref "docs/dev/table/functions/python-udfs" >}}#aggregate-functions)或 [向量化聚合函数]({{< ref "docs/dev/table/functions/python-udfs" >}}#vectorized-aggregate-functions)来执行聚合操作。你必须使用 select 子句关闭 `aggregate` ，并且 select 子句不支持聚合函数。如果输出类型是复合类型，则聚合的输出将被展平。
 
 ```python
 from pyflink.common import Row
@@ -2678,7 +2683,7 @@ val result = orders
 {{< /tab >}}
 {{< tab "Python" >}}
 
-使用 python 通用 [Table Aggregate Function]({{< ref "docs/dev/table/python/udfs/python_udfs" >}}#table-aggregate-functions) 执行 flat_aggregate 操作。
+使用 python 通用 [Table Aggregate Function]({{< ref "docs/dev/table/functions/python-udfs" >}}#table-aggregate-functions) 执行 flat_aggregate 操作。
 
 和 **GroupBy Aggregation** 类似。使用运行中的表之后的聚合运算符对分组键上的行进行分组，以按组聚合行。和 AggregateFunction 的不同之处在于，TableAggregateFunction 的每个分组可能返回0或多条记录。你必须使用 select 子句关闭 `flat_aggregate`。并且 select 子句不支持聚合函数。
 
