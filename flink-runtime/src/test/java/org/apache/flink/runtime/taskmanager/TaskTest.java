@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
@@ -1249,6 +1250,32 @@ public class TaskTest extends TestLogger {
         assertEquals(ExecutionState.FINISHED, task.getTerminationFuture().getNow(null));
     }
 
+    private void testChannelStateWriterCloses(
+            Class<? extends ChannelStateWriterSetterInvokable> invokableClass) throws Exception {
+        final Task task =
+                createTaskBuilder()
+                        .setInvokable(invokableClass)
+                        .setTaskManagerActions(new NoOpTaskManagerActions())
+                        .build(Executors.directExecutor());
+
+        task.startTaskThread();
+        ChannelStateWriterSetterInvokable invokable =
+                (ChannelStateWriterSetterInvokable) waitForInvokable(task);
+        task.cancelExecution();
+        task.getExecutingThread().join();
+        assertTrue(invokable.getChannelStateWriter().closedOnce());
+    }
+
+    @Test
+    public void testChannelStateWriterClosesOnSuccess() throws Exception {
+        testChannelStateWriterCloses(ChannelStateWriterSetterInvokable.class);
+    }
+
+    @Test
+    public void testChannelStateWriterClosesOnFailure() throws Exception {
+        testChannelStateWriterCloses(FailingChannelStateWriterSetterInvokable.class);
+    }
+
     private void assertCheckpointDeclined(
             Task task,
             TestCheckpointResponder testCheckpointResponder,
@@ -1760,6 +1787,49 @@ public class TaskTest extends TestLogger {
                     // fall through the loop
                 }
             }
+        }
+    }
+
+    private static class ChannelStateWriterSetterInvokable extends AbstractInvokable {
+        private final ChannelStateWriterWithCloseCounter channelStateWriter;
+
+        public ChannelStateWriterSetterInvokable(Environment environment) {
+            super(environment);
+            this.channelStateWriter = new ChannelStateWriterWithCloseCounter() {};
+            environment.setChannelStateWriter(this.channelStateWriter);
+        }
+
+        @Override
+        public void invoke() throws Exception {}
+
+        public ChannelStateWriterWithCloseCounter getChannelStateWriter() {
+            return channelStateWriter;
+        }
+
+        public static class ChannelStateWriterWithCloseCounter
+                extends ChannelStateWriter.NoOpChannelStateWriter {
+            private final AtomicInteger closeCalledCounter = new AtomicInteger(0);
+
+            @Override
+            public void close() {
+                closeCalledCounter.incrementAndGet();
+            }
+
+            public boolean closedOnce() {
+                return closeCalledCounter.get() == 1;
+            }
+        }
+    }
+
+    private static class FailingChannelStateWriterSetterInvokable
+            extends ChannelStateWriterSetterInvokable {
+        public FailingChannelStateWriterSetterInvokable(Environment environment) {
+            super(environment);
+        }
+
+        @Override
+        public void invoke() throws Exception {
+            throw new ExpectedTestException("invoke failed hahaha");
         }
     }
 }

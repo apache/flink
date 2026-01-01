@@ -33,6 +33,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -494,5 +495,15 @@ public class MockEnvironment implements Environment, AutoCloseable {
 
     public void setExternalFailureCauseConsumer(Consumer<Throwable> externalFailureCauseConsumer) {
         this.externalFailureCauseConsumer = Optional.of(externalFailureCauseConsumer);
+    }
+
+    @Override
+    public ChannelStateWriter getChannelStateWriter() {
+        throw new UnsupportedOperationException("Unimplemented method 'getChannelStateWriter'");
+    }
+
+    @Override
+    public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+        throw new UnsupportedOperationException("Unimplemented method 'setChannelStateWriter'");
     }
 }

@@ -522,6 +522,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                                                     CheckpointingOptions
                                                             .UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE))
                             : ChannelStateWriter.NO_OP;
+            environment.setChannelStateWriter(channelStateWriter);
+
             this.subtaskCheckpointCoordinator =
                     new SubtaskCheckpointCoordinatorImpl(
                             checkpointStorageAccess,
