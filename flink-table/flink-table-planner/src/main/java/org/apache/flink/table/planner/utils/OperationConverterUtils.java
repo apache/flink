@@ -21,8 +21,12 @@ package org.apache.flink.table.planner.utils;
 import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.ddl.SqlDistribution;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
+import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
+import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
+import org.apache.flink.table.planner.operations.converters.SchemaReferencesManager;
 
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -33,10 +37,13 @@ import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /** Utils methods for converting sql to operations. */
 public class OperationConverterUtils {
@@ -74,19 +81,96 @@ public class OperationConverterUtils {
         return sqlNode.toSqlString(dialect).getSql();
     }
 
-    public static Set<String> getColumnNames(
-            SqlNodeList sqlNodeList,
-            Function<SqlIdentifier, String> errMessage,
-            String duplicatedErrMsgPrefix) {
+    public static Set<String> getColumnNames(SqlNodeList sqlNodeList, String errMsgPrefix) {
         Set<String> distinctNames = new HashSet<>();
         for (SqlNode sqlNode : sqlNodeList) {
-            String name =
-                    SqlParseUtils.extractSimpleColumnName((SqlIdentifier) sqlNode, errMessage);
+            String name = extractSimpleColumnName((SqlIdentifier) sqlNode, errMsgPrefix);
             if (!distinctNames.add(name)) {
                 throw new ValidationException(
-                        String.format("%sDuplicate column `%s`.", duplicatedErrMsgPrefix, name));
+                        String.format("%sDuplicate column `%s`.", errMsgPrefix, name));
             }
         }
         return distinctNames;
+    }
+
+    public static String extractSimpleColumnName(SqlIdentifier identifier, String exMsgPrefix) {
+        if (!identifier.isSimple()) {
+            throw new UnsupportedOperationException(
+                    String.format(
+                            "%sAlter nested row type %s is not supported yet.",
+                            exMsgPrefix, identifier));
+        }
+        return identifier.getSimple();
+    }
+
+    public static List<TableChange> validateAndGatherDropWatermarkChanges(
+            ResolvedCatalogBaseTable<?> oldTable, String exMsgPrefix, String tableKindStr) {
+        if (oldTable.getResolvedSchema().getWatermarkSpecs().isEmpty()) {
+            throw new ValidationException(
+                    String.format(
+                            "%sThe current %s does not define any watermark strategy.",
+                            exMsgPrefix, tableKindStr));
+        }
+
+        return List.of(TableChange.dropWatermark());
+    }
+
+    public static List<TableChange> validateAndGatherDropConstraintChanges(
+            ResolvedCatalogBaseTable<?> oldTable,
+            SqlIdentifier constraint,
+            String exMsgPrefix,
+            String tableKindStr) {
+        Optional<UniqueConstraint> pkConstraint = oldTable.getResolvedSchema().getPrimaryKey();
+        if (pkConstraint.isEmpty()) {
+            throw new ValidationException(
+                    String.format(
+                            "%sThe current %s does not define any primary key.",
+                            exMsgPrefix, tableKindStr));
+        }
+        String constraintName = pkConstraint.get().getName();
+        if (constraint != null && !constraint.getSimple().equals(constraintName)) {
+            throw new ValidationException(
+                    String.format(
+                            "%sThe current %s does not define a primary key constraint named '%s'. "
+                                    + "Available constraint name: ['%s'].",
+                            exMsgPrefix, tableKindStr, constraint.getSimple(), constraintName));
+        }
+
+        return List.of(TableChange.dropConstraint(constraintName));
+    }
+
+    public static List<TableChange> validateAndGatherDropPrimaryKey(
+            ResolvedCatalogBaseTable<?> oldTable, String exMsgPrefix, String tableKindStr) {
+        Optional<UniqueConstraint> pkConstraint = oldTable.getResolvedSchema().getPrimaryKey();
+
+        if (pkConstraint.isEmpty()) {
+            throw new ValidationException(
+                    String.format(
+                            "%sThe current %s does not define any primary key.",
+                            exMsgPrefix, tableKindStr));
+        }
+
+        return List.of(TableChange.dropConstraint(pkConstraint.get().getName()));
+    }
+
+    public static List<TableChange> validateAndGatherDropColumn(
+            ResolvedCatalogBaseTable<?> oldTable, Set<String> columnsToDrop, String exMsgPrefix) {
+        SchemaReferencesManager referencesManager = SchemaReferencesManager.create(oldTable);
+        // Sort by dependencies count from smallest to largest. For example, when dropping
+        // column a,
+        // b(b as a+1), the order should be: [b, a] after sort.
+        Comparator<Object> comparator =
+                Comparator.comparingInt(
+                                col -> referencesManager.getColumnDependencyCount((String) col))
+                        .reversed();
+        List<String> sortedColumnsToDrop =
+                columnsToDrop.stream().sorted(comparator).collect(Collectors.toList());
+        List<TableChange> tableChanges = new ArrayList<>(sortedColumnsToDrop.size());
+        for (String columnToDrop : sortedColumnsToDrop) {
+            referencesManager.dropColumn(columnToDrop, () -> exMsgPrefix);
+            tableChanges.add(TableChange.dropColumn(columnToDrop));
+        }
+
+        return tableChanges;
     }
 }

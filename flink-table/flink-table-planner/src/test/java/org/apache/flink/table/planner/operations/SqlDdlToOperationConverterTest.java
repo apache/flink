@@ -1359,15 +1359,15 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         prepareTable("tb1", 0);
         assertThatThrownBy(() -> parse("alter table tb1 drop primary key"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("The base table does not define any primary key.");
+                .hasMessageContaining("The current table does not define any primary key.");
         assertThatThrownBy(() -> parse("alter table tb1 drop constraint ct"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("The base table does not define any primary key.");
+                .hasMessageContaining("The current table does not define any primary key.");
         prepareTable("tb2", 1);
         assertThatThrownBy(() -> parse("alter table tb2 drop constraint ct2"))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining(
-                        "The base table does not define a primary key constraint named 'ct2'. Available constraint name: ['ct1'].");
+                        "The current table does not define a primary key constraint named 'ct2'. Available constraint name: ['ct1'].");
         checkAlterNonExistTable("alter table %s nonexistent drop primary key");
         checkAlterNonExistTable("alter table %s nonexistent drop constraint ct");
     }
@@ -1583,7 +1583,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         prepareTable("tb1", false);
         assertThatThrownBy(() -> parse("alter table tb1 drop watermark"))
                 .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("The base table does not define any watermark strategy.");
+                .hasMessageContaining("The current table does not define any watermark strategy.");
         checkAlterNonExistTable("alter table %s nonexistent drop watermark");
     }
 
