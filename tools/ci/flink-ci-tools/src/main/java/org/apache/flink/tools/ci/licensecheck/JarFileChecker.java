@@ -206,6 +206,10 @@ public class JarFileChecker {
                     // dual-licensed under GPL 2 and CDDL 1.1
                     // contained in hadoop/presto S3 FS and flink-dist
                     .filter(path -> !pathStartsWith(path, "/META-INF/versions/11/javax/xml/bind"))
+                    // contained in flink-s3-fs-presto
+                    .filter(path -> !pathStartsWith(path, "/com/sun/el"))
+                    // contained in flink-s3-fs-presto
+                    .filter(path -> !pathStartsWith(path, "/META-INF/LGPL2.1"))
                     .filter(path -> !isJavaxManifest(jar, path))
                     .filter(
                             path ->
