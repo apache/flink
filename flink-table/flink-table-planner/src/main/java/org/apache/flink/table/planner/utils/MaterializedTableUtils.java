@@ -150,6 +150,18 @@ public class MaterializedTableUtils {
         return newAddedColumns;
     }
 
+    public static ResolvedSchema getQueryOperationResolvedSchema(
+            ResolvedCatalogMaterializedTable oldTable, ConvertContext context) {
+        final SqlNode originalQuery =
+                context.getFlinkPlanner().parser().parse(oldTable.getOriginalQuery());
+        final SqlNode validateQuery = context.getSqlValidator().validate(originalQuery);
+        final PlannerQueryOperation queryOperation =
+                new PlannerQueryOperation(
+                        context.toRelRoot(validateQuery).project(),
+                        () -> context.toQuotedSqlString(validateQuery));
+        return queryOperation.getResolvedSchema();
+    }
+
     public static void validatePersistedColumnsUsedByQuery(
             ResolvedCatalogMaterializedTable oldTable,
             SqlAlterMaterializedTableSchema alterTableSchema,
@@ -159,15 +171,8 @@ public class MaterializedTableUtils {
             return;
         }
 
-        final SqlNode originalQuery =
-                context.getFlinkPlanner().parser().parse(oldTable.getOriginalQuery());
-        final SqlNode validateQuery = context.getSqlValidator().validate(originalQuery);
-        final PlannerQueryOperation queryOperation =
-                new PlannerQueryOperation(
-                        context.toRelRoot(validateQuery).project(),
-                        () -> context.toQuotedSqlString(validateQuery));
-
-        validatePersistedColumnsUsedByQuery(sqlNodeList, queryOperation.getResolvedSchema());
+        final ResolvedSchema querySchema = getQueryOperationResolvedSchema(oldTable, context);
+        validatePersistedColumnsUsedByQuery(sqlNodeList, querySchema);
     }
 
     public static void validatePersistedColumnsUsedByQuery(

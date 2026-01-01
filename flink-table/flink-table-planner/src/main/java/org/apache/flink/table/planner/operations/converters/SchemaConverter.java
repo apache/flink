@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
-import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
@@ -228,7 +227,8 @@ public abstract class SchemaConverter {
         for (SqlNode alterColumn : alterColumns) {
             SqlTableColumnPosition columnPosition = (SqlTableColumnPosition) alterColumn;
             SqlTableColumn column = columnPosition.getColumn();
-            String columnName = getColumnName(column.getName());
+            String columnName =
+                    OperationConverterUtils.extractSimpleColumnName(column.getName(), exMsgPrefix);
             if (!alterColNames.add(columnName)) {
                 throw new ValidationException(
                         String.format(
@@ -242,7 +242,8 @@ public abstract class SchemaConverter {
         SqlIdentifier referencedIdent = columnPosition.getAfterReferencedColumn();
         Preconditions.checkNotNull(
                 referencedIdent, String.format("%sCould not refer to a null column", exMsgPrefix));
-        String referencedName = getColumnName(referencedIdent);
+        String referencedName =
+                OperationConverterUtils.extractSimpleColumnName(referencedIdent, exMsgPrefix);
         if (!sortedColumnNames.contains(referencedName)) {
             throw new ValidationException(
                     String.format(
@@ -295,15 +296,6 @@ public abstract class SchemaConverter {
     protected abstract void checkAndCollectPrimaryKeyChange();
 
     protected abstract void checkAndCollectWatermarkChange();
-
-    protected String getColumnName(SqlIdentifier identifier) {
-        return SqlParseUtils.extractSimpleColumnName(
-                identifier,
-                identifier1 ->
-                        String.format(
-                                "%sAlter nested row type %s is not supported yet.",
-                                exMsgPrefix, identifier1));
-    }
 
     protected <T> T unwrap(Optional<T> value) {
         return value.orElseThrow(() -> new TableException("The value should never be empty."));

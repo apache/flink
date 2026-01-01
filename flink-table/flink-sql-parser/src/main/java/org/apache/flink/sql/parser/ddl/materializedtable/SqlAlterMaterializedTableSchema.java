@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 
 /**
  * Abstract class to describe statements which are used to alter schema for materialized tables. See
- * examples in javadoc for {@link SqlAlterMaterializedTableAddSchema}.
+ * examples in javadoc for child classes.
  */
 public abstract class SqlAlterMaterializedTableSchema extends SqlAlterMaterializedTable
         implements ExtendedSqlNode {
@@ -179,6 +179,132 @@ public abstract class SqlAlterMaterializedTableSchema extends SqlAlterMaterializ
         @Override
         protected String getAlterOperation() {
             return "MODIFY";
+        }
+    }
+
+    /**
+     * Abstract class to describe statements which are used to drop schema components while altering
+     * schema of materialized tables. See examples in javadoc for child classes.
+     */
+    public abstract static class SqlAlterMaterializedTableDropSchema
+            extends SqlAlterMaterializedTableSchema {
+        public SqlAlterMaterializedTableDropSchema(
+                SqlParserPos pos, SqlIdentifier materializedTableName) {
+            super(pos, materializedTableName, SqlNodeList.EMPTY, List.of(), null);
+        }
+
+        protected abstract void unparseDropOperation(SqlWriter writer, int leftPrec, int rightPrec);
+
+        @Override
+        protected String getAlterOperation() {
+            return "DROP";
+        }
+
+        @Override
+        public final void unparseAlterOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+            super.unparseAlterOperation(writer, leftPrec, rightPrec);
+            unparseDropOperation(writer, leftPrec, rightPrec);
+        }
+    }
+
+    /** ALTER MATERIALIZED TABLE [catalog_name.][db_name.]materialized_table_name DROP WATERMARK. */
+    public static class SqlAlterMaterializedTableDropWatermark
+            extends SqlAlterMaterializedTableDropSchema {
+        public SqlAlterMaterializedTableDropWatermark(
+                SqlParserPos pos, SqlIdentifier materializedTableName) {
+            super(pos, materializedTableName);
+        }
+
+        @Override
+        public List<SqlNode> getOperandList() {
+            return List.of(name);
+        }
+
+        @Override
+        public void unparseDropOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+            writer.keyword("WATERMARK");
+        }
+    }
+
+    /**
+     * ALTER MATERIALIZED TABLE [catalog_name.][db_name.]materialized_table_name DROP PRIMARY KEY.
+     */
+    public static class SqlAlterMaterializedTableDropPrimaryKey
+            extends SqlAlterMaterializedTableDropSchema {
+        public SqlAlterMaterializedTableDropPrimaryKey(
+                SqlParserPos pos, SqlIdentifier materializedTableName) {
+            super(pos, materializedTableName);
+        }
+
+        @Override
+        public void unparseDropOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+            writer.keyword("PRIMARY KEY");
+        }
+    }
+
+    /**
+     * ALTER MATERIALIZED TABLE [catalog_name.][db_name.]materialized_table_name DROP CONSTRAINT
+     * constraint_name.
+     */
+    public static class SqlAlterMaterializedTableDropConstraint
+            extends SqlAlterMaterializedTableDropSchema {
+        private final SqlIdentifier constraintName;
+
+        public SqlAlterMaterializedTableDropConstraint(
+                SqlParserPos pos, SqlIdentifier tableName, SqlIdentifier constraintName) {
+            super(pos, tableName);
+            this.constraintName = constraintName;
+        }
+
+        public SqlIdentifier getConstraintName() {
+            return constraintName;
+        }
+
+        @Override
+        public void unparseDropOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+            writer.keyword("CONSTRAINT");
+            constraintName.unparse(writer, leftPrec, rightPrec);
+        }
+    }
+
+    /**
+     * SqlNode to describe ALTER MATERIALIZED TABLE materialized_table_name DROP column clause.
+     *
+     * <p>Example: DDL like the below for drop column.
+     *
+     * <pre>{@code
+     * -- drop single column
+     * ALTER MATERIALIZED TABLE prod.db.sample DROP col1;
+     *
+     * -- drop multiple columns
+     * ALTER MATERIALIZED TABLE prod.db.sample DROP (col1, col2, col3);
+     * }</pre>
+     */
+    public static class SqlAlterMaterializedTableDropColumn
+            extends SqlAlterMaterializedTableDropSchema {
+
+        private final SqlNodeList columnList;
+
+        public SqlAlterMaterializedTableDropColumn(
+                SqlParserPos pos, SqlIdentifier tableName, SqlNodeList columnList) {
+            super(pos, tableName);
+            this.columnList = columnList;
+        }
+
+        public SqlNodeList getColumnList() {
+            return columnList;
+        }
+
+        @Override
+        public List<SqlNode> getOperandList() {
+            return List.of(name, columnList);
+        }
+
+        @Override
+        public void unparseDropOperation(SqlWriter writer, int leftPrec, int rightPrec) {
+            // unparse materialized table column
+            SqlUnparseUtils.unparseTableSchema(
+                    columnList, List.of(), null, writer, leftPrec, rightPrec);
         }
     }
 }

@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.operations.converters.SchemaReferencesManager;
+import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import java.util.List;
 
@@ -37,8 +38,12 @@ public class SqlAlterTableRenameColumnConverter
             SqlAlterTableRenameColumn renameColumn,
             ResolvedCatalogTable oldTable,
             ConvertContext context) {
-        String oldColumnName = getColumnName(renameColumn.getOldColumnIdentifier());
-        String newColumnName = getColumnName(renameColumn.getNewColumnIdentifier());
+        String oldColumnName =
+                OperationConverterUtils.extractSimpleColumnName(
+                        renameColumn.getOldColumnIdentifier(), EX_MSG_PREFIX);
+        String newColumnName =
+                OperationConverterUtils.extractSimpleColumnName(
+                        renameColumn.getNewColumnIdentifier(), EX_MSG_PREFIX);
 
         SchemaReferencesManager.create(oldTable)
                 .checkReferences(oldColumnName, () -> EX_MSG_PREFIX);

@@ -620,6 +620,27 @@ class MaterializedTableStatementParserTest {
     }
 
     @Test
+    void testAlterMaterializedTableDrop() {
+        sql("alter materialized table mt1 drop distribution")
+                .ok("ALTER MATERIALIZED TABLE `MT1` DROP DISTRIBUTION");
+
+        sql("alter materialized table mt1 drop primary key")
+                .ok("ALTER MATERIALIZED TABLE `MT1` DROP PRIMARY KEY");
+
+        sql("alter materialized table mt1 drop constraint pk_mt")
+                .ok("ALTER MATERIALIZED TABLE `MT1` DROP CONSTRAINT `PK_MT`");
+
+        sql("alter materialized table mt1 drop watermark")
+                .ok("ALTER MATERIALIZED TABLE `MT1` DROP WATERMARK");
+
+        sql("alter materialized table mt1 drop c1")
+                .ok("ALTER MATERIALIZED TABLE `MT1` DROP (\n  `C1`\n)");
+
+        sql("alter materialized table mt1 drop (c1, c2, c3)")
+                .ok("ALTER MATERIALIZED TABLE `MT1` DROP (\n  `C1`,\n  `C2`,\n  `C3`\n)");
+    }
+
+    @Test
     void testDropMaterializedTable() {
         final String sql = "DROP MATERIALIZED TABLE tbl1";
         final String expected = "DROP MATERIALIZED TABLE `TBL1`";

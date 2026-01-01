@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlComputedColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlMetadataColumn;
@@ -55,6 +56,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 /** A utility class with logic for handling the {@code CREATE TABLE ... LIKE} clause. */
+@Internal
 public class MergeTableLikeUtil {
     /** Default merging strategy if given option was not provided explicitly by the user. */
     private static final HashMap<FeatureOption, MergingStrategy> defaultMergingStrategies =

@@ -33,22 +33,25 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * SqlNode to describe ALTER TABLE [IF EXISTS] table_name MODIFY column/constraint/watermark clause.
+ * SqlNode to describe ALTER TABLE [IF EXISTS ]table_name DROP column/constraint/watermark clause.
  *
- * <p>Example: DDL like the below for modify column/constraint/watermark.
+ * <p>Example: DDL like the below for dropping column/constraint/watermark.
  *
  * <pre>{@code
- * -- modify single column
- * ALTER TABLE mytable MODIFY new_column STRING COMMENT 'new_column docs';
+ * -- drop a column (only drop of non persisted is allowed)
+ * ALTER MATERIALIZED TABLE materializedTable DROP col1;
  *
- * -- modify multiple columns, constraint, and watermark
- * ALTER TABLE mytable MODIFY (
- *     log_ts STRING COMMENT 'log timestamp string' FIRST,
- *     ts AS TO_TIMESTAMP(log_ts) AFTER log_ts,
- *     col_meta int metadata from 'mk1' virtual AFTER col_b,
- *     PRIMARY KEY (id) NOT ENFORCED,
- *     WATERMARK FOR ts AS ts - INTERVAL '3' SECOND
- * );
+ * -- drop several columns
+ * ALTER MATERIALIZED TABLE materializedTable DROP (col1, col2, col3);
+ *
+ * -- drop a primary key
+ * ALTER MATERIALIZED TABLE materializedTable DROP PRIMARY KEY;
+ *
+ * -- drop a constraint by name
+ * ALTER MATERIALIZED TABLE materializedTable DROP CONSTRAINT constraint_name;
+ *
+ * -- drop a watermark
+ * ALTER MATERIALIZED TABLE materializedTable DROP WATERMARK;
  * }</pre>
  */
 public abstract class SqlAlterTableDrop extends SqlAlterTableSchema {
@@ -125,7 +128,7 @@ public abstract class SqlAlterTableDrop extends SqlAlterTableSchema {
         }
     }
 
-    /** ALTER TABLE [IF EXISTS ][catalog_name.][db_name.]table_name DROP PRIMARY KEY. */
+    /** ALTER TABLE [IF EXISTS ][catalog_name.][db_name.]table_name DROP WATERMARK. */
     public static class SqlAlterTableDropWatermark extends SqlAlterTableDrop {
 
         public SqlAlterTableDropWatermark(
