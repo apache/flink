@@ -38,10 +38,12 @@ import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JacksonInject;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonGetter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSetter;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.Nulls;
 
@@ -51,6 +53,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.table.planner.plan.nodes.exec.ExecNode.FIELD_NAME_CONFIGURATION;
+import static org.apache.flink.table.planner.plan.nodes.exec.ExecNode.FIELD_NAME_ID;
+import static org.apache.flink.table.planner.plan.nodes.exec.ExecNode.FIELD_NAME_TYPE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -60,6 +65,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <T> The type of the elements that result from this node.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
+@JsonPropertyOrder({FIELD_NAME_ID, FIELD_NAME_TYPE, FIELD_NAME_CONFIGURATION})
 public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
     /**
@@ -92,7 +98,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
      * Retrieves the default context from the {@link ExecNodeMetadata} annotation to be serialized
      * into the JSON plan.
      */
-    @JsonProperty(value = FIELD_NAME_TYPE, access = JsonProperty.Access.READ_ONLY, index = 1)
+    @JsonGetter(FIELD_NAME_TYPE)
     protected final ExecNodeContext getContextFromAnnotation() {
         return isCompiled ? context : ExecNodeContext.newContext(this.getClass()).withId(getId());
     }
@@ -100,10 +106,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     @JsonProperty(value = FIELD_NAME_CONFIGURATION, access = JsonProperty.Access.WRITE_ONLY)
     private final ReadableConfig persistedConfig;
 
-    @JsonProperty(
-            value = FIELD_NAME_CONFIGURATION,
-            access = JsonProperty.Access.READ_ONLY,
-            index = 2)
+    @JsonGetter(FIELD_NAME_CONFIGURATION)
     // Custom filter to exclude node configuration if no consumed options are used
     @JsonInclude(
             value = JsonInclude.Include.CUSTOM,
