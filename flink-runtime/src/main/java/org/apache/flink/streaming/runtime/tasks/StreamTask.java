@@ -149,7 +149,6 @@ import static org.apache.flink.runtime.metrics.MetricNames.GATE_RESTORE_DURATION
 import static org.apache.flink.runtime.metrics.MetricNames.INITIALIZE_STATE_DURATION;
 import static org.apache.flink.runtime.metrics.MetricNames.MAILBOX_START_DURATION;
 import static org.apache.flink.runtime.metrics.MetricNames.READ_OUTPUT_DATA_DURATION;
-import static org.apache.flink.streaming.runtime.tasks.SubtaskCheckpointCoordinatorImpl.openChannelStateWriter;
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
@@ -239,7 +238,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     protected final StateBackend stateBackend;
 
     /** Our checkpoint storage. We use this to create checkpoint streams. */
-    protected final CheckpointStorage checkpointStorage;
 
     private final SubtaskCheckpointCoordinator subtaskCheckpointCoordinator;
 
@@ -463,8 +461,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             environment.setMainMailboxExecutor(mainMailboxExecutor);
             environment.setAsyncOperationsThreadPool(asyncOperationsThreadPool);
 
-            this.stateBackend = createStateBackend();
-            this.checkpointStorage = createCheckpointStorage(stateBackend);
+            this.stateBackend = environment.getStateBackend();
             this.changelogWriterAvailabilityProvider =
                     environment.getTaskStateManager().getStateChangelogStorage() == null
                             ? null
@@ -472,14 +469,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                                     .getTaskStateManager()
                                     .getStateChangelogStorage()
                                     .getAvailabilityProvider();
-
-            CheckpointStorageAccess checkpointStorageAccess =
-                    checkpointStorage.createCheckpointStorage(getEnvironment().getJobID());
-            checkpointStorageAccess =
-                    tryApplyFileMergingCheckpoint(
-                            checkpointStorageAccess,
-                            environment.getTaskStateManager().getFileMergingSnapshotManager());
-            environment.setCheckpointStorageAccess(checkpointStorageAccess);
 
             // if the clock is not already set, then assign a default TimeServiceProvider
             if (timerService == null) {
@@ -489,42 +478,10 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             }
 
             this.systemTimerService = createTimerService("System Time Trigger for " + getName());
-            final CheckpointStorageAccess finalCheckpointStorageAccess = checkpointStorageAccess;
 
-            ChannelStateWriter channelStateWriter =
-                    CheckpointingOptions.isUnalignedCheckpointEnabled(getJobConfiguration())
-                            ? openChannelStateWriter(
-                                    getName(),
-                                    // Note: don't pass checkpointStorageAccess directly to channel
-                                    // state writer.
-                                    // The fileSystem of checkpointStorageAccess may be an instance
-                                    // of SafetyNetWrapperFileSystem, which close all held streams
-                                    // when thread exits. Channel state writers are invoked in other
-                                    // threads instead of task thread, therefore channel state
-                                    // writer cannot share file streams directly, otherwise
-                                    // conflicts will occur on job exit.
-                                    () -> {
-                                        if (finalCheckpointStorageAccess
-                                                instanceof FsMergingCheckpointStorageAccess) {
-                                            // FsMergingCheckpointStorageAccess using unguarded
-                                            // fileSystem, which can be shared.
-                                            return finalCheckpointStorageAccess;
-                                        } else {
-                                            // Other checkpoint storage access should be lazily
-                                            // initialized to avoid sharing.
-                                            return checkpointStorage.createCheckpointStorage(
-                                                    getEnvironment().getJobID());
-                                        }
-                                    },
-                                    environment,
-                                    getJobConfiguration()
-                                            .get(
-                                                    CheckpointingOptions
-                                                            .UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE))
-                            : ChannelStateWriter.NO_OP;
             this.subtaskCheckpointCoordinator =
                     new SubtaskCheckpointCoordinatorImpl(
-                            checkpointStorageAccess,
+                            environment.getCheckpointStorageAccess(),
                             getName(),
                             actionExecutor,
                             getAsyncOperationsThreadPool(),
@@ -533,7 +490,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             this::prepareInputSnapshot,
                             getJobConfiguration()
                                     .get(CheckpointingOptions.MAX_CONCURRENT_CHECKPOINTS),
-                            channelStateWriter,
+                            environment.getChannelStateWriter(),
                             configuration
                                     .getConfiguration()
                                     .get(
@@ -564,35 +521,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         }
     }
 
-    private CheckpointStorageAccess tryApplyFileMergingCheckpoint(
-            CheckpointStorageAccess checkpointStorageAccess,
-            @Nullable FileMergingSnapshotManager fileMergingSnapshotManager) {
-        if (fileMergingSnapshotManager == null) {
-            return checkpointStorageAccess;
-        }
-        try {
-            CheckpointStorageAccess mergingCheckpointStorageAccess =
-                    (CheckpointStorageAccess)
-                            checkpointStorageAccess.toFileMergingStorage(
-                                    fileMergingSnapshotManager, environment);
-            mergingCheckpointStorageAccess.initializeBaseLocationsForCheckpoint();
-            if (mergingCheckpointStorageAccess instanceof FsMergingCheckpointStorageAccess) {
-                resourceCloser.registerCloseable(
-                        () ->
-                                ((FsMergingCheckpointStorageAccess) mergingCheckpointStorageAccess)
-                                        .close());
-            }
-            return mergingCheckpointStorageAccess;
-        } catch (IOException e) {
-            LOG.warn(
-                    "Initiating FsMergingCheckpointStorageAccess failed "
-                            + "with exception: {}, falling back to original checkpoint storage access {}.",
-                    e.getMessage(),
-                    checkpointStorageAccess.getClass(),
-                    e);
-            return checkpointStorageAccess;
-        }
-    }
 
     private TimerService createTimerService(String timerThreadName) {
         ThreadFactory timerThreadFactory =
@@ -1633,34 +1561,6 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         } catch (RejectedExecutionException e) {
             // this happens during shutdown, we can swallow this
         }
-    }
-
-    // ------------------------------------------------------------------------
-    //  State backend
-    // ------------------------------------------------------------------------
-
-    private StateBackend createStateBackend() throws Exception {
-        final StateBackend fromApplication =
-                configuration.getStateBackend(getUserCodeClassLoader());
-
-        return StateBackendLoader.fromApplicationOrConfigOrDefault(
-                fromApplication,
-                getJobConfiguration(),
-                getEnvironment().getTaskManagerInfo().getConfiguration(),
-                getUserCodeClassLoader(),
-                LOG);
-    }
-
-    private CheckpointStorage createCheckpointStorage(StateBackend backend) throws Exception {
-        final CheckpointStorage fromApplication =
-                configuration.getCheckpointStorage(getUserCodeClassLoader());
-        return CheckpointStorageLoader.load(
-                fromApplication,
-                backend,
-                getJobConfiguration(),
-                getEnvironment().getTaskManagerInfo().getConfiguration(),
-                getUserCodeClassLoader(),
-                LOG);
     }
 
     /**

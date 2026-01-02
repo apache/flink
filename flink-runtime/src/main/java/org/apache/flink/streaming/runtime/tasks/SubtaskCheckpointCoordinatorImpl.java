@@ -199,21 +199,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         this.fileMergingSnapshotManager = fileMergingSnapshotManager;
     }
 
-    public static ChannelStateWriter openChannelStateWriter(
-            String taskName,
-            SupplierWithException<CheckpointStorageWorkerView, ? extends IOException>
-                    checkpointStorageWorkerView,
-            Environment env,
-            int maxSubtasksPerChannelStateFile) {
-        return new ChannelStateWriterImpl(
-                env.getJobVertexId(),
-                taskName,
-                env.getTaskInfo().getIndexOfThisSubtask(),
-                checkpointStorageWorkerView,
-                env.getChannelStateExecutorFactory(),
-                maxSubtasksPerChannelStateFile);
-    }
-
     @Override
     public void abortCheckpointOnBarrier(
             long checkpointId, CheckpointException cause, OperatorChain<?, ?> operatorChain)
@@ -579,7 +564,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             }
         }
         IOUtils.closeAllQuietly(asyncCheckpointRunnables);
-        channelStateWriter.close();
     }
 
     @VisibleForTesting

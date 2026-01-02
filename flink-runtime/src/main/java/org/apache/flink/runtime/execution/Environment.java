@@ -31,6 +31,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
@@ -46,6 +47,7 @@ import org.apache.flink.runtime.memory.SharedResources;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.CheckpointStorageAccess;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.internal.InternalKvState;
 import org.apache.flink.runtime.taskexecutor.GlobalAggregateManager;
@@ -280,4 +282,14 @@ public interface Environment {
     }
 
     ChannelStateWriteRequestExecutorFactory getChannelStateExecutorFactory();
+
+    default ChannelStateWriter getChannelStateWriter() {
+        throw new UnsupportedOperationException();
+    }
+    
+    default void setChannelStateWriter(ChannelStateWriter channelStateWriter) {}
+
+    default StateBackend getStateBackend() {
+        throw new UnsupportedOperationException();
+    };
 }
