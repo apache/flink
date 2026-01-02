@@ -519,7 +519,7 @@ public class SecurityOptions {
     public static final ConfigOption<Boolean> SSL_VERIFY_HOSTNAME =
             key("security.ssl.verify-hostname")
                     .booleanType()
-                    .defaultValue(true)
+                    .defaultValue(false)
                     .withDescription(
                             "Flag to enable peer’s hostname verification during ssl handshake.");
 
