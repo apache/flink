@@ -113,8 +113,6 @@ public class DeltaJoinUtil {
                     FilterPushDownSpec.class,
                     ProjectPushDownSpec.class,
                     PartitionPushDownSpec.class,
-                    // TODO FLINK-38569 ReadingMetadataSpec should not be generated when there are
-                    //  no metadata keys to be read
                     ReadingMetadataSpec.class);
 
     private DeltaJoinUtil() {}
