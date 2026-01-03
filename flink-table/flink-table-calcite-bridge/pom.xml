@@ -49,11 +49,11 @@ under the License.
 				[INFO] +- org.apache.calcite:calcite-core:jar:1.36.0:compile
 				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.36.0:compile
 				[INFO] |  +- org.locationtech.jts:jts-core:jar:1.19.0:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.18.2:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.20.1:compile
 				[INFO] |  +- org.apache.calcite.avatica:avatica-core:jar:1.23.0:compile
 				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.2:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.18.2:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.18.2:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.20.1:compile
+				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.20.1:compile
 				[INFO] |  +- commons-codec:commons-codec:jar:1.15:runtime
 				[INFO] |  +- org.apache.commons:commons-math3:jar:3.6.1:runtime
 				[INFO] |  \- commons-io:commons-io:jar:2.15.1:runtime
