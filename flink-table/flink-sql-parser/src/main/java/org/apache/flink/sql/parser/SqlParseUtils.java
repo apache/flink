@@ -20,6 +20,7 @@ package org.apache.flink.sql.parser;
 
 import org.apache.flink.sql.parser.ddl.SqlTableOption;
 
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
@@ -114,5 +115,13 @@ public class SqlParseUtils {
             return Set.of();
         }
         return sqlNodeList.getList().stream().map(mapper).collect(Collectors.toSet());
+    }
+
+    public static String extractSimpleColumnName(
+            SqlIdentifier identifier, Function<SqlIdentifier, String> errMessage) {
+        if (!identifier.isSimple()) {
+            throw new UnsupportedOperationException(errMessage.apply(identifier));
+        }
+        return identifier.getSimple();
     }
 }
