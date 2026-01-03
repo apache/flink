@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.operations.converters;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn;
 import org.apache.flink.sql.parser.ddl.SqlWatermark;
 import org.apache.flink.sql.parser.ddl.constraint.SqlTableConstraint;
@@ -241,11 +242,7 @@ public abstract class SchemaConverter {
         SqlIdentifier referencedIdent = columnPosition.getAfterReferencedColumn();
         Preconditions.checkNotNull(
                 referencedIdent, String.format("%sCould not refer to a null column", exMsgPrefix));
-        if (!referencedIdent.isSimple()) {
-            throw new UnsupportedOperationException(
-                    String.format("%sAlter nested row type is not supported yet.", exMsgPrefix));
-        }
-        String referencedName = referencedIdent.getSimple();
+        String referencedName = getColumnName(referencedIdent);
         if (!sortedColumnNames.contains(referencedName)) {
             throw new ValidationException(
                     String.format(
@@ -300,13 +297,12 @@ public abstract class SchemaConverter {
     protected abstract void checkAndCollectWatermarkChange();
 
     protected String getColumnName(SqlIdentifier identifier) {
-        if (!identifier.isSimple()) {
-            throw new UnsupportedOperationException(
-                    String.format(
-                            "%sAlter nested row type %s is not supported yet.",
-                            exMsgPrefix, identifier));
-        }
-        return identifier.getSimple();
+        return SqlParseUtils.extractSimpleColumnName(
+                identifier,
+                identifier1 ->
+                        String.format(
+                                "%sAlter nested row type %s is not supported yet.",
+                                exMsgPrefix, identifier1));
     }
 
     protected <T> T unwrap(Optional<T> value) {

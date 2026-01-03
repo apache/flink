@@ -18,10 +18,11 @@
 
 package org.apache.flink.table.planner.operations.converters.table;
 
+import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.ddl.table.SqlAlterTable;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogBaseTable;
+import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ContextResolvedTable;
@@ -35,11 +36,15 @@ import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.AlterTableChangeOperation;
 import org.apache.flink.table.operations.utils.ValidationUtils;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
+import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
 import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.SqlNodeList;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
 
 /** Abstract class for ALTER TABLE converters. */
 public abstract class AbstractAlterTableConverter<T extends SqlAlterTable>
@@ -65,9 +70,7 @@ public abstract class AbstractAlterTableConverter<T extends SqlAlterTable>
                             "Table %s doesn't exist or is a temporary table.", tableIdentifier));
         }
         ValidationUtils.validateTableKind(
-                optionalCatalogTable.get().getTable(),
-                CatalogBaseTable.TableKind.TABLE,
-                "alter table");
+                optionalCatalogTable.get().getTable(), TableKind.TABLE, "alter table");
 
         return convertToOperation(
                 sqlAlterTable, optionalCatalogTable.get().getResolvedTable(), context);
@@ -100,13 +103,20 @@ public abstract class AbstractAlterTableConverter<T extends SqlAlterTable>
     }
 
     protected static String getColumnName(SqlIdentifier identifier) {
-        if (!identifier.isSimple()) {
-            throw new UnsupportedOperationException(
-                    String.format(
-                            "%sAlter nested row type %s is not supported yet.",
-                            EX_MSG_PREFIX, identifier));
-        }
-        return identifier.getSimple();
+        return SqlParseUtils.extractSimpleColumnName(
+                identifier, nestedRowTypeNotSupportedErrorMessage());
+    }
+
+    private static Function<SqlIdentifier, String> nestedRowTypeNotSupportedErrorMessage() {
+        return sqlIdentifier ->
+                String.format(
+                        "%sAlter nested row type %s is not supported yet.",
+                        EX_MSG_PREFIX, sqlIdentifier);
+    }
+
+    public static Set<String> getColumnNames(SqlNodeList sqlNodeList) {
+        return OperationConverterUtils.getColumnNames(
+                sqlNodeList, nestedRowTypeNotSupportedErrorMessage(), EX_MSG_PREFIX);
     }
 
     protected final ObjectIdentifier resolveIdentifier(SqlAlterTable node, ConvertContext context) {

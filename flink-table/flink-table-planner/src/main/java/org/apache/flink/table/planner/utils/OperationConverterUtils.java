@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.ddl.SqlDistribution;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 
@@ -32,7 +33,10 @@ import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.function.Function;
 
 /** Utils methods for converting sql to operations. */
 public class OperationConverterUtils {
@@ -68,5 +72,21 @@ public class OperationConverterUtils {
                                 .withUnquotedCasing(parserConfig.unquotedCasing())
                                 .withIdentifierQuoteString(parserConfig.quoting().string));
         return sqlNode.toSqlString(dialect).getSql();
+    }
+
+    public static Set<String> getColumnNames(
+            SqlNodeList sqlNodeList,
+            Function<SqlIdentifier, String> errMessage,
+            String duplicatedErrMsgPrefix) {
+        Set<String> distinctNames = new HashSet<>();
+        for (SqlNode sqlNode : sqlNodeList) {
+            String name =
+                    SqlParseUtils.extractSimpleColumnName((SqlIdentifier) sqlNode, errMessage);
+            if (!distinctNames.add(name)) {
+                throw new ValidationException(
+                        String.format("%sDuplicate column `%s`.", duplicatedErrMsgPrefix, name));
+            }
+        }
+        return distinctNames;
     }
 }

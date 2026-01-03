@@ -1650,7 +1650,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         // refer to a nested inner field
         assertThatThrownBy(() -> parse("alter table tb1 add (x string after e.f2)"))
                 .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessageContaining("Alter nested row type is not supported yet.");
+                .hasMessageContaining("Alter nested row type e.f2 is not supported yet.");
 
         assertThatThrownBy(() -> parse("alter table tb1 add (e.f3 string after e.f1)"))
                 .isInstanceOf(UnsupportedOperationException.class)
@@ -2106,7 +2106,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
         // refer to a nested inner field
         assertThatThrownBy(() -> parse("alter table tb2 modify (g string after e.f2)"))
                 .isInstanceOf(UnsupportedOperationException.class)
-                .hasMessageContaining("Alter nested row type is not supported yet.");
+                .hasMessageContaining("Alter nested row type e.f2 is not supported yet.");
 
         assertThatThrownBy(() -> parse("alter table tb2 modify (e.f0 string after e.f1)"))
                 .isInstanceOf(UnsupportedOperationException.class)
