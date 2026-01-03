@@ -27,6 +27,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.ddl.CreateTableOperation;
+import org.apache.flink.table.planner.operations.converters.MergeTableLikeUtil;
 
 import java.util.Collections;
 import java.util.List;
