@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.operations.converters.table;
+package org.apache.flink.table.planner.operations.converters;
 
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlComputedColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlMetadataColumn;
@@ -54,7 +54,6 @@ import org.apache.calcite.sql.validate.SqlValidator;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -85,7 +84,7 @@ class MergeTableLikeUtilTest {
                         .build();
 
         List<SqlNode> derivedColumns =
-                Arrays.asList(
+                List.of(
                         regularColumn("three", DataTypes.INT()),
                         regularColumn("four", DataTypes.STRING()));
 
@@ -94,7 +93,7 @@ class MergeTableLikeUtilTest {
                         getDefaultMergingStrategies(),
                         sourceSchema,
                         derivedColumns,
-                        Collections.emptyList(),
+                        List.of(),
                         null);
 
         Schema expectedSchema =
@@ -113,7 +112,7 @@ class MergeTableLikeUtilTest {
         Schema sourceSchema = Schema.newBuilder().column("one", DataTypes.INT()).build();
 
         List<SqlNode> derivedColumns =
-                Arrays.asList(
+                List.of(
                         regularColumn("one", DataTypes.INT()),
                         regularColumn("four", DataTypes.STRING()));
 
@@ -123,7 +122,7 @@ class MergeTableLikeUtilTest {
                                         getDefaultMergingStrategies(),
                                         sourceSchema,
                                         derivedColumns,
-                                        Collections.emptyList(),
+                                        List.of(),
                                         null))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage("A column named 'one' already exists in the base table.");
@@ -134,7 +133,7 @@ class MergeTableLikeUtilTest {
         Schema sourceSchema = Schema.newBuilder().column("one", DataTypes.INT()).build();
 
         List<SqlNode> derivedColumns =
-                Arrays.asList(
+                List.of(
                         regularColumn("two", DataTypes.INT()),
                         regularColumn("two", DataTypes.INT()),
                         regularColumn("four", DataTypes.STRING()));
@@ -145,7 +144,7 @@ class MergeTableLikeUtilTest {
                                         getDefaultMergingStrategies(),
                                         sourceSchema,
                                         derivedColumns,
-                                        Collections.emptyList(),
+                                        List.of(),
                                         null))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage("A regular Column named 'two' already exists in the table.");
@@ -156,7 +155,7 @@ class MergeTableLikeUtilTest {
         Schema sourceSchema = Schema.newBuilder().column("one", DataTypes.INT()).build();
 
         List<SqlNode> derivedColumns =
-                Arrays.asList(
+                List.of(
                         regularColumn("two", DataTypes.INT()),
                         computedColumn("three", plus("two", "3")),
                         regularColumn("three", DataTypes.INT()),
@@ -168,7 +167,7 @@ class MergeTableLikeUtilTest {
                                         getDefaultMergingStrategies(),
                                         sourceSchema,
                                         derivedColumns,
-                                        Collections.emptyList(),
+                                        List.of(),
                                         null))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
@@ -181,7 +180,7 @@ class MergeTableLikeUtilTest {
         Schema sourceSchema = Schema.newBuilder().column("one", DataTypes.INT()).build();
 
         List<SqlNode> derivedColumns =
-                Arrays.asList(
+                List.of(
                         metadataColumn("two", DataTypes.INT(), true),
                         computedColumn("three", plus("two", "3")),
                         regularColumn("two", DataTypes.INT()),
@@ -193,7 +192,7 @@ class MergeTableLikeUtilTest {
                                         getDefaultMergingStrategies(),
                                         sourceSchema,
                                         derivedColumns,
-                                        Collections.emptyList(),
+                                        List.of(),
                                         null))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
@@ -210,7 +209,7 @@ class MergeTableLikeUtilTest {
                         .build();
 
         List<SqlNode> derivedColumns =
-                Arrays.asList(
+                List.of(
                         regularColumn("three", DataTypes.INT()),
                         computedColumn("four", plus("one", "3")));
 
@@ -219,7 +218,7 @@ class MergeTableLikeUtilTest {
                         getDefaultMergingStrategies(),
                         sourceSchema,
                         derivedColumns,
-                        Collections.emptyList(),
+                        List.of(),
                         null);
 
         Schema expectedSchema =
@@ -243,7 +242,7 @@ class MergeTableLikeUtilTest {
                         .build();
 
         List<SqlNode> derivedColumns =
-                Arrays.asList(
+                List.of(
                         regularColumn("three", DataTypes.INT()),
                         metadataColumn("four", DataTypes.INT(), true));
 
@@ -252,7 +251,7 @@ class MergeTableLikeUtilTest {
                         getDefaultMergingStrategies(),
                         sourceSchema,
                         derivedColumns,
-                        Collections.emptyList(),
+                        List.of(),
                         null);
 
         Schema expectedSchema =
@@ -275,8 +274,7 @@ class MergeTableLikeUtilTest {
                         .columnByExpression("two", "one + 1")
                         .build();
 
-        List<SqlNode> derivedColumns =
-                Collections.singletonList(computedColumn("two", plus("one", "3")));
+        List<SqlNode> derivedColumns = List.of(computedColumn("two", plus("one", "3")));
 
         assertThatThrownBy(
                         () ->
@@ -284,7 +282,7 @@ class MergeTableLikeUtilTest {
                                         getDefaultMergingStrategies(),
                                         sourceSchema,
                                         derivedColumns,
-                                        Collections.emptyList(),
+                                        List.of(),
                                         null))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
@@ -301,8 +299,7 @@ class MergeTableLikeUtilTest {
                         .columnByMetadata("two", DataTypes.INT())
                         .build();
 
-        List<SqlNode> derivedColumns =
-                Collections.singletonList(metadataColumn("two", DataTypes.INT(), false));
+        List<SqlNode> derivedColumns = List.of(metadataColumn("two", DataTypes.INT(), false));
 
         assertThatThrownBy(
                         () ->
@@ -310,7 +307,7 @@ class MergeTableLikeUtilTest {
                                         getDefaultMergingStrategies(),
                                         sourceSchema,
                                         derivedColumns,
-                                        Collections.emptyList(),
+                                        List.of(),
                                         null))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
@@ -327,19 +324,13 @@ class MergeTableLikeUtilTest {
                         .columnByExpression("two", "one + 1")
                         .build();
 
-        List<SqlNode> derivedColumns =
-                Collections.singletonList(computedColumn("two", plus("one", "3")));
+        List<SqlNode> derivedColumns = List.of(computedColumn("two", plus("one", "3")));
 
         Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
         mergingStrategies.put(FeatureOption.GENERATED, MergingStrategy.EXCLUDING);
 
         Schema mergedSchema =
-                util.mergeTables(
-                        mergingStrategies,
-                        sourceSchema,
-                        derivedColumns,
-                        Collections.emptyList(),
-                        null);
+                util.mergeTables(mergingStrategies, sourceSchema, derivedColumns, List.of(), null);
 
         Schema expectedSchema =
                 Schema.newBuilder()
@@ -358,19 +349,13 @@ class MergeTableLikeUtilTest {
                         .columnByMetadata("two", DataTypes.INT())
                         .build();
 
-        List<SqlNode> derivedColumns =
-                Collections.singletonList(metadataColumn("two", DataTypes.BOOLEAN(), false));
+        List<SqlNode> derivedColumns = List.of(metadataColumn("two", DataTypes.BOOLEAN(), false));
 
         Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
         mergingStrategies.put(FeatureOption.METADATA, MergingStrategy.EXCLUDING);
 
         Schema mergedSchema =
-                util.mergeTables(
-                        mergingStrategies,
-                        sourceSchema,
-                        derivedColumns,
-                        Collections.emptyList(),
-                        null);
+                util.mergeTables(mergingStrategies, sourceSchema, derivedColumns, List.of(), null);
 
         Schema expectedSchema =
                 Schema.newBuilder()
@@ -389,19 +374,13 @@ class MergeTableLikeUtilTest {
                         .columnByExpression("two", "one + 1")
                         .build();
 
-        List<SqlNode> derivedColumns =
-                Collections.singletonList(computedColumn("two", plus("one", "3")));
+        List<SqlNode> derivedColumns = List.of(computedColumn("two", plus("one", "3")));
 
         Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
         mergingStrategies.put(FeatureOption.GENERATED, MergingStrategy.OVERWRITING);
 
         Schema mergedSchema =
-                util.mergeTables(
-                        mergingStrategies,
-                        sourceSchema,
-                        derivedColumns,
-                        Collections.emptyList(),
-                        null);
+                util.mergeTables(mergingStrategies, sourceSchema, derivedColumns, List.of(), null);
 
         Schema expectedSchema =
                 Schema.newBuilder()
@@ -420,19 +399,13 @@ class MergeTableLikeUtilTest {
                         .columnByMetadata("two", DataTypes.INT())
                         .build();
 
-        List<SqlNode> derivedColumns =
-                Collections.singletonList(metadataColumn("two", DataTypes.BOOLEAN(), true));
+        List<SqlNode> derivedColumns = List.of(metadataColumn("two", DataTypes.BOOLEAN(), true));
 
         Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
         mergingStrategies.put(FeatureOption.METADATA, MergingStrategy.OVERWRITING);
 
         Schema mergedSchema =
-                util.mergeTables(
-                        mergingStrategies,
-                        sourceSchema,
-                        derivedColumns,
-                        Collections.emptyList(),
-                        null);
+                util.mergeTables(mergingStrategies, sourceSchema, derivedColumns, List.of(), null);
 
         Schema expectedSchema =
                 Schema.newBuilder()
@@ -451,8 +424,7 @@ class MergeTableLikeUtilTest {
                         .column("two", DataTypes.INT())
                         .build();
 
-        List<SqlNode> derivedColumns =
-                Collections.singletonList(computedColumn("two", plus("one", "3")));
+        List<SqlNode> derivedColumns = List.of(computedColumn("two", plus("one", "3")));
 
         Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
         mergingStrategies.put(FeatureOption.GENERATED, MergingStrategy.OVERWRITING);
@@ -463,7 +435,7 @@ class MergeTableLikeUtilTest {
                                         mergingStrategies,
                                         sourceSchema,
                                         derivedColumns,
-                                        Collections.emptyList(),
+                                        List.of(),
                                         null))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
@@ -480,8 +452,7 @@ class MergeTableLikeUtilTest {
                         .columnByExpression("two", "one + 3")
                         .build();
 
-        List<SqlNode> derivedColumns =
-                Collections.singletonList(metadataColumn("two", DataTypes.BOOLEAN(), false));
+        List<SqlNode> derivedColumns = List.of(metadataColumn("two", DataTypes.BOOLEAN(), false));
 
         Map<FeatureOption, MergingStrategy> mergingStrategies = getDefaultMergingStrategies();
         mergingStrategies.put(FeatureOption.METADATA, MergingStrategy.OVERWRITING);
@@ -492,7 +463,7 @@ class MergeTableLikeUtilTest {
                                         mergingStrategies,
                                         sourceSchema,
                                         derivedColumns,
-                                        Collections.emptyList(),
+                                        List.of(),
                                         null))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
@@ -511,7 +482,7 @@ class MergeTableLikeUtilTest {
                         .build();
 
         List<SqlNode> derivedColumns =
-                Arrays.asList(
+                List.of(
                         regularColumn("three", DataTypes.INT()),
                         computedColumn("four", plus("one", "3")));
 
@@ -520,7 +491,7 @@ class MergeTableLikeUtilTest {
                         getDefaultMergingStrategies(),
                         sourceSchema,
                         derivedColumns,
-                        Collections.emptyList(),
+                        List.of(),
                         null);
 
         Schema expectedSchema =
@@ -546,7 +517,7 @@ class MergeTableLikeUtilTest {
                         .build();
 
         List<SqlWatermark> derivedWatermarkSpecs =
-                Collections.singletonList(
+                List.of(
                         new SqlWatermark(
                                 SqlParserPos.ZERO,
                                 identifier("timestamp"),
@@ -557,7 +528,7 @@ class MergeTableLikeUtilTest {
                                 util.mergeTables(
                                         getDefaultMergingStrategies(),
                                         sourceSchema,
-                                        Collections.emptyList(),
+                                        List.of(),
                                         derivedWatermarkSpecs,
                                         null))
                 .isInstanceOf(ValidationException.class)
@@ -577,7 +548,7 @@ class MergeTableLikeUtilTest {
                         .build();
 
         List<SqlWatermark> derivedWatermarkSpecs =
-                Collections.singletonList(
+                List.of(
                         new SqlWatermark(
                                 SqlParserPos.ZERO,
                                 identifier("timestamp"),
@@ -588,11 +559,7 @@ class MergeTableLikeUtilTest {
 
         Schema mergedSchema =
                 util.mergeTables(
-                        mergingStrategies,
-                        sourceSchema,
-                        Collections.emptyList(),
-                        derivedWatermarkSpecs,
-                        null);
+                        mergingStrategies, sourceSchema, List.of(), derivedWatermarkSpecs, null);
 
         Schema expectedSchema =
                 Schema.newBuilder()
@@ -614,7 +581,7 @@ class MergeTableLikeUtilTest {
                         .build();
 
         List<SqlWatermark> derivedWatermarkSpecs =
-                Collections.singletonList(
+                List.of(
                         new SqlWatermark(
                                 SqlParserPos.ZERO,
                                 identifier("timestamp"),
@@ -625,11 +592,7 @@ class MergeTableLikeUtilTest {
 
         Schema mergedSchema =
                 util.mergeTables(
-                        mergingStrategies,
-                        sourceSchema,
-                        Collections.emptyList(),
-                        derivedWatermarkSpecs,
-                        null);
+                        mergingStrategies, sourceSchema, List.of(), derivedWatermarkSpecs, null);
 
         Schema expectedSchema =
                 Schema.newBuilder()
@@ -653,11 +616,7 @@ class MergeTableLikeUtilTest {
 
         Schema mergedSchema =
                 util.mergeTables(
-                        getDefaultMergingStrategies(),
-                        sourceSchema,
-                        Collections.emptyList(),
-                        Collections.emptyList(),
-                        null);
+                        getDefaultMergingStrategies(), sourceSchema, List.of(), List.of(), null);
 
         Schema expectedSchema =
                 Schema.newBuilder()
@@ -683,8 +642,8 @@ class MergeTableLikeUtilTest {
                 util.mergeTables(
                         getDefaultMergingStrategies(),
                         sourceSchema,
-                        Collections.emptyList(),
-                        Collections.emptyList(),
+                        List.of(),
+                        List.of(),
                         primaryKey("one", "two"));
 
         Schema expectedSchema =
@@ -713,8 +672,8 @@ class MergeTableLikeUtilTest {
                                 util.mergeTables(
                                         getDefaultMergingStrategies(),
                                         sourceSchema,
-                                        Collections.emptyList(),
-                                        Collections.emptyList(),
+                                        List.of(),
+                                        List.of(),
                                         primaryKey("one", "two")))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage(
@@ -739,8 +698,8 @@ class MergeTableLikeUtilTest {
                 util.mergeTables(
                         mergingStrategies,
                         sourceSchema,
-                        Collections.emptyList(),
-                        Collections.emptyList(),
+                        List.of(),
+                        List.of(),
                         primaryKey("one", "two"));
 
         Schema expectedSchema =
@@ -757,7 +716,7 @@ class MergeTableLikeUtilTest {
     @Test
     void mergeDistributionFromBaseTable() {
         Optional<TableDistribution> sourceDistribution =
-                Optional.of(TableDistribution.ofHash(Collections.singletonList("a"), 3));
+                Optional.of(TableDistribution.ofHash(List.of("a"), 3));
         Optional<TableDistribution> mergePartitions =
                 util.mergeDistribution(
                         getDefaultMergingStrategies().get(FeatureOption.DISTRIBUTION),
@@ -770,7 +729,7 @@ class MergeTableLikeUtilTest {
     @Test
     void mergeDistributionFromDerivedTable() {
         Optional<TableDistribution> derivedDistribution =
-                Optional.of(TableDistribution.ofHash(Collections.singletonList("a"), 3));
+                Optional.of(TableDistribution.ofHash(List.of("a"), 3));
         Optional<TableDistribution> mergePartitions =
                 util.mergeDistribution(
                         getDefaultMergingStrategies().get(FeatureOption.DISTRIBUTION),
@@ -783,9 +742,9 @@ class MergeTableLikeUtilTest {
     @Test
     void mergeIncludingDistributionFailsOnDuplicate() {
         Optional<TableDistribution> sourceDistribution =
-                Optional.of(TableDistribution.ofHash(Collections.singletonList("a"), 3));
+                Optional.of(TableDistribution.ofHash(List.of("a"), 3));
         Optional<TableDistribution> derivedDistribution =
-                Optional.of(TableDistribution.ofHash(Collections.singletonList("b"), 3));
+                Optional.of(TableDistribution.ofHash(List.of("b"), 3));
 
         assertThatThrownBy(
                         () ->
@@ -802,9 +761,9 @@ class MergeTableLikeUtilTest {
     @Test
     void mergeExcludingDistributionOnDuplicate() {
         Optional<TableDistribution> sourceDistribution =
-                Optional.of(TableDistribution.ofHash(Collections.singletonList("a"), 3));
+                Optional.of(TableDistribution.ofHash(List.of("a"), 3));
         Optional<TableDistribution> derivedDistribution =
-                Optional.of(TableDistribution.ofHash(Collections.singletonList("b"), 3));
+                Optional.of(TableDistribution.ofHash(List.of("b"), 3));
 
         Optional<TableDistribution> mergedPartitions =
                 util.mergeDistribution(
@@ -815,23 +774,23 @@ class MergeTableLikeUtilTest {
 
     @Test
     void mergePartitionsFromBaseTable() {
-        List<String> sourcePartitions = Arrays.asList("col1", "col2");
+        List<String> sourcePartitions = List.of("col1", "col2");
         List<String> mergePartitions =
                 util.mergePartitions(
                         getDefaultMergingStrategies().get(FeatureOption.PARTITIONS),
                         sourcePartitions,
-                        Collections.emptyList());
+                        List.of());
 
         assertThat(mergePartitions).isEqualTo(sourcePartitions);
     }
 
     @Test
     void mergePartitionsFromDerivedTable() {
-        List<String> derivedPartitions = Arrays.asList("col1", "col2");
+        List<String> derivedPartitions = List.of("col1", "col2");
         List<String> mergePartitions =
                 util.mergePartitions(
                         getDefaultMergingStrategies().get(FeatureOption.PARTITIONS),
-                        Collections.emptyList(),
+                        List.of(),
                         derivedPartitions);
 
         assertThat(mergePartitions).isEqualTo(derivedPartitions);
@@ -839,8 +798,8 @@ class MergeTableLikeUtilTest {
 
     @Test
     void mergeIncludingPartitionsFailsOnDuplicate() {
-        List<String> sourcePartitions = Arrays.asList("col3", "col4");
-        List<String> derivedPartitions = Arrays.asList("col1", "col2");
+        List<String> sourcePartitions = List.of("col3", "col4");
+        List<String> derivedPartitions = List.of("col1", "col2");
 
         assertThatThrownBy(
                         () ->
@@ -856,8 +815,8 @@ class MergeTableLikeUtilTest {
 
     @Test
     void mergeExcludingPartitionsOnDuplicate() {
-        List<String> sourcePartitions = Arrays.asList("col3", "col4");
-        List<String> derivedPartitions = Arrays.asList("col1", "col2");
+        List<String> sourcePartitions = List.of("col3", "col4");
+        List<String> derivedPartitions = List.of("col1", "col2");
 
         List<String> mergedPartitions =
                 util.mergePartitions(
@@ -952,7 +911,7 @@ class MergeTableLikeUtilTest {
     @Test
     void defaultMergeStrategies() {
         Map<FeatureOption, MergingStrategy> mergingStrategies =
-                util.computeMergingStrategies(Collections.emptyList());
+                util.computeMergingStrategies(List.of());
 
         assertThat(mergingStrategies.get(FeatureOption.OPTIONS))
                 .isEqualTo(MergingStrategy.OVERWRITING);
@@ -969,8 +928,7 @@ class MergeTableLikeUtilTest {
     @Test
     void includingAllMergeStrategyExpansion() {
         List<SqlTableLikeOption> inputOptions =
-                Collections.singletonList(
-                        new SqlTableLikeOption(MergingStrategy.INCLUDING, FeatureOption.ALL));
+                List.of(new SqlTableLikeOption(MergingStrategy.INCLUDING, FeatureOption.ALL));
 
         Map<FeatureOption, MergingStrategy> mergingStrategies =
                 util.computeMergingStrategies(inputOptions);
@@ -990,8 +948,7 @@ class MergeTableLikeUtilTest {
     @Test
     void excludingAllMergeStrategyExpansion() {
         List<SqlTableLikeOption> inputOptions =
-                Collections.singletonList(
-                        new SqlTableLikeOption(MergingStrategy.EXCLUDING, FeatureOption.ALL));
+                List.of(new SqlTableLikeOption(MergingStrategy.EXCLUDING, FeatureOption.ALL));
 
         Map<FeatureOption, MergingStrategy> mergingStrategies =
                 util.computeMergingStrategies(inputOptions);
@@ -1011,7 +968,7 @@ class MergeTableLikeUtilTest {
     @Test
     void includingAllOverwriteOptionsMergeStrategyExpansion() {
         List<SqlTableLikeOption> inputOptions =
-                Arrays.asList(
+                List.of(
                         new SqlTableLikeOption(MergingStrategy.EXCLUDING, FeatureOption.ALL),
                         new SqlTableLikeOption(
                                 MergingStrategy.INCLUDING, FeatureOption.CONSTRAINTS));
@@ -1034,7 +991,7 @@ class MergeTableLikeUtilTest {
     }
 
     private Map<FeatureOption, MergingStrategy> getDefaultMergingStrategies() {
-        return util.computeMergingStrategies(Collections.emptyList());
+        return util.computeMergingStrategies(List.of());
     }
 
     private SqlNode regularColumn(String name, DataType type) {
