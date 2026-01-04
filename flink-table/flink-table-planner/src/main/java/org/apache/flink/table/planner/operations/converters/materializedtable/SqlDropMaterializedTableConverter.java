@@ -16,22 +16,27 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.operations.converters;
+package org.apache.flink.table.planner.operations.converters.materializedtable;
 
-import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableSuspend;
+import org.apache.flink.sql.parser.ddl.materializedtable.SqlDropMaterializedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableSuspendOperation;
+import org.apache.flink.table.operations.materializedtable.DropMaterializedTableOperation;
+import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
 
-/** A converter for {@link SqlAlterMaterializedTableSuspend}. */
-public class SqlAlterMaterializedTableSuspendConverter
-        implements SqlNodeConverter<SqlAlterMaterializedTableSuspend> {
+/** A converter for {@link SqlDropMaterializedTable}. */
+public class SqlDropMaterializedTableConverter
+        implements SqlNodeConverter<SqlDropMaterializedTable> {
     @Override
-    public Operation convertSqlNode(SqlAlterMaterializedTableSuspend node, ConvertContext context) {
-        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.getFullName());
+    public Operation convertSqlNode(
+            SqlDropMaterializedTable sqlDropMaterializedTable, ConvertContext context) {
+        UnresolvedIdentifier unresolvedIdentifier =
+                UnresolvedIdentifier.of(sqlDropMaterializedTable.getFullName());
         ObjectIdentifier identifier =
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
-        return new AlterMaterializedTableSuspendOperation(identifier);
+        // Currently we don't support temporary materialized table, so isTemporary is always false
+        return new DropMaterializedTableOperation(
+                identifier, sqlDropMaterializedTable.getIfExists());
     }
 }

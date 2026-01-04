@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.operations.converters;
+package org.apache.flink.table.planner.operations.converters.materializedtable;
 
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableSchema;
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableSchema.SqlAlterMaterializedTableAddSchema;
@@ -37,6 +37,9 @@ import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
+import org.apache.flink.table.planner.operations.converters.SchemaAddConverter;
+import org.apache.flink.table.planner.operations.converters.SchemaConverter;
+import org.apache.flink.table.planner.operations.converters.SchemaModifyConverter;
 import org.apache.flink.table.planner.utils.MaterializedTableUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
@@ -72,7 +75,7 @@ public abstract class SqlAlterMaterializedTableSchemaConverter<
 
         return new AlterMaterializedTableChangeOperation(
                 resolveIdentifier(alterTableSchema, context),
-                converter.changesCollector,
+                converter.getChangesCollector(),
                 mtWithUpdatedSchemaAndQuery);
     }
 

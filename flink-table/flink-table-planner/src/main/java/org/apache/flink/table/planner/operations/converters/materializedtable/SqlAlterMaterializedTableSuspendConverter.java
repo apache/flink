@@ -16,29 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.operations.converters;
+package org.apache.flink.table.planner.operations.converters.materializedtable;
 
-import org.apache.flink.sql.parser.SqlParseUtils;
-import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableRefresh;
+import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableSuspend;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableRefreshOperation;
+import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableSuspendOperation;
+import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
 
-import java.util.Map;
-
-/** A converter for {@link SqlAlterMaterializedTableRefresh}. */
-public class SqlAlterMaterializedTableRefreshConverter
-        implements SqlNodeConverter<SqlAlterMaterializedTableRefresh> {
-
+/** A converter for {@link SqlAlterMaterializedTableSuspend}. */
+public class SqlAlterMaterializedTableSuspendConverter
+        implements SqlNodeConverter<SqlAlterMaterializedTableSuspend> {
     @Override
-    public Operation convertSqlNode(SqlAlterMaterializedTableRefresh node, ConvertContext context) {
+    public Operation convertSqlNode(SqlAlterMaterializedTableSuspend node, ConvertContext context) {
         UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.getFullName());
         ObjectIdentifier identifier =
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
-
-        Map<String, String> partitionSpec = SqlParseUtils.getPartitionKVs(node.getPartitionSpec());
-
-        return new AlterMaterializedTableRefreshOperation(identifier, partitionSpec);
+        return new AlterMaterializedTableSuspendOperation(identifier);
     }
 }
