@@ -20,13 +20,19 @@ package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.sql.parser.SqlParseUtils;
 import org.apache.flink.sql.parser.ddl.SqlDistribution;
+import org.apache.flink.sql.parser.ddl.resource.SqlResource;
+import org.apache.flink.sql.parser.ddl.resource.SqlResourceType;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.FunctionLanguage;
 import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.catalog.TableDistribution;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.operations.converters.SchemaReferencesManager;
+import org.apache.flink.table.resource.ResourceType;
+import org.apache.flink.table.resource.ResourceUri;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -172,5 +178,61 @@ public class OperationConverterUtils {
         }
 
         return tableChanges;
+    }
+
+    public static List<ResourceUri> getFunctionResources(List<SqlNode> sqlResources) {
+        return sqlResources.stream()
+                .map(SqlResource.class::cast)
+                .map(
+                        sqlResource -> {
+                            // get resource type
+                            SqlResourceType sqlResourceType =
+                                    sqlResource.getResourceType().getValueAs(SqlResourceType.class);
+                            ResourceType resourceType;
+                            switch (sqlResourceType) {
+                                case FILE:
+                                    resourceType = ResourceType.FILE;
+                                    break;
+                                case JAR:
+                                    resourceType = ResourceType.JAR;
+                                    break;
+                                case ARCHIVE:
+                                    resourceType = ResourceType.ARCHIVE;
+                                    break;
+                                default:
+                                    throw new ValidationException(
+                                            String.format(
+                                                    "Unsupported resource type: .",
+                                                    sqlResourceType));
+                            }
+                            // get resource path
+                            String path = sqlResource.getResourcePath().getValueAs(String.class);
+                            return new ResourceUri(resourceType, path);
+                        })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Converts language string to the FunctionLanguage.
+     *
+     * @param languageString the language string from SQL parser
+     * @return supported FunctionLanguage otherwise raise UnsupportedOperationException.
+     * @throws UnsupportedOperationException if the languageString is not parsable or language is
+     *     not supported
+     */
+    public static FunctionLanguage parseLanguage(String languageString) {
+        if (StringUtils.isNullOrWhitespaceOnly(languageString)) {
+            return FunctionLanguage.JAVA;
+        }
+
+        FunctionLanguage language;
+        try {
+            language = FunctionLanguage.valueOf(languageString);
+        } catch (IllegalArgumentException e) {
+            throw new UnsupportedOperationException(
+                    String.format("Unrecognized function language string %s", languageString), e);
+        }
+
+        return language;
     }
 }

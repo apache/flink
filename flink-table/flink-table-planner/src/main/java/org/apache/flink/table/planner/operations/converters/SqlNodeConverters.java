@@ -22,13 +22,21 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
-import org.apache.flink.table.planner.operations.converters.materializedtable.*;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableAddDistributionConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableAsQueryConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableDropDistributionConverter;
 import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableDropSchemaConverter.SqlAlterMaterializedTableDropConstraintConverter;
 import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableDropSchemaConverter.SqlAlterMaterializedTableDropPrimaryKeyConverter;
 import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableDropSchemaConverter.SqlAlterMaterializedTableDropWatermarkConverter;
 import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableDropSchemaConverter.SqlAlterMaterializedTableSchemaDropColumnConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableModifyDistributionConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableRefreshConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableResumeConverter;
 import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableSchemaConverter.SqlAlterMaterializedTableAddSchemaConverter;
 import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableSchemaConverter.SqlAlterMaterializedTableModifySchemaConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlAlterMaterializedTableSuspendConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlCreateOrAlterMaterializedTableConverter;
+import org.apache.flink.table.planner.operations.converters.materializedtable.SqlDropMaterializedTableConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableAddDistributionConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableAddPartitionConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableDropDistributionConverter;
@@ -44,6 +52,7 @@ import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableS
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableSchemaConverter.SqlAlterTableSchemaDropPrimaryKeyConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableSchemaConverter.SqlAlterTableSchemaDropWatermarkConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlAlterTableSchemaConverter.SqlAlterTableSchemaModifyConverter;
+import org.apache.flink.table.planner.operations.converters.table.SqlAnalyzeTableConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlCreateTableAsConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlCreateTableConverter;
 import org.apache.flink.table.planner.operations.converters.table.SqlCreateTableLikeConverter;
@@ -67,6 +76,9 @@ public class SqlNodeConverters {
     static {
         // register all the converters here
         register(new SqlDescribeFunctionConverter());
+        register(new SqlAlterFunctionConverter());
+        register(new SqlCreateFunctionConverter());
+        register(new SqlDropFunctionConverter());
         register(new SqlDescribeJobConverter());
         register(new SqlProcedureCallConverter());
         register(new SqlQueryConverter());
@@ -83,6 +95,7 @@ public class SqlNodeConverters {
     }
 
     private static void registerTableConverters() {
+        register(new SqlAnalyzeTableConverter());
         register(new SqlAlterTableAddDistributionConverter());
         register(new SqlAlterTableAddPartitionConverter());
         register(new SqlAlterTableSchemaDropColumnConverter());
