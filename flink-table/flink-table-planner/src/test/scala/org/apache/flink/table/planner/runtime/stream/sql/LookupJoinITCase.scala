@@ -39,6 +39,8 @@ import org.assertj.core.api.Assumptions.assumeThat
 import org.assertj.core.api.IterableAssert.assertThatIterable
 import org.junit.jupiter.api.{AfterEach, BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.ExtendWith
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
 
 import java.time.LocalDateTime
 import java.util.{Collection => JCollection}
@@ -104,6 +106,9 @@ class LookupJoinITCase(cacheType: LookupCacheType) extends StreamingTestBase {
     // lookup will start from the 3rd time, first lookup will always get null result
     createLookupTable("user_table_with_lookup_threshold3", userData, 3)
     createLookupTableWithComputedColumn("userTableWithComputedColumn", userData)
+    // Union test tables
+    createUnionScanTable("union_scan_table", List(rowOf(1L, "Alice"), rowOf(2L, "Bob")))
+    createUnionLookupTable("union_dim_table", List(rowOf(1L, "OK"), rowOf(2L, "OK")))
   }
 
   @AfterEach
@@ -223,6 +228,76 @@ class LookupJoinITCase(cacheType: LookupCacheType) extends StreamingTestBase {
                        |  'data-id' = '$dataId'
                        |)
                        |""".stripMargin)
+  }
+
+  private def createUnionScanTable(tableName: String, data: List[Row]): Unit = {
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE $tableName (
+                       |  `id` BIGINT,
+                       |  `name` STRING,
+                       |  `txn_time` AS PROCTIME(),
+                       |  PRIMARY KEY (`id`) NOT ENFORCED
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
+  }
+
+  private def createUnionLookupTable(tableName: String, data: List[Row]): Unit = {
+    val dataId = TestValuesTableFactory.registerData(data)
+    tEnv.executeSql(s"""
+                       |CREATE TABLE $tableName (
+                       |  `id` BIGINT,
+                       |  `status` STRING,
+                       |  PRIMARY KEY (`id`) NOT ENFORCED
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'filterable-fields' = 'id;status',
+                       |  'data-id' = '$dataId'
+                       |)
+                       |""".stripMargin)
+  }
+
+  @TestTemplate
+  def testUnionTemporalJoinWithFilterPushdownSourceOK(): Unit = {
+    // First filter parameter exists, the second one does not exist
+    val query = getUnionQuery("OK", "NOT_EXISTS");
+    val expectedData = Seq("1,Alice,OK", "2,Bob,OK")
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
+    env.execute()
+
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expectedData.sorted)
+  }
+
+  @TestTemplate
+  def testUnionTemporalJoinWithFilterPushdownSourceKO(): Unit = {
+    // First filter parameter does not exist, the second one exists
+    val query = getUnionQuery("NOT_EXISTS", "OK");
+    val expectedData = Seq("1,Alice,OK", "2,Bob,OK")
+
+    val sink = new TestingAppendSink
+    tEnv.sqlQuery(query).toDataStream.addSink(sink)
+    env.execute()
+
+    assertThat(sink.getAppendResults.sorted).isEqualTo(expectedData.sorted)
+  }
+
+  private def getUnionQuery(firstFilterValue: String, secondFilterValue: String): String = {
+    s"""
+       | SELECT s.id, s.name, d.status
+       | FROM union_scan_table AS `s` INNER JOIN union_dim_table FOR SYSTEM_TIME AS OF `s`.`txn_time` AS `d`
+       | ON `s`.`id` = `d`.`id`
+       | WHERE `d`.`status` = '$firstFilterValue'
+       | UNION ALL
+       | SELECT s.id, s.name, d.status
+       | FROM union_scan_table AS `s` INNER JOIN union_dim_table FOR SYSTEM_TIME AS OF `s`.`txn_time` AS `d`
+       | ON `s`.`id` = `d`.`id`
+       | WHERE `d`.`status` = '$secondFilterValue'
+       |""".stripMargin
   }
 
   @TestTemplate
@@ -664,8 +739,8 @@ class LookupJoinITCase(cacheType: LookupCacheType) extends StreamingTestBase {
       tEnv.executeSql(sourceDdl)
       val sql =
         """
-          |SELECT T.id, D.name, D.age FROM T 
-          |LEFT JOIN user_table FOR SYSTEM_TIME AS OF T.proc AS D 
+          |SELECT T.id, D.name, D.age FROM T
+          |LEFT JOIN user_table FOR SYSTEM_TIME AS OF T.proc AS D
           |ON T.id = D.id
           |""".stripMargin
       val sink = new TestingAppendSink
