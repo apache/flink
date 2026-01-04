@@ -48,7 +48,8 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInboundHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
 import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
-import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.MultiThreadIoEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioIoHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
@@ -242,12 +243,16 @@ public abstract class RestServerEndpoint implements RestService {
                         }
                     };
 
-            NioEventLoopGroup bossGroup =
-                    new NioEventLoopGroup(
-                            1, new ExecutorThreadFactory("flink-rest-server-netty-boss"));
-            NioEventLoopGroup workerGroup =
-                    new NioEventLoopGroup(
-                            0, new ExecutorThreadFactory("flink-rest-server-netty-worker"));
+            MultiThreadIoEventLoopGroup bossGroup =
+                    new MultiThreadIoEventLoopGroup(
+                            1,
+                            new ExecutorThreadFactory("flink-rest-server-netty-boss"),
+                            NioIoHandler.newFactory());
+            MultiThreadIoEventLoopGroup workerGroup =
+                    new MultiThreadIoEventLoopGroup(
+                            0,
+                            new ExecutorThreadFactory("flink-rest-server-netty-worker"),
+                            NioIoHandler.newFactory());
 
             bootstrap = new ServerBootstrap();
             bootstrap

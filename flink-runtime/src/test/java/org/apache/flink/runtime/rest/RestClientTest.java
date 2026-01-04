@@ -39,10 +39,10 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ConnectTimeoutException;
 import org.apache.flink.shaded.netty4.io.netty.channel.DefaultSelectStrategyFactory;
-import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.MultiThreadIoEventLoopGroup;
 import org.apache.flink.shaded.netty4.io.netty.channel.SelectStrategy;
 import org.apache.flink.shaded.netty4.io.netty.channel.SelectStrategyFactory;
-import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioIoHandler;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -121,9 +121,11 @@ class RestClientTest {
 
     @Test
     void testExternalEventGroup() throws Exception {
-        EventLoopGroup externalGroup =
-                new NioEventLoopGroup(
-                        1, new ExecutorThreadFactory("flink-rest-client-netty-external"));
+        MultiThreadIoEventLoopGroup externalGroup =
+                new MultiThreadIoEventLoopGroup(
+                        1,
+                        new ExecutorThreadFactory("flink-rest-client-netty-external"),
+                        NioIoHandler.newFactory());
 
         final RestClient restClient =
                 new RestClient(
