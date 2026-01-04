@@ -15,9 +15,30 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
+[build-system]
+# Minimum requirements for the build system to execute.
+requires = [
+    "setuptools>=75.3",
+    "wheel",
+]
 
-[bdist_wheel]
-universal = 1
+[project]
+name = "apache-flink-libraries"
+description = "Apache Flink Libraries"
+readme = "README.md"
+license = "Apache-2.0"
+authors = [
+    {name = "Apache Software Foundation", email = "dev@flink.apache.org"}
+]
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dynamic = ["version", "dependencies"]
 
-[metadata]
-description-file = README.md
+[project.urls]
+homepage = "https://flink.apache.org"
