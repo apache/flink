@@ -67,7 +67,7 @@ LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedSum=[+($3..value, $3
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], nestedName=[$1], nestedSum=[+($2, $3)])
-+- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested1_name, deepNestedWith._.value, deepNestedWith._nested_.value], metadata=[]]])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested1_name, deepNestedWith._.value, deepNestedWith._nested_.value]]])
 ]]>
     </Resource>
   </TestCase>
@@ -207,7 +207,7 @@ LogicalProject(id=[$0], nestedName=[$1.nested1.name], nestedValue=[$2.value], ne
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], nestedName=[$1], nestedValue=[$4], nestedFlag=[$2], nestedNum=[$3])
-+- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested1_name, deepNested_nested2_flag, deepNested_nested2_num, nested_value], metadata=[]]])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, deepNested_nested1_name, deepNested_nested2_flag, deepNested_nested2_num, nested_value]]])
 ]]>
     </Resource>
   </TestCase>
@@ -224,7 +224,7 @@ LogicalProject(EXPR$0=[ITEM($2.Mid.data_arr, $0).value], EXPR$1=[ITEM($2.Mid.dat
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(EXPR$0=[ITEM($0, $2).value], EXPR$1=[ITEM($1, _UTF-16LE'item').value])
-+- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable, project=[Result_Mid_data_arr, Result_Mid_data_map, ID], metadata=[]]])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable, project=[Result_Mid_data_arr, Result_Mid_data_map, ID]]])
 ]]>
     </Resource>
   </TestCase>
@@ -241,7 +241,7 @@ LogicalProject(EXPR$0=[ITEM($2.Mid.data_arr, 2).value], EXPR$1=[ITEM($2.Mid.data
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(EXPR$0=[ITEM($0.data_arr, 2).value], EXPR$1=[ITEM($0.data_arr, $1).value], EXPR$2=[ITEM($0.data_map, _UTF-16LE'item').value], Mid=[$0])
-+- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable, project=[Result_Mid, ID], metadata=[]]])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable, project=[Result_Mid, ID]]])
 ]]>
     </Resource>
   </TestCase>
@@ -258,7 +258,7 @@ LogicalProject(EXPR$0=[ITEM($2.Mid.data_arr, 2).value], data_arr=[$2.Mid.data_ar
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(EXPR$0=[ITEM($0, 2).value], data_arr=[$0])
-+- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable, project=[Result_Mid_data_arr], metadata=[]]])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedItemTable, project=[Result_Mid_data_arr]]])
 ]]>
     </Resource>
   </TestCase>
@@ -275,7 +275,7 @@ LogicalProject(EXPR$0=[CAST(ITEM(CAST($5.result):RecordType:peek_no_expand(Recor
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(EXPR$0=[CAST(ITEM(CAST($0.result):RecordType:peek_no_expand(RecordType:peek_no_expand(VARCHAR(2147483647) CHARACTER SET "UTF-16LE" NOT NULL symbol) NOT NULL meta) NOT NULL ARRAY, 1).meta.symbol):VARCHAR(2147483647) CHARACTER SET "UTF-16LE"])
-+- LogicalTableScan(table=[[default_catalog, default_database, ItemTable, project=[chart], metadata=[]]])
++- LogicalTableScan(table=[[default_catalog, default_database, ItemTable, project=[chart]]])
 ]]>
     </Resource>
   </TestCase>
@@ -292,7 +292,7 @@ LogicalProject(EXPR$0=[ITEM($2.data_arr, $0).value], EXPR$1=[ITEM($2.data_map, _
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(EXPR$0=[ITEM($0.data_arr, $1).value], EXPR$1=[ITEM($0.data_map, _UTF-16LE'item').value], EXPR$2=[ITEM($2, 1)], EXPR$3=[ITEM($2, $1)], EXPR$4=[ITEM($3, _UTF-16LE'item')])
-+- LogicalTableScan(table=[[default_catalog, default_database, ItemTable, project=[Result, ID, outer_array, outer_map], metadata=[]]])
++- LogicalTableScan(table=[[default_catalog, default_database, ItemTable, project=[Result, ID, outer_array, outer_map]]])
 ]]>
     </Resource>
   </TestCase>
@@ -329,7 +329,7 @@ LogicalProject(id=[$0], EXPR$1=[ITEM($5, _UTF-16LE'e')])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(id=[$0], EXPR$1=[ITEM($1, _UTF-16LE'e')])
-+- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, testMap], metadata=[]]])
++- LogicalTableScan(table=[[default_catalog, default_database, NestedTable, project=[id, testMap]]])
 ]]>
     </Resource>
   </TestCase>
@@ -346,7 +346,7 @@ LogicalProject(a=[$0], EXPR$1=[TRIM(FLAG(BOTH), _UTF-16LE' ', $2)])
     <Resource name="optimized rel plan">
       <![CDATA[
 LogicalProject(a=[$0], EXPR$1=[TRIM(FLAG(BOTH), _UTF-16LE' ', $1)])
-+- LogicalTableScan(table=[[default_catalog, default_database, MyTable, project=[a, c], metadata=[]]])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable, project=[a, c]]])
 ]]>
     </Resource>
   </TestCase>
@@ -433,7 +433,7 @@ LogicalProject(a=[$0], c=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-LogicalTableScan(table=[[default_catalog, default_database, MyTable, project=[a, c], metadata=[]]])
+LogicalTableScan(table=[[default_catalog, default_database, MyTable, project=[a, c]]])
 ]]>
     </Resource>
   </TestCase>
