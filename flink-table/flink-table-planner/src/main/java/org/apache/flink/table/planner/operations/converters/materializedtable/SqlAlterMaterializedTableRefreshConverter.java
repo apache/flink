@@ -16,26 +16,30 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.operations.converters;
+package org.apache.flink.table.planner.operations.converters.materializedtable;
 
-import org.apache.flink.sql.parser.ddl.materializedtable.SqlDropMaterializedTable;
+import org.apache.flink.sql.parser.SqlParseUtils;
+import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableRefresh;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.operations.materializedtable.DropMaterializedTableOperation;
+import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableRefreshOperation;
+import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
 
-/** A converter for {@link SqlDropMaterializedTable}. */
-public class SqlDropMaterializedTableConverter
-        implements SqlNodeConverter<SqlDropMaterializedTable> {
+import java.util.Map;
+
+/** A converter for {@link SqlAlterMaterializedTableRefresh}. */
+public class SqlAlterMaterializedTableRefreshConverter
+        implements SqlNodeConverter<SqlAlterMaterializedTableRefresh> {
+
     @Override
-    public Operation convertSqlNode(
-            SqlDropMaterializedTable sqlDropMaterializedTable, ConvertContext context) {
-        UnresolvedIdentifier unresolvedIdentifier =
-                UnresolvedIdentifier.of(sqlDropMaterializedTable.getFullName());
+    public Operation convertSqlNode(SqlAlterMaterializedTableRefresh node, ConvertContext context) {
+        UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(node.getFullName());
         ObjectIdentifier identifier =
                 context.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
-        // Currently we don't support temporary materialized table, so isTemporary is always false
-        return new DropMaterializedTableOperation(
-                identifier, sqlDropMaterializedTable.getIfExists());
+
+        Map<String, String> partitionSpec = SqlParseUtils.getPartitionKVs(node.getPartitionSpec());
+
+        return new AlterMaterializedTableRefreshOperation(identifier, partitionSpec);
     }
 }

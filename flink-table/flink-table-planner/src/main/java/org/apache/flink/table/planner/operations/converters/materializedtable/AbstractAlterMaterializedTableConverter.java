@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.operations.converters;
+package org.apache.flink.table.planner.operations.converters.materializedtable;
 
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTable;
 import org.apache.flink.table.api.ValidationException;
@@ -29,6 +29,7 @@ import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.utils.ValidationUtils;
+import org.apache.flink.table.planner.operations.converters.SqlNodeConverter;
 
 import java.util.Optional;
 import java.util.function.Consumer;
