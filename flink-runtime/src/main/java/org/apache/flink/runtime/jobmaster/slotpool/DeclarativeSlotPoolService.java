@@ -174,7 +174,7 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
     public Collection<SlotOffer> offerSlots(
             TaskManagerLocation taskManagerLocation,
             TaskManagerGateway taskManagerGateway,
-            Collection<SlotOffer> offers) {
+            Collection<SlotOffer> slotOffers) {
         assertHasBeenStarted();
 
         if (!isTaskManagerRegistered(taskManagerLocation.getResourceID())) {
@@ -185,7 +185,7 @@ public class DeclarativeSlotPoolService implements SlotPoolService {
         }
 
         return declarativeSlotPool.offerSlots(
-                offers, taskManagerLocation, taskManagerGateway, clock.relativeTimeMillis());
+                slotOffers, taskManagerLocation, taskManagerGateway, clock.relativeTimeMillis());
     }
 
     boolean isTaskManagerRegistered(ResourceID taskManagerId) {
