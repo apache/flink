@@ -1804,7 +1804,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                 .hasMessage(
                         "Failed to execute ALTER TABLE statement.\n"
                                 + "The current table has already defined the primary key constraint [`a`]. "
-                                + "You might want to drop it before adding a new one");
+                                + "You might want to drop it before adding a new one.");
 
         // the original table has composite pk
         prepareTable("tb2", 2);
@@ -1814,7 +1814,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                 .hasMessage(
                         "Failed to execute ALTER TABLE statement.\n"
                                 + "The current table has already defined the primary key constraint [`a`, `b`]. "
-                                + "You might want to drop it before adding a new one");
+                                + "You might want to drop it before adding a new one.");
 
         assertThatThrownBy(
                         () ->
@@ -1824,7 +1824,7 @@ class SqlDdlToOperationConverterTest extends SqlNodeToOperationConversionTestBas
                 .hasMessage(
                         "Failed to execute ALTER TABLE statement.\n"
                                 + "The current table has already defined the primary key constraint [`a`, `b`]. "
-                                + "You might want to drop it before adding a new one");
+                                + "You might want to drop it before adding a new one.");
 
         // the original table does not define pk
         prepareTable("tb3", 0);
