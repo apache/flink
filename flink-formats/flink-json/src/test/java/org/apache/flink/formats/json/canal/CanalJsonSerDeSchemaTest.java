@@ -141,6 +141,29 @@ class CanalJsonSerDeSchemaTest {
     }
 
     @Test
+    void testDeserializationThrowsExceptionWhenIgnoreParseErrorsIsFalse() {
+        String corruptMessage = "{\"type\":\"INVALID\"}";
+
+        CanalJsonDeserializationSchema deserializationSchema =
+                CanalJsonDeserializationSchema.builder(
+                                PHYSICAL_DATA_TYPE,
+                                Collections.emptyList(),
+                                InternalTypeInfo.of(PHYSICAL_DATA_TYPE.getLogicalType()))
+                        .setIgnoreParseErrors(false)
+                        .build();
+        open(deserializationSchema);
+
+        SimpleCollector collector = new SimpleCollector();
+
+        assertThatThrownBy(
+                        () ->
+                                deserializationSchema.deserialize(
+                                        corruptMessage.getBytes(StandardCharsets.UTF_8), collector))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("Unknown \"type\" value");
+    }
+
+    @Test
     void testDeserializeNullRow() throws Exception {
         final List<ReadableMetadata> requestedMetadata = Arrays.asList(ReadableMetadata.values());
         final CanalJsonDeserializationSchema deserializationSchema =
