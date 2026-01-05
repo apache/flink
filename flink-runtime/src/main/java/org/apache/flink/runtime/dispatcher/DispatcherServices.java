@@ -52,7 +52,7 @@ public class DispatcherServices {
 
     private final JobManagerMetricGroup jobManagerMetricGroup;
 
-    private final ExecutionGraphInfoStore executionGraphInfoStore;
+    private final ArchivedApplicationStore archivedApplicationStroe;
 
     private final FatalErrorHandler fatalErrorHandler;
 
@@ -80,7 +80,7 @@ public class DispatcherServices {
             GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
             BlobServer blobServer,
             HeartbeatServices heartbeatServices,
-            ExecutionGraphInfoStore executionGraphInfoStore,
+            ArchivedApplicationStore archivedApplicationStroe,
             FatalErrorHandler fatalErrorHandler,
             HistoryServerArchivist historyServerArchivist,
             @Nullable String metricQueryServiceAddress,
@@ -100,8 +100,8 @@ public class DispatcherServices {
                         resourceManagerGatewayRetriever, "ResourceManagerGatewayRetriever");
         this.blobServer = Preconditions.checkNotNull(blobServer, "BlobServer");
         this.heartbeatServices = Preconditions.checkNotNull(heartbeatServices, "HeartBeatServices");
-        this.executionGraphInfoStore =
-                Preconditions.checkNotNull(executionGraphInfoStore, "ExecutionGraphInfoStore");
+        this.archivedApplicationStroe =
+                Preconditions.checkNotNull(archivedApplicationStroe, "ArchivedApplicationStore");
         this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler, "FatalErrorHandler");
         this.historyServerArchivist =
                 Preconditions.checkNotNull(historyServerArchivist, "HistoryServerArchivist");
@@ -143,8 +143,8 @@ public class DispatcherServices {
         return jobManagerMetricGroup;
     }
 
-    public ExecutionGraphInfoStore getArchivedExecutionGraphStore() {
-        return executionGraphInfoStore;
+    public ArchivedApplicationStore getArchivedApplicationStore() {
+        return archivedApplicationStroe;
     }
 
     public FatalErrorHandler getFatalErrorHandler() {
@@ -200,8 +200,7 @@ public class DispatcherServices {
                         .getResourceManagerGatewayRetriever(),
                 partialDispatcherServicesWithJobPersistenceComponents.getBlobServer(),
                 partialDispatcherServicesWithJobPersistenceComponents.getHeartbeatServices(),
-                partialDispatcherServicesWithJobPersistenceComponents
-                        .getArchivedExecutionGraphStore(),
+                partialDispatcherServicesWithJobPersistenceComponents.getArchivedApplicationStore(),
                 partialDispatcherServicesWithJobPersistenceComponents.getFatalErrorHandler(),
                 partialDispatcherServicesWithJobPersistenceComponents.getHistoryServerArchivist(),
                 partialDispatcherServicesWithJobPersistenceComponents

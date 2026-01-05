@@ -18,10 +18,14 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.api.common.ApplicationID;
+import org.apache.flink.api.common.ApplicationState;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.application.ArchivedApplication;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
@@ -31,6 +35,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.messages.webmonitor.ApplicationDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -59,16 +64,22 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
-/** Test utils class for {@link FileExecutionGraphInfoStore}. */
-public class ExecutionGraphInfoStoreTestUtils {
+/** Test utils class for {@link ArchivedApplicationStore}. */
+public class ArchivedApplicationStoreTestUtils {
 
     static final List<JobStatus> GLOBALLY_TERMINAL_JOB_STATUS =
             Arrays.stream(JobStatus.values())
                     .filter(JobStatus::isGloballyTerminalState)
+                    .collect(Collectors.toList());
+
+    static final List<ApplicationState> TERMINAL_APPLICATION_STATUS =
+            Arrays.stream(ApplicationState.values())
+                    .filter(ApplicationState::isTerminalState)
                     .collect(Collectors.toList());
 
     /**
@@ -91,6 +102,38 @@ public class ExecutionGraphInfoStoreTestUtils {
         }
 
         return executionGraphInfos;
+    }
+
+    /**
+     * Generate a specified of ArchivedApplication.
+     *
+     * @param number the given number
+     * @return the result ArchivedApplication collection
+     */
+    static Collection<ArchivedApplication> generateTerminalArchivedApplications(int number) {
+        final Collection<ArchivedApplication> archivedApplications = new ArrayList<>(number);
+
+        for (int i = 0; i < number; i++) {
+            final ApplicationState state =
+                    TERMINAL_APPLICATION_STATUS.get(
+                            ThreadLocalRandom.current()
+                                    .nextInt(TERMINAL_APPLICATION_STATUS.size()));
+            final Map<JobID, ExecutionGraphInfo> jobs =
+                    generateTerminalExecutionGraphInfos(1).stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            ExecutionGraphInfo::getJobId,
+                                            executionGraphInfo -> executionGraphInfo));
+            archivedApplications.add(
+                    new ArchivedApplication(
+                            ApplicationID.generate(),
+                            "test-application-" + i,
+                            state,
+                            new long[] {1L, 1L, 1L, 1L, 1L, 1L, 1L},
+                            jobs));
+        }
+
+        return archivedApplications;
     }
 
     /** Compare whether two ExecutionGraphInfo instances are equivalent. */
@@ -142,18 +185,64 @@ public class ExecutionGraphInfoStoreTestUtils {
         }
     }
 
+    /** Compare whether two ArchivedApplication instances are equivalent. */
+    static final class PartialArchivedApplicationMatcher extends BaseMatcher<ArchivedApplication> {
+
+        private final ArchivedApplication expectedArchivedApplication;
+
+        PartialArchivedApplicationMatcher(ArchivedApplication expectedArchivedApplication) {
+            this.expectedArchivedApplication =
+                    Preconditions.checkNotNull(expectedArchivedApplication);
+        }
+
+        @Override
+        public boolean matches(Object o) {
+            if (expectedArchivedApplication == o) {
+                return true;
+            }
+            if (o == null || expectedArchivedApplication.getClass() != o.getClass()) {
+                return false;
+            }
+            ArchivedApplication that = (ArchivedApplication) o;
+
+            return Objects.equals(
+                            expectedArchivedApplication.getApplicationId(), that.getApplicationId())
+                    && Objects.equals(
+                            expectedArchivedApplication.getApplicationName(),
+                            that.getApplicationName())
+                    && expectedArchivedApplication.getApplicationStatus()
+                            == that.getApplicationStatus()
+                    && Objects.equals(
+                            expectedArchivedApplication.getJobs().size(), that.getJobs().size());
+        }
+
+        @Override
+        public void describeTo(Description description) {
+            description.appendText(
+                    "Matches against " + ArchivedApplication.class.getSimpleName() + '.');
+        }
+    }
+
     static Collection<JobDetails> generateJobDetails(
-            Collection<ExecutionGraphInfo> executionGraphInfos) {
-        return executionGraphInfos.stream()
+            Collection<ArchivedApplication> archivedApplications) {
+        return archivedApplications.stream()
+                .flatMap(archivedApplication -> archivedApplication.getJobs().values().stream())
                 .map(ExecutionGraphInfo::getArchivedExecutionGraph)
                 .map(JobDetails::createDetailsForJob)
                 .collect(Collectors.toList());
     }
 
+    static Collection<ApplicationDetails> generateApplicationDetails(
+            Collection<ArchivedApplication> archivedApplications) {
+        return archivedApplications.stream()
+                .map(ApplicationDetails::fromArchivedApplication)
+                .collect(Collectors.toList());
+    }
+
     /**
      * Invokable which signals with {@link
-     * ExecutionGraphInfoStoreTestUtils.SignallingBlockingNoOpInvokable#LATCH} when it is invoked
-     * and blocks forever afterwards.
+     * ArchivedApplicationStoreTestUtils.SignallingBlockingNoOpInvokable#LATCH} when it is invoked
+     * and blocks forever afterward.
      */
     public static class SignallingBlockingNoOpInvokable extends AbstractInvokable {
 
@@ -171,7 +260,7 @@ public class ExecutionGraphInfoStoreTestUtils {
         }
     }
 
-    /** MiniCluster with specified {@link ExecutionGraphInfoStore}. */
+    /** MiniCluster with specified {@link ArchivedApplicationStore}. */
     static class PersistingMiniCluster extends MiniCluster {
         @Nullable private final File rootDir;
         private final ScheduledExecutor scheduledExecutor;
@@ -209,25 +298,26 @@ public class ExecutionGraphInfoStoreTestUtils {
                                     .createSessionComponentFactory(
                                             StandaloneResourceManagerFactory.getInstance());
 
-            JobManagerOptions.JobStoreType jobStoreType =
-                    configuration.get(JobManagerOptions.JOB_STORE_TYPE);
-            final ExecutionGraphInfoStore executionGraphInfoStore;
-            switch (jobStoreType) {
+            JobManagerOptions.ArchivedApplicationStoreType archivedApplicationStoreType =
+                    configuration.get(JobManagerOptions.COMPLETED_APPLICATION_STORE_TYPE);
+            final ArchivedApplicationStore archivedApplicationStore;
+            switch (archivedApplicationStoreType) {
                 case File:
                     {
-                        executionGraphInfoStore =
-                                createDefaultExecutionGraphInfoStore(rootDir, scheduledExecutor);
+                        archivedApplicationStore =
+                                createFileArchivedApplicationStore(rootDir, scheduledExecutor);
                         break;
                     }
                 case Memory:
                     {
-                        executionGraphInfoStore = new MemoryExecutionGraphInfoStore();
+                        archivedApplicationStore = new MemoryArchivedApplicationStore();
                         break;
                     }
                 default:
                     {
                         throw new UnsupportedOperationException(
-                                "Unsupported job store type " + jobStoreType);
+                                "Unsupported archived application store type "
+                                        + archivedApplicationStoreType);
                     }
             }
 
@@ -242,16 +332,16 @@ public class ExecutionGraphInfoStoreTestUtils {
                             heartbeatServices,
                             delegationTokenManager,
                             metricRegistry,
-                            executionGraphInfoStore,
+                            archivedApplicationStore,
                             metricQueryServiceRetriever,
                             Collections.emptySet(),
                             fatalErrorHandler));
         }
     }
 
-    static FileExecutionGraphInfoStore createDefaultExecutionGraphInfoStore(
+    static FileArchivedApplicationStore createFileArchivedApplicationStore(
             File storageDirectory, ScheduledExecutor scheduledExecutor) throws IOException {
-        return new FileExecutionGraphInfoStore(
+        return new FileArchivedApplicationStore(
                 storageDirectory,
                 Duration.ofHours(1L),
                 Integer.MAX_VALUE,

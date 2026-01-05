@@ -42,7 +42,7 @@ import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.ArchivedApplicationStore;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
@@ -169,7 +169,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
     @GuardedBy("lock")
     private DeterminismEnvelope<WorkingDirectory> workingDirectory;
 
-    private ExecutionGraphInfoStore executionGraphInfoStore;
+    private ArchivedApplicationStore archivedApplicationStore;
 
     private final Thread shutDownHook;
     private RpcSystem rpcSystem;
@@ -301,7 +301,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             heartbeatServices,
                             delegationTokenManager,
                             metricRegistry,
-                            executionGraphInfoStore,
+                            archivedApplicationStore,
                             new RpcMetricQueryServiceRetriever(
                                     metricRegistry.getMetricQueryServiceRpcService()),
                             failureEnrichers,
@@ -419,8 +419,8 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                             ConfigurationUtils.getSystemResourceMetricsProbingInterval(
                                     configuration));
 
-            executionGraphInfoStore =
-                    createSerializableExecutionGraphStore(
+            archivedApplicationStore =
+                    createArchivedApplicationStore(
                             configuration, commonRpcService.getScheduledExecutor());
         }
     }
@@ -512,10 +512,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
                 }
             }
 
-            if (executionGraphInfoStore != null) {
+            if (archivedApplicationStore != null) {
                 try {
-                    executionGraphInfoStore.close();
-                    executionGraphInfoStore = null;
+                    archivedApplicationStore.close();
+                    archivedApplicationStore = null;
                 } catch (Throwable t) {
                     exception = ExceptionUtils.firstOrSuppressed(t, exception);
                 }
@@ -693,7 +693,7 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
             createDispatcherResourceManagerComponentFactory(Configuration configuration)
                     throws IOException;
 
-    protected abstract ExecutionGraphInfoStore createSerializableExecutionGraphStore(
+    protected abstract ArchivedApplicationStore createArchivedApplicationStore(
             Configuration configuration, ScheduledExecutor scheduledExecutor) throws IOException;
 
     public static EntrypointClusterConfiguration parseArguments(String[] args)

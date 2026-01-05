@@ -34,6 +34,7 @@ import org.apache.flink.configuration.StateRecoveryOptions;
 import org.apache.flink.core.execution.CheckpointType;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.application.AbstractApplication;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -44,7 +45,7 @@ import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
-import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.MemoryArchivedApplicationStore;
 import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -561,7 +562,7 @@ public class MiniCluster implements AutoCloseableAsync {
                         heartbeatServices,
                         delegationTokenManager,
                         metricRegistry,
-                        new MemoryExecutionGraphInfoStore(),
+                        new MemoryArchivedApplicationStore(),
                         metricQueryServiceRetriever,
                         Collections.emptySet(),
                         fatalErrorHandler);
@@ -1061,6 +1062,13 @@ public class MiniCluster implements AutoCloseableAsync {
         } catch (IOException | ClassNotFoundException e) {
             throw new JobExecutionException(job.getJobID(), e);
         }
+    }
+
+    public CompletableFuture<Acknowledge> submitApplication(AbstractApplication application) {
+        final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture =
+                getDispatcherGatewayFuture();
+        return dispatcherGatewayFuture.thenCompose(
+                dispatcherGateway -> dispatcherGateway.submitApplication(application, rpcTimeout));
     }
 
     public CompletableFuture<JobSubmissionResult> submitJob(ExecutionPlan executionPlan) {

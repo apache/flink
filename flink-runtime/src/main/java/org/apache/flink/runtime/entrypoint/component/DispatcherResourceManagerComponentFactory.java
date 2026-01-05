@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.ArchivedApplicationStore;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
@@ -47,7 +47,7 @@ public interface DispatcherResourceManagerComponentFactory {
             HeartbeatServices heartbeatServices,
             DelegationTokenManager delegationTokenManager,
             MetricRegistry metricRegistry,
-            ExecutionGraphInfoStore executionGraphInfoStore,
+            ArchivedApplicationStore archivedApplicationStore,
             MetricQueryServiceRetriever metricQueryServiceRetriever,
             Collection<FailureEnricher> failureEnrichers,
             FatalErrorHandler fatalErrorHandler)

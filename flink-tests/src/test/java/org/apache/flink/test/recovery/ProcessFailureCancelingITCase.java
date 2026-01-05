@@ -32,7 +32,7 @@ import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
+import org.apache.flink.runtime.dispatcher.MemoryArchivedApplicationStore;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
@@ -159,7 +159,7 @@ class ProcessFailureCancelingITCase {
                             new HeartbeatServicesImpl(100L, 10000L, 2),
                             new NoOpDelegationTokenManager(),
                             NoOpMetricRegistry.INSTANCE,
-                            new MemoryExecutionGraphInfoStore(),
+                            new MemoryArchivedApplicationStore(),
                             VoidMetricQueryServiceRetriever.INSTANCE,
                             Collections.emptySet(),
                             fatalErrorHandler);

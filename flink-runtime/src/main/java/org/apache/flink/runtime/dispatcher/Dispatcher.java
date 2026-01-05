@@ -39,6 +39,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.failure.FailureEnricher;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.application.AbstractApplication;
+import org.apache.flink.runtime.application.ApplicationStatusListener;
 import org.apache.flink.runtime.application.ArchivedApplication;
 import org.apache.flink.runtime.application.SingleJobApplication;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -143,6 +144,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -153,7 +155,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * case of a master failure. Furthermore, it knows about the state of the Flink session cluster.
  */
 public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
-        implements DispatcherGateway {
+        implements DispatcherGateway, ApplicationStatusListener {
 
     @VisibleForTesting @Internal
     public static final ConfigOption<Duration> CLIENT_ALIVENESS_CHECK_DURATION =
@@ -187,7 +189,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private final DispatcherBootstrapFactory dispatcherBootstrapFactory;
 
-    private final ExecutionGraphInfoStore executionGraphInfoStore;
+    private final ArchivedApplicationStore archivedApplicationStore;
 
     private final JobManagerRunnerFactory jobManagerRunnerFactory;
     private final CleanupRunnerFactory cleanupRunnerFactory;
@@ -228,6 +230,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     private final Map<ApplicationID, AbstractApplication> applications = new HashMap<>();
 
     private final Map<ApplicationID, Set<JobID>> recoveredApplicationJobIds = new HashMap<>();
+
+    /** ExecutionGraphInfo for the terminated job whose application is not terminated yet. */
+    private final Map<JobID, CompletableFuture<ExecutionGraphInfo>> partialExecutionGraphInfoStore =
+            new HashMap<>();
 
     /** Enum to distinguish between initial job submission and re-submission for recovery. */
     protected enum ExecutionType {
@@ -311,7 +317,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
         this.historyServerArchivist = dispatcherServices.getHistoryServerArchivist();
 
-        this.executionGraphInfoStore = dispatcherServices.getArchivedExecutionGraphStore();
+        this.archivedApplicationStore = dispatcherServices.getArchivedApplicationStore();
 
         this.jobManagerRunnerFactory = dispatcherServices.getJobManagerRunnerFactory();
         this.cleanupRunnerFactory = dispatcherServices.getCleanupRunnerFactory();
@@ -659,11 +665,78 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         if (jobs != null) {
             jobs.forEach(application::addJob);
         }
+        application.registerStatusListener(this);
         return application.execute(
                 getSelfGateway(DispatcherGateway.class),
                 getRpcService().getScheduledExecutor(),
                 getMainThreadExecutor(),
                 this::onFatalError);
+    }
+
+    @Override
+    public void notifyApplicationStatusChange(
+            ApplicationID applicationId, ApplicationState newStatus) {
+        if (newStatus.isTerminalState()) {
+            checkState(
+                    applications.containsKey(applicationId),
+                    "Application %s does not exist.",
+                    applicationId);
+
+            AbstractApplication application = applications.get(applicationId);
+            long[] stateTimestamps = new long[ApplicationState.values().length];
+            for (ApplicationState applicationState : ApplicationState.values()) {
+                final int ordinal = applicationState.ordinal();
+                stateTimestamps[ordinal] = application.getStatusTimestamp(applicationState);
+            }
+
+            List<CompletableFuture<ExecutionGraphInfo>> jobFutures =
+                    application.getJobs().stream()
+                            .map(
+                                    jobId -> {
+                                        checkState(
+                                                partialExecutionGraphInfoStore.containsKey(jobId),
+                                                "ExecutionGraphInfo for job %s does not exist.",
+                                                jobId);
+                                        return partialExecutionGraphInfoStore.get(jobId);
+                                    })
+                            .collect(Collectors.toList());
+
+            // wait for all jobs to be stored
+            FutureUtils.combineAll(jobFutures)
+                    .thenAcceptAsync(
+                            combinedJobs -> {
+                                Map<JobID, ExecutionGraphInfo> jobs = new HashMap<>();
+                                for (ExecutionGraphInfo executionGraphInfo : combinedJobs) {
+                                    jobs.put(executionGraphInfo.getJobId(), executionGraphInfo);
+                                    partialExecutionGraphInfoStore.remove(
+                                            executionGraphInfo.getJobId());
+                                }
+
+                                ArchivedApplication archivedApplication =
+                                        new ArchivedApplication(
+                                                application.getApplicationId(),
+                                                application.getName(),
+                                                application.getApplicationStatus(),
+                                                stateTimestamps,
+                                                jobs);
+
+                                applications.remove(applicationId);
+                                writeToArchivedApplicationStore(archivedApplication);
+                            },
+                            getMainThreadExecutor());
+        }
+    }
+
+    private void writeToArchivedApplicationStore(ArchivedApplication archivedApplication) {
+        try {
+            archivedApplicationStore.put(archivedApplication);
+        } catch (IOException e) {
+            log.info(
+                    "Could not store completed application {}({}).",
+                    archivedApplication.getApplicationName(),
+                    archivedApplication.getApplicationId(),
+                    e);
+        }
     }
 
     @VisibleForTesting
@@ -811,6 +884,8 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
         final JobID jobId = jobManagerRunner.getJobID();
 
+        partialExecutionGraphInfoStore.put(jobId, new CompletableFuture<>());
+
         final CompletableFuture<CleanupJobState> cleanupJobStateFuture =
                 jobManagerRunner
                         .getResultFuture()
@@ -947,8 +1022,10 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
             return maybeJob.get().cancel(timeout);
         }
 
-        final ExecutionGraphInfo executionGraphInfo = executionGraphInfoStore.get(jobId);
-        if (executionGraphInfo != null) {
+        final Optional<ExecutionGraphInfo> optionalExecutionGraphInfo =
+                getExecutionGraphInfoFromStore(jobId);
+        if (optionalExecutionGraphInfo.isPresent()) {
+            final ExecutionGraphInfo executionGraphInfo = optionalExecutionGraphInfo.get();
             final JobStatus jobStatus = executionGraphInfo.getArchivedExecutionGraph().getState();
             if (jobStatus == JobStatus.CANCELED) {
                 return CompletableFuture.completedFuture(Acknowledge.get());
@@ -1001,7 +1078,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         CompletableFuture<Collection<JobStatus>> allJobsFuture =
                 allOptionalJobsFuture.thenApply(this::flattenOptionalCollection);
 
-        final JobsOverview completedJobsOverview = executionGraphInfoStore.getStoredJobsOverview();
+        final JobsOverview completedJobsOverview = getCompletedJobsOverview();
 
         return allJobsFuture.thenCombine(
                 taskManagerOverviewFuture,
@@ -1010,6 +1087,16 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                             JobsOverview.create(runningJobsStatus).combine(completedJobsOverview);
                     return new ClusterOverview(resourceOverview, allJobsOverview);
                 });
+    }
+
+    private JobsOverview getCompletedJobsOverview() {
+        Collection<JobStatus> allJobStatus =
+                getPartialExecutionGraphInfo()
+                        .map(ExecutionGraphInfo::getArchivedExecutionGraph)
+                        .map(ArchivedExecutionGraph::getState)
+                        .collect(Collectors.toList());
+        return JobsOverview.create(allJobStatus)
+                .combine(archivedApplicationStore.getJobsOverview());
     }
 
     @Override
@@ -1024,8 +1111,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
         CompletableFuture<Collection<JobDetails>> combinedJobDetails =
                 optionalCombinedJobDetails.thenApply(this::flattenOptionalCollection);
 
-        final Collection<JobDetails> completedJobDetails =
-                executionGraphInfoStore.getAvailableJobDetails();
+        final Collection<JobDetails> completedJobDetails = getCompletedJobDetails();
 
         return combinedJobDetails.thenApply(
                 (Collection<JobDetails> runningJobDetails) -> {
@@ -1049,6 +1135,34 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 });
     }
 
+    private Collection<JobDetails> getCompletedJobDetails() {
+        return Stream.concat(
+                        getPartialExecutionGraphInfo()
+                                .map(ExecutionGraphInfo::getArchivedExecutionGraph)
+                                .map(JobDetails::createDetailsForJob),
+                        archivedApplicationStore.getJobDetails().stream())
+                .collect(Collectors.toList());
+    }
+
+    private Stream<ExecutionGraphInfo> getPartialExecutionGraphInfo() {
+        return partialExecutionGraphInfoStore.values().stream()
+                .filter(CompletableFuture::isDone)
+                .map(
+                        executionGraphInfoFuture -> {
+                            try {
+                                ExecutionGraphInfo executionGraphInfo =
+                                        executionGraphInfoFuture.getNow(null);
+                                if (executionGraphInfo != null) {
+                                    return executionGraphInfo;
+                                }
+                            } catch (Exception e) {
+                                log.error("ExecutionGraphInfo future completed with exception", e);
+                            }
+                            return null;
+                        })
+                .filter(Objects::nonNull);
+    }
+
     @Override
     public CompletableFuture<MultipleApplicationsDetails> requestMultipleApplicationDetails(
             Duration timeout) {
@@ -1061,23 +1175,38 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                                         ApplicationDetails
                                                                 ::fromArchivedApplication))
                         .collect(Collectors.toList());
+
+        final Collection<ApplicationDetails> completedApplicationDetails =
+                archivedApplicationStore.getApplicationDetails();
+
         return FutureUtils.combineAll(applicationDetailsFutures)
                 .thenCompose(
-                        combinedApplicationDetails ->
-                                CompletableFuture.completedFuture(
-                                        new MultipleApplicationsDetails(
-                                                combinedApplicationDetails)));
+                        runningApplicationDetails -> {
+                            Collection<ApplicationDetails> combinedApplicationDetails =
+                                    Stream.concat(
+                                                    runningApplicationDetails.stream(),
+                                                    completedApplicationDetails.stream())
+                                            .collect(Collectors.toList());
+                            return CompletableFuture.completedFuture(
+                                    new MultipleApplicationsDetails(combinedApplicationDetails));
+                        });
     }
 
     @Override
     public CompletableFuture<ArchivedApplication> requestApplication(
             ApplicationID applicationId, Duration timeout) {
-        if (!applications.containsKey(applicationId)) {
-            return FutureUtils.completedExceptionally(
-                    new FlinkApplicationNotFoundException(applicationId));
+        if (applications.containsKey(applicationId)) {
+            return requestApplication(applications.get(applicationId), timeout);
         }
 
-        return requestApplication(applications.get(applicationId), timeout);
+        // is it a completed application?
+        return archivedApplicationStore
+                .get(applicationId)
+                .map(CompletableFuture::completedFuture)
+                .orElseGet(
+                        () ->
+                                FutureUtils.completedExceptionally(
+                                        new FlinkApplicationNotFoundException(applicationId)));
     }
 
     private CompletableFuture<ArchivedApplication> requestApplication(
@@ -1088,28 +1217,9 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
             stateTimestamps[ordinal] = application.getStatusTimestamp(applicationState);
         }
 
-        List<CompletableFuture<ArchivedExecutionGraph>> jobFutures =
+        List<CompletableFuture<ExecutionGraphInfo>> jobFutures =
                 application.getJobs().stream()
-                        .map(
-                                jobId ->
-                                        requestExecutionGraphInfo(jobId, timeout)
-                                                .thenApply(
-                                                        ExecutionGraphInfo
-                                                                ::getArchivedExecutionGraph)
-                                                .exceptionally(
-                                                        t -> {
-                                                            if (t
-                                                                    instanceof
-                                                                    FlinkJobNotFoundException) {
-                                                                log.warn(
-                                                                        "Ignore job {} which may be expired when requesting application {}",
-                                                                        jobId,
-                                                                        application
-                                                                                .getApplicationId());
-                                                                return null;
-                                                            }
-                                                            throw new CompletionException(t);
-                                                        }))
+                        .map(jobId -> requestExecutionGraphInfo(jobId, timeout))
                         .collect(Collectors.toList());
 
         return FutureUtils.combineAll(jobFutures)
@@ -1122,25 +1232,12 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                                                 application.getApplicationStatus(),
                                                 stateTimestamps,
                                                 combinedJobs.stream()
-                                                        .filter(Objects::nonNull)
-                                                        .collect(Collectors.toSet()))));
-    }
-
-    private CompletableFuture<JobDetails> requestJobDetails(JobID jobId, Duration timeout) {
-        Optional<JobManagerRunner> maybeJob = getJobManagerRunner(jobId);
-        return maybeJob.map(job -> job.requestJobDetails(timeout))
-                .orElseGet(
-                        () -> {
-                            // is it a completed job?
-                            final JobDetails jobDetails =
-                                    executionGraphInfoStore.getAvailableJobDetails(jobId);
-                            if (jobDetails == null) {
-                                return FutureUtils.completedExceptionally(
-                                        new FlinkJobNotFoundException(jobId));
-                            } else {
-                                return CompletableFuture.completedFuture(jobDetails);
-                            }
-                        });
+                                                        .collect(
+                                                                Collectors.toMap(
+                                                                        ExecutionGraphInfo
+                                                                                ::getJobId,
+                                                                        executionGraphInfo ->
+                                                                                executionGraphInfo)))));
     }
 
     @Override
@@ -1150,14 +1247,19 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 .orElseGet(
                         () -> {
                             // is it a completed job?
-                            final JobDetails jobDetails =
-                                    executionGraphInfoStore.getAvailableJobDetails(jobId);
-                            if (jobDetails == null) {
-                                return FutureUtils.completedExceptionally(
-                                        new FlinkJobNotFoundException(jobId));
-                            } else {
-                                return CompletableFuture.completedFuture(jobDetails.getStatus());
-                            }
+                            final Optional<JobDetails> optionalJobDetails =
+                                    getExecutionGraphInfoFromStore(jobId)
+                                            .map(ExecutionGraphInfo::getArchivedExecutionGraph)
+                                            .map(JobDetails::createDetailsForJob);
+                            return optionalJobDetails
+                                    .map(
+                                            jobDetails ->
+                                                    CompletableFuture.completedFuture(
+                                                            jobDetails.getStatus()))
+                                    .orElseGet(
+                                            () ->
+                                                    FutureUtils.completedExceptionally(
+                                                            new FlinkJobNotFoundException(jobId)));
                         });
     }
 
@@ -1172,12 +1274,31 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private ExecutionGraphInfo getExecutionGraphInfoFromStore(Throwable t, JobID jobId) {
         // check whether it is a completed job
-        final ExecutionGraphInfo executionGraphInfo = executionGraphInfoStore.get(jobId);
-        if (executionGraphInfo == null) {
-            throw new CompletionException(ExceptionUtils.stripCompletionException(t));
-        } else {
-            return executionGraphInfo;
+        Optional<ExecutionGraphInfo> optionalExecutionGraphInfo =
+                getExecutionGraphInfoFromStore(jobId);
+        if (optionalExecutionGraphInfo.isPresent()) {
+            return optionalExecutionGraphInfo.get();
         }
+
+        throw new CompletionException(ExceptionUtils.stripCompletionException(t));
+    }
+
+    private Optional<ExecutionGraphInfo> getExecutionGraphInfoFromStore(JobID jobId) {
+        final CompletableFuture<ExecutionGraphInfo> executionGraphInfoFuture =
+                partialExecutionGraphInfoStore.get(jobId);
+        if (executionGraphInfoFuture != null && executionGraphInfoFuture.isDone()) {
+            try {
+                ExecutionGraphInfo executionGraphInfo = executionGraphInfoFuture.getNow(null);
+                if (executionGraphInfo != null) {
+                    return Optional.of(executionGraphInfo);
+                }
+            } catch (Exception e) {
+                log.error("Error while retrieving ExecutionGraphInfo for job {}", jobId, e);
+            }
+        }
+
+        // check whether the job belongs to a completed application
+        return archivedApplicationStore.getExecutionGraphInfo(jobId);
     }
 
     @Override
@@ -1195,14 +1316,20 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
     @Override
     public CompletableFuture<JobResult> requestJobResult(JobID jobId, Duration timeout) {
         if (!jobManagerRunnerRegistry.isRegistered(jobId)) {
-            final ExecutionGraphInfo executionGraphInfo = executionGraphInfoStore.get(jobId);
+            final Optional<ExecutionGraphInfo> optionalExecutionGraphInfo =
+                    getExecutionGraphInfoFromStore(jobId);
 
-            if (executionGraphInfo == null) {
-                return FutureUtils.completedExceptionally(new FlinkJobNotFoundException(jobId));
-            } else {
-                return CompletableFuture.completedFuture(
-                        JobResult.createFrom(executionGraphInfo.getArchivedExecutionGraph()));
-            }
+            return optionalExecutionGraphInfo
+                    .map(
+                            executionGraphInfo ->
+                                    CompletableFuture.completedFuture(
+                                            JobResult.createFrom(
+                                                    executionGraphInfo
+                                                            .getArchivedExecutionGraph())))
+                    .orElseGet(
+                            () ->
+                                    FutureUtils.completedExceptionally(
+                                            new FlinkJobNotFoundException(jobId)));
         }
 
         final JobManagerRunner jobManagerRunner = jobManagerRunnerRegistry.get(jobId);
@@ -1732,16 +1859,28 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                 new JobResultEntry(JobResult.createFrom(executionGraph)));
     }
 
+    /**
+     * Writes the ExecutionGraphInfo to the temporary store, which is for jobs whose associated
+     * application has not yet reached a terminal state. The ExecutionGraphInfo will be transferred
+     * to the ArchivedApplicationStore together with the ArchivedApplication when the application
+     * reaches a terminal state.
+     *
+     * @param executionGraphInfo the execution graph information to be stored temporarily
+     */
     private void writeToExecutionGraphInfoStore(ExecutionGraphInfo executionGraphInfo) {
-        try {
-            executionGraphInfoStore.put(executionGraphInfo);
-        } catch (IOException e) {
-            log.info(
-                    "Could not store completed job {}({}).",
-                    executionGraphInfo.getArchivedExecutionGraph().getJobName(),
-                    executionGraphInfo.getArchivedExecutionGraph().getJobID(),
-                    e);
+        final JobID jobId = executionGraphInfo.getJobId();
+        if (!partialExecutionGraphInfoStore.containsKey(jobId)) {
+            // This can only occur in tests for job termination without submitting the job
+            final CompletableFuture<ExecutionGraphInfo> executionGraphInfoFuture =
+                    new CompletableFuture<>();
+            executionGraphInfoFuture.complete(executionGraphInfo);
+            partialExecutionGraphInfoStore.put(jobId, executionGraphInfoFuture);
+            return;
         }
+
+        partialExecutionGraphInfoStore
+                .get(executionGraphInfo.getJobId())
+                .complete(executionGraphInfo);
     }
 
     private CompletableFuture<Acknowledge> archiveExecutionGraphToHistoryServer(

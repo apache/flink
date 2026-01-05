@@ -82,7 +82,7 @@ class TestingDispatcher extends Dispatcher {
             @Nullable String metricServiceQueryAddress,
             Executor ioExecutor,
             HistoryServerArchivist historyServerArchivist,
-            ExecutionGraphInfoStore executionGraphInfoStore,
+            ArchivedApplicationStore archivedApplicationStore,
             JobManagerRunnerFactory jobManagerRunnerFactory,
             CleanupRunnerFactory cleanupRunnerFactory,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
@@ -102,7 +102,7 @@ class TestingDispatcher extends Dispatcher {
                         resourceManagerGatewayRetriever,
                         blobServer,
                         heartbeatServices,
-                        executionGraphInfoStore,
+                        archivedApplicationStore,
                         fatalErrorHandler,
                         historyServerArchivist,
                         metricServiceQueryAddress,
@@ -192,8 +192,8 @@ class TestingDispatcher extends Dispatcher {
         @Nullable private String metricServiceQueryAddress = null;
         private Executor ioExecutor = ForkJoinPool.commonPool();
         private HistoryServerArchivist historyServerArchivist = VoidHistoryServerArchivist.INSTANCE;
-        private ExecutionGraphInfoStore executionGraphInfoStore =
-                new MemoryExecutionGraphInfoStore();
+        private ArchivedApplicationStore archivedApplicationStore =
+                new MemoryArchivedApplicationStore();
         private JobManagerRunnerFactory jobManagerRunnerFactory =
                 new TestingJobMasterServiceLeadershipRunnerFactory();
         private CleanupRunnerFactory cleanupRunnerFactory = new TestingCleanupRunnerFactory();
@@ -288,8 +288,9 @@ class TestingDispatcher extends Dispatcher {
             return this;
         }
 
-        public Builder setExecutionGraphInfoStore(ExecutionGraphInfoStore executionGraphInfoStore) {
-            this.executionGraphInfoStore = executionGraphInfoStore;
+        public Builder setArchivedApplicationStore(
+                ArchivedApplicationStore archivedApplicationStore) {
+            this.archivedApplicationStore = archivedApplicationStore;
             return this;
         }
 
@@ -359,7 +360,7 @@ class TestingDispatcher extends Dispatcher {
                     metricServiceQueryAddress,
                     ioExecutor,
                     historyServerArchivist,
-                    executionGraphInfoStore,
+                    archivedApplicationStore,
                     jobManagerRunnerFactory,
                     cleanupRunnerFactory,
                     dispatcherBootstrapFactory,
