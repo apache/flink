@@ -98,6 +98,8 @@ public abstract class PruneAggregateCallRule<T extends RelNode>
         Arrays.stream(unrefAggCallIndices)
                 .boxed()
                 .sorted(Comparator.reverseOrder())
+                // we need this int cast here. because it will remove the value instead of removing
+                // index when doesn't have int cast
                 .forEach(index -> newAggCalls.remove((int) index));
 
         if (newAggCalls.isEmpty() && agg.getGroupCount() == 0) {
