@@ -131,4 +131,11 @@ SELECT * FROM ML_PREDICT(
 - [模型创建]({{< ref "docs/dev/table/sql/create#create-model" >}})
 - [模型修改]({{< ref "docs/dev/table/sql/alter#alter-model" >}})
 
+### 支持的模型提供者
+
+Flink 目前支持以下模型提供者：
+
+- **OpenAI**：用于调用 OpenAI API 服务。详情请参见 [OpenAI 模型文档]({{< ref "docs/connectors/models/openai" >}})。
+- **Triton**：用于调用 NVIDIA Triton 推理服务器。详情请参见 [Triton 模型文档]({{< ref "docs/connectors/models/triton" >}})。
+
 {{< top >}}
