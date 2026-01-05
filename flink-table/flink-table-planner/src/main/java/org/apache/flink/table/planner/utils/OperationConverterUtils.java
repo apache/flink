@@ -103,8 +103,8 @@ public class OperationConverterUtils {
         if (!identifier.isSimple()) {
             throw new UnsupportedOperationException(
                     String.format(
-                            "%sAlter nested row type %s is not supported yet.",
-                            exMsgPrefix, identifier));
+                            "%sAltering the nested row type `%s` is not supported yet.",
+                            exMsgPrefix, String.join("`.`", identifier.names)));
         }
         return identifier.getSimple();
     }

@@ -176,7 +176,7 @@ public abstract class SqlAlterMaterializedTableDropSchemaConverter<
                 if (column.isPersisted() && columnsToDrop.contains(column.getName())) {
                     throw new ValidationException(
                             String.format(
-                                    "%sThe column %s is persisted column. Dropping of persisted columns is not supported.",
+                                    "%sThe column `%s` is a persisted column. Dropping of persisted columns is not supported.",
                                     EX_MSG_PREFIX, column.getName()));
                 }
             }

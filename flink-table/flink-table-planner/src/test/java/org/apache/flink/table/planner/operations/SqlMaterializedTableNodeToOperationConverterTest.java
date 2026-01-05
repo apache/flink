@@ -1043,7 +1043,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 TestSpec.of(
                         "ALTER MATERIALIZED TABLE base_mtbl_with_metadata DROP m_p",
                         "Failed to execute ALTER MATERIALIZED TABLE statement.\n"
-                                + "The column m_p is persisted column. Dropping of persisted columns is not supported."));
+                                + "The column `m_p` is a persisted column. Dropping of persisted columns is not supported."));
     }
 
     private static Collection<TestSpec> alterSuccessCase() {
