@@ -35,6 +35,7 @@ under the License.
 
 	<modules>
 		<module>flink-model-openai</module>
+		<module>flink-model-triton</module>
 	</modules>
 
 	<dependencies>

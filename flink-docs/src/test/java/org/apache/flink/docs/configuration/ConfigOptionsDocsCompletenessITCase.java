@@ -64,7 +64,9 @@ class ConfigOptionsDocsCompletenessITCase {
             new HashSet<>(
                     Arrays.asList(
                             "org.apache.flink.table.api.config.MLPredictRuntimeConfigOptions",
-                            "org.apache.flink.table.api.config.VectorSearchRuntimeConfigOptions"));
+                            "org.apache.flink.table.api.config.VectorSearchRuntimeConfigOptions",
+                            "org.apache.flink.model.openai.OpenAIOptions",
+                            "org.apache.flink.model.triton.TritonOptions"));
 
     @Test
     void testCompleteness() throws Exception {
