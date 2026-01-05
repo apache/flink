@@ -77,7 +77,7 @@ class ApplicationsOverviewHandlerTest {
                         "Test Application",
                         ApplicationState.FINISHED,
                         new long[] {1L, 1L, 1L, 1L, 1L, 1L, 1L},
-                        Collections.emptyList());
+                        Collections.emptyMap());
 
         testingRestfulGateway =
                 new TestingRestfulGateway.Builder()

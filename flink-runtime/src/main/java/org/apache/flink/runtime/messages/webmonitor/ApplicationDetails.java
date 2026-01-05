@@ -181,8 +181,10 @@ public class ApplicationDetails implements Serializable {
                         : -1L;
         long duration = (endTime >= 0L ? endTime : System.currentTimeMillis()) - startTime;
         Map<String, Integer> jobInfo = new HashMap<>();
-        archivedApplication.getJobs().stream()
-                .map(archivedExecutionGraph -> archivedExecutionGraph.getState().name())
+        archivedApplication.getJobs().values().stream()
+                .map(
+                        executionGraphInfo ->
+                                executionGraphInfo.getArchivedExecutionGraph().getState().name())
                 .forEach(
                         status ->
                                 jobInfo.compute(

@@ -18,9 +18,12 @@
 
 package org.apache.flink.runtime.dispatcher;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.application.ArchivedApplication;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.messages.webmonitor.ApplicationDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.JobsOverview;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -30,35 +33,35 @@ import org.apache.flink.shaded.guava33.com.google.common.base.Ticker;
 import org.apache.flink.shaded.guava33.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava33.com.google.common.cache.CacheBuilder;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
- * {@link ExecutionGraphInfoStore} implementation which stores the {@link ArchivedExecutionGraph} in
- * memory. The memory store support to keep maximum job graphs and remove the timeout ones.
+ * {@link ArchivedApplicationStore} implementation which stores the {@link ArchivedApplication} in
+ * memory. The memory store support to keep maximum applications and remove the timeout ones.
  */
-public class MemoryExecutionGraphInfoStore implements ExecutionGraphInfoStore {
+public class MemoryArchivedApplicationStore implements ArchivedApplicationStore {
 
-    private static final Logger LOG = LoggerFactory.getLogger(MemoryExecutionGraphInfoStore.class);
+    private final Cache<ApplicationID, ArchivedApplication> archivedApplicationCache;
 
-    private final Cache<JobID, ExecutionGraphInfo> serializableExecutionGraphInfos;
+    private final Map<JobID, ApplicationID> jobIdToApplicationId = new HashMap<>();
 
     @Nullable private final ScheduledFuture<?> cleanupFuture;
 
-    public MemoryExecutionGraphInfoStore() {
+    public MemoryArchivedApplicationStore() {
         this(Duration.ofMillis(0), 0, null, null);
     }
 
-    public MemoryExecutionGraphInfoStore(
+    public MemoryArchivedApplicationStore(
             Duration expirationTime,
             int maximumCapacity,
             @Nullable ScheduledExecutor scheduledExecutor,
@@ -75,11 +78,11 @@ public class MemoryExecutionGraphInfoStore implements ExecutionGraphInfoStore {
             cacheBuilder.ticker(ticker);
         }
 
-        this.serializableExecutionGraphInfos = cacheBuilder.build();
+        this.archivedApplicationCache = cacheBuilder.build();
         if (scheduledExecutor != null) {
             this.cleanupFuture =
                     scheduledExecutor.scheduleWithFixedDelay(
-                            serializableExecutionGraphInfos::cleanUp,
+                            archivedApplicationCache::cleanUp,
                             expirationTime.toMillis(),
                             expirationTime.toMillis(),
                             TimeUnit.MILLISECONDS);
@@ -90,25 +93,60 @@ public class MemoryExecutionGraphInfoStore implements ExecutionGraphInfoStore {
 
     @Override
     public int size() {
-        return Math.toIntExact(serializableExecutionGraphInfos.size());
-    }
-
-    @Nullable
-    @Override
-    public ExecutionGraphInfo get(JobID jobId) {
-        return serializableExecutionGraphInfos.getIfPresent(jobId);
+        return Math.toIntExact(archivedApplicationCache.size());
     }
 
     @Override
-    public void put(ExecutionGraphInfo serializableExecutionGraphInfo) throws IOException {
-        serializableExecutionGraphInfos.put(
-                serializableExecutionGraphInfo.getJobId(), serializableExecutionGraphInfo);
+    public Optional<ArchivedApplication> get(ApplicationID applicationId) {
+        return Optional.ofNullable(archivedApplicationCache.getIfPresent(applicationId));
     }
 
     @Override
-    public JobsOverview getStoredJobsOverview() {
+    public void put(ArchivedApplication archivedApplication) throws IOException {
+        final ApplicationID applicationId = archivedApplication.getApplicationId();
+        archivedApplication
+                .getJobs()
+                .keySet()
+                .forEach(jobId -> jobIdToApplicationId.put(jobId, applicationId));
+
+        archivedApplicationCache.put(archivedApplication.getApplicationId(), archivedApplication);
+    }
+
+    @Override
+    public Collection<ApplicationDetails> getApplicationDetails() {
+        return archivedApplicationCache.asMap().values().stream()
+                .map(ApplicationDetails::fromArchivedApplication)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<ExecutionGraphInfo> getExecutionGraphInfo(JobID jobId) {
+        final ApplicationID applicationId = jobIdToApplicationId.get(jobId);
+        if (applicationId == null) {
+            return Optional.empty();
+        }
+        final ArchivedApplication archivedApplication =
+                archivedApplicationCache.getIfPresent(applicationId);
+        return Optional.ofNullable(archivedApplication)
+                .map(application -> application.getJobs().get(jobId));
+    }
+
+    @Override
+    public Collection<JobDetails> getJobDetails() {
+        return archivedApplicationCache.asMap().values().stream()
+                .flatMap(archivedApplication -> archivedApplication.getJobs().values().stream())
+                .map(ExecutionGraphInfo::getArchivedExecutionGraph)
+                .map(JobDetails::createDetailsForJob)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public JobsOverview getJobsOverview() {
         Collection<JobStatus> allJobStatus =
-                serializableExecutionGraphInfos.asMap().values().stream()
+                archivedApplicationCache.asMap().values().stream()
+                        .flatMap(
+                                archivedApplication ->
+                                        archivedApplication.getJobs().values().stream())
                         .map(ExecutionGraphInfo::getArchivedExecutionGraph)
                         .map(ArchivedExecutionGraph::getState)
                         .collect(Collectors.toList());
@@ -117,33 +155,11 @@ public class MemoryExecutionGraphInfoStore implements ExecutionGraphInfoStore {
     }
 
     @Override
-    public Collection<JobDetails> getAvailableJobDetails() {
-        return serializableExecutionGraphInfos.asMap().values().stream()
-                .map(ExecutionGraphInfo::getArchivedExecutionGraph)
-                .map(JobDetails::createDetailsForJob)
-                .collect(Collectors.toList());
-    }
-
-    @Nullable
-    @Override
-    public JobDetails getAvailableJobDetails(JobID jobId) {
-        final ExecutionGraphInfo archivedExecutionGraphInfo =
-                serializableExecutionGraphInfos.getIfPresent(jobId);
-
-        if (archivedExecutionGraphInfo != null) {
-            return JobDetails.createDetailsForJob(
-                    archivedExecutionGraphInfo.getArchivedExecutionGraph());
-        } else {
-            return null;
-        }
-    }
-
-    @Override
     public void close() throws IOException {
         if (cleanupFuture != null) {
             cleanupFuture.cancel(false);
         }
 
-        serializableExecutionGraphInfos.invalidateAll();
+        archivedApplicationCache.invalidateAll();
     }
 }

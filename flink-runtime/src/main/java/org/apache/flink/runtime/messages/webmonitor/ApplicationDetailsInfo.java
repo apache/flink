@@ -24,6 +24,7 @@ import org.apache.flink.runtime.application.ArchivedApplication;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.json.ApplicationIDDeserializer;
 import org.apache.flink.runtime.rest.messages.json.ApplicationIDSerializer;
+import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
@@ -212,7 +213,8 @@ public class ApplicationDetailsInfo implements ResponseBody, Serializable {
             timestamps.put(status.toString(), archivedApplication.getStatusTimestamp(status));
         }
         final Collection<JobDetails> jobs =
-                archivedApplication.getJobs().stream()
+                archivedApplication.getJobs().values().stream()
+                        .map(ExecutionGraphInfo::getArchivedExecutionGraph)
                         .map(JobDetails::createDetailsForJob)
                         .collect(Collectors.toList());
         return new ApplicationDetailsInfo(

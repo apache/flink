@@ -31,10 +31,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -62,6 +64,14 @@ public abstract class AbstractApplication implements Serializable {
     private final long[] statusTimestamps;
 
     private final Set<JobID> jobs = new HashSet<>();
+
+    /**
+     * List of registered application status listeners that will be notified via {@link
+     * ApplicationStatusListener#notifyApplicationStatusChange} when the application state changes.
+     * For example, the Dispatcher registers itself as a listener to perform operations such as
+     * archiving when the application reaches a terminal state.
+     */
+    private final transient List<ApplicationStatusListener> statusListeners = new ArrayList<>();
 
     public AbstractApplication(ApplicationID applicationId) {
         this.applicationId = checkNotNull(applicationId);
@@ -130,6 +140,15 @@ public abstract class AbstractApplication implements Serializable {
         return applicationState;
     }
 
+    /**
+     * Registers a status listener.
+     *
+     * <p>This method is not thread-safe and should not be called concurrently.
+     */
+    public void registerStatusListener(ApplicationStatusListener listener) {
+        statusListeners.add(listener);
+    }
+
     // ------------------------------------------------------------------------
     //  State Transitions
     // ------------------------------------------------------------------------
@@ -196,6 +215,8 @@ public abstract class AbstractApplication implements Serializable {
                 targetState);
         this.statusTimestamps[targetState.ordinal()] = System.currentTimeMillis();
         this.applicationState = targetState;
+        statusListeners.forEach(
+                listener -> listener.notifyApplicationStatusChange(applicationId, targetState));
     }
 
     private void validateTransition(ApplicationState targetState) {

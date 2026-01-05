@@ -30,6 +30,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -212,6 +215,20 @@ public class AbstractApplicationTest {
         assertThrows(IllegalStateException.class, () -> application.transitionState(targetState));
     }
 
+    @Test
+    void testApplicationStatusChange() {
+        AbstractApplication application = new MockApplication(new ApplicationID());
+        MockApplicationStatusListener listener = new MockApplicationStatusListener();
+        application.registerStatusListener(listener);
+
+        application.transitionToRunning();
+        application.transitionToFinished();
+
+        assertEquals(
+                Arrays.asList(ApplicationState.RUNNING, ApplicationState.FINISHED),
+                listener.getTargetStates());
+    }
+
     private static class MockApplication extends AbstractApplication {
         public MockApplication(ApplicationID applicationId) {
             super(applicationId);
@@ -235,6 +252,20 @@ public class AbstractApplicationTest {
         @Override
         public String getName() {
             return "Mock Application";
+        }
+    }
+
+    private static class MockApplicationStatusListener implements ApplicationStatusListener {
+        private final List<ApplicationState> targetStates = new ArrayList<>();
+
+        @Override
+        public void notifyApplicationStatusChange(
+                ApplicationID applicationId, ApplicationState newStatus) {
+            targetStates.add(newStatus);
+        }
+
+        public List<ApplicationState> getTargetStates() {
+            return targetStates;
         }
     }
 }
