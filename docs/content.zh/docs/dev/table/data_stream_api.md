@@ -1209,7 +1209,7 @@ implicit casts and reorders columns to map columns to fields of the (possibly ne
 to quickly create the desired data type reflectively.
 
 From a Table API's perspective, converting from and to DataStream API is similar to reading from or
-writing to a virtual table connector that has been defined using a [`CREATE TABLE` DDL]({{< ref "docs/sql/reference/create" >}}#create-table)
+writing to a virtual table connector that has been defined using a [`CREATE TABLE` DDL]({{< ref "docs/sql/reference/ddl/create" >}}#create-table)
 in SQL.
 
 The schema part in the virtual `CREATE TABLE name (schema) WITH (options)` statement can be automatically
@@ -2159,7 +2159,7 @@ to a changelog stream. The passed `ChangelogMode` helps the planner to distingui
 _upsert_, or _retract_ behavior.
 
 From a Table API's perspective, converting from and to DataStream API is similar to reading from or
-writing to a virtual table connector that has been defined using a [`CREATE TABLE` DDL]({{< ref "docs/sql/reference/create" >}}#create-table)
+writing to a virtual table connector that has been defined using a [`CREATE TABLE` DDL]({{< ref "docs/sql/reference/ddl/create" >}}#create-table)
 in SQL.
 
 Because `fromChangelogStream` behaves similar to `fromDataStream`, we recommend reading
@@ -2758,7 +2758,7 @@ env.execute()
 {{< /tabs >}}
 
 For more information about which conversions are supported for data types in Example 4, see the
-[Table API's Data Types page]({{< ref "docs/sql/data-types" >}}).
+[Table API's Data Types page]({{< ref "docs/sql/reference/data-types" >}}).
 
 The behavior of `toChangelogStream(Table).executeAndCollect()` is equal to calling `Table.execute().collect()`.
 However, `toChangelogStream(Table)` might be more useful for tests because it allows to access the produced

@@ -1,7 +1,7 @@
 ---
 title: Hive 兼容性
 bookCollapseSection: true
-weight: 12
+weight: 8
 aliases:
   - /zh/docs/sql/hive-compatibility/
 ---

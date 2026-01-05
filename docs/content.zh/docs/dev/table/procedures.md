@@ -124,7 +124,7 @@ class GenerateSequenceProcedure extends Procedure {
 {{< /tabs >}}
 
 ### 类型推导
-Table（类似于 SQL 标准）是一种强类型的 API。 因此，存储过程的参数和返回类型都必须映射到 [data type]({{< ref "docs/sql/data-types" >}})。
+Table（类似于 SQL 标准）是一种强类型的 API。 因此，存储过程的参数和返回类型都必须映射到 [data type]({{< ref "docs/sql/reference/data-types" >}})。
 
 从逻辑角度看，Planner 需要知道数据类型、精度和小数位数；从 JVM 角度来看，Planner 在调用存储过程时需要知道如何将内部数据结构表示为 JVM 对象。
 
@@ -138,7 +138,7 @@ Flink 存储过程实现了自动的类型推导提取，通过反射从存储�
 
 自动类型推导会检查存储过程的类和 `call` 方法，推导出存储过程参数和结果的数据类型， `@DataTypeHint` 和 `@ProcedurenHint` 注解支持自动类型推导。
 
-有关可以隐式映射到数据类型的类的完整列表, 请参阅[data type extraction section]({{< ref "docs/sql/data-types" >}}#data-type-extraction)。
+有关可以隐式映射到数据类型的类的完整列表, 请参阅[data type extraction section]({{< ref "docs/sql/reference/data-types" >}}#data-type-extraction)。
 
 **`@DataTypeHint`**
 

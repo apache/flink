@@ -230,7 +230,7 @@ currency_time currency   rate
 
 ### 声明普通表
  
-普通表的声明和 Flink 建表 DDL 一致，参考 [create table]({{< ref "docs/sql/reference/create" >}}#create-table) 页面获取更多如何建表的信息。
+普通表的声明和 Flink 建表 DDL 一致，参考 [create table]({{< ref "docs/sql/reference/ddl/create" >}}#create-table) 页面获取更多如何建表的信息。
  
 ```sql
 -- 用 DDL 定义一张 HBase 表，然后我们可以在 SQL 中将其当作一张时态表使用

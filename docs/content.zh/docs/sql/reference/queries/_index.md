@@ -1,6 +1,6 @@
 ---
 title: "Queries 查询"
-weight: 3
+weight: 4
 type: docs
 bookCollapseSection: true
 ---

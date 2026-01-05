@@ -24,7 +24,7 @@ under the License.
 
 # HiveServer2 Endpoint
 
-[Flink SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}) supports deploying as a HiveServer2 Endpoint which is compatible with [HiveServer2](https://cwiki.apache.org/confluence/display/hive/hiveserver2+overview)
+[Flink SQL Gateway]({{< ref "docs/sql/interfaces/sql-gateway/overview" >}}) supports deploying as a HiveServer2 Endpoint which is compatible with [HiveServer2](https://cwiki.apache.org/confluence/display/hive/hiveserver2+overview)
 wire protocol and allows users to interact (e.g. submit Hive SQL) with Flink SQL Gateway with existing Hive clients, such as Hive JDBC, Beeline, DBeaver, Apache Superset and so on.
 
 Setting Up

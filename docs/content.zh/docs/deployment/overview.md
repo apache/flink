@@ -62,7 +62,7 @@ When deploying Flink, there are often multiple options available for each buildi
                 <ul>
                     <li><a href="{{< ref "docs/deployment/cli" >}}">Command Line Interface</a></li>
                     <li><a href="{{< ref "docs/ops/rest_api" >}}">REST Endpoint</a></li>
-                    <li><a href="{{< ref "docs/sql/sql-client" >}}">SQL Client</a></li>
+                    <li><a href="{{< ref "docs/sql/interfaces/sql-client" >}}">SQL Client</a></li>
                     <li><a href="{{< ref "docs/deployment/repls/python_shell" >}}">Python REPL</a></li>
                 </ul>
             </td>

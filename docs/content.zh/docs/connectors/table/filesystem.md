@@ -84,7 +84,7 @@ path
         ├── part-0.parquet
 ```
 
-文件系统表支持分区新增插入和分区覆盖插入。请参考 [INSERT Statement]({{< ref "docs/sql/reference/insert" >}})。当对分区表进行分区覆盖插入时，只有相应的分区会被覆盖，而不是整个表。
+文件系统表支持分区新增插入和分区覆盖插入。请参考 [INSERT Statement]({{< ref "docs/sql/reference/dml/insert" >}})。当对分区表进行分区覆盖插入时，只有相应的分区会被覆盖，而不是整个表。
 
 <a name="file-formats"></a>
 

@@ -30,7 +30,7 @@ Creating and operating materialized tables involves multiple components' collabo
 
 # Architecture Introduction
 
-- **Client**: Could be any client that can interact with [Flink SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}), such as [SQL Client]({{< ref "docs/sql/sql-client" >}}), [Flink JDBC Driver]({{< ref "docs/sql/jdbc-driver" >}}) and so on.
+- **Client**: Could be any client that can interact with [Flink SQL Gateway]({{< ref "docs/sql/interfaces/sql-gateway/overview" >}}), such as [SQL Client]({{< ref "docs/sql/interfaces/sql-client" >}}), [Flink JDBC Driver]({{< ref "docs/sql/interfaces/jdbc-driver" >}}) and so on.
 - **Flink SQL Gateway**: Supports creating, altering, and dropping Materialized table. It also serves as an embedded workflow scheduler to periodically refresh full mode Materialized Table.
 - **Flink Cluster**: The pipeline for refreshing Materialized Table will run on the Flink cluster.
 - **Catalog**: Manages the creation, retrieval, modification, and deletion of the metadata of Materialized Table.

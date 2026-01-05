@@ -57,7 +57,7 @@ Event time attributes can be defined in `CREATE` table DDL or during DataStream-
 
 ### Defining in DDL
 
-The event time attribute is defined using a `WATERMARK` statement in `CREATE` table DDL. A watermark statement defines a watermark generation expression on an existing event time field, which marks the event time field as the event time attribute. Please see [CREATE TABLE DDL]({{< ref "docs/sql/reference/create" >}}#create-table) for more information about watermark statement and watermark strategies.
+The event time attribute is defined using a `WATERMARK` statement in `CREATE` table DDL. A watermark statement defines a watermark generation expression on an existing event time field, which marks the event time field as the event time attribute. Please see [CREATE TABLE DDL]({{< ref "docs/sql/reference/ddl/create" >}}#create-table) for more information about watermark statement and watermark strategies.
 
 Flink supports defining event time attribute on TIMESTAMP column and TIMESTAMP_LTZ column. 
 If the timestamp data in the source is represented as year-month-day-hour-minute-second, usually a string value without time-zone information, e.g. `2020-04-15 20:13:40.564`, it's recommended to define the event time attribute as a `TIMESTAMP` column::
@@ -299,7 +299,7 @@ There are two ways to define a processing time attribute.
 
 ### Defining in DDL
 
-The processing time attribute is defined as a computed column in `CREATE` table DDL using the system `PROCTIME()` function, the function return type is TIMESTAMP_LTZ. Please see [CREATE TABLE DDL]({{< ref "docs/sql/reference/create" >}}#create-table) for more information about computed column.
+The processing time attribute is defined as a computed column in `CREATE` table DDL using the system `PROCTIME()` function, the function return type is TIMESTAMP_LTZ. Please see [CREATE TABLE DDL]({{< ref "docs/sql/reference/ddl/create" >}}#create-table) for more information about computed column.
 
 ```sql
 

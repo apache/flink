@@ -31,7 +31,7 @@ under the License.
 
 DataGen 连接器允许基于内存生成数据来创建表。
 在本地开发时，若不访问外部系统（如 Kafka），这会非常有用。
-可以使用[计算列语法]({{< ref "docs/sql/reference/create" >}}#create-table)灵活地生成记录。
+可以使用[计算列语法]({{< ref "docs/sql/reference/ddl/create" >}}#create-table)灵活地生成记录。
 
 DataGen 连接器是内置的，不需要额外的依赖项。
 

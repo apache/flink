@@ -27,7 +27,7 @@ under the License.
 {{< label Streaming >}}
 
 Flink SQL 提供了 `ML_PREDICT` 表值函数（TVF）来在 SQL 查询中执行模型推理。该函数允许您直接在 SQL 中对数据流应用机器学习模型。
-请参阅[模型创建]({{< ref "docs/sql/reference/create#create-model" >}})了解如何创建模型。
+请参阅[模型创建]({{< ref "docs/sql/reference/ddl/create#create-model" >}})了解如何创建模型。
 
 ## ML_PREDICT 函数
 
@@ -128,7 +128,7 @@ SELECT * FROM ML_PREDICT(
 
 ### 相关语句
 
-- [模型创建]({{< ref "docs/sql/reference/create#create-model" >}})
-- [模型修改]({{< ref "docs/sql/reference/alter#alter-model" >}})
+- [模型创建]({{< ref "docs/sql/reference/ddl/create#create-model" >}})
+- [模型修改]({{< ref "docs/sql/reference/ddl/alter#alter-model" >}})
 
 {{< top >}}

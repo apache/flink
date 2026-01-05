@@ -125,7 +125,7 @@ class GenerateSequenceProcedure extends Procedure {
 {{< /tabs >}}
 
 ### Type Inference
-The table ecosystem (similar to the SQL standard) is a strongly typed API. Therefore, both procedure parameters and return types must be mapped to a [data type]({{< ref "docs/sql/data-types" >}}).
+The table ecosystem (similar to the SQL standard) is a strongly typed API. Therefore, both procedure parameters and return types must be mapped to a [data type]({{< ref "docs/sql/reference/data-types" >}}).
 
 From a logical perspective, the planner needs information about expected types, precision, and scale. From a JVM perspective, the planner needs information about how internal data structures are represented as JVM objects when calling a procedure.
 
@@ -139,7 +139,7 @@ Note: although the return type in `call` method must be array type `T[]`, if use
 
 The automatic type inference inspects the procedure's class and `call` methods to derive data types for the arguments and result of a procedure. `@DataTypeHint` and `@ProcedureHint` annotations support the automatic extraction.
 
-For a full list of classes that can be implicitly mapped to a data type, please refer to the [data type extraction section]({{< ref "docs/sql/data-types" >}}#data-type-extraction).
+For a full list of classes that can be implicitly mapped to a data type, please refer to the [data type extraction section]({{< ref "docs/sql/reference/data-types" >}}#data-type-extraction).
 
 **`@DataTypeHint`**
 

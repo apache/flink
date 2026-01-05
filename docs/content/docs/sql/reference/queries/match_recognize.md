@@ -101,7 +101,7 @@ Alternatively, you can also add the dependency to the cluster classpath (see the
 [dependency section]({{< ref "docs/dev/configuration/overview" >}}) for more information).
 
 If you want to use the `MATCH_RECOGNIZE` clause in the
-[SQL Client]({{< ref "docs/sql/sql-client" >}}), you don't have to do anything as all the
+[SQL Client]({{< ref "docs/sql/interfaces/sql-client" >}}), you don't have to do anything as all the
 dependencies are included by default.
 
 ### SQL Semantics
@@ -267,7 +267,7 @@ look at the [event stream navigation](#pattern-navigation) section.
 ### Aggregations
 
 Aggregations can be used in `DEFINE` and `MEASURES` clauses. Both
-[built-in]({{< ref "docs/sql/built-in-functions" >}}) and custom
+[built-in]({{< ref "docs/sql/functions/built-in-functions" >}}) and custom
 [user defined]({{< ref "docs/dev/table/functions/udfs" >}}) functions are supported.
 
 Aggregate functions are applied to each subset of rows mapped to a match. In order to understand

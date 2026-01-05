@@ -358,7 +358,7 @@ result.execute().print()
 
 在作业拉起来的大体处理框架下，你可以再添加一些业务逻辑。现在的目标是创建一个报表，报表按照账户显示一天中每个小时的总支出。因此，毫秒粒度的时间戳字段需要向下舍入到小时。
 
-Flink 支持使用纯 [SQL]({{< ref "docs/sql/reference/overview" >}}) 或者 [Table API]({{< ref "docs/dev/table/tableApi" >}}) 开发关系型数据应用。Table API 是受 SQL 启发设计出的一套链式 DSL，可以用 Java 或 Python 开发，在 IDE 中也集成的很好。同时也如 SQL 查询一样，Table 应用可以按列查询，或者按列分组。通过类似 `floor` 以及 `sum` 这样的 [系统函数]({{< ref "docs/sql/built-in-functions" >}})，你已经可以开发这个报表了。
+Flink 支持使用纯 [SQL]({{< ref "docs/sql/reference/overview" >}}) 或者 [Table API]({{< ref "docs/dev/table/tableApi" >}}) 开发关系型数据应用。Table API 是受 SQL 启发设计出的一套链式 DSL，可以用 Java 或 Python 开发，在 IDE 中也集成的很好。同时也如 SQL 查询一样，Table 应用可以按列查询，或者按列分组。通过类似 `floor` 以及 `sum` 这样的 [系统函数]({{< ref "docs/sql/functions/built-in-functions" >}})，你已经可以开发这个报表了。
 
 {{< tabs "report-impl" >}}
 {{< tab "Java" >}}

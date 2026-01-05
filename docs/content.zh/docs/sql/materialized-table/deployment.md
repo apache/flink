@@ -30,7 +30,7 @@ under the License.
 
 # 架构介绍
 
-- **Client**: 可以是任何能够与 [Flink SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}) 交互的客户端，如 [SQL 客户端]({{< ref "docs/sql/sql-client" >}})、[Flink JDBC 驱动]({{< ref "docs/sql/jdbc-driver" >}}) 等。
+- **Client**: 可以是任何能够与 [Flink SQL Gateway]({{< ref "docs/sql/interfaces/sql-gateway/overview" >}}) 交互的客户端，如 [SQL 客户端]({{< ref "docs/sql/interfaces/sql-client" >}})、[Flink JDBC 驱动]({{< ref "docs/sql/interfaces/jdbc-driver" >}}) 等。
 - **Flink SQL Gateway**: 支持创建、修改和删除物化表。并包含了一个内置的工作流调度器，用于定期刷新全量模式的物化表。
 - **Flink Cluster**: 用于运行物化表刷新作业的 Flink 集群。
 - **Catalog**: 负责管理物化表元数据的创建、查询、修改和删除。

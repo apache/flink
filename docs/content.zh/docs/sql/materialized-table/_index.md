@@ -1,7 +1,7 @@
 ---
 title: Materialized Table
 bookCollapseSection: true
-weight: 11
+weight: 7
 aliases:
   - /zh/docs/sql/materialized-table/
 ---

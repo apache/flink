@@ -36,7 +36,7 @@ OLAP（OnLine Analysis Processing）是数据分析领域的一项关键技术�
 
 Flink OLAP 服务整体由3个部分组成，包括：客户端，Flink SQL Gateway 和 Flink Session Cluster。
 
-* **客户端**: 可以是任何可以和 [Flink SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}) 交互的客户端，包括：[SQL Client]({{< ref "docs/sql/sql-client" >}})，[Flink JDBC Driver]({{< ref "docs/sql/jdbc-driver" >}}) 等等；
+* **客户端**: 可以是任何可以和 [Flink SQL Gateway]({{< ref "docs/sql/interfaces/sql-gateway/overview" >}}) 交互的客户端，包括：[SQL Client]({{< ref "docs/sql/interfaces/sql-client" >}})，[Flink JDBC Driver]({{< ref "docs/sql/interfaces/jdbc-driver" >}}) 等等；
 * **Flink SQL Gateway**: Flink SQL Gateway 服务主要用作 SQL 解析、元数据获取、统计信息分析、Plan 优化和集群作业提交；
 * **Flink Session Cluster**: OLAP 查询建议运行在 [Session 集群]({{< ref "/docs/deployment/resource-providers/native_kubernetes#starting-a-flink-session-on-kubernetes" >}})上，主要是可以减少集群启动时的额外开销；
 
@@ -121,7 +121,7 @@ ORDER BY  total_cost LIMIT 3;
 
 #### Flink JDBC Driver
 
-Flink JDBC Driver 提供了底层的连接管理能力，方便用户使用并向 SQL Gateway 提交查询请求。在实际的生产使用中，用户需要注意如何复用 JDBC 连接，来避免 Gateway 频繁的执行 Session 相关的创建及关闭操作，从而减少端到端的作业耗时。详细信息可以参考文档 [Flink JDBC Driver]({{ <ref "docs/sql/jdbc-driver"> }})。
+Flink JDBC Driver 提供了底层的连接管理能力，方便用户使用并向 SQL Gateway 提交查询请求。在实际的生产使用中，用户需要注意如何复用 JDBC 连接，来避免 Gateway 频繁的执行 Session 相关的创建及关闭操作，从而减少端到端的作业耗时。详细信息可以参考文档 [Flink JDBC Driver]({{ <ref "docs/sql/interfaces/jdbc-driver"> }})。
 
 ### 集群部署
 
@@ -133,7 +133,7 @@ Flink Session 集群建议搭建在 Native Kubernetes 环境下，使用 Session
 
 #### Flink SQL Gateway
 
-对于 Flink SQL Gateway，用户可以将其部署为无状态的微服务并注册到服务发现的组件上来对外提供服务，方便客户端可以进行负载均衡。详细信息可以参考 [SQL Gateway Overview]({{< ref "docs/sql/sql-gateway/overview">}})。
+对于 Flink SQL Gateway，用户可以将其部署为无状态的微服务并注册到服务发现的组件上来对外提供服务，方便客户端可以进行负载均衡。详细信息可以参考 [SQL Gateway Overview]({{< ref "docs/sql/interfaces/sql-gateway/overview">}})。
 
 ### 数据源配置
 
@@ -155,7 +155,7 @@ Session Cluster 和 SQL Gateway 都依赖连接器来获取表的元信息同时
 |:----------------------------------------------------------------------------------------------------------------------------------|:------|:-----|
 | [table.optimizer.join-reorder-enabled]({{<ref "docs/dev/table/config#table-optimizer-join-reorder-enabled">}})                    | false | true |
 | [pipeline.object-reuse]({{< ref "docs/deployment/config#pipeline-object-reuse" >}})                                               | false | true |
-| [sql-gateway.session.plan-cache.enabled]({{<ref "docs/sql/sql-gateway/overview#sql-gateway-session-plan-cache-enabled">}})  | false | true |
+| [sql-gateway.session.plan-cache.enabled]({{<ref "docs/sql/interfaces/sql-gateway/overview#sql-gateway-session-plan-cache-enabled">}})  | false | true |
 
 #### Runtime 参数
 

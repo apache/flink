@@ -36,9 +36,9 @@ Flink SQL can be used through several interfaces depending on your use case:
 
 | Interface | Description | Use Case |
 |-----------|-------------|----------|
-| [SQL Client]({{< ref "docs/sql/sql-client" >}}) | Interactive command-line interface | Ad-hoc queries, development, debugging |
-| [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}) | REST and HiveServer2 endpoints | Remote SQL submission, integration with BI tools |
-| [JDBC Driver]({{< ref "docs/sql/jdbc-driver" >}}) | Standard JDBC connectivity | Application integration, BI tool connectivity |
+| [SQL Client]({{< ref "docs/sql/interfaces/sql-client" >}}) | Interactive command-line interface | Ad-hoc queries, development, debugging |
+| [SQL Gateway]({{< ref "docs/sql/interfaces/sql-gateway/overview" >}}) | REST and HiveServer2 endpoints | Remote SQL submission, integration with BI tools |
+| [JDBC Driver]({{< ref "docs/sql/interfaces/jdbc-driver" >}}) | Standard JDBC connectivity | Application integration, BI tool connectivity |
 | [Table API]({{< ref "docs/dev/table/overview" >}}) | Programmatic SQL execution | Embedded SQL in Java/Scala/Python applications |
 
 ## Key Concepts
@@ -52,16 +52,16 @@ For a deeper understanding of how Flink SQL processes streaming data, see:
 
 ## Where to Go Next
 
-* [SQL Client]({{< ref "docs/sql/sql-client" >}}): Interactive CLI for running SQL queries without programming.
+* [SQL Client]({{< ref "docs/sql/interfaces/sql-client" >}}): Interactive CLI for running SQL queries without programming.
 * [SQL Reference]({{< ref "docs/sql/reference" >}}): Complete SQL syntax reference (DDL, DML, queries).
-* [Built-in Functions]({{< ref "docs/sql/built-in-functions" >}}): Available SQL functions for data transformation.
-* [SQL Gateway]({{< ref "docs/sql/sql-gateway/overview" >}}): REST and HiveServer2 service for remote SQL access.
-* [JDBC Driver]({{< ref "docs/sql/jdbc-driver" >}}): Connect to Flink SQL from any JDBC-compatible tool.
+* [Built-in Functions]({{< ref "docs/sql/functions/built-in-functions" >}}): Available SQL functions for data transformation.
+* [SQL Gateway]({{< ref "docs/sql/interfaces/sql-gateway/overview" >}}): REST and HiveServer2 service for remote SQL access.
+* [JDBC Driver]({{< ref "docs/sql/interfaces/jdbc-driver" >}}): Connect to Flink SQL from any JDBC-compatible tool.
 * [Catalogs]({{< ref "docs/sql/catalogs" >}}): Manage metadata for databases, tables, and functions.
 * [Hive Compatibility]({{< ref "docs/sql/hive-compatibility" >}}): Integration with Apache Hive metastore and syntax.
 * [Materialized Tables]({{< ref "docs/sql/materialized-table" >}}): Incrementally maintained query results.
 * [Connect to External Systems]({{< ref "docs/connectors/table/overview" >}}): Available connectors and formats for reading and writing data.
-* [Data Types]({{< ref "docs/sql/data-types" >}}): Pre-defined data types and their properties.
+* [Data Types]({{< ref "docs/sql/reference/data-types" >}}): Pre-defined data types and their properties.
 * [Time Zone]({{< ref "docs/sql/timezone" >}}): How time zones affect timestamp processing.
 * [Table API]({{< ref "docs/dev/table/overview" >}}): Programmatic API for relational operations.
 * [OLAP Quickstart]({{< ref "docs/dev/table/olap_quickstart" >}}): Set up a Flink OLAP service for high-throughput SQL queries.

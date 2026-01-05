@@ -43,7 +43,7 @@ The same applies for formats as well. Note that some connectors may not have a c
 `flink-sql-connector-<NAME>` artifact because they do not require third-party dependencies.
 
 {{< hint info >}}
-The uber/fat JARs are supported mostly for being used in conjunction with the [SQL client]({{< ref "docs/sql/sql-client" >}}),
+The uber/fat JARs are supported mostly for being used in conjunction with the [SQL client]({{< ref "docs/sql/interfaces/sql-client" >}}),
 but you can also use them in any DataStream/Table application.
 {{< /hint >}}
 

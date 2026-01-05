@@ -50,7 +50,7 @@ Flink SQL 使得使用标准 SQL 开发流应用程序变的简单。如果你�
 
 ## 启动 SQL 客户端
 
-[SQL 客户端]({{< ref "docs/sql/sql-client" >}})是一个交互式的客户端，用于向 Flink 提交 SQL 查询并将结果可视化。
+[SQL 客户端]({{< ref "docs/sql/interfaces/sql-client" >}})是一个交互式的客户端，用于向 Flink 提交 SQL 查询并将结果可视化。
 
 如果你在第一步中使用了 **Docker**：
 
@@ -75,7 +75,7 @@ SQL 客户端（查询编辑器）启动并运行后，就可以开始编写查�
 SELECT 'Hello World';
 ```
 
-运行 `HELP` 命令会列出所有支持的 SQL 语句。运行一个 `SHOW` 命令，来查看 Flink [内置函数]({{< ref "docs/sql/built-in-functions" >}})的完整列表。
+运行 `HELP` 命令会列出所有支持的 SQL 语句。运行一个 `SHOW` 命令，来查看 Flink [内置函数]({{< ref "docs/sql/functions/built-in-functions" >}})的完整列表。
 
 ```sql
 SHOW FUNCTIONS;
@@ -98,7 +98,7 @@ SELECT CURRENT_TIMESTAMP;
 
 Flink 数据处理流水线开始于 source 表。source 表产生在查询执行期间可以被操作的行；它们是查询时 `FROM` 子句中引用的表。这些表可能是 Kafka 的 topics，数据库，文件系统，或者任何其它 Flink 知道如何消费的系统。
 
-可以通过 SQL 客户端或使用环境配置文件来定义表。SQL 客户端支持类似于传统 SQL 的 [SQL DDL 命令]({{< ref "docs/sql/reference/overview" >}})。标准 SQL DDL 用于[创建]({{< ref "docs/sql/reference/create" >}})，[修改]({{< ref "docs/sql/reference/alter" >}})，[删除]({{< ref "docs/sql/reference/drop" >}})表。
+可以通过 SQL 客户端或使用环境配置文件来定义表。SQL 客户端支持类似于传统 SQL 的 [SQL DDL 命令]({{< ref "docs/sql/reference/overview" >}})。标准 SQL DDL 用于[创建]({{< ref "docs/sql/reference/ddl/create" >}})，[修改]({{< ref "docs/sql/reference/ddl/alter" >}})，[删除]({{< ref "docs/sql/reference/ddl/drop" >}})表。
 
 Flink 支持不同的[连接器]({{< ref "docs/connectors/table/overview" >}})和[格式]({{< ref "docs/connectors/table/formats/overview" >}})相结合以定义表。下面是一个使用 [DataGen 连接器]({{< ref "docs/connectors/table/datagen" >}})定义 source 表的示例，该连接器可以自动生成示例数据 - 非常适合在不需要外部数据源的情况下尝试查询。
 
@@ -195,8 +195,8 @@ $ docker compose logs -f taskmanager
 ### 深入了解 Flink SQL
 
 - [SQL 参考]({{< ref "docs/sql/reference/overview" >}})：完整的 SQL 语法和支持的操作
-- [SQL 客户端]({{< ref "docs/sql/sql-client" >}})：高级 SQL 客户端功能和配置
-- [内置函数]({{< ref "docs/sql/built-in-functions" >}})：所有可用的 SQL 查询函数
+- [SQL 客户端]({{< ref "docs/sql/interfaces/sql-client" >}})：高级 SQL 客户端功能和配置
+- [内置函数]({{< ref "docs/sql/functions/built-in-functions" >}})：所有可用的 SQL 查询函数
 - [连接器]({{< ref "docs/connectors/table/overview" >}})：连接 Kafka、数据库、文件系统等
 
 ### 理解流式概念

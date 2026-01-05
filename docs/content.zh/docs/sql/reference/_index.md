@@ -1,7 +1,7 @@
 ---
 title: SQL Reference
 bookCollapseSection: true
-weight: 6
+weight: 3
 aliases:
   - /zh/docs/sql/reference/
 ---

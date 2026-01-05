@@ -52,7 +52,7 @@ CREATE TABLE blackhole_table (
 );
 ```
 
-Alternatively, it may be based on an existing schema using the [LIKE Clause]({{< ref "docs/sql/reference/create" >}}#create-table).
+Alternatively, it may be based on an existing schema using the [LIKE Clause]({{< ref "docs/sql/reference/ddl/create" >}}#create-table).
 
 
 ```sql

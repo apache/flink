@@ -52,12 +52,12 @@ Table API 和 SQL 两种 API 是紧密集成的，以及 DataStream API。你可
 ## 接下来？
 
 * [公共概念和 API]({{< ref "docs/dev/table/common" >}}): Table API 和 SQL 公共概念以及 API。
-* [数据类型]({{< ref "docs/sql/data-types" >}}): 内置数据类型以及它们的属性
+* [数据类型]({{< ref "docs/sql/reference/data-types" >}}): 内置数据类型以及它们的属性
 * [流式概念]({{< ref "docs/concepts/sql-table-concepts/overview" >}}): Table API 和 SQL 中流式相关的文档，比如配置时间属性和如何处理更新结果。
 * [连接外部系统]({{< ref "docs/connectors/table/overview" >}}): 读写外部系统的连接器和格式。
 * [Table API 操作]({{< ref "docs/dev/table/tableApi" >}}): Table API 支持的操作。
 * [SQL 参考]({{< ref "docs/sql/reference/overview" >}}): SQL 支持的操作和语法。
-* [内置函数]({{< ref "docs/sql/built-in-functions" >}}): Table API 和 SQL 中的内置函数。
+* [内置函数]({{< ref "docs/sql/functions/built-in-functions" >}}): Table API 和 SQL 中的内置函数。
 * [PyFlink]({{< ref "docs/dev/python" >}}): Python 相关的 Flink 文档。
 
 {{< top >}}

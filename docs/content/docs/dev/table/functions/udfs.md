@@ -341,7 +341,7 @@ class SumFunction extends ScalarFunction {
 
 ### Type Inference
 
-The table ecosystem (similar to the SQL standard) is a strongly typed API. Therefore, both function parameters and return types must be mapped to a [data type]({{< ref "docs/sql/data-types" >}}).
+The table ecosystem (similar to the SQL standard) is a strongly typed API. Therefore, both function parameters and return types must be mapped to a [data type]({{< ref "docs/sql/reference/data-types" >}}).
 
 From a logical perspective, the planner needs information about expected types, precision, and scale. From a JVM perspective, the planner needs information about how internal data structures are represented as JVM objects when calling a user-defined function.
 
@@ -355,7 +355,7 @@ If more advanced type inference logic is required, an implementer can explicitly
 
 The automatic type inference inspects the function's class and evaluation methods to derive data types for the arguments and result of a function. `@DataTypeHint` and `@FunctionHint` annotations support the automatic extraction.
 
-For a full list of classes that can be implicitly mapped to a data type, see the [data type extraction section]({{< ref "docs/sql/data-types" >}}#data-type-extraction).
+For a full list of classes that can be implicitly mapped to a data type, see the [data type extraction section]({{< ref "docs/sql/reference/data-types" >}}#data-type-extraction).
 
 **`@DataTypeHint`**
 
@@ -944,7 +944,7 @@ env.sqlQuery("SELECT myField, hashCode(myField) FROM MyTable")
 Scalar Functions
 ----------------
 
-A user-defined scalar function maps zero, one, or multiple scalar values to a new scalar value. Any data type listed in the [data types section]({{< ref "docs/sql/data-types" >}}) can be used as a parameter or return type of an evaluation method.
+A user-defined scalar function maps zero, one, or multiple scalar values to a new scalar value. Any data type listed in the [data types section]({{< ref "docs/sql/reference/data-types" >}}) can be used as a parameter or return type of an evaluation method.
 
 In order to define a scalar function, one has to extend the base class `ScalarFunction` in `org.apache.flink.table.functions` and implement one or more evaluation methods named `eval(...)`.
 
@@ -1031,7 +1031,7 @@ To address this inefficiency, there is an `AsyncScalarFunction`. Asynchronous in
 
 #### Defining an AsyncScalarFunction
 
-A user-defined asynchronous scalar function maps zero, one, or multiple scalar values to a new scalar value. Any data type listed in the [data types section]({{< ref "docs/sql/data-types" >}}) can be used as a parameter or return type of an evaluation method.
+A user-defined asynchronous scalar function maps zero, one, or multiple scalar values to a new scalar value. Any data type listed in the [data types section]({{< ref "docs/sql/reference/data-types" >}}) can be used as a parameter or return type of an evaluation method.
 
 In order to define an asynchronous scalar function, extend the base class `AsyncScalarFunction` in `org.apache.flink.table.functions` and implement one or more evaluation methods named `eval(...)`.  The first argument must be a `CompletableFuture<...>` which is used to return the result, with subsequent arguments being the parameters passed to the function.
 
@@ -1285,7 +1285,7 @@ Asynchronous interaction with an external system means that a single function in
 
 #### Defining an AsyncTableFunction
 
-A user-defined asynchronous table function maps zero, one, or multiple scalar values to zero, one, or multiple Rows. Any data type listed in the [data types section]({{< ref "docs/sql/data-types" >}}) can be used as a parameter or return type of an evaluation method.
+A user-defined asynchronous table function maps zero, one, or multiple scalar values to zero, one, or multiple Rows. Any data type listed in the [data types section]({{< ref "docs/sql/reference/data-types" >}}) can be used as a parameter or return type of an evaluation method.
 
 In order to define an asynchronous table function, extend the base class `AsyncTableFunction` in `org.apache.flink.table.functions` and implement one or more evaluation methods named `eval(...)`.  The first argument must be a `CompletableFuture<...>` which is used to return the result, with subsequent arguments being the parameters passed to the function.
 

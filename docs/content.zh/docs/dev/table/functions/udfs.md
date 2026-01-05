@@ -45,7 +45,7 @@ under the License.
 - *表值聚合函数* 将多行数据里的标量值转换成新的行数据；
 - *Process table functions* map tables to new rows. Enabling user-defined operators with state and timers.
 
-<span class="label label-danger">注意</span> 标量和表值函数已经使用了新的基于[数据类型]({{< ref "docs/sql/data-types" >}})的类型系统，聚合函数仍然使用基于 `TypeInformation` 的旧类型系统。
+<span class="label label-danger">注意</span> 标量和表值函数已经使用了新的基于[数据类型]({{< ref "docs/sql/reference/data-types" >}})的类型系统，聚合函数仍然使用基于 `TypeInformation` 的旧类型系统。
 
 以下示例展示了如何创建一个基本的标量函数，以及如何在 Table API 和 SQL 里调用这个函数。
 
@@ -335,7 +335,7 @@ class SumFunction extends ScalarFunction {
 
 ### 类型推导
 
-Table（类似于 SQL 标准）是一种强类型的 API。因此，函数的参数和返回类型都必须映射到[数据类型]({{< ref "docs/sql/data-types" >}})。
+Table（类似于 SQL 标准）是一种强类型的 API。因此，函数的参数和返回类型都必须映射到[数据类型]({{< ref "docs/sql/reference/data-types" >}})。
 
 从逻辑角度看，Planner 需要知道数据类型、精度和小数位数；从 JVM 角度来看，Planner 在调用自定义函数时需要知道如何将内部数据结构表示为 JVM 对象。
 
@@ -350,7 +350,7 @@ Flink 自定义函数实现了自动的类型推导提取，通过反射从函�
 
 自动类型推导会检查函数的类和求值方法，派生出函数参数和结果的数据类型， `@DataTypeHint` 和 `@FunctionHint` 注解支持自动类型推导。
 
-有关可以隐式映射到数据类型的类的完整列表，请参阅[数据类型]({{< ref "docs/sql/data-types" >}}#数据类型注解)。
+有关可以隐式映射到数据类型的类的完整列表，请参阅[数据类型]({{< ref "docs/sql/reference/data-types" >}}#数据类型注解)。
 
 **`@DataTypeHint`**
 
@@ -902,7 +902,7 @@ env.sqlQuery("SELECT myField, hashCode(myField) FROM MyTable")
 标量函数
 ----------------
 
-自定义标量函数可以把 0 到多个标量值映射成 1 个标量值，[数据类型]({{< ref "docs/sql/data-types" >}})里列出的任何数据类型都可作为求值方法的参数和返回值类型。
+自定义标量函数可以把 0 到多个标量值映射成 1 个标量值，[数据类型]({{< ref "docs/sql/reference/data-types" >}})里列出的任何数据类型都可作为求值方法的参数和返回值类型。
 
 想要实现自定义标量函数，你需要扩展 `org.apache.flink.table.functions` 里面的 `ScalarFunction` 并且实现一个或者多个求值方法。标量函数的行为取决于你写的求值方法。求值方法必须是 `public` 的，而且名字必须是 `eval`。
 
@@ -989,7 +989,7 @@ env.sqlQuery("SELECT HashFunction(myField) FROM MyTable")
 
 #### 定义 AsyncScalarFunction
 
-用户自定义的异步标量函数将零个、一个或多个标量值映射为新的标量值。[数据类型部分]({{< ref "docs/sql/data-types" >}})中列出的任何数据类型都可以用作求值方法的参数或返回类型。
+用户自定义的异步标量函数将零个、一个或多个标量值映射为新的标量值。[数据类型部分]({{< ref "docs/sql/reference/data-types" >}})中列出的任何数据类型都可以用作求值方法的参数或返回类型。
 
 要定义异步标量函数，需要继承 `org.apache.flink.table.functions` 中的基类 `AsyncScalarFunction`，并实现一个或多个名为 `eval(...)` 的求值方法。第一个参数必须是 `CompletableFuture<...>`，用于返回结果，后续参数是传递给函数的参数。
 
@@ -1243,7 +1243,7 @@ Asynchronous interaction with an external system means that a single function in
 
 #### Defining an AsyncTableFunction
 
-A user-defined asynchronous table function maps zero, one, or multiple scalar values to zero, one, or multiple Rows. Any data type listed in the [data types section]({{< ref "docs/sql/data-types" >}}) can be used as a parameter or return type of an evaluation method.
+A user-defined asynchronous table function maps zero, one, or multiple scalar values to zero, one, or multiple Rows. Any data type listed in the [data types section]({{< ref "docs/sql/reference/data-types" >}}) can be used as a parameter or return type of an evaluation method.
 
 In order to define an asynchronous table function, extend the base class `AsyncTableFunction` in `org.apache.flink.table.functions` and implement one or more evaluation methods named `eval(...)`.  The first argument must be a `CompletableFuture<...>` which is used to return the result, with subsequent arguments being the parameters passed to the function.
 

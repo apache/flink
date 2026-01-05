@@ -362,7 +362,7 @@ result.execute().print()
 
 Now with the skeleton of a Job set up, you are ready to add some business logic. The goal is to build a report that shows the total spend for each account across each hour of the day. This means the timestamp column needs to be rounded down from millisecond to hour granularity.
 
-Flink supports developing relational applications in pure [SQL]({{< ref "docs/sql/reference/overview" >}}) or using the [Table API]({{< ref "docs/dev/table/tableApi" >}}). The Table API is a fluent DSL inspired by SQL that can be written in Java or Python and supports strong IDE integration. Just like a SQL query, Table programs can select the required fields and group by your keys. These features, along with [built-in functions]({{< ref "docs/sql/built-in-functions" >}}) like `floor` and `sum`, enable you to write this report.
+Flink supports developing relational applications in pure [SQL]({{< ref "docs/sql/reference/overview" >}}) or using the [Table API]({{< ref "docs/dev/table/tableApi" >}}). The Table API is a fluent DSL inspired by SQL that can be written in Java or Python and supports strong IDE integration. Just like a SQL query, Table programs can select the required fields and group by your keys. These features, along with [built-in functions]({{< ref "docs/sql/functions/built-in-functions" >}}) like `floor` and `sum`, enable you to write this report.
 
 {{< tabs "report-impl" >}}
 {{< tab "Java" >}}

@@ -51,12 +51,12 @@ If you are using Python, please refer to the [PyFlink documentation]({{< ref "do
 ## Where to Go Next
 
 * [Concepts & Common API]({{< ref "docs/dev/table/common" >}}): Shared concepts and APIs of the Table API and SQL.
-* [Data Types]({{< ref "docs/sql/data-types" >}}): Lists pre-defined data types and their properties.
+* [Data Types]({{< ref "docs/sql/reference/data-types" >}}): Lists pre-defined data types and their properties.
 * [Streaming Concepts]({{< ref "docs/concepts/sql-table-concepts/overview" >}}): Streaming-specific documentation for the Table API or SQL such as configuration of time attributes and handling of updating results.
 * [Connect to External Systems]({{< ref "docs/connectors/table/overview" >}}): Available connectors and formats for reading and writing data to external systems.
 * [Table API Operations]({{< ref "docs/dev/table/tableApi" >}}): Supported operations and API for the Table API.
 * [SQL Reference]({{< ref "docs/sql/reference/overview" >}}): Supported operations and syntax for SQL.
-* [Built-in Functions]({{< ref "docs/sql/built-in-functions" >}}): Supported functions in Table API and SQL.
+* [Built-in Functions]({{< ref "docs/sql/functions/built-in-functions" >}}): Supported functions in Table API and SQL.
 * [PyFlink]({{< ref "docs/dev/python" >}}): Python-specific Flink documentation.
 
 {{< top >}}

@@ -94,7 +94,7 @@ env.set_stream_time_characteristic(TimeCharacteristic.ProcessingTime)  # default
 
 ### 在创建表的 DDL 中定义
 
-处理时间属性可以在创建表的 DDL 中用计算列的方式定义，用 `PROCTIME()` 就可以定义处理时间，函数 `PROCTIME()` 的返回类型是 TIMESTAMP_LTZ 。关于计算列，更多信息可以参考：[CREATE TABLE DDL]({{< ref "docs/sql/reference/create" >}}#create-table) 
+处理时间属性可以在创建表的 DDL 中用计算列的方式定义，用 `PROCTIME()` 就可以定义处理时间，函数 `PROCTIME()` 的返回类型是 TIMESTAMP_LTZ 。关于计算列，更多信息可以参考：[CREATE TABLE DDL]({{< ref "docs/sql/reference/ddl/create" >}}#create-table) 
 
 ```sql
 
@@ -231,7 +231,7 @@ val windowedTable = tEnv
 
 ### 在 DDL 中定义
 
-事件时间属性可以用 WATERMARK 语句在 CREATE TABLE DDL 中进行定义。WATERMARK 语句在一个已有字段上定义一个 watermark 生成表达式，同时标记这个已有字段为时间属性字段。更多信息可以参考：[CREATE TABLE DDL]({{< ref "docs/sql/reference/create" >}}#create-table)
+事件时间属性可以用 WATERMARK 语句在 CREATE TABLE DDL 中进行定义。WATERMARK 语句在一个已有字段上定义一个 watermark 生成表达式，同时标记这个已有字段为时间属性字段。更多信息可以参考：[CREATE TABLE DDL]({{< ref "docs/sql/reference/ddl/create" >}}#create-table)
 
 Flink 支持和在 TIMESTAMP 列和 TIMESTAMP_LTZ 列上定义事件时间。如果源数据中的时间戳数据表示为年-月-日-时-分-秒，则通常为不带时区信息的字符串值，例如 `2020-04-15 20:13:40.564`，建议将事件时间属性定义在 `TIMESTAMP` 列上:
 ```sql

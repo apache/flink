@@ -2852,11 +2852,11 @@ val asyncPredictResult = model.predict(
 数据类型
 ----------
 
-请查看[数据类型]({{< ref "docs/sql/data-types" >}})的专门页面。
+请查看[数据类型]({{< ref "docs/sql/reference/data-types" >}})的专门页面。
 
 行中的字段可以是一般类型和(嵌套)复合类型(比如 POJO、元组、行、 Scala 案例类)。
 
-任意嵌套的复合类型的字段都可以通过[值访问函数]({{< ref "docs/sql/built-in-functions" >}}#value-access-functions)来访问。
+任意嵌套的复合类型的字段都可以通过[值访问函数]({{< ref "docs/sql/functions/built-in-functions" >}}#value-access-functions)来访问。
 
 [用户自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})可以将泛型当作黑匣子一样传输和处理。
 

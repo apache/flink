@@ -79,7 +79,7 @@ message SimpleTest {
 
 1. Use [`protoc`](https://developers.google.com/protocol-buffers/docs/javatutorial#compiling-your-protocol-buffers) command to compile the `.proto` file to java classes
 2. Then compile and package the classes (there is no need to package proto-java into the jar)
-3. Finally you should provide the `jar` in your classpath, e.g. pass it using `-j` in <a href="{{< ref "docs/sql/sql-client" >}}">sql-client</a>
+3. Finally you should provide the `jar` in your classpath, e.g. pass it using `-j` in <a href="{{< ref "docs/sql/interfaces/sql-client" >}}">sql-client</a>
 
 ```sql
 CREATE TABLE simple_test (

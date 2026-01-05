@@ -1,6 +1,6 @@
 ---
 title: "概览"
-weight: 1
+weight: 6
 type: docs
 aliases:
   - /zh/dev/table/sql/
@@ -32,32 +32,32 @@ under the License.
 本页面列出了目前 Flink SQL 所支持的所有语句：
 
 - [SELECT (Queries)]({{< ref "docs/sql/reference/queries/overview" >}})
-- [CREATE TABLE, CATALOG, DATABASE, VIEW, FUNCTION]({{< ref "docs/sql/reference/create" >}})
-- [DROP TABLE, DATABASE, VIEW, FUNCTION]({{< ref "docs/sql/reference/drop" >}})
-- [ALTER TABLE, DATABASE, FUNCTION]({{< ref "docs/sql/reference/alter" >}})
-- [ANALYZE TABLE]({{< ref "docs/sql/reference/analyze" >}})
-- [INSERT]({{< ref "docs/sql/reference/insert" >}})
-- [UPDATE]({{< ref "docs/sql/reference/update" >}})
-- [DELETE]({{< ref "docs/sql/reference/delete" >}})
+- [CREATE TABLE, CATALOG, DATABASE, VIEW, FUNCTION]({{< ref "docs/sql/reference/ddl/create" >}})
+- [DROP TABLE, DATABASE, VIEW, FUNCTION]({{< ref "docs/sql/reference/ddl/drop" >}})
+- [ALTER TABLE, DATABASE, FUNCTION]({{< ref "docs/sql/reference/ddl/alter" >}})
+- [ANALYZE TABLE]({{< ref "docs/sql/reference/utility/analyze" >}})
+- [INSERT]({{< ref "docs/sql/reference/dml/insert" >}})
+- [UPDATE]({{< ref "docs/sql/reference/dml/update" >}})
+- [DELETE]({{< ref "docs/sql/reference/dml/delete" >}})
 - [SQL HINTS]({{< ref "docs/sql/reference/queries/hints" >}})
-- [DESCRIBE]({{< ref "docs/sql/reference/describe" >}})
-- [EXPLAIN]({{< ref "docs/sql/reference/explain" >}})
-- [USE]({{< ref "docs/sql/reference/use" >}})
-- [SHOW]({{< ref "docs/sql/reference/show" >}})
-- [LOAD]({{< ref "docs/sql/reference/load" >}})
-- [UNLOAD]({{< ref "docs/sql/reference/unload" >}})
+- [DESCRIBE]({{< ref "docs/sql/reference/utility/describe" >}})
+- [EXPLAIN]({{< ref "docs/sql/reference/utility/explain" >}})
+- [USE]({{< ref "docs/sql/reference/utility/use" >}})
+- [SHOW]({{< ref "docs/sql/reference/utility/show" >}})
+- [LOAD]({{< ref "docs/sql/reference/utility/load" >}})
+- [UNLOAD]({{< ref "docs/sql/reference/utility/unload" >}})
 
 ## 数据类型
 
-请参考专门描述该主题的页面 [数据类型]({{< ref "docs/sql/data-types" >}})。
+请参考专门描述该主题的页面 [数据类型]({{< ref "docs/sql/reference/data-types" >}})。
 
 通用类型与（嵌套的）复合类型 （如：POJO、tuples、rows、Scala case 类) 都可以作为行的字段。
 
-复合类型的字段任意的嵌套可被 [值访问函数]({{< ref "docs/sql/built-in-functions" >}}#value-access-functions) 访问。
+复合类型的字段任意的嵌套可被 [值访问函数]({{< ref "docs/sql/functions/built-in-functions" >}}#value-access-functions) 访问。
 
 通用类型将会被视为一个黑箱，且可以被 [用户自定义函数]({{< ref "docs/dev/table/functions/udfs" >}}) 传递或引用。
 
-对于 DDL 语句而言，我们支持所有在 [数据类型]({{< ref "docs/sql/data-types" >}}) 页面中定义的数据类型。
+对于 DDL 语句而言，我们支持所有在 [数据类型]({{< ref "docs/sql/reference/data-types" >}}) 页面中定义的数据类型。
 
 **注意：** SQL查询不支持部分数据类型（cast 表达式或字符常量值）。如：`STRING`, `BYTES`, `RAW`, `TIME(p) WITHOUT TIME ZONE`, `TIME(p) WITH LOCAL TIME ZONE`, `TIMESTAMP(p) WITHOUT TIME ZONE`, `TIMESTAMP(p) WITH LOCAL TIME ZONE`, `ARRAY`, `MULTISET`, `ROW`.
 

@@ -50,7 +50,7 @@ In this tutorial, you will:
 
 ## Starting the SQL Client
 
-The [SQL Client]({{< ref "docs/sql/sql-client" >}}) is an interactive client to submit SQL queries to Flink and visualize the results.
+The [SQL Client]({{< ref "docs/sql/interfaces/sql-client" >}}) is an interactive client to submit SQL queries to Flink and visualize the results.
 
 If you used **Docker** in First Steps:
 
@@ -75,7 +75,7 @@ Let's start with printing 'Hello World', using the following simple query:
 SELECT 'Hello World';
 ```
 
-Running the `HELP` command lists the full set of supported SQL statements. Let's run one such command, `SHOW`, to see a full list of Flink [built-in functions]({{< ref "docs/sql/built-in-functions" >}}).
+Running the `HELP` command lists the full set of supported SQL statements. Let's run one such command, `SHOW`, to see a full list of Flink [built-in functions]({{< ref "docs/sql/functions/built-in-functions" >}}).
 
 ```sql
 SHOW FUNCTIONS;
@@ -99,7 +99,7 @@ It differs from a traditional database because Flink does not manage data at res
 
 Flink data processing pipelines begin with source tables. Source tables produce rows operated over during the query's execution; they are the tables referenced in the `FROM` clause of a query.  These could be Kafka topics, databases, filesystems, or any other system that Flink knows how to consume. 
 
-Tables can be defined through the SQL client or using environment config file. The SQL client support [SQL DDL commands]({{< ref "docs/sql/reference/overview" >}}) similar to traditional SQL. Standard SQL DDL is used to [create]({{< ref "docs/sql/reference/create" >}}), [alter]({{< ref "docs/sql/reference/alter" >}}), [drop]({{< ref "docs/sql/reference/drop" >}}) tables. 
+Tables can be defined through the SQL client or using environment config file. The SQL client support [SQL DDL commands]({{< ref "docs/sql/reference/overview" >}}) similar to traditional SQL. Standard SQL DDL is used to [create]({{< ref "docs/sql/reference/ddl/create" >}}), [alter]({{< ref "docs/sql/reference/ddl/alter" >}}), [drop]({{< ref "docs/sql/reference/ddl/drop" >}}) tables. 
 
 Flink supports different [connectors]({{< ref "docs/connectors/table/overview" >}}) and [formats]({{< ref "docs/connectors/table/formats/overview" >}}) that can be used with tables. Following is an example to define a source table using the [DataGen connector]({{< ref "docs/connectors/table/datagen" >}}), which generates sample data automatically.
 
@@ -196,8 +196,8 @@ Now that you've experienced Flink SQL, here are some paths to continue learning:
 ### Dive Deeper into Flink SQL
 
 - [SQL Reference]({{< ref "docs/sql/reference/overview" >}}): Complete SQL syntax and supported operations
-- [SQL Client]({{< ref "docs/sql/sql-client" >}}): Advanced SQL Client features and configuration
-- [Built-in Functions]({{< ref "docs/sql/built-in-functions" >}}): All available functions for SQL queries
+- [SQL Client]({{< ref "docs/sql/interfaces/sql-client" >}}): Advanced SQL Client features and configuration
+- [Built-in Functions]({{< ref "docs/sql/functions/built-in-functions" >}}): All available functions for SQL queries
 - [Connectors]({{< ref "docs/connectors/table/overview" >}}): Connect to Kafka, databases, filesystems, and more
 
 ### Understand Streaming Concepts

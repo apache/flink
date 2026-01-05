@@ -199,7 +199,7 @@ mytable
 {{< /tabs >}}
 
 
-For detailed information, please check out [Flink SQL CREATE DDL]({{< ref "docs/sql/reference/create" >}}).
+For detailed information, please check out [Flink SQL CREATE DDL]({{< ref "docs/sql/reference/ddl/create" >}}).
 
 ### Using Java, Scala or Python
 
@@ -308,7 +308,7 @@ tables = catalog.list_tables("mydb")
 ## Catalog API
 
 Note: only catalog program APIs are listed here. Users can achieve many of the same functionalities with SQL DDL. 
-For detailed DDL information, please refer to [SQL CREATE DDL]({{< ref "docs/sql/reference/create" >}}).
+For detailed DDL information, please refer to [SQL CREATE DDL]({{< ref "docs/sql/reference/ddl/create" >}}).
 
 
 ### Database operations
