@@ -88,14 +88,15 @@ public abstract class AbstractSqlGatewayRestHandler<
             response = FutureUtils.completedExceptionally(e);
         }
 
-        return response.thenAccept(
+        return response.thenAcceptAsync(
                 resp ->
                         HandlerUtils.sendResponse(
                                 ctx,
                                 httpRequest,
                                 resp,
                                 messageHeaders.getResponseStatusCode(),
-                                responseHeaders));
+                                responseHeaders),
+                ctx.executor());
     }
 
     /**
