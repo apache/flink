@@ -320,9 +320,8 @@ class Executing extends StateWithExecutionGraph
         ScheduledFuture<?> runIfState(State expectedState, Runnable action, Duration delay);
 
         /**
-         * Checks whether we have the desired resources.
-         *
-         * @return {@code true} if we have enough resources; otherwise {@code false}
+         * Returns {@code true} if the available resources meet the desired resources for the job;
+         * otherwise {@code false}.
          */
         boolean hasDesiredResources();
 
