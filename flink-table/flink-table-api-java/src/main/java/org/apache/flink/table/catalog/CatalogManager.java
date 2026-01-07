@@ -687,7 +687,19 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                     resolveCatalogBaseTable(temporaryTable);
             return Optional.of(ContextResolvedTable.temporary(objectIdentifier, resolvedTable));
         } else {
-            return getPermanentTable(objectIdentifier, null);
+            return getPermanentTable(objectIdentifier, null, null);
+        }
+    }
+
+    public Optional<ContextResolvedTable> getTable(
+            ObjectIdentifier objectIdentifier, Set<TableWritePrivilege> privileges) {
+        CatalogBaseTable temporaryTable = temporaryTables.get(objectIdentifier);
+        if (temporaryTable != null) {
+            final ResolvedCatalogBaseTable<?> resolvedTable =
+                    resolveCatalogBaseTable(temporaryTable);
+            return Optional.of(ContextResolvedTable.temporary(objectIdentifier, resolvedTable));
+        } else {
+            return getPermanentTable(objectIdentifier, null, privileges);
         }
     }
 
@@ -708,7 +720,7 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                     resolveCatalogBaseTable(temporaryTable);
             return Optional.of(ContextResolvedTable.temporary(objectIdentifier, resolvedTable));
         } else {
-            return getPermanentTable(objectIdentifier, timestamp);
+            return getPermanentTable(objectIdentifier, timestamp, null);
         }
     }
 
@@ -753,6 +765,17 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                                 objectIdentifier, listCatalogs())));
     }
 
+    public ContextResolvedTable getTableOrError(
+            ObjectIdentifier objectIdentifier, Set<TableWritePrivilege> privileges) {
+        return getTable(objectIdentifier, privileges)
+                .orElseThrow(
+                        () ->
+                                new ValidationException(
+                                        String.format(
+                                                "Cannot find table '%s' in any of the catalogs %s, nor as a temporary table.",
+                                                objectIdentifier, listCatalogs())));
+    }
+
     /**
      * Retrieves a partition with a fully qualified table path and partition spec. If the path is
      * not yet fully qualified use{@link #qualifyIdentifier(UnresolvedIdentifier)} first.
@@ -777,7 +800,9 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
     }
 
     private Optional<ContextResolvedTable> getPermanentTable(
-            ObjectIdentifier objectIdentifier, @Nullable Long timestamp) {
+            ObjectIdentifier objectIdentifier,
+            @Nullable Long timestamp,
+            @Nullable Set<TableWritePrivilege> privileges) {
         Optional<Catalog> catalogOptional = getCatalog(objectIdentifier.getCatalogName());
         ObjectPath objectPath = objectIdentifier.toObjectPath();
         if (catalogOptional.isPresent()) {
@@ -792,6 +817,8 @@ public final class CatalogManager implements CatalogRegistry, AutoCloseable {
                                         "%s is a view, but time travel is not supported for view.",
                                         objectIdentifier.asSummaryString()));
                     }
+                } else if (privileges != null) {
+                    table = currentCatalog.getTable(objectPath, privileges);
                 } else {
                     table = currentCatalog.getTable(objectPath);
                 }
