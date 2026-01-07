@@ -54,29 +54,32 @@ class RowFieldExtractorSchemaTests(PyFlinkTestCase):
         schema = RowFieldExtractorSchema(0)
         self.assertIsNotNone(schema._j_serialization_schema)
 
-    def test_serialize_string_field(self):
-        """Test serializing a string field from a Row."""
+    def test_serialize_byte_array_field(self):
+        """Test serializing a byte array field from a Row."""
         schema = RowFieldExtractorSchema(0)
-        # Create a Java Row using constructor and setField
-        gateway = get_gateway()
-        j_row = gateway.jvm.org.apache.flink.types.Row(2)  # 2 fields
-        j_row.setField(0, "test-value")
-        j_row.setField(1, 123)
-        result = schema._j_serialization_schema.serialize(j_row)
-        expected = "test-value".encode('utf-8')
-        self.assertEqual(expected, bytes(result))
-
-    def test_serialize_integer_field(self):
-        """Test serializing an integer field from a Row."""
-        schema = RowFieldExtractorSchema(1)
-        # Create a Java Row using constructor and setField
         gateway = get_gateway()
         j_row = gateway.jvm.org.apache.flink.types.Row(2)
-        j_row.setField(0, "key")
-        j_row.setField(1, 42)
+
+        # Set byte array field
+        test_bytes = "test-value".encode('utf-8')
+        j_row.setField(0, test_bytes)
+        j_row.setField(1, "other-data".encode('utf-8'))
+
         result = schema._j_serialization_schema.serialize(j_row)
-        expected = "42".encode('utf-8')
-        self.assertEqual(expected, bytes(result))
+        self.assertEqual(test_bytes, bytes(result))
+
+    def test_serialize_second_field(self):
+        """Test serializing byte array from second field of a Row."""
+        schema = RowFieldExtractorSchema(1)
+        gateway = get_gateway()
+        j_row = gateway.jvm.org.apache.flink.types.Row(2)
+
+        test_bytes = "field-1-value".encode('utf-8')
+        j_row.setField(0, "field-0".encode('utf-8'))
+        j_row.setField(1, test_bytes)
+
+        result = schema._j_serialization_schema.serialize(j_row)
+        self.assertEqual(test_bytes, bytes(result))
 
     def test_serialize_null_row(self):
         """Test serializing null Row returns empty byte array."""
@@ -87,13 +90,27 @@ class RowFieldExtractorSchemaTests(PyFlinkTestCase):
     def test_serialize_null_field(self):
         """Test serializing Row with null field returns empty byte array."""
         schema = RowFieldExtractorSchema(0)
-        # Create a Java Row with null first field
         gateway = get_gateway()
         j_row = gateway.jvm.org.apache.flink.types.Row(2)
         j_row.setField(0, None)  # null field
-        j_row.setField(1, "value")
+        j_row.setField(1, "value".encode('utf-8'))
+
         result = schema._j_serialization_schema.serialize(j_row)
         self.assertEqual(0, len(result))
+
+    def test_serialize_non_byte_array_raises_error(self):
+        """Test that non-byte-array field raises IllegalArgumentException."""
+        schema = RowFieldExtractorSchema(0)
+        gateway = get_gateway()
+        j_row = gateway.jvm.org.apache.flink.types.Row(2)
+
+        # set a string instead of byte array
+        j_row.setField(0, "not-bytes")
+        j_row.setField(1, "other")
+
+        with self.assertRaises(Exception):
+            schema._j_serialization_schema.serialize(j_row)
+        # Should get IllegalArgumentException from Java
 
     def test_negative_field_index_raises_error(self):
         """Test that negative field index raises ValueError."""
@@ -112,34 +129,17 @@ class RowFieldExtractorSchemaTests(PyFlinkTestCase):
         schema0 = RowFieldExtractorSchema(0)
         schema1 = RowFieldExtractorSchema(1)
         schema2 = RowFieldExtractorSchema(2)
+
         self.assertEqual(0, schema0._j_serialization_schema.getFieldIndex())
         self.assertEqual(1, schema1._j_serialization_schema.getFieldIndex())
         self.assertEqual(2, schema2._j_serialization_schema.getFieldIndex())
-
-    def test_serialize_different_field_types(self):
-        """Test serializing different data types from Row fields."""
-        gateway = get_gateway()
-        # Test with string
-        schema_str = RowFieldExtractorSchema(0)
-        j_row_str = gateway.jvm.org.apache.flink.types.Row(2)
-        j_row_str.setField(0, "hello")
-        j_row_str.setField(1, 100)
-        result_str = schema_str._j_serialization_schema.serialize(j_row_str)
-        self.assertEqual("hello".encode('utf-8'), bytes(result_str))
-        # Test with integer
-        schema_int = RowFieldExtractorSchema(1)
-        j_row_int = gateway.jvm.org.apache.flink.types.Row(2)
-        j_row_int.setField(0, "key")
-        j_row_int.setField(1, 999)
-        result_int = schema_int._j_serialization_schema.serialize(j_row_int)
-        self.assertEqual("999".encode('utf-8'), bytes(result_int))
 
     def test_schema_equals(self):
         """Test that schemas with same field index are considered equal."""
         schema1 = RowFieldExtractorSchema(1)
         schema2 = RowFieldExtractorSchema(1)
         schema3 = RowFieldExtractorSchema(2)
-        # Test via Java equals method
+
         self.assertTrue(schema1._j_serialization_schema.equals(schema2._j_serialization_schema))
         self.assertFalse(schema1._j_serialization_schema.equals(schema3._j_serialization_schema))
 
@@ -147,6 +147,7 @@ class RowFieldExtractorSchemaTests(PyFlinkTestCase):
         """Test that schemas with same field index have same hash code."""
         schema1 = RowFieldExtractorSchema(1)
         schema2 = RowFieldExtractorSchema(1)
+
         hash1 = schema1._j_serialization_schema.hashCode()
         hash2 = schema2._j_serialization_schema.hashCode()
         self.assertEqual(hash1, hash2)

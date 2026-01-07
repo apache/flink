@@ -32,23 +32,24 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class RowFieldExtractorSchemaTest {
 
     @Test
-    void testSerializeStringField() {
+    void testSerializeByteArrayField() {
         RowFieldExtractorSchema schema = new RowFieldExtractorSchema(0);
-        Row row = Row.of("test-value", 123);
+        byte[] value = "test-value".getBytes(StandardCharsets.UTF_8);
+        Row row = Row.of(value, 123);
 
         byte[] result = schema.serialize(row);
 
-        assertThat(new String(result, StandardCharsets.UTF_8)).isEqualTo("test-value");
+        assertThat(result).isEqualTo(value);
     }
 
     @Test
-    void testSerializeIntegerField() {
+    void testSerializeNonByteArrayFieldThrowsException() {
         RowFieldExtractorSchema schema = new RowFieldExtractorSchema(1);
-        Row row = Row.of("key", 42);
+        Row row = Row.of("key", 42); // field 1 is Integer, not byte[]
 
-        byte[] result = schema.serialize(row);
-
-        assertThat(new String(result, StandardCharsets.UTF_8)).isEqualTo("42");
+        assertThatThrownBy(() -> schema.serialize(row))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must be of type byte[]");
     }
 
     @Test
@@ -76,8 +77,7 @@ class RowFieldExtractorSchemaTest {
         Row row = Row.of("field0", "field1");
 
         assertThatThrownBy(() -> schema.serialize(row))
-                .isInstanceOf(
-                        IllegalArgumentException.class) // Changed from IndexOutOfBoundsException
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Cannot access field 5 in Row with arity 2");
     }
 

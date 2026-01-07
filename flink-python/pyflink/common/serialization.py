@@ -36,6 +36,7 @@ class SerializationSchema(object):
     into a different serialized representation. Most data sinks (for example Apache Kafka) require
     the data to be handed to them in a specific format (for example as byte strings).
     """
+
     def __init__(self, j_serialization_schema=None):
         self._j_serialization_schema = j_serialization_schema
 
@@ -49,6 +50,7 @@ class DeserializationSchema(object):
     In addition, the DeserializationSchema describes the produced type which lets Flink create
     internal serializers and structures to handle the type.
     """
+
     def __init__(self, j_deserialization_schema=None):
         self._j_deserialization_schema = j_deserialization_schema
 
@@ -131,30 +133,36 @@ class RowDataBulkWriterFactory(BulkWriterFactory):
 
 class RowFieldExtractorSchema(SerializationSchema):
     """
-    Serialization schema that extracts a specific field from a Row and serializes it as a
-    UTF-8 encoded byte array.
-
+    Serialization schema that extracts a specific field from a Row and returns it as a
+    byte array. The field at the specified index MUST be of type bytes (byte array).
     This schema is particularly useful when using Flink with Kafka, where you may want to use a
     specific field as the message key for partition routing.
+    The field being extracted must already be a byte array. Users are responsible for
+    converting their data to bytes before passing it to this schema.
 
     Example usage with Kafka:
         >>> from pyflink.common.serialization import RowFieldExtractorSchema
         >>> from pyflink.datastream.connectors.kafka import KafkaSink, \
             KafkaRecordSerializationSchema
+        >>>
+        >>> # User must convert data to bytes beforehand
+        >>> # For example: Row.of(b"key-bytes", b"value-bytes")
+        >>>
         >>> sink = KafkaSink.builder() \\
         ...     .set_bootstrap_servers("localhost:9092") \\
         ...     .set_record_serializer(
         ...         KafkaRecordSerializationSchema.builder()
         ...             .set_topic("my-topic")
         ...             .set_key_serialization_schema(RowFieldExtractorSchema(0))
-                        # Field 0 as key
+                        # Field 0 (must be bytes) as key
         ...             .set_value_serialization_schema(RowFieldExtractorSchema(1))
-                        # Field 1 as value
+                        # Field 1 (must be bytes) as value
         ...             .build()
         ...     ) \\
         ...     .build()
 
     :param field_index: The zero-based index of the field to extract from the Row.
+    The field at this index must be of type bytes.
     """
 
     def __init__(self, field_index: int):

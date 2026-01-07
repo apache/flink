@@ -23,19 +23,15 @@ import org.apache.flink.types.Row;
 
 import javax.annotation.Nullable;
 
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
- * Serialization schema that extracts a specific field from a {@link Row} and serializes it as a
- * UTF-8 encoded byte array.
+ * Serialization schema that extracts a specific field from a {@link Row} and returns it as a byte
+ * array.
  *
- * <p>This schema is particularly useful when using Flink with Kafka, where you may want to use a
- * specific field as the message key for partition routing.
- *
- * <p>By default, the serializer uses "UTF-8" for string/byte conversion.
+ * <p>The field is required to be of type {@code byte[]}. This schema is particularly useful when
+ * using Flink with Kafka, where you may want to use one Row field as the message key and another as
+ * the value and perform the conversion to bytes explicitly in user code.
  *
  * <p>Example usage with Kafka:
  *
@@ -45,8 +41,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *     .setRecordSerializer(
  *         KafkaRecordSerializationSchema.builder()
  *             .setTopic("my-topic")
- *             .setKeySerializationSchema(new RowFieldExtractorSchema(0))    // Use field 0 as key
- *             .setValueSerializationSchema(new RowFieldExtractorSchema(1))  // Use field 1 as value
+ *             .setKeySerializationSchema(new RowFieldExtractorSchema(0))    // field 0 as key
+ *             .setValueSerializationSchema(new RowFieldExtractorSchema(1))  // field 1 as value
  *             .build())
  *     .build();
  * }</pre>
@@ -55,9 +51,6 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 public class RowFieldExtractorSchema implements SerializationSchema<Row> {
 
     private static final long serialVersionUID = 1L;
-
-    /** The charset to use for string/byte conversion. */
-    private static final Charset CHARSET = StandardCharsets.UTF_8;
 
     /** The index of the field to extract from the Row. */
     private final int fieldIndex;
@@ -100,7 +93,14 @@ public class RowFieldExtractorSchema implements SerializationSchema<Row> {
             return new byte[0];
         }
 
-        return field.toString().getBytes(CHARSET);
+        if (!(field instanceof byte[])) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "Field at index %s must be of type byte[], but was %s",
+                            fieldIndex, field.getClass().getName()));
+        }
+
+        return (byte[]) field;
     }
 
     @Override
