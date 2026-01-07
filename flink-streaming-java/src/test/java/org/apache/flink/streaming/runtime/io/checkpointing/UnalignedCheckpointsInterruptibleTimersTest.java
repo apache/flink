@@ -26,7 +26,6 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
-import org.apache.flink.streaming.api.operators.MailboxWatermarkProcessor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.operators.Triggerable;
@@ -170,7 +169,6 @@ class UnalignedCheckpointsInterruptibleTimersTest {
 
         private final Map<Instant, Integer> timersToRegister;
         private transient @Nullable MailboxExecutor mailboxExecutor;
-        private transient @Nullable MailboxWatermarkProcessor watermarkProcessor;
 
         MultipleTimersAtTheSameTimestamp() {
             this(Collections.emptyMap());
@@ -181,18 +179,14 @@ class UnalignedCheckpointsInterruptibleTimersTest {
         }
 
         @Override
-        public void setMailboxExecutor(MailboxExecutor mailboxExecutor) {
-            this.mailboxExecutor = mailboxExecutor;
+        public boolean useInterruptibleTimers() {
+            return true;
         }
 
         @Override
-        public void open() throws Exception {
-            super.open();
-            if (getTimeServiceManager().isPresent()) {
-                this.watermarkProcessor =
-                        new MailboxWatermarkProcessor(
-                                output, mailboxExecutor, getTimeServiceManager().get());
-            }
+        public void setMailboxExecutor(MailboxExecutor mailboxExecutor) {
+            super.setMailboxExecutor(mailboxExecutor);
+            this.mailboxExecutor = mailboxExecutor;
         }
 
         @Override
@@ -209,15 +203,6 @@ class UnalignedCheckpointsInterruptibleTimersTest {
                                 entry.getKey().toEpochMilli());
                     }
                 }
-            }
-        }
-
-        @Override
-        public void processWatermark(Watermark mark) throws Exception {
-            if (watermarkProcessor == null) {
-                super.processWatermark(mark);
-            } else {
-                watermarkProcessor.emitWatermarkInsideMailbox(mark);
             }
         }
 
