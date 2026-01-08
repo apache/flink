@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.planner.runtime.utils;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
+import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.testutils.FlinkAssertions;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Model;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
@@ -241,7 +242,10 @@ public abstract class MLPredictITCaseBase {
 
     private void createScanTable(String tableName, List<Row> data) {
         String dataId = TestValuesTableFactory.registerData(data);
-        String bounded = tEnv instanceof StreamExecutionEnvironment ? "false" : "true";
+        String bounded =
+                tEnv.getConfig().get(ExecutionOptions.RUNTIME_MODE) == RuntimeExecutionMode.BATCH
+                        ? "true"
+                        : "false";
         tEnv.executeSql(
                 String.format(
                         "CREATE TABLE `%s`(\n"

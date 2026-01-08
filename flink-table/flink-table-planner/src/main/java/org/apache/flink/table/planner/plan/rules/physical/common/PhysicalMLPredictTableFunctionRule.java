@@ -73,7 +73,7 @@ public class PhysicalMLPredictTableFunctionRule extends ConverterRule {
                             FlinkLogicalTableFunctionScan.class,
                             FlinkConventions.LOGICAL(),
                             FlinkConventions.BATCH_PHYSICAL(),
-                            "PhysicalMLPredictTableFunctionRule:Batch"));
+                            "BatchPhysicalMLPredictTableFunctionRule"));
 
     public static final PhysicalMLPredictTableFunctionRule STREAM_INSTANCE =
             new PhysicalMLPredictTableFunctionRule(
@@ -81,7 +81,7 @@ public class PhysicalMLPredictTableFunctionRule extends ConverterRule {
                             FlinkLogicalTableFunctionScan.class,
                             FlinkConventions.LOGICAL(),
                             FlinkConventions.STREAM_PHYSICAL(),
-                            "PhysicalMLPredictTableFunctionRule:Stream"));
+                            "StreamPhysicalMLPredictTableFunctionRule"));
 
     private PhysicalMLPredictTableFunctionRule(Config config) {
         super(config);

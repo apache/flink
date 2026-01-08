@@ -16,19 +16,22 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.testutils;
+package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.table.planner.plan.nodes.exec.testutils.BatchSemanticTestBase;
 import org.apache.flink.table.test.program.TableTestProgram;
 
-/**
- * Base for tests that do not fall into the {@link RestoreTestBase} category, but use the {@link
- * TableTestProgram} infrastructure for testing whether the execution result is semantically
- * correct.
- */
-public abstract class SemanticTestBase extends CommonSemanticTestBase {
+import java.util.List;
+
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.ML_PREDICT_ANON_MODEL_API;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.ML_PREDICT_MODEL_API;
+import static org.apache.flink.table.planner.plan.nodes.exec.stream.MLPredictTestPrograms.SYNC_ML_PREDICT_TABLE_API;
+
+/** Semantic tests for {@link BatchExecMLPredictTableFunction} using Table API. */
+public class MLPredictBatchSemanticTests extends BatchSemanticTestBase {
 
     @Override
-    protected boolean isBounded() {
-        return false;
+    public List<TableTestProgram> programs() {
+        return List.of(SYNC_ML_PREDICT_TABLE_API, ML_PREDICT_MODEL_API, ML_PREDICT_ANON_MODEL_API);
     }
 }

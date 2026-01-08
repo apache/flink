@@ -16,27 +16,38 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.runtime.stream.table;
+package org.apache.flink.table.planner.runtime.stream.sql;
 
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMLPredictTableFunction;
 import org.apache.flink.table.planner.runtime.utils.MLPredictITCaseBase;
 
-/** ITCase for {@link StreamExecMLPredictTableFunction}. */
-public class MLPredictITCase extends MLPredictITCaseBase {
+import org.junit.jupiter.api.BeforeEach;
+
+/** ITCase for async ML_PREDICT in stream mode. */
+public class AsyncMLPredictITCase extends MLPredictITCaseBase {
+
+    private StreamExecutionEnvironment env;
+
+    @BeforeEach
+    @Override
+    public void before() throws Exception {
+        env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(4);
+        env.getConfig().enableObjectReuse();
+        super.before();
+    }
 
     @Override
     protected TableEnvironment getTableEnvironment() {
         EnvironmentSettings settings = EnvironmentSettings.newInstance().inStreamingMode().build();
-        return StreamTableEnvironment.create(
-                StreamExecutionEnvironment.getExecutionEnvironment(), settings);
+        return StreamTableEnvironment.create(env, settings);
     }
 
     @Override
     protected boolean isAsync() {
-        return false;
+        return true;
     }
 }
