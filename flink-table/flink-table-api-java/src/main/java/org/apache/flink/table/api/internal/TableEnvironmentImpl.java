@@ -120,6 +120,8 @@ import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 import org.apache.flink.table.resource.ResourceManager;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
+import org.apache.flink.table.secret.SecretStore;
+import org.apache.flink.table.secret.SecretStoreFactory;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
@@ -267,6 +269,19 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             catalogStoreFactory.open(context);
             catalogStore = catalogStoreFactory.createCatalogStore();
         }
+
+        final SecretStoreFactory secretStoreFactory =
+                TableFactoryUtil.findAndCreateSecretStoreFactory(
+                        settings.getConfiguration(), userClassLoader);
+        final SecretStoreFactory.Context secretStoreContext =
+                TableFactoryUtil.buildSecretStoreFactoryContext(
+                        settings.getConfiguration(), userClassLoader);
+        secretStoreFactory.open(secretStoreContext);
+        // TODO: pass secret store to catalog manager for encryption/decryption
+        final SecretStore secretStore =
+                settings.getSecretStore() != null
+                        ? settings.getSecretStore()
+                        : secretStoreFactory.createSecretStore();
 
         // use configuration to init table config
         final TableConfig tableConfig = TableConfig.getDefault();
