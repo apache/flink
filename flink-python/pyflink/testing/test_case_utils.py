@@ -28,6 +28,7 @@ import time
 import unittest
 from abc import abstractmethod
 from decimal import Decimal
+from functools import wraps
 
 from py4j.java_gateway import JavaObject
 
@@ -457,3 +458,43 @@ def to_java_data_structure(value):
         return j_row
     else:
         raise TypeError('unsupported value type {}'.format(str(type(value))))
+
+
+def run_with_config(config_dict):
+    """
+    Decorator to run a test with specific configuration and restore previous config after test.
+
+    :param config_dict: Dictionary of configuration key-value pairs to set for the test.
+    """
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            # Save original configuration values
+            from pyflink.util.java_utils import get_j_env_configuration
+            config = get_j_env_configuration(self.env._j_stream_execution_environment)
+            original_config = {}
+            for key in config_dict:
+                try:
+                    original_config[key] = config.getString(key)
+                except:
+                    original_config[key] = None
+
+            # Set new configuration
+            for key, value in config_dict.items():
+                config.setString(key, value)
+
+            try:
+                # Run the test
+                return func(self, *args, **kwargs)
+            finally:
+                # Restore original configuration
+                for key, original_value in original_config.items():
+                    if original_value is not None:
+                        config.setString(key, original_value)
+                    else:
+                        config.removeKey(key)
+
+        return wrapper
+
+    return decorator
