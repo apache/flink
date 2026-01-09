@@ -15,37 +15,3 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-from abc import ABC
-
-DATA_STREAM_STATELESS_FUNCTION_URN = "flink:transform:ds:stateless_function:v1"
-DATA_STREAM_STATEFUL_FUNCTION_URN = "flink:transform:ds:stateful_function:v1"
-
-
-class Operation(ABC):
-
-    def open(self) -> None:
-        pass
-
-    def close(self) -> None:
-        pass
-
-
-class OneInputOperation(ABC):
-
-    def process_element(self, value):
-        raise NotImplementedError
-
-
-class TwoInputOperation(ABC):
-    def process_element1(self, value):
-        raise NotImplementedError
-
-    def process_element2(self, value):
-        raise NotImplementedError
-
-
-class AsyncOperationMixin:
-    """Mixin interface for async operations that require output processor."""
-
-    def set_output_processor(self, output_processor):
-        raise NotImplementedError
