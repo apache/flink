@@ -27,7 +27,8 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 from pyflink.common.constants import DEFAULT_OUTPUT_TAG
 from pyflink.datastream.functions import AsyncFunctionDescriptor
-from pyflink.fn_execution.datastream.process.async_function.operation import AsyncOperation
+from pyflink.fn_execution.datastream.process.async_function.operation import AsyncOperation, \
+    AsyncOperationMixin
 from pyflink.fn_execution.flink_fn_execution_pb2 import UserDefinedDataStreamFunction
 from pyflink.fn_execution.table.operations import BundleOperation
 from pyflink.fn_execution.profiler import Profiler
@@ -92,7 +93,7 @@ class FunctionOperation(Operation):
             self._has_side_output = False
         if not self._has_side_output:
             self._main_output_processor = self._output_processors[DEFAULT_OUTPUT_TAG][0]
-            if isinstance(self.operation, AsyncOperation):
+            if isinstance(self.operation, AsyncOperationMixin):
                 self.operation.set_output_processor(self._main_output_processor)
 
         self.operation.open()
@@ -152,10 +153,16 @@ class FunctionOperation(Operation):
                     for value in o.value:
                         self.process_element(value)
                     self._main_output_processor.process_outputs(o, self.operation.finish_bundle())
-                elif isinstance(self.operation, AsyncOperation):
-                    for value in o.value:
-                        # it processes the input asynchronously
-                        self.operation.process_element(o, value)
+                elif isinstance(self.operation, AsyncOperationMixin):
+                    # it processes the input asynchronously
+                    if isinstance(self.operation, AsyncOperation):
+                        # for datastream
+                        for value in o.value:
+                            self.operation.process_element(o, value)
+                    else:
+                        # for table & sql
+                        for value in o.value:
+                            self.process_element(value)
                 else:
                     for value in o.value:
                         self._main_output_processor.process_outputs(
