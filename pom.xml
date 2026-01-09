@@ -51,8 +51,8 @@ under the License.
 
 	<repositories>
 		<repository>
-			<id>temporary-shaded-rc</id>
-			<url>https://repository.apache.org/content/repositories/orgapacheflink-1875/</url>
+			<id>temporary-shaded-rc3</id>
+			<url>https://repository.apache.org/content/repositories/orgapacheflink-1878/</url>
 		</repository>
 
 
