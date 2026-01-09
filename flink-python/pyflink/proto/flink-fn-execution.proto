@@ -64,6 +64,16 @@ message UserDefinedFunction {
   bool is_pandas_udf = 5;
 }
 
+// Async execution configuration for async functions
+message AsyncOptions {
+  int32 max_concurrent_operations = 1;  // Max number of concurrent async operations
+  int64 timeout_ms = 2;  // Timeout in milliseconds for async operations
+  // Async retry strategy configuration
+  bool retry_enabled = 3;  // Whether retry is enabled
+  int32 retry_max_attempts = 4;  // Maximum number of retry attempts
+  int64 retry_delay_ms = 5;  // Delay between retries in milliseconds
+}
+
 // A list of user-defined functions to be executed in a batch.
 message UserDefinedFunctions {
   repeated UserDefinedFunction udfs = 1;
@@ -71,6 +81,7 @@ message UserDefinedFunctions {
   repeated OverWindow windows = 3;
   bool profile_enabled = 4;
   repeated JobParameter job_parameters = 5;
+  AsyncOptions async_options = 6;
 }
 
 // Used to describe the info of over window in pandas batch over window aggregation

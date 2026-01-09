@@ -55,19 +55,35 @@ class UserDefinedFunction(_message.Message):
     is_pandas_udf: bool
     def __init__(self, payload: _Optional[bytes] = ..., inputs: _Optional[_Iterable[_Union[Input, _Mapping]]] = ..., window_index: _Optional[int] = ..., takes_row_as_input: bool = ..., is_pandas_udf: bool = ...) -> None: ...
 
+class AsyncOptions(_message.Message):
+    __slots__ = ("max_concurrent_operations", "timeout_ms", "retry_enabled", "retry_max_attempts", "retry_delay_ms")
+    MAX_CONCURRENT_OPERATIONS_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    RETRY_ENABLED_FIELD_NUMBER: _ClassVar[int]
+    RETRY_MAX_ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
+    RETRY_DELAY_MS_FIELD_NUMBER: _ClassVar[int]
+    max_concurrent_operations: int
+    timeout_ms: int
+    retry_enabled: bool
+    retry_max_attempts: int
+    retry_delay_ms: int
+    def __init__(self, max_concurrent_operations: _Optional[int] = ..., timeout_ms: _Optional[int] = ..., retry_enabled: bool = ..., retry_max_attempts: _Optional[int] = ..., retry_delay_ms: _Optional[int] = ...) -> None: ...
+
 class UserDefinedFunctions(_message.Message):
-    __slots__ = ("udfs", "metric_enabled", "windows", "profile_enabled", "job_parameters")
+    __slots__ = ("udfs", "metric_enabled", "windows", "profile_enabled", "job_parameters", "async_options")
     UDFS_FIELD_NUMBER: _ClassVar[int]
     METRIC_ENABLED_FIELD_NUMBER: _ClassVar[int]
     WINDOWS_FIELD_NUMBER: _ClassVar[int]
     PROFILE_ENABLED_FIELD_NUMBER: _ClassVar[int]
     JOB_PARAMETERS_FIELD_NUMBER: _ClassVar[int]
+    ASYNC_OPTIONS_FIELD_NUMBER: _ClassVar[int]
     udfs: _containers.RepeatedCompositeFieldContainer[UserDefinedFunction]
     metric_enabled: bool
     windows: _containers.RepeatedCompositeFieldContainer[OverWindow]
     profile_enabled: bool
     job_parameters: _containers.RepeatedCompositeFieldContainer[JobParameter]
-    def __init__(self, udfs: _Optional[_Iterable[_Union[UserDefinedFunction, _Mapping]]] = ..., metric_enabled: bool = ..., windows: _Optional[_Iterable[_Union[OverWindow, _Mapping]]] = ..., profile_enabled: bool = ..., job_parameters: _Optional[_Iterable[_Union[JobParameter, _Mapping]]] = ...) -> None: ...
+    async_options: AsyncOptions
+    def __init__(self, udfs: _Optional[_Iterable[_Union[UserDefinedFunction, _Mapping]]] = ..., metric_enabled: bool = ..., windows: _Optional[_Iterable[_Union[OverWindow, _Mapping]]] = ..., profile_enabled: bool = ..., job_parameters: _Optional[_Iterable[_Union[JobParameter, _Mapping]]] = ..., async_options: _Optional[_Union[AsyncOptions, _Mapping]] = ...) -> None: ...
 
 class OverWindow(_message.Message):
     __slots__ = ("window_type", "lower_boundary", "upper_boundary")

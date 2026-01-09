@@ -378,6 +378,25 @@ object FlinkBatchRuleSets {
     PythonCalcSplitRule.REWRITE_PROJECT,
     PythonMapRenameRule.INSTANCE,
     PythonMapMergeRule.INSTANCE,
+    AsyncCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
+    // Avoids accessing a field from an asynchronous result (projection).
+    AsyncCalcSplitRule.SPLIT_PROJECTION_REX_FIELD,
+    // Avoid having async calls in join conditions if they aren't already pushed down
+    AsyncCalcSplitRule.NO_ASYNC_JOIN_CONDITIONS,
+    // Avoids dealing with an async call in the condition.
+    AsyncCalcSplitRule.SPLIT_CONDITION,
+    // Avoids dealing with Java calls in the same Calc as Async calls.
+    AsyncCalcSplitRule.SPLIT_PROJECT,
+    // Avoid accessing a field as input to an async call with a single calc.
+    AsyncCalcSplitRule.EXPAND_PROJECT,
+    // Avoid having any condition in an async calc by pushing it first.
+    AsyncCalcSplitRule.PUSH_CONDITION,
+    // Orders the projections so that input references are first, followed by async calls.
+    AsyncCalcSplitRule.REWRITE_PROJECT,
+    // Avoid async calls which call async calls.
+    AsyncCalcSplitRule.NESTED_SPLIT,
+    // Avoid having async calls in multiple projections in a single calc.
+    AsyncCalcSplitRule.ONE_PER_CALC_SPLIT,
     // remove output of rank number when it is not used by successor calc
     RedundantRankNumberColumnRemoveRule.INSTANCE
   )
@@ -394,6 +413,7 @@ object FlinkBatchRuleSets {
     // calc
     BatchPhysicalCalcRule.INSTANCE,
     BatchPhysicalPythonCalcRule.INSTANCE,
+    BatchPhysicalPythonAsyncCalcRule.INSTANCE,
     // union
     BatchPhysicalUnionRule.INSTANCE,
     // sort

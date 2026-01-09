@@ -455,6 +455,7 @@ object FlinkStreamRuleSets {
     // calc
     StreamPhysicalCalcRule.INSTANCE,
     StreamPhysicalPythonCalcRule.INSTANCE,
+    StreamPhysicalPythonAsyncCalcRule.INSTANCE,
     StreamPhysicalAsyncCalcRule.INSTANCE,
     // union
     StreamPhysicalUnionRule.INSTANCE,
