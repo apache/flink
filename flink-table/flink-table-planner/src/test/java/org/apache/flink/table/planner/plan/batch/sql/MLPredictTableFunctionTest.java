@@ -16,19 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.plan.nodes.exec.testutils;
+package org.apache.flink.table.planner.plan.batch.sql;
 
-import org.apache.flink.table.test.program.TableTestProgram;
+import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.planner.plan.common.MLPredictTableFunctionTestBase;
+import org.apache.flink.table.planner.utils.TableTestUtil;
 
-/**
- * Base for tests that do not fall into the {@link RestoreTestBase} category, but use the {@link
- * TableTestProgram} infrastructure for testing whether the execution result is semantically
- * correct.
- */
-public abstract class SemanticTestBase extends CommonSemanticTestBase {
+/** Tests for ML_PREDICT table function in batch mode. */
+public class MLPredictTableFunctionTest extends MLPredictTableFunctionTestBase {
 
     @Override
-    protected boolean isBounded() {
-        return false;
+    protected TableTestUtil getUtil() {
+        return batchTestUtil(TableConfig.getDefault());
     }
 }

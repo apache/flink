@@ -21,14 +21,13 @@ package org.apache.flink.table.planner.plan.nodes.exec.testutils;
 import org.apache.flink.table.test.program.TableTestProgram;
 
 /**
- * Base for tests that do not fall into the {@link RestoreTestBase} category, but use the {@link
- * TableTestProgram} infrastructure for testing whether the execution result is semantically
- * correct.
+ * Base for batch semantic tests that use the {@link TableTestProgram} infrastructure for testing
+ * whether the execution result is semantically correct in batch mode.
  */
-public abstract class SemanticTestBase extends CommonSemanticTestBase {
+public abstract class BatchSemanticTestBase extends CommonSemanticTestBase {
 
     @Override
     protected boolean isBounded() {
-        return false;
+        return true;
     }
 }

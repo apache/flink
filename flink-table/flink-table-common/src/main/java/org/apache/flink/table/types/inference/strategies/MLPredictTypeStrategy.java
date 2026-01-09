@@ -157,7 +157,7 @@ public class MLPredictTypeStrategy {
             return Optional.empty();
         }
 
-        // Config map validation is done in StreamPhysicalMLPredictTableFunctionRule since
+        // Config map validation is done in PhysicalMLPredictTableFunctionRule since
         // we are not able to get map literal here.
         return Optional.of(callContext.getArgumentDataTypes());
     }

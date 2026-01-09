@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions;
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan;
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalProcessTableFunction;
+import org.apache.flink.table.planner.plan.rules.physical.common.PhysicalMLPredictTableFunctionRule;
 import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 
@@ -71,7 +72,7 @@ public class StreamPhysicalProcessTableFunctionRule extends ConverterRule {
         final RexCall rexCall = (RexCall) scan.getCall();
         final FunctionDefinition definition = ShortcutUtils.unwrapFunctionDefinition(rexCall);
         return definition != null
-                && !StreamPhysicalMLPredictTableFunctionRule.isMLPredictFunction(definition)
+                && !PhysicalMLPredictTableFunctionRule.isMLPredictFunction(definition)
                 && definition.getKind() == FunctionKind.PROCESS_TABLE;
     }
 
