@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.testutils;
 
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonAsyncCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCalc;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonGroupAggregate;
@@ -55,6 +56,7 @@ public class RestoreTestCompleteness {
                     add(StreamExecPythonGroupAggregate.class);
                     add(StreamExecPythonGroupTableAggregate.class);
                     add(StreamExecPythonGroupWindowAggregate.class);
+                    add(StreamExecPythonAsyncCalc.class);
                 }
             };
 

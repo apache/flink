@@ -1,0 +1,302 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAsyncAndSyncPythonFunctionInWhereClause">
+    <Resource name="sql">
+      <![CDATA[SELECT asyncFunc1(a, b) FROM MyTable WHERE pyFunc1(a, c) > 0 AND asyncFunc2(b, c) > 0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[asyncFunc1($0, $1)])
++- LogicalFilter(condition=[AND(>(pyFunc1($0, $2), 0), >(asyncFunc2($1, $2), 0))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[asyncFunc1(a, b) AS EXPR$0])
++- FlinkLogicalCalc(select=[a, b], where=[AND(>(f0, 0), >(f1, 0))])
+   +- FlinkLogicalCalc(select=[a, b, pyFunc1(a, c) AS f0, f0 AS f1])
+      +- FlinkLogicalCalc(select=[a, b, c, asyncFunc2(b, c) AS f0])
+         +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAsyncPythonFunctionAsInputOfJavaFunction">
+    <Resource name="sql">
+      <![CDATA[SELECT asyncFunc1(a, b) + 1 FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[+(asyncFunc1($0, $1), 1)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[+(f0, 1) AS EXPR$0])
++- FlinkLogicalCalc(select=[asyncFunc1(a, b) AS f0])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAsyncPythonFunctionInWhereClause">
+    <Resource name="sql">
+      <![CDATA[SELECT asyncFunc1(a, b) FROM MyTable WHERE asyncFunc2(a, c) > 0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[asyncFunc1($0, $1)])
++- LogicalFilter(condition=[>(asyncFunc2($0, $2), 0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[asyncFunc1(a, b) AS EXPR$0])
++- FlinkLogicalCalc(select=[a, b], where=[>(f0, 0)])
+   +- FlinkLogicalCalc(select=[a, b, asyncFunc2(a, c) AS f0])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAsyncPythonFunctionMixedWithJavaFunction">
+    <Resource name="sql">
+      <![CDATA[SELECT asyncFunc1(a, b), c + 1 FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[asyncFunc1($0, $1)], EXPR$1=[+($2, 1)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
++- FlinkLogicalCalc(select=[c, asyncFunc1(a, b) AS f0])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAsyncPythonFunctionMixedWithJavaFunctionInWhereClause">
+    <Resource name="sql">
+      <![CDATA[SELECT asyncFunc1(a, b), c + 1 FROM MyTable WHERE asyncFunc2(a, c) > 0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[asyncFunc1($0, $1)], EXPR$1=[+($2, 1)])
++- LogicalFilter(condition=[>(asyncFunc2($0, $2), 0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[f0 AS EXPR$0, +(c, 1) AS EXPR$1])
++- FlinkLogicalCalc(select=[c, asyncFunc1(a, b) AS f0])
+   +- FlinkLogicalCalc(select=[c, a, b], where=[>(f0, 0)])
+      +- FlinkLogicalCalc(select=[a, b, c, asyncFunc2(a, c) AS f0])
+         +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAsyncPythonFunctionMixedWithSyncPythonFunction">
+    <Resource name="sql">
+      <![CDATA[SELECT asyncFunc1(a, b), pyFunc1(b, c) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[asyncFunc1($0, $1)], EXPR$1=[pyFunc1($1, $2)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[f0 AS EXPR$0, pyFunc1(b, c) AS EXPR$1])
++- FlinkLogicalCalc(select=[b, c, asyncFunc1(a, b) AS f0])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAsyncPythonFunctionNotChainingWithSyncPythonFunction">
+    <Resource name="sql">
+      <![CDATA[SELECT pyFunc1(a, asyncFunc1(a, b)) + 1 FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[+(pyFunc1($0, asyncFunc1($0, $1)), 1)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[+(f0, 1) AS EXPR$0])
++- FlinkLogicalCalc(select=[pyFunc1(a, f0) AS f0])
+   +- FlinkLogicalCalc(select=[a, asyncFunc1(a, b) AS f0])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAsyncPythonFunctionWithLiteral">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b, asyncFunc1(a, c), 1 FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], EXPR$2=[asyncFunc1($0, $2)], EXPR$3=[1])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b, f0 AS EXPR$2, 1 AS EXPR$3])
++- FlinkLogicalCalc(select=[a, b, asyncFunc1(a, c) AS f0])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAsyncPythonFunctionWithMultipleInputs">
+    <Resource name="sql">
+      <![CDATA[SELECT asyncFunc1(a, b), asyncFunc2(b, c), a + b FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[asyncFunc1($0, $1)], EXPR$1=[asyncFunc2($1, $2)], EXPR$2=[+($0, $1)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[f0 AS EXPR$0, f1 AS EXPR$1, +(a, b) AS EXPR$2])
++- FlinkLogicalCalc(select=[a, b, f0, asyncFunc2(b, c) AS f1])
+   +- FlinkLogicalCalc(select=[a, b, c, asyncFunc1(a, b) AS f0])
+      +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChainingAsyncPythonFunction">
+    <Resource name="sql">
+      <![CDATA[SELECT asyncFunc3(asyncFunc2(a + asyncFunc1(a, c), b), c) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[asyncFunc3(asyncFunc2(+($0, asyncFunc1($0, $2)), $1), $2)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[asyncFunc3(f0, c) AS EXPR$0])
++- FlinkLogicalCalc(select=[c, asyncFunc2(f0, b) AS f0])
+   +- FlinkLogicalCalc(select=[b, c, +(a, f0) AS f0])
+      +- FlinkLogicalCalc(select=[b, c, a, asyncFunc1(a, c) AS f0])
+         +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultipleAsyncPythonFunctions">
+    <Resource name="sql">
+      <![CDATA[SELECT asyncFunc1(a, b), asyncFunc2(b, c) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[asyncFunc1($0, $1)], EXPR$1=[asyncFunc2($1, $2)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[f0 AS EXPR$0, asyncFunc2(b, c) AS EXPR$1])
++- FlinkLogicalCalc(select=[b, c, asyncFunc1(a, b) AS f0])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnlyOneAsyncPythonFunction">
+    <Resource name="sql">
+      <![CDATA[SELECT asyncFunc1(a, b) FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[asyncFunc1($0, $1)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[asyncFunc1(a, b) AS EXPR$0])
++- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnlyOneAsyncPythonFunctionInWhereClause">
+    <Resource name="sql">
+      <![CDATA[SELECT a, b FROM MyTable WHERE asyncFunc1(a, c) > 0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1])
++- LogicalFilter(condition=[>(asyncFunc1($0, $2), 0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, b], where=[>(f0, 0)])
++- FlinkLogicalCalc(select=[a, b, asyncFunc1(a, c) AS f0])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReorderAsyncPythonCalc">
+    <Resource name="sql">
+      <![CDATA[SELECT a, asyncFunc1(a, c), b FROM MyTable]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[asyncFunc1($0, $2)], b=[$1])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, f0 AS EXPR$1, b])
++- FlinkLogicalCalc(select=[a, b, asyncFunc1(a, c) AS f0])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSameAsyncPythonFunctionUsedInBothSelectAndWhere">
+    <Resource name="sql">
+      <![CDATA[SELECT a, asyncFunc1(a, c) FROM MyTable WHERE asyncFunc1(a, c) > 0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], EXPR$1=[asyncFunc1($0, $2)])
++- LogicalFilter(condition=[>(asyncFunc1($0, $2), 0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+FlinkLogicalCalc(select=[a, f0 AS EXPR$1], where=[>(f0, 0)])
++- FlinkLogicalCalc(select=[a, asyncFunc1(a, c) AS f0])
+   +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

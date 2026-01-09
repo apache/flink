@@ -378,6 +378,17 @@ object FlinkBatchRuleSets {
     PythonCalcSplitRule.REWRITE_PROJECT,
     PythonMapRenameRule.INSTANCE,
     PythonMapMergeRule.INSTANCE,
+    // Splits Python calc which contains Python async scalar functions and other Python functions
+    PythonAsyncCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
+    PythonAsyncCalcSplitRule.SPLIT_PROJECTION_REX_FIELD,
+    PythonAsyncCalcSplitRule.NO_ASYNC_JOIN_CONDITIONS,
+    PythonAsyncCalcSplitRule.SPLIT_CONDITION,
+    PythonAsyncCalcSplitRule.SPLIT_PROJECT,
+    PythonAsyncCalcSplitRule.EXPAND_PROJECT,
+    PythonAsyncCalcSplitRule.PUSH_CONDITION,
+    PythonAsyncCalcSplitRule.REWRITE_PROJECT,
+    PythonAsyncCalcSplitRule.NESTED_SPLIT,
+    PythonAsyncCalcSplitRule.ONE_PER_CALC_SPLIT,
     // remove output of rank number when it is not used by successor calc
     RedundantRankNumberColumnRemoveRule.INSTANCE
   )
@@ -394,6 +405,7 @@ object FlinkBatchRuleSets {
     // calc
     BatchPhysicalCalcRule.INSTANCE,
     BatchPhysicalPythonCalcRule.INSTANCE,
+    BatchPhysicalPythonAsyncCalcRule.INSTANCE,
     // union
     BatchPhysicalUnionRule.INSTANCE,
     // sort
