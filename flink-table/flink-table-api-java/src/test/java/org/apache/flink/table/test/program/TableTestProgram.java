@@ -19,6 +19,7 @@
 package org.apache.flink.table.test.program;
 
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.table.api.SinkConflictStrategy;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableRuntimeException;
 import org.apache.flink.table.api.ValidationException;
@@ -407,8 +408,16 @@ public class TableTestProgram {
             return this;
         }
 
+        public Builder runTableApi(
+                Function<TableEnvAccessor, Table> toTable,
+                String sinkName,
+                SinkConflictStrategy conflictStrategy) {
+            this.runSteps.add(new TableApiTestStep(toTable, sinkName, conflictStrategy));
+            return this;
+        }
+
         public Builder runTableApi(Function<TableEnvAccessor, Table> toTable, String sinkName) {
-            this.runSteps.add(new TableApiTestStep(toTable, sinkName));
+            this.runSteps.add(new TableApiTestStep(toTable, sinkName, null));
             return this;
         }
 

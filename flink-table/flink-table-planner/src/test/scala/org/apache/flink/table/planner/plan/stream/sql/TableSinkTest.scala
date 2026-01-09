@@ -499,6 +499,8 @@ class TableSinkTest extends TableTestBase {
         |SELECT T.person, T.sum_votes, award.prize FROM
         |   (SELECT person, SUM(votes) AS sum_votes FROM src GROUP BY person) T, award
         |   WHERE T.sum_votes = award.votes
+        |ON CONFLICT
+        |DO DEDUPLICATE
         |""".stripMargin)
   }
 
@@ -522,6 +524,7 @@ class TableSinkTest extends TableTestBase {
         |   FROM (SELECT person, SUM(votes) AS sum_votes, SUM(votes) / 2 AS vote_section FROM src
         |      GROUP BY person))
         |   WHERE rank_number < 10
+        |ON CONFLICT DO DEDUPLICATE
         |""".stripMargin)
   }
 
@@ -546,7 +549,7 @@ class TableSinkTest extends TableTestBase {
                       | 'sink.parallelism' = '9'
                       |)""".stripMargin)
     val stmtSet = tEnv.asInstanceOf[TestingTableEnvironment].createStatementSet
-    stmtSet.addInsertSql("insert into sink select * from source")
+    stmtSet.addInsertSql("insert into sink select * from source on conflict do deduplicate")
     // we set the sink parallelism to 9 which differs from the source, expect 'keyby' was added.
     util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
   }
@@ -575,7 +578,7 @@ class TableSinkTest extends TableTestBase {
                       | 'sink.parallelism' = '9'
                       |)""".stripMargin)
     val stmtSet = tEnv.asInstanceOf[TestingTableEnvironment].createStatementSet
-    stmtSet.addInsertSql("insert into sink select * from source")
+    stmtSet.addInsertSql("insert into sink select * from source on conflict do deduplicate")
     // we set the sink parallelism to 9 which differs from the source, but disable auto keyby
     util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
   }
@@ -605,7 +608,7 @@ class TableSinkTest extends TableTestBase {
                       | 'sink.parallelism' = '4'
                       |)""".stripMargin)
     val stmtSet = tEnv.asInstanceOf[TestingTableEnvironment].createStatementSet
-    stmtSet.addInsertSql("insert into sink select * from source")
+    stmtSet.addInsertSql("insert into sink select * from source on conflict do deduplicate")
     // source and sink has same parallelism, but sink shuffle by pk is enforced
     util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
   }
@@ -635,7 +638,7 @@ class TableSinkTest extends TableTestBase {
                       | 'sink.parallelism' = '1'
                       |)""".stripMargin)
     val stmtSet = tEnv.asInstanceOf[TestingTableEnvironment].createStatementSet
-    stmtSet.addInsertSql("insert into sink select * from source")
+    stmtSet.addInsertSql("insert into sink select * from source on conflict do deduplicate")
     // source and sink has same parallelism, but sink shuffle by pk is enforced
     util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
   }
@@ -925,6 +928,188 @@ class TableSinkTest extends TableTestBase {
 
     assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
   }
+
+  @Test
+  def testInsertOnConflictDoNothingNotYetSupported(): Unit = {
+    util.addTable(s"""
+                     |CREATE TABLE conflictSink (
+                     |  `a` INT,
+                     |  `b` BIGINT,
+                     |  PRIMARY KEY (a) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+    // ON CONFLICT DO NOTHING is not yet supported - exception thrown during transformation translation
+    assertThatThrownBy(
+      () =>
+        util.generateTransformations(
+          "INSERT INTO conflictSink SELECT a, b FROM MyTable ON CONFLICT DO NOTHING"))
+      .hasMessageContaining("ON CONFLICT DO NOTHING is not yet supported")
+      .isInstanceOf[TableException]
+  }
+
+  @Test
+  def testInsertOnConflictDoErrorNotYetSupported(): Unit = {
+    util.addTable(s"""
+                     |CREATE TABLE conflictSink2 (
+                     |  `a` INT,
+                     |  `b` BIGINT,
+                     |  PRIMARY KEY (a) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+    // ON CONFLICT DO ERROR is not yet supported - exception thrown during transformation translation
+    assertThatThrownBy(
+      () =>
+        util.generateTransformations(
+          "INSERT INTO conflictSink2 SELECT a, b FROM MyTable ON CONFLICT DO ERROR"))
+      .hasMessageContaining("ON CONFLICT DO ERROR is not yet supported")
+      .isInstanceOf[TableException]
+  }
+
+  @Test
+  def testInsertOnConflictDoDeduplicate(): Unit = {
+    util.addTable(s"""
+                     |CREATE TABLE conflictSink3 (
+                     |  `a` INT,
+                     |  `b` BIGINT,
+                     |  PRIMARY KEY (a) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      "INSERT INTO conflictSink3 SELECT a, b FROM MyTable ON CONFLICT DO DEDUPLICATE")
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testExceptionWhenUpsertKeyDiffersFromPkWithoutOnConflict(): Unit = {
+    // Create a sink with different PK than the query's upsert key
+    util.addTable(s"""
+                     |CREATE TABLE sinkWithMismatchedPk (
+                     |  `person` STRING,
+                     |  `sum_votes` BIGINT,
+                     |  `prize` DOUBLE,
+                     |  PRIMARY KEY (person) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+
+    // This query joins aggregated data with the award table
+    // The upsert key after join is (person, votes) but sink PK is only (person)
+    assertThatThrownBy(
+      () =>
+        util.verifyExecPlanInsert(
+          """
+            |INSERT INTO sinkWithMismatchedPk
+            |SELECT T.person, T.sum_votes, award.prize FROM
+            |   (SELECT person, SUM(votes) AS sum_votes FROM src GROUP BY person) T, award
+            |   WHERE T.sum_votes = award.votes
+            |""".stripMargin))
+      .hasMessageContaining(
+        "The query has an upsert key that differs from the primary key of the sink table")
+      .hasMessageContaining("ON CONFLICT")
+      .isInstanceOf[TableException]
+  }
+
+  @Test
+  def testNoExceptionWhenUpsertKeyDiffersFromPkWithOnConflict(): Unit = {
+    // Create a sink with different PK than the query's upsert key
+    util.addTable(s"""
+                     |CREATE TABLE sinkWithMismatchedPkWithConflict (
+                     |  `person` STRING,
+                     |  `sum_votes` BIGINT,
+                     |  `prize` DOUBLE,
+                     |  PRIMARY KEY (person) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+
+    // Same query as above but with ON CONFLICT clause - should not throw
+    // Just verify the plan can be generated (no exception thrown)
+    util.tableEnv.explainSql(
+      """
+        |INSERT INTO sinkWithMismatchedPkWithConflict
+        |SELECT T.person, T.sum_votes, award.prize FROM
+        |   (SELECT person, SUM(votes) AS sum_votes FROM src GROUP BY person) T, award
+        |   WHERE T.sum_votes = award.votes
+        |ON CONFLICT DO DEDUPLICATE
+        |""".stripMargin)
+  }
+
+  @Test
+  def testNoExceptionWhenUpsertKeyMatchesPkWithoutOnConflict(): Unit = {
+    // Create a sink where PK matches upsert key
+    util.addTable(s"""
+                     |CREATE TABLE sinkWithMatchingPk (
+                     |  `a` INT,
+                     |  `cnt` BIGINT,
+                     |  PRIMARY KEY (a) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+
+    // Simple aggregation where upsert key (a) matches sink PK (a)
+    // Just verify the plan can be generated (no exception thrown)
+    util.tableEnv.explainSql(
+      "INSERT INTO sinkWithMatchingPk SELECT a, COUNT(*) AS cnt FROM MyTable GROUP BY a")
+  }
+
+  @Test
+  def testExceptionWhenAppendOnlyWithPkWithoutOnConflict(): Unit = {
+    // Create a sink with PK but append-only input
+    util.addTable(s"""
+                     |CREATE TABLE sinkAppendOnly (
+                     |  `a` INT,
+                     |  `b` BIGINT,
+                     |  PRIMARY KEY (a) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+
+    // Append-only query with sink PK requires ON CONFLICT to specify duplicate handling
+    assertThatThrownBy(
+      () => util.tableEnv.explainSql("INSERT INTO sinkAppendOnly SELECT a, b FROM MyTable"))
+      .hasMessageContaining(
+        "The query has an upsert key that differs from the primary key of the sink table")
+      .hasMessageContaining("ON CONFLICT")
+      .isInstanceOf[TableException]
+  }
+
+  @Test
+  def testNoExceptionWhenAppendOnlyWithPkWithOnConflict(): Unit = {
+    // Create a sink with PK but append-only input
+    util.addTable(s"""
+                     |CREATE TABLE sinkAppendOnlyWithConflict (
+                     |  `a` INT,
+                     |  `b` BIGINT,
+                     |  PRIMARY KEY (a) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+
+    // Append-only query with ON CONFLICT DO DEDUPLICATE - should not throw
+    util.tableEnv.explainSql(
+      "INSERT INTO sinkAppendOnlyWithConflict SELECT a, b FROM MyTable ON CONFLICT DO DEDUPLICATE")
+  }
+
 }
 
 /** tests table factory use ParallelSourceFunction which support parallelism by env */

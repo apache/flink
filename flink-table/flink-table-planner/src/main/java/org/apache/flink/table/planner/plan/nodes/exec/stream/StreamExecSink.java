@@ -25,6 +25,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
+import org.apache.flink.table.api.SinkConflictStrategy;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.RowtimeInserter;
@@ -135,6 +136,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
     public static final String FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE = "requireUpsertMaterialize";
     public static final String FIELD_NAME_UPSERT_MATERIALIZE_STRATEGY = "upsertMaterializeStrategy";
     public static final String FIELD_NAME_INPUT_UPSERT_KEY = "inputUpsertKey";
+    public static final String FIELD_NAME_CONFLICT_STRATEGY = "conflictStrategy";
 
     /** New introduced state metadata to enable operator-level state TTL configuration. */
     public static final String STATE_NAME = "sinkMaterializeState";
@@ -155,6 +157,11 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
     private final int[] inputUpsertKey;
 
     @Nullable
+    @JsonProperty(FIELD_NAME_CONFLICT_STRATEGY)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private final SinkConflictStrategy conflictStrategy;
+
+    @Nullable
     @JsonProperty(FIELD_NAME_STATE)
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private final List<StateMetadata> stateMetadataList;
@@ -168,6 +175,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             boolean upsertMaterialize,
             SinkUpsertMaterializeStrategy upsertMaterializeStrategy,
             int[] inputUpsertKey,
+            @Nullable SinkConflictStrategy conflictStrategy,
             String description) {
         this(
                 ExecNodeContext.newNodeId(),
@@ -182,6 +190,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                         ? StateMetadata.getOneInputOperatorDefaultMeta(tableConfig, STATE_NAME)
                         : null,
                 inputUpsertKey,
+                conflictStrategy,
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -199,6 +208,8 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                     SinkUpsertMaterializeStrategy sinkUpsertMaterializeStrategy,
             @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEY) int[] inputUpsertKey,
+            @Nullable @JsonProperty(FIELD_NAME_CONFLICT_STRATEGY)
+                    SinkConflictStrategy conflictStrategy,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) LogicalType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -217,12 +228,24 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
         this.inputUpsertKey = inputUpsertKey;
         this.stateMetadataList = stateMetadataList;
         this.upsertMaterializeStrategy = sinkUpsertMaterializeStrategy;
+        // Keep null to track if ON CONFLICT was explicitly specified
+        this.conflictStrategy = conflictStrategy;
     }
 
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<Object> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
+        // TODO: Remove this validation once runtime support for ERROR and NOTHING is implemented
+        if (conflictStrategy == SinkConflictStrategy.ERROR
+                || conflictStrategy == SinkConflictStrategy.NOTHING) {
+            throw new TableException(
+                    "ON CONFLICT DO "
+                            + conflictStrategy
+                            + " is not yet supported. "
+                            + "Please use ON CONFLICT DO DEDUPLICATE instead.");
+        }
+
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);

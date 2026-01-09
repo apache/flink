@@ -2250,6 +2250,7 @@ SqlNode RichSqlInsert() :
     SqlNodeList columnList = null;
     final Span s;
     final Pair<SqlNodeList, SqlNodeList> p;
+    SqlLiteral conflictAction = null;
 }
 {
     (
@@ -2293,9 +2294,20 @@ SqlNode RichSqlInsert() :
         }
         |   { columnList = null; }
     )
-    source = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY) {
+    source = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+    [
+        <ON> <CONFLICT> <DO>
+        (
+            <ERROR> { conflictAction = SinkConflictStrategy.ERROR.symbol(getPos()); }
+        |
+            <NOTHING> { conflictAction = SinkConflictStrategy.NOTHING.symbol(getPos()); }
+        |
+            <DEDUPLICATE> { conflictAction = SinkConflictStrategy.DEDUPLICATE.symbol(getPos()); }
+        )
+    ]
+    {
         return new RichSqlInsert(s.end(source), keywordList, extendedKeywordList, tableRef, source,
-            columnList, partitionList);
+            columnList, partitionList, conflictAction);
     }
 }
 

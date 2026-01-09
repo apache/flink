@@ -2259,6 +2259,34 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testInsertOnConflict() {
+        // ON CONFLICT DO ERROR
+        sql("INSERT INTO t1 SELECT * FROM t2 ON CONFLICT DO ERROR")
+                .ok("INSERT INTO `T1`\nSELECT *\nFROM `T2`\nON CONFLICT DO ERROR");
+
+        // ON CONFLICT DO NOTHING
+        sql("INSERT INTO t1 SELECT * FROM t2 ON CONFLICT DO NOTHING")
+                .ok("INSERT INTO `T1`\nSELECT *\nFROM `T2`\nON CONFLICT DO NOTHING");
+
+        // ON CONFLICT DO DEDUPLICATE
+        sql("INSERT INTO t1 SELECT * FROM t2 ON CONFLICT DO DEDUPLICATE")
+                .ok("INSERT INTO `T1`\nSELECT *\nFROM `T2`\nON CONFLICT DO DEDUPLICATE");
+
+        // ON CONFLICT with partition
+        sql("INSERT INTO t1 PARTITION (p='v') SELECT * FROM t2 ON CONFLICT DO ERROR")
+                .ok(
+                        "INSERT INTO `T1` PARTITION (`P` = 'v')\n\nSELECT *\nFROM `T2`\nON CONFLICT DO ERROR");
+
+        // ON CONFLICT with INSERT OVERWRITE (should work)
+        sql("INSERT OVERWRITE t1 SELECT * FROM t2 ON CONFLICT DO NOTHING")
+                .ok("INSERT OVERWRITE `T1`\nSELECT *\nFROM `T2`\nON CONFLICT DO NOTHING");
+
+        // Invalid ON CONFLICT strategy
+        sql("INSERT INTO t1 SELECT * FROM t2 ON CONFLICT DO ^UPDATE^")
+                .fails("(?s).*Encountered \"UPDATE\" at line 1, column 48.\n.*");
+    }
+
+    @Test
     void testCreateView() {
         final String sql = "create view v as select col1 from tbl";
         final String expected = "CREATE VIEW `V`\n" + "AS\n" + "SELECT `COL1`\n" + "FROM `TBL`";

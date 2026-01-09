@@ -107,9 +107,12 @@ public class StreamSinkReuseTest extends SinkReuseTestBase {
     @Test
     public void testSinkReuseWithUpsertMaterialize() {
         StatementSet statementSet = util.tableEnv().createStatementSet();
-        statementSet.addInsertSql("INSERT INTO upsertPKSink (SELECT * FROM upsertSource)");
-        statementSet.addInsertSql("INSERT INTO upsertPKSink (SELECT * FROM upsertSource)");
-        statementSet.addInsertSql("INSERT INTO upsertPKSink (SELECT * FROM upsertSource2)");
+        statementSet.addInsertSql(
+                "INSERT INTO upsertPKSink (SELECT * FROM upsertSource) ON CONFLICT DO DEDUPLICATE");
+        statementSet.addInsertSql(
+                "INSERT INTO upsertPKSink (SELECT * FROM upsertSource) ON CONFLICT DO DEDUPLICATE");
+        statementSet.addInsertSql(
+                "INSERT INTO upsertPKSink (SELECT * FROM upsertSource2) ON CONFLICT DO DEDUPLICATE");
         util.verifyExecPlan(statementSet);
     }
 }

@@ -27,6 +27,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.SinkConflictStrategy;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
@@ -182,7 +183,8 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
     protected <T> DataStream<T> toStreamInternal(
             Table table,
             SchemaTranslator.ProducingResult schemaTranslationResult,
-            @Nullable ChangelogMode changelogMode) {
+            @Nullable ChangelogMode changelogMode,
+            @Nullable SinkConflictStrategy sinkConflictStrategy) {
         final CatalogManager catalogManager = getCatalogManager();
         final OperationTreeBuilder operationTreeBuilder = getOperationTreeBuilder();
 
@@ -213,7 +215,8 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
                                         () ->
                                                 resolvedCatalogTable
                                                         .getResolvedSchema()
-                                                        .toPhysicalRowDataType()));
+                                                        .toPhysicalRowDataType()),
+                        sinkConflictStrategy);
 
         return toStreamInternal(table, modifyOperation);
     }

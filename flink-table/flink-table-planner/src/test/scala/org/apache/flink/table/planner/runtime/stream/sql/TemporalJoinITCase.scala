@@ -340,7 +340,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " SELECT o.order_id, o.currency, o.amount, o.proctime, r.rate, r.proctime " +
       " FROM orders_proctime AS o " +
       " JOIN currency_proctime FOR SYSTEM_TIME AS OF o.proctime as r " +
-      " ON o.currency = r.currency and o.currency_no = r.currency_no"
+      " ON o.currency = r.currency and o.currency_no = r.currency_no " +
+      "ON CONFLICT DO DEDUPLICATE"
 
     assertThatThrownBy(() => tEnv.executeSql(sql).await())
       .hasMessage("Processing-time temporal join is not supported yet.")
@@ -353,7 +354,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " SELECT o.order_id, o.currency, o.amount, o.proctime, r.rate, r.proctime " +
       " FROM orders_proctime AS o " +
       " LEFT JOIN currency_proctime FOR SYSTEM_TIME AS OF o.proctime as r " +
-      " ON o.currency = r.currency and o.currency_no = r.currency_no"
+      " ON o.currency = r.currency and o.currency_no = r.currency_no " +
+      "ON CONFLICT DO DEDUPLICATE"
 
     assertThatThrownBy(() => tEnv.executeSql(sql).await())
       .hasMessage("Processing-time temporal join is not supported yet.")
@@ -388,7 +390,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " SELECT o.order_id, o.currency, o.amount, o.proctime, r.rate, r.proctime " +
       " FROM orders_proctime AS o " +
       " JOIN latest_rates FOR SYSTEM_TIME AS OF o.proctime as r " +
-      " ON o.currency = r.currency and o.currency_no = r.currency_no"
+      " ON o.currency = r.currency and o.currency_no = r.currency_no " +
+      "ON CONFLICT DO DEDUPLICATE"
 
     assertThatThrownBy(() => tEnv.executeSql(sql).await())
       .hasMessage("Processing-time temporal join is not supported yet.")
@@ -401,7 +404,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " SELECT o.order_id, o.currency, o.amount, o.proctime, r.rate, r.proctime " +
       " FROM orders_proctime AS o " +
       " LEFT JOIN latest_rates FOR SYSTEM_TIME AS OF o.proctime as r " +
-      " ON o.currency = r.currency and o.currency_no = r.currency_no"
+      " ON o.currency = r.currency and o.currency_no = r.currency_no " +
+      "ON CONFLICT DO DEDUPLICATE"
 
     assertThatThrownBy(() => tEnv.executeSql(sql).await())
       .hasMessage("Processing-time temporal join is not supported yet.")
@@ -415,7 +419,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " FROM orders_proctime AS o " +
       " JOIN latest_rates FOR SYSTEM_TIME AS OF o.proctime AS r " +
       " ON o.currency = r.currency and o.currency_no = r.currency_no " +
-      " AND o.amount > r.rate"
+      " AND o.amount > r.rate " +
+      "ON CONFLICT DO DEDUPLICATE"
 
     assertThatThrownBy(() => tEnv.executeSql(sql).await())
       .hasMessage("Processing-time temporal join is not supported yet.")
@@ -429,7 +434,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " FROM orders_proctime AS o " +
       " LEFT JOIN latest_rates FOR SYSTEM_TIME AS OF o.proctime AS r " +
       " ON o.currency = r.currency and o.currency_no = r.currency_no" +
-      " AND o.amount > r.rate"
+      " AND o.amount > r.rate " +
+      "ON CONFLICT DO DEDUPLICATE"
 
     assertThatThrownBy(() => tEnv.executeSql(sql).await())
       .hasMessage("Processing-time temporal join is not supported yet.")
@@ -456,7 +462,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " JOIN latest_rates FOR SYSTEM_TIME AS OF o.proctime as r " +
       " ON o.currency = r.currency and o.currency_no = r.currency_no " +
       " JOIN currency_proctime FOR SYSTEM_TIME AS OF o.proctime as r1" +
-      " ON o.currency = r1.currency and o.currency_no = r1.currency_no"
+      " ON o.currency = r1.currency and o.currency_no = r1.currency_no " +
+      "ON CONFLICT DO DEDUPLICATE"
 
     assertThatThrownBy(() => tEnv.executeSql(sql).await())
       .hasMessage("Processing-time temporal join is not supported yet.")
@@ -469,7 +476,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " SELECT o.order_id, o.currency, o.amount, o.order_time, r.rate, r.currency_time " +
       " FROM orders_rowtime AS o JOIN versioned_currency_with_single_key " +
       " FOR SYSTEM_TIME AS OF o.order_time as r " +
-      " ON o.currency = r.currency"
+      " ON o.currency = r.currency " +
+      "ON CONFLICT DO DEDUPLICATE"
 
     tEnv.executeSql(sql).await()
     val expected = List(
@@ -487,7 +495,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " SELECT o.order_id, o.currency, o.amount, o.order_time, r.rate, r.currency_time " +
       " FROM orders_rowtime AS o JOIN versioned_currency_with_single_key " +
       " FOR SYSTEM_TIME AS OF o.order_time as r " +
-      " ON o.currency = r.currency AND o.currency_no = r.currency_no"
+      " ON o.currency = r.currency AND o.currency_no = r.currency_no " +
+      "ON CONFLICT DO DEDUPLICATE"
 
     tEnv.executeSql(sql).await()
     val expected = List(
@@ -509,7 +518,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " FROM orders_rowtime AS o " +
       " JOIN v1 FOR SYSTEM_TIME AS OF o.order_time as r " +
       " ON o.currency = r.currency" +
-      " WHERE rate < 115"
+      " WHERE rate < 115 " +
+      "ON CONFLICT DO DEDUPLICATE"
     tEnv.executeSql(sql).await()
     val expected = List(
       "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
@@ -523,7 +533,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " SELECT o.order_id, o.currency, o.amount, o.order_time, r.rate, r.currency_time " +
       " FROM orders_rowtime AS o LEFT JOIN versioned_currency_with_single_key " +
       " FOR SYSTEM_TIME AS OF o.order_time as r " +
-      " ON o.currency = r.currency"
+      " ON o.currency = r.currency " +
+      "ON CONFLICT DO DEDUPLICATE"
     tEnv.executeSql(sql).await()
 
     val expected = List(
@@ -542,7 +553,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " SELECT o.order_id, o.currency, o.amount, o.order_time, r.rate, r.currency_time " +
       " FROM orders_rowtime AS o LEFT JOIN currency_using_update_before_time " +
       " FOR SYSTEM_TIME AS OF o.order_time as r " +
-      " ON o.currency = r.currency"
+      " ON o.currency = r.currency " +
+      "ON CONFLICT DO DEDUPLICATE"
     tEnv.executeSql(sql).await()
 
     // Note: the event time semantics in delete event is when the delete event happened,
@@ -563,7 +575,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " SELECT o.order_id, o.currency, o.amount, o.order_time, r.rate, r.currency_time " +
       " FROM orders_rowtime AS o LEFT JOIN upsert_currency " +
       " FOR SYSTEM_TIME AS OF o.order_time as r " +
-      " ON o.currency = r.currency "
+      " ON o.currency = r.currency " +
+      "ON CONFLICT DO DEDUPLICATE"
     tEnv.executeSql(sql).await()
 
     // Note: the event time semantics in delete event is when the delete event happened,
@@ -584,7 +597,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " SELECT o.order_id, o.currency, o.amount, o.order_time, r.rate, r.currency_time " +
       " FROM orders_rowtime AS o JOIN versioned_currency_with_multi_key " +
       " FOR SYSTEM_TIME AS OF o.order_time as r " +
-      " ON o.currency_no = r.currency_no AND o.currency = r.currency"
+      " ON o.currency_no = r.currency_no AND o.currency = r.currency " +
+      "ON CONFLICT DO DEDUPLICATE"
     tEnv.executeSql(sql).await()
 
     val expected = List(
@@ -603,7 +617,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " FROM orders_rowtime AS o JOIN currency_using_update_before_time " +
       " FOR SYSTEM_TIME AS OF o.order_time as r " +
       " ON o.currency = r.currency and o.currency_no = r.currency_no " +
-      " and o.order_id < 5 and r.rate > 102"
+      " and o.order_id < 5 and r.rate > 102 " +
+      "ON CONFLICT DO DEDUPLICATE"
     tEnv.executeSql(sql).await()
     val expected = List(
       "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
@@ -620,7 +635,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " FROM orders_rowtime AS o JOIN currency_using_update_before_time " +
       " FOR SYSTEM_TIME AS OF o.order_time as r " +
       " ON o.currency = r.currency and o.currency_no = r.currency_no " +
-      " and o.currency = 'Euro' and r.rate > 102"
+      " and o.currency = 'Euro' and r.rate > 102 " +
+      "ON CONFLICT DO DEDUPLICATE"
     tEnv.executeSql(sql).await()
     val expected = List(
       "1,Euro,12,2020-08-15T00:01,114,2020-08-15T00:00:01",
@@ -654,7 +670,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " FOR SYSTEM_TIME AS OF o.order_time as r " +
       " ON o.currency = r.currency and o.currency_no = r.currency_no " +
       " LEFT JOIN versioned_currency_with_single_key  FOR SYSTEM_TIME AS OF o.order_time as r1 " +
-      " ON o.currency = r1.currency"
+      " ON o.currency = r1.currency " +
+      "ON CONFLICT DO DEDUPLICATE"
 
     tEnv.executeSql(sql).await()
     val expected = List(
@@ -674,7 +691,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " FROM orders_rowtime AS o " +
       " LEFT JOIN currency_deduplicated_first_row " +
       " FOR SYSTEM_TIME AS OF o.order_time as r " +
-      " ON o.currency = r.currency"
+      " ON o.currency = r.currency " +
+      "ON CONFLICT DO DEDUPLICATE"
 
     tEnv.executeSql(sql).await()
     val expected = List(
@@ -694,7 +712,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " FROM orders_rowtime AS o " +
       " JOIN currency_deduplicated_last_row " +
       " FOR SYSTEM_TIME AS OF o.order_time as r " +
-      " ON o.currency = r.currency"
+      " ON o.currency = r.currency " +
+      "ON CONFLICT DO DEDUPLICATE"
 
     tEnv.executeSql(sql).await()
     val expected = List(
@@ -714,7 +733,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " FROM orders_rowtime AS o " +
       " LEFT JOIN currency_deduplicated_last_row " +
       " FOR SYSTEM_TIME AS OF o.order_time as r " +
-      " ON o.currency = r.currency AND substr(o.currency, 1, 2) = 'US' "
+      " ON o.currency = r.currency AND substr(o.currency, 1, 2) = 'US' " +
+      "ON CONFLICT DO DEDUPLICATE"
 
     tEnv.executeSql(sql).await()
     val expected = List(
@@ -741,7 +761,8 @@ class TemporalJoinITCase(state: StateBackendMode) extends StreamingWithStateTest
       " FROM orders_rowtime AS o JOIN " +
       " currency_deduplicated_last_row " +
       " FOR SYSTEM_TIME AS OF o.order_time as r " +
-      " ON o.currency = r.currency"
+      " ON o.currency = r.currency " +
+      "ON CONFLICT DO DEDUPLICATE"
 
     tEnv.executeSql(sql).await()
     val expected = List(

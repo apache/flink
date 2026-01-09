@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.SinkConflictStrategy;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
@@ -94,6 +95,8 @@ import org.apache.calcite.rel.type.StructKind;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
+
+import javax.annotation.Nullable;
 
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -170,7 +173,8 @@ public final class DynamicSinkUtils {
                 Collections.emptyMap(), // staticPartitions
                 null, // targetColumns
                 false,
-                tableSink);
+                tableSink,
+                null); // conflictStrategy
     }
 
     /**
@@ -193,7 +197,8 @@ public final class DynamicSinkUtils {
                 Collections.emptyMap(),
                 null, // targetColumns
                 false,
-                tableSink);
+                tableSink,
+                externalModifyOperation.getConflictStrategy().orElse(null));
     }
 
     /**
@@ -213,7 +218,8 @@ public final class DynamicSinkUtils {
                 sinkModifyOperation.getStaticPartitions(),
                 sinkModifyOperation.getTargetColumns(),
                 sinkModifyOperation.isOverwrite(),
-                sink);
+                sink,
+                sinkModifyOperation.getConflictStrategy().orElse(null));
     }
 
     /**
@@ -248,7 +254,8 @@ public final class DynamicSinkUtils {
                 staticPartitions,
                 null,
                 isOverwrite,
-                sink);
+                sink,
+                null); // conflictStrategy
     }
 
     private static RelNode convertSinkToRel(
@@ -259,7 +266,8 @@ public final class DynamicSinkUtils {
             Map<String, String> staticPartitions,
             int[][] targetColumns,
             boolean isOverwrite,
-            DynamicTableSink sink) {
+            DynamicTableSink sink,
+            @Nullable SinkConflictStrategy conflictStrategy) {
         if (!dynamicOptions.isEmpty()) {
             contextResolvedTable =
                     contextResolvedTable.copy(
@@ -342,6 +350,8 @@ public final class DynamicSinkUtils {
         }
         final RelNode finalQuery = relBuilder.build();
 
+        // Pass conflictStrategy as-is (may be null if not specified by user)
+        // The null value is used downstream to detect if ON CONFLICT was explicitly specified
         return LogicalSink.create(
                 finalQuery,
                 hints,
@@ -349,7 +359,8 @@ public final class DynamicSinkUtils {
                 sink,
                 staticPartitions,
                 targetColumns,
-                sinkAbilitySpecs.toArray(new SinkAbilitySpec[0]));
+                sinkAbilitySpecs.toArray(new SinkAbilitySpec[0]),
+                conflictStrategy);
     }
 
     /** Checks if the given query can be written into the given sink's table schema. */

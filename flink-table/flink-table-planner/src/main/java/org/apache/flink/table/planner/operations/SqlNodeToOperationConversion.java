@@ -36,6 +36,7 @@ import org.apache.flink.sql.parser.ddl.table.SqlCreateTableAs;
 import org.apache.flink.sql.parser.ddl.table.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.view.SqlDropView;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
+import org.apache.flink.sql.parser.dml.SinkConflictStrategy;
 import org.apache.flink.sql.parser.dml.SqlBeginStatementSet;
 import org.apache.flink.sql.parser.dml.SqlCompileAndExecutePlan;
 import org.apache.flink.sql.parser.dml.SqlEndStatementSet;
@@ -336,13 +337,35 @@ public class SqlNodeToOperationConversion {
         int[][] columnIndices =
                 getTargetColumnIndices(contextResolvedTable, insert.getTargetColumnList());
 
+        // Convert parser conflict strategy to API conflict strategy
+        org.apache.flink.table.api.SinkConflictStrategy conflictStrategy =
+                insert.getConflictStrategy()
+                        .map(SqlNodeToOperationConversion::convertConflictStrategy)
+                        .orElse(null);
+
         return new SinkModifyOperation(
                 contextResolvedTable,
                 query,
                 insert.getStaticPartitionKVs(),
                 columnIndices,
                 insert.isOverwrite(),
-                dynamicOptions);
+                dynamicOptions,
+                ModifyType.INSERT,
+                conflictStrategy);
+    }
+
+    private static org.apache.flink.table.api.SinkConflictStrategy convertConflictStrategy(
+            SinkConflictStrategy parserStrategy) {
+        switch (parserStrategy) {
+            case ERROR:
+                return org.apache.flink.table.api.SinkConflictStrategy.ERROR;
+            case NOTHING:
+                return org.apache.flink.table.api.SinkConflictStrategy.NOTHING;
+            case DEDUPLICATE:
+                return org.apache.flink.table.api.SinkConflictStrategy.DEDUPLICATE;
+            default:
+                throw new IllegalArgumentException("Unknown conflict strategy: " + parserStrategy);
+        }
     }
 
     /** Convert BEGIN STATEMENT SET statement. */

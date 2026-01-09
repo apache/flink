@@ -349,6 +349,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                                                         |select a, b, `day`
                                                                         |from cdc_with_computed_col
                                                                         |where b > 100
+                                                                        |ON CONFLICT DO DEDUPLICATE
                                                                         |""".stripMargin)
 
     if (tryResolve) {
@@ -375,6 +376,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                             |select a, b, `day`
                             |from cdc_with_computed_col
                             |where b > 100
+                            |ON CONFLICT DO DEDUPLICATE
                             |""".stripMargin)
 
     val callable: ThrowingCallable = () => util.verifyExecPlan(stmtSet)
@@ -397,6 +399,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                    |select
                                    |  t1.a, t1.b, a1
                                    |from cdc t1, lateral table(ndTableFunc(a)) as T(a1)
+                                   |ON CONFLICT DO DEDUPLICATE
                                    |""".stripMargin)
 
     if (tryResolve) {
@@ -417,6 +420,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                    |select
                                    |  cast(a1 as integer) a
                                    |from cdc t1, lateral table(ndTableFunc(a)) as T(a1)
+                                   |ON CONFLICT DO DEDUPLICATE
                                    |""".stripMargin)
 
     if (tryResolve) {
@@ -435,6 +439,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                  |insert into sink_with_pk
                                  |select a, b, c
                                  |from cdc t1 join lateral table(ndTableFunc(a)) as T(a1) on true
+                                 |ON CONFLICT DO DEDUPLICATE
                                  |""".stripMargin)
   }
 
@@ -462,6 +467,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                    |insert into sink_with_pk
                                    |select t1.a, t1.metadata_1, T.c1
                                    |from cdc_with_meta t1, lateral table(str_split(c)) as T(c1)
+                                   |ON CONFLICT DO DEDUPLICATE
                                    |""".stripMargin)
 
     // Under ignore mode, the generated execution plan may cause wrong result though
@@ -539,6 +545,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                  |  select *, proctime() proctime from cdc
                                  |) t1 join dim_without_pk for system_time as of t1.proctime as t2
                                  |on t1.a = t2.a
+                                 |ON CONFLICT DO DEDUPLICATE
                                  |""".stripMargin)
   }
 
@@ -678,6 +685,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                    |on t1.a = t2.a
                                    |  -- check dim table data's freshness
                                    |  and t2.b > UNIX_TIMESTAMP() - 300
+                                   |ON CONFLICT DO DEDUPLICATE
                                    |""".stripMargin)
 
     if (tryResolve) {
@@ -702,6 +710,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                    |on t1.a = t2.a
                                    |  -- non deterministic function in remaining condition
                                    |  and t1.b > ndFunc(t2.b)
+                                   |ON CONFLICT DO DEDUPLICATE
                                    |""".stripMargin)
 
     if (tryResolve) {
@@ -726,6 +735,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
            |) t1 left join dim_with_pk for system_time as of t1.proctime as t2
            |on t1.a = t2.a
            |  and t1.b > UNIX_TIMESTAMP() - 300
+           |ON CONFLICT DO DEDUPLICATE
            |""".stripMargin)
 
     // use builtin temporal function
@@ -751,6 +761,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
            |  select *, DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd') `day` from cdc
            |) t
            |group by `day`, a
+           |on conflict do deduplicate
            |""".stripMargin)
 
     if (tryResolve) {
@@ -771,6 +782,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                                                         |  ndFunc(a), count(*) cnt, c
                                                                         |from cdc
                                                                         |group by ndFunc(a), c
+                                                                        |ON CONFLICT DO DEDUPLICATE
                                                                         |""".stripMargin)
 
     if (tryResolve) {
@@ -796,6 +808,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
            |) t
            |where rn = 1
            |group by a, DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd')
+           |ON CONFLICT DO DEDUPLICATE
            |""".stripMargin)
 
     if (tryResolve) {
@@ -990,6 +1003,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                  |insert into sink_with_pk
                                  |select metadata_1, b, metadata_2
                                  |from upsert_src_with_meta
+                                 |ON CONFLICT DO DEDUPLICATE
                                  |""".stripMargin)
   }
 
@@ -1090,6 +1104,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
         |  ,ndAggFunc(a) OVER (PARTITION BY a ORDER BY proctime
         |    ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) nd
         |FROM T1
+        |ON CONFLICT DO DEDUPLICATE
       """.stripMargin
     )
   }
@@ -1228,6 +1243,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                    |union
                                    |select a, b, c, metadata_3
                                    |from cdc_with_meta
+                                   |ON CONFLICT DO DEDUPLICATE
                                    |""".stripMargin)
 
     if (tryResolve) {
@@ -1250,6 +1266,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
                                    |union all
                                    |select a, b, c, metadata_3
                                    |from cdc_with_meta
+                                   |ON CONFLICT DO DEDUPLICATE
                                    |""".stripMargin)
 
     if (tryResolve) {
@@ -1416,6 +1433,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
            |  from cdc
            |) t2
            |  on t1.b = t2.b
+           |ON CONFLICT DO DEDUPLICATE
            |""".stripMargin)
 
     if (tryResolve) {
@@ -1566,6 +1584,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
            |now()
            |FROM t_order AS ord
            |LEFT JOIN t_logistics AS logistics ON ord.order_id=logistics.order_id
+           |ON CONFLICT DO DEDUPLICATE
            |""".stripMargin)
 
     if (tryResolve) {
@@ -1881,6 +1900,7 @@ class NonDeterministicDagTest(nonDeterministicUpdateStrategy: NonDeterministicUp
         |DEFINE
         |  A AS A.a > 1
         |) AS T1
+        |ON CONFLICT DO DEDUPLICATE
         |""".stripMargin
     )
   }

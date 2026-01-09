@@ -1732,7 +1732,8 @@ SELECT
     u.region_id
 FROM UsersPK u
 INNER JOIN OrdersSimplePK o
-    ON u.user_id = o.user_id]]>
+    ON u.user_id = o.user_id
+ON CONFLICT DO DEDUPLICATE]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
