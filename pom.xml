@@ -138,7 +138,7 @@ under the License.
 		<!-- Overwrite default values from parent pom.
 			 IntelliJ IDEA is (sometimes?) using those values to choose target language level
 			 and thus is changing back to java 1.6 on each maven re-import -->
-		<maven.compiler.source>${target.java.version}</maven.compiler.source>
+		<maven.compiler.source>${source.java.version}</maven.compiler.source>
 		<maven.compiler.target>${target.java.version}</maven.compiler.target>
 		<scala.macros.version>2.1.1</scala.macros.version>
 		<scala.version>2.12.20</scala.version>
