@@ -579,7 +579,6 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             }
         }
         IOUtils.closeAllQuietly(asyncCheckpointRunnables);
-        channelStateWriter.close();
     }
 
     @VisibleForTesting

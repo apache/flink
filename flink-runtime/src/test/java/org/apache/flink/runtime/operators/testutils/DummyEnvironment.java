@@ -32,6 +32,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -61,6 +62,8 @@ import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.runtime.util.TestingUserCodeClassLoader;
 import org.apache.flink.util.UserCodeClassLoader;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -87,6 +90,8 @@ public class DummyEnvironment implements Environment {
             new ChannelStateWriteRequestExecutorFactory(jobInfo.getJobId());
 
     private CheckpointStorageAccess checkpointStorageAccess;
+
+    @Nullable private ChannelStateWriter channelStateWriter;
 
     public DummyEnvironment() {
         this("Test Job", 1, 0, 1);
@@ -311,5 +316,16 @@ public class DummyEnvironment implements Environment {
     @Override
     public CheckpointStorageAccess getCheckpointStorageAccess() {
         return checkNotNull(checkpointStorageAccess);
+    }
+
+    @Override
+    public void setChannelStateWriter(ChannelStateWriter channelStateWriter) {
+        this.channelStateWriter = channelStateWriter;
+    }
+
+    @Override
+    @Nullable
+    public ChannelStateWriter getChannelStateWriter() {
+        return this.channelStateWriter;
     }
 }

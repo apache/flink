@@ -42,6 +42,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointStoreUtil;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriteRequestExecutorFactory;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -311,6 +312,9 @@ public class Task
      */
     private UserCodeClassLoader userCodeClassLoader;
 
+    /** The channelStateWriter of the env. We obtain it after the invokable is initialized. */
+    @Nullable private volatile ChannelStateWriter channelStateWriter;
+
     /**
      * <b>IMPORTANT:</b> This constructor may not start any work that would need to be undone in the
      * case of a failing task deployment.
@@ -506,6 +510,12 @@ public class Task
     @VisibleForTesting
     TaskInvokable getInvokable() {
         return invokable;
+    }
+
+    @Nullable
+    @VisibleForTesting
+    ChannelStateWriter getChannelStateWriter() {
+        return channelStateWriter;
     }
 
     public boolean isBackPressured() {
@@ -748,6 +758,10 @@ public class Task
             } finally {
                 FlinkSecurityManager.unmonitorUserSystemExitForCurrentThread();
             }
+
+            // We register a reference to the channelStateWriter
+            // so we can close it after the inputGates close
+            this.channelStateWriter = env.getChannelStateWriter();
 
             // ----------------------------------------------------------------
             //  actual task core work
@@ -1011,6 +1025,16 @@ public class Task
         }
         closeAllResultPartitions();
         closeAllInputGates();
+        if (this.channelStateWriter != null) {
+            LOG.debug("Closing channelStateWriter for task {}", taskNameWithSubtask);
+            try {
+                this.channelStateWriter.close();
+            } catch (Throwable t) {
+                ExceptionUtils.rethrowIfFatalError(t);
+                LOG.error(
+                        "Failed to close channelStateWriter for task {}.", taskNameWithSubtask, t);
+            }
+        }
 
         try {
             taskStateManager.close();

@@ -26,6 +26,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory.ShuffleDescriptorAndIndex;
@@ -77,6 +78,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitUntilCondition;
@@ -1249,6 +1251,34 @@ public class TaskTest extends TestLogger {
         assertEquals(ExecutionState.FINISHED, task.getTerminationFuture().getNow(null));
     }
 
+    private void testChannelStateWriterCloses(Class<? extends TriggerLatchInvokable> invokable)
+            throws Exception {
+        final Task task =
+                createTaskBuilder()
+                        .setInvokable(invokable)
+                        .setTaskManagerActions(new NoOpTaskManagerActions())
+                        .build(Executors.directExecutor());
+
+        task.startTaskThread();
+        awaitInvokableLatch(task);
+        ChannelStateWriterWithCloseTracker channelStateWriter =
+                (ChannelStateWriterWithCloseTracker) task.getChannelStateWriter();
+        assertFalse(channelStateWriter.isClosed());
+        triggerInvokableLatch(task);
+        task.getExecutingThread().join();
+        assertTrue(channelStateWriter.isClosed());
+    }
+
+    @Test
+    public void testChannelStateWriterClosesOnSuccess() throws Exception {
+        testChannelStateWriterCloses(ChannelStateWriterSetterInvokable.class);
+    }
+
+    @Test
+    public void testChannelStateWriterClosesOnFailure() throws Exception {
+        testChannelStateWriterCloses(FailingChannelStateWriterSetterInvokable.class);
+    }
+
     private void assertCheckpointDeclined(
             Task task,
             TestCheckpointResponder testCheckpointResponder,
@@ -1576,7 +1606,7 @@ public class TaskTest extends TestLogger {
     }
 
     /** {@link AbstractInvokable} which throws {@link RuntimeException} on invoke. */
-    public static final class InvokableWithExceptionOnTrigger extends TriggerLatchInvokable {
+    public static class InvokableWithExceptionOnTrigger extends TriggerLatchInvokable {
         public InvokableWithExceptionOnTrigger(Environment environment) {
             super(environment);
         }
@@ -1760,6 +1790,36 @@ public class TaskTest extends TestLogger {
                     // fall through the loop
                 }
             }
+        }
+    }
+
+    private static class ChannelStateWriterWithCloseTracker
+            extends ChannelStateWriter.NoOpChannelStateWriter {
+        private final AtomicBoolean closeCalled = new AtomicBoolean(false);
+
+        @Override
+        public void close() {
+            closeCalled.set(true);
+        }
+
+        public boolean isClosed() {
+            return closeCalled.get();
+        }
+    }
+
+    private static class ChannelStateWriterSetterInvokable extends InvokableBlockingWithTrigger {
+
+        public ChannelStateWriterSetterInvokable(Environment environment) {
+            super(environment);
+            environment.setChannelStateWriter(new ChannelStateWriterWithCloseTracker());
+        }
+    }
+
+    private static class FailingChannelStateWriterSetterInvokable
+            extends InvokableWithExceptionOnTrigger {
+        public FailingChannelStateWriterSetterInvokable(Environment environment) {
+            super(environment);
+            environment.setChannelStateWriter(new ChannelStateWriterWithCloseTracker());
         }
     }
 }
