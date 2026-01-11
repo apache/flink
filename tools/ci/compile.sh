@@ -86,7 +86,7 @@ javadoc_output=/tmp/javadoc.out
 # use the same invocation as .github/workflows/docs.sh
 $MVN javadoc:aggregate -DadditionalJOption='-Xdoclint:none' \
       -Dmaven.javadoc.failOnError=false -Dcheckstyle.skip=true -Denforcer.skip=true -Dspotless.skip=true -Drat.skip=true \
-      -Dheader=someTestHeader > ${javadoc_output}
+      -Dheader=someTestHeader -Pskip-webui-build > ${javadoc_output}
 EXIT_CODE=$?
 if [ $EXIT_CODE != 0 ] ; then
   echo "ERROR in Javadocs. Printing full output:"
