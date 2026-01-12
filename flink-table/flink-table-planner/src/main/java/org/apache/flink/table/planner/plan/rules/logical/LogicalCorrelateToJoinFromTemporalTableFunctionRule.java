@@ -125,66 +125,66 @@ public class LogicalCorrelateToJoinFromTemporalTableFunctionRule
                 new GetTemporalTableFunctionCall(cluster.getRexBuilder(), leftNode)
                         .visit(rightTableFunctionScan.getCall());
 
-        if (temporalTableFunctionCall.isPresent()
+        if (!(temporalTableFunctionCall.isPresent()
                 && temporalTableFunctionCall.get().getTemporalTableFunction()
-                        instanceof TemporalTableFunctionImpl) {
-            TemporalTableFunctionImpl rightTemporalTableFunction =
-                    (TemporalTableFunctionImpl)
-                            temporalTableFunctionCall.get().getTemporalTableFunction();
-            RexNode leftTimeAttribute = temporalTableFunctionCall.get().getTimeAttribute();
-
-            // If TemporalTableFunction was found, rewrite LogicalCorrelate to TemporalJoin
-            QueryOperation underlyingHistoryTable =
-                    rightTemporalTableFunction.getUnderlyingHistoryTable();
-            RexBuilder rexBuilder = cluster.getRexBuilder();
-
-            FlinkOptimizeContext flinkContext =
-                    (FlinkOptimizeContext) ShortcutUtils.unwrapContext(call.getPlanner());
-            FlinkRelBuilder relBuilder = flinkContext.getFlinkRelBuilder();
-
-            RelNode temporalTable = relBuilder.queryOperation(underlyingHistoryTable).build();
-            // expand QueryOperationCatalogViewTable in Table Scan
-            ExpandTableScanShuttle shuttle = new ExpandTableScanShuttle();
-            RelNode rightNode = temporalTable.accept(shuttle);
-
-            RexNode rightTimeIndicatorExpression =
-                    createRightExpression(
-                            rexBuilder,
-                            leftNode,
-                            rightNode,
-                            extractNameFromTimeAttribute(
-                                    rightTemporalTableFunction.getTimeAttribute()));
-
-            RexNode rightPrimaryKeyExpression =
-                    createRightExpression(
-                            rexBuilder,
-                            leftNode,
-                            rightNode,
-                            extractNameFromPrimaryKeyAttribute(
-                                    rightTemporalTableFunction.getPrimaryKey()));
-
-            relBuilder.push(leftNode);
-            relBuilder.push(rightNode);
-
-            RexNode condition;
-            if (isProctimeReference(rightTemporalTableFunction)) {
-                condition =
-                        TemporalJoinUtil.makeProcTimeTemporalFunctionJoinConCall(
-                                rexBuilder, leftTimeAttribute, rightPrimaryKeyExpression);
-            } else {
-                condition =
-                        TemporalJoinUtil.makeRowTimeTemporalFunctionJoinConCall(
-                                rexBuilder,
-                                leftTimeAttribute,
-                                rightTimeIndicatorExpression,
-                                rightPrimaryKeyExpression);
-            }
-
-            relBuilder.join(JoinRelType.INNER, condition);
-            call.transformTo(relBuilder.build());
-        } else {
-            // Do nothing and handle standard TableFunction
+                        instanceof TemporalTableFunctionImpl)) {
+            return;
         }
+
+        TemporalTableFunctionImpl rightTemporalTableFunction =
+                (TemporalTableFunctionImpl)
+                        temporalTableFunctionCall.get().getTemporalTableFunction();
+        RexNode leftTimeAttribute = temporalTableFunctionCall.get().getTimeAttribute();
+
+        // If TemporalTableFunction was found, rewrite LogicalCorrelate to TemporalJoin
+        QueryOperation underlyingHistoryTable =
+                rightTemporalTableFunction.getUnderlyingHistoryTable();
+        RexBuilder rexBuilder = cluster.getRexBuilder();
+
+        FlinkOptimizeContext flinkContext =
+                (FlinkOptimizeContext) ShortcutUtils.unwrapContext(call.getPlanner());
+        FlinkRelBuilder relBuilder = flinkContext.getFlinkRelBuilder();
+
+        RelNode temporalTable = relBuilder.queryOperation(underlyingHistoryTable).build();
+        // expand QueryOperationCatalogViewTable in Table Scan
+        ExpandTableScanShuttle shuttle = new ExpandTableScanShuttle();
+        RelNode rightNode = temporalTable.accept(shuttle);
+
+        RexNode rightTimeIndicatorExpression =
+                createRightExpression(
+                        rexBuilder,
+                        leftNode,
+                        rightNode,
+                        extractNameFromTimeAttribute(
+                                rightTemporalTableFunction.getTimeAttribute()));
+
+        RexNode rightPrimaryKeyExpression =
+                createRightExpression(
+                        rexBuilder,
+                        leftNode,
+                        rightNode,
+                        extractNameFromPrimaryKeyAttribute(
+                                rightTemporalTableFunction.getPrimaryKey()));
+
+        relBuilder.push(leftNode);
+        relBuilder.push(rightNode);
+
+        RexNode condition;
+        if (isProctimeReference(rightTemporalTableFunction)) {
+            condition =
+                    TemporalJoinUtil.makeProcTimeTemporalFunctionJoinConCall(
+                            rexBuilder, leftTimeAttribute, rightPrimaryKeyExpression);
+        } else {
+            condition =
+                    TemporalJoinUtil.makeRowTimeTemporalFunctionJoinConCall(
+                            rexBuilder,
+                            leftTimeAttribute,
+                            rightTimeIndicatorExpression,
+                            rightPrimaryKeyExpression);
+        }
+
+        relBuilder.join(JoinRelType.INNER, condition);
+        call.transformTo(relBuilder.build());
     }
 
     private RexNode createRightExpression(
@@ -244,10 +244,6 @@ class TemporalTableFunctionCall {
 
     public TemporalTableFunction getTemporalTableFunction() {
         return temporalTableFunction;
-    }
-
-    public void setTemporalTableFunction(TemporalTableFunction temporalTableFunction) {
-        this.temporalTableFunction = temporalTableFunction;
     }
 
     public RexNode getTimeAttribute() {
@@ -313,9 +309,9 @@ class GetTemporalTableFunctionCall extends RexVisitorImpl<TemporalTableFunctionC
  * context without `$cor` reference.
  */
 class CorrelatedFieldAccessRemoval extends RexDefaultVisitor<RexNode> {
-    private TemporalTableFunctionImpl temporalTableFunction;
-    private RexBuilder rexBuilder;
-    private RelNode leftSide;
+    private final TemporalTableFunctionImpl temporalTableFunction;
+    private final RexBuilder rexBuilder;
+    private final RelNode leftSide;
 
     public CorrelatedFieldAccessRemoval(
             TemporalTableFunctionImpl temporalTableFunction,
