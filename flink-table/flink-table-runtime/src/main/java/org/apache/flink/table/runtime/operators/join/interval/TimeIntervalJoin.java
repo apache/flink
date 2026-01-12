@@ -30,6 +30,7 @@ import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.NullAwareGetters;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.operators.join.OuterJoinPaddingUtil;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -150,7 +151,7 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
     @Override
     public void processElement1(RowData leftRow, Context ctx, Collector<RowData> out)
             throws Exception {
-        joinFunction.setJoinKey(ctx.getCurrentKey());
+        joinFunction.setJoinKey((NullAwareGetters) ctx.getCurrentKey());
         joinCollector.setInnerCollector(out);
         updateOperatorTime(ctx);
 
@@ -238,7 +239,7 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
     @Override
     public void processElement2(RowData rightRow, Context ctx, Collector<RowData> out)
             throws Exception {
-        joinFunction.setJoinKey(ctx.getCurrentKey());
+        joinFunction.setJoinKey((NullAwareGetters) ctx.getCurrentKey());
         joinCollector.setInnerCollector(out);
         updateOperatorTime(ctx);
         long timeForRightRow = getTimeForRightStream(ctx, rightRow);
@@ -321,7 +322,7 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
     @Override
     public void onTimer(long timestamp, OnTimerContext ctx, Collector<RowData> out)
             throws Exception {
-        joinFunction.setJoinKey(ctx.getCurrentKey());
+        joinFunction.setJoinKey((NullAwareGetters) ctx.getCurrentKey());
         joinCollector.setInnerCollector(out);
         updateOperatorTime(ctx);
         // In the future, we should separate the left and right watermarks. Otherwise, the
