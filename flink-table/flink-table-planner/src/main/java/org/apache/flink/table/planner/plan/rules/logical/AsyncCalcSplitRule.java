@@ -99,10 +99,19 @@ public class AsyncCalcSplitRule {
         public boolean matches(RelOptRuleCall call) {
             FlinkLogicalCalc calc = call.rel(0);
 
+            // Early exit: check if there are any async calls at all in the expression list
+            // This avoids expensive expandLocalRef() calls for non-async calcs
+            RexProgram program = calc.getProgram();
+            boolean hasAnyAsyncCall =
+                    program.getExprList().stream().anyMatch(callFinder()::containsRemoteCall);
+            if (!hasAnyAsyncCall) {
+                return false;
+            }
+
             // Matches if we have nested remote calls
             List<RexNode> projects =
-                    calc.getProgram().getProjectList().stream()
-                            .map(calc.getProgram()::expandLocalRef)
+                    program.getProjectList().stream()
+                            .map(program::expandLocalRef)
                             .collect(Collectors.toList());
             return hasNestedCalls(projects);
         }
@@ -150,9 +159,19 @@ public class AsyncCalcSplitRule {
         @Override
         public boolean matches(RelOptRuleCall call) {
             FlinkLogicalCalc calc = call.rel(0);
+
+            // Early exit: check if there are any async calls at all in the expression list
+            // This avoids expensive expandLocalRef() calls for non-async calcs
+            RexProgram program = calc.getProgram();
+            boolean hasAnyAsyncCall =
+                    program.getExprList().stream().anyMatch(callFinder()::containsRemoteCall);
+            if (!hasAnyAsyncCall) {
+                return false;
+            }
+
             List<RexNode> projects =
-                    calc.getProgram().getProjectList().stream()
-                            .map(calc.getProgram()::expandLocalRef)
+                    program.getProjectList().stream()
+                            .map(program::expandLocalRef)
                             .collect(Collectors.toList());
 
             // If this has no nested calls, then this can be called to split up separate projections
