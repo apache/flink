@@ -61,6 +61,7 @@ import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.LatencyStats;
+import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -73,7 +74,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.function.Function;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -124,6 +127,8 @@ public abstract class AbstractStreamOperator<OUT>
 
     private transient @Nullable MailboxWatermarkProcessor watermarkProcessor;
 
+    private final OutputAdjustment<OUT> outputAdjustment;
+
     // ---------------- key/value state ------------------
 
     /**
@@ -160,9 +165,17 @@ public abstract class AbstractStreamOperator<OUT>
     protected transient RecordAttributes lastRecordAttributes1;
     protected transient RecordAttributes lastRecordAttributes2;
 
-    public AbstractStreamOperator() {}
+    public AbstractStreamOperator() {
+        this(null);
+    }
 
     public AbstractStreamOperator(StreamOperatorParameters<OUT> parameters) {
+        this(parameters, OutputAdjustment.noAdjustment());
+    }
+
+    public AbstractStreamOperator(
+            StreamOperatorParameters<OUT> parameters, OutputAdjustment<OUT> outputAdjustment) {
+        this.outputAdjustment = checkNotNull(outputAdjustment);
         if (parameters != null) {
             setup(
                     parameters.getContainingTask(),
@@ -185,7 +198,7 @@ public abstract class AbstractStreamOperator<OUT>
         final Environment environment = containingTask.getEnvironment();
         this.container = containingTask;
         this.config = config;
-        this.output = output;
+        this.output = outputAdjustment.apply(output);
         this.metrics =
                 environment
                         .getMetricGroup()
@@ -770,5 +783,76 @@ public abstract class AbstractStreamOperator<OUT>
     @Experimental
     public void processWatermark2(WatermarkEvent watermark) throws Exception {
         output.emitWatermark(watermark);
+    }
+
+    @Experimental
+    public interface OutputAdjustment<OUT>
+            extends Function<Output<StreamRecord<OUT>>, Output<StreamRecord<OUT>>>, Serializable {
+
+        static <OUT> OutputAdjustment<OUT> noAdjustment() {
+            return out -> out;
+        }
+
+        static <OUT> OutputAdjustment<OUT> delayedWatermarkOutput(long delay) {
+            return new DelayedOutputAdjustment<>(delay);
+        }
+
+        @Experimental
+        class DelayedOutputAdjustment<OUT> implements OutputAdjustment<OUT> {
+            private static final long serialVersionUID = 1L;
+
+            private final long watermarkDelay;
+
+            public DelayedOutputAdjustment(long watermarkDelay) {
+                Preconditions.checkArgument(
+                        watermarkDelay > 0, "The watermark delay should be positive.");
+                this.watermarkDelay = watermarkDelay;
+            }
+
+            @Override
+            public Output<StreamRecord<OUT>> apply(Output<StreamRecord<OUT>> out) {
+                return new Output<>() {
+                    @Override
+                    public void collect(StreamRecord<OUT> record) {
+                        out.collect(record);
+                    }
+
+                    @Override
+                    public void close() {
+                        out.close();
+                    }
+
+                    @Override
+                    public void emitWatermark(Watermark mark) {
+                        out.emitWatermark(new Watermark(mark.getTimestamp() - watermarkDelay));
+                    }
+
+                    @Override
+                    public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {
+                        out.emitWatermarkStatus(watermarkStatus);
+                    }
+
+                    @Override
+                    public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> record) {
+                        out.collect(outputTag, record);
+                    }
+
+                    @Override
+                    public void emitLatencyMarker(LatencyMarker latencyMarker) {
+                        out.emitLatencyMarker(latencyMarker);
+                    }
+
+                    @Override
+                    public void emitRecordAttributes(RecordAttributes recordAttributes) {
+                        out.emitRecordAttributes(recordAttributes);
+                    }
+
+                    @Override
+                    public void emitWatermark(WatermarkEvent watermark) {
+                        out.emitWatermark(watermark);
+                    }
+                };
+            }
+        }
     }
 }

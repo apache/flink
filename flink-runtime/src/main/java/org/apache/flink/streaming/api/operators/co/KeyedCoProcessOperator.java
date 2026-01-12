@@ -54,7 +54,13 @@ public class KeyedCoProcessOperator<K, IN1, IN2, OUT>
     private transient OnTimerContextImpl<K, IN1, IN2, OUT> onTimerContext;
 
     public KeyedCoProcessOperator(KeyedCoProcessFunction<K, IN1, IN2, OUT> keyedCoProcessFunction) {
-        super(keyedCoProcessFunction);
+        this(keyedCoProcessFunction, OutputAdjustment.noAdjustment());
+    }
+
+    public KeyedCoProcessOperator(
+            KeyedCoProcessFunction<K, IN1, IN2, OUT> keyedCoProcessFunction,
+            OutputAdjustment<OUT> outputAdjustment) {
+        super(null, keyedCoProcessFunction, outputAdjustment);
     }
 
     @Override
