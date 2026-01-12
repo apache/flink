@@ -765,6 +765,9 @@
       "properties" : {
         "jobid" : {
           "type" : "any"
+        },
+        "applicationId" : {
+          "type" : "any"
         }
       }
     }
