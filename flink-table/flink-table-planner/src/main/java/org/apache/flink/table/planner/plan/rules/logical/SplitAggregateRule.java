@@ -36,7 +36,8 @@ import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.ExpandUtil;
 import org.apache.flink.table.planner.plan.utils.WindowUtil;
 
-import com.google.common.collect.ImmutableList;
+import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableList;
+
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
@@ -270,36 +271,28 @@ public class SplitAggregateRule extends RelRule<SplitAggregateRule.SplitAggregat
         // STEP 2.1: expand input fields
         List<AggregateCall> partialAggCalls = new ArrayList<>();
         Map<AggregateCall, ImmutableBitSet> partialAggCallToGroupSetMap = new HashMap<>();
-        aggCalls.stream()
-                .forEach(
-                        aggCall -> {
-                            List<AggregateCall> newAggCalls =
-                                    SplitAggregateRule.getPartialAggFunction(aggCall).stream()
-                                            .map(
-                                                    aggFunc ->
-                                                            AggregateCall.create(
-                                                                    aggFunc,
-                                                                    aggCall.isDistinct(),
-                                                                    aggCall.isApproximate(),
-                                                                    false,
-                                                                    aggCall.getArgList(),
-                                                                    aggCall.filterArg,
-                                                                    null,
-                                                                    RelCollations.EMPTY,
-                                                                    fullGroupSet.cardinality(),
-                                                                    relBuilder.peek(),
-                                                                    null,
-                                                                    null))
-                                            .collect(Collectors.toList());
-                            partialAggCalls.addAll(newAggCalls);
-                            newAggCalls.stream()
-                                    .forEach(
-                                            newAggCall -> {
-                                                partialAggCallToGroupSetMap.put(
-                                                        newAggCall,
-                                                        aggInfoToGroupSetMap.get(aggCall));
-                                            });
-                        });
+        for (AggregateCall aggCall : aggCalls) {
+            ImmutableBitSet groupSet = aggInfoToGroupSetMap.get(aggCall);
+            for (SqlAggFunction aggFunc : SplitAggregateRule.getPartialAggFunction(aggCall)) {
+                AggregateCall newAggCall =
+                        AggregateCall.create(
+                                aggFunc,
+                                aggCall.isDistinct(),
+                                aggCall.isApproximate(),
+                                false,
+                                aggCall.getArgList(),
+                                aggCall.filterArg,
+                                null,
+                                RelCollations.EMPTY,
+                                fullGroupSet.cardinality(),
+                                relBuilder.peek(),
+                                null,
+                                null);
+
+                partialAggCalls.add(newAggCall);
+                partialAggCallToGroupSetMap.put(newAggCall, groupSet);
+            }
+        }
 
         boolean needExpand = newGroupSetsNum > 1;
         Map<Integer, Integer> duplicateFieldMap =
@@ -424,7 +417,7 @@ public class SplitAggregateRule extends RelRule<SplitAggregateRule.SplitAggregat
                         relBuilder.build(),
                         SplitAggregateRule.remap(fullGroupSet, originalAggregate.getGroupSet()),
                         SplitAggregateRule.remap(
-                                fullGroupSet, Arrays.asList(originalAggregate.getGroupSet())),
+                                fullGroupSet, List.of(originalAggregate.getGroupSet())),
                         finalAggCalls,
                         originalAggregate.getHints());
         finalAggregate.setPartialFinalType(PartialFinalType.FINAL);
@@ -514,30 +507,29 @@ public class SplitAggregateRule extends RelRule<SplitAggregateRule.SplitAggregat
             PARTIAL_FINAL_MAP = new HashMap<>();
 
     static {
-        PARTIAL_FINAL_MAP.put(
-                AVG, Tuple2.of(Arrays.asList(SUM0, COUNT), Arrays.asList(SUM0, SUM0)));
-        PARTIAL_FINAL_MAP.put(COUNT, Tuple2.of(Arrays.asList(COUNT), Arrays.asList(SUM0)));
-        PARTIAL_FINAL_MAP.put(MIN, Tuple2.of(Arrays.asList(MIN), Arrays.asList(MIN)));
-        PARTIAL_FINAL_MAP.put(MAX, Tuple2.of(Arrays.asList(MAX), Arrays.asList(MAX)));
-        PARTIAL_FINAL_MAP.put(SUM, Tuple2.of(Arrays.asList(SUM), Arrays.asList(SUM)));
-        PARTIAL_FINAL_MAP.put(SUM0, Tuple2.of(Arrays.asList(SUM0), Arrays.asList(SUM0)));
+        PARTIAL_FINAL_MAP.put(AVG, Tuple2.of(List.of(SUM0, COUNT), List.of(SUM0, SUM0)));
+        PARTIAL_FINAL_MAP.put(COUNT, Tuple2.of(List.of(COUNT), List.of(SUM0)));
+        PARTIAL_FINAL_MAP.put(MIN, Tuple2.of(List.of(MIN), List.of(MIN)));
+        PARTIAL_FINAL_MAP.put(MAX, Tuple2.of(List.of(MAX), List.of(MAX)));
+        PARTIAL_FINAL_MAP.put(SUM, Tuple2.of(List.of(SUM), List.of(SUM)));
+        PARTIAL_FINAL_MAP.put(SUM0, Tuple2.of(List.of(SUM0), List.of(SUM0)));
         PARTIAL_FINAL_MAP.put(
                 FlinkSqlOperatorTable.FIRST_VALUE,
                 Tuple2.of(
-                        Arrays.asList(FlinkSqlOperatorTable.FIRST_VALUE),
-                        Arrays.asList(FlinkSqlOperatorTable.FIRST_VALUE)));
+                        List.of(FlinkSqlOperatorTable.FIRST_VALUE),
+                        List.of(FlinkSqlOperatorTable.FIRST_VALUE)));
         PARTIAL_FINAL_MAP.put(
                 FlinkSqlOperatorTable.LAST_VALUE,
                 Tuple2.of(
-                        Arrays.asList(FlinkSqlOperatorTable.LAST_VALUE),
-                        Arrays.asList(FlinkSqlOperatorTable.LAST_VALUE)));
+                        List.of(FlinkSqlOperatorTable.LAST_VALUE),
+                        List.of(FlinkSqlOperatorTable.LAST_VALUE)));
         PARTIAL_FINAL_MAP.put(
                 FlinkSqlOperatorTable.LISTAGG,
                 Tuple2.of(
-                        Arrays.asList(FlinkSqlOperatorTable.LISTAGG),
-                        Arrays.asList(FlinkSqlOperatorTable.LISTAGG)));
+                        List.of(FlinkSqlOperatorTable.LISTAGG),
+                        List.of(FlinkSqlOperatorTable.LISTAGG)));
         PARTIAL_FINAL_MAP.put(
-                SINGLE_VALUE, Tuple2.of(Arrays.asList(SINGLE_VALUE), Arrays.asList(SINGLE_VALUE)));
+                SINGLE_VALUE, Tuple2.of(List.of(SINGLE_VALUE), List.of(SINGLE_VALUE)));
     }
 
     private static boolean needAddHashFields(AggregateCall aggCall) {
