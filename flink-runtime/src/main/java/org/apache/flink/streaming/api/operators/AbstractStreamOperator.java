@@ -170,6 +170,7 @@ public abstract class AbstractStreamOperator<OUT>
                     parameters.getOutput());
             this.processingTimeService =
                     Preconditions.checkNotNull(parameters.getProcessingTimeService());
+            this.mailboxExecutor = parameters.getMailboxExecutor();
         }
     }
 
