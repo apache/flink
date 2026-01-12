@@ -19,8 +19,12 @@
 package org.apache.flink.table.runtime.operators.join.interval;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.core.execution.CheckpointingMode;
 import org.apache.flink.streaming.api.operators.co.KeyedCoProcessOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
+import org.apache.flink.streaming.runtime.tasks.mailbox.Mail;
+import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -31,9 +35,14 @@ import org.apache.flink.table.utils.HandwrittenSelectorUtil;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTING_CONSISTENCY_MODE;
+import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTING_INTERVAL;
+import static org.apache.flink.configuration.CheckpointingOptions.ENABLE_UNALIGNED;
+import static org.apache.flink.configuration.CheckpointingOptions.ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -410,6 +419,93 @@ class RowTimeIntervalJoinTest extends TimeIntervalStreamJoinTestBase {
         expectedOutput.add(new Watermark(91));
 
         assertor.assertOutputEquals("output wrong.", expectedOutput, testHarness.getOutput());
+        testHarness.close();
+    }
+
+    @Test
+    public void testInterruptibleTimers() throws Exception {
+        final boolean[] isMailProcessed = new boolean[1]; // e.g. checkpoint mail
+
+        int allowedLateness = 1;
+        int leftUpperBound = 1;
+        RowTimeIntervalJoin joinProcessFunc =
+                new RowTimeIntervalJoin(
+                        FlinkJoinType.FULL,
+                        -1,
+                        leftUpperBound,
+                        allowedLateness,
+                        0,
+                        rowType,
+                        rowType,
+                        joinFunction,
+                        0,
+                        0);
+
+        KeyedTwoInputStreamOperatorTestHarness<RowData, RowData, RowData, RowData> testHarness =
+                createTestHarness(joinProcessFunc);
+        testHarness
+                .getEnvironment()
+                .getJobConfiguration()
+                .set(ENABLE_UNALIGNED_INTERRUPTIBLE_TIMERS, true)
+                .set(CHECKPOINTING_INTERVAL, Duration.ofMillis(10)) // just enable checkpointing
+                .set(ENABLE_UNALIGNED, true)
+                .set(CHECKPOINTING_CONSISTENCY_MODE, CheckpointingMode.EXACTLY_ONCE);
+
+        final int operatorMailPriority = 123;
+        testHarness
+                .getOperator()
+                .setMailboxExecutor(
+                        new MailboxExecutorImpl(
+                                testHarness.getTaskMailbox(),
+                                operatorMailPriority,
+                                StreamTaskActionExecutor.IMMEDIATE));
+
+        testHarness.open();
+
+        testHarness.processElement1(insertRecord(5L, "k1"));
+        testHarness.processElement2(insertRecord(6L, "k2"));
+        testHarness.processElement1(insertRecord(7L, "k3"));
+        testHarness.processElement2(insertRecord(8L, "k4"));
+
+        testHarness
+                .getTaskMailbox()
+                .put(new Mail(() -> isMailProcessed[0] = true, operatorMailPriority, "%s", "test"));
+
+        final int timersBeforeWatermark = testHarness.numEventTimeTimers();
+        assertThat(timersBeforeWatermark).isPositive();
+
+        final int endTime = 99; // should trigger emission of all elements
+        testHarness.processWatermark1(new Watermark(endTime));
+        testHarness.processWatermark2(new Watermark(endTime));
+
+        final int timersAfterWatermark = testHarness.numEventTimeTimers();
+        assertThat(timersAfterWatermark)
+                .as("On watermark, some timers should be processed, some should be postponed")
+                .isLessThan(timersBeforeWatermark)
+                .isNotZero();
+
+        testHarness.getTaskMailbox().take(operatorMailPriority).run();
+        assertThat(isMailProcessed[0]).as("The mail should be processed").isTrue();
+        assertThat(testHarness.numEventTimeTimers())
+                .as("The number of timers shouldn't change after the 1st mail")
+                .isEqualTo(timersAfterWatermark);
+
+        // process the remaining timers
+        for (Mail mail : testHarness.getTaskMailbox().drain()) {
+            mail.run();
+        }
+        assertThat(testHarness.numEventTimeTimers())
+                .as("Eventually, all timers should be processed")
+                .isZero();
+
+        final List<Object> expectedOutput = new ArrayList<>();
+        expectedOutput.add(insertRecord(5L, "k1", null, null));
+        expectedOutput.add(insertRecord(null, null, 6L, "k2"));
+        expectedOutput.add(insertRecord(7L, "k3", null, null));
+        expectedOutput.add(insertRecord(null, null, 8L, "k4"));
+        expectedOutput.add(new Watermark(endTime - allowedLateness - leftUpperBound));
+        assertor.assertOutputEquals("Wrong output", expectedOutput, testHarness.getOutput());
+
         testHarness.close();
     }
 

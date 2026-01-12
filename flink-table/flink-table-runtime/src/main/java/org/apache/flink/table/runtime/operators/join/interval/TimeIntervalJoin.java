@@ -484,4 +484,8 @@ abstract class TimeIntervalJoin extends KeyedCoProcessFunction<RowData, RowData,
      * @param cleanupTime timestamp for the timer
      */
     abstract void registerTimer(Context ctx, long cleanupTime);
+
+    public boolean useInterruptibleTimers() {
+        return true;
+    }
 }
