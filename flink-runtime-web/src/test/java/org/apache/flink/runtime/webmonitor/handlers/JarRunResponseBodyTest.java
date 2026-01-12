@@ -44,5 +44,6 @@ class JarRunResponseBodyTest extends RestResponseMarshallingTestBase<JarRunRespo
     protected void assertOriginalEqualsToUnmarshalled(
             final JarRunResponseBody expected, final JarRunResponseBody actual) {
         assertThat(actual.getJobId()).isEqualTo(expected.getJobId());
+        assertThat(actual.getApplicationId()).isEqualTo(expected.getApplicationId());
     }
 }

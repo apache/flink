@@ -18,8 +18,11 @@
 
 package org.apache.flink.runtime.webmonitor.handlers;
 
+import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
+import org.apache.flink.runtime.rest.messages.json.ApplicationIDDeserializer;
+import org.apache.flink.runtime.rest.messages.json.ApplicationIDSerializer;
 import org.apache.flink.runtime.rest.messages.json.JobIDDeserializer;
 import org.apache.flink.runtime.rest.messages.json.JobIDSerializer;
 
@@ -33,19 +36,31 @@ import static java.util.Objects.requireNonNull;
 /** Response for {@link JarRunHandler}. */
 public class JarRunResponseBody implements ResponseBody {
 
+    private static final String FIELD_NAME_APPLICATION_ID = "applicationId";
+
     @JsonProperty("jobid")
     @JsonDeserialize(using = JobIDDeserializer.class)
     @JsonSerialize(using = JobIDSerializer.class)
     private final JobID jobId;
+
+    @JsonProperty(FIELD_NAME_APPLICATION_ID)
+    @JsonDeserialize(using = ApplicationIDDeserializer.class)
+    @JsonSerialize(using = ApplicationIDSerializer.class)
+    private final ApplicationID applicationId;
 
     @JsonCreator
     public JarRunResponseBody(
             @JsonProperty("jobid") @JsonDeserialize(using = JobIDDeserializer.class)
                     final JobID jobId) {
         this.jobId = requireNonNull(jobId);
+        this.applicationId = ApplicationID.fromHexString(jobId.toHexString());
     }
 
     public JobID getJobId() {
         return jobId;
+    }
+
+    public ApplicationID getApplicationId() {
+        return applicationId;
     }
 }
