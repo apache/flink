@@ -50,8 +50,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import scala.collection.JavaConverters;
-
 /**
  * This rule rewrites an aggregation query with grouping sets into an regular aggregation query with
  * expand.
@@ -190,10 +188,9 @@ public class DecomposeGroupingSetsRule
     public boolean matches(RelOptRuleCall call) {
         LogicalAggregate agg = call.rel(0);
         List<Object> groupIdExprs =
-                JavaConverters.seqAsJavaList(
+                JavaScalaConversionUtil.toJava(
                         AggregateUtil.getGroupIdExprIndexes(
-                                JavaConverters.asScalaBufferConverter(agg.getAggCallList())
-                                        .asScala()));
+                                JavaScalaConversionUtil.toScala(agg.getAggCallList())));
         return agg.getGroupSets().size() > 1 || !groupIdExprs.isEmpty();
     }
 
@@ -208,10 +205,9 @@ public class DecomposeGroupingSetsRule
 
         RelNode aggInput = agg.getInput();
         List<Object> groupIdExprs =
-                JavaConverters.seqAsJavaList(
+                JavaScalaConversionUtil.toJava(
                         AggregateUtil.getGroupIdExprIndexes(
-                                JavaConverters.asScalaBufferConverter(agg.getAggCallList())
-                                        .asScala()));
+                                JavaScalaConversionUtil.toScala(agg.getAggCallList())));
         List<Tuple2<AggregateCall, Integer>> aggCallsWithIndexes =
                 IntStream.range(0, agg.getAggCallList().size())
                         .mapToObj(i -> Tuple2.of(agg.getAggCallList().get(i), i))
@@ -231,14 +227,13 @@ public class DecomposeGroupingSetsRule
                     JavaScalaConversionUtil.toJava(
                             ExpandUtil.buildExpandNode(
                                     relBuilder,
-                                    JavaConverters.asScalaBufferConverter(agg.getAggCallList())
-                                            .asScala(),
+                                    JavaScalaConversionUtil.toScala(agg.getAggCallList()),
                                     agg.getGroupSet(),
                                     agg.getGroupSets()));
 
             // new groupSet contains original groupSet and expand_id('$e') field
             newGroupSet = agg.getGroupSet().union(ImmutableBitSet.of(expandResult.f1));
-            duplicateFieldMap = JavaConverters.mapAsJavaMap(expandResult.f0);
+            duplicateFieldMap = JavaScalaConversionUtil.toJava(expandResult.f0);
         } else {
             // no need add expand node, only need care about group functions
             newGroupSet = agg.getGroupSet();
