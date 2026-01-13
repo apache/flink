@@ -393,6 +393,7 @@ public abstract class AbstractStreamOperator<OUT>
         if (useInterruptibleTimers()
                 && areInterruptibleTimersConfigured()
                 && getTimeServiceManager().isPresent()) {
+            LOG.info("Interruptible timers enabled for {}", getClass().getSimpleName());
             this.watermarkProcessor =
                     new MailboxWatermarkProcessor(
                             output, mailboxExecutor, getTimeServiceManager().get());
