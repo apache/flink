@@ -17,7 +17,6 @@
 ################################################################################
 import json
 from typing import Dict
-
 from pyflink.common.serialization import SimpleStringSchema
 from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.datastream.connectors.dynamic_kafka import DynamicKafkaSource, \
