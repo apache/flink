@@ -44,6 +44,16 @@ def _install():
     setattr(connectors, 'FlinkKafkaConsumer', kafka.FlinkKafkaConsumer)
     setattr(connectors, 'FlinkKafkaProducer', kafka.FlinkKafkaProducer)
     setattr(connectors, 'Semantic', kafka.Semantic)
+    # dynamic kafka
+    from pyflink.datastream.connectors import dynamic_kafka
+    setattr(connectors, 'DynamicKafkaSource', dynamic_kafka.DynamicKafkaSource)
+    setattr(connectors, 'DynamicKafkaSourceBuilder', dynamic_kafka.DynamicKafkaSourceBuilder)
+    setattr(connectors, 'KafkaMetadataService', dynamic_kafka.KafkaMetadataService)
+    setattr(connectors, 'KafkaRecordDeserializationSchema',
+            dynamic_kafka.KafkaRecordDeserializationSchema)
+    setattr(connectors, 'KafkaStreamSubscriber', dynamic_kafka.KafkaStreamSubscriber)
+    setattr(connectors, 'SingleClusterTopicMetadataService',
+            dynamic_kafka.SingleClusterTopicMetadataService)
 
     # pulsar
     from pyflink.datastream.connectors import pulsar
