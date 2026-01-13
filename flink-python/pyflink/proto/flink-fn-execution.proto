@@ -72,11 +72,11 @@ message UserDefinedFunctions {
   bool profile_enabled = 4;
   repeated JobParameter job_parameters = 5;
   // Async execution configuration for async scalar functions
-  int32 async_buffer_capacity = 6;  // Max number of concurrent async operations
+  int32 async_max_concurrent_operations = 6;  // Max number of concurrent async operations
   int64 async_timeout_ms = 7;  // Timeout in milliseconds for async operations
   // Async retry strategy configuration
   bool async_retry_enabled = 8;  // Whether retry is enabled
-  int32 async_max_attempts = 9;  // Maximum number of retry attempts
+  int32 async_retry_max_attempts = 9;  // Maximum number of retry attempts
   int64 async_retry_delay_ms = 10;  // Delay between retries in milliseconds
 }
 

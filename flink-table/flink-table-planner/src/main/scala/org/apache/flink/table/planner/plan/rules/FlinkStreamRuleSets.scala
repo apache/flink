@@ -412,17 +412,6 @@ object FlinkStreamRuleSets {
     // Merges Python calc used in Map operation, Flatten calcs and Python calcs used in Map
     // xoperation together
     PythonMapMergeRule.INSTANCE,
-    // Splits Python calc which contains Python async scalar functions and other Python functions
-    PythonAsyncCalcSplitRule.SPLIT_CONDITION_REX_FIELD,
-    PythonAsyncCalcSplitRule.SPLIT_PROJECTION_REX_FIELD,
-    PythonAsyncCalcSplitRule.NO_ASYNC_JOIN_CONDITIONS,
-    PythonAsyncCalcSplitRule.SPLIT_CONDITION,
-    PythonAsyncCalcSplitRule.SPLIT_PROJECT,
-    PythonAsyncCalcSplitRule.EXPAND_PROJECT,
-    PythonAsyncCalcSplitRule.PUSH_CONDITION,
-    PythonAsyncCalcSplitRule.REWRITE_PROJECT,
-    PythonAsyncCalcSplitRule.NESTED_SPLIT,
-    PythonAsyncCalcSplitRule.ONE_PER_CALC_SPLIT,
     // Similar to the python rules above, the goal is to limit complexity of calcs which
     // have async calls so that the implementation can be simplified to handle a single async call.
     // Split async scalar calls from other types of calls in correlates

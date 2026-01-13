@@ -37,7 +37,7 @@ public class PythonAsyncScalarFunctionOperator extends PythonScalarFunctionOpera
      * The maximum number of async operations that can be in-flight at the same time. This controls
      * the buffer capacity for async execution.
      */
-    private final int asyncBufferCapacity;
+    private final int asyncMaxConcurrentOperations;
 
     /** The timeout in milliseconds for async operations. */
     private final long asyncTimeout;
@@ -46,7 +46,7 @@ public class PythonAsyncScalarFunctionOperator extends PythonScalarFunctionOpera
     private final boolean asyncRetryEnabled;
 
     /** Maximum number of retry attempts. */
-    private final int asyncMaxAttempts;
+    private final int asyncRetryMaxAttempts;
 
     /** Delay between retries in milliseconds. */
     private final long asyncRetryDelayMs;
@@ -62,7 +62,7 @@ public class PythonAsyncScalarFunctionOperator extends PythonScalarFunctionOpera
             int asyncBufferCapacity,
             long asyncTimeout,
             boolean asyncRetryEnabled,
-            int asyncMaxAttempts,
+            int asyncRetryMaxAttempts,
             long asyncRetryDelayMs) {
         super(
                 config,
@@ -72,10 +72,10 @@ public class PythonAsyncScalarFunctionOperator extends PythonScalarFunctionOpera
                 udfOutputType,
                 udfInputGeneratedProjection,
                 forwardedFieldGeneratedProjection);
-        this.asyncBufferCapacity = asyncBufferCapacity;
+        this.asyncMaxConcurrentOperations = asyncBufferCapacity;
         this.asyncTimeout = asyncTimeout;
         this.asyncRetryEnabled = asyncRetryEnabled;
-        this.asyncMaxAttempts = asyncMaxAttempts;
+        this.asyncRetryMaxAttempts = asyncRetryMaxAttempts;
         this.asyncRetryDelayMs = asyncRetryDelayMs;
     }
 
@@ -92,10 +92,10 @@ public class PythonAsyncScalarFunctionOperator extends PythonScalarFunctionOpera
                 super.createUserDefinedFunctionsProto().toBuilder();
 
         // Add async-specific configurations
-        builder.setAsyncBufferCapacity(asyncBufferCapacity);
+        builder.setAsyncMaxConcurrentOperations(asyncMaxConcurrentOperations);
         builder.setAsyncTimeoutMs(asyncTimeout);
         builder.setAsyncRetryEnabled(asyncRetryEnabled);
-        builder.setAsyncMaxAttempts(asyncMaxAttempts);
+        builder.setAsyncRetryMaxAttempts(asyncRetryMaxAttempts);
         builder.setAsyncRetryDelayMs(asyncRetryDelayMs);
 
         return builder.build();
