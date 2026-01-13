@@ -256,16 +256,8 @@ class RemoteCalcSplitProjectionRexFieldRule(callFinder: RemoteCallFinder)
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
-    val program = calc.getProgram
 
-    // Early exit: check if there are any remote calls at all in the expression list
-    // This avoids expensive expandLocalRef() calls for non-remote calcs
-    val hasAnyRemoteCall = program.getExprList.exists(callFinder.containsRemoteCall)
-    if (!hasAnyRemoteCall) {
-      return false
-    }
-
-    val projects = program.getProjectList.map(program.expandLocalRef)
+    val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
     projects.exists(containsFieldAccessAfterRemoteCall)
   }
 
@@ -310,16 +302,7 @@ class RemoteCalcSplitProjectionRule(callFinder: RemoteCallFinder)
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
-    val program = calc.getProgram
-
-    // Early exit: check if there are any remote calls at all in the expression list
-    // This avoids expensive expandLocalRef() calls for non-remote calcs
-    val hasAnyRemoteCall = program.getExprList.exists(callFinder.containsRemoteCall)
-    if (!hasAnyRemoteCall) {
-      return false
-    }
-
-    val projects = program.getProjectList.map(program.expandLocalRef)
+    val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
 
     // matches if it contains both Remote functions and Java functions in the projection
     projects.exists(callFinder.containsRemoteCall) && projects.exists(
@@ -345,16 +328,7 @@ class RemoteCalcExpandProjectRule(callFinder: RemoteCallFinder)
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
-    val program = calc.getProgram
-
-    // Early exit: check if there are any remote calls at all in the expression list
-    // This avoids expensive expandLocalRef() calls for non-remote calcs
-    val hasAnyRemoteCall = program.getExprList.exists(callFinder.containsRemoteCall)
-    if (!hasAnyRemoteCall) {
-      return false
-    }
-
-    val projects = program.getProjectList.map(program.expandLocalRef)
+    val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
 
     projects.exists(callFinder.containsRemoteCall) && projects.exists(containsFieldAccessInputs)
   }
@@ -390,21 +364,12 @@ class RemoteCalcPushConditionRule(callFinder: RemoteCallFinder)
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
-    val program = calc.getProgram
-
-    // Early exit: check if there are any remote calls at all in the expression list
-    // This avoids expensive expandLocalRef() calls for non-remote calcs
-    val hasAnyRemoteCall = program.getExprList.exists(callFinder.containsRemoteCall)
-    if (!hasAnyRemoteCall) {
-      return false
-    }
-
-    val projects = program.getProjectList.map(program.expandLocalRef)
+    val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
 
     // matches if all the following conditions hold true:
     // 1) the condition is not null
     // 2) it contains Remote functions in the projection
-    program.getCondition != null && projects.exists(callFinder.containsRemoteCall)
+    calc.getProgram.getCondition != null && projects.exists(callFinder.containsRemoteCall)
   }
 
   override def needConvert(
@@ -432,16 +397,7 @@ class RemoteCalcRewriteProjectionRule(callFinder: RemoteCallFinder)
 
   override def matches(call: RelOptRuleCall): Boolean = {
     val calc: FlinkLogicalCalc = call.rel(0).asInstanceOf[FlinkLogicalCalc]
-    val program = calc.getProgram
-
-    // Early exit: check if there are any remote calls at all in the expression list
-    // This avoids expensive expandLocalRef() calls for non-remote calcs
-    val hasAnyRemoteCall = program.getExprList.exists(callFinder.containsRemoteCall)
-    if (!hasAnyRemoteCall) {
-      return false
-    }
-
-    val projects = program.getProjectList.map(program.expandLocalRef)
+    val projects = calc.getProgram.getProjectList.map(calc.getProgram.expandLocalRef)
 
     // matches if all the following conditions hold true:
     // 1) it contains Remote functions in the projection
