@@ -16,7 +16,6 @@
 # limitations under the License.
 ################################################################################
 import json
-import unittest
 from typing import Dict
 
 import pyflink.datastream.data_stream as data_stream
