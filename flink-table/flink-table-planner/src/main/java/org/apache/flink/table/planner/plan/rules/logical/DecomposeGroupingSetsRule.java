@@ -297,50 +297,33 @@ public class DecomposeGroupingSetsRule
                     RexInputRef expandIdField =
                             rexBuilder.makeInputRef(newAgg, expandIdIdxInNewAgg);
                     // create case when for group expression
-                    List<RexNode> whenThenElse =
-                            groupSetsWithIndexes.stream()
-                                    .flatMap(
-                                            tuple -> {
-                                                int i = tuple.f1;
-                                                RexNode groupExpr =
-                                                        lowerGroupExpr(
-                                                                rexBuilder,
-                                                                aggCall,
-                                                                groupSetsWithIndexes,
-                                                                i);
-                                                if (i < agg.getGroupSets().size() - 1) {
-                                                    // WHEN/THEN
-                                                    long expandIdVal =
-                                                            ExpandUtil.genExpandId(
-                                                                    agg.getGroupSet(), tuple.f0);
-                                                    RelDataType expandIdType =
-                                                            newAgg.getRowType()
-                                                                    .getFieldList()
-                                                                    .get(expandIdIdxInNewAgg)
-                                                                    .getType();
-                                                    RexNode expandIdLit =
-                                                            rexBuilder.makeLiteral(
-                                                                    expandIdVal,
-                                                                    expandIdType,
-                                                                    false);
-                                                    return Stream.of(
-                                                            // when $e = $e_value
-                                                            rexBuilder.makeCall(
-                                                                    SqlStdOperatorTable.EQUALS,
-                                                                    expandIdField,
-                                                                    expandIdLit),
-                                                            // then return group expression literal
-                                                            // value
-                                                            groupExpr);
-                                                } else {
-                                                    // ELSE
-                                                    return Stream.of(
-                                                            // else return group expression literal
-                                                            // value
-                                                            groupExpr);
-                                                }
-                                            })
-                                    .collect(Collectors.toList());
+                    List<RexNode> whenThenElse = new ArrayList<>();
+                    for (int i = 0; i < groupSetsWithIndexes.size(); i++) {
+                        Tuple2<ImmutableBitSet, Integer> tuple = groupSetsWithIndexes.get(i);
+                        RexNode groupExpr =
+                                lowerGroupExpr(rexBuilder, aggCall, groupSetsWithIndexes, i);
+                        if (i < groupSetsWithIndexes.size() - 1) {
+                            // WHEN/THEN
+                            long expandIdVal = ExpandUtil.genExpandId(agg.getGroupSet(), tuple.f0);
+                            RelDataType expandIdType =
+                                    newAgg.getRowType()
+                                            .getFieldList()
+                                            .get(expandIdIdxInNewAgg)
+                                            .getType();
+                            RexNode expandIdLit =
+                                    rexBuilder.makeLiteral(expandIdVal, expandIdType, false);
+                            RexNode condition =
+                                    rexBuilder.makeCall(
+                                            SqlStdOperatorTable.EQUALS, expandIdField, expandIdLit);
+                            // when $e = $e_value
+                            whenThenElse.add(condition);
+                            // then return group expression literal value
+                            whenThenElse.add(groupExpr);
+                        } else {
+                            // else return group expression literal value
+                            whenThenElse.add(groupExpr);
+                        }
+                    }
                     aggFields.add(rexBuilder.makeCall(SqlStdOperatorTable.CASE, whenThenElse));
                 } else {
                     // create literal for group expression
@@ -349,7 +332,7 @@ public class DecomposeGroupingSetsRule
             } else {
                 // create access to aggregation result
                 RexInputRef aggResult = rexBuilder.makeInputRef(newAgg, newGroupCount + aggCnt);
-                aggCnt += 1;
+                aggCnt++;
                 aggFields.add(aggResult);
             }
         }
