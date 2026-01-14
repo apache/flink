@@ -51,7 +51,9 @@ def _install():
     setattr(connectors, 'KafkaMetadataService', dynamic_kafka.KafkaMetadataService)
     setattr(connectors, 'KafkaRecordDeserializationSchema',
             dynamic_kafka.KafkaRecordDeserializationSchema)
+    setattr(connectors, 'KafkaStreamSetSubscriber', dynamic_kafka.KafkaStreamSetSubscriber)
     setattr(connectors, 'KafkaStreamSubscriber', dynamic_kafka.KafkaStreamSubscriber)
+    setattr(connectors, 'StreamPatternSubscriber', dynamic_kafka.StreamPatternSubscriber)
     setattr(connectors, 'SingleClusterTopicMetadataService',
             dynamic_kafka.SingleClusterTopicMetadataService)
 

@@ -20,7 +20,8 @@ from typing import Dict
 from pyflink.common.serialization import SimpleStringSchema
 from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.datastream.connectors.dynamic_kafka import DynamicKafkaSource, \
-    KafkaRecordDeserializationSchema, SingleClusterTopicMetadataService
+    KafkaRecordDeserializationSchema, KafkaStreamSetSubscriber, StreamPatternSubscriber, \
+    SingleClusterTopicMetadataService
 from pyflink.datastream.connectors.kafka import KafkaOffsetsInitializer, KafkaOffsetResetStrategy, \
     KafkaTopicPartition
 from pyflink.java_gateway import get_gateway
@@ -75,6 +76,42 @@ class DynamicKafkaSourceTests(PyFlinkStreamingTestCase):
             '.StreamPatternSubscriber'
         )
         stream_pattern = get_field_value(subscriber, 'streamPattern')
+        self.assertTrue(is_instance_of(stream_pattern, get_gateway().jvm.java.util.regex.Pattern))
+        self.assertEqual(stream_pattern.toString(), 'stream-*')
+
+    def test_set_stream_set_subscriber(self):
+        subscriber = KafkaStreamSetSubscriber({'stream-a', 'stream-b'})
+        source = DynamicKafkaSource.builder() \
+            .set_kafka_stream_subscriber(subscriber) \
+            .set_kafka_metadata_service(self._build_metadata_service()) \
+            .set_value_only_deserializer(SimpleStringSchema()) \
+            .build()
+        j_subscriber = get_field_value(source.get_java_function(), 'kafkaStreamSubscriber')
+        self.assertEqual(
+            j_subscriber.getClass().getCanonicalName(),
+            'org.apache.flink.connector.kafka.dynamic.source.enumerator.subscriber'
+            '.KafkaStreamSetSubscriber'
+        )
+        stream_ids = get_field_value(j_subscriber, 'streamIds')
+        self.assertTrue(is_instance_of(stream_ids, get_gateway().jvm.java.util.Set))
+        self.assertEqual(stream_ids.size(), 2)
+        self.assertTrue('stream-a' in stream_ids)
+        self.assertTrue('stream-b' in stream_ids)
+
+    def test_set_stream_pattern_subscriber(self):
+        subscriber = StreamPatternSubscriber('stream-*')
+        source = DynamicKafkaSource.builder() \
+            .set_kafka_stream_subscriber(subscriber) \
+            .set_kafka_metadata_service(self._build_metadata_service()) \
+            .set_value_only_deserializer(SimpleStringSchema()) \
+            .build()
+        j_subscriber = get_field_value(source.get_java_function(), 'kafkaStreamSubscriber')
+        self.assertEqual(
+            j_subscriber.getClass().getCanonicalName(),
+            'org.apache.flink.connector.kafka.dynamic.source.enumerator.subscriber'
+            '.StreamPatternSubscriber'
+        )
+        stream_pattern = get_field_value(j_subscriber, 'streamPattern')
         self.assertTrue(is_instance_of(stream_pattern, get_gateway().jvm.java.util.regex.Pattern))
         self.assertEqual(stream_pattern.toString(), 'stream-*')
 

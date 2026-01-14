@@ -29,7 +29,9 @@ __all__ = [
     'DynamicKafkaSourceBuilder',
     'KafkaMetadataService',
     'KafkaRecordDeserializationSchema',
+    'KafkaStreamSetSubscriber',
     'KafkaStreamSubscriber',
+    'StreamPatternSubscriber',
     'SingleClusterTopicMetadataService'
 ]
 
@@ -65,6 +67,33 @@ class KafkaStreamSubscriber(object):
 
     def __init__(self, j_kafka_stream_subscriber: JavaObject):
         self._j_kafka_stream_subscriber = j_kafka_stream_subscriber
+
+
+class KafkaStreamSetSubscriber(KafkaStreamSubscriber):
+    """
+    Subscriber that consumes from a fixed set of stream ids.
+    """
+
+    def __init__(self, stream_ids: Set[str]):
+        gateway = get_gateway()
+        j_stream_ids = gateway.jvm.java.util.HashSet()
+        for stream_id in stream_ids:
+            j_stream_ids.add(stream_id)
+        j_subscriber = gateway.jvm.org.apache.flink.connector.kafka.dynamic.source.enumerator \
+            .subscriber.KafkaStreamSetSubscriber(j_stream_ids)
+        super().__init__(j_subscriber)
+
+
+class StreamPatternSubscriber(KafkaStreamSubscriber):
+    """
+    Subscriber that consumes from stream ids matching a regex pattern.
+    """
+
+    def __init__(self, stream_pattern: str):
+        j_pattern = get_gateway().jvm.java.util.regex.Pattern.compile(stream_pattern)
+        j_subscriber = get_gateway().jvm.org.apache.flink.connector.kafka.dynamic.source.enumerator \
+            .subscriber.StreamPatternSubscriber(j_pattern)
+        super().__init__(j_subscriber)
 
 
 class KafkaRecordDeserializationSchema(DeserializationSchema):
