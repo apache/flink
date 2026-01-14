@@ -90,8 +90,9 @@ class StreamPatternSubscriber(KafkaStreamSubscriber):
     """
 
     def __init__(self, stream_pattern: str):
-        j_pattern = get_gateway().jvm.java.util.regex.Pattern.compile(stream_pattern)
-        j_subscriber = get_gateway().jvm.org.apache.flink.connector.kafka.dynamic.source.enumerator \
+        gateway = get_gateway()
+        j_pattern = gateway.jvm.java.util.regex.Pattern.compile(stream_pattern)
+        j_subscriber = gateway.jvm.org.apache.flink.connector.kafka.dynamic.source.enumerator \
             .subscriber.StreamPatternSubscriber(j_pattern)
         super().__init__(j_subscriber)
 
