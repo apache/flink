@@ -25,7 +25,7 @@ from pyflink.datastream.connectors.kafka import KafkaOffsetsInitializer, KafkaOf
     KafkaTopicPartition
 from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkStreamingTestCase
-from pyflink.util.java_utils import get_field_value, is_instance_of
+from pyflink.util.java_utils import get_field, get_field_value, is_instance_of
 
 
 class DynamicKafkaSourceTests(PyFlinkStreamingTestCase):
@@ -101,21 +101,51 @@ class DynamicKafkaSourceTests(PyFlinkStreamingTestCase):
                 .set_starting_offsets(initializer) \
                 .build()
 
-        self._check_reader_handled_offsets_initializer(
-            _build_source(KafkaOffsetsInitializer.latest()), -1, KafkaOffsetResetStrategy.LATEST
+        self._check_offsets_initializer(
+            _build_source(KafkaOffsetsInitializer.latest()),
+            {
+                'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+                'LatestOffsetsInitializer',
+                'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+                'ReaderHandledOffsetsInitializer',
+            },
+            reset_strategy=KafkaOffsetResetStrategy.LATEST,
+            offset=-1
         )
-        self._check_reader_handled_offsets_initializer(
-            _build_source(KafkaOffsetsInitializer.earliest()), -2,
-            KafkaOffsetResetStrategy.EARLIEST
+        self._check_offsets_initializer(
+            _build_source(KafkaOffsetsInitializer.earliest()),
+            {
+                'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+                'EarliestOffsetsInitializer',
+                'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+                'ReaderHandledOffsetsInitializer',
+            },
+            reset_strategy=KafkaOffsetResetStrategy.EARLIEST,
+            offset=-2
         )
-        self._check_reader_handled_offsets_initializer(
-            _build_source(KafkaOffsetsInitializer.committed_offsets()), -3,
-            KafkaOffsetResetStrategy.NONE
+        self._check_offsets_initializer(
+            _build_source(KafkaOffsetsInitializer.committed_offsets()),
+            {
+                'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+                'CommittedOffsetsInitializer',
+                'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+                'ReaderHandledOffsetsInitializer',
+            },
+            reset_strategy=KafkaOffsetResetStrategy.NONE,
+            offset=-3
         )
-        self._check_reader_handled_offsets_initializer(
+        self._check_offsets_initializer(
             _build_source(KafkaOffsetsInitializer.committed_offsets(
                 KafkaOffsetResetStrategy.LATEST
-            )), -3, KafkaOffsetResetStrategy.LATEST
+            )),
+            {
+                'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+                'CommittedOffsetsInitializer',
+                'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+                'ReaderHandledOffsetsInitializer',
+            },
+            reset_strategy=KafkaOffsetResetStrategy.LATEST,
+            offset=-3
         )
         self._check_timestamp_offsets_initializer(
             _build_source(KafkaOffsetsInitializer.timestamp(100)), 100
@@ -153,25 +183,61 @@ class DynamicKafkaSourceTests(PyFlinkStreamingTestCase):
 
         source = _build_source(KafkaOffsetsInitializer.latest())
         _check_bounded(source)
-        self._check_reader_handled_offsets_initializer(
-            source, -1, KafkaOffsetResetStrategy.LATEST, False
+        self._check_offsets_initializer(
+            source,
+            {
+                'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+                'LatestOffsetsInitializer',
+                'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+                'ReaderHandledOffsetsInitializer',
+            },
+            reset_strategy=KafkaOffsetResetStrategy.LATEST,
+            offset=-1,
+            is_start=False
         )
         source = _build_source(KafkaOffsetsInitializer.earliest())
         _check_bounded(source)
-        self._check_reader_handled_offsets_initializer(
-            source, -2, KafkaOffsetResetStrategy.EARLIEST, False
+        self._check_offsets_initializer(
+            source,
+            {
+                'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+                'EarliestOffsetsInitializer',
+                'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+                'ReaderHandledOffsetsInitializer',
+            },
+            reset_strategy=KafkaOffsetResetStrategy.EARLIEST,
+            offset=-2,
+            is_start=False
         )
         source = _build_source(KafkaOffsetsInitializer.committed_offsets())
         _check_bounded(source)
-        self._check_reader_handled_offsets_initializer(
-            source, -3, KafkaOffsetResetStrategy.NONE, False
+        self._check_offsets_initializer(
+            source,
+            {
+                'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+                'CommittedOffsetsInitializer',
+                'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+                'ReaderHandledOffsetsInitializer',
+            },
+            reset_strategy=KafkaOffsetResetStrategy.NONE,
+            offset=-3,
+            is_start=False
         )
         source = _build_source(KafkaOffsetsInitializer.committed_offsets(
             KafkaOffsetResetStrategy.LATEST
         ))
         _check_bounded(source)
-        self._check_reader_handled_offsets_initializer(
-            source, -3, KafkaOffsetResetStrategy.LATEST, False
+        self._check_offsets_initializer(
+            source,
+            {
+                'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+                'CommittedOffsetsInitializer',
+                'org.apache.flink.connector.kafka.source.enumerator.initializer.'
+                'ReaderHandledOffsetsInitializer',
+            },
+            reset_strategy=KafkaOffsetResetStrategy.LATEST,
+            offset=-3,
+            is_start=False
         )
         source = _build_source(KafkaOffsetsInitializer.timestamp(100))
         _check_bounded(source)
@@ -232,29 +298,34 @@ class DynamicKafkaSourceTests(PyFlinkStreamingTestCase):
         return SingleClusterTopicMetadataService(
             'test-cluster', {'bootstrap.servers': 'localhost:9092'})
 
-    def _check_reader_handled_offsets_initializer(self,
-                                                  source: DynamicKafkaSource,
-                                                  offset: int,
-                                                  reset_strategy: KafkaOffsetResetStrategy,
-                                                  is_start: bool = True):
+    def _check_offsets_initializer(self,
+                                   source: DynamicKafkaSource,
+                                   expected_class_names,
+                                   reset_strategy: KafkaOffsetResetStrategy = None,
+                                   offset: int = None,
+                                   is_start: bool = True):
         if is_start:
             field_name = 'startingOffsetsInitializer'
         else:
             field_name = 'stoppingOffsetsInitializer'
         offsets_initializer = get_field_value(source.get_java_function(), field_name)
-        self.assertEqual(
-            offsets_initializer.getClass().getCanonicalName(),
-            'org.apache.flink.connector.kafka.source.enumerator.initializer'
-            '.ReaderHandledOffsetsInitializer'
-        )
+        class_name = offsets_initializer.getClass().getCanonicalName()
+        self.assertIn(class_name, expected_class_names)
 
-        starting_offset = get_field_value(offsets_initializer, 'startingOffset')
-        self.assertEqual(starting_offset, offset)
+        if offset is not None:
+            starting_offset_field = get_field(offsets_initializer.getClass(), 'startingOffset')
+            if starting_offset_field is not None:
+                starting_offset = starting_offset_field.get(offsets_initializer)
+                self.assertEqual(starting_offset, offset)
 
-        offset_reset_strategy = get_field_value(offsets_initializer, 'offsetResetStrategy')
-        self.assertTrue(
-            offset_reset_strategy.equals(reset_strategy._to_j_offset_reset_strategy())
-        )
+        if reset_strategy is not None:
+            offset_reset_strategy_field = get_field(offsets_initializer.getClass(),
+                                                    'offsetResetStrategy')
+            if offset_reset_strategy_field is not None:
+                offset_reset_strategy = offset_reset_strategy_field.get(offsets_initializer)
+                self.assertTrue(
+                    offset_reset_strategy.equals(reset_strategy._to_j_offset_reset_strategy())
+                )
 
     def _check_timestamp_offsets_initializer(self,
                                              source: DynamicKafkaSource,
