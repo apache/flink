@@ -418,6 +418,15 @@ under the License.
 				<version>2.5.1</version>
 				<scope>runtime</scope>
 			</dependency>
+
+			<!-- Netty dependency is fixed to 4.1 here as Arrow expects this. It should be removed or updated once Apache Arrow version is upgraded. -->
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-bom</artifactId>
+				<version>4.1.100.Final</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 

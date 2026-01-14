@@ -32,7 +32,6 @@ under the License.
 
 	<properties>
 		<kubernetes.client.version>7.3.1</kubernetes.client.version>
-		<netty.override.version>4.1.108.Final</netty.override.version>
 		<surefire.module.config><!--
 			CommonTestUtils#setEnv
 			-->--add-opens=java.base/java.util=ALL-UNNAMED
@@ -108,22 +107,6 @@ under the License.
 		</dependency>
 
 	</dependencies>
-
-	<dependencyManagement>
-		<dependencies>
-			<!--
-				This should be removed once Netty is upgraded to at least 4.1.108.Final.
-				Important to note that this only affects test scope.
-			 	Version 4.1.100.Final does not contain a class that's required by Vert.x, which is used by kubernetes-server-mock.
-			 -->
-			<dependency>
-				<groupId>io.netty</groupId>
-				<artifactId>netty-codec-http</artifactId>
-				<version>${netty.override.version}</version>
-				<scope>test</scope>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
 
 	<build>
 		<plugins>
