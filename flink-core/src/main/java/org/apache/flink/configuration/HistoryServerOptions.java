@@ -140,7 +140,9 @@ public class HistoryServerOptions {
                                             "If this configuration is provided, the remote and local storage of job archives will be decoupled.")
                                     .text(
                                             "If set to `0` or less than `-1` HistoryServer will throw an %s. ",
-                                            code("IllegalConfigurationException"))
+                                            code(
+                                                    IllegalConfigurationException.class
+                                                            .getSimpleName()))
                                     .build());
 
     public static final ConfigOption<Integer> HISTORY_SERVER_RETAINED_JOBS =
@@ -157,7 +159,9 @@ public class HistoryServerOptions {
                                             "If set to `-1`(default), there is no limit to the number of archives. ")
                                     .text(
                                             "If set to `0` or less than `-1` HistoryServer will throw an %s. ",
-                                            code("IllegalConfigurationException"))
+                                            code(
+                                                    IllegalConfigurationException.class
+                                                            .getSimpleName()))
                                     .build());
 
     public static final ConfigOption<Integer> HISTORY_SERVER_NUM_CACHED_MOST_RECENTLY_VIEWED_JOBS =
@@ -176,7 +180,9 @@ public class HistoryServerOptions {
                                                     HISTORY_SERVER_WEB_DIR.key()))
                                     .text(
                                             "If set to less than `0` HistoryServer will throw an %s. ",
-                                            code("IllegalConfigurationException"))
+                                            code(
+                                                    IllegalConfigurationException.class
+                                                            .getSimpleName()))
                                     .build());
 
     private HistoryServerOptions() {}

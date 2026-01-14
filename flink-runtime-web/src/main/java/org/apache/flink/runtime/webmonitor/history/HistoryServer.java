@@ -240,32 +240,12 @@ public class HistoryServer {
 
         refreshIntervalMillis =
                 config.get(HistoryServerOptions.HISTORY_SERVER_ARCHIVE_REFRESH_INTERVAL).toMillis();
-        int maxHistorySize = config.get(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS);
-        if (maxHistorySize == 0 || maxHistorySize < -1) {
-            throw new IllegalConfigurationException(
-                    "Cannot set %s to 0 or less than -1",
-                    HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS.key());
-        }
+        int maxHistorySize = validateRetainedJobsConfig(config);
         boolean remoteFetchEnabled =
                 config.contains(HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS);
 
-        int generalCachedJobSize = -1;
-        if (remoteFetchEnabled) {
-            generalCachedJobSize = config.get(HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS);
-            if (generalCachedJobSize == 0 || generalCachedJobSize < -1) {
-                throw new IllegalConfigurationException(
-                        "Cannot set %s to 0 or less than -1",
-                        HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS.key());
-            }
-        }
-        int numCachedMostRecentlyViewedJobs =
-                config.get(
-                        HistoryServerOptions.HISTORY_SERVER_NUM_CACHED_MOST_RECENTLY_VIEWED_JOBS);
-        if (numCachedMostRecentlyViewedJobs <= 0) {
-            throw new IllegalConfigurationException(
-                    "Cannot set %s to less than 0",
-                    HistoryServerOptions.HISTORY_SERVER_NUM_CACHED_MOST_RECENTLY_VIEWED_JOBS.key());
-        }
+        int generalCachedJobSize = validateCachedJobsConfig(config, remoteFetchEnabled);
+        int numCachedMostRecentlyViewedJobs = validateNumCachedMostRecentlyViewedJobsConfig(config);
 
         archiveFetcher =
                 new HistoryServerArchiveFetcher(
@@ -420,6 +400,63 @@ public class HistoryServer {
     private static String createConfigJson(DashboardConfiguration dashboardConfiguration)
             throws IOException {
         return OBJECT_MAPPER.writeValueAsString(dashboardConfiguration);
+    }
+
+    /**
+     * Validates and retrieves the retained jobs configuration.
+     *
+     * @param config the configuration
+     * @return the maximum history size
+     * @throws IllegalConfigurationException if the configuration is invalid
+     */
+    private int validateRetainedJobsConfig(Configuration config) {
+        int maxHistorySize = config.get(HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS);
+        if (maxHistorySize == 0 || maxHistorySize < -1) {
+            throw new IllegalConfigurationException(
+                    "Cannot set %s to 0 or less than -1",
+                    HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS.key());
+        }
+        return maxHistorySize;
+    }
+
+    /**
+     * Validates and retrieves the cached jobs configuration if remote fetch is enabled.
+     *
+     * @param config the configuration
+     * @param remoteFetchEnabled whether remote fetch is enabled
+     * @return the general cached job size
+     * @throws IllegalConfigurationException if the configuration is invalid
+     */
+    private int validateCachedJobsConfig(Configuration config, boolean remoteFetchEnabled) {
+        int generalCachedJobSize = -1;
+        if (remoteFetchEnabled) {
+            generalCachedJobSize = config.get(HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS);
+            if (generalCachedJobSize == 0 || generalCachedJobSize < -1) {
+                throw new IllegalConfigurationException(
+                        "Cannot set %s to 0 or less than -1",
+                        HistoryServerOptions.HISTORY_SERVER_CACHED_JOBS.key());
+            }
+        }
+        return generalCachedJobSize;
+    }
+
+    /**
+     * Validates and retrieves the number of cached most recently viewed jobs configuration.
+     *
+     * @param config the configuration
+     * @return the number of cached most recently viewed jobs
+     * @throws IllegalConfigurationException if the configuration is invalid
+     */
+    private int validateNumCachedMostRecentlyViewedJobsConfig(Configuration config) {
+        int numCachedMostRecentlyViewedJobs =
+                config.get(
+                        HistoryServerOptions.HISTORY_SERVER_NUM_CACHED_MOST_RECENTLY_VIEWED_JOBS);
+        if (numCachedMostRecentlyViewedJobs <= 0) {
+            throw new IllegalConfigurationException(
+                    "Cannot set %s to less than 0",
+                    HistoryServerOptions.HISTORY_SERVER_NUM_CACHED_MOST_RECENTLY_VIEWED_JOBS.key());
+        }
+        return numCachedMostRecentlyViewedJobs;
     }
 
     /** Container for the {@link Path} and {@link FileSystem} of a refresh directory. */

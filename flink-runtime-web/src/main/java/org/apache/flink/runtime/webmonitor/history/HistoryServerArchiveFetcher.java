@@ -276,9 +276,7 @@ public class HistoryServerArchiveFetcher {
 
                     historySize++;
 
-                    if (!remoteFetchEnabled
-                            || (remoteFetchEnabled
-                                    && !mostRecentlyViewedCache.containsKey(jobID))) {
+                    if (!remoteFetchEnabled || !mostRecentlyViewedCache.containsKey(jobID)) {
                         generalCachedJobCount++;
                     }
 
@@ -295,9 +293,7 @@ public class HistoryServerArchiveFetcher {
                     }
 
                     if (remoteArchiveDeletion || localCacheDeletion) {
-                        if ((!remoteFetchEnabled
-                                        || (remoteFetchEnabled
-                                                && !mostRecentlyViewedCache.containsKey(jobID)))
+                        if ((!remoteFetchEnabled || !mostRecentlyViewedCache.containsKey(jobID))
                                 && cachedArchives.contains(jobID)) {
                             cachedJobArchivesToRemove
                                     .computeIfAbsent(refreshDir, ignored -> new HashSet<>())
