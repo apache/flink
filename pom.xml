@@ -2265,7 +2265,7 @@ under the License.
 					<configuration>
 						<quiet>true</quiet>
 						<detectOfflineLinks>false</detectOfflineLinks>
-						<release>11</release>
+						<release>${target.java.version}</release>
 						<additionalJOptions>
 							<additionalJOption>-Xdoclint:none</additionalJOption>
 							<additionalJOption>--allow-script-in-comments</additionalJOption>
