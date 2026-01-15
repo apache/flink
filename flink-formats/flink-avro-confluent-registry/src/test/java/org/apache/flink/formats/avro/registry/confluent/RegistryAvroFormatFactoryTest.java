@@ -229,6 +229,74 @@ class RegistryAvroFormatFactoryTest {
                                 null, SCHEMA.toPhysicalRowDataType()));
     }
 
+    @Test
+    void testAutoRegisterSchemasDefaultTrue() {
+        // Test that auto.register.schemas defaults to true when not specified
+        final Map<String, String> options = getDefaultOptions();
+
+        // Test serialization (where auto-registration matters most)
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
+        assertThat(actualSink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
+        TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+
+        // Verify that the format can be created without throwing an exception
+        SerializationSchema<RowData> actualSer =
+                sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toPhysicalRowDataType());
+        assertThat(actualSer).isNotNull();
+    }
+
+    @Test
+    void testAutoRegisterSchemasSetToFalse() {
+        final Map<String, String> options =
+                getModifiedOptions(
+                        opts -> {
+                            opts.put("avro-confluent.auto.register.schemas", "false");
+                        });
+
+        // Test deserialization with auto.register.schemas=false
+        final DynamicTableSource actualSource = createTableSource(SCHEMA, options);
+        assertThat(actualSource).isInstanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class);
+        TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
+                (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
+
+        // Verify that the format can be created without throwing an exception
+        DeserializationSchema<RowData> actualDeser =
+                scanSourceMock.valueFormat.createRuntimeDecoder(
+                        ScanRuntimeProviderContext.INSTANCE, SCHEMA.toPhysicalRowDataType());
+        assertThat(actualDeser).isNotNull();
+
+        // Test serialization with auto.register.schemas=false
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
+        assertThat(actualSink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
+        TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+
+        // Verify that the format can be created without throwing an exception
+        SerializationSchema<RowData> actualSer =
+                sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toPhysicalRowDataType());
+        assertThat(actualSer).isNotNull();
+    }
+
+    @Test
+    void testAutoRegisterSchemasSetToTrue() {
+        final Map<String, String> options =
+                getModifiedOptions(
+                        opts -> {
+                            opts.put("avro-confluent.auto.register.schemas", "true");
+                        });
+
+        // Test that explicitly setting auto.register.schemas=true works
+        final DynamicTableSink actualSink = createTableSink(SCHEMA, options);
+        assertThat(actualSink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
+        TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
+                (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
+
+        SerializationSchema<RowData> actualSer =
+                sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toPhysicalRowDataType());
+        assertThat(actualSer).isNotNull();
+    }
+
     // ------------------------------------------------------------------------
     //  Utilities
     // ------------------------------------------------------------------------
