@@ -21,9 +21,12 @@ package org.apache.flink.table.runtime.operators.aggregate;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
 import org.apache.flink.runtime.memory.MemoryManager;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
+import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
@@ -63,8 +66,13 @@ public class SumHashAggTestOperator extends AbstractStreamOperator<RowData>
 
     private transient BinaryRowData emptyAggBuffer;
 
-    public SumHashAggTestOperator(long memorySize) throws Exception {
+    public SumHashAggTestOperator(
+            long memorySize,
+            StreamTask<?, ?> containingTask,
+            StreamConfig config,
+            Output<StreamRecord<RowData>> output) {
         this.memorySize = memorySize;
+        super.setup(containingTask, config, output);
     }
 
     @Override

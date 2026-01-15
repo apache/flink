@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.runtime.asyncprocessing.operators.AbstractAsyncStateStreamOperator;
 import org.apache.flink.runtime.execution.Environment;
@@ -52,7 +53,7 @@ public abstract class AsyncStateTableStreamOperator<OUT>
     }
 
     @Override
-    public boolean useInterruptibleTimers() {
+    public boolean useInterruptibleTimers(ReadableConfig config) {
         return true;
     }
 

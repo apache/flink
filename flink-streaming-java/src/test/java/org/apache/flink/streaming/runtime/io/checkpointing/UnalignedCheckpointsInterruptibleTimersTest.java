@@ -22,6 +22,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -179,7 +180,7 @@ class UnalignedCheckpointsInterruptibleTimersTest {
         }
 
         @Override
-        public boolean useInterruptibleTimers() {
+        public boolean useInterruptibleTimers(ReadableConfig config) {
             return true;
         }
 
