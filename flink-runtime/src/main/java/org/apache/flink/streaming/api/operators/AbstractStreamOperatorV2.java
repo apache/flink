@@ -32,6 +32,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.MetricGroup;
@@ -244,7 +245,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
         beforeInitializeStateHandler();
         stateHandler.initializeOperatorState(this);
 
-        if (useInterruptibleTimers()
+        if (useInterruptibleTimers(runtimeContext.getJobConfiguration())
                 && areInterruptibleTimersConfigured()
                 && getTimeServiceManager().isPresent()) {
             LOG.info("Interruptible timers enabled for {}", getClass().getSimpleName());
@@ -263,7 +264,7 @@ public abstract class AbstractStreamOperatorV2<OUT>
      *     {@code false} if splittable timers should never be used.
      */
     @Internal
-    public boolean useInterruptibleTimers() {
+    public boolean useInterruptibleTimers(ReadableConfig config) {
         return false;
     }
 

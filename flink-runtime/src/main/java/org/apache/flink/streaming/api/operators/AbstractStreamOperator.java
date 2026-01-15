@@ -33,6 +33,7 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.metrics.MetricGroup;
@@ -362,15 +363,15 @@ public abstract class AbstractStreamOperator<OUT>
     }
 
     /**
-     * Can be overridden to disable splittable timers for this particular operator even if config
-     * option is enabled. By default, splittable timers are disabled.
+     * Can be overridden to enable splittable timers for this particular operator if config option
+     * is enabled. By default, splittable timers are disabled.
      *
      * @return {@code true} if splittable timers should be used (subject to {@link
      *     CheckpointingOptions#isUnalignedCheckpointInterruptibleTimersEnabled(Configuration)}.
      *     {@code false} if splittable timers should never be used.
      */
     @Internal
-    public boolean useInterruptibleTimers() {
+    public boolean useInterruptibleTimers(ReadableConfig config) {
         return false;
     }
 
@@ -390,7 +391,7 @@ public abstract class AbstractStreamOperator<OUT>
      */
     @Override
     public void open() throws Exception {
-        if (useInterruptibleTimers()
+        if (useInterruptibleTimers(getContainingTask().getJobConfiguration())
                 && areInterruptibleTimersConfigured()
                 && getTimeServiceManager().isPresent()) {
             LOG.info("Interruptible timers enabled for {}", getClass().getSimpleName());

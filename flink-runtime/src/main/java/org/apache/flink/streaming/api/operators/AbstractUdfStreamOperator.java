@@ -28,6 +28,7 @@ import org.apache.flink.api.common.functions.util.FunctionUtils;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -187,8 +188,8 @@ public abstract class AbstractUdfStreamOperator<OUT, F extends Function>
     }
 
     @Internal
-    public boolean useInterruptibleTimers() {
+    public boolean useInterruptibleTimers(ReadableConfig config) {
         return userFunction instanceof RichFunction
-                && ((RichFunction) userFunction).useInterruptibleTimers();
+                && ((RichFunction) userFunction).useInterruptibleTimers(config);
     }
 }

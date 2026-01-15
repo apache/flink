@@ -21,6 +21,7 @@ package org.apache.flink.api.common.functions;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.configuration.ReadableConfig;
 
 /**
  * An base interface for all rich user-defined functions. This class defines methods for the life
@@ -136,7 +137,7 @@ public interface RichFunction extends Function {
      * </ol>
      */
     @Internal
-    default boolean useInterruptibleTimers() {
+    default boolean useInterruptibleTimers(ReadableConfig config) {
         return false;
     }
 }
