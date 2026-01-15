@@ -421,11 +421,13 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
             // Should be closed last.
             resourceCloser.registerCloseable(mailboxProcessor);
 
+            String unspillingThreadName =
+                    String.format("channel-state-unspilling-%s", getTaskNameWithSubtaskAndId());
             this.channelIOExecutor =
                     MdcUtils.scopeToJob(
                             environment.getJobID(),
                             Executors.newSingleThreadExecutor(
-                                    new ExecutorThreadFactory("channel-state-unspilling")));
+                                    new ExecutorThreadFactory(unspillingThreadName)));
             resourceCloser.registerCloseable(channelIOExecutor::shutdown);
 
             this.recordWriter = createRecordWriterDelegate(configuration, environment);
