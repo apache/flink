@@ -34,9 +34,10 @@ jobs:
           - release-1.20
           - release-1.19
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ matrix.branch }}
+
       - name: Set branch environment variable
         run: |
           currentBranch=$(git branch --show-current)
@@ -50,9 +51,23 @@ jobs:
           elif [ "${currentBranch}" = "release-1.20" ]; then
             echo "flink_alias=lts" >> ${GITHUB_ENV}
           fi
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-docs-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-docs-
+
       - name: Build documentation
         run: |
-          docker run --rm --volume "$PWD:/root/flink" chesnay/flink-ci:java_8_11_17_21_maven_386_jammy bash -c "cd /root/flink && ./.github/workflows/docs.sh"
+          docker run --rm \
+            --volume "$PWD:/root/flink" \
+            --volume "$HOME/.m2/repository:/root/.m2/repository" \
+            chesnay/flink-ci:java_8_11_17_21_maven_386_jammy \
+            bash -c "cd /root/flink && ./.github/workflows/docs.sh"
+
       - name: Upload documentation
         uses: burnett01/rsync-deployments@0dc935cdecc5f5e571865e60d2a6cdc673704823 # 5.2
         with:
@@ -63,6 +78,7 @@ jobs:
           remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
           remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
           remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
+
       - name: Upload documentation alias
         if: env.flink_alias != ''
         uses: burnett01/rsync-deployments@0dc935cdecc5f5e571865e60d2a6cdc673704823 # 5.2
