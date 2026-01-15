@@ -57,56 +57,6 @@ class DemultiplexingRecordDeserializer<T>
 
     private VirtualChannel<T> currentVirtualChannel;
 
-    static class VirtualChannel<T> {
-        private final RecordDeserializer<DeserializationDelegate<StreamElement>> deserializer;
-        private final RecordFilter<T> recordFilter;
-        Watermark lastWatermark = Watermark.UNINITIALIZED;
-        WatermarkStatus watermarkStatus = WatermarkStatus.ACTIVE;
-        private DeserializationResult lastResult;
-
-        VirtualChannel(
-                RecordDeserializer<DeserializationDelegate<StreamElement>> deserializer,
-                RecordFilter<T> recordFilter) {
-            this.deserializer = deserializer;
-            this.recordFilter = recordFilter;
-        }
-
-        public DeserializationResult getNextRecord(DeserializationDelegate<StreamElement> delegate)
-                throws IOException {
-            do {
-                lastResult = deserializer.getNextRecord(delegate);
-
-                if (lastResult.isFullRecord()) {
-                    final StreamElement element = delegate.getInstance();
-                    // test if record belongs to this subtask if it comes from ambiguous channel
-                    if (element.isRecord() && recordFilter.filter(element.asRecord())) {
-                        return lastResult;
-                    } else if (element.isWatermark()) {
-                        lastWatermark = element.asWatermark();
-                        return lastResult;
-                    } else if (element.isWatermarkStatus()) {
-                        watermarkStatus = element.asWatermarkStatus();
-                        return lastResult;
-                    }
-                }
-                // loop is only re-executed for filtered full records
-            } while (!lastResult.isBufferConsumed());
-            return DeserializationResult.PARTIAL_RECORD;
-        }
-
-        public void setNextBuffer(Buffer buffer) throws IOException {
-            deserializer.setNextBuffer(buffer);
-        }
-
-        public void clear() {
-            deserializer.clear();
-        }
-
-        public boolean hasPartialData() {
-            return lastResult != null && !lastResult.isBufferConsumed();
-        }
-    }
-
     public DemultiplexingRecordDeserializer(
             Map<SubtaskConnectionDescriptor, VirtualChannel<T>> channels) {
         this.channels = checkNotNull(channels);
@@ -159,7 +109,7 @@ class DemultiplexingRecordDeserializer<T>
                     // basically, do not emit a watermark if not all virtual channel are past it
                     final Watermark minWatermark =
                             channels.values().stream()
-                                    .map(virtualChannel -> virtualChannel.lastWatermark)
+                                    .map(VirtualChannel::getLastWatermark)
                                     .min(Comparator.comparing(Watermark::getTimestamp))
                                     .orElseThrow(
                                             () ->
@@ -174,7 +124,8 @@ class DemultiplexingRecordDeserializer<T>
                 } else if (element.isWatermarkStatus()) {
                     // summarize statuses across all virtual channels
                     // duplicate statuses are filtered in StatusWatermarkValve
-                    if (channels.values().stream().anyMatch(d -> d.watermarkStatus.isActive())) {
+                    if (channels.values().stream()
+                            .anyMatch(vc -> vc.getWatermarkStatus().isActive())) {
                         delegate.setInstance(WatermarkStatus.ACTIVE);
                     }
                     return result;
