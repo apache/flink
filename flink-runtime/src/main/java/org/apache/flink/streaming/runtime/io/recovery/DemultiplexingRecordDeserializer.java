@@ -26,7 +26,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.plugable.DeserializationDelegate;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
-import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.CloseableIterator;
 
@@ -38,7 +37,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -61,14 +59,14 @@ class DemultiplexingRecordDeserializer<T>
 
     static class VirtualChannel<T> {
         private final RecordDeserializer<DeserializationDelegate<StreamElement>> deserializer;
-        private final Predicate<StreamRecord<T>> recordFilter;
+        private final RecordFilter<T> recordFilter;
         Watermark lastWatermark = Watermark.UNINITIALIZED;
         WatermarkStatus watermarkStatus = WatermarkStatus.ACTIVE;
         private DeserializationResult lastResult;
 
         VirtualChannel(
                 RecordDeserializer<DeserializationDelegate<StreamElement>> deserializer,
-                Predicate<StreamRecord<T>> recordFilter) {
+                RecordFilter<T> recordFilter) {
             this.deserializer = deserializer;
             this.recordFilter = recordFilter;
         }
@@ -81,7 +79,7 @@ class DemultiplexingRecordDeserializer<T>
                 if (lastResult.isFullRecord()) {
                     final StreamElement element = delegate.getInstance();
                     // test if record belongs to this subtask if it comes from ambiguous channel
-                    if (element.isRecord() && recordFilter.test(element.asRecord())) {
+                    if (element.isRecord() && recordFilter.filter(element.asRecord())) {
                         return lastResult;
                     } else if (element.isWatermark()) {
                         lastWatermark = element.asWatermark();
@@ -197,7 +195,7 @@ class DemultiplexingRecordDeserializer<T>
             InflightDataRescalingDescriptor rescalingDescriptor,
             Function<Integer, RecordDeserializer<DeserializationDelegate<StreamElement>>>
                     deserializerFactory,
-            Function<InputChannelInfo, Predicate<StreamRecord<T>>> recordFilterFactory) {
+            Function<InputChannelInfo, RecordFilter<T>> recordFilterFactory) {
         int[] oldSubtaskIndexes =
                 rescalingDescriptor.getOldSubtaskIndexes(channelInfo.getGateIdx());
         if (oldSubtaskIndexes.length == 0) {
@@ -223,7 +221,7 @@ class DemultiplexingRecordDeserializer<T>
                                 deserializerFactory.apply(totalChannels),
                                 rescalingDescriptor.isAmbiguous(channelInfo.getGateIdx(), subtask)
                                         ? recordFilterFactory.apply(channelInfo)
-                                        : RecordFilter.all()));
+                                        : RecordFilter.acceptAll()));
             }
         }
 
