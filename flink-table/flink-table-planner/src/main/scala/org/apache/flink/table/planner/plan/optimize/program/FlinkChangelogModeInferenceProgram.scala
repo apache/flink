@@ -1060,6 +1060,15 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         case UpsertMaterialize.FORCE => primaryKeys.nonEmpty && !sinkIsRetract
         case UpsertMaterialize.NONE => false
         case UpsertMaterialize.AUTO =>
+          // For NOTHING/ERROR strategies with a primary key, we always need materialization
+          // to handle conflicts, even for append-only input or insert-only sinks
+          val requiresMaterializationForConflict = primaryKeys.nonEmpty &&
+            sink.conflictStrategy != null &&
+            (sink.conflictStrategy.getBehavior == InsertConflictStrategy.ConflictBehavior.NOTHING ||
+              sink.conflictStrategy.getBehavior == InsertConflictStrategy.ConflictBehavior.ERROR)
+          if (requiresMaterializationForConflict) {
+            return true
+          }
           if (
             (inputIsAppend && InsertConflictStrategy
               .deduplicate()
