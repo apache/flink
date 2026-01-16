@@ -1,0 +1,70 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: "Build legacy documentation"
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build documentation for'
+        required: true
+        type: choice
+        options:
+          - release-1.18
+          - release-1.17
+          - release-1.16
+          - release-1.15
+          - release-1.14
+          - release-1.13
+
+jobs:
+  build-documentation:
+    if: github.repository == 'apache/flink'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Set branch environment variable
+        run: |
+          echo "flink_branch=${{ inputs.branch }}" >> ${GITHUB_ENV}
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-docs-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-docs-
+
+      - name: Build documentation
+        run: |
+          docker run --rm \
+            --volume "$PWD:/root/flink" \
+            --volume "$HOME/.m2/repository:/root/.m2/repository" \
+            chesnay/flink-ci:java_8_11_17_21_maven_386_jammy \
+            bash -c "cd /root/flink && ./.github/workflows/docs.sh"
+
+      - name: Upload documentation
+        uses: burnett01/rsync-deployments@0dc935cdecc5f5e571865e60d2a6cdc673704823 # 5.2
+        with:
+          switches: --archive --compress --delete
+          path: docs/target/
+          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/flink-docs-${{ env.flink_branch }}/
+          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
+          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
+          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
+          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
