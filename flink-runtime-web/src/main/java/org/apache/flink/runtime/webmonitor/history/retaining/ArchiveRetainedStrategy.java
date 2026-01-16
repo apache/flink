@@ -21,7 +21,7 @@ package org.apache.flink.runtime.webmonitor.history.retaining;
 import org.apache.flink.core.fs.FileStatus;
 
 /** To define the strategy interface to judge whether the file should be retained. */
-public interface JobRetainedStrategy {
+public interface ArchiveRetainedStrategy {
 
     /**
      * Judge whether the file should be retained.

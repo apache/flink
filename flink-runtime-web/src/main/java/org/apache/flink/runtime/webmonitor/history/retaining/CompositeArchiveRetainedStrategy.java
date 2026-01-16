@@ -31,23 +31,42 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.configuration.HistoryServerOptions.HISTORY_SERVER_RETAINED_APPLICATIONS;
 import static org.apache.flink.configuration.HistoryServerOptions.HISTORY_SERVER_RETAINED_JOBS;
 import static org.apache.flink.configuration.HistoryServerOptions.HISTORY_SERVER_RETAINED_TTL;
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** The retained strategy. */
-public class CompositeJobRetainedStrategy implements JobRetainedStrategy {
+public class CompositeArchiveRetainedStrategy implements ArchiveRetainedStrategy {
 
-    public static JobRetainedStrategy createFrom(ReadableConfig config) {
+    public static ArchiveRetainedStrategy createForJobFromConfig(ReadableConfig config) {
         int maxHistorySizeByOldKey = config.get(HISTORY_SERVER_RETAINED_JOBS);
+        if (maxHistorySizeByOldKey == 0 || maxHistorySizeByOldKey < -1) {
+            throw new IllegalConfigurationException(
+                    "Cannot set %s to 0 or less than -1", HISTORY_SERVER_RETAINED_JOBS.key());
+        }
         Optional<Duration> retainedTtlOpt = config.getOptional(HISTORY_SERVER_RETAINED_TTL);
-        return new CompositeJobRetainedStrategy(
-                new QuantityJobRetainedStrategy(maxHistorySizeByOldKey),
-                new TimeToLiveJobRetainedStrategy(retainedTtlOpt.orElse(null)));
+        return new CompositeArchiveRetainedStrategy(
+                new QuantityArchiveRetainedStrategy(maxHistorySizeByOldKey),
+                new TimeToLiveArchiveRetainedStrategy(retainedTtlOpt.orElse(null)));
     }
 
-    private final List<JobRetainedStrategy> strategies;
+    public static ArchiveRetainedStrategy createForApplicationFromConfig(ReadableConfig config) {
+        int maxHistorySize = config.get(HISTORY_SERVER_RETAINED_APPLICATIONS);
+        if (maxHistorySize == 0 || maxHistorySize < -1) {
+            throw new IllegalConfigurationException(
+                    "Cannot set %s to 0 or less than -1",
+                    HISTORY_SERVER_RETAINED_APPLICATIONS.key());
+        }
+        Optional<Duration> retainedTtlOpt = config.getOptional(HISTORY_SERVER_RETAINED_TTL);
+        return new CompositeArchiveRetainedStrategy(
+                new QuantityArchiveRetainedStrategy(maxHistorySize),
+                new TimeToLiveArchiveRetainedStrategy(retainedTtlOpt.orElse(null)));
+    }
 
-    CompositeJobRetainedStrategy(JobRetainedStrategy... strategies) {
+    private final List<ArchiveRetainedStrategy> strategies;
+
+    CompositeArchiveRetainedStrategy(ArchiveRetainedStrategy... strategies) {
         this.strategies =
                 strategies == null || strategies.length == 0
                         ? Collections.emptyList()
@@ -64,11 +83,11 @@ public class CompositeJobRetainedStrategy implements JobRetainedStrategy {
 }
 
 /** The time to live based retained strategy. */
-class TimeToLiveJobRetainedStrategy implements JobRetainedStrategy {
+class TimeToLiveArchiveRetainedStrategy implements ArchiveRetainedStrategy {
 
     @Nullable private final Duration ttlThreshold;
 
-    TimeToLiveJobRetainedStrategy(Duration ttlThreshold) {
+    TimeToLiveArchiveRetainedStrategy(@Nullable Duration ttlThreshold) {
         if (ttlThreshold != null && ttlThreshold.toMillis() <= 0) {
             throw new IllegalConfigurationException(
                     "Cannot set %s to 0 or less than 0 milliseconds",
@@ -86,16 +105,13 @@ class TimeToLiveJobRetainedStrategy implements JobRetainedStrategy {
     }
 }
 
-/** The job quantity based retained strategy. */
-class QuantityJobRetainedStrategy implements JobRetainedStrategy {
+/** The quantity based retained strategy. */
+class QuantityArchiveRetainedStrategy implements ArchiveRetainedStrategy {
 
     private final int quantityThreshold;
 
-    QuantityJobRetainedStrategy(int quantityThreshold) {
-        if (quantityThreshold == 0 || quantityThreshold < -1) {
-            throw new IllegalConfigurationException(
-                    "Cannot set %s to 0 or less than -1", HISTORY_SERVER_RETAINED_JOBS.key());
-        }
+    QuantityArchiveRetainedStrategy(int quantityThreshold) {
+        checkArgument(quantityThreshold == -1 || quantityThreshold > 0);
         this.quantityThreshold = quantityThreshold;
     }
 
