@@ -21,7 +21,6 @@ package org.apache.flink.table.secret;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
-import org.apache.flink.table.secret.exceptions.SecretException;
 
 import java.util.Collections;
 import java.util.Set;
@@ -55,23 +54,12 @@ public class GenericInMemorySecretStoreFactory implements SecretStoreFactory {
 
     @Override
     public SecretStore createSecretStore() {
-        if (secretStore == null) {
-            throw new IllegalStateException(
-                    "SecretStoreFactory must be opened before creating a SecretStore");
-        }
-        return secretStore;
+        return new GenericInMemorySecretStore();
     }
 
     @Override
-    public void open(Context context) throws SecretException {
-        this.secretStore = new GenericInMemorySecretStore();
-    }
+    public void open(Context context) {}
 
     @Override
-    public void close() throws CatalogException {
-        if (secretStore != null) {
-            secretStore.clear();
-            secretStore = null;
-        }
-    }
+    public void close() throws CatalogException {}
 }

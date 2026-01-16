@@ -27,7 +27,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 /** Test for {@link GenericInMemorySecretStoreFactory}. */
 public class GenericInMemorySecretStoreFactoryTest {
@@ -51,16 +50,6 @@ public class GenericInMemorySecretStoreFactoryTest {
     }
 
     @Test
-    void testCreateSecretStoreBeforeOpen() {
-        GenericInMemorySecretStoreFactory factory = new GenericInMemorySecretStoreFactory();
-
-        assertThatThrownBy(factory::createSecretStore)
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining(
-                        "SecretStoreFactory must be opened before creating a SecretStore");
-    }
-
-    @Test
     void testFactoryIdentifier() {
         GenericInMemorySecretStoreFactory factory = new GenericInMemorySecretStoreFactory();
         assertThat(factory.factoryIdentifier()).isEqualTo("generic_in_memory");
@@ -71,23 +60,5 @@ public class GenericInMemorySecretStoreFactoryTest {
         GenericInMemorySecretStoreFactory factory = new GenericInMemorySecretStoreFactory();
         assertThat(factory.requiredOptions().isEmpty()).isTrue();
         assertThat(factory.optionalOptions().isEmpty()).isTrue();
-    }
-
-    @Test
-    void testOpenAndClose() {
-        GenericInMemorySecretStoreFactory factory = new GenericInMemorySecretStoreFactory();
-        Map<String, String> options = new HashMap<>();
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        DefaultSecretStoreContext context =
-                new DefaultSecretStoreContext(options, null, classLoader);
-
-        factory.open(context);
-        SecretStore secretStore = factory.createSecretStore();
-        assertThat(secretStore).isNotNull();
-
-        factory.close();
-
-        // After close, createSecretStore should fail
-        assertThatThrownBy(factory::createSecretStore).isInstanceOf(IllegalStateException.class);
     }
 }

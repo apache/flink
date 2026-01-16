@@ -32,7 +32,7 @@ public class CommonSecretOptions {
                     .stringType()
                     .defaultValue(DEFAULT_SECRET_STORE_KIND)
                     .withDescription(
-                            "The kind of secret store to be used. Out of the box, 'default_in_memory' option is supported. "
+                            "The kind of secret store to be used. Out of the box, 'generic_in_memory' option is supported. "
                                     + "Implementations can provide custom secret stores for different backends "
                                     + "(e.g., cloud-specific secret managers).");
 
