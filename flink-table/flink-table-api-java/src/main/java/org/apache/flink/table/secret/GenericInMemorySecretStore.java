@@ -19,15 +19,16 @@
 package org.apache.flink.table.secret;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.secret.exceptions.SecretException;
 import org.apache.flink.table.secret.exceptions.SecretNotFoundException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -38,8 +39,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>This implementation stores secrets in memory as plaintext JSON strings. It is suitable for
  * testing and development purposes but should not be used in production environments as secrets are
  * not encrypted.
- *
- * <p>All operations are thread-safe using concurrent data structures.
  */
 @Internal
 public class GenericInMemorySecretStore implements ReadableSecretStore, WritableSecretStore {
@@ -48,7 +47,7 @@ public class GenericInMemorySecretStore implements ReadableSecretStore, Writable
     private final ObjectMapper objectMapper;
 
     public GenericInMemorySecretStore() {
-        this.secrets = new ConcurrentHashMap<>();
+        this.secrets = new HashMap<>();
         this.objectMapper = new ObjectMapper();
     }
 
@@ -65,7 +64,7 @@ public class GenericInMemorySecretStore implements ReadableSecretStore, Writable
         try {
             return objectMapper.readValue(secretJson, new TypeReference<>() {});
         } catch (JsonProcessingException e) {
-            throw new SecretNotFoundException(
+            throw new SecretException(
                     String.format("Failed to deserialize secret with ID '%s'", secretId), e);
         }
     }
@@ -80,7 +79,7 @@ public class GenericInMemorySecretStore implements ReadableSecretStore, Writable
             secrets.put(secretId, secretJson);
             return secretId;
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize secret data", e);
+            throw new SecretException("Failed to serialize secret data", e);
         }
     }
 
@@ -105,7 +104,7 @@ public class GenericInMemorySecretStore implements ReadableSecretStore, Writable
             String secretJson = objectMapper.writeValueAsString(newSecretData);
             secrets.put(secretId, secretJson);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize secret data", e);
+            throw new SecretException("Failed to serialize secret data", e);
         }
     }
 
