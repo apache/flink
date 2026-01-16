@@ -26,7 +26,7 @@ import org.apache.flink.configuration.ConfigOptions;
 @Internal
 public class CommonSecretOptions {
 
-    public static final String DEFAULT_SECRET_STORE_KIND = "default_in_memory";
+    public static final String DEFAULT_SECRET_STORE_KIND = "generic_in_memory";
     public static final ConfigOption<String> TABLE_SECRET_STORE_KIND =
             ConfigOptions.key("table.secret-store.kind")
                     .stringType()
