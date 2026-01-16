@@ -261,6 +261,8 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
                 executionGraph.getJobVertex(jobVertex2.getID()).getTaskVertices()[2];
         ev23.setInputBytes(1024);
 
+        // Sleep to ensure that the 3 tasks do actually start
+        Thread.sleep(10);
         ev23.getCurrentExecutionAttempt().markFinished();
 
         final Map<ExecutionVertexID, Collection<ExecutionAttemptID>> slowTasks =
