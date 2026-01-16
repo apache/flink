@@ -56,7 +56,7 @@ jobs:
             --volume "$PWD:/root/flink" \
             --volume "$HOME/.m2/repository:/root/.m2/repository" \
             chesnay/flink-ci:java_8_11_17_21_maven_386_jammy \
-            bash -c "cd /root/flink && ./.github/workflows/docs.sh"
+            bash -c "apt-get update && apt-get install -y rsync && cd /root/flink && ./.github/workflows/docs.sh"
 
       - name: Upload documentation
         uses: burnett01/rsync-deployments@0dc935cdecc5f5e571865e60d2a6cdc673704823 # 5.2
