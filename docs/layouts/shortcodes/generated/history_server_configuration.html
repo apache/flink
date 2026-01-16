@@ -9,10 +9,16 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>historyserver.archive.clean-expired-applications</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether HistoryServer should cleanup applications that are no longer present in the archive directory defined by <code class="highlighter-rouge">historyserver.archive.fs.dir</code>. </td>
+        </tr>
+        <tr>
             <td><h5>historyserver.archive.clean-expired-jobs</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>Whether HistoryServer should cleanup jobs that are no longer present `historyserver.archive.fs.dir`.</td>
+            <td>Whether HistoryServer should cleanup jobs that are no longer present in the archive directory defined by <code class="highlighter-rouge">historyserver.archive.fs.dir</code>. <br />Note: This option applies only to legacy job archives created before the introduction of application archiving (FLINK-38761).</td>
         </tr>
         <tr>
             <td><h5>historyserver.archive.fs.dir</h5></td>
@@ -27,16 +33,22 @@
             <td>Interval for refreshing the archived job directories.</td>
         </tr>
         <tr>
+            <td><h5>historyserver.archive.retained-applications</h5></td>
+            <td style="word-wrap: break-word;">-1</td>
+            <td>Integer</td>
+            <td>The maximum number of applications to retain in each archive directory defined by <code class="highlighter-rouge">historyserver.archive.fs.dir</code>. This option works together with the TTL (see <code class="highlighter-rouge">historyserver.archive.retained-ttl</code>). Archived entities will be removed if their TTL has expired or the retention count limit has been reached. <br />If set to <code class="highlighter-rouge">-1</code> (default), there is no limit to the number of archives. If set to <code class="highlighter-rouge">0</code> or less than <code class="highlighter-rouge">-1</code>, HistoryServer will throw an <code class="highlighter-rouge">IllegalConfigurationException</code>. <br />Note, when there are multiple history server instances, two recommended approaches when using this option are: <ul><li>Specify the option in only one HistoryServer instance to avoid errors caused by multiple instances simultaneously cleaning up remote files, </li><li>Or you can keep the value of this configuration consistent across them. </li></ul></td>
+        </tr>
+        <tr>
             <td><h5>historyserver.archive.retained-jobs</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>
-            <td>The maximum number of jobs to retain in each archive directory defined by <code class="highlighter-rouge">historyserver.archive.fs.dir</code>. <ul><li>If the option is not specified as a positive number without specifying <code class="highlighter-rouge">historyserver.archive.retained-ttl</code>, all of the jobs archives will be retained. </li><li>If the option is specified as a positive number without specifying a value of <code class="highlighter-rouge">historyserver.archive.retained-ttl</code>, the jobs archive whose order index based modification time is equals to or less than the value will be retained. </li><li>If this option is specified as a positive number together with the specified <code class="highlighter-rouge">historyserver.archive.retained-ttl</code> option, the job archive will be removed if its TTL has expired or the retained job count has been reached. </li></ul>If set to <code class="highlighter-rouge">0</code> or less than <code class="highlighter-rouge">-1</code>, HistoryServer will throw an <code class="highlighter-rouge">IllegalConfigurationException</code>. <br />Note, when there are multiple history server instances, two recommended approaches when using this option are: <ul><li>Specify the option in only one HistoryServer instance to avoid errors caused by multiple instances simultaneously cleaning up remote files, </li><li>Or you can keep the value of this configuration consistent across them. </li></ul></td>
+            <td>The maximum number of jobs to retain in each archive directory defined by <code class="highlighter-rouge">historyserver.archive.fs.dir</code>. <ul><li>If the option is not specified as a positive number without specifying <code class="highlighter-rouge">historyserver.archive.retained-ttl</code>, all of the jobs archives will be retained. </li><li>If the option is specified as a positive number without specifying a value of <code class="highlighter-rouge">historyserver.archive.retained-ttl</code>, the jobs archive whose order index based modification time is equals to or less than the value will be retained. </li><li>If this option is specified as a positive number together with the specified <code class="highlighter-rouge">historyserver.archive.retained-ttl</code> option, the job archive will be removed if its TTL has expired or the retained job count has been reached. </li></ul>If set to <code class="highlighter-rouge">0</code> or less than <code class="highlighter-rouge">-1</code>, HistoryServer will throw an <code class="highlighter-rouge">IllegalConfigurationException</code>. <br />Note, when there are multiple history server instances, two recommended approaches when using this option are: <ul><li>Specify the option in only one HistoryServer instance to avoid errors caused by multiple instances simultaneously cleaning up remote files, </li><li>Or you can keep the value of this configuration consistent across them. </li></ul><br />Note: This option applies only to legacy job archives created before the introduction of application archiving (FLINK-38761).</td>
         </tr>
         <tr>
             <td><h5>historyserver.archive.retained-ttl</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Duration</td>
-            <td>The time-to-live duration to retain the jobs archived in each archive directory defined by <code class="highlighter-rouge">historyserver.archive.fs.dir</code>. <ul><li>If the option is not specified without specifying <code class="highlighter-rouge">historyserver.archive.retained-jobs</code>, all of the jobs archives will be retained. </li><li>If the option is specified without specifying <code class="highlighter-rouge">historyserver.archive.retained-jobs</code>, the jobs archive whose modification time in the time-to-live duration will be retained. </li><li>If this option is specified as a positive time duration together with the <code class="highlighter-rouge">historyserver.archive.retained-jobs</code> option, the job archive will be removed if its TTL has expired or the retained job count has been reached. </li></ul>If set to equal to or less than <code class="highlighter-rouge">0</code> milliseconds, HistoryServer will throw an <code class="highlighter-rouge">IllegalConfigurationException</code>. <br />Note, when there are multiple history server instances, two recommended approaches when using this option are: <ul><li>Specify the option in only one HistoryServer instance to avoid errors caused by multiple instances simultaneously cleaning up remote files, </li><li>Or you can keep the value of this configuration consistent across them. </li></ul></td>
+            <td>The time-to-live duration to retain the archived entities (jobs and applications) in each archive directory defined by <code class="highlighter-rouge">historyserver.archive.fs.dir</code>. This option works together with the retention count limits (see <code class="highlighter-rouge">historyserver.archive.retained-applications</code> and <code class="highlighter-rouge">historyserver.archive.retained-jobs</code>). Archived entities will be removed if their TTL has expired or the retention count limit has been reached. <br />If set to equal to or less than <code class="highlighter-rouge">0</code> milliseconds, HistoryServer will throw an <code class="highlighter-rouge">IllegalConfigurationException</code>. <br />Note, when there are multiple history server instances, two recommended approaches when using this option are: <ul><li>Specify the option in only one HistoryServer instance to avoid errors caused by multiple instances simultaneously cleaning up remote files, </li><li>Or you can keep the value of this configuration consistent across them. </li></ul></td>
         </tr>
         <tr>
             <td><h5>historyserver.log.jobmanager.url-pattern</h5></td>
