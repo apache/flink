@@ -95,7 +95,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
     }
 
     public static List<SqlFunction> dynamicFunctions(boolean isBatchMode) {
-        return Arrays.asList(
+        return List.of(
                 new FlinkTimestampDynamicFunction(
                         SqlStdOperatorTable.LOCALTIME.getName(), SqlTypeName.TIME, isBatchMode),
                 new FlinkTimestampDynamicFunction(
@@ -116,7 +116,6 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                         SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE,
                         isBatchMode,
                         3) {
-
                     @Override
                     public SqlSyntax getSyntax() {
                         return SqlSyntax.FUNCTION;
