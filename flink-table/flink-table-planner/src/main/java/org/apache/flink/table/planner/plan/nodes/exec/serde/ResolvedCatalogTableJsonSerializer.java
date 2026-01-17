@@ -97,9 +97,7 @@ final class ResolvedCatalogTableJsonSerializer extends StdSerializer<ResolvedCat
                 jsonGenerator.writeObjectField(COMMENT, resolvedCatalogTable.getComment());
             }
             try {
-                if (!resolvedCatalogTable.getOptions().isEmpty()) {
-                    jsonGenerator.writeObjectField(OPTIONS, resolvedCatalogTable.getOptions());
-                }
+                jsonGenerator.writeObjectField(OPTIONS, resolvedCatalogTable.getOptions());
             } catch (Exception e) {
                 throw new TableException(
                         String.format(
