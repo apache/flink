@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.util.Preconditions;
 
+import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -43,13 +44,15 @@ class SystemProcessingTimeServiceTest {
 
     /**
      * Tests that SystemProcessingTimeService#scheduleAtFixedRate is actually triggered multiple
-     * times.
+     * times with the expected scheduled timestamps.
      */
     @Timeout(value = 10000, unit = TimeUnit.MILLISECONDS)
     @Test
     void testScheduleAtFixedRate() throws Exception {
         final AtomicReference<Throwable> errorRef = new AtomicReference<>();
+        final long initialDelay = 10L;
         final long period = 10L;
+        final long executionDelay = 10L;
         final int countDown = 3;
 
         final SystemProcessingTimeService timer = createSystemProcessingTimeService(errorRef);
@@ -57,7 +60,24 @@ class SystemProcessingTimeServiceTest {
         final CountDownLatch countDownLatch = new CountDownLatch(countDown);
 
         try {
-            timer.scheduleAtFixedRate(timestamp -> countDownLatch.countDown(), 0L, period);
+            final long initialTimestamp = timer.getCurrentProcessingTime() + initialDelay;
+            timer.scheduleAtFixedRate(
+                    timestamp -> {
+                        try {
+                            long executionTimes = countDown - countDownLatch.getCount();
+                            assertThat(timestamp)
+                                    .isCloseTo(
+                                            initialTimestamp + executionTimes * period,
+                                            Offset.offset(period));
+                            Thread.sleep(executionDelay);
+                        } catch (Error e) {
+                            System.out.println(e.getMessage());
+                            throw new Error(e);
+                        }
+                        countDownLatch.countDown();
+                    },
+                    initialDelay,
+                    period);
 
             countDownLatch.await();
 
@@ -65,6 +85,62 @@ class SystemProcessingTimeServiceTest {
         } finally {
             timer.shutdownService();
         }
+    }
+
+    /**
+     * Tests that SystemProcessingTimeService#testScheduleAtFixedDelay is actually triggered
+     * multiple times with the expected scheduled timestamps.
+     */
+    @Timeout(value = 10000, unit = TimeUnit.MILLISECONDS)
+    @Test
+    void testScheduleAtFixedDelay() throws Exception {
+        final AtomicReference<Throwable> errorRef = new AtomicReference<>();
+        final long initialDelay = 10L;
+        final long period = 10L;
+        final long executionDelay = 10L;
+        final int countDown = 3;
+
+        final SystemProcessingTimeService timer = createSystemProcessingTimeService(errorRef);
+
+        final CountDownLatch countDownLatch = new CountDownLatch(countDown);
+
+        final LastExecutionTimeWrapper lastExecutionTimeWrapper = new LastExecutionTimeWrapper();
+
+        try {
+            final long initialTimestamp = timer.getCurrentProcessingTime() + initialDelay;
+            timer.scheduleWithFixedDelay(
+                    timestamp -> {
+                        try {
+                            if (countDownLatch.getCount() == countDown) {
+                                assertThat(timestamp)
+                                        .isCloseTo(initialTimestamp, Offset.offset(period));
+                            } else {
+                                assertThat(timestamp)
+                                        .isCloseTo(
+                                                lastExecutionTimeWrapper.ts + period,
+                                                Offset.offset(period));
+                            }
+                            Thread.sleep(executionDelay);
+                            lastExecutionTimeWrapper.ts = timer.getCurrentProcessingTime();
+                        } catch (Error e) {
+                            System.out.println(e.getMessage());
+                            throw new Error(e);
+                        }
+                        countDownLatch.countDown();
+                    },
+                    initialDelay,
+                    period);
+
+            countDownLatch.await();
+
+            assertThat(errorRef.get()).isNull();
+        } finally {
+            timer.shutdownService();
+        }
+    }
+
+    private static class LastExecutionTimeWrapper {
+        private long ts;
     }
 
     /**
