@@ -91,8 +91,7 @@ class DatadogHttpReporterFactoryTest {
             newEnv.put("DATADOG_API_KEY", envApiKey);
             CommonTestUtils.setEnv(newEnv, true);
 
-            final String resolvedApiKey =
-                    getApiKeyViaReflection(createConfig("apikey", ""));
+            final String resolvedApiKey = getApiKeyViaReflection(createConfig("apikey", ""));
             assertThat(resolvedApiKey).isEqualTo(envApiKey);
         } finally {
             CommonTestUtils.setEnv(originalEnv, true);
