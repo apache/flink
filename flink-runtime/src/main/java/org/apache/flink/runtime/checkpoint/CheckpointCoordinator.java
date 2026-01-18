@@ -258,6 +258,8 @@ public class CheckpointCoordinator {
 
     private final long initialTriggeringDelay;
 
+    private long triggerDelay;
+
     // --------------------------------------------------------------------------------------------
 
     public CheckpointCoordinator(
@@ -376,6 +378,7 @@ public class CheckpointCoordinator {
         this.statsTracker = checkNotNull(statsTracker, "Statistic tracker can not be null");
         this.vertexFinishedStateCheckerFactory = checkNotNull(vertexFinishedStateCheckerFactory);
         this.initialTriggeringDelay = chkConfig.getInitialTriggeringDelay();
+        this.triggerDelay = initialTriggeringDelay;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -2044,7 +2047,9 @@ public class CheckpointCoordinator {
             }
 
             periodicScheduling = true;
-            scheduleTriggerWithDelay(clock.relativeTimeMillis(), initialTriggeringDelay);
+            scheduleTriggerWithDelay(clock.relativeTimeMillis(), triggerDelay);
+            // minimize delay for subsequent restarts of checkpoint scheduler
+            triggerDelay = minPauseBetweenCheckpoints;
         }
     }
 

@@ -92,6 +92,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.verification.VerificationMode;
 
 import javax.annotation.Nullable;
@@ -2571,6 +2573,44 @@ class CheckpointCoordinatorTest {
         }
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testTriggeringDelay(boolean pauseSourcesUntilFirstCheckpoint) throws Exception {
+        final long minPause = 100L;
+        final long interval = 10000L;
+        CheckpointCoordinatorConfiguration chkConfig =
+                new CheckpointCoordinatorConfiguration.CheckpointCoordinatorConfigurationBuilder()
+                        .setMinPauseBetweenCheckpoints(minPause)
+                        .setPauseSourcesUntilFirstCheckpoint(pauseSourcesUntilFirstCheckpoint)
+                        .setCheckpointInterval(interval)
+                        .build();
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setCheckpointCoordinatorConfiguration(chkConfig)
+                        .setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+        // initial start and trigger - delay should be random
+        if (pauseSourcesUntilFirstCheckpoint) {
+            assertThat(startSchedulerAndGetTriggerDelay(checkpointCoordinator))
+                    .as("initial trigger delay should be random between min pause and interval")
+                    .isBetween(minPause, minPause * 2);
+        } else {
+            assertThat(startSchedulerAndGetTriggerDelay(checkpointCoordinator))
+                    .as("initial trigger delay should be random between min pause and interval")
+                    .isBetween(minPause, interval);
+        }
+
+        // restart scheduler and re-trigger - delay should be minimum (pause)
+        checkpointCoordinator.stopCheckpointScheduler();
+        manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks();
+        manuallyTriggeredScheduledExecutor.triggerAll();
+
+        assertThat(startSchedulerAndGetTriggerDelay(checkpointCoordinator))
+                .as("subsequent trigger delay should be equal to min pause")
+                .isEqualTo(minPause);
+    }
+
     /** Tests that no minimum delay between savepoints is enforced. */
     @Test
     void testMinDelayBetweenSavepoints() throws Exception {
@@ -4514,5 +4554,17 @@ class CheckpointCoordinatorTest {
             }
             super.reportCompletedCheckpoint(completed);
         }
+    }
+
+    private long startSchedulerAndGetTriggerDelay(CheckpointCoordinator checkpointCoordinator) {
+        checkpointCoordinator.startCheckpointScheduler();
+        checkState(checkpointCoordinator.getNumberOfPendingCheckpoints() == 0);
+        long delay =
+                Iterables.getOnlyElement(manuallyTriggeredScheduledExecutor.getAllScheduledTasks())
+                        .getDelay(TimeUnit.MILLISECONDS);
+        manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks();
+        manuallyTriggeredScheduledExecutor.triggerAll();
+        checkState(checkpointCoordinator.getNumberOfPendingCheckpoints() >= 1);
+        return delay;
     }
 }

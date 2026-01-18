@@ -297,10 +297,22 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
     }
 
     public long getInitialTriggeringDelay() {
-        return ThreadLocalRandom.current()
-                .nextLong(
-                        minPauseBetweenCheckpoints,
-                        checkpointInterval + (checkpointInterval == Long.MAX_VALUE ? 0L : 1L));
+        return pauseSourcesUntilFirstCheckpoint
+                // if sources a waiting for a checkpoint then trigger a checkpoint ASAP (not waiting
+                // for checkpoint interval) to unblock them; however, we still need to:
+                // 1. honor the min pause between checkpoints
+                // 2. avoid checkpointing all the jobs on this JM simultaneously (hence *2)
+                // 3. account for 0 configured min pause (hence +1)
+                ? ThreadLocalRandom.current()
+                        .nextLong(minPauseBetweenCheckpoints, minPauseBetweenCheckpoints * 2 + 1)
+                // otherwise, we can delay the first checkpoint by checkpoint interval
+                // additionally, increase the upper bound by 1 to avoid equal lower/upper bounds -
+                // unless it might cause an overflow
+                : ThreadLocalRandom.current()
+                        .nextLong(
+                                minPauseBetweenCheckpoints,
+                                checkpointInterval
+                                        + (checkpointInterval == Long.MAX_VALUE ? 0L : 1L));
     }
 
     /** {@link CheckpointCoordinatorConfiguration} builder. */
