@@ -76,7 +76,8 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
                 1,
                 5,
                 emitProgressiveWatermarks,
-                supportsSplitReassignmentOnRecovery);
+                supportsSplitReassignmentOnRecovery,
+                false);
     }
 
     public TestingSourceOperator(
@@ -88,7 +89,8 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
             int subtaskIndex,
             int parallelism,
             boolean emitProgressiveWatermarks,
-            boolean supportsSplitReassignmentOnRecovery) {
+            boolean supportsSplitReassignmentOnRecovery,
+            boolean pauseSourcesUntilFirstCheckpoint) {
 
         super(
                 parameters,
@@ -102,7 +104,8 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
                 emitProgressiveWatermarks,
                 () -> false,
                 Collections.emptyMap(),
-                supportsSplitReassignmentOnRecovery);
+                supportsSplitReassignmentOnRecovery,
+                pauseSourcesUntilFirstCheckpoint);
 
         this.subtaskIndex = subtaskIndex;
         this.parallelism = parallelism;

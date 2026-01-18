@@ -102,10 +102,10 @@ public class CheckpointIntervalDuringBacklogITCase {
         Source<Long, ?, ?> source =
                 HybridSource.builder(
                                 new NumberSequenceSourceWithWaitForCheckpoint(
-                                        0, NUM_RECORDS / 2 - 1, NUM_SPLITS))
+                                        0, NUM_RECORDS / 2 - 1, NUM_SPLITS, 1))
                         .addSource(
                                 new NumberSequenceSourceWithWaitForCheckpoint(
-                                        NUM_RECORDS / 2, NUM_RECORDS - 1, NUM_SPLITS))
+                                        NUM_RECORDS / 2, NUM_RECORDS - 1, NUM_SPLITS, 1))
                         .build();
 
         runAndVerifyResult(env, source);
@@ -127,7 +127,7 @@ public class CheckpointIntervalDuringBacklogITCase {
         Source<Long, ?, ?> source =
                 HybridSource.builder(
                                 new NumberSequenceSourceWithWaitForCheckpoint(
-                                        0, NUM_RECORDS / 2 - 1, NUM_SPLITS))
+                                        0, NUM_RECORDS / 2 - 1, NUM_SPLITS, 1))
                         .addSource(new NumberSequenceSource(NUM_RECORDS / 2, NUM_RECORDS - 1))
                         .build();
 
@@ -152,6 +152,7 @@ public class CheckpointIntervalDuringBacklogITCase {
         configuration.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, firstCheckpointTime);
         configuration.set(
                 CheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG, Duration.ofMillis(0));
+        configuration.set(CheckpointingOptions.PAUSE_SOURCES_UNTIL_FIRST_CHECKPOINT, false);
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setParallelism(1);
@@ -174,6 +175,7 @@ public class CheckpointIntervalDuringBacklogITCase {
         configuration.set(CheckpointingOptions.CHECKPOINTING_INTERVAL, Duration.ofMillis(100));
         configuration.set(
                 CheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG, Duration.ofMillis(0));
+        configuration.set(CheckpointingOptions.PAUSE_SOURCES_UNTIL_FIRST_CHECKPOINT, false);
         final StreamExecutionEnvironment env =
                 StreamExecutionEnvironment.getExecutionEnvironment(configuration);
         env.setParallelism(1);
@@ -189,7 +191,7 @@ public class CheckpointIntervalDuringBacklogITCase {
         DataStream<Long> source =
                 env.fromSource(
                         new NumberSequenceSourceWithWaitForCheckpoint(
-                                2, NUM_RECORDS - 1, NUM_SPLITS),
+                                2, NUM_RECORDS - 1, NUM_SPLITS, 1),
                         WatermarkStrategy.noWatermarks(),
                         "non-backlog-source");
 

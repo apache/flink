@@ -51,9 +51,13 @@ import org.apache.flink.util.function.TriFunction;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.Serializable;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -70,10 +74,18 @@ import static org.junit.Assert.assertEquals;
  * A test suite for source enumerator (operator coordinator) for situations where RPC calls for
  * split assignments (operator events) fails from time to time.
  */
+@RunWith(Parameterized.class)
 public class OperatorEventSendingCheckpointITCase extends TestLogger {
 
     private static final int PARALLELISM = 1;
     private static MiniCluster flinkCluster;
+
+    @Parameterized.Parameter public boolean pauseSources;
+
+    @Parameterized.Parameters(name = "pauseSources: {0}")
+    public static Collection<Boolean> specs() {
+        return Arrays.asList(Boolean.TRUE, Boolean.FALSE);
+    }
 
     @BeforeClass
     public static void setupMiniClusterAndEnv() throws Exception {
@@ -198,6 +210,7 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
         env.enableCheckpointing(50);
+        env.getCheckpointConfig().setPauseSourcesUntilFirstCheckpoint(pauseSources);
 
         // This test depends on checkpoints persisting progress from the source before the
         // artificial exception gets triggered. Otherwise, the job will run for a long time (or
@@ -217,7 +230,14 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
 
         final DataStream<Long> numbers =
                 env.fromSource(
-                                new NumberSequenceSourceWithWaitForCheckpoint(1L, numElements, 3),
+                                new NumberSequenceSourceWithWaitForCheckpoint(
+                                        1L,
+                                        numElements,
+                                        3,
+                                        env.getCheckpointConfig()
+                                                        .isPauseSourcesUntilFirstCheckpoint()
+                                                ? 2
+                                                : 1),
                                 WatermarkStrategy.noWatermarks(),
                                 "numbers")
                         .map(

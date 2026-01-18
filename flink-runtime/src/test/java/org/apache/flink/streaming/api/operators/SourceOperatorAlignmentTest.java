@@ -66,7 +66,8 @@ class SourceOperatorAlignmentTest {
                         WatermarkStrategy.forGenerator(ctx -> new PunctuatedGenerator())
                                 .withTimestampAssigner((r, t) -> r)
                                 .withWatermarkAlignment(
-                                        "group1", Duration.ofMillis(100), Duration.ofMillis(1)));
+                                        "group1", Duration.ofMillis(100), Duration.ofMillis(1)),
+                        false);
         operator = context.getOperator();
     }
 
@@ -140,7 +141,8 @@ class SourceOperatorAlignmentTest {
                                                         PunctuatedGenerator.GenerationMode.ODD))
                                 .withWatermarkAlignment(
                                         "group1", Duration.ofMillis(100), Duration.ofMillis(1))
-                                .withTimestampAssigner((r, t) -> r))) {
+                                .withTimestampAssigner((r, t) -> r),
+                        false)) {
             final SourceOperator<Integer, MockSourceSplit> operator = context.getOperator();
             operator.initializeState(context.createStateContext());
             operator.open();

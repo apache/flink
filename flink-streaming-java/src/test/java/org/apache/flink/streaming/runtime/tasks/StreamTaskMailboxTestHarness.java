@@ -167,7 +167,7 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
         cleanUp();
     }
 
-    public  void cleanUp() throws Exception {
+    public void cleanUp() throws Exception {
         streamTask.cleanUp(null);
     }
 
