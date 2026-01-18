@@ -35,7 +35,8 @@ import java.util.Optional;
  * An output type strategy for {@link BuiltInFunctionDefinitions#AT}.
  *
  * <p>Returns either the element of an {@link LogicalTypeFamily#COLLECTION} type, the value of
- * {@link LogicalTypeRoot#MAP}, or the variant itself for {@link LogicalTypeRoot#VARIANT}.
+ * {@link LogicalTypeRoot#MAP}, or another {@link LogicalTypeRoot#VARIANT} value obtained by
+ * accessing the input {@link LogicalTypeRoot#VARIANT}.
  */
 @Internal
 public final class ItemAtTypeStrategy implements TypeStrategy {
