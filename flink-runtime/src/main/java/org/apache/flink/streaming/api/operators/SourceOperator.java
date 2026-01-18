@@ -181,6 +181,10 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private final Set<String> currentlyPausedSplits = new HashSet<>();
 
+    private boolean waitingForCheckpoint;
+
+    private final CompletableFuture<Void> checkpointsStartedFuture;
+
     private final Map<String, InternalSourceSplitMetricGroup> splitMetricGroups = new HashMap<>();
 
     private enum OperatingMode {
@@ -230,7 +234,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             boolean emitProgressiveWatermarks,
             CanEmitBatchOfRecordsChecker canEmitBatchOfRecords,
             Map<String, Boolean> watermarkIsAlignedMap,
-            boolean supportsSplitReassignmentOnRecovery) {
+            boolean supportsSplitReassignmentOnRecovery,
+            boolean pauseSourcesUntilFirstCheckpoint) {
         super(parameters);
         this.readerFactory = checkNotNull(readerFactory);
         this.operatorEventGateway = checkNotNull(operatorEventGateway);
@@ -246,6 +251,13 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         this.canEmitBatchOfRecords = checkNotNull(canEmitBatchOfRecords);
         this.watermarkIsAlignedMap = watermarkIsAlignedMap;
         this.supportsSplitReassignmentOnRecovery = supportsSplitReassignmentOnRecovery;
+        this.waitingForCheckpoint = pauseSourcesUntilFirstCheckpoint;
+        //noinspection unchecked
+        this.checkpointsStartedFuture =
+                waitingForCheckpoint
+                        ? new CompletableFuture<>()
+                        : (CompletableFuture<Void>) AVAILABLE;
+        LOG.info("SourceOperator initialized, wait for 1st checkpoint: {}", waitingForCheckpoint);
     }
 
     @Override
@@ -487,6 +499,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     @Override
     public DataInputStatus emitNext(DataOutput<OUT> output) throws Exception {
+        if (waitingForCheckpoint && operatingMode == OperatingMode.SOURCE_DRAINED) {
+            return DataInputStatus.END_OF_DATA;
+        }
         // guarding an assumptions we currently make due to the fact that certain classes
         // assume a constant output, this assumption does not need to stand if we emitted all
         // records. In that case the output will change to FinishedDataOutput
@@ -512,6 +527,9 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private DataInputStatus emitNextNotReading(DataOutput<OUT> output) throws Exception {
         switch (operatingMode) {
             case OUTPUT_NOT_INITIALIZED:
+                if (waitingForCheckpoint) {
+                    return DataInputStatus.NOTHING_AVAILABLE;
+                }
                 if (watermarkAlignmentParams.isEnabled()) {
                     // Only wrap the output when watermark alignment is enabled, as otherwise this
                     // introduces a small performance regression (probably because of an extra
@@ -606,6 +624,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     @Override
     public void snapshotState(StateSnapshotContext context) throws Exception {
+        if (waitingForCheckpoint) {
+            waitingForCheckpoint = false;
+            checkpointsStartedFuture.complete(null);
+            LOG.info("Source un-paused (checkpoint barrier received)");
+        }
         long checkpointId = context.getCheckpointId();
         LOG.debug("Taking a snapshot for checkpoint {}", checkpointId);
         readerState.update(sourceReader.snapshotState(checkpointId));
@@ -617,6 +640,10 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             case WAITING_FOR_ALIGNMENT:
                 return availabilityHelper.update(waitingForAlignmentFuture);
             case OUTPUT_NOT_INITIALIZED:
+                return availabilityHelper.update(
+                        waitingForCheckpoint
+                                ? checkpointsStartedFuture
+                                : sourceReader.isAvailable());
             case READING:
                 return availabilityHelper.update(sourceReader.isAvailable());
             case SOURCE_STOPPED:
@@ -634,6 +661,11 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         final ListState<byte[]> rawState =
                 context.getOperatorStateStore().getListState(SPLITS_STATE_DESC);
         readerState = new SimpleVersionedListState<>(rawState, splitSerializer);
+        if (waitingForCheckpoint && !context.isRestored()) {
+            LOG.debug("Not a recovery, won't wait for the checkpoint to emit records");
+            waitingForCheckpoint = false;
+            checkpointsStartedFuture.complete(null);
+        }
     }
 
     @Override
