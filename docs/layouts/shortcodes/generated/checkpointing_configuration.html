@@ -194,5 +194,11 @@
             <td>Integer</td>
             <td>The default size of the write buffer for the checkpoint streams that write to file systems. The actual write buffer size is determined to be the maximum of the value of this option and option 'execution.checkpointing.data-inline-threshold'.</td>
         </tr>
+        <tr>
+            <td><h5>pipeline.sources.pause-until-first-checkpoint</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Don't pull any data from sources until the first checkpoint is triggered. This might be helpful in reducing recovery times in cases where recovered records from unaligned checkpoint compete with new incoming records for processing. Incompatible with value 0 (disabled) for execution.checkpointing.interval-during-backlog</td>
+        </tr>
     </tbody>
 </table>

@@ -627,6 +627,18 @@ public class CheckpointingOptions {
                                                     "the important considerations"))
                                     .build());
 
+    public static final ConfigOption<Boolean> PAUSE_SOURCES_UNTIL_FIRST_CHECKPOINT =
+            key("pipeline.sources.pause-until-first-checkpoint")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Don't pull any data from sources until the first checkpoint is triggered. "
+                                    + "This might be helpful in reducing recovery times in cases where "
+                                    + "recovered records from unaligned checkpoint compete with new incoming records for processing. "
+                                    + "Incompatible with value 0 (disabled) for "
+                                    + CheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG
+                                            .key());
+
     // TODO: deprecated
     // Currently, both two file merging mechanism can work simultaneously:
     //  1. If UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE=1 and
