@@ -1673,31 +1673,34 @@ object ScalarOperatorGens {
       variant: GeneratedExpression,
       key: GeneratedExpression): GeneratedExpression = {
     val Seq(resultTerm, nullTerm) = newNames(ctx, "result", "isNull")
-    val binaryVariantTerm = newName(ctx, "binaryVariantTerm")
+    val tmpValue = newName(ctx, "tmpValue")
 
     val variantType = variant.resultType.asInstanceOf[VariantType]
-    val keyType = key.resultType
-
-    val variantTypeTerm = primitiveTypeTermForType(variantType)
-    val variantDefault = primitiveDefaultValue(variantType)
     val variantTerm = variant.resultTerm
+    val variantTypeTerm = primitiveTypeTermForType(variantType)
+    val variantDefaultTerm = primitiveDefaultValue(variantType)
+
     val keyTerm = key.resultTerm
+    val keyType = key.resultType
 
     val accessCode = if (isInteger(keyType)) {
       generateIntegerKeyAccess(
         variantTerm,
-        binaryVariantTerm,
+        variantTypeTerm,
         keyTerm,
         resultTerm,
-        nullTerm
+        nullTerm,
+        tmpValue
       )
     } else if (isCharacterString(keyType)) {
+      val fieldName = key.literalValue.get.toString
       generateCharacterStringKeyAccess(
         variantTerm,
-        binaryVariantTerm,
-        keyTerm,
+        variantTypeTerm,
+        fieldName,
         resultTerm,
-        nullTerm
+        nullTerm,
+        tmpValue
       )
     } else {
       throw new CodeGenException(s"Unsupported key type for variant: $keyType")
@@ -1707,8 +1710,8 @@ object ScalarOperatorGens {
       s"""
          |${variant.code}
          |${key.code}
-         |boolean $nullTerm = (${variant.nullTerm}|| ${key.nullTerm});
-         |$variantTypeTerm $resultTerm = $variantDefault;
+         |boolean $nullTerm = (${variant.nullTerm} || ${key.nullTerm});
+         |$variantTypeTerm $resultTerm = $variantDefaultTerm;
          |if (!$nullTerm) {
          |  $accessCode
          |}
@@ -1719,29 +1722,18 @@ object ScalarOperatorGens {
 
   private def generateCharacterStringKeyAccess(
       variantTerm: String,
-      binaryVariantTerm: String,
-      keyTerm: String,
+      variantTypeTerm: String,
+      fieldName: String,
       resultTerm: String,
-      nullTerm: String): String = {
+      nullTerm: String,
+      tmpValue: String): String = {
     s"""
        |  if ($variantTerm.isObject()){
-       |    if ($variantTerm instanceof $BINARY_VARIANT) {
-       |      $BINARY_VARIANT $binaryVariantTerm = ($BINARY_VARIANT) $variantTerm;
-       |
-       |      String keyStr = null;
-       |      if ($keyTerm instanceof $BINARY_STRING) {
-       |       keyStr = (($BINARY_STRING) $keyTerm).toString();
-       |      } else {
-       |       keyStr = String.valueOf($keyTerm);
-       |      }
-       |
-       |      if (keyStr != null) {
-       |        $resultTerm = $binaryVariantTerm.getField(keyStr);
-       |      } else {
-       |        $nullTerm = true;
-       |      }
+       |    $variantTypeTerm $tmpValue = $variantTerm.getField("$fieldName");
+       |    if ($tmpValue == null) {
+       |      $nullTerm = true;
        |    } else {
-       |     $nullTerm = true;
+       |      $resultTerm = $tmpValue;
        |    }
        |  } else {
        |    throw new org.apache.flink.table.api.TableRuntimeException("String key access on variant requires an object variant, but a non-object variant was provided.");
@@ -1751,22 +1743,22 @@ object ScalarOperatorGens {
 
   private def generateIntegerKeyAccess(
       variantTerm: String,
-      binaryVariantTerm: String,
+      variantTypeTerm: String,
       keyTerm: String,
       resultTerm: String,
-      nullTerm: String): String = {
+      nullTerm: String,
+      tmpValue: String): String = {
     s"""
        |  if ($variantTerm.isArray()){
-       |    if ($variantTerm instanceof $BINARY_VARIANT) {
-       |      $BINARY_VARIANT $binaryVariantTerm = ($BINARY_VARIANT) $variantTerm;
-       |      $resultTerm = $binaryVariantTerm.getElement((int)$keyTerm - 1);
-       |    } else {
+       |    $variantTypeTerm $tmpValue = $variantTerm.getElement($keyTerm - 1);
+       |    if ($tmpValue == null) {
        |      $nullTerm = true;
+       |    } else {
+       |      $resultTerm = $tmpValue;
        |    }
        |  } else {
        |    throw new org.apache.flink.table.api.TableRuntimeException("Integer index access on variant requires an array variant, but a non-array variant was provided.");
        |  }
-       |
     """.stripMargin
   }
 

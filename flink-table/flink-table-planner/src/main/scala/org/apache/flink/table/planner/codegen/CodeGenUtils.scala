@@ -125,8 +125,6 @@ object CodeGenUtils {
 
   val FILTER_CONTEXT: String = className[FilterCondition.Context]
 
-  val BINARY_VARIANT: String = className[BinaryVariant]
-
   // ----------------------------------------------------------------------------------------
 
   private val nameCounter = new AtomicLong
