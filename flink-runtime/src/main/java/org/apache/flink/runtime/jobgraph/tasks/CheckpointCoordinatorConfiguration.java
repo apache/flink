@@ -36,6 +36,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     public static final long MINIMAL_CHECKPOINT_TIME = 10;
 
+    // max "in between duration" can be one year - this is to prevent numeric overflows
+    public static final long MAX_PAUSE_BETWEEN_CHECKPOINTS = 365L * 24 * 60 * 60 * 1_000;
+
     // interval of max value means disable periodic checkpoint
     public static final long DISABLED_CHECKPOINT_INTERVAL = Long.MAX_VALUE;
 
@@ -141,11 +144,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 !isUnalignedCheckpointsEnabled || maxConcurrentCheckpoints <= 1,
                 "maxConcurrentCheckpoints can't be > 1 if UnalignedCheckpoints enabled");
 
-        // max "in between duration" can be one year - this is to prevent numeric overflows
-        if (minPauseBetweenCheckpoints > 365L * 24 * 60 * 60 * 1_000) {
-            minPauseBetweenCheckpoints = 365L * 24 * 60 * 60 * 1_000;
-        }
-        this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
+        this.minPauseBetweenCheckpoints =
+                Math.min(minPauseBetweenCheckpoints, MAX_PAUSE_BETWEEN_CHECKPOINTS);
         // it does not make sense to schedule checkpoints more often then the desired
         // time between checkpoints
         if (checkpointInterval < minPauseBetweenCheckpoints) {
@@ -297,10 +297,14 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
     }
 
     public long getInitialTriggeringDelay() {
-        return ThreadLocalRandom.current()
-                .nextLong(
-                        minPauseBetweenCheckpoints,
-                        checkpointInterval + (checkpointInterval == Long.MAX_VALUE ? 0L : 1L));
+        return pauseSourcesUntilFirstCheckpoint
+                ? ThreadLocalRandom.current()
+                        .nextLong(minPauseBetweenCheckpoints, minPauseBetweenCheckpoints * 2 + 1)
+                : ThreadLocalRandom.current()
+                        .nextLong(
+                                minPauseBetweenCheckpoints,
+                                checkpointInterval
+                                        + (checkpointInterval == Long.MAX_VALUE ? 0L : 1L));
     }
 
     /** {@link CheckpointCoordinatorConfiguration} builder. */
