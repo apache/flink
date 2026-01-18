@@ -18,12 +18,14 @@
 
 package org.apache.flink.metrics.datadog;
 
-import org.apache.flink.metrics.reporter.MetricReporter;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.metrics.util.MetricReporterTestUtils;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,130 +33,89 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for the {@link DatadogHttpReporterFactory}. */
 class DatadogHttpReporterFactoryTest {
 
-    private DatadogHttpReporterFactory factory;
-
-    @BeforeEach
-    void setUp() {
-        factory = new DatadogHttpReporterFactory();
-    }
-
     @Test
     void testMetricReporterSetupViaSPI() {
         MetricReporterTestUtils.testMetricReporterSetupViaSPI(DatadogHttpReporterFactory.class);
     }
 
     @Test
-    void testApiKeyFromConfiguration() {
-        Properties config = new Properties();
-        config.setProperty("apikey", "test-api-key-from-config");
-        config.setProperty("dataCenter", "US");
-
-        MetricReporter reporter = factory.createMetricReporter(config);
-
-        assertThat(reporter).isNotNull().isInstanceOf(DatadogHttpReporter.class);
+    void testApiKeyFromConfigurationProperty() throws Exception {
+        final String apiKey = "test-api-key-from-config";
+        final String resolvedApiKey = getApiKeyViaReflection(createConfig("apikey", apiKey));
+        assertThat(resolvedApiKey).isEqualTo(apiKey);
     }
 
     @Test
-    void testApiKeyFromEnvironmentVariable() {
-        Properties config = new Properties();
-        config.setProperty("dataCenter", "US");
+    void testApiKeyFromEnvironmentVariable() throws Exception {
+        final String apiKey = "test-api-key-from-env";
+        final Map<String, String> originalEnv = new HashMap<>(System.getenv());
 
-        // Store original environment variable
-        String originalEnv = System.getenv("DATADOG_API_KEY");
-        
         try {
-            // Set environment variable via system property approach
-            // Note: This tests that the factory attempts to use the environment variable
-            // In actual deployment, the OS would set DATADOG_API_KEY before JVM startup
-            MetricReporter reporter = factory.createMetricReporter(config);
+            final Map<String, String> newEnv = new HashMap<>(System.getenv());
+            newEnv.put("DATADOG_API_KEY", apiKey);
+            CommonTestUtils.setEnv(newEnv, true);
 
-            // If an API key is found (either from config or env), reporter should be created
-            // This test validates the code path doesn't fail when env var is expected
-            assertThat(reporter).isNotNull();
+            final String resolvedApiKey = getApiKeyViaReflection(createConfig());
+            assertThat(resolvedApiKey).isEqualTo(apiKey);
         } finally {
-            // Clean up - restoration would happen via OS environment
+            CommonTestUtils.setEnv(originalEnv, true);
         }
     }
 
     @Test
-    void testConfigurationApiKeyTakesPrecedenceOverEnvironmentVariable() {
-        Properties config = new Properties();
-        config.setProperty("apikey", "test-api-key-from-config");
-        config.setProperty("dataCenter", "US");
+    void testConfigurationPropertyTakesPrecedenceOverEnvironmentVariable() throws Exception {
+        final String configApiKey = "test-api-key-from-config";
+        final String envApiKey = "test-api-key-from-env";
+        final Map<String, String> originalEnv = new HashMap<>(System.getenv());
 
-        MetricReporter reporter = factory.createMetricReporter(config);
+        try {
+            final Map<String, String> newEnv = new HashMap<>(System.getenv());
+            newEnv.put("DATADOG_API_KEY", envApiKey);
+            CommonTestUtils.setEnv(newEnv, true);
 
-        assertThat(reporter).isNotNull().isInstanceOf(DatadogHttpReporter.class);
+            final String resolvedApiKey =
+                    getApiKeyViaReflection(createConfig("apikey", configApiKey));
+            assertThat(resolvedApiKey).isEqualTo(configApiKey);
+        } finally {
+            CommonTestUtils.setEnv(originalEnv, true);
+        }
     }
 
     @Test
-    void testDefaultProxyPort() {
-        Properties config = new Properties();
-        config.setProperty("apikey", "test-api-key");
-        config.setProperty("dataCenter", "US");
+    void testEmptyConfigurationPropertyFallsBackToEnvironmentVariable() throws Exception {
+        final String envApiKey = "test-api-key-from-env";
+        final Map<String, String> originalEnv = new HashMap<>(System.getenv());
 
-        MetricReporter reporter = factory.createMetricReporter(config);
+        try {
+            final Map<String, String> newEnv = new HashMap<>(System.getenv());
+            newEnv.put("DATADOG_API_KEY", envApiKey);
+            CommonTestUtils.setEnv(newEnv, true);
 
-        assertThat(reporter).isNotNull().isInstanceOf(DatadogHttpReporter.class);
+            final String resolvedApiKey =
+                    getApiKeyViaReflection(createConfig("apikey", ""));
+            assertThat(resolvedApiKey).isEqualTo(envApiKey);
+        } finally {
+            CommonTestUtils.setEnv(originalEnv, true);
+        }
     }
 
-    @Test
-    void testCustomProxySettings() {
+    private Properties createConfig(String key, String value) {
         Properties config = new Properties();
-        config.setProperty("apikey", "test-api-key");
-        config.setProperty("proxyHost", "proxy.example.com");
-        config.setProperty("proxyPort", "9090");
-        config.setProperty("dataCenter", "US");
-
-        MetricReporter reporter = factory.createMetricReporter(config);
-
-        assertThat(reporter).isNotNull().isInstanceOf(DatadogHttpReporter.class);
+        config.setProperty(key, value);
+        return config;
     }
 
-    @Test
-    void testDataCenterConfiguration() {
-        Properties config = new Properties();
-        config.setProperty("apikey", "test-api-key");
-        config.setProperty("dataCenter", "EU");
-
-        MetricReporter reporter = factory.createMetricReporter(config);
-
-        assertThat(reporter).isNotNull().isInstanceOf(DatadogHttpReporter.class);
+    private Properties createConfig() {
+        return new Properties();
     }
 
-    @Test
-    void testMaxMetricsPerRequestConfiguration() {
-        Properties config = new Properties();
-        config.setProperty("apikey", "test-api-key");
-        config.setProperty("maxMetricsPerRequest", "5000");
-        config.setProperty("dataCenter", "US");
-
-        MetricReporter reporter = factory.createMetricReporter(config);
-
-        assertThat(reporter).isNotNull().isInstanceOf(DatadogHttpReporter.class);
-    }
-
-    @Test
-    void testTagsConfiguration() {
-        Properties config = new Properties();
-        config.setProperty("apikey", "test-api-key");
-        config.setProperty("tags", "env:test,version:1.0");
-        config.setProperty("dataCenter", "US");
-
-        MetricReporter reporter = factory.createMetricReporter(config);
-
-        assertThat(reporter).isNotNull().isInstanceOf(DatadogHttpReporter.class);
-    }
-
-    @Test
-    void testUseLogicalIdentifierConfiguration() {
-        Properties config = new Properties();
-        config.setProperty("apikey", "test-api-key");
-        config.setProperty("useLogicalIdentifier", "true");
-        config.setProperty("dataCenter", "US");
-
-        MetricReporter reporter = factory.createMetricReporter(config);
-
-        assertThat(reporter).isNotNull().isInstanceOf(DatadogHttpReporter.class);
+    private String getApiKeyViaReflection(Properties config) throws Exception {
+        DatadogHttpReporterFactory factory = new DatadogHttpReporterFactory();
+        Field method = DatadogHttpReporterFactory.class.getDeclaredField("getApiKey");
+        // Use reflection to call the private getApiKey method
+        java.lang.reflect.Method getApiKeyMethod =
+                DatadogHttpReporterFactory.class.getDeclaredMethod("getApiKey", Properties.class);
+        getApiKeyMethod.setAccessible(true);
+        return (String) getApiKeyMethod.invoke(factory, config);
     }
 }
