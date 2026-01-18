@@ -297,10 +297,14 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
     }
 
     public long getInitialTriggeringDelay() {
-        return ThreadLocalRandom.current()
-                .nextLong(
-                        minPauseBetweenCheckpoints,
-                        checkpointInterval + (checkpointInterval == Long.MAX_VALUE ? 0L : 1L));
+        return pauseSourcesUntilFirstCheckpoint
+                ? ThreadLocalRandom.current()
+                        .nextLong(minPauseBetweenCheckpoints, minPauseBetweenCheckpoints * 2 + 1)
+                : ThreadLocalRandom.current()
+                        .nextLong(
+                                minPauseBetweenCheckpoints,
+                                checkpointInterval
+                                        + (checkpointInterval == Long.MAX_VALUE ? 0L : 1L));
     }
 
     /** {@link CheckpointCoordinatorConfiguration} builder. */
