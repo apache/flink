@@ -85,7 +85,7 @@ class SqlNodeConvertUtils {
                 context.getSqlValidator().getNamespace(validateQuery);
         validateDuplicatedColumnNames(query, viewFields, validatedNamespace);
 
-        String expandedQuery = context.toQuotedSqlString(query);
+        String expandedQuery = context.toQuotedSqlString(validateQuery);
 
         PlannerQueryOperation operation = toQueryOperation(validateQuery, context);
         ResolvedSchema schema = operation.getResolvedSchema();
