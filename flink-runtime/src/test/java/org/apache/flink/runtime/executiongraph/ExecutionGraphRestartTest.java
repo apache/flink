@@ -220,6 +220,9 @@ class ExecutionGraphRestartTest {
 
             scheduler.handleGlobalFailure(new Exception("test"));
 
+            // Give time for the failure to be processed
+            Thread.sleep(10);
+
             assertThat(graph.getState()).isEqualTo(JobStatus.FAILING);
 
             scheduler.cancel();

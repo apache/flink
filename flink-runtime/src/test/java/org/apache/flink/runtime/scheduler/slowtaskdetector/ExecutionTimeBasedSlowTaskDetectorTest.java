@@ -75,6 +75,9 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
 
         final ExecutionTimeBasedSlowTaskDetector slowTaskDetector = createSlowTaskDetector(0, 1, 0);
 
+        // Sleep to ensure that the tasks have some execution time
+        Thread.sleep(10);
+
         final Map<ExecutionVertexID, Collection<ExecutionAttemptID>> slowTasks =
                 slowTaskDetector.findSlowTasks(executionGraph);
 
