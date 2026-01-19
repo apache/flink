@@ -23,6 +23,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
@@ -95,6 +96,7 @@ import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHand
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.GaugePeriodTimer;
@@ -1830,12 +1832,22 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 ((ConfigurableStreamPartitioner) outputPartitioner).configure(numKeyGroups);
             }
         }
+        Configuration conf = environment.getJobConfiguration();
+        final boolean enabledAdaptivePartitioner =
+                (outputPartitioner instanceof RebalancePartitioner
+                                || outputPartitioner instanceof RescalePartitioner)
+                        && conf.get(NettyShuffleEnvironmentOptions.ADAPTIVE_PARTITIONER_ENABLED)
+                        && bufferWriter.getNumberOfSubpartitions() > 1;
+        final int maxTraverseSize =
+                conf.get(NettyShuffleEnvironmentOptions.ADAPTIVE_PARTITIONER_MAX_TRAVERSE_SIZE);
 
         RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output =
                 new RecordWriterBuilder<SerializationDelegate<StreamRecord<OUT>>>()
                         .setChannelSelector(outputPartitioner)
                         .setTimeout(bufferTimeout)
                         .setTaskName(taskNameWithSubtask)
+                        .setEnabledAdaptivePartitioner(enabledAdaptivePartitioner)
+                        .setMaxTraverseSize(maxTraverseSize)
                         .build(bufferWriter);
         output.setMetricGroup(environment.getMetricGroup().getIOMetricGroup());
         return output;
