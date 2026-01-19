@@ -23,6 +23,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
@@ -80,6 +81,7 @@ import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
 import org.apache.flink.runtime.taskmanager.AsynchronousException;
 import org.apache.flink.runtime.taskmanager.DispatcherThreadFactory;
 import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.streaming.api.graph.NonChainedOutput;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
@@ -95,6 +97,7 @@ import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointBarrierHand
 import org.apache.flink.streaming.runtime.partitioner.ConfigurableStreamPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.mailbox.GaugePeriodTimer;
@@ -1830,15 +1833,39 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                 ((ConfigurableStreamPartitioner) outputPartitioner).configure(numKeyGroups);
             }
         }
+        Configuration conf = environment.getJobConfiguration();
+        final boolean enabledAdaptivePartitioner =
+                (outputPartitioner instanceof RebalancePartitioner
+                                || outputPartitioner instanceof RescalePartitioner)
+                        && conf.get(NettyShuffleEnvironmentOptions.ADAPTIVE_PARTITIONER_ENABLED)
+                        && bufferWriter.getNumberOfSubpartitions() > 1;
+        final int maxTraverseSize = getAndCheckMaxTraverseSize(conf);
 
         RecordWriter<SerializationDelegate<StreamRecord<OUT>>> output =
                 new RecordWriterBuilder<SerializationDelegate<StreamRecord<OUT>>>()
                         .setChannelSelector(outputPartitioner)
                         .setTimeout(bufferTimeout)
                         .setTaskName(taskNameWithSubtask)
+                        .setEnabledAdaptivePartitioner(enabledAdaptivePartitioner)
+                        .setMaxTraverseSize(maxTraverseSize)
                         .build(bufferWriter);
         output.setMetricGroup(environment.getMetricGroup().getIOMetricGroup());
         return output;
+    }
+
+    @VisibleForTesting
+    static int getAndCheckMaxTraverseSize(Configuration jobConf) {
+        final int maxTraverseSize =
+                jobConf.get(NettyShuffleEnvironmentOptions.ADAPTIVE_PARTITIONER_MAX_TRAVERSE_SIZE);
+        ConfigurationParserUtils.checkConfigParameter(
+                maxTraverseSize > 1,
+                maxTraverseSize,
+                NettyShuffleEnvironmentOptions.ADAPTIVE_PARTITIONER_MAX_TRAVERSE_SIZE.key(),
+                String.format(
+                        "The value of '%s' must be greater than 1 when '%s' is enabled.",
+                        NettyShuffleEnvironmentOptions.ADAPTIVE_PARTITIONER_MAX_TRAVERSE_SIZE.key(),
+                        NettyShuffleEnvironmentOptions.ADAPTIVE_PARTITIONER_ENABLED.key()));
+        return maxTraverseSize;
     }
 
     private void handleTimerException(Exception ex) {
