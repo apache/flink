@@ -216,6 +216,25 @@ public class CalcTestPrograms {
                                     + "(udf1(a) > 0 or (a * b) < 100) and b > 10")
                     .build();
 
+    public static final TableTestProgram CALC_CURRENT_TIMESTAMP =
+            TableTestProgram.of(
+                            "calc-current-timestamp", "validates basic calc with current timestamp")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("t")
+                                    .addSchema("a BIGINT")
+                                    .producedBeforeRestore(Row.of(100L))
+                                    .producedAfterRestore(Row.of(10000L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a BIGINT")
+                                    .consumedBeforeRestore(Row.of(20L))
+                                    .consumedAfterRestore(Row.of(0L))
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT extract(year from current_timestamp) / a FROM t")
+                    .build();
+
     // --------------------------------------------------------------------------------------------
     // Without restore data
     // --------------------------------------------------------------------------------------------

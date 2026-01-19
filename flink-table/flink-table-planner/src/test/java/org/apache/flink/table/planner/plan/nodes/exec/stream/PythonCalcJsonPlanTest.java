@@ -78,4 +78,17 @@ class PythonCalcJsonPlanTest extends TableTestBase {
         tEnv.executeSql(sinkTableDdl);
         util.verifyJsonPlan("insert into MySink select a, b from MyTable where pyFunc(b, b + 1)");
     }
+
+    @Test
+    void testTimestampFunction() {
+        String sinkTableDdl =
+                "CREATE TABLE MySink (\n"
+                        + "  a bigint,\n"
+                        + "  b timestamp(3)\n"
+                        + ") with (\n"
+                        + "  'connector' = 'values',\n"
+                        + "  'table-sink-class' = 'DEFAULT')";
+        tEnv.executeSql(sinkTableDdl);
+        util.verifyJsonPlan("insert into MySink select 1, current_timestamp");
+    }
 }
