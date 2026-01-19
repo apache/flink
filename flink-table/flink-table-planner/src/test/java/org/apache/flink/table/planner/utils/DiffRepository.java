@@ -27,7 +27,6 @@ import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Sources;
 import org.apache.calcite.util.Util;
 import org.apache.calcite.util.XmlOutput;
-import org.junit.jupiter.api.Assertions;
 import org.opentest4j.AssertionFailedError;
 import org.w3c.dom.CDATASection;
 import org.w3c.dom.Comment;
@@ -59,6 +58,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 import static java.util.Objects.requireNonNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 // THIS FILE IS COPIED FROM APACHE CALCITE
 
@@ -470,7 +470,15 @@ public class DiffRepository {
                 // for largish snippets
                 String expected2Canonical = expected2.replace(Util.LINE_SEPARATOR, "\n");
                 String actualCanonical = actual.replace(Util.LINE_SEPARATOR, "\n");
-                Assertions.assertEquals(expected2Canonical, actualCanonical, tag);
+                // Such message will force IntelliJ IDEA showing diff link in case of test failure
+                assertThat(actualCanonical)
+                        .withFailMessage(
+                                () ->
+                                        "Expected: "
+                                                + expected2Canonical
+                                                + " but was: "
+                                                + actualCanonical)
+                        .isEqualTo(expected2Canonical);
             } catch (AssertionFailedError e) {
                 amend(testCaseName, expected, actual);
                 throw e;
