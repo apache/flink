@@ -30,6 +30,8 @@ if ! curl --fail -OL $HUGO_REPO ; then
 	exit 1
 fi
 tar -zxvf $HUGO_ARTIFACT
+# workaround for a git security patch
+git config --global --add safe.directory /root/flink
 git submodule update --init --recursive
 # generate docs into docs/target
 ./hugo -v --source docs --destination target
