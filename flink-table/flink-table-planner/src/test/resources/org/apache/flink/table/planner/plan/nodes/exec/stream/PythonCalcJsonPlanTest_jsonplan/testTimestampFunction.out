@@ -9,8 +9,7 @@
       "type" : "INT NOT NULL"
     } ] ],
     "outputType" : "ROW<`ZERO` INT NOT NULL>",
-    "description" : "Values(tuples=[[{ 0 }]])",
-    "inputProperties" : [ ]
+    "description" : "Values(tuples=[[{ 0 }]])"
   }, {
     "id" : 2,
     "type" : "stream-exec-calc_1",
@@ -62,10 +61,8 @@
             }, {
               "name" : "b",
               "dataType" : "TIMESTAMP(3)"
-            } ],
-            "watermarkSpecs" : [ ]
+            } ]
           },
-          "partitionKeys" : [ ],
           "options" : {
             "connector" : "values",
             "table-sink-class" : "DEFAULT"
