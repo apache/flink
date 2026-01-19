@@ -18,17 +18,16 @@
 
 package org.apache.flink.metrics.datadog;
 
-import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.metrics.util.MetricReporterTestUtils;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
-import java.lang.reflect.Field;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
 /** Tests for the {@link DatadogHttpReporterFactory}. */
 class DatadogHttpReporterFactoryTest {
@@ -48,17 +47,13 @@ class DatadogHttpReporterFactoryTest {
     @Test
     void testApiKeyFromEnvironmentVariable() throws Exception {
         final String apiKey = "test-api-key-from-env";
-        final Map<String, String> originalEnv = new HashMap<>(System.getenv());
 
-        try {
-            final Map<String, String> newEnv = new HashMap<>(System.getenv());
-            newEnv.put("DATADOG_API_KEY", apiKey);
-            CommonTestUtils.setEnv(newEnv, true);
+        try (MockedStatic<System> systemMock = mockStatic(System.class)) {
+            systemMock.when(System::getenv).thenReturn(java.util.Map.of("DATADOG_API_KEY", apiKey));
+            when(System.getenv("DATADOG_API_KEY")).thenReturn(apiKey);
 
             final String resolvedApiKey = getApiKeyViaReflection(createConfig());
             assertThat(resolvedApiKey).isEqualTo(apiKey);
-        } finally {
-            CommonTestUtils.setEnv(originalEnv, true);
         }
     }
 
@@ -66,35 +61,25 @@ class DatadogHttpReporterFactoryTest {
     void testConfigurationPropertyTakesPrecedenceOverEnvironmentVariable() throws Exception {
         final String configApiKey = "test-api-key-from-config";
         final String envApiKey = "test-api-key-from-env";
-        final Map<String, String> originalEnv = new HashMap<>(System.getenv());
 
-        try {
-            final Map<String, String> newEnv = new HashMap<>(System.getenv());
-            newEnv.put("DATADOG_API_KEY", envApiKey);
-            CommonTestUtils.setEnv(newEnv, true);
+        try (MockedStatic<System> systemMock = mockStatic(System.class)) {
+            when(System.getenv("DATADOG_API_KEY")).thenReturn(envApiKey);
 
             final String resolvedApiKey =
                     getApiKeyViaReflection(createConfig("apikey", configApiKey));
             assertThat(resolvedApiKey).isEqualTo(configApiKey);
-        } finally {
-            CommonTestUtils.setEnv(originalEnv, true);
         }
     }
 
     @Test
     void testEmptyConfigurationPropertyFallsBackToEnvironmentVariable() throws Exception {
         final String envApiKey = "test-api-key-from-env";
-        final Map<String, String> originalEnv = new HashMap<>(System.getenv());
 
-        try {
-            final Map<String, String> newEnv = new HashMap<>(System.getenv());
-            newEnv.put("DATADOG_API_KEY", envApiKey);
-            CommonTestUtils.setEnv(newEnv, true);
+        try (MockedStatic<System> systemMock = mockStatic(System.class)) {
+            when(System.getenv("DATADOG_API_KEY")).thenReturn(envApiKey);
 
             final String resolvedApiKey = getApiKeyViaReflection(createConfig("apikey", ""));
             assertThat(resolvedApiKey).isEqualTo(envApiKey);
-        } finally {
-            CommonTestUtils.setEnv(originalEnv, true);
         }
     }
 
@@ -110,7 +95,6 @@ class DatadogHttpReporterFactoryTest {
 
     private String getApiKeyViaReflection(Properties config) throws Exception {
         DatadogHttpReporterFactory factory = new DatadogHttpReporterFactory();
-        Field method = DatadogHttpReporterFactory.class.getDeclaredField("getApiKey");
         // Use reflection to call the private getApiKey method
         java.lang.reflect.Method getApiKeyMethod =
                 DatadogHttpReporterFactory.class.getDeclaredMethod("getApiKey", Properties.class);
