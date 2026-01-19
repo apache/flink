@@ -114,7 +114,7 @@ public enum FlinkSqlConformance implements SqlConformance {
 
     @Override
     public boolean allowNiladicParentheses() {
-        return false;
+        return true;
     }
 
     @Override
