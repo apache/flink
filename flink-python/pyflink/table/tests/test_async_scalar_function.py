@@ -189,7 +189,7 @@ class AsyncScalarFunctionTests(PyFlinkStreamTableTestCase):
             WITH ('connector'='test-sink')
         """)
 
-        t = self.t_env.from_elements([("test","test2")], ['a', 'b'])
+        t = self.t_env.from_elements([("test", "test2")], ['a', 'b'])
 
         # Test various chaining patterns:
         # 1. sync -> async

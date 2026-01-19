@@ -730,7 +730,8 @@ def udf(f: Union[Callable, ScalarFunction, AsyncScalarFunction, Type] = None,
         input_types: Union[List[DataType], DataType, str, List[str]] = None,
         result_type: Union[DataType, str] = None,
         deterministic: bool = None, name: str = None, func_type: str = "general"
-        ) -> Union[UserDefinedScalarFunctionWrapper, UserDefinedAsyncScalarFunctionWrapper, Callable]:
+        ) -> Union[
+        UserDefinedScalarFunctionWrapper, UserDefinedAsyncScalarFunctionWrapper, Callable]:
     """
     Helper method for creating a user-defined scalar function.
 
