@@ -35,9 +35,9 @@ import org.apache.flink.table.planner.plan.trait.RelWindowProperties;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.ExpandUtil;
 import org.apache.flink.table.planner.plan.utils.WindowUtil;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 
-import org.apache.flink.shaded.guava33.com.google.common.collect.ImmutableList;
-
+import com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelRule;
@@ -67,8 +67,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import scala.collection.JavaConverters;
 
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.AVG;
 import static org.apache.calcite.sql.fun.SqlStdOperatorTable.COUNT;
@@ -297,12 +295,10 @@ public class SplitAggregateRule extends RelRule<SplitAggregateRule.SplitAggregat
         boolean needExpand = newGroupSetsNum > 1;
         Map<Integer, Integer> duplicateFieldMap =
                 needExpand
-                        ? JavaConverters.mapAsJavaMap(
+                        ? JavaScalaConversionUtil.toJava(
                                 ExpandUtil.buildExpandNode(
                                                 relBuilder,
-                                                JavaConverters.asScalaBufferConverter(
-                                                                partialAggCalls)
-                                                        .asScala(),
+                                                JavaScalaConversionUtil.toScala(partialAggCalls),
                                                 fullGroupSet,
                                                 groupSets)
                                         ._1)
