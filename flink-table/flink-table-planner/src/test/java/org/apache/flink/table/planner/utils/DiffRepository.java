@@ -21,7 +21,6 @@ import org.apache.calcite.avatica.util.Spaces;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
 import org.apache.calcite.util.XmlOutput;
-import org.junit.jupiter.api.Assertions;
 import org.opentest4j.AssertionFailedError;
 import org.w3c.dom.CDATASection;
 import org.w3c.dom.Comment;
@@ -47,6 +46,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 // THIS FILE IS COPIED FROM APACHE CALCITE
 
@@ -435,7 +436,14 @@ public class DiffRepository {
                 // for largish snippets
                 String expected2Canonical = expected2.replace(Util.LINE_SEPARATOR, "\n");
                 String actualCanonical = actual.replace(Util.LINE_SEPARATOR, "\n");
-                Assertions.assertEquals(expected2Canonical, actualCanonical, tag);
+                assertThat(actualCanonical)
+                        .withFailMessage(
+                                () ->
+                                        "Expected: "
+                                                + expected2Canonical
+                                                + " but was: "
+                                                + actualCanonical)
+                        .isEqualTo(expected2Canonical);
             } catch (AssertionFailedError e) {
                 amend(testCaseName, expected, actual);
                 throw e;
