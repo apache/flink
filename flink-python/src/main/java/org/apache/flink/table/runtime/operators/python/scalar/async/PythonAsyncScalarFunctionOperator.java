@@ -33,6 +33,9 @@ public class PythonAsyncScalarFunctionOperator extends PythonScalarFunctionOpera
 
     private static final long serialVersionUID = 1L;
 
+    private static final String ASYNC_SCALAR_FUNCTION_URN =
+            "flink:transform:async_scalar_function:v1";
+
     /**
      * The maximum number of async operations that can be in-flight at the same time. This controls
      * the buffer capacity for async execution.
@@ -81,8 +84,7 @@ public class PythonAsyncScalarFunctionOperator extends PythonScalarFunctionOpera
 
     @Override
     public String getFunctionUrn() {
-        // Use a dedicated URN for async scalar functions
-        return "flink:transform:async_scalar_function:v1";
+        return ASYNC_SCALAR_FUNCTION_URN;
     }
 
     @Override
@@ -92,11 +94,13 @@ public class PythonAsyncScalarFunctionOperator extends PythonScalarFunctionOpera
                 super.createUserDefinedFunctionsProto().toBuilder();
 
         // Add async-specific configurations
-        builder.setAsyncMaxConcurrentOperations(asyncMaxConcurrentOperations);
-        builder.setAsyncTimeoutMs(asyncTimeout);
-        builder.setAsyncRetryEnabled(asyncRetryEnabled);
-        builder.setAsyncRetryMaxAttempts(asyncRetryMaxAttempts);
-        builder.setAsyncRetryDelayMs(asyncRetryDelayMs);
+        builder.setAsyncOptions(
+                FlinkFnApi.AsyncOptions.newBuilder()
+                        .setMaxConcurrentOperations(asyncMaxConcurrentOperations)
+                        .setTimeoutMs(asyncTimeout)
+                        .setRetryEnabled(asyncRetryEnabled)
+                        .setRetryMaxAttempts(asyncRetryMaxAttempts)
+                        .setRetryDelayMs(asyncRetryDelayMs));
 
         return builder.build();
     }
