@@ -116,6 +116,7 @@ public class FlinkSqlOperatorTable extends ReflectiveSqlOperatorTable {
                         SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE,
                         isBatchMode,
                         3) {
+
                     @Override
                     public SqlSyntax getSyntax() {
                         return SqlSyntax.FUNCTION;

@@ -345,9 +345,14 @@ final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
             throws IOException {
         final SqlOperator operator = deserializeSqlOperator(jsonNode, serdeContext);
         final ArrayNode operandNodes = (ArrayNode) jsonNode.get(FIELD_NAME_OPERANDS);
-        final List<RexNode> rexOperands = new ArrayList<>();
-        for (JsonNode node : operandNodes) {
-            rexOperands.add(deserialize(node, serdeContext));
+        final List<RexNode> rexOperands;
+        if (operandNodes == null) {
+            rexOperands = List.of();
+        } else {
+            rexOperands = new ArrayList<>();
+            for (JsonNode node : operandNodes) {
+                rexOperands.add(deserialize(node, serdeContext));
+            }
         }
         final RelDataType callType;
         if (jsonNode.has(FIELD_NAME_TYPE)) {

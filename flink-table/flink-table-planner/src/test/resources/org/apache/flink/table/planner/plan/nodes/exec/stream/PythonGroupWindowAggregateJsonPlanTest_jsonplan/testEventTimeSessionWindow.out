@@ -40,7 +40,6 @@
                 "rexNode" : {
                   "kind" : "CALL",
                   "internalName" : "$PROCTIME$1",
-                  "operands" : [ ],
                   "type" : {
                     "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
                     "nullable" : false,

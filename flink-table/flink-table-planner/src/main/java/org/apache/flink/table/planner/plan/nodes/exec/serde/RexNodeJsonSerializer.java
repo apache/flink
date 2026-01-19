@@ -359,12 +359,14 @@ final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
                 gen,
                 serializerProvider,
                 compilationStrategy == CatalogPlanCompilation.ALL);
-        gen.writeFieldName(FIELD_NAME_OPERANDS);
-        gen.writeStartArray();
-        for (RexNode operand : call.getOperands()) {
-            serializerProvider.defaultSerializeValue(operand, gen);
+        if (!call.getOperands().isEmpty()) {
+            gen.writeFieldName(FIELD_NAME_OPERANDS);
+            gen.writeStartArray();
+            for (RexNode operand : call.getOperands()) {
+                serializerProvider.defaultSerializeValue(operand, gen);
+            }
+            gen.writeEndArray();
         }
-        gen.writeEndArray();
         serializerProvider.defaultSerializeField(FIELD_NAME_TYPE, call.getType(), gen);
         gen.writeEndObject();
     }
