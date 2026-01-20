@@ -52,7 +52,7 @@ download_url: "https://flink.apache.org/downloads.html"
 
 # please use a protocol relative URL here
 baseurl: //ci.apache.org/projects/flink/flink-docs-release-1.11
-stable_baseurl: //ci.apache.org/projects/flink/flink-docs-stable
+stable_baseurl: //nightlies.apache.org/flink/flink-docs-stable
 
 javadocs_baseurl: //ci.apache.org/projects/flink/flink-docs-release-1.11
 pythondocs_baseurl: //ci.apache.org/projects/flink/flink-docs-release-1.11
