@@ -56,9 +56,9 @@ under the License.
 {% if site.show_outdated_warning %}
 <div class="alert alert-danger" role="alert">
   {%- if page.language == "en" %}
-    <strong>This documentation is for an out-of-date version of Apache Flink. We recommend you use <a href="https://ci.apache.org/projects/flink/flink-docs-stable/">the latest stable version</a>.</strong>
+    <strong>This documentation is for an out-of-date version of Apache Flink. We recommend you use <a href="https://nightlies.apache.org/flink/flink-docs-stable{{ page.url }}">the latest stable version</a>.</strong>
   {%- else if page.language == "zh" %}
-    <strong>本文档是 Apache Flink 的旧版本。建议访问 <a href="https://ci.apache.org/projects/flink/flink-docs-stable/zh">最新的稳定版本</a>。</strong>
+    <strong>本文档是 Apache Flink 的旧版本。建议访问 <a href="https://nightlies.apache.org/flink/flink-docs-stable{{ page.url }}">最新的稳定版本</a>。</strong>
   {%- endif %}
 </div>
 {%- endif %}
