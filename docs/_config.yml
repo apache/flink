@@ -39,7 +39,7 @@ jira_url: "https://issues.apache.org/jira/browse/FLINK"
 github_url: "https://github.com/apache/flink"
 download_url: "http://flink.apache.org/downloads.html"
 
-stable_baseurl: //ci.apache.org/projects/flink/flink-docs-stable
+stable_baseurl: https://nightlies.apache.org/flink/flink-docs-stable
 
 # Setup quickstart uses this => to be changed
 FLINK_DOWNLOAD_URL_HADOOP1_STABLE: "http://www.apache.org/dyn/closer.cgi/flink/flink-1.0.3/flink-1.0.3-bin-hadoop1-scala_2.10.tgz"
@@ -75,4 +75,4 @@ kramdown:
 host: 0.0.0.0
 
 # please use a protocol relative URL here
-baseurl: //ci.apache.org/projects/flink/flink-docs-release-1.0
+baseurl: //nightlies.apache.org/flink/flink-docs-release-1.0
