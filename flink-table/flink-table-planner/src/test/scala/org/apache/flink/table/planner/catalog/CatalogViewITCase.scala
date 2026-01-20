@@ -317,6 +317,7 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
           .column("a", DataTypes.INT())
           .column("b", DataTypes.STRING())
           .column("c", DataTypes.INT())
+          .column("ts", DataTypes.TIMESTAMP())
           .build())
       .sink()
       .build()
@@ -521,6 +522,33 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     )
   }
 
+  @TestTemplate
+  def testShowCreateViewWithTumbleWindow(): Unit = {
+    tableEnv.createTable("t1", buildTableDescriptor())
+    val viewWithInnerJoinDDL: String =
+      s"""CREATE VIEW tumbleWindowViewWithOrderBy AS
+         |SELECT a
+         |FROM TUMBLE(TABLE t1, DESCRIPTOR(ts), INTERVAL '1' MINUTE)
+         |ORDER BY ts""".stripMargin
+    tableEnv.executeSql(viewWithInnerJoinDDL)
+    val showCreateInnerJoinViewResult: util.List[Row] = CollectionUtil.iteratorToList(
+      tableEnv
+        .executeSql("SHOW CREATE VIEW tumbleWindowViewWithOrderBy")
+        .collect()
+    )
+    assertThatList(showCreateInnerJoinViewResult).containsExactly(
+      Row.of(
+        s"""CREATE VIEW `default_catalog`.`default_database`.`tumbleWindowViewWithOrderBy` (
+           |  `a`
+           |)
+           |AS SELECT `EXPR$$0`.`a`
+           |FROM TABLE(TUMBLE((SELECT `t1`.`a`, `t1`.`b`, `t1`.`c`, `t1`.`ts`
+           |FROM `default_catalog`.`default_database`.`t1` AS `t1`), DESCRIPTOR(`ts`), INTERVAL '1' MINUTE)) AS `EXPR$$0`
+           |ORDER BY `EXPR$$0`.`ts`
+           |""".stripMargin
+      )
+    )
+  }
 }
 
 object CatalogViewITCase {
