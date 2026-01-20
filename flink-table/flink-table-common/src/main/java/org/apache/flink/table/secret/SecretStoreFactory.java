@@ -39,6 +39,8 @@ public interface SecretStoreFactory extends Factory {
     /** Close secret store. */
     void close() throws CatalogException;
 
+    /** Context for creating a SecretStore. */
+    @PublicEvolving
     interface Context {
         /**
          * Returns the options with which the secret store is created.
