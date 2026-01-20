@@ -56,6 +56,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 
@@ -198,6 +199,13 @@ class ExecutionGraphRestartTest {
     @Test
     void testCancelWhileFailing() throws Exception {
         try (SlotPool slotPool = SlotPoolUtils.createDeclarativeSlotPoolBridge()) {
+            CompletableFuture<JobStatus> failingStatusFuture = new CompletableFuture<>();
+            JobStatusListener jobStatusListener =
+                    (jobId, newJobStatus, timestamp) -> {
+                        if (newJobStatus == JobStatus.FAILING) {
+                            failingStatusFuture.complete(newJobStatus);
+                        }
+                    };
             SchedulerBase scheduler =
                     new DefaultSchedulerBuilder(
                                     createJobGraph(),
@@ -207,6 +215,7 @@ class ExecutionGraphRestartTest {
                                     createExecutionSlotAllocatorFactory(slotPool))
                             .setRestartBackoffTimeStrategy(
                                     new TestRestartBackoffTimeStrategy(false, Long.MAX_VALUE))
+                            .setJobStatusListener(jobStatusListener)
                             .build();
             ExecutionGraph graph = scheduler.getExecutionGraph();
 
@@ -220,8 +229,8 @@ class ExecutionGraphRestartTest {
 
             scheduler.handleGlobalFailure(new Exception("test"));
 
-            // Give time for the failure to be processed
-            Thread.sleep(10);
+            // Wait for the state to transition to FAILING
+            failingStatusFuture.join();
 
             assertThat(graph.getState()).isEqualTo(JobStatus.FAILING);
 
