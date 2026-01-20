@@ -324,11 +324,8 @@ public class SystemProcessingTimeService implements TimerService {
             } catch (Exception ex) {
                 exceptionHandler.handleException(ex);
             }
-            if (fixedDelay) {
-                nextTimestamp = System.currentTimeMillis() + period;
-            } else {
-                nextTimestamp += period;
-            }
+            nextTimestamp =
+                    fixedDelay ? System.currentTimeMillis() + period : nextTimestamp + period;
         }
     }
 }
