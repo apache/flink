@@ -1412,6 +1412,8 @@ public final class FactoryUtil {
         }
     }
 
+    /** Default implementation of {@link SecretStoreFactory.Context}. */
+    @Internal
     public static class DefaultSecretStoreContext implements SecretStoreFactory.Context {
 
         private Map<String, String> options;
