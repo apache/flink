@@ -34,15 +34,18 @@ else
 fi
 
 echo "Adjusting timestamps"
-# adjust timestamps of proto file to avoid re-generation
-find . -type f -name '*.proto' -exec touch {} \;
-# wait a bit for better odds of different timestamps
-sleep 5
+# Set timestamps: proto < source < compiled, so Maven skips recompilation
+# 5-second gaps ensure reliable ordering on filesystems with low resolution
+BASE_TIME=$(date +%s)
 
-# adjust timestamps to prevent recompilation
-find . -type f -name '*.java' -exec touch {} \;
-find . -type f -name '*.scala' -exec touch {} \;
-# wait a bit for better odds of different timestamps
-sleep 5
-find . -type f -name '*.class' -exec touch {} \;
-find . -type f -name '*.timestamp' -exec touch {} \;
+# T+0: proto files (oldest - won't trigger regeneration)
+PROTO_TIME=$(date -d "@$BASE_TIME" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r "$BASE_TIME" '+%Y-%m-%d %H:%M:%S')
+find . -type f -name '*.proto' -exec touch -d "$PROTO_TIME" {} +
+
+# T+5: source files
+SOURCE_TIME=$(date -d "@$((BASE_TIME + 5))" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r "$((BASE_TIME + 5))" '+%Y-%m-%d %H:%M:%S')
+find . -type f \( -name '*.java' -o -name '*.scala' \) -exec touch -d "$SOURCE_TIME" {} +
+
+# T+10: compiled files (newest - Maven sees "up-to-date", skips recompile)
+COMPILED_TIME=$(date -d "@$((BASE_TIME + 10))" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r "$((BASE_TIME + 10))" '+%Y-%m-%d %H:%M:%S')
+find . -type f \( -name '*.class' -o -name '*.timestamp' \) -exec touch -d "$COMPILED_TIME" {} +
