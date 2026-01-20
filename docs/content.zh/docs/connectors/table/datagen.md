@@ -353,7 +353,7 @@ CREATE TABLE Orders (
       <td><h5>fields.#.null-rate</h5></td>
       <td>optional</td>
       <td style="word-wrap: break-word;">0</td>
-      <td>(Type of field)</td>
+      <td>Float</td>
       <td>空值比例。</td>
     </tr>
     </tbody>
