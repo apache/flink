@@ -160,6 +160,9 @@ public class MapStateNullValueCheckpointingITCase extends TestLogger {
             cluster.getClusterClient()
                     .triggerCheckpoint(jobID, snapshotType.left())
                     .get(2, TimeUnit.MINUTES);
+
+            // Wait for the checkpoint to actually complete (wait for at least 1 checkpoint)
+            CommonTestUtils.waitForCheckpoint(jobID, miniCluster, 1);
             String checkpointPath =
                     CommonTestUtils.getLatestCompletedCheckpointPath(jobID, miniCluster)
                             .<NoSuchElementException>orElseThrow(
