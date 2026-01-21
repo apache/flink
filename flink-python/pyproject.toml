@@ -45,7 +45,7 @@ dev = [
   "fastavro>=1.1.0,!=1.8.0",
   "grpcio>=1.29.0,<=1.71.0",
   "grpcio-tools>=1.29.0,<=1.71.0",
-  "pemja>=0.5.5,<0.5.6; platform_system != 'Windows'",
+  "pemja>=0.5.6,<0.5.7; platform_system != 'Windows'",
   "httplib2>=0.19.0",
   "protobuf~=4.25",
   "pytest~=8.0",
