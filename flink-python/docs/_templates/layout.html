@@ -21,4 +21,23 @@ under the License.
 {{ super() }}
 <script src="_static/pyflink.js" ></script>
 <link rel="stylesheet" href="_static/pyflink.css" type="text/css" />
+<!-- Matomo -->
+<script>
+  var _paq = window._paq = window._paq || [];
+  /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+  /* We explicitly disable cookie tracking to avoid privacy issues */
+  _paq.push(['disableCookies']);
+  /* Measure a visit to flink.apache.org and nightlies.apache.org/flink as the same visit */
+  _paq.push(["setDomains", ["*.flink.apache.org","*.nightlies.apache.org/flink"]]);
+  _paq.push(['trackPageView']);
+  _paq.push(['enableLinkTracking']);
+  (function() {
+    var u="//analytics.apache.org/";
+    _paq.push(['setTrackerUrl', u+'matomo.php']);
+    _paq.push(['setSiteId', '1']);
+    var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+    g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+  })();
+</script>
+<!-- End Matomo Code -->
 {% endblock %}
