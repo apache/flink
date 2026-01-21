@@ -73,6 +73,15 @@ mvn javadoc:aggregate -B \
     -Dspotless.check.skip=true \
     -Denforcer.skip=true \
     -Dheader="<a href=\"http://flink.apache.org/\" target=\"_top\"><h1>Back to Flink Website</h1></a> <script>var _paq=window._paq=window._paq||[];_paq.push([\"disableCookies\"]),_paq.push([\"setDomains\",[\"*.flink.apache.org\",\"*.nightlies.apache.org/flink\"]]),_paq.push([\"trackPageView\"]),_paq.push([\"enableLinkTracking\"]),function(){var u=\"//analytics.apache.org/\";_paq.push([\"setTrackerUrl\",u+\"matomo.php\"]),_paq.push([\"setSiteId\",\"1\"]);var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s)}();</script>"
+
+# Inject canonical tags into Javadoc HTML files to point to stable docs version
+CANONICAL_BASE="https://nightlies.apache.org/flink/flink-docs-stable/api/java"
+find target/site/apidocs -name "*.html" -type f | while read -r file; do
+    REL_PATH="${file#target/site/apidocs/}"
+    CANONICAL_URL="${CANONICAL_BASE}/${REL_PATH}"
+    sed -i "s|<head>|<head>\n<link rel=\"canonical\" href=\"${CANONICAL_URL}\">|" "$file"
+done
+
 mv target/site/apidocs docs/target/api/java
 
 # build python docs
