@@ -160,6 +160,7 @@ import java.util.function.Supplier;
 import static org.apache.flink.configuration.JobManagerOptions.SCHEDULER_RESCALE_TRIGGER_MAX_DELAY;
 import static org.apache.flink.configuration.TraceOptions.CHECKPOINT_SPAN_DETAIL_LEVEL;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphUtils.isAnyOutputBlocking;
+import static org.apache.flink.runtime.scheduler.adaptive.ForwardEdgesAdapter.copyJobGraphWithAdaptedForwardEdges;
 
 /**
  * A {@link SchedulerNG} implementation that uses the declarative resource management and
@@ -1473,8 +1474,11 @@ public class AdaptiveScheduler
                                     new ExecutionStateUpdateListener[0]));
         }
 
+        final JobGraph adjustedJobGraph =
+                copyJobGraphWithAdaptedForwardEdges(jobInformation, adjustedParallelismStore);
+
         return executionGraphFactory.createAndRestoreExecutionGraph(
-                jobInformation.copyJobGraph(),
+                adjustedJobGraph,
                 completedCheckpointStore,
                 checkpointsCleaner,
                 checkpointIdCounter,
