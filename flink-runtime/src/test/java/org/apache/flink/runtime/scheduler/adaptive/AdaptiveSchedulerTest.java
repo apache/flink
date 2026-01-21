@@ -42,6 +42,7 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.TestingCheckpointStatsTracker;
 import org.apache.flink.runtime.checkpoint.TestingCompletedCheckpointStore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
@@ -968,6 +969,86 @@ public class AdaptiveSchedulerTest extends AdaptiveSchedulerTestBase {
         jobRunningNotification.get();
         jobFinishedNotification.get();
         assertThat(unexpectedJobStatusNotification.isDone()).isFalse();
+    }
+
+    @Test
+    void testCheckpointsStartAfterTaskRunning() throws Exception {
+        int checkpointInterval = 10;
+        final JobGraph jobGraph =
+                streamingJobGraph(
+                        jg ->
+                                jg.setJobCheckpointingSettings(
+                                        new JobCheckpointingSettings(
+                                                CheckpointCoordinatorConfiguration.builder()
+                                                        .setCheckpointInterval(checkpointInterval)
+                                                        .setCheckpointTimeout(Long.MAX_VALUE)
+                                                        .build(),
+                                                null)),
+                        createNoOpVertex(1));
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID(), singleThreadMainThreadExecutor);
+
+        final Configuration configuration = new Configuration();
+        configuration.set(
+                JobManagerOptions.SCHEDULER_SUBMISSION_RESOURCE_WAIT_TIMEOUT,
+                Duration.ofMillis(1L));
+
+        TestingCheckpointStatsTracker checkpointStatsTracker = new TestingCheckpointStatsTracker();
+        CompletableFuture<Void> jobRunningFuture = new CompletableFuture<>();
+        scheduler =
+                new AdaptiveSchedulerBuilder(
+                                jobGraph,
+                                singleThreadMainThreadExecutor,
+                                EXECUTOR_RESOURCE.getExecutor())
+                        .setJobMasterConfiguration(configuration)
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .setCheckpointStatsTrackerFactory((ign0, ign1) -> checkpointStatsTracker)
+                        .setJobStatusListener(
+                                (jobId, newJobStatus, timestamp) -> {
+                                    if (newJobStatus == JobStatus.RUNNING) {
+                                        jobRunningFuture.complete(null);
+                                    } else if (newJobStatus == JobStatus.FAILED) {
+                                        jobRunningFuture.completeExceptionally(
+                                                new RuntimeException("job has failed"));
+                                    }
+                                })
+                        .build();
+
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                new SubmissionBufferingTaskManagerGateway(1);
+        runInMainThread(
+                () -> {
+                    scheduler.startScheduling();
+                    offerSlots(
+                            declarativeSlotPool,
+                            createSlotOffersForResourceRequirements(
+                                    ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1)),
+                            taskManagerGateway);
+                });
+        jobRunningFuture.join();
+        ExecutionAttemptID task = taskManagerGateway.submittedTasks.take().getExecutionAttemptId();
+        runInMainThread(
+                () ->
+                        scheduler.updateTaskExecutionState(
+                                new TaskExecutionState(task, ExecutionState.INITIALIZING)));
+        // allow some time to trigger checkpoint (and fail because not all tasks are running)
+        Thread.sleep(checkpointInterval * 10);
+        assertThat(checkpointStatsTracker.numPendingCheckpoints.get())
+                .describedAs("checkpoints shouldn't be triggered until all tasks are running")
+                .isEqualTo(0);
+        assertThat(checkpointStatsTracker.numFailedCheckpoints.get())
+                .describedAs(
+                        "checkpoints shouldn't be triggered and fail until all tasks are running")
+                .isEqualTo(0);
+        // allow triggering checkpoints
+        runInMainThread(
+                () ->
+                        scheduler.updateTaskExecutionState(
+                                new TaskExecutionState(task, ExecutionState.RUNNING)));
+        while (checkpointStatsTracker.numPendingCheckpoints.get() == 0) {
+            Thread.sleep(50);
+        }
     }
 
     @Test

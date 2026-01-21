@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobgraph;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 
 import java.util.Arrays;
+import java.util.function.Function;
 
 /** Utilities for creating {@link JobGraph JobGraphs} for testing purposes. */
 public class JobGraphTestUtils {
@@ -38,8 +39,15 @@ public class JobGraphTestUtils {
     }
 
     public static JobGraph streamingJobGraph(JobVertex... jobVertices) {
-        return JobGraphBuilder.newStreamingJobGraphBuilder()
-                .addJobVertices(Arrays.asList(jobVertices))
+        return streamingJobGraph(Function.identity(), jobVertices);
+    }
+
+    public static JobGraph streamingJobGraph(
+            Function<JobGraphBuilder, JobGraphBuilder> transformJgb, JobVertex... jobVertices) {
+        return transformJgb
+                .apply(
+                        JobGraphBuilder.newStreamingJobGraphBuilder()
+                                .addJobVertices(Arrays.asList(jobVertices)))
                 .build();
     }
 

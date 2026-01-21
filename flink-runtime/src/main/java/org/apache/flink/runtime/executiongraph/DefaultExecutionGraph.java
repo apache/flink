@@ -38,6 +38,7 @@ import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorDeActivator;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureManager;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointPlanCalculator;
@@ -288,7 +289,7 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     private final ShuffleMaster<?> shuffleMaster;
 
     private final ExecutionDeploymentListener executionDeploymentListener;
-    private final ExecutionStateUpdateListener executionStateUpdateListener;
+    private final List<ExecutionStateUpdateListener> executionStateUpdateListeners;
 
     private final EdgeManager edgeManager;
 
@@ -386,7 +387,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                         this::createResultPartitionId, partitionTracker);
 
         this.executionDeploymentListener = executionDeploymentListener;
-        this.executionStateUpdateListener = executionStateUpdateListener;
+        this.executionStateUpdateListeners = new ArrayList<>();
+        this.executionStateUpdateListeners.add(executionStateUpdateListener);
 
         this.initialAttemptCounts = initialAttemptCounts;
 
@@ -549,8 +551,10 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             boolean allTasksOutputNonBlocking =
                     tasks.values().stream()
                             .noneMatch(vertex -> vertex.getJobVertex().isAnyOutputBlocking());
-            registerJobStatusListener(
-                    checkpointCoordinator.createActivatorDeactivator(allTasksOutputNonBlocking));
+            CheckpointCoordinatorDeActivator activatorDeactivator =
+                    checkpointCoordinator.createActivatorDeactivator(allTasksOutputNonBlocking);
+            registerJobStatusListener(activatorDeactivator);
+            registerExecutionStateUpdateListener(activatorDeactivator);
         }
 
         this.stateBackendName = checkpointStateBackend.getName();
@@ -1657,6 +1661,12 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         }
     }
 
+    public void registerExecutionStateUpdateListener(ExecutionStateUpdateListener listener) {
+        if (listener != null) {
+            executionStateUpdateListeners.add(listener);
+        }
+    }
+
     private void notifyJobStatusChange(
             JobStatus oldState, JobStatus newState, @Nullable Throwable cause) {
         if (jobStatusListeners.size() > 0) {
@@ -1710,8 +1720,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
             final Execution execution,
             ExecutionState previousState,
             final ExecutionState newExecutionState) {
-        executionStateUpdateListener.onStateUpdate(
-                execution.getAttemptId(), previousState, newExecutionState);
+        executionStateUpdateListeners.forEach(
+                l -> l.onStateUpdate(execution.getAttemptId(), previousState, newExecutionState));
     }
 
     private void assertRunningInJobMasterMainThread() {

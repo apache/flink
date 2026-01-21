@@ -29,7 +29,6 @@ import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -187,7 +186,7 @@ public class CheckpointCoordinator {
     private final long alignedCheckpointTimeout;
 
     /** Actor that receives status updates from the execution graph this coordinator works for. */
-    private JobStatusListener jobStatusListener;
+    private CheckpointCoordinatorDeActivator deActivator;
 
     /**
      * The current periodic trigger. Used to deduplicate concurrently scheduled checkpoints if any.
@@ -2146,18 +2145,24 @@ public class CheckpointCoordinator {
     //  job status listener that schedules / cancels periodic checkpoints
     // ------------------------------------------------------------------------
 
-    public JobStatusListener createActivatorDeactivator(boolean allTasksOutputNonBlocking) {
+    public CheckpointCoordinatorDeActivator createActivatorDeactivator(
+            boolean allTasksOutputNonBlocking) {
         synchronized (lock) {
             if (shutdown) {
                 throw new IllegalArgumentException("Checkpoint coordinator is shut down");
             }
 
-            if (jobStatusListener == null) {
-                jobStatusListener =
-                        new CheckpointCoordinatorDeActivator(this, allTasksOutputNonBlocking);
+            if (deActivator == null) {
+                if (allTasksOutputNonBlocking) {
+                    // checkpoint scheduler should only be activated in allTasksOutputNonBlocking
+                    // case (FLIP-331)
+                    deActivator = new ExecutionTrackingCheckpointCoordinatorDeActivator(this);
+                } else {
+                    deActivator = CheckpointCoordinatorDeActivator.alwaysStopping(this);
+                }
             }
 
-            return jobStatusListener;
+            return deActivator;
         }
     }
 
