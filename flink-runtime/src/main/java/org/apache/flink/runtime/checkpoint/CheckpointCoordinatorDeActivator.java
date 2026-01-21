@@ -18,35 +18,23 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
-
-import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * This actor listens to changes in the JobStatus and activates or deactivates the periodic
  * checkpoint scheduler.
  */
-public class CheckpointCoordinatorDeActivator implements JobStatusListener {
+public interface CheckpointCoordinatorDeActivator
+        extends JobStatusListener, ExecutionStateUpdateListener {
 
-    private final CheckpointCoordinator coordinator;
-    private final boolean allTasksOutputNonBlocking;
-
-    public CheckpointCoordinatorDeActivator(
-            CheckpointCoordinator coordinator, boolean allTasksOutputNonBlocking) {
-        this.coordinator = checkNotNull(coordinator);
-        this.allTasksOutputNonBlocking = allTasksOutputNonBlocking;
+    static CheckpointCoordinatorDeActivator alwaysStopping(CheckpointCoordinator coordinator) {
+        return (jobId, newJobStatus, timestamp) -> coordinator.stopCheckpointScheduler();
     }
 
     @Override
-    public void jobStatusChanges(JobID jobId, JobStatus newJobStatus, long timestamp) {
-        if (newJobStatus == JobStatus.RUNNING && allTasksOutputNonBlocking) {
-            // start the checkpoint scheduler if there is no blocking edge
-            coordinator.startCheckpointScheduler();
-        } else {
-            // anything else should stop the trigger for now
-            coordinator.stopCheckpointScheduler();
-        }
-    }
+    default void onStateUpdate(
+            ExecutionAttemptID execution, ExecutionState previousState, ExecutionState newState) {}
 }
