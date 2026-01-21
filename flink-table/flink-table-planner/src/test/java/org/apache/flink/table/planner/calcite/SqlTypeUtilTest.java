@@ -24,6 +24,14 @@ import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.pretty.SqlPrettyWriter;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
+
+import org.apache.flink.table.planner.typeutils.LogicalRelDataTypeConverter;
+import org.apache.flink.table.types.logical.IntType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
+
+import org.apache.flink.table.types.logical.VarCharType;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
@@ -32,23 +40,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SqlTypeUtil}. */
 class SqlTypeUtilTest {
-
+    /** Test case for <a href="https://issues.apache.org/jira/browse/FLINK-38913">[FLINK-38913]
+     ArrayIndexOutOfBoundsException when creating a table with computed rows including casts
+     to null</a>.
+     */
     @Test
     void testConvertRowTypeToSpecAndUnparse() {
-        // Create a ROW type with 2 fields
         FlinkTypeFactory typeFactory =
                 new FlinkTypeFactory(
                         Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
-        RelDataType intType = typeFactory.createSqlType(SqlTypeName.INTEGER);
-        RelDataType varcharType = typeFactory.createSqlType(SqlTypeName.VARCHAR);
-
-        RelDataType rowType =
-                typeFactory.createStructType(
-                        Arrays.asList(intType, varcharType), Arrays.asList("f0", "f1"));
-
-        SqlDataTypeSpec typeSpec = SqlTypeUtil.convertTypeToSpec(rowType);
-
-        // Try to unparse - without the bounds check fix, this throws IndexOutOfBoundsException
+        RowType rowType = RowType.of(new LogicalType[]{new IntType(), new VarCharType(1)},
+                new String[]{"a", "b"});
+        RelDataType relDataType = LogicalRelDataTypeConverter.toRelDataType(rowType, typeFactory);
+        SqlDataTypeSpec typeSpec = SqlTypeUtil.convertTypeToSpec(relDataType);
         SqlWriter writer =
                 new SqlPrettyWriter(
                         SqlPrettyWriter.config()
@@ -58,6 +62,7 @@ class SqlTypeUtilTest {
         // unparse that will end up passing no comments through
         typeSpec.unparse(writer, 0, 0);
         String result = writer.toSqlString().getSql();
-        assertThat(result).contains("ROW").contains("f0").contains("f1");
+        assertThat(result).hasToString(
+                "ROW(\"a\" INTEGER, \"b\" VARCHAR(1) CHARACTER SET \"UTF-16LE\")");
     }
 }
