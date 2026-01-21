@@ -524,6 +524,8 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
 
   @TestTemplate
   def testShowCreateViewWithTumbleWindow(): Unit = {
+    // FLINK-38950: Verify window TVF with ORDER BY generates correct expanded SQL
+    // without duplicating the ORDER BY clause in the catalog view definition.
     tableEnv.createTable("t1", buildTableDescriptor())
     val viewWithInnerJoinDDL: String =
       s"""CREATE VIEW tumbleWindowViewWithOrderBy AS
