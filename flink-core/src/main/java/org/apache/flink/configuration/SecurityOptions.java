@@ -482,6 +482,15 @@ public class SecurityOptions {
                                     + "This further protects the rest REST endpoints to present certificate which is only used by proxy server"
                                     + "This is necessary where once uses public CA or internal firm wide CA");
 
+    /** Flag to enable/disable hostname verification for the ssl connections. */
+    @Documentation.Section(Documentation.Sections.SECURITY_SSL)
+    public static final ConfigOption<Boolean> SSL_REST_VERIFY_HOSTNAME =
+            key("security.ssl.rest.verify-hostname")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Whether to verify the REST server's hostname against its SSL certificate.");
+
     // ------------------------ ssl parameters --------------------------------
 
     /** SSL protocol version to be supported. */
@@ -513,15 +522,6 @@ public class SecurityOptions {
                                                     "http://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#ciphersuites",
                                                     "here"))
                                     .build());
-
-    /** Flag to enable/disable hostname verification for the ssl connections. */
-    @Documentation.Section(Documentation.Sections.SECURITY_SSL)
-    public static final ConfigOption<Boolean> SSL_VERIFY_HOSTNAME =
-            key("security.ssl.verify-hostname")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Flag to enable peer’s hostname verification during ssl handshake.");
 
     /** SSL engine provider. */
     @Documentation.Section(Documentation.Sections.EXPERT_SECURITY_SSL)
