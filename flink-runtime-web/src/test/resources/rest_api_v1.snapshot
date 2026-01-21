@@ -1552,7 +1552,7 @@
           "properties" : {
             "checkpointed_size" : {
               "type" : "object",
-              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util.stats:StatsSummaryDto",
+              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto",
               "properties" : {
                 "min" : {
                   "type" : "integer"
@@ -1582,23 +1582,23 @@
             },
             "state_size" : {
               "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util.stats:StatsSummaryDto"
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto"
             },
             "end_to_end_duration" : {
               "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util.stats:StatsSummaryDto"
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto"
             },
             "alignment_buffered" : {
               "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util.stats:StatsSummaryDto"
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto"
             },
             "processed_data" : {
               "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util.stats:StatsSummaryDto"
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto"
             },
             "persisted_data" : {
               "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util.stats:StatsSummaryDto"
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto"
             }
           }
         },
@@ -2155,7 +2155,7 @@
           "properties" : {
             "checkpointed_size" : {
               "type" : "object",
-              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util.stats:StatsSummaryDto",
+              "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto",
               "properties" : {
                 "min" : {
                   "type" : "integer"
@@ -2185,11 +2185,11 @@
             },
             "state_size" : {
               "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util.stats:StatsSummaryDto"
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto"
             },
             "end_to_end_duration" : {
               "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util.stats:StatsSummaryDto"
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto"
             },
             "checkpoint_duration" : {
               "type" : "object",
@@ -2197,11 +2197,11 @@
               "properties" : {
                 "sync" : {
                   "type" : "object",
-                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util.stats:StatsSummaryDto"
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto"
                 },
                 "async" : {
                   "type" : "object",
-                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util.stats:StatsSummaryDto"
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto"
                 }
               }
             },
@@ -2211,25 +2211,25 @@
               "properties" : {
                 "buffered" : {
                   "type" : "object",
-                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util.stats:StatsSummaryDto"
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto"
                 },
                 "processed" : {
                   "type" : "object",
-                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util.stats:StatsSummaryDto"
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto"
                 },
                 "persisted" : {
                   "type" : "object",
-                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util.stats:StatsSummaryDto"
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto"
                 },
                 "duration" : {
                   "type" : "object",
-                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util.stats:StatsSummaryDto"
+                  "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto"
                 }
               }
             },
             "start_delay" : {
               "type" : "object",
-              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util.stats:StatsSummaryDto"
+              "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:util:stats:StatsSummaryDto"
             }
           }
         },
@@ -2820,7 +2820,30 @@
     },
     "response" : {
       "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobResourceRequirementsBody"
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobResourceRequirementsBody",
+      "properties" : {
+        "jobVertexResourceRequirements" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:jobgraph:JobVertexResourceRequirements",
+            "properties" : {
+              "parallelism" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:jobgraph:JobVertexResourceRequirements:Parallelism",
+                "properties" : {
+                  "lowerBound" : {
+                    "type" : "integer"
+                  },
+                  "upperBound" : {
+                    "type" : "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }, {
     "url" : "/jobs/:jobid/resource-requirements",
@@ -2837,7 +2860,30 @@
     },
     "request" : {
       "type" : "object",
-      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobResourceRequirementsBody"
+      "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:job:JobResourceRequirementsBody",
+      "properties" : {
+        "jobVertexResourceRequirements" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:flink:runtime:jobgraph:JobVertexResourceRequirements",
+            "properties" : {
+              "parallelism" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:flink:runtime:jobgraph:JobVertexResourceRequirements:Parallelism",
+                "properties" : {
+                  "lowerBound" : {
+                    "type" : "integer"
+                  },
+                  "upperBound" : {
+                    "type" : "integer"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "response" : {
       "type" : "object",
@@ -4441,12 +4487,12 @@
               "jobId" : {
                 "type" : "any"
               },
-              "assignedTasks" : {
-                "type" : "integer"
-              },
               "resource" : {
                 "type" : "object",
                 "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ResourceProfileInfo"
+              },
+              "assignedTasks" : {
+                "type" : "integer"
               }
             }
           }
