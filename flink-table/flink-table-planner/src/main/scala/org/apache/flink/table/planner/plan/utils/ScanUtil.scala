@@ -19,11 +19,16 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.catalog.ResolvedCatalogTable
+import org.apache.flink.table.connector.source.abilities.SupportsPartitioning
+import org.apache.flink.table.connector.source.partitioning.Partitioning
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, ExprCodeGenerator, OperatorCodeGenerator}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{DEFAULT_INPUT1_TERM, GENERIC_ROW}
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
+import org.apache.flink.table.planner.plan.schema.TableSourceTable
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -159,5 +164,22 @@ object ScanUtil {
         }
         index
     }.toArray
+  }
+
+  def getPartition(tableSourceTable: TableSourceTable): Option[Partitioning] = {
+    val tableSource = tableSourceTable.tableSource
+    if (!tableSource.isInstanceOf[SupportsPartitioning]) {
+      return None
+    }
+    Some(tableSource.asInstanceOf[SupportsPartitioning].outputPartitioning)
+  }
+
+  def applyPartitionedRead(tableSourceTable: TableSourceTable): Unit = {
+    val tableSource = tableSourceTable.tableSource
+    tableSource match {
+      case partitioning: SupportsPartitioning =>
+        partitioning.applyPartitionedRead()
+      case _ =>
+    }
   }
 }

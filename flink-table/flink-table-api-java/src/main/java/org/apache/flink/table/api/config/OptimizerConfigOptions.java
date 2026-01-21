@@ -130,6 +130,17 @@ public class OptimizerConfigOptions {
                                     + " if the source extends from SupportsStatisticReport and the statistics from catalog is UNKNOWN."
                                     + "Default value is true.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH)
+    public static final ConfigOption<Boolean> TABLE_OPTIMIZER_STORAGE_PARTITION_JOIN_ENABLED =
+            key("table.optimizer.storage-partition-join-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "When it is true, the optimizer will try to use storage partition join for the join operation "
+                                    + "if the source table is partitioned by the join key. Default value is false. "
+                                    + "Note that this option only works in batch mode and requires the source table to be partitioned by the join key."
+                                    + " If the source table is not partitioned by the join key, it will fall back to other join strategies.");
+
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_OPTIMIZER_JOIN_REORDER_ENABLED =
             key("table.optimizer.join-reorder-enabled")
