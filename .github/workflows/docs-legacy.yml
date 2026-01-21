@@ -59,9 +59,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-docs-${{ hashFiles('**/pom.xml') }}
+          key: ${{ runner.os }}-maven-docs-legacy-${{ inputs.branch }}
           restore-keys: |
-            ${{ runner.os }}-maven-docs-
+            ${{ runner.os }}-maven-docs-legacy-
 
       - name: Build Jekyll documentation (release-1.12 and earlier)
         if: ${{ contains(fromJSON('["release-1.0", "release-1.1", "release-1.2", "release-1.3", "release-1.4", "release-1.5", "release-1.6", "release-1.7", "release-1.8", "release-1.9", "release-1.10", "release-1.11", "release-1.12"]'), inputs.branch) }}
