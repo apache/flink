@@ -18,39 +18,37 @@
 
 package org.apache.flink.table.planner.calcite;
 
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.sql.SqlDataTypeSpec;
-import org.apache.calcite.sql.SqlWriter;
-import org.apache.calcite.sql.pretty.SqlPrettyWriter;
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.calcite.sql.type.SqlTypeUtil;
-
 import org.apache.flink.table.planner.typeutils.LogicalRelDataTypeConverter;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-
 import org.apache.flink.table.types.logical.VarCharType;
 
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.SqlDataTypeSpec;
+import org.apache.calcite.sql.SqlWriter;
+import org.apache.calcite.sql.pretty.SqlPrettyWriter;
+import org.apache.calcite.sql.type.SqlTypeUtil;
 import org.junit.jupiter.api.Test;
-
-import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link SqlTypeUtil}. */
 class SqlTypeUtilTest {
-    /** Test case for <a href="https://issues.apache.org/jira/browse/FLINK-38913">[FLINK-38913]
-     ArrayIndexOutOfBoundsException when creating a table with computed rows including casts
-     to null</a>.
+    /**
+     * Test case for <a href="https://issues.apache.org/jira/browse/FLINK-38913">[FLINK-38913]
+     * ArrayIndexOutOfBoundsException when creating a table with computed rows including casts to
+     * null</a>.
      */
     @Test
     void testConvertRowTypeToSpecAndUnparse() {
         FlinkTypeFactory typeFactory =
                 new FlinkTypeFactory(
                         Thread.currentThread().getContextClassLoader(), FlinkTypeSystem.INSTANCE);
-        RowType rowType = RowType.of(new LogicalType[]{new IntType(), new VarCharType(1)},
-                new String[]{"a", "b"});
+        RowType rowType =
+                RowType.of(
+                        new LogicalType[] {new IntType(), new VarCharType(1)},
+                        new String[] {"a", "b"});
         RelDataType relDataType = LogicalRelDataTypeConverter.toRelDataType(rowType, typeFactory);
         SqlDataTypeSpec typeSpec = SqlTypeUtil.convertTypeToSpec(relDataType);
         SqlWriter writer =
@@ -62,7 +60,7 @@ class SqlTypeUtilTest {
         // unparse that will end up passing no comments through
         typeSpec.unparse(writer, 0, 0);
         String result = writer.toSqlString().getSql();
-        assertThat(result).hasToString(
-                "ROW(\"a\" INTEGER, \"b\" VARCHAR(1) CHARACTER SET \"UTF-16LE\")");
+        assertThat(result)
+                .hasToString("ROW(\"a\" INTEGER, \"b\" VARCHAR(1) CHARACTER SET \"UTF-16LE\")");
     }
 }
