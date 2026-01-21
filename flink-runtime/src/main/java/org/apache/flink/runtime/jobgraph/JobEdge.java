@@ -35,7 +35,7 @@ public class JobEdge implements java.io.Serializable {
     private final JobVertex target;
 
     /** The distribution pattern that should be used for this job edge. */
-    private final DistributionPattern distributionPattern;
+    private DistributionPattern distributionPattern;
 
     /** The channel rescaler that should be used for this job edge on downstream side. */
     private SubtaskStateMapper downstreamSubtaskStateMapper = SubtaskStateMapper.ROUND_ROBIN;
@@ -54,7 +54,7 @@ public class JobEdge implements java.io.Serializable {
 
     private final boolean isBroadcast;
 
-    private final boolean isForward;
+    private boolean isForward;
 
     /**
      * Optional name for the pre-processing operation (sort, combining sort, ...), to be displayed
@@ -109,6 +109,20 @@ public class JobEdge implements java.io.Serializable {
         this.typeNumber = typeNumber;
         this.interInputsKeysCorrelated = interInputsKeysCorrelated;
         this.intraInputKeyCorrelated = intraInputKeyCorrelated;
+    }
+
+    public void updateDistributionPattern(
+            boolean isForward,
+            DistributionPattern distributionPattern,
+            SubtaskStateMapper upstreamSubtaskStateMapper,
+            SubtaskStateMapper downstreamSubtaskStateMapper,
+            String shipStrategyName) {
+        this.isForward = isForward;
+        this.distributionPattern = distributionPattern;
+        this.upstreamSubtaskStateMapper = checkNotNull(upstreamSubtaskStateMapper);
+        this.downstreamSubtaskStateMapper = checkNotNull(downstreamSubtaskStateMapper);
+        this.shipStrategyName = shipStrategyName;
+        this.source.updateDistributionPattern(isForward, distributionPattern);
     }
 
     /**
