@@ -59,7 +59,7 @@ class EnvironmentSettingsBuilderCompletenessTests(PythonAPICompletenessTestCase,
     def excluded_methods(cls):
         # internal interfaces, no need to expose to users.
         # withSqlFactory - needs to be implemented
-        return {'withClassLoader', 'withCatalogStore', 'withSqlFactory'}
+        return {'withClassLoader', 'withCatalogStore', 'withSecretStore', 'withSqlFactory'}
 
 if __name__ == '__main__':
     import unittest
