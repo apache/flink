@@ -51,6 +51,16 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
+# Generate .htaccess with dynamic 404 path based on branch
+BRANCH=$(git branch --show-current)
+cat > docs/target/.htaccess << EOF
+# Ensure index.html is served for directory requests
+DirectoryIndex index.html
+
+# Custom 404 error page
+ErrorDocument 404 /flink/flink-docs-${BRANCH}/404.html
+EOF
+
 # build Flink; required for Javadoc step
 mvn clean install -B -DskipTests -Dfast -Dskip.npm -Pskip-webui-build
 
