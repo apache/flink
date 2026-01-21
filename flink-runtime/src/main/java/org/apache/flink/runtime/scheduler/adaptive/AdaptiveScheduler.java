@@ -150,6 +150,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphUtils.isAnyOutputBlocking;
+import static org.apache.flink.runtime.scheduler.adaptive.ForwardEdgesAdapter.copyJobGraphWithAdaptedForwardEdges;
 
 /**
  * A {@link SchedulerNG} implementation that uses the declarative resource management and
@@ -1261,8 +1262,10 @@ public class AdaptiveScheduler
     @Nonnull
     private ExecutionGraph createExecutionGraphAndRestoreState(
             VertexParallelismStore adjustedParallelismStore) throws Exception {
+        final JobGraph adjustedJobGraph =
+                copyJobGraphWithAdaptedForwardEdges(jobInformation, adjustedParallelismStore);
         return executionGraphFactory.createAndRestoreExecutionGraph(
-                jobInformation.copyJobGraph(),
+                adjustedJobGraph,
                 completedCheckpointStore,
                 checkpointsCleaner,
                 checkpointIdCounter,
