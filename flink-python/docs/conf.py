@@ -108,6 +108,9 @@ html_theme = 'nature'
 #
 # html_theme_options = {}
 
+# Base URL for canonical links, pointing to stable docs version
+html_baseurl = "https://nightlies.apache.org/flink/flink-docs-stable/api/python/"
+
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
 html_logo = "../../docs/page/img/navbar-brand-logo.jpg"
