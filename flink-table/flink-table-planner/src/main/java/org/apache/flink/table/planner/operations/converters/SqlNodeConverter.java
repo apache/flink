@@ -22,6 +22,7 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.planner.calcite.FlinkCalciteSqlValidator;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.utils.Expander;
 import org.apache.flink.table.types.DataType;
@@ -79,7 +80,7 @@ public interface SqlNodeConverter<S extends SqlNode> {
         TableConfig getTableConfig();
 
         /** Returns the {@link SqlValidator} in the convert context. */
-        SqlValidator getSqlValidator();
+        FlinkCalciteSqlValidator getSqlValidator();
 
         /** Returns the {@link CatalogManager} in the convert context. */
         CatalogManager getCatalogManager();

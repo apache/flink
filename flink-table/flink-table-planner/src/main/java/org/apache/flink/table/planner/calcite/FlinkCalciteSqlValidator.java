@@ -431,6 +431,11 @@ public final class FlinkCalciteSqlValidator extends FlinkSqlParsingValidator {
         return rewritten;
     }
 
+    @Override
+    public SqlNode maybeCast(SqlNode node, RelDataType currentType, RelDataType desiredType) {
+        return super.maybeCast(node, currentType, desiredType);
+    }
+
     // --------------------------------------------------------------------------------------------
     // Column expansion
     // --------------------------------------------------------------------------------------------
