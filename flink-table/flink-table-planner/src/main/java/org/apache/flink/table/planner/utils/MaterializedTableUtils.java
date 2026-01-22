@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /** The utils for materialized table. */
 @Internal
@@ -116,9 +117,10 @@ public class MaterializedTableUtils {
 
     public static List<Column> validateAndExtractNewColumns(
             ResolvedSchema oldSchema, ResolvedSchema newSchema) {
-        List<Column> newAddedColumns = new ArrayList<>();
-        int originalColumnSize = oldSchema.getColumns().size();
-        int newColumnSize = newSchema.getColumns().size();
+        final List<Column> newColumns = getPersistedColumns(newSchema);
+        final List<Column> oldColumns = getPersistedColumns(oldSchema);
+        final int originalColumnSize = oldColumns.size();
+        final int newColumnSize = newColumns.size();
 
         if (originalColumnSize > newColumnSize) {
             throw new ValidationException(
@@ -129,9 +131,9 @@ public class MaterializedTableUtils {
                             originalColumnSize, newColumnSize));
         }
 
-        for (int i = 0; i < oldSchema.getColumns().size(); i++) {
-            Column oldColumn = oldSchema.getColumns().get(i);
-            Column newColumn = newSchema.getColumns().get(i);
+        for (int i = 0; i < oldColumns.size(); i++) {
+            Column oldColumn = oldColumns.get(i);
+            Column newColumn = newColumns.get(i);
             if (!oldColumn.equals(newColumn)) {
                 throw new ValidationException(
                         String.format(
@@ -142,7 +144,8 @@ public class MaterializedTableUtils {
             }
         }
 
-        for (int i = oldSchema.getColumns().size(); i < newSchema.getColumns().size(); i++) {
+        final List<Column> newAddedColumns = new ArrayList<>();
+        for (int i = oldColumns.size(); i < newColumns.size(); i++) {
             Column newColumn = newSchema.getColumns().get(i);
             newAddedColumns.add(newColumn.copy(newColumn.getDataType().nullable()));
         }
@@ -201,6 +204,12 @@ public class MaterializedTableUtils {
             throwIfPersistedColumnNotUsedByQuery(
                     ((SqlTableColumnPosition) column).getColumn(), querySchemaColumnNames);
         }
+    }
+
+    private static List<Column> getPersistedColumns(ResolvedSchema schema) {
+        return schema.getColumns().stream()
+                .filter(Column::isPersisted)
+                .collect(Collectors.toList());
     }
 
     private static void throwPersistedColumnNotUsedException(String type, String columnName) {
