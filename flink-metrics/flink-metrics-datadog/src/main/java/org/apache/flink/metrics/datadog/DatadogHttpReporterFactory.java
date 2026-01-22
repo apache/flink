@@ -32,7 +32,7 @@ public class DatadogHttpReporterFactory implements MetricReporterFactory {
     private static final Logger LOG = LoggerFactory.getLogger(DatadogHttpReporterFactory.class);
 
     private static final String API_KEY = "apikey";
-    private static final String API_KEY_ENV_VAR = "DATADOG_API_KEY";
+    private static final String API_KEY_ENV_VAR = "DD_API_KEY";
     private static final String PROXY_HOST = "proxyHost";
     private static final String PROXY_PORT = "proxyPort";
     private static final String DATA_CENTER = "dataCenter";
@@ -68,23 +68,27 @@ public class DatadogHttpReporterFactory implements MetricReporterFactory {
     }
 
     /**
-     * Retrieves the Datadog API key from configuration or environment variable.
-     *
-     * <p>The API key is resolved in the following order:
-     *
-     * <ol>
-     *   <li>Configuration property "apikey"
-     *   <li>Environment variable "DATADOG_API_KEY"
-     * </ol>
+    * Retrieves the Datadog API key from environment variable or configuration.
+    *
+    * <p>The API key is resolved in the following order:
+    *
+    * <ol>
+    *   <li>Environment variable "DD_API_KEY"
+    *   <li>Configuration property "apikey"
+    * </ol>
      *
      * @param config the configuration properties
      * @return the Datadog API key, or null if not found in either location
      */
     private String getApiKey(Properties config) {
+        final String envApiKey = System.getenv(API_KEY_ENV_VAR);
+        if (envApiKey != null && !envApiKey.isEmpty()) {
+            return envApiKey;
+        }
         String apiKey = config.getProperty(API_KEY, null);
         if (apiKey != null && !apiKey.isEmpty()) {
             return apiKey;
         }
-        return System.getenv(API_KEY_ENV_VAR);
+        return null;
     }
 }
