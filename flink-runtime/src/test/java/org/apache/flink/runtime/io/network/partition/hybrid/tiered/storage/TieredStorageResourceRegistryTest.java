@@ -66,11 +66,11 @@ class TieredStorageResourceRegistryTest {
     void testConcurrentRegisterResourceWithDifferentOwners() throws Exception {
         AtomicInteger successfulRegistrations = new AtomicInteger(0);
 
+        // Run multiple concurrent threads to simulate concurrent registration (with
+        // different owners)
         runConcurrentTask(
                 threadId -> {
                     for (int i = 0; i < NUM_OPERATIONS_PER_THREAD; i++) {
-                        // Each thread uses unique owners to maximize contention
-                        // on HashMap.computeIfAbsent()
                         TestingDataIdentifier owner =
                                 new TestingDataIdentifier(threadId * NUM_OPERATIONS_PER_THREAD + i);
                         registry.registerResource(owner, () -> {});
@@ -78,7 +78,7 @@ class TieredStorageResourceRegistryTest {
                     }
                 });
 
-        assertNoExceptions("concurrent registerResource() calls");
+        assertNoExceptions("Concurrent registerResource() calls");
         assertThat(successfulRegistrations.get())
                 .isEqualTo(NUM_THREADS * NUM_OPERATIONS_PER_THREAD);
     }
@@ -92,6 +92,7 @@ class TieredStorageResourceRegistryTest {
             owners[i] = new TestingDataIdentifier(i);
         }
 
+        // Run multiple concurrent threads to simulate concurrent registration/clearing
         runConcurrentTask(
                 threadId -> {
                     for (int i = 0; i < NUM_OPERATIONS_PER_THREAD; i++) {
@@ -107,7 +108,8 @@ class TieredStorageResourceRegistryTest {
                     }
                 });
 
-        assertNoExceptions("concurrent register/clear calls");
+        // Verify there were no exceptions during concurrent registration/clear operations
+        assertNoExceptions("Concurrent registration/clearing calls");
     }
 
     @RepeatedTest(10)
@@ -128,12 +130,9 @@ class TieredStorageResourceRegistryTest {
         // Clear resources and verify all were registered
         registry.clearResourceFor(sharedOwner);
 
-        // Due to potential race conditions in ArrayList.add(), the actual count
-        // may be less than expected if the bug exists
+        // Verify that all registered resources were successfully release
         assertThat(releaseCount.get())
-                .as(
-                        "All registered resources should be released. "
-                                + "If fewer were released, ArrayList concurrent modification may have lost some entries.")
+                .as("All registered resources should be released.")
                 .isEqualTo(NUM_THREADS * NUM_OPERATIONS_PER_THREAD);
     }
 
