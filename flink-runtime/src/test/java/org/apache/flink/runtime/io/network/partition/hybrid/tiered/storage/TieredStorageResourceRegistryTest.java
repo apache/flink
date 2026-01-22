@@ -18,9 +18,8 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageDataIdentifier;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.RepeatedTest;
@@ -34,6 +33,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TieredStorageResourceRegistry}. */
 class TieredStorageResourceRegistryTest {
@@ -60,6 +61,30 @@ class TieredStorageResourceRegistryTest {
     void tearDown() throws Exception {
         executor.shutdown();
         executor.awaitTermination(10, TimeUnit.SECONDS);
+    }
+
+    @RepeatedTest(10)
+    void testConcurrentRegisterResource() throws Exception {
+        AtomicInteger releaseCount = new AtomicInteger(0);
+        TestingDataIdentifier sharedOwner = new TestingDataIdentifier(0);
+
+        runConcurrentTask(
+                threadId -> {
+                    for (int i = 0; i < NUM_OPERATIONS_PER_THREAD; i++) {
+                        registry.registerResource(
+                                sharedOwner, () -> releaseCount.incrementAndGet());
+                    }
+                });
+
+        assertNoExceptions("Concurrent registerResource() calls");
+
+        // Clear resources and verify all were registered
+        registry.clearResourceFor(sharedOwner);
+
+        // Verify that all registered resources were successfully release
+        assertThat(releaseCount.get())
+                .as("All registered resources should be released.")
+                .isEqualTo(NUM_THREADS * NUM_OPERATIONS_PER_THREAD);
     }
 
     @RepeatedTest(10)
@@ -110,30 +135,6 @@ class TieredStorageResourceRegistryTest {
 
         // Verify there were no exceptions during concurrent registration/clear operations
         assertNoExceptions("Concurrent registration/clearing calls");
-    }
-
-    @RepeatedTest(10)
-    void testConcurrentRegisterResourceWithSameOwner() throws Exception {
-        AtomicInteger releaseCount = new AtomicInteger(0);
-        TestingDataIdentifier sharedOwner = new TestingDataIdentifier(0);
-
-        runConcurrentTask(
-                threadId -> {
-                    for (int i = 0; i < NUM_OPERATIONS_PER_THREAD; i++) {
-                        registry.registerResource(
-                                sharedOwner, () -> releaseCount.incrementAndGet());
-                    }
-                });
-
-        assertNoExceptions("concurrent registerResource() calls with same owner");
-
-        // Clear resources and verify all were registered
-        registry.clearResourceFor(sharedOwner);
-
-        // Verify that all registered resources were successfully release
-        assertThat(releaseCount.get())
-                .as("All registered resources should be released.")
-                .isEqualTo(NUM_THREADS * NUM_OPERATIONS_PER_THREAD);
     }
 
     private void runConcurrentTask(ThrowingIntConsumer task) throws Exception {
