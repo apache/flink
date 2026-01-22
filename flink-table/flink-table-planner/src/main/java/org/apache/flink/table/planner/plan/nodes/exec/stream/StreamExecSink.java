@@ -236,7 +236,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
     @Override
     protected Transformation<Object> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
-        // TODO: Remove this validation once runtime support for ERROR and NOTHING is implemented
+        // TODO: FLINK-38928 Remove this validation once runtime support for ERROR and NOTHING is implemented
         if (conflictStrategy == SinkConflictStrategy.ERROR
                 || conflictStrategy == SinkConflictStrategy.NOTHING) {
             throw new TableException(
