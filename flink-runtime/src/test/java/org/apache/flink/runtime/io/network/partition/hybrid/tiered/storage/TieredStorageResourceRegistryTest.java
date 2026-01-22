@@ -18,8 +18,11 @@
 
 package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
-import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageDataIdentifier;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageDataIdentifier;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.RepeatedTest;
 
 import java.util.ArrayList;
@@ -32,72 +35,56 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 /** Tests for {@link TieredStorageResourceRegistry}. */
 class TieredStorageResourceRegistryTest {
 
     private static final int NUM_THREADS = 10;
     private static final int NUM_OPERATIONS_PER_THREAD = 100;
 
-    @RepeatedTest(10)
-    void testConcurrentRegisterResourceWithDifferentOwners() throws Exception {
-        TieredStorageResourceRegistry registry = new TieredStorageResourceRegistry();
-        ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS);
-        CyclicBarrier barrier = new CyclicBarrier(NUM_THREADS);
-        CountDownLatch completionLatch = new CountDownLatch(NUM_THREADS);
-        List<Throwable> exceptions = Collections.synchronizedList(new ArrayList<>());
-        AtomicInteger successfulRegistrations = new AtomicInteger(0);
+    private TieredStorageResourceRegistry registry;
+    private ExecutorService executor;
+    private CyclicBarrier barrier;
+    private CountDownLatch completionLatch;
+    private List<Throwable> exceptions;
 
-        for (int t = 0; t < NUM_THREADS; t++) {
-            final int threadId = t;
-            executor.submit(
-                    () -> {
-                        try {
-                            // Wait for all threads to be ready
-                            barrier.await();
+    @BeforeEach
+    void setUp() {
+        registry = new TieredStorageResourceRegistry();
+        executor = Executors.newFixedThreadPool(NUM_THREADS);
+        barrier = new CyclicBarrier(NUM_THREADS);
+        completionLatch = new CountDownLatch(NUM_THREADS);
+        exceptions = Collections.synchronizedList(new ArrayList<>());
+    }
 
-                            for (int i = 0; i < NUM_OPERATIONS_PER_THREAD; i++) {
-                                // Each thread uses unique owners to maximize contention
-                                // on HashMap.computeIfAbsent()
-                                TestingDataIdentifier owner =
-                                        new TestingDataIdentifier(
-                                                threadId * NUM_OPERATIONS_PER_THREAD + i);
-                                registry.registerResource(owner, () -> {});
-                                successfulRegistrations.incrementAndGet();
-                            }
-                        } catch (Throwable e) {
-                            exceptions.add(e);
-                        } finally {
-                            completionLatch.countDown();
-                        }
-                    });
-        }
-
-        completionLatch.await(30, TimeUnit.SECONDS);
+    @AfterEach
+    void tearDown() throws Exception {
         executor.shutdown();
         executor.awaitTermination(10, TimeUnit.SECONDS);
+    }
 
-        // If the bug exists, we expect ConcurrentModificationException
-        // If fixed, all registrations should succeed
-        assertThat(exceptions)
-                .as(
-                        "Expected no exceptions during concurrent registerResource() calls. "
-                                + "Found: %s",
-                        exceptions)
-                .isEmpty();
+    @RepeatedTest(10)
+    void testConcurrentRegisterResourceWithDifferentOwners() throws Exception {
+        AtomicInteger successfulRegistrations = new AtomicInteger(0);
+
+        runConcurrentTask(
+                threadId -> {
+                    for (int i = 0; i < NUM_OPERATIONS_PER_THREAD; i++) {
+                        // Each thread uses unique owners to maximize contention
+                        // on HashMap.computeIfAbsent()
+                        TestingDataIdentifier owner =
+                                new TestingDataIdentifier(threadId * NUM_OPERATIONS_PER_THREAD + i);
+                        registry.registerResource(owner, () -> {});
+                        successfulRegistrations.incrementAndGet();
+                    }
+                });
+
+        assertNoExceptions("concurrent registerResource() calls");
         assertThat(successfulRegistrations.get())
                 .isEqualTo(NUM_THREADS * NUM_OPERATIONS_PER_THREAD);
     }
 
     @RepeatedTest(10)
     void testConcurrentRegisterAndClear() throws Exception {
-        TieredStorageResourceRegistry registry = new TieredStorageResourceRegistry();
-        ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS);
-        CyclicBarrier barrier = new CyclicBarrier(NUM_THREADS);
-        CountDownLatch completionLatch = new CountDownLatch(NUM_THREADS);
-        List<Throwable> exceptions = Collections.synchronizedList(new ArrayList<>());
-
         // Use few owners to maximize contention on the same keys across threads
         final int numOwners = 5;
         TestingDataIdentifier[] owners = new TestingDataIdentifier[numOwners];
@@ -105,84 +92,38 @@ class TieredStorageResourceRegistryTest {
             owners[i] = new TestingDataIdentifier(i);
         }
 
-        for (int t = 0; t < NUM_THREADS; t++) {
-            executor.submit(
-                    () -> {
-                        try {
-                            barrier.await();
+        runConcurrentTask(
+                threadId -> {
+                    for (int i = 0; i < NUM_OPERATIONS_PER_THREAD; i++) {
+                        // All threads compete for the same small set of owners
+                        TestingDataIdentifier owner = owners[i % numOwners];
 
-                            for (int i = 0; i < NUM_OPERATIONS_PER_THREAD; i++) {
-                                // All threads compete for the same small set of owners
-                                TestingDataIdentifier owner = owners[i % numOwners];
-
-                                // Alternate between register and clear to maximize
-                                // concurrent modification chances
-                                if (i % 2 == 0) {
-                                    registry.registerResource(owner, () -> {});
-                                } else {
-                                    registry.clearResourceFor(owner);
-                                }
-                            }
-                        } catch (Throwable e) {
-                            exceptions.add(e);
-                        } finally {
-                            completionLatch.countDown();
+                        // Alternate between register and clear to maximize entropy
+                        if (i % 2 == 0) {
+                            registry.registerResource(owner, () -> {});
+                        } else {
+                            registry.clearResourceFor(owner);
                         }
-                    });
-        }
+                    }
+                });
 
-        completionLatch.await(30, TimeUnit.SECONDS);
-        executor.shutdown();
-        executor.awaitTermination(10, TimeUnit.SECONDS);
-
-        assertThat(exceptions)
-                .as(
-                        "Expected no exceptions during concurrent register/clear calls. "
-                                + "Found: %s",
-                        exceptions)
-                .isEmpty();
+        assertNoExceptions("concurrent register/clear calls");
     }
 
     @RepeatedTest(10)
     void testConcurrentRegisterResourceWithSameOwner() throws Exception {
-        TieredStorageResourceRegistry registry = new TieredStorageResourceRegistry();
-        ExecutorService executor = Executors.newFixedThreadPool(NUM_THREADS);
-        CyclicBarrier barrier = new CyclicBarrier(NUM_THREADS);
-        CountDownLatch completionLatch = new CountDownLatch(NUM_THREADS);
-        List<Throwable> exceptions = Collections.synchronizedList(new ArrayList<>());
         AtomicInteger releaseCount = new AtomicInteger(0);
-
-        // Single owner shared across all threads
         TestingDataIdentifier sharedOwner = new TestingDataIdentifier(0);
 
-        for (int t = 0; t < NUM_THREADS; t++) {
-            executor.submit(
-                    () -> {
-                        try {
-                            barrier.await();
+        runConcurrentTask(
+                threadId -> {
+                    for (int i = 0; i < NUM_OPERATIONS_PER_THREAD; i++) {
+                        registry.registerResource(
+                                sharedOwner, () -> releaseCount.incrementAndGet());
+                    }
+                });
 
-                            for (int i = 0; i < NUM_OPERATIONS_PER_THREAD; i++) {
-                                registry.registerResource(
-                                        sharedOwner, () -> releaseCount.incrementAndGet());
-                            }
-                        } catch (Throwable e) {
-                            exceptions.add(e);
-                        } finally {
-                            completionLatch.countDown();
-                        }
-                    });
-        }
-
-        completionLatch.await(30, TimeUnit.SECONDS);
-        executor.shutdown();
-        executor.awaitTermination(10, TimeUnit.SECONDS);
-
-        assertThat(exceptions)
-                .as(
-                        "Expected no exceptions during concurrent registerResource() calls "
-                                + "with same owner. Found: %s",
-                        exceptions)
-                .isEmpty();
+        assertNoExceptions("concurrent registerResource() calls with same owner");
 
         // Clear resources and verify all were registered
         registry.clearResourceFor(sharedOwner);
@@ -194,6 +135,35 @@ class TieredStorageResourceRegistryTest {
                         "All registered resources should be released. "
                                 + "If fewer were released, ArrayList concurrent modification may have lost some entries.")
                 .isEqualTo(NUM_THREADS * NUM_OPERATIONS_PER_THREAD);
+    }
+
+    private void runConcurrentTask(ThrowingIntConsumer task) throws Exception {
+        for (int t = 0; t < NUM_THREADS; t++) {
+            final int threadId = t;
+            executor.submit(
+                    () -> {
+                        try {
+                            barrier.await();
+                            task.accept(threadId);
+                        } catch (Throwable e) {
+                            exceptions.add(e);
+                        } finally {
+                            completionLatch.countDown();
+                        }
+                    });
+        }
+        completionLatch.await(30, TimeUnit.SECONDS);
+    }
+
+    private void assertNoExceptions(String operationDescription) {
+        assertThat(exceptions)
+                .as("Expected no exceptions during %s. Found: %s", operationDescription, exceptions)
+                .isEmpty();
+    }
+
+    @FunctionalInterface
+    private interface ThrowingIntConsumer {
+        void accept(int value) throws Exception;
     }
 
     /** Simple implementation of TieredStorageDataIdentifier for testing. */
