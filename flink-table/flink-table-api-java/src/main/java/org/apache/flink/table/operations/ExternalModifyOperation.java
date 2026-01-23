@@ -19,7 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.SinkConflictStrategy;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -44,7 +44,7 @@ public final class ExternalModifyOperation implements ModifyOperation {
 
     private final DataType physicalDataType;
 
-    @Nullable private final SinkConflictStrategy conflictStrategy;
+    @Nullable private final InsertConflictStrategy conflictStrategy;
 
     public ExternalModifyOperation(
             ContextResolvedTable contextResolvedTable,
@@ -59,7 +59,7 @@ public final class ExternalModifyOperation implements ModifyOperation {
             QueryOperation child,
             @Nullable ChangelogMode changelogMode,
             DataType physicalDataType,
-            @Nullable SinkConflictStrategy conflictStrategy) {
+            @Nullable InsertConflictStrategy conflictStrategy) {
         this.contextResolvedTable = contextResolvedTable;
         this.child = child;
         this.changelogMode = changelogMode;
@@ -89,7 +89,7 @@ public final class ExternalModifyOperation implements ModifyOperation {
      *
      * @return the conflict strategy, or empty if not specified
      */
-    public Optional<SinkConflictStrategy> getConflictStrategy() {
+    public Optional<InsertConflictStrategy> getConflictStrategy() {
         return Optional.ofNullable(conflictStrategy);
     }
 

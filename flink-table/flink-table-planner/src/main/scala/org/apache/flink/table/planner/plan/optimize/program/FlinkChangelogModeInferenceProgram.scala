@@ -19,7 +19,7 @@ package org.apache.flink.table.planner.plan.optimize.program
 
 import org.apache.flink.legacy.table.sinks.{AppendStreamTableSink, RetractStreamTableSink, StreamTableSink, UpsertStreamTableSink}
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.api.SinkConflictStrategy
+import org.apache.flink.table.api.InsertConflictStrategy
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.UpsertMaterialize
 import org.apache.flink.table.connector.ChangelogMode
@@ -1061,7 +1061,9 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         case UpsertMaterialize.NONE => false
         case UpsertMaterialize.AUTO =>
           if (
-            (inputIsAppend && sink.conflictStrategy == SinkConflictStrategy.DEDUPLICATE) || sinkIsAppend || sinkIsRetract
+            (inputIsAppend && InsertConflictStrategy
+              .deduplicate()
+              .equals(sink.conflictStrategy)) || sinkIsAppend || sinkIsRetract
           ) {
             return false
           }
@@ -1078,8 +1080,10 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
             changeLogUpsertKeys == null || !changeLogUpsertKeys.exists(pks.contains)
 
           // Validate that ON CONFLICT is specified when upsert key differs from primary key
-          if (upsertKeyDiffersFromPk && sink.conflictStrategy == null) {
-            throw new TableException(
+          val requireOnConflict =
+            tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT)
+          if (requireOnConflict && upsertKeyDiffersFromPk && sink.conflictStrategy == null) {
+            throw new ValidationException(
               "The query has an upsert key that differs from the primary key of the sink table " +
                 s"'${sink.contextResolvedTable.getIdentifier.asSummaryString}'. " +
                 "This can lead to non-deterministic results when multiple records with different " +

@@ -25,8 +25,9 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.SinkConflictStrategy;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.RowtimeInserter;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.SinkUpsertMaterializeStrategy;
@@ -159,7 +160,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
     @Nullable
     @JsonProperty(FIELD_NAME_CONFLICT_STRATEGY)
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    private final SinkConflictStrategy conflictStrategy;
+    private final InsertConflictStrategy conflictStrategy;
 
     @Nullable
     @JsonProperty(FIELD_NAME_STATE)
@@ -175,7 +176,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             boolean upsertMaterialize,
             SinkUpsertMaterializeStrategy upsertMaterializeStrategy,
             int[] inputUpsertKey,
-            @Nullable SinkConflictStrategy conflictStrategy,
+            @Nullable InsertConflictStrategy conflictStrategy,
             String description) {
         this(
                 ExecNodeContext.newNodeId(),
@@ -209,7 +210,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             @Nullable @JsonProperty(FIELD_NAME_STATE) List<StateMetadata> stateMetadataList,
             @JsonProperty(FIELD_NAME_INPUT_UPSERT_KEY) int[] inputUpsertKey,
             @Nullable @JsonProperty(FIELD_NAME_CONFLICT_STRATEGY)
-                    SinkConflictStrategy conflictStrategy,
+                    InsertConflictStrategy conflictStrategy,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) LogicalType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
@@ -236,10 +237,11 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
     @Override
     protected Transformation<Object> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfig config) {
-        // TODO: FLINK-38928 Remove this validation once runtime support for ERROR and NOTHING is implemented
-        if (conflictStrategy == SinkConflictStrategy.ERROR
-                || conflictStrategy == SinkConflictStrategy.NOTHING) {
-            throw new TableException(
+        // TODO: FLINK-38928 Remove this validation once runtime support for ERROR and NOTHING is
+        // implemented
+        if (InsertConflictStrategy.error().equals(conflictStrategy)
+                || InsertConflictStrategy.nothing().equals(conflictStrategy)) {
+            throw new ValidationException(
                     "ON CONFLICT DO "
                             + conflictStrategy
                             + " is not yet supported. "

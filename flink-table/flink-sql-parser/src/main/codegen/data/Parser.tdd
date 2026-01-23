@@ -126,7 +126,7 @@
     "org.apache.flink.sql.parser.ddl.SqlWatermark"
     "org.apache.flink.sql.parser.dml.RichSqlInsert"
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword"
-    "org.apache.flink.sql.parser.dml.SinkConflictStrategy"
+    "org.apache.flink.sql.parser.dml.SqlInsertConflictBehavior"
     "org.apache.flink.sql.parser.dml.SqlBeginStatementSet"
     "org.apache.flink.sql.parser.dml.SqlTruncateTable"
     "org.apache.flink.sql.parser.dml.SqlCompileAndExecutePlan"

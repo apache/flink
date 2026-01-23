@@ -36,12 +36,12 @@ import org.apache.flink.sql.parser.ddl.table.SqlCreateTableAs;
 import org.apache.flink.sql.parser.ddl.table.SqlDropTable;
 import org.apache.flink.sql.parser.ddl.view.SqlDropView;
 import org.apache.flink.sql.parser.dml.RichSqlInsert;
-import org.apache.flink.sql.parser.dml.SinkConflictStrategy;
 import org.apache.flink.sql.parser.dml.SqlBeginStatementSet;
 import org.apache.flink.sql.parser.dml.SqlCompileAndExecutePlan;
 import org.apache.flink.sql.parser.dml.SqlEndStatementSet;
 import org.apache.flink.sql.parser.dml.SqlExecute;
 import org.apache.flink.sql.parser.dml.SqlExecutePlan;
+import org.apache.flink.sql.parser.dml.SqlInsertConflictBehavior;
 import org.apache.flink.sql.parser.dml.SqlStatementSet;
 import org.apache.flink.sql.parser.dql.SqlLoadModule;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
@@ -338,7 +338,7 @@ public class SqlNodeToOperationConversion {
                 getTargetColumnIndices(contextResolvedTable, insert.getTargetColumnList());
 
         // Convert parser conflict strategy to API conflict strategy
-        org.apache.flink.table.api.SinkConflictStrategy conflictStrategy =
+        org.apache.flink.table.api.InsertConflictStrategy conflictStrategy =
                 insert.getConflictStrategy()
                         .map(SqlNodeToOperationConversion::convertConflictStrategy)
                         .orElse(null);
@@ -354,17 +354,17 @@ public class SqlNodeToOperationConversion {
                 conflictStrategy);
     }
 
-    private static org.apache.flink.table.api.SinkConflictStrategy convertConflictStrategy(
-            SinkConflictStrategy parserStrategy) {
-        switch (parserStrategy) {
+    private static org.apache.flink.table.api.InsertConflictStrategy convertConflictStrategy(
+            SqlInsertConflictBehavior parserBehavior) {
+        switch (parserBehavior) {
             case ERROR:
-                return org.apache.flink.table.api.SinkConflictStrategy.ERROR;
+                return org.apache.flink.table.api.InsertConflictStrategy.error();
             case NOTHING:
-                return org.apache.flink.table.api.SinkConflictStrategy.NOTHING;
+                return org.apache.flink.table.api.InsertConflictStrategy.nothing();
             case DEDUPLICATE:
-                return org.apache.flink.table.api.SinkConflictStrategy.DEDUPLICATE;
+                return org.apache.flink.table.api.InsertConflictStrategy.deduplicate();
             default:
-                throw new IllegalArgumentException("Unknown conflict strategy: " + parserStrategy);
+                throw new IllegalArgumentException("Unknown conflict behavior: " + parserBehavior);
         }
     }
 

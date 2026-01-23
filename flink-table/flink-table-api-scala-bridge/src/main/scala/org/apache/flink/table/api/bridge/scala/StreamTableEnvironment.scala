@@ -610,7 +610,7 @@ trait StreamTableEnvironment extends TableEnvironment {
    * @param changelogMode
    *   The required kinds of changes in the result changelog. An exception will be thrown if the
    *   given updating table cannot be represented in this changelog mode.
-   * @param sinkConflictStrategy
+   * @param conflictStrategy
    *   Conflict strategy to use for conflicts when an upsert key differs from the primary key of the
    *   sink.
    * @return
@@ -620,7 +620,7 @@ trait StreamTableEnvironment extends TableEnvironment {
       table: Table,
       targetSchema: Schema,
       changelogMode: ChangelogMode,
-      sinkConflictStrategy: SinkConflictStrategy): DataStream[Row]
+      conflictStrategy: InsertConflictStrategy): DataStream[Row]
 
   /**
    * Returns a [[StatementSet]] that integrates with the Scala-specific [[DataStream]] API.

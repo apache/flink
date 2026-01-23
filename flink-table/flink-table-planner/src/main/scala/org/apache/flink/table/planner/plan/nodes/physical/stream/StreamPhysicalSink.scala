@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.table.api.SinkConflictStrategy
+import org.apache.flink.table.api.InsertConflictStrategy
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{SinkUpsertMaterializeStrategy, TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY}
 import org.apache.flink.table.catalog.ContextResolvedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
@@ -50,7 +50,7 @@ class StreamPhysicalSink(
     targetColumns: Array[Array[Int]],
     abilitySpecs: Array[SinkAbilitySpec],
     val upsertMaterialize: Boolean = false,
-    val conflictStrategy: SinkConflictStrategy)
+    val conflictStrategy: InsertConflictStrategy)
   extends Sink(
     cluster,
     traitSet,
@@ -135,6 +135,6 @@ class StreamPhysicalSink(
       .itemIf(
         "conflictStrategy",
         conflictStrategy,
-        conflictStrategy != null && conflictStrategy != SinkConflictStrategy.DEDUPLICATE)
+        conflictStrategy != null && !InsertConflictStrategy.deduplicate().equals(conflictStrategy))
   }
 }

@@ -181,7 +181,7 @@ class StreamTableEnvironmentImpl(
       table: Table,
       targetSchema: Schema,
       changelogMode: ChangelogMode,
-      sinkConflictStrategy: SinkConflictStrategy): DataStream[Row] = {
+      conflictStrategy: InsertConflictStrategy): DataStream[Row] = {
     Preconditions.checkNotNull(table, "Table must not be null.")
     Preconditions.checkNotNull(targetSchema, "Target schema must not be null.")
     Preconditions.checkNotNull(changelogMode, "Changelog mode must not be null.")
@@ -189,7 +189,7 @@ class StreamTableEnvironmentImpl(
     val schemaTranslationResult =
       SchemaTranslator.createProducingResult(table.getResolvedSchema, targetSchema)
 
-    toStreamInternal(table, schemaTranslationResult, changelogMode, sinkConflictStrategy)
+    toStreamInternal(table, schemaTranslationResult, changelogMode, conflictStrategy)
   }
 
   override def createStatementSet(): StreamStatementSet = {

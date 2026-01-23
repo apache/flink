@@ -27,10 +27,10 @@ import org.apache.flink.table.api.FlatAggregateTable;
 import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.GroupWindowedTable;
 import org.apache.flink.table.api.GroupedTable;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.OverWindow;
 import org.apache.flink.table.api.OverWindowedTable;
 import org.apache.flink.table.api.PartitionedTable;
-import org.apache.flink.table.api.SinkConflictStrategy;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
@@ -427,8 +427,8 @@ public class TableImpl implements Table {
     }
 
     @Override
-    public TablePipeline insertInto(String tablePath, SinkConflictStrategy sinkConflictStrategy) {
-        return insertInto(tablePath, sinkConflictStrategy, false);
+    public TablePipeline insertInto(String tablePath, InsertConflictStrategy conflictStrategy) {
+        return insertInto(tablePath, conflictStrategy, false);
     }
 
     @Override
@@ -438,14 +438,14 @@ public class TableImpl implements Table {
 
     @Override
     public TablePipeline insertInto(
-            String tablePath, SinkConflictStrategy sinkConflictStrategy, boolean overwrite) {
+            String tablePath, InsertConflictStrategy conflictStrategy, boolean overwrite) {
         UnresolvedIdentifier unresolvedIdentifier =
                 tableEnvironment.getParser().parseIdentifier(tablePath);
         ObjectIdentifier objectIdentifier =
                 tableEnvironment.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
         ContextResolvedTable contextResolvedTable =
                 tableEnvironment.getCatalogManager().getTableOrError(objectIdentifier);
-        return insertInto(contextResolvedTable, sinkConflictStrategy, overwrite);
+        return insertInto(contextResolvedTable, conflictStrategy, overwrite);
     }
 
     @Override
@@ -455,8 +455,8 @@ public class TableImpl implements Table {
 
     @Override
     public TablePipeline insertInto(
-            TableDescriptor descriptor, SinkConflictStrategy sinkConflictStrategy) {
-        return insertInto(descriptor, sinkConflictStrategy, false);
+            TableDescriptor descriptor, InsertConflictStrategy conflictStrategy) {
+        return insertInto(descriptor, conflictStrategy, false);
     }
 
     @Override
@@ -467,7 +467,7 @@ public class TableImpl implements Table {
     @Override
     public TablePipeline insertInto(
             TableDescriptor descriptor,
-            SinkConflictStrategy sinkConflictStrategy,
+            InsertConflictStrategy conflictStrategy,
             boolean overwrite) {
         final SchemaTranslator.ConsumingResult schemaTranslationResult =
                 SchemaTranslator.createConsumingResult(
@@ -485,7 +485,7 @@ public class TableImpl implements Table {
 
         return insertInto(
                 ContextResolvedTable.anonymous(resolvedCatalogBaseTable),
-                sinkConflictStrategy,
+                conflictStrategy,
                 overwrite);
     }
 
@@ -516,7 +516,7 @@ public class TableImpl implements Table {
 
     private TablePipeline insertInto(
             ContextResolvedTable contextResolvedTable,
-            @Nullable SinkConflictStrategy sinkConflictStrategy,
+            @Nullable InsertConflictStrategy conflictStrategy,
             boolean overwrite) {
         return new TablePipelineImpl(
                 tableEnvironment,
@@ -528,7 +528,7 @@ public class TableImpl implements Table {
                         overwrite,
                         Collections.emptyMap(),
                         ModifyType.INSERT,
-                        sinkConflictStrategy));
+                        conflictStrategy));
     }
 
     @Override

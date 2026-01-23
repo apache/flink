@@ -1143,7 +1143,7 @@ public class QueryOperationTestPrograms {
                                             .predict(
                                                     env.from("features"), ColumnList.of("feature")),
                             "sink",
-                            SinkConflictStrategy.DEDUPLICATE)
+                            InsertConflictStrategy.deduplicate())
                     .build();
 
     public static final TableTestProgram ASYNC_ML_PREDICT_MODEL_API =
@@ -1168,7 +1168,7 @@ public class QueryOperationTestPrograms {
                                                     ColumnList.of("feature"),
                                                     Map.of("async", "true")),
                             "sink",
-                            SinkConflictStrategy.DEDUPLICATE)
+                            InsertConflictStrategy.deduplicate())
                     .build();
 
     public static final TableTestProgram ML_PREDICT_ANON_MODEL_API =
@@ -1231,7 +1231,7 @@ public class QueryOperationTestPrograms {
                                             descriptor("feature").asArgument("ARGS"),
                                             Expressions.map("async", "true").asArgument("CONFIG")),
                             "sink",
-                            SinkConflictStrategy.DEDUPLICATE)
+                            InsertConflictStrategy.deduplicate())
                     .build();
 
     /**

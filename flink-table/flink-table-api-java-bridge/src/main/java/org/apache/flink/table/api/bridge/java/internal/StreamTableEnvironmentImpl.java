@@ -26,8 +26,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.SinkConflictStrategy;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.bridge.internal.AbstractStreamTableEnvironmentImpl;
@@ -299,7 +299,7 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
             Table table,
             Schema targetSchema,
             ChangelogMode changelogMode,
-            SinkConflictStrategy sinkConflictStrategy) {
+            InsertConflictStrategy conflictStrategy) {
         Preconditions.checkNotNull(table, "Table must not be null.");
         Preconditions.checkNotNull(targetSchema, "Target schema must not be null.");
         Preconditions.checkNotNull(changelogMode, "Changelog mode must not be null.");
@@ -307,8 +307,7 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
         final SchemaTranslator.ProducingResult schemaTranslationResult =
                 SchemaTranslator.createProducingResult(table.getResolvedSchema(), targetSchema);
 
-        return toStreamInternal(
-                table, schemaTranslationResult, changelogMode, sinkConflictStrategy);
+        return toStreamInternal(table, schemaTranslationResult, changelogMode, conflictStrategy);
     }
 
     @Override

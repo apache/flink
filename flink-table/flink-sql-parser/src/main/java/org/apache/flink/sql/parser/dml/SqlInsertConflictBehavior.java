@@ -22,10 +22,12 @@ import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
 /**
- * Defines the conflict resolution strategies for INSERT INTO statements when the upsert key differs
- * from the sink's primary key.
+ * SQL parser enum for conflict resolution behaviors in INSERT INTO statements.
  *
- * <p>These strategies are used with the ON CONFLICT clause:
+ * <p>This enum is used by the SQL parser to represent the ON CONFLICT clause. It is converted to
+ * {@link org.apache.flink.table.api.InsertConflictStrategy} during SQL-to-operation conversion.
+ *
+ * <p>Supported behaviors:
  *
  * <ul>
  *   <li>{@code ON CONFLICT DO ERROR} - Throw an exception on primary key constraint violation
@@ -33,7 +35,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
  *   <li>{@code ON CONFLICT DO DEDUPLICATE} - Maintain history for rollback (current behavior)
  * </ul>
  */
-public enum SinkConflictStrategy {
+public enum SqlInsertConflictBehavior {
     /**
      * Throw an exception when multiple distinct records arrive for the same primary key after
      * watermark compaction.
@@ -45,7 +47,7 @@ public enum SinkConflictStrategy {
 
     /**
      * Maintain the full history of changes for each primary key to support rollback on retraction.
-     * This is the current behavior of the SinkUpsertMaterializer.
+     * This is the current default behavior.
      */
     DEDUPLICATE;
 

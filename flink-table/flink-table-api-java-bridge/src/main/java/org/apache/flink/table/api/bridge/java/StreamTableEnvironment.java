@@ -28,8 +28,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.SinkConflictStrategy;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
@@ -659,7 +659,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
      *     in {@link DataStream} records.
      * @param changelogMode The required kinds of changes in the result changelog. An exception will
      *     be thrown if the given updating table cannot be represented in this changelog mode.
-     * @param sinkConflictStrategy Conflict strategy to use for conflicts when an upsert key differs
+     * @param conflictStrategy Conflict strategy to use for conflicts when an upsert key differs
      *     from the primary key of the sink.
      * @return The converted changelog stream of {@link Row}.
      */
@@ -667,7 +667,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
             Table table,
             Schema targetSchema,
             ChangelogMode changelogMode,
-            SinkConflictStrategy sinkConflictStrategy);
+            InsertConflictStrategy conflictStrategy);
 
     /**
      * Returns a {@link StatementSet} that integrates with the Java-specific {@link DataStream} API.

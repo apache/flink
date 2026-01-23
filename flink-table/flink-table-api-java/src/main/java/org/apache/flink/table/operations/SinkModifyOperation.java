@@ -19,7 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.SinkConflictStrategy;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -49,7 +49,7 @@ public class SinkModifyOperation implements ModifyOperation {
     private final Map<String, String> dynamicOptions;
     private final ModifyType modifyType;
     @Nullable private final int[][] targetColumns;
-    @Nullable private final SinkConflictStrategy conflictStrategy;
+    @Nullable private final InsertConflictStrategy conflictStrategy;
 
     public SinkModifyOperation(ContextResolvedTable contextResolvedTable, QueryOperation child) {
         this(
@@ -120,7 +120,7 @@ public class SinkModifyOperation implements ModifyOperation {
             boolean overwrite,
             Map<String, String> dynamicOptions,
             ModifyType modifyType,
-            @Nullable SinkConflictStrategy conflictStrategy) {
+            @Nullable InsertConflictStrategy conflictStrategy) {
         this.contextResolvedTable = contextResolvedTable;
         this.child = child;
         this.staticPartitions = staticPartitions;
@@ -171,7 +171,7 @@ public class SinkModifyOperation implements ModifyOperation {
      *
      * @return the conflict strategy, or empty if not specified
      */
-    public Optional<SinkConflictStrategy> getConflictStrategy() {
+    public Optional<InsertConflictStrategy> getConflictStrategy() {
         return Optional.ofNullable(conflictStrategy);
     }
 

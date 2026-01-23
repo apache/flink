@@ -24,8 +24,8 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperatorFactory;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.SinkConflictStrategy;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
@@ -267,7 +267,7 @@ public final class DynamicSinkUtils {
             int[][] targetColumns,
             boolean isOverwrite,
             DynamicTableSink sink,
-            @Nullable SinkConflictStrategy conflictStrategy) {
+            @Nullable InsertConflictStrategy conflictStrategy) {
         if (!dynamicOptions.isEmpty()) {
             contextResolvedTable =
                     contextResolvedTable.copy(

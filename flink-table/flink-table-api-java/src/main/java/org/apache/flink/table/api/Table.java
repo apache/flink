@@ -957,11 +957,11 @@ public interface Table extends Explainable<Table>, Executable {
      * execution, use a {@link StatementSet} (see {@link TableEnvironment#createStatementSet()}).
      *
      * @param tablePath The path of the registered table (backed by a {@link DynamicTableSink}).
-     * @param sinkConflictStrategy Conflict strategy to use for conflicts when an upsert key differs
+     * @param conflictStrategy Conflict strategy to use for conflicts when an upsert key differs
      *     from the primary key of the sink.
      * @return The complete pipeline from one or more source tables to a sink table.
      */
-    TablePipeline insertInto(String tablePath, SinkConflictStrategy sinkConflictStrategy);
+    TablePipeline insertInto(String tablePath, InsertConflictStrategy conflictStrategy);
 
     /**
      * Declares that the pipeline defined by the given {@link Table} object should be written to a
@@ -1014,13 +1014,13 @@ public interface Table extends Explainable<Table>, Executable {
      * execution, use a {@link StatementSet} (see {@link TableEnvironment#createStatementSet()}).
      *
      * @param tablePath The path of the registered table (backed by a {@link DynamicTableSink}).
-     * @param sinkConflictStrategy Conflict strategy to use for conflicts when an upsert key differs
+     * @param conflictStrategy Conflict strategy to use for conflicts when an upsert key differs
      *     from the primary key of the sink.
      * @param overwrite Indicates whether existing data should be overwritten.
      * @return The complete pipeline from one or more source tables to a sink table.
      */
     TablePipeline insertInto(
-            String tablePath, SinkConflictStrategy sinkConflictStrategy, boolean overwrite);
+            String tablePath, InsertConflictStrategy conflictStrategy, boolean overwrite);
 
     /**
      * Declares that the pipeline defined by the given {@link Table} object should be written to a
@@ -1114,11 +1114,11 @@ public interface Table extends Explainable<Table>, Executable {
      * execution, use a {@link StatementSet} (see {@link TableEnvironment#createStatementSet()}).
      *
      * @param descriptor Descriptor describing the sink table into which data should be inserted.
-     * @param sinkConflictStrategy Conflict strategy to use for conflicts when an upsert key differs
+     * @param conflictStrategy Conflict strategy to use for conflicts when an upsert key differs
      *     from the primary key of the sink.
      * @return The complete pipeline from one or more source tables to a sink table.
      */
-    TablePipeline insertInto(TableDescriptor descriptor, SinkConflictStrategy sinkConflictStrategy);
+    TablePipeline insertInto(TableDescriptor descriptor, InsertConflictStrategy conflictStrategy);
 
     /**
      * Declares that the pipeline defined by the given {@link Table} object should be written to a
@@ -1213,15 +1213,13 @@ public interface Table extends Explainable<Table>, Executable {
      * execution, use a {@link StatementSet} (see {@link TableEnvironment#createStatementSet()}).
      *
      * @param descriptor Descriptor describing the sink table into which data should be inserted.
-     * @param sinkConflictStrategy Conflict strategy to use for conflicts when an upsert key differs
+     * @param conflictStrategy Conflict strategy to use for conflicts when an upsert key differs
      *     from the primary key of the sink.
      * @param overwrite Indicates whether existing data should be overwritten.
      * @return The complete pipeline from one or more source tables to a sink table.
      */
     TablePipeline insertInto(
-            TableDescriptor descriptor,
-            SinkConflictStrategy sinkConflictStrategy,
-            boolean overwrite);
+            TableDescriptor descriptor, InsertConflictStrategy conflictStrategy, boolean overwrite);
 
     /**
      * Shorthand for {@code tableEnv.insertInto(tablePath).execute()}.
@@ -1234,13 +1232,13 @@ public interface Table extends Explainable<Table>, Executable {
     }
 
     /**
-     * Shorthand for {@code tableEnv.insertInto(tablePath, sinkConflictStrategy).execute()}.
+     * Shorthand for {@code tableEnv.insertInto(tablePath, conflictStrategy).execute()}.
      *
-     * @see #insertInto(String, SinkConflictStrategy)
+     * @see #insertInto(String, InsertConflictStrategy)
      * @see TablePipeline#execute()
      */
-    default TableResult executeInsert(String tablePath, SinkConflictStrategy sinkConflictStrategy) {
-        return insertInto(tablePath, sinkConflictStrategy).execute();
+    default TableResult executeInsert(String tablePath, InsertConflictStrategy conflictStrategy) {
+        return insertInto(tablePath, conflictStrategy).execute();
     }
 
     /**
@@ -1254,15 +1252,14 @@ public interface Table extends Explainable<Table>, Executable {
     }
 
     /**
-     * Shorthand for {@code tableEnv.insertInto(tablePath, sinkConflictStrategy,
-     * overwrite).execute()}.
+     * Shorthand for {@code tableEnv.insertInto(tablePath, conflictStrategy, overwrite).execute()}.
      *
-     * @see #insertInto(String, SinkConflictStrategy, boolean)
+     * @see #insertInto(String, InsertConflictStrategy, boolean)
      * @see TablePipeline#execute()
      */
     default TableResult executeInsert(
-            String tablePath, SinkConflictStrategy sinkConflictStrategy, boolean overwrite) {
-        return insertInto(tablePath, sinkConflictStrategy, overwrite).execute();
+            String tablePath, InsertConflictStrategy conflictStrategy, boolean overwrite) {
+        return insertInto(tablePath, conflictStrategy, overwrite).execute();
     }
 
     /**
@@ -1276,14 +1273,14 @@ public interface Table extends Explainable<Table>, Executable {
     }
 
     /**
-     * Shorthand for {@code tableEnv.insertInto(descriptor, sinkConflictStrategy).execute()}.
+     * Shorthand for {@code tableEnv.insertInto(descriptor, conflictStrategy).execute()}.
      *
-     * @see #insertInto(TableDescriptor, SinkConflictStrategy)
+     * @see #insertInto(TableDescriptor, InsertConflictStrategy)
      * @see TablePipeline#execute()
      */
     default TableResult executeInsert(
-            TableDescriptor descriptor, SinkConflictStrategy sinkConflictStrategy) {
-        return insertInto(descriptor, sinkConflictStrategy).execute();
+            TableDescriptor descriptor, InsertConflictStrategy conflictStrategy) {
+        return insertInto(descriptor, conflictStrategy).execute();
     }
 
     /**
@@ -1297,17 +1294,16 @@ public interface Table extends Explainable<Table>, Executable {
     }
 
     /**
-     * Shorthand for {@code tableEnv.insertInto(descriptor, sinkConflictStrategy,
-     * overwrite).execute()}.
+     * Shorthand for {@code tableEnv.insertInto(descriptor, conflictStrategy, overwrite).execute()}.
      *
-     * @see #insertInto(TableDescriptor, SinkConflictStrategy, boolean)
+     * @see #insertInto(TableDescriptor, InsertConflictStrategy, boolean)
      * @see TablePipeline#execute()
      */
     default TableResult executeInsert(
             TableDescriptor descriptor,
-            SinkConflictStrategy sinkConflictStrategy,
+            InsertConflictStrategy conflictStrategy,
             boolean overwrite) {
-        return insertInto(descriptor, sinkConflictStrategy, overwrite).execute();
+        return insertInto(descriptor, conflictStrategy, overwrite).execute();
     }
 
     /**

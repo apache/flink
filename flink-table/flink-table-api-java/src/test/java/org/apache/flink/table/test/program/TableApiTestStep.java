@@ -18,9 +18,9 @@
 
 package org.apache.flink.table.test.program;
 
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.Model;
 import org.apache.flink.table.api.ModelDescriptor;
-import org.apache.flink.table.api.SinkConflictStrategy;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
@@ -34,12 +34,12 @@ import java.util.function.Function;
 public class TableApiTestStep implements TestStep {
     private final Function<TableEnvAccessor, Table> tableQuery;
     private final String sinkName;
-    private final SinkConflictStrategy conflictStrategy;
+    private final InsertConflictStrategy conflictStrategy;
 
     TableApiTestStep(
             Function<TableEnvAccessor, Table> tableQuery,
             String sinkName,
-            SinkConflictStrategy conflictStrategy) {
+            InsertConflictStrategy conflictStrategy) {
         this.tableQuery = tableQuery;
         this.sinkName = sinkName;
         this.conflictStrategy = conflictStrategy;
@@ -111,7 +111,7 @@ public class TableApiTestStep implements TestStep {
             return env.executeSql(
                     String.format(
                             "INSERT INTO %s %s ON CONFLICT DO %s",
-                            sinkName, query, conflictStrategy.name()));
+                            sinkName, query, conflictStrategy.toString()));
         }
     }
 

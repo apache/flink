@@ -2671,6 +2671,27 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    void testExecuteStatementSetWithOnConflict() {
+        sql("execute statement set begin "
+                        + "insert into t1 select * from t2 on conflict do deduplicate; "
+                        + "insert into t3 select * from t4 on conflict do nothing; "
+                        + "end")
+                .ok(
+                        "EXECUTE STATEMENT SET BEGIN\n"
+                                + "INSERT INTO `T1`\n"
+                                + "SELECT *\n"
+                                + "FROM `T2`\n"
+                                + "ON CONFLICT DO DEDUPLICATE\n"
+                                + ";\n"
+                                + "INSERT INTO `T3`\n"
+                                + "SELECT *\n"
+                                + "FROM `T4`\n"
+                                + "ON CONFLICT DO NOTHING\n"
+                                + ";\n"
+                                + "END");
+    }
+
+    @Test
     void testExplainExecuteSelect() {
         sql("explain execute select * from emps").ok("EXPLAIN EXECUTE SELECT *\nFROM `EMPS`");
     }

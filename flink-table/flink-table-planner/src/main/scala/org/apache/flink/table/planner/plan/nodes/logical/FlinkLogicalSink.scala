@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.nodes.logical
 
-import org.apache.flink.table.api.SinkConflictStrategy
+import org.apache.flink.table.api.InsertConflictStrategy
 import org.apache.flink.table.catalog.ContextResolvedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec
@@ -48,7 +48,7 @@ class FlinkLogicalSink(
     targetColumns: Array[Array[Int]],
     val staticPartitions: Map[String, String],
     abilitySpecs: Array[SinkAbilitySpec],
-    val conflictStrategy: SinkConflictStrategy)
+    val conflictStrategy: InsertConflictStrategy)
   extends Sink(
     cluster,
     traitSet,
@@ -109,7 +109,7 @@ object FlinkLogicalSink {
       staticPartitions: Map[String, String] = Map(),
       targetColumns: Array[Array[Int]],
       abilitySpecs: Array[SinkAbilitySpec] = Array.empty,
-      conflictStrategy: SinkConflictStrategy): FlinkLogicalSink = {
+      conflictStrategy: InsertConflictStrategy): FlinkLogicalSink = {
     val cluster = input.getCluster
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
     new FlinkLogicalSink(

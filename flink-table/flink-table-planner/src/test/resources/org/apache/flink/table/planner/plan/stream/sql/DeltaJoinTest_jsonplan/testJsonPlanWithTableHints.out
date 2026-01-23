@@ -316,7 +316,9 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "conflictStrategy" : "DEDUPLICATE",
+    "conflictStrategy" : {
+      "behavior" : "DEDUPLICATE"
+    },
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

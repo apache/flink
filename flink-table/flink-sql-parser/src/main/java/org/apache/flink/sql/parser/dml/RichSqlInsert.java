@@ -139,11 +139,11 @@ public class RichSqlInsert extends SqlInsert {
      *
      * @return the conflict strategy, or empty if not specified
      */
-    public Optional<SinkConflictStrategy> getConflictStrategy() {
+    public Optional<SqlInsertConflictBehavior> getConflictStrategy() {
         if (conflictAction == null) {
             return Optional.empty();
         }
-        return Optional.of(conflictAction.symbolValue(SinkConflictStrategy.class));
+        return Optional.of(conflictAction.symbolValue(SqlInsertConflictBehavior.class));
     }
 
     @Override
@@ -172,7 +172,8 @@ public class RichSqlInsert extends SqlInsert {
         if (conflictAction != null) {
             writer.newlineAndIndent();
             writer.keyword("ON CONFLICT DO");
-            SinkConflictStrategy strategy = conflictAction.symbolValue(SinkConflictStrategy.class);
+            SqlInsertConflictBehavior strategy =
+                    conflictAction.symbolValue(SqlInsertConflictBehavior.class);
             writer.keyword(strategy.name());
         }
     }

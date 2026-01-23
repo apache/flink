@@ -2298,11 +2298,11 @@ SqlNode RichSqlInsert() :
     [
         <ON> <CONFLICT> <DO>
         (
-            <ERROR> { conflictAction = SinkConflictStrategy.ERROR.symbol(getPos()); }
+            <ERROR> { conflictAction = SqlInsertConflictBehavior.ERROR.symbol(getPos()); }
         |
-            <NOTHING> { conflictAction = SinkConflictStrategy.NOTHING.symbol(getPos()); }
+            <NOTHING> { conflictAction = SqlInsertConflictBehavior.NOTHING.symbol(getPos()); }
         |
-            <DEDUPLICATE> { conflictAction = SinkConflictStrategy.DEDUPLICATE.symbol(getPos()); }
+            <DEDUPLICATE> { conflictAction = SqlInsertConflictBehavior.DEDUPLICATE.symbol(getPos()); }
         )
     ]
     {
