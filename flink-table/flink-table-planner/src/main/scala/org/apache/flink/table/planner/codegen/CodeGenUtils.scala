@@ -43,7 +43,7 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInternalCon
 import org.apache.flink.table.types.utils.DataTypeUtils.isInternal
 import org.apache.flink.table.utils.EncodingUtils
 import org.apache.flink.types.{ColumnList, Row, RowKind}
-import org.apache.flink.types.variant.{BinaryVariant, Variant}
+import org.apache.flink.types.variant.Variant
 
 import java.lang.{Boolean => JBoolean, Byte => JByte, Double => JDouble, Float => JFloat, Integer => JInt, Long => JLong, Object => JObject, Short => JShort}
 import java.lang.reflect.Method

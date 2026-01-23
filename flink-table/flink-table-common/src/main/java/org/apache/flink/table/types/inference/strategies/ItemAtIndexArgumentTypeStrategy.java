@@ -43,8 +43,8 @@ import java.util.Optional;
  * <p>the type to be equal to the key type of {@link LogicalTypeRoot#MAP} if the first argument is a
  * map
  *
- * <p>a {@link LogicalTypeFamily#NUMERIC} type or {LogicalTypeFamily.CHARACTER_STRING} type if the
- * first argument is a {@link LogicalTypeRoot#VARIANT}.
+ * <p>a {@link LogicalTypeFamily#NUMERIC} type or {@link LogicalTypeFamily#CHARACTER_STRING} type if
+ * the first argument is a {@link LogicalTypeRoot#VARIANT}.
  */
 @Internal
 public final class ItemAtIndexArgumentTypeStrategy implements ArgumentTypeStrategy {

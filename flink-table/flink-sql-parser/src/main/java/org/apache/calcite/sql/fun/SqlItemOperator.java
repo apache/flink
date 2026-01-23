@@ -14,6 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.calcite.sql.fun;
 
 import org.apache.calcite.rel.type.RelDataType;
@@ -49,7 +50,7 @@ import static org.apache.calcite.sql.validate.SqlNonNullableAccessors.getOperand
  * <p>This class was copied over from Calcite 1.39.0 version to support access variant
  * (FLINK-37924).
  *
- * <p>Line 148, CALCITE-7325, should be removed after upgrading Calcite to 1.42.0.
+ * <p>Line 148 ~ 153, CALCITE-7325, should be removed after upgrading Calcite to 1.42.0.
  */
 public class SqlItemOperator extends SqlSpecialOperator {
     public final int offset;
@@ -144,10 +145,12 @@ public class SqlItemOperator extends SqlSpecialOperator {
     @Override
     public String getAllowedSignatures(String name) {
         if (name.equals("ITEM")) {
+            // FLINK MODIFICATION BEGIN
             return "<ARRAY>[<INTEGER>]\n"
                     + "<MAP>[<ANY>]\n"
                     + "<ROW>[<CHARACTER>|<INTEGER>]\n"
                     + "<VARIANT>[<CHARACTER>|<INTEGER>]";
+            // FLINK MODIFICATION END
         } else {
             return "<ARRAY>[" + name + "(<INTEGER>)]";
         }

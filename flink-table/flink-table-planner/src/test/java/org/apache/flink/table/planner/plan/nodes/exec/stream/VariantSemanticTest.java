@@ -37,7 +37,6 @@ import java.util.List;
 import static org.apache.flink.table.api.Expressions.$;
 
 /** Semantic tests for {@link DataTypes#VARIANT()} type. */
-@SuppressWarnings("checkstyle:LocalFinalVariableName")
 public class VariantSemanticTest extends SemanticTestBase {
 
     static final VariantBuilder BUILDER = Variant.newBuilder();
