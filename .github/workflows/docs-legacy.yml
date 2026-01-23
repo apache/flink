@@ -84,7 +84,7 @@ jobs:
             bash -c "apt-get update && apt-get install -y rsync && cd /root/flink && ./.github/workflows/docs.sh"
 
       - name: Upload documentation
-        uses: burnett01/rsync-deployments@53581dff6de0d8511d74864451aacee4846bdf39 # 5.2
+        uses: burnett01/rsync-deployments@7659d600d8bdd035bb5cdfba1d4bd0dd4a307ca6 # 8.0.2
         with:
           switches: --archive --compress --delete --omit-dir-times
           path: docs/target/
