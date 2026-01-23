@@ -27,7 +27,6 @@ import org.apache.flink.table.api.Schema.UnresolvedComputedColumn;
 import org.apache.flink.table.api.Schema.UnresolvedMetadataColumn;
 import org.apache.flink.table.api.Schema.UnresolvedPhysicalColumn;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.Column.ComputedColumn;
 import org.apache.flink.table.catalog.Column.MetadataColumn;
@@ -70,13 +69,10 @@ public abstract class SqlAlterMaterializedTableSchemaConverter<
 
         validateChanges(oldTable.getResolvedSchema(), schema, context);
 
-        CatalogMaterializedTable mtWithUpdatedSchemaAndQuery =
-                buildUpdatedMaterializedTable(oldTable, builder -> builder.schema(schema));
-
         return new AlterMaterializedTableChangeOperation(
                 resolveIdentifier(alterTableSchema, context),
                 converter.getChangesCollector(),
-                mtWithUpdatedSchemaAndQuery);
+                oldTable);
     }
 
     protected abstract SchemaConverter createSchemaConverter(

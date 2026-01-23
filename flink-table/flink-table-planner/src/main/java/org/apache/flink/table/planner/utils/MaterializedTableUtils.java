@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.sql.parser.ddl.SqlRefreshMode;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlMetadataColumn;
 import org.apache.flink.sql.parser.ddl.SqlTableColumn.SqlRegularColumn;
@@ -28,9 +29,13 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.LogicalRefreshMode;
 import org.apache.flink.table.catalog.CatalogMaterializedTable.RefreshMode;
 import org.apache.flink.table.catalog.Column;
+import org.apache.flink.table.catalog.Column.ComputedColumn;
+import org.apache.flink.table.catalog.Column.MetadataColumn;
 import org.apache.flink.table.catalog.IntervalFreshness;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.TableChange;
+import org.apache.flink.table.catalog.TableChange.ColumnPosition;
 import org.apache.flink.table.planner.operations.PlannerQueryOperation;
 import org.apache.flink.table.planner.operations.converters.SqlNodeConverter.ConvertContext;
 
@@ -40,8 +45,11 @@ import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.type.SqlTypeFamily;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -115,6 +123,134 @@ public class MaterializedTableUtils {
         }
     }
 
+    // Used to build changes introduced by changed query like
+    // ALTER MATERIALIZED TABLE ... AS ...
+    public static List<TableChange> buildSchemaTableChanges(
+            ResolvedSchema oldSchema, ResolvedSchema newSchema) {
+        final List<Column> oldColumns = oldSchema.getColumns();
+        final List<Column> newColumns = newSchema.getColumns();
+        int persistedColumnOffset = 0;
+        final Map<String, Tuple2<Column, Integer>> oldColumnSet = new HashMap<>();
+        for (int i = 0; i < oldColumns.size(); i++) {
+            Column column = oldColumns.get(i);
+            if (!column.isPersisted()) {
+                persistedColumnOffset++;
+            }
+            oldColumnSet.put(column.getName(), Tuple2.of(oldColumns.get(i), i));
+        }
+
+        List<TableChange> changes = new ArrayList<>();
+        for (int i = 0; i < newColumns.size(); i++) {
+            Column newColumn = newColumns.get(i);
+            Tuple2<Column, Integer> oldColumnToPosition = oldColumnSet.get(newColumn.getName());
+
+            if (oldColumnToPosition == null) {
+                changes.add(TableChange.add(newColumn.copy(newColumn.getDataType().nullable())));
+                continue;
+            }
+
+            // Check if position changed
+            applyPositionChanges(
+                    newColumns, oldColumnToPosition, i + persistedColumnOffset, changes);
+
+            Column oldColumn = oldColumnToPosition.f0;
+            // Check if column changed
+            // Note: it could be unchanged while the position is changed
+            if (oldColumn.equals(newColumn)) {
+                // no changes
+                continue;
+            }
+
+            // Check if kind changed
+            if (oldColumn.getClass() != newColumn.getClass()) {
+                changes.add(TableChange.dropColumn(oldColumn.getName()));
+                changes.add(TableChange.add(newColumn.copy(newColumn.getDataType().nullable())));
+                continue;
+            }
+
+            // Check if comment is changed
+            if (!Objects.equals(
+                    oldColumn.getComment().orElse(null), newColumn.getComment().orElse(null))) {
+                changes.add(
+                        TableChange.modifyColumnComment(
+                                oldColumn, newColumn.getComment().orElse(null)));
+            }
+
+            // Check if physical column type changed
+            if (oldColumn.isPhysical()
+                    && newColumn.isPhysical()
+                    && !oldColumn.getDataType().equals(newColumn.getDataType())) {
+                changes.add(
+                        TableChange.modifyPhysicalColumnType(oldColumn, newColumn.getDataType()));
+            }
+
+            // Check if metadata fields changed
+            if (oldColumn instanceof MetadataColumn) {
+                applyMetadataColumnChanges(
+                        (MetadataColumn) oldColumn, (MetadataColumn) newColumn, changes);
+            }
+
+            // Check if computed expression changed
+            if (oldColumn instanceof ComputedColumn) {
+                applyComputedColumnChanges(
+                        (ComputedColumn) oldColumn, (ComputedColumn) newColumn, changes);
+            }
+        }
+
+        for (Column newColumn : newColumns) {
+            oldColumnSet.remove(newColumn.getName());
+        }
+
+        for (Map.Entry<String, Tuple2<Column, Integer>> entry : oldColumnSet.entrySet()) {
+            changes.add(TableChange.dropColumn(entry.getKey()));
+        }
+
+        return changes;
+    }
+
+    private static void applyPositionChanges(
+            List<Column> newColumns,
+            Tuple2<Column, Integer> oldColumnToPosition,
+            int currentPosition,
+            List<TableChange> changes) {
+        Column oldColumn = oldColumnToPosition.f0;
+        int oldPosition = oldColumnToPosition.f1;
+        if (oldPosition != currentPosition) {
+            ColumnPosition position =
+                    currentPosition == 0
+                            ? ColumnPosition.first()
+                            : ColumnPosition.after(newColumns.get(currentPosition - 1).getName());
+            changes.add(TableChange.modifyColumnPosition(oldColumn, position));
+        }
+    }
+
+    private static void applyComputedColumnChanges(
+            ComputedColumn oldColumn, ComputedColumn newColumn, List<TableChange> changes) {
+        if (!oldColumn
+                        .getExpression()
+                        .asSerializableString()
+                        .equals(newColumn.getExpression().asSerializableString())
+                && !Objects.equals(
+                        oldColumn.explainExtras().orElse(null),
+                        newColumn.explainExtras().orElse(null))) {
+            // for now there is no dedicated table change
+            changes.add(TableChange.dropColumn(oldColumn.getName()));
+            changes.add(TableChange.add(newColumn.copy(newColumn.getDataType().nullable())));
+        }
+    }
+
+    private static void applyMetadataColumnChanges(
+            MetadataColumn oldColumn, MetadataColumn newColumn, List<TableChange> changes) {
+        if (oldColumn.isVirtual() != newColumn.isVirtual()
+                || !Objects.equals(
+                        oldColumn.getMetadataKey().orElse(null),
+                        newColumn.getMetadataKey().orElse(null))) {
+            // for now there is no dedicated table change
+            changes.add(TableChange.dropColumn(oldColumn.getName()));
+            changes.add(TableChange.add(newColumn.copy(newColumn.getDataType().nullable())));
+        }
+    }
+
     public static List<Column> validateAndExtractNewColumns(
             ResolvedSchema oldSchema, ResolvedSchema newSchema) {
         final List<Column> newColumns = getPersistedColumns(newSchema);
@@ -146,7 +282,7 @@ public class MaterializedTableUtils {
 
         final List<Column> newAddedColumns = new ArrayList<>();
         for (int i = oldColumns.size(); i < newColumns.size(); i++) {
-            Column newColumn = newSchema.getColumns().get(i);
+            Column newColumn = newColumns.get(i);
             newAddedColumns.add(newColumn.copy(newColumn.getDataType().nullable()));
         }
 
@@ -189,8 +325,7 @@ public class MaterializedTableUtils {
     private static void throwIfPersistedColumnNotUsedByQuery(
             SqlNode column, Set<String> querySchemaColumnNames) {
         if (column instanceof SqlRegularColumn) {
-            SqlRegularColumn physicalColumn = (SqlRegularColumn) column;
-            String columnName = physicalColumn.getName().getSimple();
+            String columnName = ((SqlRegularColumn) column).getName().getSimple();
             if (!querySchemaColumnNames.contains(columnName)) {
                 throwPersistedColumnNotUsedException("physical", columnName);
             }
