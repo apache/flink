@@ -527,18 +527,18 @@ class CatalogViewITCase(isStreamingMode: Boolean) extends TableITCaseBase {
     // FLINK-38950: Verify window TVF with ORDER BY generates correct expanded SQL
     // without duplicating the ORDER BY clause in the catalog view definition.
     tableEnv.createTable("t1", buildTableDescriptor())
-    val viewWithInnerJoinDDL: String =
+    val viewWithTumbleWindowDDL: String =
       s"""CREATE VIEW tumbleWindowViewWithOrderBy AS
          |SELECT a
          |FROM TUMBLE(TABLE t1, DESCRIPTOR(ts), INTERVAL '1' MINUTE)
          |ORDER BY ts""".stripMargin
-    tableEnv.executeSql(viewWithInnerJoinDDL)
-    val showCreateInnerJoinViewResult: util.List[Row] = CollectionUtil.iteratorToList(
+    tableEnv.executeSql(viewWithTumbleWindowDDL)
+    val showCreateViewWithTumbleWindowResult: util.List[Row] = CollectionUtil.iteratorToList(
       tableEnv
         .executeSql("SHOW CREATE VIEW tumbleWindowViewWithOrderBy")
         .collect()
     )
-    assertThatList(showCreateInnerJoinViewResult).containsExactly(
+    assertThatList(showCreateViewWithTumbleWindowResult).containsExactly(
       Row.of(
         s"""CREATE VIEW `default_catalog`.`default_database`.`tumbleWindowViewWithOrderBy` (
            |  `a`
