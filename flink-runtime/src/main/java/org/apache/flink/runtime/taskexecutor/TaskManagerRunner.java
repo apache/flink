@@ -42,6 +42,7 @@ import org.apache.flink.runtime.entrypoint.FlinkParseException;
 import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.externalresource.ExternalResourceUtils;
+import org.apache.flink.runtime.fs.hdfs.HdfsSyncMetrics;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
@@ -630,6 +631,9 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         externalAddress,
                         resourceID,
                         taskManagerServicesConfiguration.getSystemResourceMetricsProbingInterval());
+
+        // Register HDFS durability counters (per TM JVM)
+        HdfsSyncMetrics.register(taskManagerMetricGroup.f0);
 
         final ExecutorService ioExecutor =
                 Executors.newFixedThreadPool(

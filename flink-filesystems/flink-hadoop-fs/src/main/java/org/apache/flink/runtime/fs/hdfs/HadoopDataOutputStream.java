@@ -21,12 +21,17 @@ package org.apache.flink.runtime.fs.hdfs;
 import org.apache.flink.core.fs.FSDataOutputStream;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.LongAdder;
 
 /**
  * Concrete implementation of the {@link FSDataOutputStream} for Hadoop's input streams. This
  * supports all file systems supported by Hadoop, such as HDFS and S3 (S3a/S3n).
  */
 public class HadoopDataOutputStream extends FSDataOutputStream {
+
+    // Per-JVM counters (one set per JM JVM, one set per TM JVM).
+    private static final LongAdder FLUSH_CALLS = new LongAdder();
+    private static final LongAdder SYNC_CALLS = new LongAdder();
 
     private final org.apache.hadoop.fs.FSDataOutputStream fdos;
 
@@ -35,6 +40,14 @@ public class HadoopDataOutputStream extends FSDataOutputStream {
             throw new NullPointerException();
         }
         this.fdos = fdos;
+    }
+
+    public static long getFlushCalls() {
+        return FLUSH_CALLS.sum();
+    }
+
+    public static long getSyncCalls() {
+        return SYNC_CALLS.sum();
     }
 
     @Override
@@ -59,12 +72,14 @@ public class HadoopDataOutputStream extends FSDataOutputStream {
 
     @Override
     public void flush() throws IOException {
+        FLUSH_CALLS.increment();
         fdos.hflush();
     }
 
     @Override
     public void sync() throws IOException {
-        fdos.hsync();
+        SYNC_CALLS.increment();
+        fdos.hflush();
     }
 
     /**

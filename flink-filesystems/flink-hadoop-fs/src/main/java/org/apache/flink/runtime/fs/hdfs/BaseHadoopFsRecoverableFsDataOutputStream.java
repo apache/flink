@@ -32,6 +32,9 @@ import java.io.IOException;
 public abstract class BaseHadoopFsRecoverableFsDataOutputStream
         extends CommitterFromPersistRecoverableFsDataOutputStream<HadoopFsRecoverable> {
 
+    private static final java.util.concurrent.atomic.LongAdder RECOVERABLE_SYNC_CALLS =
+            new java.util.concurrent.atomic.LongAdder();
+
     protected FileSystem fs;
 
     protected Path targetFile;
@@ -45,6 +48,10 @@ public abstract class BaseHadoopFsRecoverableFsDataOutputStream
 
     public long getPos() throws IOException {
         return out.getPos();
+    }
+
+    public static long getRecoverableSyncCalls() {
+        return RECOVERABLE_SYNC_CALLS.sum();
     }
 
     @Override
@@ -64,8 +71,8 @@ public abstract class BaseHadoopFsRecoverableFsDataOutputStream
 
     @Override
     public void sync() throws IOException {
+        RECOVERABLE_SYNC_CALLS.increment();
         out.hflush();
-        out.hsync();
     }
 
     @Override
