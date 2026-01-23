@@ -23,7 +23,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
-import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.taskexecload.TaskExecutionLoad;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
@@ -89,7 +89,7 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
 
     private final Consumer<ResourceCounter> setResourceRequirementsConsumer;
 
-    private final Supplier<Map<ResourceID, LoadingWeight>> taskExecutorsLoadingWeightSupplier;
+    private final Supplier<Map<ResourceID, TaskExecutionLoad>> taskExecutionLoadMapSupplier;
 
     TestingDeclarativeSlotPool(
             Consumer<ResourceCounter> increaseResourceRequirementsByConsumer,
@@ -120,7 +120,7 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
             Function<AllocationID, Boolean> containsFreeSlotFunction,
             LongConsumer releaseIdleSlotsConsumer,
             Consumer<ResourceCounter> setResourceRequirementsConsumer,
-            Supplier<Map<ResourceID, LoadingWeight>> taskExecutorsLoadingWeightSupplier) {
+            Supplier<Map<ResourceID, TaskExecutionLoad>> taskExecutionLoadMapSupplier) {
         this.increaseResourceRequirementsByConsumer = increaseResourceRequirementsByConsumer;
         this.decreaseResourceRequirementsByConsumer = decreaseResourceRequirementsByConsumer;
         this.getResourceRequirementsSupplier = getResourceRequirementsSupplier;
@@ -137,7 +137,7 @@ final class TestingDeclarativeSlotPool implements DeclarativeSlotPool {
         this.containsFreeSlotFunction = containsFreeSlotFunction;
         this.releaseIdleSlotsConsumer = releaseIdleSlotsConsumer;
         this.setResourceRequirementsConsumer = setResourceRequirementsConsumer;
-        this.taskExecutorsLoadingWeightSupplier = taskExecutorsLoadingWeightSupplier;
+        this.taskExecutionLoadMapSupplier = taskExecutionLoadMapSupplier;
     }
 
     @Override

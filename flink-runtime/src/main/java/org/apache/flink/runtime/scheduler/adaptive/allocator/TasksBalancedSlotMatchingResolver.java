@@ -20,8 +20,8 @@ package org.apache.flink.runtime.scheduler.adaptive.allocator;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan;
-import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
-import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
+import org.apache.flink.runtime.scheduler.taskexecload.DefaultTaskExecutionLoad;
+import org.apache.flink.runtime.scheduler.taskexecload.TaskExecutionLoad;
 import org.apache.flink.util.CollectionUtil;
 
 import java.util.ArrayList;
@@ -35,7 +35,7 @@ import java.util.TreeMap;
 
 import static org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
 import static org.apache.flink.runtime.scheduler.adaptive.allocator.SlotSharingSlotAllocator.ExecutionSlotSharingGroup;
-import static org.apache.flink.runtime.scheduler.loading.WeightLoadable.sortByLoadingDescend;
+import static org.apache.flink.runtime.scheduler.taskexecload.HasTaskExecutionLoad.sortByTaskExecutionLoadDesc;
 
 /** The tasks balanced request slot matching resolver implementation. */
 public enum TasksBalancedSlotMatchingResolver implements SlotMatchingResolver {
@@ -49,17 +49,17 @@ public enum TasksBalancedSlotMatchingResolver implements SlotMatchingResolver {
                 new ArrayList<>(requestGroups.size());
         final Map<ResourceID, Set<PhysicalSlot>> slotsPerTaskExecutor =
                 AllocatorUtil.getSlotsPerTaskExecutor(freeSlots);
-        final TreeMap<LoadingWeight, Set<PhysicalSlot>> loadingSlotsMap =
-                getLoadingSlotsMap(freeSlots);
+        final TreeMap<TaskExecutionLoad, Set<PhysicalSlot>> loadingSlotsMap =
+                getSlotsByTaskExecutionLoad(freeSlots);
 
-        SlotTaskExecutorWeight<LoadingWeight> best;
-        for (ExecutionSlotSharingGroup requestGroup : sortByLoadingDescend(requestGroups)) {
-            best = getTheBestSlotTaskExecutorLoading(loadingSlotsMap);
+        SlotTaskExecutorWeight<TaskExecutionLoad> best;
+        for (ExecutionSlotSharingGroup requestGroup : sortByTaskExecutionLoadDesc(requestGroups)) {
+            best = getLeastLoadedTaskSlot(loadingSlotsMap);
             slotAssignments.add(new SlotAssignment(best.physicalSlot, requestGroup));
 
             // Update the references
-            final LoadingWeight newLoading =
-                    best.taskExecutorWeight.merge(requestGroup.getLoading());
+            final TaskExecutionLoad newLoading =
+                    best.taskExecutorWeight.merge(requestGroup.getTaskExecutionLoad());
             updateSlotsPerTaskExecutor(slotsPerTaskExecutor, best);
             Set<PhysicalSlot> physicalSlots = slotsPerTaskExecutor.get(best.getResourceID());
             updateLoadingSlotsMap(loadingSlotsMap, best, physicalSlots, newLoading);
@@ -68,10 +68,10 @@ public enum TasksBalancedSlotMatchingResolver implements SlotMatchingResolver {
     }
 
     private static void updateLoadingSlotsMap(
-            Map<LoadingWeight, Set<PhysicalSlot>> loadingSlotsMap,
-            SlotTaskExecutorWeight<LoadingWeight> best,
+            Map<TaskExecutionLoad, Set<PhysicalSlot>> loadingSlotsMap,
+            SlotTaskExecutorWeight<TaskExecutionLoad> best,
             Set<PhysicalSlot> slotsToAdjust,
-            LoadingWeight newLoading) {
+            TaskExecutionLoad newLoading) {
         Set<PhysicalSlot> physicalSlots = loadingSlotsMap.get(best.taskExecutorWeight);
         if (!CollectionUtil.isNullOrEmpty(physicalSlots)) {
             physicalSlots.remove(best.physicalSlot);
@@ -96,7 +96,7 @@ public enum TasksBalancedSlotMatchingResolver implements SlotMatchingResolver {
 
     private static void updateSlotsPerTaskExecutor(
             Map<ResourceID, Set<PhysicalSlot>> slotsPerTaskExecutor,
-            SlotTaskExecutorWeight<LoadingWeight> best) {
+            SlotTaskExecutorWeight<TaskExecutionLoad> best) {
         Set<PhysicalSlot> slots = slotsPerTaskExecutor.get(best.getResourceID());
         if (Objects.nonNull(slots)) {
             slots.remove(best.physicalSlot);
@@ -106,21 +106,22 @@ public enum TasksBalancedSlotMatchingResolver implements SlotMatchingResolver {
         }
     }
 
-    private static TreeMap<LoadingWeight, Set<PhysicalSlot>> getLoadingSlotsMap(
+    private static TreeMap<TaskExecutionLoad, Set<PhysicalSlot>> getSlotsByTaskExecutionLoad(
             Collection<PhysicalSlot> slots) {
         return new TreeMap<>() {
             {
                 HashSet<PhysicalSlot> slotsValue =
                         CollectionUtil.newHashSetWithExpectedSize(slots.size());
                 slotsValue.addAll(slots);
-                put(DefaultLoadingWeight.EMPTY, slotsValue);
+                put(DefaultTaskExecutionLoad.EMPTY, slotsValue);
             }
         };
     }
 
-    private static SlotTaskExecutorWeight<LoadingWeight> getTheBestSlotTaskExecutorLoading(
-            TreeMap<LoadingWeight, Set<PhysicalSlot>> slotsByLoading) {
-        final Map.Entry<LoadingWeight, Set<PhysicalSlot>> firstEntry = slotsByLoading.firstEntry();
+    private static SlotTaskExecutorWeight<TaskExecutionLoad> getLeastLoadedTaskSlot(
+            TreeMap<TaskExecutionLoad, Set<PhysicalSlot>> slotsByTaskExecutionLoad) {
+        final Map.Entry<TaskExecutionLoad, Set<PhysicalSlot>> firstEntry =
+                slotsByTaskExecutionLoad.firstEntry();
         if (firstEntry == null
                 || firstEntry.getKey() == null
                 || CollectionUtil.isNullOrEmpty(firstEntry.getValue())) {

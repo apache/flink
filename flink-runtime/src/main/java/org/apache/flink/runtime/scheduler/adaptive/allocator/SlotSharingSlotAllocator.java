@@ -28,10 +28,10 @@ import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlot;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan;
 import org.apache.flink.runtime.scheduler.adaptive.JobSchedulingPlan.SlotAssignment;
-import org.apache.flink.runtime.scheduler.loading.DefaultLoadingWeight;
-import org.apache.flink.runtime.scheduler.loading.LoadingWeight;
-import org.apache.flink.runtime.scheduler.loading.WeightLoadable;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
+import org.apache.flink.runtime.scheduler.taskexecload.DefaultTaskExecutionLoad;
+import org.apache.flink.runtime.scheduler.taskexecload.HasTaskExecutionLoad;
+import org.apache.flink.runtime.scheduler.taskexecload.TaskExecutionLoad;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.Preconditions;
 
@@ -344,7 +344,7 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
     }
 
     /** The execution slot sharing group for adaptive scheduler. */
-    public static class ExecutionSlotSharingGroup implements WeightLoadable {
+    public static class ExecutionSlotSharingGroup implements HasTaskExecutionLoad {
         private final String id;
         private final SlotSharingGroup slotSharingGroup;
         private final Set<ExecutionVertexID> containedExecutionVertices;
@@ -382,8 +382,8 @@ public class SlotSharingSlotAllocator implements SlotAllocator {
 
         @Nonnull
         @Override
-        public LoadingWeight getLoading() {
-            return new DefaultLoadingWeight(containedExecutionVertices.size());
+        public TaskExecutionLoad getTaskExecutionLoad() {
+            return new DefaultTaskExecutionLoad(containedExecutionVertices.size());
         }
     }
 

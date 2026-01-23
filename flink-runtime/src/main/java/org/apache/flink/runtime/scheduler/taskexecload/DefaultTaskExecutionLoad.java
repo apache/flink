@@ -16,44 +16,47 @@
  * limitations under the License.
  */
 
-package org.apache.flink.runtime.scheduler.loading;
+package org.apache.flink.runtime.scheduler.taskexecload;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.util.Preconditions;
-
-import javax.annotation.Nonnull;
 
 import java.util.Objects;
 
-/** The default implementation of {@link LoadingWeight}. */
+import static org.apache.flink.util.Preconditions.checkArgument;
+
+/** The default implementation of {@link TaskExecutionLoad}. */
 @Internal
-public class DefaultLoadingWeight implements LoadingWeight {
+public class DefaultTaskExecutionLoad implements TaskExecutionLoad {
 
-    public static final LoadingWeight EMPTY = new DefaultLoadingWeight(0f);
+    public static final TaskExecutionLoad EMPTY = new DefaultTaskExecutionLoad(0f);
 
-    private final float loading;
+    private final float loadValue;
 
-    public DefaultLoadingWeight(float loading) {
-        Preconditions.checkArgument(loading >= 0.0f);
-        this.loading = loading;
+    public DefaultTaskExecutionLoad(float loadValue) {
+        checkArgument(loadValue >= 0.0f);
+        this.loadValue = loadValue;
     }
 
     @Override
-    public float getLoading() {
-        return loading;
+    public float getLoadValue() {
+        return loadValue;
     }
 
     @Override
-    public LoadingWeight merge(LoadingWeight other) {
-        if (other == null) {
-            return this;
-        }
-        return new DefaultLoadingWeight(loading + other.getLoading());
+    public int getLoadValueAsInt() {
+        return (int) loadValue;
     }
 
     @Override
-    public int compareTo(@Nonnull LoadingWeight o) {
-        return Float.compare(loading, o.getLoading());
+    public TaskExecutionLoad merge(TaskExecutionLoad other) {
+        return other == null
+                ? this
+                : new DefaultTaskExecutionLoad(loadValue + other.getLoadValue());
+    }
+
+    @Override
+    public int compareTo(TaskExecutionLoad o) {
+        return Float.compare(loadValue, o.getLoadValue());
     }
 
     @Override
@@ -64,17 +67,17 @@ public class DefaultLoadingWeight implements LoadingWeight {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        DefaultLoadingWeight that = (DefaultLoadingWeight) o;
-        return Float.compare(loading, that.loading) == 0f;
+        DefaultTaskExecutionLoad that = (DefaultTaskExecutionLoad) o;
+        return compareTo(that) == 0f;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(loading);
+        return Objects.hash(loadValue);
     }
 
     @Override
     public String toString() {
-        return "DefaultLoadingWeight{loading=" + loading + '}';
+        return "DefaultTaskExecutionLoad{load=" + loadValue + '}';
     }
 }
