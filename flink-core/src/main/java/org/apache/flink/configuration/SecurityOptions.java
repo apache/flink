@@ -523,6 +523,19 @@ public class SecurityOptions {
                                                     "here"))
                                     .build());
 
+    /**
+     * @deprecated Use {@link SecurityOptions#SSL_REST_VERIFY_HOSTNAME}.
+     */
+    @Deprecated
+    @Documentation.ExcludeFromDocumentation(
+            "Hostname verification is only supported for REST connections.")
+    public static final ConfigOption<Boolean> SSL_VERIFY_HOSTNAME =
+            key("security.ssl.verify-hostname")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Flag to enable peer’s hostname verification during ssl handshake.");
+
     /** SSL engine provider. */
     @Documentation.Section(Documentation.Sections.EXPERT_SECURITY_SSL)
     public static final ConfigOption<String> SSL_PROVIDER =
