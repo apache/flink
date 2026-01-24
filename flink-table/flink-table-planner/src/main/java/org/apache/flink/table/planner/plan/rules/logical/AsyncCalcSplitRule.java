@@ -62,11 +62,12 @@ public class AsyncCalcSplitRule {
     public static final RelOptRule ONE_PER_CALC_SPLIT =
             new AsyncCalcSplitOnePerCalcRule(ASYNC_CALL_FINDER);
     public static final RelOptRule NO_ASYNC_JOIN_CONDITIONS =
-            new SplitRemoteConditionFromJoinRule(
-                    ASYNC_CALL_FINDER,
-                    JavaScalaConversionUtil.toScala(
+            SplitRemoteConditionFromJoinRule.SplitRemoteConditionFromJoinRuleConfig.DEFAULT
+                    .withRemoteCallFinder(ASYNC_CALL_FINDER)
+                    .withErrorOnUnsplittableRemoteCall(
                             Optional.of(
-                                    "AsyncScalarFunction not supported for non inner join condition")));
+                                    "AsyncScalarFunction not supported for non inner join condition"))
+                    .toRule();
 
     private static boolean hasNestedCalls(List<RexNode> projects) {
         return projects.stream()
