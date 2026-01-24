@@ -70,7 +70,7 @@ object IntervalJoinUtil {
    * @return
    *   A Tuple2 of extracted window bounds and remaining predicates.
    */
-  private[flink] def extractWindowBoundsFromPredicate(
+  def extractWindowBoundsFromPredicate(
       predicate: RexNode,
       leftLogicalFieldCnt: Int,
       joinRowType: RelDataType,
