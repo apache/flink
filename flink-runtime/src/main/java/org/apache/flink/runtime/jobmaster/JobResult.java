@@ -76,7 +76,7 @@ public class JobResult implements Serializable {
         checkArgument(netRuntime >= 0, "netRuntime must be greater than or equals 0");
         checkArgument(
                 jobStatus == null || jobStatus.isTerminalState(),
-                "jobStatus must be terminal or unknown(null)");
+                "jobStatus must be terminal or null");
 
         this.jobId = requireNonNull(jobId);
         this.jobStatus = jobStatus;
@@ -159,11 +159,15 @@ public class JobResult implements Serializable {
                                         + "needs to be resubmitted.",
                                 cause);
             } else {
-                exception =
-                        new JobExecutionException(
-                                jobId,
-                                "Job completed with unexpected status: " + jobStatus + '.',
-                                cause);
+                final String statusMessage =
+                        jobStatus != null
+                                ? "Job completed with unexpected status: " + jobStatus
+                                : "Job completed with unknown status";
+                final String message =
+                        cause != null
+                                ? statusMessage + "."
+                                : statusMessage + " (no cause provided).";
+                exception = new JobExecutionException(jobId, message, cause);
             }
 
             throw exception;
