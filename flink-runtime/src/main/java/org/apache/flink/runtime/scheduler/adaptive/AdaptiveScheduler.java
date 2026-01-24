@@ -1138,10 +1138,8 @@ public class AdaptiveScheduler
     private JobAllocationsInformation getJobAllocationsInformationFromGraphAndState(
             @Nullable final ExecutionGraph previousExecutionGraph) {
 
-        CompletedCheckpoint latestCompletedCheckpoint = null;
-        if (jobGraph.isCheckpointingEnabled()) {
-            latestCompletedCheckpoint = completedCheckpointStore.getLatestCheckpoint();
-        }
+        CompletedCheckpoint latestCompletedCheckpoint =
+                completedCheckpointStore.getLatestCheckpoint();
 
         if (previousExecutionGraph == null || latestCompletedCheckpoint == null) {
             return JobAllocationsInformation.empty();
