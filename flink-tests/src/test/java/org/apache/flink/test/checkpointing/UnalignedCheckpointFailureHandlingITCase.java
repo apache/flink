@@ -178,16 +178,19 @@ public class UnalignedCheckpointFailureHandlingITCase {
             throws InterruptedException, ExecutionException {
         boolean foundCheckpointFailure = false;
         do {
-            Optional<Throwable> cpFailure =
+            Optional<Throwable> cpFailureOpt =
                     miniCluster
                             .triggerCheckpoint(jobID)
                             .thenApply(ign -> Optional.empty())
                             .handle((ign, err) -> Optional.ofNullable(err))
                             .get();
 
-            if (cpFailure.isPresent()) {
-                if (isCausedBy(cpFailure.get(), expectedException)) {
+            if (cpFailureOpt.isPresent()) {
+                Throwable cpFailure = cpFailureOpt.get();
+                if (isCausedBy(cpFailure, expectedException)) {
                     foundCheckpointFailure = true;
+                } else {
+                    rethrow(cpFailure);
                 }
             }
         } while (!foundCheckpointFailure || failOnCloseRef.get().get());
