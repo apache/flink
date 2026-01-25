@@ -27,7 +27,6 @@ import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Sources;
 import org.apache.calcite.util.Util;
 import org.apache.calcite.util.XmlOutput;
-import org.opentest4j.AssertionFailedError;
 import org.w3c.dom.CDATASection;
 import org.w3c.dom.Comment;
 import org.w3c.dom.Document;
@@ -479,7 +478,7 @@ public class DiffRepository {
                                                 + " but was: "
                                                 + actualCanonical)
                         .isEqualTo(expected2Canonical);
-            } catch (AssertionFailedError e) {
+            } catch (AssertionError e) {
                 amend(testCaseName, expected, actual);
                 throw e;
             }
