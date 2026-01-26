@@ -258,6 +258,9 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger impleme
     private JobGraph createJobGraph(ExecutionMode mode) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
+        // set high min pause between checkpoints to delay the 1st checkpoint
+        // because the test assumes that manual checkpoint will be triggered first
+        env.getCheckpointConfig().setMinPauseBetweenCheckpoints(600_000);
         RestartStrategyUtils.configureNoRestartStrategy(env);
         StateBackendUtils.configureHashMapStateBackend(env);
         CheckpointStorageUtils.configureJobManagerCheckpointStorage(env);
