@@ -33,6 +33,10 @@
 
 	<packaging>jar</packaging>
 
+	<properties>
+		<source.java.version>17</source.java.version>
+	</properties>
+
 	<dependencies>
 		<!-- For Java record (de)serialization -->
 		<dependency>
@@ -75,6 +79,13 @@
 				<artifactId>maven-checkstyle-plugin</artifactId>
 				<configuration>
 					<suppressionsLocation>/tools/maven/suppressions-tests-java17.xml</suppressionsLocation>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<source>${source.java.version}</source>
 				</configuration>
 			</plugin>
 		</plugins>
