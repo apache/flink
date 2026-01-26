@@ -67,12 +67,12 @@ import java.util.stream.IntStream;
 
 /** A utility class with logic for handling the {@code CREATE TABLE ... AS SELECT} clause. */
 public class MergeTableAsUtil {
-    private final SqlValidator validator;
+    private final FlinkCalciteSqlValidator validator;
     private final Function<SqlNode, String> escapeExpression;
     private final DataTypeFactory dataTypeFactory;
 
     public MergeTableAsUtil(
-            SqlValidator validator,
+            FlinkCalciteSqlValidator validator,
             Function<SqlNode, String> escapeExpression,
             DataTypeFactory dataTypeFactory) {
         this.validator = validator;
@@ -135,11 +135,10 @@ public class MergeTableAsUtil {
 
                 assignedFields.put(
                         pos,
-                        rewriterUtils.maybeCast(
+                        validator.maybeCast(
                                 SqlLiteral.createNull(SqlParserPos.ZERO),
                                 typeFactory.createUnknownType(),
-                                typeFactory.createFieldTypeFromLogicalType(targetField.getType()),
-                                typeFactory));
+                                typeFactory.createFieldTypeFromLogicalType(targetField.getType())));
             } else {
                 targetPositions.add(sourceFields.get(targetField.getName()));
             }

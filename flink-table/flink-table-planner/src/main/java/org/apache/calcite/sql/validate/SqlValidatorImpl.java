@@ -776,7 +776,7 @@ public class SqlValidatorImpl implements SqlValidatorWithHints {
         return 0;
     }
 
-    private SqlNode maybeCast(SqlNode node, RelDataType currentType, RelDataType desiredType) {
+    protected SqlNode maybeCast(SqlNode node, RelDataType currentType, RelDataType desiredType) {
         return SqlTypeUtil.equalSansNullability(typeFactory, currentType, desiredType)
                 ? node
                 : SqlStdOperatorTable.CAST.createCall(
