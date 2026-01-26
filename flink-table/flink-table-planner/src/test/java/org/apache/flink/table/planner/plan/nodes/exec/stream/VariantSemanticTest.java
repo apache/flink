@@ -398,7 +398,7 @@ public class VariantSemanticTest extends SemanticTestBase {
                                         t.from("t")
                                                 .select(
                                                         $("v").at("users")
-                                                                .at(1)
+                                                                .at(1L)
                                                                 .at("id")
                                                                 .as("user_id"),
                                                         $("v").at("users")

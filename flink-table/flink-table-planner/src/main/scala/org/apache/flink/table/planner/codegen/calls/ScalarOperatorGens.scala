@@ -1683,7 +1683,7 @@ object ScalarOperatorGens {
     val keyTerm = key.resultTerm
     val keyType = key.resultType
 
-    val accessCode = if (isInteger(keyType)) {
+    val accessCode = if (isIntegerNumeric(keyType)) {
       generateIntegerKeyAccess(
         variantTerm,
         variantTypeTerm,
@@ -1750,7 +1750,7 @@ object ScalarOperatorGens {
       tmpValue: String): String = {
     s"""
        |  if ($variantTerm.isArray()){
-       |    $variantTypeTerm $tmpValue = $variantTerm.getElement($keyTerm - 1);
+       |    $variantTypeTerm $tmpValue = $variantTerm.getElement((int) $keyTerm - 1);
        |    if ($tmpValue == null) {
        |      $nullTerm = true;
        |    } else {
