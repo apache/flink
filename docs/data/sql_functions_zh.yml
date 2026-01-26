@@ -1253,12 +1253,12 @@ variant:
   - sql: variant '[' INT ']'
     table: VARIANT.at(INT)
     description: |
-      如果这是一个 ARRAY 类型的 VARIANT，则返回一个 VARIANT，其值为指定索引处的元素。否则返回 NULL。
+      如果这是一个 ARRAY 类型的 VARIANT，则返回一个 VARIANT，其值为指定索引处的元素。索引从 1 开始，如果索引超出范围，则返回 NULL。
 
   - sql: variant '[' STRING ']'
     table: VARIANT.at(STRING)
     description: |
-      如果这是一个 MAP 类型的 VARIANT，则返回一个 VARIANT，其值为与指定键关联的值。否则返回 NULL。
+      如果这是一个 MAP 类型的 VARIANT，则返回一个 VARIANT，其值为指定 key 对应的值。否则返回 NULL。
 
 
 valueconstruction:

@@ -1171,7 +1171,7 @@ variant:
     table: VARIANT.at(INT)
     description: |
       If the VARIANT is an ARRAY value, returns a VARIANT whose value is the element at
-      the specified index. Otherwise, NULL is returned.
+      the specified index. The index starts from 1, If the index is out of range, it returns NULL.
   - sql: variant '[' STRING ']'
     table: VARIANT.at(STRING)
     description: |
