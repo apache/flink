@@ -1145,7 +1145,9 @@ under the License.
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-compiler-plugin</artifactId>
 						<configuration>
-							<source>17</source>
+							<!-- Use source here which is 11 to fail fast in case of jdk12+ syntax use
+							since default is 17 and CI compile task uses this profile -->
+							<source>${source.java.version}</source>
 							<target>17</target>
 							<compilerArgs combine.children="append">
 								<arg>--add-exports=java.management/sun.management=ALL-UNNAMED</arg>
@@ -1185,6 +1187,11 @@ under the License.
 
 		<profile>
 			<id>java21-target</id>
+
+			<modules>
+				<module>flink-tests-java17</module>
+			</modules>
+
 			<build>
 				<plugins>
 					<plugin>
