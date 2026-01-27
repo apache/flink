@@ -19,39 +19,38 @@ package org.apache.flink.changelog.fs;
 
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.util.concurrent.Executors.directExecutor;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link TaskChangelogRegistryImpl} test. */
-public class TaskChangelogRegistryImplTest {
+class TaskChangelogRegistryImplTest {
 
     @Test
-    public void testDiscardedWhenNotUsed() {
+    void testDiscardedWhenNotUsed() {
         TaskChangelogRegistry registry = new TaskChangelogRegistryImpl(directExecutor());
         TestingStreamStateHandle handle = new TestingStreamStateHandle();
         long refCount = 2;
         registry.startTracking(handle, refCount);
         for (int i = 0; i < refCount; i++) {
-            assertFalse(handle.isDisposed());
+            assertThat(handle.isDisposed()).isFalse();
             registry.release(handle);
         }
-        assertTrue(handle.isDisposed());
+        assertThat(handle.isDisposed()).isTrue();
     }
 
     @Test
-    public void testNotDiscardedIfStoppedTracking() {
+    void testNotDiscardedIfStoppedTracking() {
         TaskChangelogRegistry registry = new TaskChangelogRegistryImpl(directExecutor());
         TestingStreamStateHandle handle = new TestingStreamStateHandle();
         long refCount = 2;
         registry.startTracking(handle, refCount);
         registry.stopTracking(handle);
         for (int i = 0; i < refCount; i++) {
-            assertFalse(handle.isDisposed());
+            assertThat(handle.isDisposed()).isFalse();
             registry.release(handle);
         }
-        assertFalse(handle.isDisposed());
+        assertThat(handle.isDisposed()).isFalse();
     }
 }
