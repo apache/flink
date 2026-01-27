@@ -71,6 +71,7 @@ public class JobResultDeserializer extends StdDeserializer<JobResult> {
     public JobResult deserialize(final JsonParser p, final DeserializationContext ctxt)
             throws IOException {
         JobID jobId = null;
+        String jobName = "unknown";
         JobStatus jobStatus = null;
         long netRuntime = -1;
         SerializedThrowable serializedThrowable = null;
@@ -88,6 +89,10 @@ public class JobResultDeserializer extends StdDeserializer<JobResult> {
                 case JobResultSerializer.FIELD_NAME_JOB_ID:
                     assertNextToken(p, JsonToken.VALUE_STRING);
                     jobId = jobIdDeserializer.deserialize(p, ctxt);
+                    break;
+                case JobResultSerializer.FIELD_NAME_JOB_NAME:
+                    assertNextToken(p, JsonToken.VALUE_STRING);
+                    jobName = p.getValueAsString();
                     break;
                 case JobResultSerializer.FIELD_NAME_APPLICATION_STATUS:
                     assertNextToken(p, JsonToken.VALUE_STRING);
@@ -119,6 +124,7 @@ public class JobResultDeserializer extends StdDeserializer<JobResult> {
         try {
             return new JobResult.Builder()
                     .jobId(jobId)
+                    .jobName(jobName)
                     .jobStatus(jobStatus)
                     .netRuntime(netRuntime)
                     .accumulatorResults(accumulatorResults)
