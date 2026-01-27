@@ -36,7 +36,7 @@ import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
 import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.flink.streaming.runtime.operators.windowing.WindowedValue;
 
 import java.util.HashMap;
 import java.util.Map;

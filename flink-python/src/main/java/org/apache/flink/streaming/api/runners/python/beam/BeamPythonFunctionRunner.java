@@ -47,16 +47,15 @@ import org.apache.flink.util.function.LongFunctionWithException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.ModelCoders;
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.core.construction.Timer;
-import org.apache.beam.runners.core.construction.graph.ExecutableStage;
-import org.apache.beam.runners.core.construction.graph.ImmutableExecutableStage;
-import org.apache.beam.runners.core.construction.graph.PipelineNode;
-import org.apache.beam.runners.core.construction.graph.SideInputReference;
-import org.apache.beam.runners.core.construction.graph.TimerReference;
-import org.apache.beam.runners.core.construction.graph.UserStateReference;
+import org.apache.beam.sdk.util.construction.ModelCoders;
+import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
+import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
+import org.apache.beam.sdk.util.construction.graph.ImmutableExecutableStage;
+import org.apache.beam.sdk.util.construction.graph.PipelineNode;
+import org.apache.beam.sdk.util.construction.graph.SideInputReference;
+import org.apache.beam.sdk.util.construction.graph.TimerReference;
+import org.apache.beam.sdk.util.construction.graph.UserStateReference;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.DefaultJobBundleFactory;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
@@ -75,8 +74,9 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Struct;
+import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.flink.streaming.runtime.operators.windowing.WindowedValue;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,7 +96,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
-import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.apache.flink.python.Constants.INPUT_COLLECTION_ID;
 import static org.apache.flink.python.Constants.OUTPUT_COLLECTION_ID;
 import static org.apache.flink.python.Constants.SIDE_OUTPUT_CODER_PREFIX;
@@ -606,7 +606,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
                         .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
                         .setPayload(
-                                org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString
+                                org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString
                                         .copyFrom(baos.toByteArray()))
                         .setInputOrOutputId(INPUT_COLLECTION_ID)
                         .build());
@@ -614,7 +614,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                 RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
                         .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
                         .setPayload(
-                                org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString
+                                org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString
                                         .copyFrom(baos.toByteArray()))
                         .setInputOrOutputId(OUTPUT_COLLECTION_ID)
                         .build());
@@ -624,7 +624,7 @@ public abstract class BeamPythonFunctionRunner implements PythonFunctionRunner {
                     RunnerApi.ExecutableStagePayload.WireCoderSetting.newBuilder()
                             .setUrn(getUrn(RunnerApi.StandardCoders.Enum.PARAM_WINDOWED_VALUE))
                             .setPayload(
-                                    org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf
+                                    org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf
                                             .ByteString.copyFrom(baos.toByteArray()))
                             .setInputOrOutputId(entry.getKey())
                             .build());
