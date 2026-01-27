@@ -42,7 +42,6 @@ import javax.annotation.Nonnull;
 
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -102,14 +101,7 @@ public class JarRunApplicationHandler
         ApplicationID applicationId = context.getApplicationId().orElse(ApplicationID.generate());
         PackagedProgramApplication application =
                 new PackagedProgramApplication(
-                        applicationId,
-                        program,
-                        Collections.emptyList(),
-                        effectiveConfiguration,
-                        false,
-                        true,
-                        false,
-                        false);
+                        applicationId, program, effectiveConfiguration, false, true, false, false);
 
         return gateway.submitApplication(application, timeout)
                 .handle(
