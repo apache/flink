@@ -18,6 +18,8 @@
 
 package org.apache.flink.streaming.runtime.translators;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
@@ -48,8 +50,6 @@ import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFacto
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nullable;
-
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
@@ -64,7 +64,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.util.Preconditions.checkState;
+import javax.annotation.Nullable;
 
 /**
  * A {@link org.apache.flink.streaming.api.graph.TransformationTranslator} for the {@link
@@ -259,6 +259,15 @@ public class SinkTransformationTranslator<Input, Output>
 
         private <CommT, WriteResultT> void addCommittingTopology(
                 Sink<T> sink, DataStream<T> inputStream) {
+
+            // Default to co-location for sinks without pre-commit topology ensuring
+            // writer and committer run on the same TaskManager.
+            if (!(sink instanceof SupportsPreCommitTopology)
+                    && transformation.getCoLocationGroupKey() == null) {
+                transformation.setCoLocationGroupKey(
+                        "sink-writer-committer-" + transformation.getId());
+            }
+
             SupportsCommitter<CommT> committingSink = (SupportsCommitter<CommT>) sink;
             TypeInformation<CommittableMessage<CommT>> committableTypeInformation =
                     CommittableMessageTypeInfo.of(committingSink::getCommittableSerializer);

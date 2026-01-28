@@ -18,6 +18,9 @@
 
 package org.apache.flink.streaming.api.graph;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.connector.sink2.Sink;
@@ -34,16 +37,12 @@ import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.CommitterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.TestSinkV2;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.function.Predicate;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests for {@link org.apache.flink.streaming.api.transformations.SinkTransformation}.
@@ -323,5 +322,62 @@ class SinkV2TransformationTranslatorITCase {
 
     StreamNode findGlobalCommitter(StreamGraph streamGraph) {
         return findNodeName(streamGraph, name -> name.contains("Global Committer"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(RuntimeExecutionMode.class)
+    void testWriterAndCommitterColocatedWithoutPreCommitTopology(
+            RuntimeExecutionMode runtimeExecutionMode) {
+        final StreamGraph streamGraph = buildGraph(sinkWithCommitter(), runtimeExecutionMode);
+
+        final StreamNode writerNode = findWriter(streamGraph);
+        final StreamNode committerNode = findCommitter(streamGraph);
+
+        // Writer and committer should be co-located for sinks without pre-commit topology
+        assertThat(writerNode.getCoLocationGroup()).isNotNull();
+        assertThat(committerNode.getCoLocationGroup()).isNotNull();
+        assertThat(writerNode.getCoLocationGroup()).isEqualTo(committerNode.getCoLocationGroup());
+    }
+
+    @ParameterizedTest
+    @EnumSource(RuntimeExecutionMode.class)
+    void testWriterAndCommitterNotColocatedWithPreCommitTopology(
+            RuntimeExecutionMode runtimeExecutionMode) {
+        // Create sink with pre-commit topology
+        Sink<Integer> sinkWithPreCommit =
+                TestSinkV2.<Integer>newBuilder()
+                        .setCommitter(
+                                new TestSinkV2.DefaultCommitter<>(),
+                                TestSinkV2.RecordSerializer::new)
+                        .setWithPreCommitTopology(r -> r)
+                        .build();
+
+        final StreamGraph streamGraph = buildGraph(sinkWithPreCommit, runtimeExecutionMode);
+
+        final StreamNode writerNode = findWriter(streamGraph);
+        final StreamNode committerNode = findCommitter(streamGraph);
+
+        // Pre-commit topology sinks should not be co-located
+        assertThat(writerNode.getCoLocationGroup()).isNull();
+        assertThat(committerNode.getCoLocationGroup()).isNull();
+    }
+
+    @Test
+    void testUserSpecifiedCoLocationGroupIsRespected() {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final DataStreamSource<Integer> src = env.fromData(1, 2);
+        final DataStreamSink<Integer> dataStreamSink = sinkTo(src, sinkWithCommitter());
+        dataStreamSink.name(NAME);
+
+        // Explicitly set user-specified co-location group
+        dataStreamSink.getTransformation().setCoLocationGroupKey("user-specified-group");
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        final StreamNode writerNode = findWriter(streamGraph);
+        final StreamNode committerNode = findCommitter(streamGraph);
+
+        // Both writer and sink should have the user-specified co-location group
+        assertThat(writerNode.getCoLocationGroup()).isEqualTo("user-specified-group");
+        assertThat(committerNode.getCoLocationGroup()).isEqualTo("user-specified-group");
     }
 }
