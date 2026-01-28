@@ -18,8 +18,6 @@
 
 package org.apache.flink.streaming.runtime.translators;
 
-import static org.apache.flink.util.Preconditions.checkState;
-
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.SupportsConcurrentExecutionAttempts;
@@ -50,6 +48,8 @@ import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFacto
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
@@ -64,7 +64,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import javax.annotation.Nullable;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@link org.apache.flink.streaming.api.graph.TransformationTranslator} for the {@link
