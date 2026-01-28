@@ -121,7 +121,8 @@ public class ExtendedSqlRowTypeNameSpec extends SqlTypeNameSpec {
                 if (p.right.getNullable() != null && !p.right.getNullable()) {
                     writer.keyword("NOT NULL");
                 }
-                if (comments.get(i) != null) {
+                // With bounds check - prevents IndexOutOfBoundsException
+                if (i < comments.size() && comments.get(i) != null) {
                     comments.get(i).unparse(writer, leftPrec, rightPrec);
                 }
                 i += 1;
