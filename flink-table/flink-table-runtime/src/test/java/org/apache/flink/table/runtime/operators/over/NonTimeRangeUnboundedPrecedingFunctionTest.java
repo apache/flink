@@ -643,17 +643,26 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
         testHarness.processElement(insertRecord("key1", 2L, 201L));
         validateState(function, thirdRecord, 1, 2, 1, 2, 2, 3, true);
 
-        // expire the state
-        testHarness.setStateTtlProcessingTime(stateTtlTime.toMillis() + 1);
+        // Output should contain 5 records till now
+        List<RowData> actualRows = testHarness.extractOutputValues();
+        assertThat(actualRows.size()).isEqualTo(5);
 
-        // After insertion of the following record, there should be only 1 record in state
+        // expire the state
+        testHarness.setProcessingTime(stateTtlTime.toMillis() + 1);
+
         // After insertion of the following record, there should be only 1 record in state
         GenericRowData fourthRecord = GenericRowData.of("key1", 5L, 500L);
         testHarness.processElement(insertRecord("key1", 5L, 500L));
         validateState(function, fourthRecord, 0, 1, 0, 1, 0, 1, true);
 
-        List<RowData> actualRows = testHarness.extractOutputValues();
+        // Verify only one new output record (i.e. 6th record) is emitted after state TTL expiry
+        actualRows = testHarness.extractOutputValues();
         assertThat(actualRows.size()).isEqualTo(6);
+
+        // Aggregated value should be based on only the last inserted record
+        // The inserted record after ttl should be treated as the first record for that key
+        RowData expectedRowAfterStateTTLExpiry = outputRecord(RowKind.INSERT, "key1", 5L, 500L, 5L);
+        assertThat(actualRows.get(actualRows.size() - 1)).isEqualTo(expectedRowAfterStateTTLExpiry);
 
         assertThat(function.getNumOfSortKeysNotFound().getCount()).isEqualTo(0L);
         assertThat(function.getNumOfIdsNotFound().getCount()).isEqualTo(0L);
@@ -693,23 +702,34 @@ public class NonTimeRangeUnboundedPrecedingFunctionTest extends NonTimeOverWindo
         testHarness.processElement(insertRecord("key1", 5L, 502L));
         validateState(function, fifthRecord, 2, 3, 1, 2, 4, 5, true);
 
+        // Output should contain 9 records till now
+        List<RowData> actualRows = testHarness.extractOutputValues();
+        assertThat(actualRows.size()).isEqualTo(9);
+
+        assertThat(function.getNumOfSortKeysNotFound().getCount()).isEqualTo(0L);
+        assertThat(function.getNumOfIdsNotFound().getCount()).isEqualTo(0L);
+
         // expire the state
-        testHarness.setStateTtlProcessingTime(stateTtlTime.toMillis() + 1);
+        testHarness.setProcessingTime(stateTtlTime.toMillis() + 1);
 
         // Retract a non-existent record due to state ttl expiration
         testHarness.processElement(updateBeforeRecord("key1", 5L, 502L));
 
         // Ensure state is null/empty
+        Long idValue = function.getRuntimeContext().getState(function.idStateDescriptor).value();
+        assertThat(idValue).isNull();
         List<Tuple2<RowData, List<Long>>> sortedList =
                 function.getRuntimeContext().getState(function.sortedListStateDescriptor).value();
         assertThat(sortedList).isNull();
-        MapState<RowData, RowData> mapState =
+        MapState<RowData, RowData> accMapState =
                 function.getRuntimeContext().getMapState(function.accStateDescriptor);
-        assertThat(mapState.isEmpty()).isTrue();
-        Long idValue = function.getRuntimeContext().getState(function.idStateDescriptor).value();
-        assertThat(idValue).isNull();
+        assertThat(accMapState.isEmpty()).isTrue();
+        MapState<Long, RowData> valueMapState =
+                function.getRuntimeContext().getMapState(function.valueStateDescriptor);
+        assertThat(valueMapState.isEmpty()).isTrue();
 
-        List<RowData> actualRows = testHarness.extractOutputValues();
+        // No new records should be emitted after retraction of non-existent record
+        actualRows = testHarness.extractOutputValues();
         assertThat(actualRows.size()).isEqualTo(9);
 
         assertThat(function.getNumOfSortKeysNotFound().getCount()).isEqualTo(1L);
