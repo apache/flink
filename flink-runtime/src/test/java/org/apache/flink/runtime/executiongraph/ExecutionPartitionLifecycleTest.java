@@ -23,6 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
+import org.apache.flink.runtime.executiongraph.utils.ExecutionUtils;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
 import org.apache.flink.runtime.io.network.partition.NoOpJobMasterPartitionTracker;
@@ -74,7 +75,11 @@ class ExecutionPartitionLifecycleTest {
 
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorExtension();
+            TestingUtils.jmAsyncThreadExecutorExtension();
+
+    @RegisterExtension
+    static final TestExecutorExtension<ScheduledExecutorService> JM_MAIN_THREAD_EXECUTOR_RESOURCE =
+            TestingUtils.jmMainThreadExecutorExtension();
 
     private Execution execution;
     private ResultPartitionDeploymentDescriptor descriptor;
@@ -118,11 +123,14 @@ class ExecutionPartitionLifecycleTest {
                 taskManagerGateway,
                 testingShuffleMaster);
 
-        stateTransition1.accept(execution);
-        assertThat(releasePartitionsCallFuture).isNotDone();
+        runInMainThread(
+                () -> {
+                    stateTransition1.accept(execution);
+                    assertThat(releasePartitionsCallFuture).isNotDone();
 
-        stateTransition2.accept(execution);
-        assertThat(releasePartitionsCallFuture).isDone();
+                    stateTransition2.accept(execution);
+                    assertThat(releasePartitionsCallFuture).isDone();
+                });
 
         final Tuple2<JobID, Collection<ResultPartitionID>> releasePartitionsCall =
                 releasePartitionsCallFuture.get();
@@ -221,7 +229,10 @@ class ExecutionPartitionLifecycleTest {
         assertThat(startTrackingCall.f0).isEqualTo(taskExecutorResourceId);
         assertThat(startTrackingCall.f1).isEqualTo(descriptor);
 
-        stateTransition.accept(execution);
+        runInMainThread(
+                () -> {
+                    stateTransition.accept(execution);
+                });
 
         switch (partitionReleaseResult) {
             case NONE:
@@ -279,7 +290,8 @@ class ExecutionPartitionLifecycleTest {
         final SchedulerBase scheduler =
                 new DefaultSchedulerBuilder(
                                 jobGraph,
-                                ComponentMainThreadExecutorServiceAdapter.forMainThread(),
+                                ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
+                                        JM_MAIN_THREAD_EXECUTOR_RESOURCE.getExecutor()),
                                 EXECUTOR_RESOURCE.getExecutor())
                         .setExecutionSlotAllocatorFactory(
                                 SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
@@ -289,15 +301,16 @@ class ExecutionPartitionLifecycleTest {
                         .build();
 
         final ExecutionGraph executionGraph = scheduler.getExecutionGraph();
-
         final ExecutionJobVertex executionJobVertex =
                 executionGraph.getJobVertex(producerVertex.getID());
         final ExecutionVertex executionVertex = executionJobVertex.getTaskVertices()[0];
         execution = executionVertex.getCurrentExecutionAttempt();
 
-        scheduler.startScheduling();
-        execution.switchToInitializing();
-        execution.switchToRunning();
+        runInMainThread(scheduler::startScheduling);
+        ExecutionUtils.waitForTaskDeploymentDescriptorsCreation(executionVertex);
+
+        assertThat(execution.switchToInitializing()).isTrue();
+        assertThat(execution.switchToRunning()).isTrue();
 
         final IntermediateResultPartitionID expectedIntermediateResultPartitionId =
                 executionJobVertex.getProducedDataSets()[0].getPartitions()[0].getPartitionId();
@@ -317,6 +330,10 @@ class ExecutionPartitionLifecycleTest {
         jobVertex.setInvokableClass(NoOpInvokable.class);
 
         return jobVertex;
+    }
+
+    private static void runInMainThread(final Runnable runnable) {
+        CompletableFuture.runAsync(runnable, JM_MAIN_THREAD_EXECUTOR_RESOURCE.getExecutor()).join();
     }
 
     private static class TestingShuffleMaster implements ShuffleMaster<ShuffleDescriptor> {
