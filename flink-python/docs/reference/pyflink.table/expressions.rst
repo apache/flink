@@ -201,6 +201,8 @@ string functions
     Expression.locate
     Expression.url_decode
     Expression.url_encode
+    Expression.inet_aton
+    Expression.inet_ntoa
     Expression.parse_url
     Expression.printf
     Expression.ltrim
