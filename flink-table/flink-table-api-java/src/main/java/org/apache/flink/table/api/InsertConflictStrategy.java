@@ -30,6 +30,28 @@ import java.util.Objects;
  * Defines the conflict resolution strategies for INSERT INTO statements when the query's upsert key
  * differs from the target table's primary key.
  *
+ * <p>The upsert key is derived from the query's semantics (e.g., GROUP BY columns). When it differs
+ * from the target table's primary key, multiple records from the query may map to the same primary
+ * key, causing a conflict. For example:
+ *
+ * <pre>{@code
+ * CREATE TABLE user_totals (
+ *   user_id BIGINT,
+ *   category STRING,
+ *   total DECIMAL(10, 2),
+ *   PRIMARY KEY (user_id) NOT ENFORCED
+ * );
+ *
+ * -- Upsert key is (user_id, category), but primary key is just (user_id).
+ * -- Updates for (user_id=1, category='A') and (user_id=1, category='B')
+ * -- both target the same primary key row, causing a conflict.
+ * INSERT INTO user_totals
+ * SELECT user_id, category, SUM(amount) as total
+ * FROM orders
+ * GROUP BY user_id, category
+ * ON CONFLICT DO NOTHING;
+ * }</pre>
+ *
  * <p>These strategies are used with the ON CONFLICT clause:
  *
  * <ul>

@@ -56,6 +56,7 @@ import org.apache.flink.sql.parser.dql.SqlShowJars;
 import org.apache.flink.sql.parser.dql.SqlShowJobs;
 import org.apache.flink.sql.parser.dql.SqlShowModules;
 import org.apache.flink.sql.parser.dql.SqlUnloadModule;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
@@ -338,7 +339,7 @@ public class SqlNodeToOperationConversion {
                 getTargetColumnIndices(contextResolvedTable, insert.getTargetColumnList());
 
         // Convert parser conflict strategy to API conflict strategy
-        org.apache.flink.table.api.InsertConflictStrategy conflictStrategy =
+        InsertConflictStrategy conflictStrategy =
                 insert.getConflictStrategy()
                         .map(SqlNodeToOperationConversion::convertConflictStrategy)
                         .orElse(null);
@@ -354,15 +355,15 @@ public class SqlNodeToOperationConversion {
                 conflictStrategy);
     }
 
-    private static org.apache.flink.table.api.InsertConflictStrategy convertConflictStrategy(
+    private static InsertConflictStrategy convertConflictStrategy(
             SqlInsertConflictBehavior parserBehavior) {
         switch (parserBehavior) {
             case ERROR:
-                return org.apache.flink.table.api.InsertConflictStrategy.error();
+                return InsertConflictStrategy.error();
             case NOTHING:
-                return org.apache.flink.table.api.InsertConflictStrategy.nothing();
+                return InsertConflictStrategy.nothing();
             case DEDUPLICATE:
-                return org.apache.flink.table.api.InsertConflictStrategy.deduplicate();
+                return InsertConflictStrategy.deduplicate();
             default:
                 throw new IllegalArgumentException("Unknown conflict behavior: " + parserBehavior);
         }

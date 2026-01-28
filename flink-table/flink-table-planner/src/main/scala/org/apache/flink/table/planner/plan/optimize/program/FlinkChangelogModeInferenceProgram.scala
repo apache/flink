@@ -1083,9 +1083,19 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
           val requireOnConflict =
             tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT)
           if (requireOnConflict && upsertKeyDiffersFromPk && sink.conflictStrategy == null) {
+            val fieldNames = sink.contextResolvedTable.getResolvedSchema.getColumnNames
+            val pkNames = primaryKeys.map(fieldNames.get(_)).mkString("[", ", ", "]")
+            val upsertKeyNames = if (changeLogUpsertKeys == null) {
+              "none"
+            } else {
+              changeLogUpsertKeys
+                .map(uk => uk.toArray.map(fieldNames.get(_)).mkString("[", ", ", "]"))
+                .mkString(", ")
+            }
             throw new ValidationException(
               "The query has an upsert key that differs from the primary key of the sink table " +
                 s"'${sink.contextResolvedTable.getIdentifier.asSummaryString}'. " +
+                s"Primary key: $pkNames, upsert key: $upsertKeyNames. " +
                 "This can lead to non-deterministic results when multiple records with different " +
                 "upsert keys map to the same primary key. " +
                 "Please specify an ON CONFLICT clause to define how conflicts should be handled: " +

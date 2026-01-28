@@ -132,9 +132,6 @@ class StreamPhysicalSink(
     super
       .explainTerms(pw)
       .itemIf("upsertMaterialize", "true", upsertMaterialize)
-      .itemIf(
-        "conflictStrategy",
-        conflictStrategy,
-        conflictStrategy != null && !InsertConflictStrategy.deduplicate().equals(conflictStrategy))
+      .itemIf("conflictStrategy", conflictStrategy, conflictStrategy != null)
   }
 }
