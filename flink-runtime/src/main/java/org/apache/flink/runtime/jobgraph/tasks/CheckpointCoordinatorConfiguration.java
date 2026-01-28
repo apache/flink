@@ -73,6 +73,9 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     private final boolean recoverOutputOnDownstreamTask;
 
+    /** The initial delay before the first checkpoint is triggered after the job starts. */
+    private final long initialCheckpointDelay;
+
     /**
      * @deprecated use {@link #builder()}.
      */
@@ -117,7 +120,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
             long alignedCheckpointTimeout,
             long checkpointIdOfIgnoredInFlightData,
             boolean enableCheckpointsAfterTasksFinish,
-            boolean recoverOutputOnDownstreamTask) {
+            boolean recoverOutputOnDownstreamTask,
+            long initialCheckpointDelay) {
 
         if (checkpointIntervalDuringBacklog < MINIMAL_CHECKPOINT_TIME) {
             // interval of max value means disable periodic checkpoint
@@ -149,6 +153,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         this.checkpointIdOfIgnoredInFlightData = checkpointIdOfIgnoredInFlightData;
         this.enableCheckpointsAfterTasksFinish = enableCheckpointsAfterTasksFinish;
         this.recoverOutputOnDownstreamTask = recoverOutputOnDownstreamTask;
+        this.initialCheckpointDelay = initialCheckpointDelay;
     }
 
     public long getCheckpointInterval() {
@@ -207,6 +212,10 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         return recoverOutputOnDownstreamTask;
     }
 
+    public long getInitialCheckpointDelay() {
+        return initialCheckpointDelay;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -227,7 +236,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 && tolerableCheckpointFailureNumber == that.tolerableCheckpointFailureNumber
                 && checkpointIdOfIgnoredInFlightData == that.checkpointIdOfIgnoredInFlightData
                 && enableCheckpointsAfterTasksFinish == that.enableCheckpointsAfterTasksFinish
-                && recoverOutputOnDownstreamTask == that.recoverOutputOnDownstreamTask;
+                && recoverOutputOnDownstreamTask == that.recoverOutputOnDownstreamTask
+                && initialCheckpointDelay == that.initialCheckpointDelay;
     }
 
     @Override
@@ -244,7 +254,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 tolerableCheckpointFailureNumber,
                 checkpointIdOfIgnoredInFlightData,
                 enableCheckpointsAfterTasksFinish,
-                recoverOutputOnDownstreamTask);
+                recoverOutputOnDownstreamTask,
+                initialCheckpointDelay);
     }
 
     @Override
@@ -274,6 +285,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 + enableCheckpointsAfterTasksFinish
                 + ", recoverOutputOnDownstreamTask="
                 + recoverOutputOnDownstreamTask
+                + ", initialCheckpointDelay="
+                + initialCheckpointDelay
                 + '}';
     }
 
@@ -297,6 +310,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         private long checkpointIdOfIgnoredInFlightData;
         private boolean enableCheckpointsAfterTasksFinish;
         private boolean recoverOutputOnDownstreamTask;
+        private long initialCheckpointDelay;
 
         public CheckpointCoordinatorConfiguration build() {
             return new CheckpointCoordinatorConfiguration(
@@ -312,7 +326,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                     alignedCheckpointTimeout,
                     checkpointIdOfIgnoredInFlightData,
                     enableCheckpointsAfterTasksFinish,
-                    recoverOutputOnDownstreamTask);
+                    recoverOutputOnDownstreamTask,
+                    initialCheckpointDelay);
         }
 
         public CheckpointCoordinatorConfigurationBuilder setCheckpointInterval(
@@ -389,6 +404,12 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         public CheckpointCoordinatorConfigurationBuilder setRecoverOutputOnDownstreamTask(
                 boolean recoverOutputOnDownstreamTask) {
             this.recoverOutputOnDownstreamTask = recoverOutputOnDownstreamTask;
+            return this;
+        }
+
+        public CheckpointCoordinatorConfigurationBuilder setInitialCheckpointDelay(
+                long initialCheckpointDelay) {
+            this.initialCheckpointDelay = initialCheckpointDelay;
             return this;
         }
     }

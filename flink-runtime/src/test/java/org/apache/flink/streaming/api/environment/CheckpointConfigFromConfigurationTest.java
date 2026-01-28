@@ -139,7 +139,12 @@ public class CheckpointConfigFromConfigurationTest {
                                 })
                         .getterVia(
                                 CheckpointConfig::isUnalignedCheckpointsInterruptibleTimersEnabled)
-                        .nonDefaultValue(true));
+                        .nonDefaultValue(true),
+                TestSpec.testValue(300000L)
+                        .whenSetFromFile(Map.of("execution.checkpointing.initial-delay", "5 min"))
+                        .viaSetter(CheckpointConfig::setInitialCheckpointDelay)
+                        .getterVia(CheckpointConfig::getInitialCheckpointDelay)
+                        .nonDefaultValue(60000L));
     }
 
     @ParameterizedTest
