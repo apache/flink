@@ -27,6 +27,7 @@ import org.apache.flink.table.api.FlatAggregateTable;
 import org.apache.flink.table.api.GroupWindow;
 import org.apache.flink.table.api.GroupWindowedTable;
 import org.apache.flink.table.api.GroupedTable;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.OverWindow;
 import org.apache.flink.table.api.OverWindowedTable;
 import org.apache.flink.table.api.PartitionedTable;
@@ -54,11 +55,14 @@ import org.apache.flink.table.functions.TemporalTableFunction;
 import org.apache.flink.table.functions.TemporalTableFunctionImpl;
 import org.apache.flink.table.functions.UserDefinedFunction;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
+import org.apache.flink.table.operations.ModifyType;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils.CategorizedExpressions;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -419,27 +423,52 @@ public class TableImpl implements Table {
 
     @Override
     public TablePipeline insertInto(String tablePath) {
-        return insertInto(tablePath, false);
+        return insertInto(tablePath, null, false);
+    }
+
+    @Override
+    public TablePipeline insertInto(String tablePath, InsertConflictStrategy conflictStrategy) {
+        return insertInto(tablePath, conflictStrategy, false);
     }
 
     @Override
     public TablePipeline insertInto(String tablePath, boolean overwrite) {
+        return insertInto(tablePath, null, overwrite);
+    }
+
+    @Override
+    public TablePipeline insertInto(
+            String tablePath, InsertConflictStrategy conflictStrategy, boolean overwrite) {
         UnresolvedIdentifier unresolvedIdentifier =
                 tableEnvironment.getParser().parseIdentifier(tablePath);
         ObjectIdentifier objectIdentifier =
                 tableEnvironment.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
         ContextResolvedTable contextResolvedTable =
                 tableEnvironment.getCatalogManager().getTableOrError(objectIdentifier);
-        return insertInto(contextResolvedTable, overwrite);
+        return insertInto(contextResolvedTable, conflictStrategy, overwrite);
     }
 
     @Override
     public TablePipeline insertInto(TableDescriptor descriptor) {
-        return insertInto(descriptor, false);
+        return insertInto(descriptor, null, false);
+    }
+
+    @Override
+    public TablePipeline insertInto(
+            TableDescriptor descriptor, InsertConflictStrategy conflictStrategy) {
+        return insertInto(descriptor, conflictStrategy, false);
     }
 
     @Override
     public TablePipeline insertInto(TableDescriptor descriptor, boolean overwrite) {
+        return insertInto(descriptor, null, overwrite);
+    }
+
+    @Override
+    public TablePipeline insertInto(
+            TableDescriptor descriptor,
+            InsertConflictStrategy conflictStrategy,
+            boolean overwrite) {
         final SchemaTranslator.ConsumingResult schemaTranslationResult =
                 SchemaTranslator.createConsumingResult(
                         tableEnvironment.getCatalogManager().getDataTypeFactory(),
@@ -454,7 +483,10 @@ public class TableImpl implements Table {
                         .getCatalogManager()
                         .resolveCatalogTable(updatedDescriptor.toCatalogTable());
 
-        return insertInto(ContextResolvedTable.anonymous(resolvedCatalogBaseTable), overwrite);
+        return insertInto(
+                ContextResolvedTable.anonymous(resolvedCatalogBaseTable),
+                conflictStrategy,
+                overwrite);
     }
 
     @Override
@@ -482,7 +514,10 @@ public class TableImpl implements Table {
                 function, unionTableAndArguments(operationTree, tableEnvironment, arguments));
     }
 
-    private TablePipeline insertInto(ContextResolvedTable contextResolvedTable, boolean overwrite) {
+    private TablePipeline insertInto(
+            ContextResolvedTable contextResolvedTable,
+            @Nullable InsertConflictStrategy conflictStrategy,
+            boolean overwrite) {
         return new TablePipelineImpl(
                 tableEnvironment,
                 new SinkModifyOperation(
@@ -491,7 +526,9 @@ public class TableImpl implements Table {
                         Collections.emptyMap(),
                         null, // targetColumns
                         overwrite,
-                        Collections.emptyMap()));
+                        Collections.emptyMap(),
+                        ModifyType.INSERT,
+                        conflictStrategy));
     }
 
     @Override

@@ -116,6 +116,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                     |   award
                     |   WHERE T.sum_votes = award.votes) T1, people T2
                     | WHERE T1.person = T2.person
+                    |ON CONFLICT DO DEDUPLICATE
                     |""".stripMargin)
       .await()
 
@@ -141,6 +142,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                     |SELECT T.person, T.sum_votes, award.prize FROM
                     |   (SELECT person, SUM(votes) AS sum_votes FROM src GROUP BY person) T, award
                     |   WHERE T.sum_votes = award.votes
+                    |ON CONFLICT DO DEDUPLICATE
                     |""".stripMargin)
       .await()
 
@@ -170,6 +172,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
           |   FROM (SELECT person, SUM(votes) AS sum_votes, SUM(votes) / 2 AS vote_section FROM src
           |      GROUP BY person))
           |   WHERE rank_number < 10
+          |ON CONFLICT DO DEDUPLICATE
           |""".stripMargin)
       .await()
 
@@ -199,6 +202,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                      |insert into sink_with_pk
                      |select user_id, SPLIT_INDEX(ndFunc(user_name), '-', 0), email, balance
                      |from users
+                     |on conflict do deduplicate
                      |""".stripMargin)
       .await()
 
@@ -553,6 +557,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                     |    votes
                     |  from
                     |    test_source
+                    |on conflict do deduplicate
                     |""".stripMargin)
       .await()
 
@@ -572,6 +577,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                     |    age 
                     |  from
                     |    test_source
+                    |on conflict do deduplicate
                     |""".stripMargin)
       .await()
 
@@ -625,6 +631,7 @@ class TableSinkITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
                     |    votes
                     |  FROM
                     |    test_source) SELECT * FROM cte
+                    |ON CONFLICT DO DEDUPLICATE
                     |""".stripMargin)
       .await()
     val result = TestValuesTableFactory.getResultsAsStrings("test_sink")

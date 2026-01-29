@@ -126,7 +126,8 @@ select
 from (
   select *, DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd') `day` from cdc
 ) t
-group by `day`, a]]>
+group by `day`, a
+on conflict do deduplicate]]>
     </Resource>
     <Resource name="optimized rel plan with advice">
       <![CDATA[
@@ -188,7 +189,8 @@ Calc(select=[a, DATE_FORMAT(CURRENT_TIMESTAMP(), _UTF-16LE'yyMMdd') AS day], cha
       <![CDATA[insert into sink_with_pk
 select a, b, `day`
 from cdc_with_computed_col
-where b > 100]]>
+where b > 100
+on conflict do deduplicate]]>
     </Resource>
     <Resource name="optimized rel plan with advice">
       <![CDATA[

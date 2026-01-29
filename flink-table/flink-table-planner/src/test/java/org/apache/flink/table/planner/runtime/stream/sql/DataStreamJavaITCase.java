@@ -42,6 +42,7 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
@@ -838,7 +839,8 @@ class DataStreamJavaITCase {
                                 .column("pk2", "STRING")
                                 .primaryKey("pk")
                                 .build(),
-                        ChangelogMode.upsert());
+                        ChangelogMode.upsert(),
+                        InsertConflictStrategy.deduplicate());
 
         testMaterializedResult(
                 resultStream, 0, Row.of(2, null, null, null), Row.of(1, 11.0, "1", "A"));

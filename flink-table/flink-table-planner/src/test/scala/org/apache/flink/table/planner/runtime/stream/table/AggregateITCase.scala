@@ -405,7 +405,7 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
       ChangelogMode.upsert(),
       List("c"))
 
-    t.executeInsert("testSink").await()
+    t.executeInsert("testSink", InsertConflictStrategy.deduplicate()).await()
 
     val expected = List("+I[A, 1]", "+I[B, 2]", "+I[C, 3]")
     assertThat(

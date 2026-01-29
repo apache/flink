@@ -141,7 +141,8 @@ class DeltaJoinTest extends TableTestBase {
     util.verifyRelPlanInsert(
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
-        "and src1.a2 = src2.b2")
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -150,7 +151,8 @@ class DeltaJoinTest extends TableTestBase {
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
         "and src1.a2 = src2.b2 " +
-        "and src1.a3 = src2.b0")
+        "and src1.a3 = src2.b0 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -158,7 +160,8 @@ class DeltaJoinTest extends TableTestBase {
     // could not optimize into delta join because join keys do not contain indexes strictly
     util.verifyRelPlanInsert(
       "insert into snk select * from src1 join src2 " +
-        "on src1.a2 = src2.b2")
+        "on src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -167,7 +170,8 @@ class DeltaJoinTest extends TableTestBase {
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
         "and src1.a2 = src2.b2 " +
-        "and src2.b0 > src1.a0")
+        "and src2.b0 > src1.a0 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -178,7 +182,8 @@ class DeltaJoinTest extends TableTestBase {
         "and src1.a2 = src2.b2 " +
         "and src2.b0 > src1.a0 " +
         "and src2.b2 <> 'Hello' " +
-        "and src1.a0 > 99")
+        "and src1.a0 > 99 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -187,7 +192,8 @@ class DeltaJoinTest extends TableTestBase {
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
         "and src1.a2 = src2.b2 " +
-        "and src1.a0 + rand(10) < src2.b0")
+        "and src1.a0 + rand(10) < src2.b0 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -197,7 +203,8 @@ class DeltaJoinTest extends TableTestBase {
         "join src2 /*+ OPTIONS('failing-source'='true') */" +
         "on src1.a1 = src2.b1 " +
         "and src1.a2 = src2.b2 " +
-        "and src2.b0 > src1.a0")
+        "and src2.b0 > src1.a0 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -208,7 +215,8 @@ class DeltaJoinTest extends TableTestBase {
         "  select a0, a1, a2 from src1" +
         ") tmp join src2 " +
         "on tmp.a1 = src2.b1 " +
-        "and tmp.a2 = src2.b2")
+        "and tmp.a2 = src2.b2 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -216,7 +224,8 @@ class DeltaJoinTest extends TableTestBase {
     util.verifyRelPlanInsert(
       "insert into snk select a0, a1 + 1.1, a2, a3, b0, b2, b1 from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
-        "and src1.a2 = src2.b2")
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -228,7 +237,8 @@ class DeltaJoinTest extends TableTestBase {
         "  select a0, a1, SUBSTRING(a2, 2) as a2 from src1" +
         ") tmp join src2 " +
         "on tmp.a1 = src2.b1 " +
-        "and tmp.a2 = src2.b2")
+        "and tmp.a2 = src2.b2 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -253,7 +263,8 @@ class DeltaJoinTest extends TableTestBase {
         "  select a0, a1, SUBSTRING(a2, 2) as a2 from src1WithMultiIndexes" +
         ") tmp join src2 " +
         "on tmp.a1 = src2.b1 " +
-        "and tmp.a2 = src2.b2")
+        "and tmp.a2 = src2.b2 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -264,7 +275,8 @@ class DeltaJoinTest extends TableTestBase {
         "  select a1 as a0, a2 as a1, a0 as a2 from src1" +
         ") tmp join src2 " +
         "on tmp.a0 = src2.b1 " +
-        "and tmp.a1 = src2.b2")
+        "and tmp.a1 = src2.b2 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -284,7 +296,8 @@ class DeltaJoinTest extends TableTestBase {
       "insert into snk(l0, l1, r0) select a0, new_a1, b0 " +
         "from src1WithComputingCol join src2 " +
         "on a1 = b1 " +
-        "and a2 = b2")
+        "and a2 = b2 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -304,7 +317,8 @@ class DeltaJoinTest extends TableTestBase {
       "insert into snk(l0, l1, r0) select a0, new_a1, b0 " +
         "from src1WithComputingCol join src2 " +
         "on a1 = b1 " +
-        "and a2 = b2")
+        "and a2 = b2 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -314,7 +328,8 @@ class DeltaJoinTest extends TableTestBase {
         "  select * from src1 where a1 > 1.1 " +
         ") tmp join src2 " +
         "on tmp.a1 = src2.b1 " +
-        "and tmp.a2 = src2.b2")
+        "and tmp.a2 = src2.b2 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -323,7 +338,8 @@ class DeltaJoinTest extends TableTestBase {
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
         "and src1.a2 = src2.b2 " +
-        "where a3 > b0")
+        "where a3 > b0 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -341,6 +357,7 @@ class DeltaJoinTest extends TableTestBase {
                                |  on a1 = b1
                                |  and a2 = b2
                                |  and b0 <> 0
+                               |  on conflict do deduplicate
                                |""".stripMargin)
   }
 
@@ -353,6 +370,7 @@ class DeltaJoinTest extends TableTestBase {
                                |  ) join src2
                                |  on a1 = b1
                                |  and a2 = b2
+                               |  on conflict do deduplicate
                                |""".stripMargin)
   }
 
@@ -366,6 +384,7 @@ class DeltaJoinTest extends TableTestBase {
                                |  )
                                |  on a1 = b1
                                |  and a2 = b2
+                               |  on conflict do deduplicate
                                |""".stripMargin)
   }
 
@@ -381,6 +400,7 @@ class DeltaJoinTest extends TableTestBase {
                                |  ) join src2
                                |  on a1 = b1
                                |  and a2 = b2
+                               |  on conflict do deduplicate
                                |""".stripMargin)
   }
 
@@ -407,6 +427,7 @@ class DeltaJoinTest extends TableTestBase {
                                |  ) join src2
                                |  on a1 = b1
                                |  and a2 = b2
+                               |  on conflict do deduplicate
                                |""".stripMargin)
   }
 
@@ -432,6 +453,7 @@ class DeltaJoinTest extends TableTestBase {
                                |  ) join src2
                                |  on a1 = b1
                                |  and a2 = b2
+                               |  on conflict do deduplicate
                                |""".stripMargin)
   }
 
@@ -518,8 +540,8 @@ class DeltaJoinTest extends TableTestBase {
         "and src1.a2 = src2.b2")
 
     val stmt = tEnv.createStatementSet()
-    stmt.addInsertSql("insert into snk select * from mv")
-    stmt.addInsertSql("insert into snk2 select * from mv")
+    stmt.addInsertSql("insert into snk select * from mv on conflict do deduplicate")
+    stmt.addInsertSql("insert into snk2 select * from mv on conflict do deduplicate")
 
     util.verifyExecPlan(stmt)
   }
@@ -542,8 +564,8 @@ class DeltaJoinTest extends TableTestBase {
         "and src1.a2 = src2.b2")
 
     val stmt = tEnv.createStatementSet()
-    stmt.addInsertSql("insert into snk select * from mv")
-    stmt.addInsertSql("insert into snk2 select * from mv")
+    stmt.addInsertSql("insert into snk select * from mv on conflict do deduplicate")
+    stmt.addInsertSql("insert into snk2 select * from mv on conflict do deduplicate")
 
     // the join could not be optimized to delta join
     // because one of the sink doesn't satisfy the requirement
@@ -558,12 +580,14 @@ class DeltaJoinTest extends TableTestBase {
     stmt.addInsertSql(
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
-        "and src1.a2 = src2.b2")
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
 
     stmt.addInsertSql(
       "insert into snk2 select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
-        "and src1.a2 = src2.b2")
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
 
     util.verifyExecPlan(stmt)
   }
@@ -580,12 +604,14 @@ class DeltaJoinTest extends TableTestBase {
     stmt.addInsertSql(
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
-        "and src1.a2 = src2.b2")
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
 
     stmt.addInsertSql(
       "insert into snk2 select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
-        "and src1.a2 = src2.b2")
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
 
     util.verifyExecPlan(stmt)
   }
@@ -605,12 +631,14 @@ class DeltaJoinTest extends TableTestBase {
     stmt.addInsertSql(
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
-        "and src1.a2 = src2.b2")
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
 
     stmt.addInsertSql(
       "insert into snk2 select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
-        "and src1.a2 = src2.b2")
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
 
     util.verifyExecPlan(stmt)
   }
@@ -620,8 +648,10 @@ class DeltaJoinTest extends TableTestBase {
     util.verifyExplainInsert(
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
-        "and src1.a2 = src2.b2",
-      ExplainDetail.PLAN_ADVICE)
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate",
+      ExplainDetail.PLAN_ADVICE
+    )
   }
 
   @Test
@@ -635,8 +665,10 @@ class DeltaJoinTest extends TableTestBase {
     util.verifyExplainInsert(
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
-        "and src1.a2 = src2.b2",
-      ExplainDetail.PLAN_ADVICE)
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate",
+      ExplainDetail.PLAN_ADVICE
+    )
   }
 
   @Test
@@ -678,7 +710,8 @@ class DeltaJoinTest extends TableTestBase {
     util.verifyRelPlanInsert(
       "insert into snk select * from src1 join non_lookup_src " +
         "on src1.a1 = non_lookup_src.b1 " +
-        "and src1.a2 = non_lookup_src.b2")
+        "and src1.a2 = non_lookup_src.b2 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -687,7 +720,8 @@ class DeltaJoinTest extends TableTestBase {
     util.verifyRelPlanInsert(
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = 1.1 " +
-        "and src1.a2 = src2.b2")
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -696,7 +730,8 @@ class DeltaJoinTest extends TableTestBase {
     util.verifyRelPlanInsert(
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
-        "and src1.a2 = TRIM(src2.b2)")
+        "and src1.a2 = TRIM(src2.b2) " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -859,7 +894,8 @@ class DeltaJoinTest extends TableTestBase {
         "and src1.a2 = src2.b2 " +
         "join src3 " +
         "on src1.a1 = src3.b1 " +
-        "and src1.a2 = src3.b2")
+        "and src1.a2 = src3.b2 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -878,7 +914,8 @@ class DeltaJoinTest extends TableTestBase {
   def testWithAlwaysTrueJoinCondition(): Unit = {
     util.verifyRelPlanInsert(
       "insert into snk select * from src1 join src2 " +
-        "on 1 = 1")
+        "on 1 = 1 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -897,7 +934,8 @@ class DeltaJoinTest extends TableTestBase {
     util.verifyRelPlanInsert(
       "insert into snk select * from src1 join non_index_src " +
         "on src1.a1 = non_index_src.b1 " +
-        "and src1.a2 = non_index_src.b2")
+        "and src1.a2 = non_index_src.b2 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -909,7 +947,8 @@ class DeltaJoinTest extends TableTestBase {
     util.verifyRelPlanInsert(
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
-        "and src1.a2 = src2.b2")
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -921,7 +960,8 @@ class DeltaJoinTest extends TableTestBase {
     util.verifyRelPlanInsert(
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
-        "and src1.a2 = src2.b2")
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
   }
 
   @Test
@@ -935,7 +975,8 @@ class DeltaJoinTest extends TableTestBase {
       () =>
         util.verifyRelPlanInsert(
           "insert into snk select * from src1 join src2 " +
-            "on src1.a1 = src2.b1"))
+            "on src1.a1 = src2.b1 " +
+            "on conflict do deduplicate"))
       .hasMessageContaining("The current sql doesn't support to do delta join optimization.")
 
   }
@@ -955,12 +996,14 @@ class DeltaJoinTest extends TableTestBase {
     stmt.addInsertSql(
       "insert into snk select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
-        "and src1.a2 = src2.b2")
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
 
     stmt.addInsertSql(
       "insert into snk2 select * from src1 join src2 " +
         "on src1.a1 = src2.b1 " +
-        "and src1.a2 = src2.b2")
+        "and src1.a2 = src2.b2 " +
+        "on conflict do deduplicate")
 
     // one of the joins can be converted into the delta join
     util.verifyExecPlan(stmt)
@@ -983,7 +1026,8 @@ class DeltaJoinTest extends TableTestBase {
     )
 
     // no joins on this query
-    util.verifyRelPlanInsert("insert into tmp_snk select a0, a1 from src1")
+    util.verifyRelPlanInsert(
+      "insert into tmp_snk select a0, a1 from src1 on conflict do deduplicate")
   }
 
   @Test
@@ -1050,10 +1094,10 @@ class DeltaJoinTest extends TableTestBase {
     val stmt = tEnv.createStatementSet()
     stmt.addInsertSql(
       "insert into snk select * from tmp_src11 join src2 " +
-        "on tmp_src11.a2 = src2.b2")
+        "on tmp_src11.a2 = src2.b2 on conflict do deduplicate")
     stmt.addInsertSql(
       "insert into snk select * from tmp_src12 join src2 " +
-        "on tmp_src12.a2 = src2.b2")
+        "on tmp_src12.a2 = src2.b2 on conflict do deduplicate")
     util.verifyRelPlan(stmt)
   }
 

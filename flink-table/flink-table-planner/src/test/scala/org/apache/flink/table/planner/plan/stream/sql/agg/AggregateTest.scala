@@ -368,8 +368,10 @@ class AggregateTest extends TableTestBase {
       """
         |INSERT INTO sink
         |SELECT c, COUNT(*) cnt FROM T GROUP BY c
+        |ON CONFLICT DO DEDUPLICATE
         |""".stripMargin,
-      ExplainDetail.CHANGELOG_MODE)
+      ExplainDetail.CHANGELOG_MODE
+    )
   }
 
   @Test
@@ -413,8 +415,10 @@ class AggregateTest extends TableTestBase {
       """
         |INSERT INTO sink
         |SELECT c, COUNT(*) cnt FROM T GROUP BY a, c
+        |ON CONFLICT DO DEDUPLICATE
         |""".stripMargin,
-      ExplainDetail.CHANGELOG_MODE)
+      ExplainDetail.CHANGELOG_MODE
+    )
   }
 
   @Test

@@ -766,6 +766,7 @@ class DeltaJoinITCase(enableCache: Boolean) extends StreamingTestBase {
                     |   from testLeft
                     | join testRight
                     |   on a0 = b0
+                    | on conflict do deduplicate
                     |""".stripMargin)
       .await()
     val result = TestValuesTableFactory.getResultsAsStrings("testSnk")
@@ -890,6 +891,7 @@ class DeltaJoinITCase(enableCache: Boolean) extends StreamingTestBase {
          | select * from $queryOnLeft join $queryOnRight
          | on ${testSpec.joinCondition}
          | $filterAfterJoin
+         | on conflict do deduplicate
          |""".stripMargin
     tEnv
       .executeSql(sql)

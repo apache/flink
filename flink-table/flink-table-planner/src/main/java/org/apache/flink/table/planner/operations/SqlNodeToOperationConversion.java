@@ -41,6 +41,7 @@ import org.apache.flink.sql.parser.dml.SqlCompileAndExecutePlan;
 import org.apache.flink.sql.parser.dml.SqlEndStatementSet;
 import org.apache.flink.sql.parser.dml.SqlExecute;
 import org.apache.flink.sql.parser.dml.SqlExecutePlan;
+import org.apache.flink.sql.parser.dml.SqlInsertConflictBehavior;
 import org.apache.flink.sql.parser.dml.SqlStatementSet;
 import org.apache.flink.sql.parser.dql.SqlLoadModule;
 import org.apache.flink.sql.parser.dql.SqlRichDescribeTable;
@@ -55,6 +56,7 @@ import org.apache.flink.sql.parser.dql.SqlShowJars;
 import org.apache.flink.sql.parser.dql.SqlShowJobs;
 import org.apache.flink.sql.parser.dql.SqlShowModules;
 import org.apache.flink.sql.parser.dql.SqlUnloadModule;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
@@ -336,13 +338,35 @@ public class SqlNodeToOperationConversion {
         int[][] columnIndices =
                 getTargetColumnIndices(contextResolvedTable, insert.getTargetColumnList());
 
+        // Convert parser conflict strategy to API conflict strategy
+        InsertConflictStrategy conflictStrategy =
+                insert.getConflictStrategy()
+                        .map(SqlNodeToOperationConversion::convertConflictStrategy)
+                        .orElse(null);
+
         return new SinkModifyOperation(
                 contextResolvedTable,
                 query,
                 insert.getStaticPartitionKVs(),
                 columnIndices,
                 insert.isOverwrite(),
-                dynamicOptions);
+                dynamicOptions,
+                ModifyType.INSERT,
+                conflictStrategy);
+    }
+
+    private static InsertConflictStrategy convertConflictStrategy(
+            SqlInsertConflictBehavior parserBehavior) {
+        switch (parserBehavior) {
+            case ERROR:
+                return InsertConflictStrategy.error();
+            case NOTHING:
+                return InsertConflictStrategy.nothing();
+            case DEDUPLICATE:
+                return InsertConflictStrategy.deduplicate();
+            default:
+                throw new IllegalArgumentException("Unknown conflict behavior: " + parserBehavior);
+        }
     }
 
     /** Convert BEGIN STATEMENT SET statement. */

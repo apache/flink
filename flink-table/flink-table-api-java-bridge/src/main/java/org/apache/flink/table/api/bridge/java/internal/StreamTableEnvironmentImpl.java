@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableConfig;
@@ -263,7 +264,7 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                         table.getResolvedSchema(),
                         targetDataType);
 
-        return toStreamInternal(table, schemaTranslationResult, ChangelogMode.insertOnly());
+        return toStreamInternal(table, schemaTranslationResult, ChangelogMode.insertOnly(), null);
     }
 
     @Override
@@ -273,7 +274,7 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
         final SchemaTranslator.ProducingResult schemaTranslationResult =
                 SchemaTranslator.createProducingResult(table.getResolvedSchema(), null);
 
-        return toStreamInternal(table, schemaTranslationResult, null);
+        return toStreamInternal(table, schemaTranslationResult, null, null);
     }
 
     @Override
@@ -284,12 +285,21 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
         final SchemaTranslator.ProducingResult schemaTranslationResult =
                 SchemaTranslator.createProducingResult(table.getResolvedSchema(), targetSchema);
 
-        return toStreamInternal(table, schemaTranslationResult, null);
+        return toStreamInternal(table, schemaTranslationResult, null, null);
     }
 
     @Override
     public DataStream<Row> toChangelogStream(
             Table table, Schema targetSchema, ChangelogMode changelogMode) {
+        return toChangelogStream(table, targetSchema, changelogMode, null);
+    }
+
+    @Override
+    public DataStream<Row> toChangelogStream(
+            Table table,
+            Schema targetSchema,
+            ChangelogMode changelogMode,
+            InsertConflictStrategy conflictStrategy) {
         Preconditions.checkNotNull(table, "Table must not be null.");
         Preconditions.checkNotNull(targetSchema, "Target schema must not be null.");
         Preconditions.checkNotNull(changelogMode, "Changelog mode must not be null.");
@@ -297,7 +307,7 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
         final SchemaTranslator.ProducingResult schemaTranslationResult =
                 SchemaTranslator.createProducingResult(table.getResolvedSchema(), targetSchema);
 
-        return toStreamInternal(table, schemaTranslationResult, changelogMode);
+        return toStreamInternal(table, schemaTranslationResult, changelogMode, conflictStrategy);
     }
 
     @Override

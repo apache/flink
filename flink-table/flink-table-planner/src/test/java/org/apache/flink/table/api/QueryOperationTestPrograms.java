@@ -1142,7 +1142,8 @@ public class QueryOperationTestPrograms {
                                     env.fromModel("chatgpt")
                                             .predict(
                                                     env.from("features"), ColumnList.of("feature")),
-                            "sink")
+                            "sink",
+                            InsertConflictStrategy.deduplicate())
                     .build();
 
     public static final TableTestProgram ASYNC_ML_PREDICT_MODEL_API =
@@ -1166,7 +1167,8 @@ public class QueryOperationTestPrograms {
                                                     env.from("features"),
                                                     ColumnList.of("feature"),
                                                     Map.of("async", "true")),
-                            "sink")
+                            "sink",
+                            InsertConflictStrategy.deduplicate())
                     .build();
 
     public static final TableTestProgram ML_PREDICT_ANON_MODEL_API =
@@ -1228,7 +1230,8 @@ public class QueryOperationTestPrograms {
                                             env.fromModel("chatgpt").asArgument("MODEL"),
                                             descriptor("feature").asArgument("ARGS"),
                                             Expressions.map("async", "true").asArgument("CONFIG")),
-                            "sink")
+                            "sink",
+                            InsertConflictStrategy.deduplicate())
                     .build();
 
     /**

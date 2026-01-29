@@ -828,7 +828,8 @@ public class MultiJoinTest extends TableTestBase {
                         + "    u.region_id\n"
                         + "FROM UsersPK u\n"
                         + "INNER JOIN OrdersSimplePK o\n"
-                        + "    ON u.user_id = o.user_id");
+                        + "    ON u.user_id = o.user_id\n"
+                        + "ON CONFLICT DO DEDUPLICATE");
     }
 
     @Test

@@ -947,6 +947,7 @@ class RankTest extends TableTestBase {
         |  FROM MyTable
         |  )
         |WHERE rn <= 100
+        |ON CONFLICT DO DEDUPLICATE
         |""".stripMargin
     // verify UB should reserve and add upsertMaterialize if rank outputs' upsert keys differs from
     // sink's pks
@@ -976,6 +977,7 @@ class RankTest extends TableTestBase {
         |  FROM MyTable
         |  )
         |WHERE rn <= 100
+        |ON CONFLICT DO DEDUPLICATE
         |""".stripMargin
 
     // verify UB should reserve and no upsertMaterialize if rank outputs' upsert keys are subset of
@@ -1006,6 +1008,7 @@ class RankTest extends TableTestBase {
         |  FROM MyTable
         |  )
         |WHERE rn <= 100
+        |ON CONFLICT DO DEDUPLICATE
         |""".stripMargin
     // verify UB should reserve and add upsertMaterialize if rank outputs' lost upsert keys
     util.verifyExplainInsert(sql, ExplainDetail.CHANGELOG_MODE)

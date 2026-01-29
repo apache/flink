@@ -399,6 +399,7 @@ class JoinTest extends TableTestBase {
         |select t1.city_id, t2.city_name, t1.customer_cnt
         | from (select city_id, count(*) customer_cnt from source_customer group by city_id) t1
         | join source_city t2 on t1.city_id = t2.id
+        |on conflict do deduplicate
         |""".stripMargin,
       ExplainDetail.CHANGELOG_MODE
     )
@@ -503,6 +504,7 @@ class JoinTest extends TableTestBase {
         |select t2.city_name, t1.customer_cnt
         | from (select city_id, count(*) customer_cnt from source_customer group by city_id) t1
         | join source_city t2 on t1.city_id = t2.id
+        | on conflict do deduplicate
         |""".stripMargin,
       ExplainDetail.CHANGELOG_MODE
     )

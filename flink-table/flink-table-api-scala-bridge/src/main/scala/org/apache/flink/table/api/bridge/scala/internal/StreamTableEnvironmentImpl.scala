@@ -148,7 +148,7 @@ class StreamTableEnvironmentImpl(
       table.getResolvedSchema,
       targetDataType)
 
-    toStreamInternal(table, schemaTranslationResult, ChangelogMode.insertOnly())
+    toStreamInternal(table, schemaTranslationResult, ChangelogMode.insertOnly(), null)
   }
 
   override def toChangelogStream(table: Table): DataStream[Row] = {
@@ -157,7 +157,7 @@ class StreamTableEnvironmentImpl(
     val schemaTranslationResult =
       SchemaTranslator.createProducingResult(table.getResolvedSchema, null)
 
-    toStreamInternal(table, schemaTranslationResult, null)
+    toStreamInternal(table, schemaTranslationResult, null, null)
   }
 
   override def toChangelogStream(table: Table, targetSchema: Schema): DataStream[Row] = {
@@ -167,13 +167,21 @@ class StreamTableEnvironmentImpl(
     val schemaTranslationResult =
       SchemaTranslator.createProducingResult(table.getResolvedSchema, targetSchema)
 
-    toStreamInternal(table, schemaTranslationResult, null)
+    toStreamInternal(table, schemaTranslationResult, null, null)
   }
 
   override def toChangelogStream(
       table: Table,
       targetSchema: Schema,
       changelogMode: ChangelogMode): DataStream[Row] = {
+    toChangelogStream(table, targetSchema, changelogMode, null)
+  }
+
+  override def toChangelogStream(
+      table: Table,
+      targetSchema: Schema,
+      changelogMode: ChangelogMode,
+      conflictStrategy: InsertConflictStrategy): DataStream[Row] = {
     Preconditions.checkNotNull(table, "Table must not be null.")
     Preconditions.checkNotNull(targetSchema, "Target schema must not be null.")
     Preconditions.checkNotNull(changelogMode, "Changelog mode must not be null.")
@@ -181,7 +189,7 @@ class StreamTableEnvironmentImpl(
     val schemaTranslationResult =
       SchemaTranslator.createProducingResult(table.getResolvedSchema, targetSchema)
 
-    toStreamInternal(table, schemaTranslationResult, changelogMode)
+    toStreamInternal(table, schemaTranslationResult, changelogMode, conflictStrategy)
   }
 
   override def createStatementSet(): StreamStatementSet = {

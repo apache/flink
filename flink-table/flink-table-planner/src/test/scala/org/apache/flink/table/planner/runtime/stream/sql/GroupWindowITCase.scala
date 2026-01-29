@@ -382,7 +382,7 @@ class GroupWindowITCase(mode: StateBackendMode, useTimestampLtz: Boolean)
       ChangelogMode.upsert(),
       fieldNames.take(2)
     )
-    result.executeInsert("MySink").await()
+    result.executeInsert("MySink", InsertConflictStrategy.deduplicate()).await()
 
     val expected = Seq(
       "+I[Hi, 1970-01-01T00:00, 1970-01-01T00:00:00.005, 1, 1, 1, 1, 1, 1, 1]",

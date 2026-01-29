@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.SourceTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
@@ -85,5 +87,198 @@ public class SinkTestPrograms {
                                     .build())
                     .runSql(
                             "INSERT INTO sink_t SELECT UPPER(name), SUM(score) FROM source_t GROUP BY name")
+                    .build();
+
+    // --- ON CONFLICT validation tests ---
+
+    public static final TableTestProgram ON_CONFLICT_DO_NOTHING_NOT_SUPPORTED =
+            TableTestProgram.of(
+                            "sink-on-conflict-do-nothing-not-supported",
+                            "ON CONFLICT DO NOTHING is not yet supported and should throw ValidationException.")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("a INT", "b BIGINT")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(Row.ofKind(RowKind.INSERT, 1, 1L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT PRIMARY KEY NOT ENFORCED", "b BIGINT")
+                                    .build())
+                    .runFailingSql(
+                            "INSERT INTO sink_t SELECT a, b FROM source_t ON CONFLICT DO NOTHING",
+                            ValidationException.class,
+                            "ON CONFLICT DO NOTHING is not yet supported")
+                    .build();
+
+    public static final TableTestProgram ON_CONFLICT_DO_ERROR_NOT_SUPPORTED =
+            TableTestProgram.of(
+                            "sink-on-conflict-do-error-not-supported",
+                            "ON CONFLICT DO ERROR is not yet supported and should throw ValidationException.")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("a INT", "b BIGINT")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(Row.ofKind(RowKind.INSERT, 1, 1L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT PRIMARY KEY NOT ENFORCED", "b BIGINT")
+                                    .build())
+                    .runFailingSql(
+                            "INSERT INTO sink_t SELECT a, b FROM source_t ON CONFLICT DO ERROR",
+                            ValidationException.class,
+                            "ON CONFLICT DO ERROR is not yet supported")
+                    .build();
+
+    public static final TableTestProgram UPSERT_KEY_DIFFERS_FROM_PK_WITHOUT_ON_CONFLICT =
+            TableTestProgram.of(
+                            "sink-upsert-key-differs-from-pk-without-on-conflict",
+                            "When upsert key differs from sink PK, ON CONFLICT must be specified.")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("person STRING", "votes INT")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(Row.ofKind(RowKind.INSERT, "Alice", 10))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("award_t")
+                                    .addSchema("votes BIGINT", "prize DOUBLE")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(Row.ofKind(RowKind.INSERT, 10L, 100.0))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "person STRING PRIMARY KEY NOT ENFORCED",
+                                            "sum_votes BIGINT",
+                                            "prize DOUBLE")
+                                    .build())
+                    .runFailingSql(
+                            "INSERT INTO sink_t "
+                                    + "SELECT T.person, T.sum_votes, award_t.prize FROM "
+                                    + "(SELECT person, SUM(votes) AS sum_votes FROM source_t GROUP BY person) T, award_t "
+                                    + "WHERE T.sum_votes = award_t.votes",
+                            ValidationException.class,
+                            "The query has an upsert key that differs from the primary key of the sink table")
+                    .build();
+
+    public static final TableTestProgram UPSERT_KEY_DIFFERS_FROM_PK_WITH_ON_CONFLICT =
+            TableTestProgram.of(
+                            "sink-upsert-key-differs-from-pk-with-on-conflict",
+                            "When upsert key differs from sink PK but ON CONFLICT is specified, no error.")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("person STRING", "votes INT")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, "Alice", 10),
+                                            Row.ofKind(RowKind.INSERT, "Bob", 20))
+                                    .build())
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("award_t")
+                                    .addSchema("votes BIGINT", "prize DOUBLE")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 10L, 100.0),
+                                            Row.ofKind(RowKind.INSERT, 20L, 200.0))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema(
+                                            "person STRING PRIMARY KEY NOT ENFORCED",
+                                            "sum_votes BIGINT",
+                                            "prize DOUBLE")
+                                    .consumedValues("+I[Alice, 10, 100.0]", "+I[Bob, 20, 200.0]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t "
+                                    + "SELECT T.person, T.sum_votes, award_t.prize FROM "
+                                    + "(SELECT person, SUM(votes) AS sum_votes FROM source_t GROUP BY person) T, award_t "
+                                    + "WHERE T.sum_votes = award_t.votes "
+                                    + "ON CONFLICT DO DEDUPLICATE")
+                    .build();
+
+    public static final TableTestProgram UPSERT_KEY_MATCHES_PK_WITHOUT_ON_CONFLICT =
+            TableTestProgram.of(
+                            "sink-upsert-key-matches-pk-without-on-conflict",
+                            "When upsert key matches sink PK, no ON CONFLICT is needed.")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("a INT", "b BIGINT")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 10L),
+                                            Row.ofKind(RowKind.INSERT, 1, 20L),
+                                            Row.ofKind(RowKind.INSERT, 2, 5L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT PRIMARY KEY NOT ENFORCED", "cnt BIGINT")
+                                    .consumedValues("+I[1, 1]", "+U[1, 2]", "+I[2, 1]")
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT a, COUNT(*) AS cnt FROM source_t GROUP BY a")
+                    .build();
+
+    public static final TableTestProgram APPEND_ONLY_WITH_PK_WITHOUT_ON_CONFLICT =
+            TableTestProgram.of(
+                            "sink-append-only-with-pk-without-on-conflict",
+                            "Append-only query to sink with PK requires ON CONFLICT to specify duplicate handling.")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("a INT", "b BIGINT")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(Row.ofKind(RowKind.INSERT, 1, 10L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT PRIMARY KEY NOT ENFORCED", "b BIGINT")
+                                    .build())
+                    .runFailingSql(
+                            "INSERT INTO sink_t SELECT a, b FROM source_t",
+                            ValidationException.class,
+                            "The query has an upsert key that differs from the primary key of the sink table")
+                    .build();
+
+    public static final TableTestProgram APPEND_ONLY_WITH_PK_WITH_ON_CONFLICT =
+            TableTestProgram.of(
+                            "sink-append-only-with-pk-with-on-conflict",
+                            "Append-only query to sink with PK and ON CONFLICT should not throw.")
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("a INT", "b BIGINT")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 10L),
+                                            Row.ofKind(RowKind.INSERT, 2, 20L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT PRIMARY KEY NOT ENFORCED", "b BIGINT")
+                                    .consumedValues("+I[1, 10]", "+I[2, 20]")
+                                    .build())
+                    .runSql(
+                            "INSERT INTO sink_t SELECT a, b FROM source_t ON CONFLICT DO DEDUPLICATE")
+                    .build();
+
+    public static final TableTestProgram UPSERT_KEY_DIFFERS_FROM_PK_WITHOUT_ON_CONFLICT_DISABLED =
+            TableTestProgram.of(
+                            "sink-upsert-key-differs-from-pk-without-on-conflict-disabled",
+                            "When require-on-conflict config is disabled, no ON CONFLICT is needed even if upsert key differs from PK.")
+                    .setupConfig(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT, false)
+                    .setupTableSource(
+                            SourceTestStep.newBuilder("source_t")
+                                    .addSchema("a INT", "b BIGINT")
+                                    .addOption("changelog-mode", "I")
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 10L),
+                                            Row.ofKind(RowKind.INSERT, 2, 20L))
+                                    .build())
+                    .setupTableSink(
+                            SinkTestStep.newBuilder("sink_t")
+                                    .addSchema("a INT PRIMARY KEY NOT ENFORCED", "b BIGINT")
+                                    .consumedValues("+I[1, 10]", "+I[2, 20]")
+                                    .build())
+                    .runSql("INSERT INTO sink_t SELECT a, b FROM source_t")
                     .build();
 }

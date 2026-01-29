@@ -499,6 +499,8 @@ class TableSinkTest extends TableTestBase {
         |SELECT T.person, T.sum_votes, award.prize FROM
         |   (SELECT person, SUM(votes) AS sum_votes FROM src GROUP BY person) T, award
         |   WHERE T.sum_votes = award.votes
+        |ON CONFLICT
+        |DO DEDUPLICATE
         |""".stripMargin)
   }
 
@@ -522,6 +524,7 @@ class TableSinkTest extends TableTestBase {
         |   FROM (SELECT person, SUM(votes) AS sum_votes, SUM(votes) / 2 AS vote_section FROM src
         |      GROUP BY person))
         |   WHERE rank_number < 10
+        |ON CONFLICT DO DEDUPLICATE
         |""".stripMargin)
   }
 
@@ -546,7 +549,7 @@ class TableSinkTest extends TableTestBase {
                       | 'sink.parallelism' = '9'
                       |)""".stripMargin)
     val stmtSet = tEnv.asInstanceOf[TestingTableEnvironment].createStatementSet
-    stmtSet.addInsertSql("insert into sink select * from source")
+    stmtSet.addInsertSql("insert into sink select * from source on conflict do deduplicate")
     // we set the sink parallelism to 9 which differs from the source, expect 'keyby' was added.
     util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
   }
@@ -575,7 +578,7 @@ class TableSinkTest extends TableTestBase {
                       | 'sink.parallelism' = '9'
                       |)""".stripMargin)
     val stmtSet = tEnv.asInstanceOf[TestingTableEnvironment].createStatementSet
-    stmtSet.addInsertSql("insert into sink select * from source")
+    stmtSet.addInsertSql("insert into sink select * from source on conflict do deduplicate")
     // we set the sink parallelism to 9 which differs from the source, but disable auto keyby
     util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
   }
@@ -605,7 +608,7 @@ class TableSinkTest extends TableTestBase {
                       | 'sink.parallelism' = '4'
                       |)""".stripMargin)
     val stmtSet = tEnv.asInstanceOf[TestingTableEnvironment].createStatementSet
-    stmtSet.addInsertSql("insert into sink select * from source")
+    stmtSet.addInsertSql("insert into sink select * from source on conflict do deduplicate")
     // source and sink has same parallelism, but sink shuffle by pk is enforced
     util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
   }
@@ -635,7 +638,7 @@ class TableSinkTest extends TableTestBase {
                       | 'sink.parallelism' = '1'
                       |)""".stripMargin)
     val stmtSet = tEnv.asInstanceOf[TestingTableEnvironment].createStatementSet
-    stmtSet.addInsertSql("insert into sink select * from source")
+    stmtSet.addInsertSql("insert into sink select * from source on conflict do deduplicate")
     // source and sink has same parallelism, but sink shuffle by pk is enforced
     util.verifyExplain(stmtSet, ExplainDetail.JSON_EXECUTION_PLAN)
   }
@@ -925,6 +928,25 @@ class TableSinkTest extends TableTestBase {
 
     assertEquals(TableTestUtil.replaceStageId(expected), TableTestUtil.replaceStageId(actual))
   }
+
+  @Test
+  def testInsertOnConflictDoDeduplicate(): Unit = {
+    util.addTable(s"""
+                     |CREATE TABLE conflictSink3 (
+                     |  `a` INT,
+                     |  `b` BIGINT,
+                     |  PRIMARY KEY (a) NOT ENFORCED
+                     |) WITH (
+                     |  'connector' = 'values',
+                     |  'sink-insert-only' = 'false'
+                     |)
+                     |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      "INSERT INTO conflictSink3 SELECT a, b FROM MyTable ON CONFLICT DO DEDUPLICATE")
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+  }
+
 }
 
 /** tests table factory use ParallelSourceFunction which support parallelism by env */

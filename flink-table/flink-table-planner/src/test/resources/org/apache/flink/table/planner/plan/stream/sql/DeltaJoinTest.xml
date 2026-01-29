@@ -42,7 +42,7 @@ Sink(table=[default_catalog.default_database.append_snk], fields=[a0, a1, a2, a3
   </TestCase>
   <TestCase name="testComputeIndexKeyOnJoinCondition">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = TRIM(src2.b2)]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = TRIM(src2.b2) on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -70,7 +70,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testConstantConditionInIndex">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = 1.1 and src1.a2 = src2.b2]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = 1.1 and src1.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -96,7 +96,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testDeltaJoinStrategyWithForce">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -156,7 +156,7 @@ Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, 
   </TestCase>
   <TestCase name="testDeltaJoinStrategyWithForce4">
     <Resource name="sql">
-      <![CDATA[insert into tmp_snk select a0, a1 from src1]]>
+      <![CDATA[insert into tmp_snk select a0, a1 from src1 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -174,7 +174,7 @@ Sink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1])
   </TestCase>
   <TestCase name="testDeltaJoinStrategyWithNone">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -227,7 +227,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testFilterFieldsAfterJoin">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 where a3 > b0]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 where a3 > b0 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -252,7 +252,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testFilterFieldsBeforeJoin">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from (    select * from src1 where a1 > 1.1 ) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2]]>
+      <![CDATA[insert into snk select * from (    select * from src1 where a1 > 1.1 ) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -289,6 +289,7 @@ insert into snk(l0, l1, r0, r2, r1)
   on a1 = b1
   and a2 = b2
   and b0 <> 0
+  on conflict do deduplicate
 ]]>
     </Resource>
     <Resource name="ast">
@@ -505,7 +506,7 @@ Sink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1, a2, a3, b
   </TestCase>
   <TestCase name="testJoinKeysContainIndexOnBothSide">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -529,7 +530,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testJoinKeysContainIndexOnBothSide2">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src1.a3 = src2.b0]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src1.a3 = src2.b0 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -553,7 +554,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testJoinKeysNotContainIndexOnOneSide">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a2 = src2.b2]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -818,6 +819,7 @@ insert into snk(l0, l1, r0, r2, r1)
   ) join src2
   on a1 = b1
   and a2 = b2
+  on conflict do deduplicate
 ]]>
     </Resource>
     <Resource name="ast">
@@ -854,6 +856,7 @@ insert into snk
   )
   on a1 = b1
   and a2 = b2
+  on conflict do deduplicate
 ]]>
     </Resource>
     <Resource name="ast">
@@ -888,6 +891,7 @@ insert into snk(l0, l1, r0, r2, r1)
   ) join src2
   on a1 = b1
   and a2 = b2
+  on conflict do deduplicate
 ]]>
     </Resource>
     <Resource name="ast">
@@ -1027,6 +1031,7 @@ insert into snk(l0, r0, r2)
   ) join src2
   on a1 = b1
   and a2 = b2
+  on conflict do deduplicate
 ]]>
     </Resource>
     <Resource name="ast">
@@ -1054,7 +1059,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], 
   </TestCase>
   <TestCase name="testProjectFieldsAfterJoin">
     <Resource name="sql">
-      <![CDATA[insert into snk select a0, a1 + 1.1, a2, a3, b0, b2, b1 from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2]]>
+      <![CDATA[insert into snk select a0, a1 + 1.1, a2, a3, b0, b2, b1 from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1079,7 +1084,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, a2, a3, b
   </TestCase>
   <TestCase name="testProjectFieldsBeforeJoin">
     <Resource name="sql">
-      <![CDATA[insert into snk(l0, l1, l2, r0, r2, r1) select * from (   select a0, a1, a2 from src1) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2]]>
+      <![CDATA[insert into snk(l0, l1, l2, r0, r2, r1) select * from (   select a0, a1, a2 from src1) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1105,7 +1110,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4
   </TestCase>
   <TestCase name="testProjectFieldsBeforeJoinWhileAliasAndReorderOnIndex">
     <Resource name="sql">
-      <![CDATA[insert into snk(l1, l2, l0, r0, r2, r1) select * from (   select a1 as a0, a2 as a1, a0 as a2 from src1) tmp join src2 on tmp.a0 = src2.b1 and tmp.a1 = src2.b2]]>
+      <![CDATA[insert into snk(l1, l2, l0, r0, r2, r1) select * from (   select a1 as a0, a2 as a1, a0 as a2 from src1) tmp join src2 on tmp.a0 = src2.b1 and tmp.a1 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1131,7 +1136,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[1],[2],[0],[4
   </TestCase>
   <TestCase name="testProjectFieldsBeforeJoinWhileModifyingOnIndex">
     <Resource name="sql">
-      <![CDATA[insert into snk(l0, l1, l2, r0, r2, r1) select * from (   select a0, a1, SUBSTRING(a2, 2) as a2 from src1) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2]]>
+      <![CDATA[insert into snk(l0, l1, l2, r0, r2, r1) select * from (   select a0, a1, SUBSTRING(a2, 2) as a2 from src1) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1158,7 +1163,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4
   </TestCase>
   <TestCase name="testProjectFieldsBeforeJoinWhileModifyingOnOneIndexButRetainingAnother">
     <Resource name="sql">
-      <![CDATA[insert into snk(l0, l1, l2, r0, r2, r1) select * from (   select a0, a1, SUBSTRING(a2, 2) as a2 from src1WithMultiIndexes) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2]]>
+      <![CDATA[insert into snk(l0, l1, l2, r0, r2, r1) select * from (   select a0, a1, SUBSTRING(a2, 2) as a2 from src1WithMultiIndexes) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1192,6 +1197,7 @@ insert into snk(l0, r0, r2)
   ) join src2
   on a1 = b1
   and a2 = b2
+  on conflict do deduplicate
 ]]>
     </Resource>
     <Resource name="ast">
@@ -1244,7 +1250,7 @@ Sink(table=[default_catalog.default_database.retract_snk], fields=[a0, a1, a2, a
   </TestCase>
   <TestCase name="testSourceDDLContainsComputingCol">
     <Resource name="sql">
-      <![CDATA[insert into snk(l0, l1, r0) select a0, new_a1, b0 from src1WithComputingCol join src2 on a1 = b1 and a2 = b2]]>
+      <![CDATA[insert into snk(l0, l1, r0) select a0, new_a1, b0 from src1WithComputingCol join src2 on a1 = b1 and a2 = b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1271,7 +1277,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], 
   </TestCase>
   <TestCase name="testSourceDDLContainsNonDeterministicComputingCol">
     <Resource name="sql">
-      <![CDATA[insert into snk(l0, l1, r0) select a0, new_a1, b0 from src1WithComputingCol join src2 on a1 = b1 and a2 = b2]]>
+      <![CDATA[insert into snk(l0, l1, r0) select a0, new_a1, b0 from src1WithComputingCol join src2 on a1 = b1 and a2 = b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1322,7 +1328,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testSourceWithoutIndexes">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join non_index_src on src1.a1 = non_index_src.b1 and src1.a2 = non_index_src.b2]]>
+      <![CDATA[insert into snk select * from src1 join non_index_src on src1.a1 = non_index_src.b1 and src1.a2 = non_index_src.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1405,7 +1411,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testWithAlwaysTrueJoinCondition">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on 1 = 1]]>
+      <![CDATA[insert into snk select * from src1 join src2 on 1 = 1 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1429,7 +1435,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testWithCascadeJoin">
     <Resource name="sql">
-      <![CDATA[insert into tmp_snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 join src3 on src1.a1 = src3.b1 and src1.a2 = src3.b2]]>
+      <![CDATA[insert into tmp_snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 join src3 on src1.a1 = src3.b1 and src1.a2 = src3.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1459,7 +1465,7 @@ Sink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1, a2, a3, b
   </TestCase>
   <TestCase name="testWithNonDeterministicInNonEquiCondition">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src1.a0 + rand(10) < src2.b0]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src1.a0 + rand(10) < src2.b0 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1483,7 +1489,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testWithNonEquiCondition1">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src2.b0 > src1.a0]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src2.b0 > src1.a0 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1507,7 +1513,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testWithNonEquiCondition2">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src2.b0 > src1.a0 and src2.b2 <> 'Hello' and src1.a0 > 99]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src2.b0 > src1.a0 and src2.b2 <> 'Hello' and src1.a0 > 99 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1584,7 +1590,7 @@ Sink(table=[default_catalog.default_database.tmp_sink], fields=[a0, a1, a2, b0, 
   </TestCase>
   <TestCase name="testWithoutLookupTable">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join non_lookup_src on src1.a1 = non_lookup_src.b1 and src1.a2 = non_lookup_src.b2]]>
+      <![CDATA[insert into snk select * from src1 join non_lookup_src on src1.a1 = non_lookup_src.b1 and src1.a2 = non_lookup_src.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[

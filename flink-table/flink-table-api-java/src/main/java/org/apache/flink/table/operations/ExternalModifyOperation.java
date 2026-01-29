@@ -19,6 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -43,15 +44,27 @@ public final class ExternalModifyOperation implements ModifyOperation {
 
     private final DataType physicalDataType;
 
+    @Nullable private final InsertConflictStrategy conflictStrategy;
+
     public ExternalModifyOperation(
             ContextResolvedTable contextResolvedTable,
             QueryOperation child,
             @Nullable ChangelogMode changelogMode,
             DataType physicalDataType) {
+        this(contextResolvedTable, child, changelogMode, physicalDataType, null);
+    }
+
+    public ExternalModifyOperation(
+            ContextResolvedTable contextResolvedTable,
+            QueryOperation child,
+            @Nullable ChangelogMode changelogMode,
+            DataType physicalDataType,
+            @Nullable InsertConflictStrategy conflictStrategy) {
         this.contextResolvedTable = contextResolvedTable;
         this.child = child;
         this.changelogMode = changelogMode;
         this.physicalDataType = physicalDataType;
+        this.conflictStrategy = conflictStrategy;
     }
 
     public ContextResolvedTable getContextResolvedTable() {
@@ -71,6 +84,15 @@ public final class ExternalModifyOperation implements ModifyOperation {
         return Optional.ofNullable(changelogMode);
     }
 
+    /**
+     * Returns the conflict resolution strategy if specified via ON CONFLICT clause.
+     *
+     * @return the conflict strategy, or empty if not specified
+     */
+    public Optional<InsertConflictStrategy> getConflictStrategy() {
+        return Optional.ofNullable(conflictStrategy);
+    }
+
     @Override
     public <T> T accept(ModifyOperationVisitor<T> visitor) {
         return visitor.visit(this);
@@ -82,6 +104,9 @@ public final class ExternalModifyOperation implements ModifyOperation {
         args.put("identifier", getContextResolvedTable().getIdentifier().asSummaryString());
         args.put("changelogMode", changelogMode);
         args.put("type", physicalDataType);
+        if (conflictStrategy != null) {
+            args.put("conflictStrategy", conflictStrategy);
+        }
 
         return OperationUtils.formatWithChildren(
                 "DataStreamOutput",

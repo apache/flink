@@ -30,6 +30,14 @@ public class SinkSemanticTests extends SemanticTestBase {
     public List<TableTestProgram> programs() {
         return List.of(
                 SinkTestPrograms.INSERT_RETRACT_WITHOUT_PK,
-                SinkTestPrograms.INSERT_RETRACT_WITH_PK);
+                SinkTestPrograms.INSERT_RETRACT_WITH_PK,
+                SinkTestPrograms.ON_CONFLICT_DO_NOTHING_NOT_SUPPORTED,
+                SinkTestPrograms.ON_CONFLICT_DO_ERROR_NOT_SUPPORTED,
+                SinkTestPrograms.UPSERT_KEY_DIFFERS_FROM_PK_WITHOUT_ON_CONFLICT,
+                SinkTestPrograms.UPSERT_KEY_DIFFERS_FROM_PK_WITH_ON_CONFLICT,
+                SinkTestPrograms.UPSERT_KEY_MATCHES_PK_WITHOUT_ON_CONFLICT,
+                SinkTestPrograms.APPEND_ONLY_WITH_PK_WITHOUT_ON_CONFLICT,
+                SinkTestPrograms.APPEND_ONLY_WITH_PK_WITH_ON_CONFLICT,
+                SinkTestPrograms.UPSERT_KEY_DIFFERS_FROM_PK_WITHOUT_ON_CONFLICT_DISABLED);
     }
 }

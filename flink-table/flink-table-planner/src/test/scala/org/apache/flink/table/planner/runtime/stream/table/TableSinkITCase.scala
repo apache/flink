@@ -293,7 +293,7 @@ class TableSinkITCase extends StreamingTestBase {
       .select('len, 'id.count.as('count), 'cTrue)
       .groupBy('count, 'cTrue)
       .select('count, 'len.count.as('lencnt), 'cTrue)
-    table.executeInsert("upsertSink").await()
+    table.executeInsert("upsertSink", InsertConflictStrategy.deduplicate()).await()
 
     val rawResult = TestValuesTableFactory.getRawResultsAsStrings("upsertSink")
     assertThat(rawResult.exists(_.startsWith("-D("))).isTrue
@@ -338,7 +338,7 @@ class TableSinkITCase extends StreamingTestBase {
       .groupBy('w, 'num)
       // test query field name is different with registered sink field name
       .select('num, 'w.end.as('window_end), 'id.count.as('icnt))
-    table.executeInsert("upsertSink").await()
+    table.executeInsert("upsertSink", InsertConflictStrategy.deduplicate()).await()
 
     val rawResult = TestValuesTableFactory.getRawResultsAsStrings("upsertSink")
     assertThat(rawResult.exists(_.startsWith("-"))).isFalse // maybe -D or -U
@@ -392,7 +392,7 @@ class TableSinkITCase extends StreamingTestBase {
       .window(Tumble.over(5.millis).on('rowtime).as('w))
       .groupBy('w, 'num)
       .select('w.end.as('wend), 'id.count.as('cnt))
-    table.executeInsert("upsertSink").await()
+    table.executeInsert("upsertSink", InsertConflictStrategy.deduplicate()).await()
 
     val rawResult = TestValuesTableFactory.getRawResultsAsStrings("upsertSink")
     assertThat(rawResult.exists(_.startsWith("-"))).isFalse // maybe -D or -U
@@ -445,7 +445,7 @@ class TableSinkITCase extends StreamingTestBase {
       .window(Tumble.over(5.millis).on('rowtime).as('w))
       .groupBy('w, 'num)
       .select('num, 'id.count.as('cnt))
-    table.executeInsert("upsertSink").await()
+    table.executeInsert("upsertSink", InsertConflictStrategy.deduplicate()).await()
 
     val rawResult = TestValuesTableFactory.getRawResultsAsStrings("upsertSink")
     assertThat(rawResult.exists(_.startsWith("-"))).isFalse // maybe -D or -U
@@ -505,7 +505,7 @@ class TableSinkITCase extends StreamingTestBase {
       .groupBy('num)
       .select('num, 'id.count.as('cnt))
       .where('cnt <= 3)
-    table.executeInsert("upsertSink").await()
+    table.executeInsert("upsertSink", InsertConflictStrategy.deduplicate()).await()
 
     val result = TestValuesTableFactory.getResultsAsStrings("upsertSink")
     val expected = List("1,1", "2,2", "3,3")
@@ -863,7 +863,8 @@ class TableSinkITCase extends StreamingTestBase {
                        |""".stripMargin)
 
     tEnv
-      .executeSql(s"INSERT INTO $sinkTableWithPkName SELECT * FROM $sourceTableName")
+      .executeSql(
+        s"INSERT INTO $sinkTableWithPkName SELECT * FROM $sourceTableName ON CONFLICT DO DEDUPLICATE")
       .await()
   }
 

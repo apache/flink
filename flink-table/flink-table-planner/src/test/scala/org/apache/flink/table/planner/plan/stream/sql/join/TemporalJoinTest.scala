@@ -585,6 +585,7 @@ class TemporalJoinTest extends TableTestBase {
         |  FROM orders_rowtime AS o JOIN versioned_currency_with_multi_key
         |    FOR SYSTEM_TIME AS OF o.order_time as r
         |      ON o.currency_no = r.currency_no AND o.currency = r.currency
+        |ON CONFLICT DO DEDUPLICATE
         |""".stripMargin
     util.verifyExplainInsert(sql, ExplainDetail.CHANGELOG_MODE)
   }

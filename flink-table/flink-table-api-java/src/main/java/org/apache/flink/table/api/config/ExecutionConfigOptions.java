@@ -257,6 +257,26 @@ public class ExecutionConfigOptions {
                                     + "allows disabling the timestamp insertion and avoids errors around "
                                     + "multiple time attributes being present in the query schema.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT =
+            key("table.exec.sink.require-on-conflict")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "When enabled, an error is thrown if the query's upsert key differs "
+                                                    + "from the sink table's primary key and no ON CONFLICT clause is specified. "
+                                                    + "This can lead to non-deterministic results when multiple records with different "
+                                                    + "upsert keys map to the same primary key.")
+                                    .linebreak()
+                                    .linebreak()
+                                    .text(
+                                            "Set this to false to restore the old behavior where no ON CONFLICT clause "
+                                                    + "was required. Note that disabling this check may lead to non-deterministic "
+                                                    + "results in certain streaming scenarios.")
+                                    .build());
+
     // ------------------------------------------------------------------------
     //  Sort Options
     // ------------------------------------------------------------------------
