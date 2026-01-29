@@ -109,11 +109,13 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
     }
 
     public CatalogMaterializedTable getMaterializedTableWithAppliedChanges() {
-        if (oldTable == null) {
+        // The only case when materializedTableWithAppliedChanges is not null from the beginning
+        // is copyAsTableChangeOperation where it copies already evaluated materialized table
+        if (oldTable == null || materializedTableWithAppliedChanges != null) {
             return materializedTableWithAppliedChanges;
         }
 
-        MTContext mtContext = new MTContext(oldTable);
+        ChangeContext mtContext = new ChangeContext(oldTable);
         mtContext.applyTableChanges(tableChanges);
 
         materializedTableWithAppliedChanges =
@@ -176,7 +178,7 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
         }
     }
 
-    private static class MTContext {
+    private static class ChangeContext {
         private boolean isQueryChange;
         private @Nullable TableDistribution distribution;
         private RefreshStatus refreshStatus;
@@ -191,7 +193,7 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
         private String expandedQuery;
         private CatalogMaterializedTable oldTable;
 
-        public MTContext(CatalogMaterializedTable oldTable) {
+        public ChangeContext(CatalogMaterializedTable oldTable) {
             this.distribution = oldTable.getDistribution().orElse(null);
             this.refreshStatus = oldTable.getRefreshStatus();
             this.refreshHandlerDesc = oldTable.getRefreshHandlerDescription().orElse(null);
