@@ -186,6 +186,8 @@ under the License.
 										<!-- Only parts of NOTICE file actually apply to the netty JAR and have been manually
 											 copied into this modules's NOTICE file. -->
 										<exclude>META-INF/NOTICE.txt</exclude>
+										<!-- Only .class files from flink-shaded-netty should be loaded, so don't package any to flink-rpc-akka jar. -->
+										<exclude>**/*.class</exclude>
 									</excludes>
 								</filter>
 								<filter>
