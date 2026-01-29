@@ -72,8 +72,9 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
         final int parallelism = 3;
         final JobVertex jobVertex = createNoOpVertex(parallelism);
         final ExecutionGraph executionGraph = createExecutionGraph(jobVertex);
-
-        final ExecutionTimeBasedSlowTaskDetector slowTaskDetector = createSlowTaskDetector(0, 1, 0);
+        // set lower bounds to 10ms. 0 can introduce intermittent unit test failures.
+        final ExecutionTimeBasedSlowTaskDetector slowTaskDetector =
+                createSlowTaskDetector(0, 1, 10);
 
         final Map<ExecutionVertexID, Collection<ExecutionAttemptID>> slowTasks =
                 slowTaskDetector.findSlowTasks(executionGraph);
@@ -248,8 +249,10 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
                 DistributionPattern.ALL_TO_ALL,
                 ResultPartitionType.PIPELINED);
         final ExecutionGraph executionGraph = createExecutionGraph(jobVertex1, jobVertex2);
+        // with lower bounds 0, the test intermittently fails, as the expected 2 tasks had sometimes
+        // not yet started.
         final ExecutionTimeBasedSlowTaskDetector slowTaskDetector =
-                createSlowTaskDetector(0.3, 1, 0);
+                createSlowTaskDetector(0.3, 1, 10);
 
         final ExecutionVertex ev21 =
                 executionGraph.getJobVertex(jobVertex2.getID()).getTaskVertices()[0];
