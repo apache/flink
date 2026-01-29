@@ -1439,6 +1439,18 @@ class Expression(Generic[T]):
         """
         return _unary_op("urlDecode")(self)
 
+    def url_decode(self, recursive: bool) -> 'Expression[str]':
+        """
+        Decodes a given string in 'application/x-www-form-urlencoded' format using the UTF-8
+        encoding scheme with optional recursive decoding. If the input is null, or there is an
+        issue with the decoding process (such as encountering an illegal escape pattern), or the
+        encoding scheme is not supported, the function returns null.
+
+        :param recursive: If True, performs recursive decoding until no further decoding is
+                         possible; if False, performs only a single decode operation.
+        """
+        return _binary_op("urlDecode")(self, recursive)
+
     def url_encode(self) -> 'Expression[str]':
         """
         Translates a string into 'application/x-www-form-urlencoded' format using the UTF-8
