@@ -135,4 +135,52 @@ class JobResultTest {
                                                 .build()))
                 .isInstanceOf(NullPointerException.class);
     }
+
+    @Test
+    void testSuspendedJobIsFailureResult() {
+        final JobResult jobResult =
+                JobResult.createFrom(
+                        new ArchivedExecutionGraphBuilder()
+                                .setJobID(new JobID())
+                                .setState(JobStatus.SUSPENDED)
+                                .build());
+
+        assertThat(jobResult.isSuccess()).isFalse();
+        assertThat(jobResult.getJobStatus()).hasValue(JobStatus.SUSPENDED);
+    }
+
+    @Test
+    void testSuspendedJobThrowsJobExecutionExceptionWithDetailedMessage() {
+        final FlinkException cause = new FlinkException("Leadership lost");
+        final JobResult jobResult =
+                JobResult.createFrom(
+                        new ArchivedExecutionGraphBuilder()
+                                .setJobID(new JobID())
+                                .setState(JobStatus.SUSPENDED)
+                                .setFailureCause(new ErrorInfo(cause, 42L))
+                                .build());
+
+        assertThatThrownBy(() -> jobResult.toJobExecutionResult(getClass().getClassLoader()))
+                .isInstanceOf(JobExecutionException.class)
+                .hasMessageContaining("SUSPENDED")
+                .hasMessageContaining("JobManager lost leadership")
+                .cause()
+                .isEqualTo(cause);
+    }
+
+    @Test
+    void testSuspendedJobWithoutCauseThrowsJobExecutionException() {
+        final JobResult jobResult =
+                JobResult.createFrom(
+                        new ArchivedExecutionGraphBuilder()
+                                .setJobID(new JobID())
+                                .setState(JobStatus.SUSPENDED)
+                                .build());
+
+        assertThatThrownBy(() -> jobResult.toJobExecutionResult(getClass().getClassLoader()))
+                .isInstanceOf(JobExecutionException.class)
+                .hasMessageContaining("SUSPENDED")
+                .hasMessageContaining("JobManager lost leadership")
+                .hasNoCause();
+    }
 }

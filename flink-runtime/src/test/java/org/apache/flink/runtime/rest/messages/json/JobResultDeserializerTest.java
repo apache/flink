@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.rest.messages.json;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.util.jackson.JacksonMapperFactory;
 
@@ -90,5 +91,59 @@ class JobResultDeserializerTest {
                                         JobResult.class))
                 .isInstanceOf(JsonMappingException.class)
                 .hasMessageContaining("Could not deserialize JobResult");
+    }
+
+    @Test
+    void testDeserializationWithJobStatus() throws Exception {
+        final JobResult jobResult =
+                objectMapper.readValue(
+                        "{\n"
+                                + "\t\"id\": \"1bb5e8c7df49938733b7c6a73678de6a\",\n"
+                                + "\t\"application-status\": \"UNKNOWN\",\n"
+                                + "\t\"job-status\": \"SUSPENDED\",\n"
+                                + "\t\"accumulator-results\": {},\n"
+                                + "\t\"net-runtime\": 0\n"
+                                + "}",
+                        JobResult.class);
+
+        assertThat(jobResult.getJobId())
+                .isEqualTo(JobID.fromHexString("1bb5e8c7df49938733b7c6a73678de6a"));
+        assertThat(jobResult.getJobStatus()).hasValue(JobStatus.SUSPENDED);
+    }
+
+    @Test
+    void testDeserializationWithOnlyApplicationStatus() throws Exception {
+        // Test backward compatibility: deserialize without job-status field
+        final JobResult jobResult =
+                objectMapper.readValue(
+                        "{\n"
+                                + "\t\"id\": \"1bb5e8c7df49938733b7c6a73678de6a\",\n"
+                                + "\t\"application-status\": \"SUCCEEDED\",\n"
+                                + "\t\"accumulator-results\": {},\n"
+                                + "\t\"net-runtime\": 0\n"
+                                + "}",
+                        JobResult.class);
+
+        assertThat(jobResult.getJobId())
+                .isEqualTo(JobID.fromHexString("1bb5e8c7df49938733b7c6a73678de6a"));
+        assertThat(jobResult.getJobStatus()).hasValue(JobStatus.FINISHED);
+    }
+
+    @Test
+    void testDeserializationWithUnknownApplicationStatus() throws Exception {
+        // Test backward compatibility: UNKNOWN application-status without job-status
+        final JobResult jobResult =
+                objectMapper.readValue(
+                        "{\n"
+                                + "\t\"id\": \"1bb5e8c7df49938733b7c6a73678de6a\",\n"
+                                + "\t\"application-status\": \"UNKNOWN\",\n"
+                                + "\t\"accumulator-results\": {},\n"
+                                + "\t\"net-runtime\": 0\n"
+                                + "}",
+                        JobResult.class);
+
+        assertThat(jobResult.getJobId())
+                .isEqualTo(JobID.fromHexString("1bb5e8c7df49938733b7c6a73678de6a"));
+        assertThat(jobResult.getJobStatus()).isEmpty();
     }
 }

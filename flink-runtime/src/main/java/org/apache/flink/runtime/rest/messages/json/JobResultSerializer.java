@@ -47,6 +47,8 @@ public class JobResultSerializer extends StdSerializer<JobResult> {
 
     static final String FIELD_NAME_APPLICATION_STATUS = "application-status";
 
+    static final String FIELD_NAME_JOB_STATUS = "job-status";
+
     static final String FIELD_NAME_NET_RUNTIME = "net-runtime";
 
     static final String FIELD_NAME_ACCUMULATOR_RESULTS = "accumulator-results";
@@ -82,6 +84,12 @@ public class JobResultSerializer extends StdSerializer<JobResult> {
         // use application status to maintain backward compatibility
         gen.writeFieldName(FIELD_NAME_APPLICATION_STATUS);
         gen.writeString(ApplicationStatus.fromJobStatus(result.getJobStatus().orElse(null)).name());
+
+        // also include the actual job status for precise state information (e.g., SUSPENDED)
+        if (result.getJobStatus().isPresent()) {
+            gen.writeFieldName(FIELD_NAME_JOB_STATUS);
+            gen.writeString(result.getJobStatus().get().name());
+        }
 
         gen.writeFieldName(FIELD_NAME_ACCUMULATOR_RESULTS);
         gen.writeStartObject();

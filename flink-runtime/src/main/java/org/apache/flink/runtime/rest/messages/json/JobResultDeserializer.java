@@ -71,7 +71,8 @@ public class JobResultDeserializer extends StdDeserializer<JobResult> {
     public JobResult deserialize(final JsonParser p, final DeserializationContext ctxt)
             throws IOException {
         JobID jobId = null;
-        JobStatus jobStatus = null;
+        JobStatus jobStatusFromApplicationStatus = null;
+        JobStatus jobStatusDirect = null;
         long netRuntime = -1;
         SerializedThrowable serializedThrowable = null;
         Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults = null;
@@ -92,12 +93,16 @@ public class JobResultDeserializer extends StdDeserializer<JobResult> {
                 case JobResultSerializer.FIELD_NAME_APPLICATION_STATUS:
                     assertNextToken(p, JsonToken.VALUE_STRING);
                     try {
-                        jobStatus =
+                        jobStatusFromApplicationStatus =
                                 ApplicationStatus.valueOf(p.getValueAsString().toUpperCase())
                                         .deriveJobStatus();
                     } catch (UnsupportedOperationException e) {
                         // jobStatus = null to indicate that the job status is unknown
                     }
+                    break;
+                case JobResultSerializer.FIELD_NAME_JOB_STATUS:
+                    assertNextToken(p, JsonToken.VALUE_STRING);
+                    jobStatusDirect = JobStatus.valueOf(p.getValueAsString().toUpperCase());
                     break;
                 case JobResultSerializer.FIELD_NAME_NET_RUNTIME:
                     assertNextToken(p, JsonToken.VALUE_NUMBER_INT);
@@ -115,6 +120,11 @@ public class JobResultDeserializer extends StdDeserializer<JobResult> {
                     // ignore unknown fields
             }
         }
+
+        // Prefer direct job-status field if present; fall back to application-status for
+        // backward compatibility
+        final JobStatus jobStatus =
+                jobStatusDirect != null ? jobStatusDirect : jobStatusFromApplicationStatus;
 
         try {
             return new JobResult.Builder()
