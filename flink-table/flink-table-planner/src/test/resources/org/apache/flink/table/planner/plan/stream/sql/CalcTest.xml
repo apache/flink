@@ -681,6 +681,44 @@ Calc(select=[a AS EXPR$0])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testReusedFunctionInProject">
+    <Resource name="sql">
+      <![CDATA[SELECT LTRIM(q), RTRIM(q) FROM (SELECT TRIM(c) as q FROM MyTable) t]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[LTRIM($0)], EXPR$1=[RTRIM($0)])
++- LogicalProject(q=[TRIM(FLAG(BOTH), _UTF-16LE' ', $2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[LTRIM(q) AS EXPR$0, RTRIM(q) AS EXPR$1])
++- Calc(select=[TRIM(BOTH, ' ', c) AS q])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testReusedFunctionInProjectWithDeterministicUdf">
+    <Resource name="sql">
+      <![CDATA[SELECT JSON_VALUE(json_data, '$.id'), JSON_VALUE(json_data, '$.name') FROM (SELECT deterministic_udf(c) as json_data FROM MyTable) t]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[JSON_VALUE($0, _UTF-16LE'$.id')], EXPR$1=[JSON_VALUE($0, _UTF-16LE'$.name')])
++- LogicalProject(json_data=[deterministic_udf($2)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[JSON_VALUE(json_data, '$.id') AS EXPR$0, JSON_VALUE(json_data, '$.name') AS EXPR$1])
++- Calc(select=[deterministic_udf(c) AS json_data])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRowType">
     <Resource name="sql">
       <![CDATA[SELECT ROW(1, 'Hi', a) FROM MyTable]]>

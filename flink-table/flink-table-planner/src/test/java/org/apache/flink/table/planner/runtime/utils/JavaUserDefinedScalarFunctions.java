@@ -143,6 +143,26 @@ public class JavaUserDefinedScalarFunctions {
         }
     }
 
+    /** Deterministic scalar function. */
+    public static class DeterministicUdf extends ScalarFunction {
+        public int eval() {
+            return 0;
+        }
+
+        public int eval(@DataTypeHint("INT") int v) {
+            return v;
+        }
+
+        public String eval(String v) {
+            return v;
+        }
+
+        @Override
+        public boolean isDeterministic() {
+            return true;
+        }
+    }
+
     /** Test for Python Scalar Function. */
     public static class PythonScalarFunction extends ScalarFunction implements PythonFunction {
         private final String name;
