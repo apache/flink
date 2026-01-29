@@ -251,6 +251,12 @@ $ ./sql-gateway -Dkey=value
             <td>Keepalive time for an idle worker thread. When the number of workers exceeds min workers, excessive threads are killed after this time interval.</td>
         </tr>
         <tr>
+            <td><h5>sql-gateway.read-only</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>When enabled, the SQL Gateway operates in read-only mode and will reject all modify operations.</td>
+        </tr>
+        <tr>
             <td><h5>sql-gateway.worker.threads.max</h5></td>
             <td style="word-wrap: break-word;">500</td>
             <td>Integer</td>
