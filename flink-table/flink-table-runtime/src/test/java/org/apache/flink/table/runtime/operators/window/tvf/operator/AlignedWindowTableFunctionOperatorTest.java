@@ -340,7 +340,7 @@ class AlignedWindowTableFunctionOperatorTest extends WindowTableFunctionOperator
             GroupWindowAssigner<TimeWindow> windowAssigner, ZoneId shiftTimeZone) throws Exception {
         AlignedWindowTableFunctionOperator operator =
                 new AlignedWindowTableFunctionOperator(
-                        windowAssigner, ROW_TIME_INDEX, shiftTimeZone);
+                        windowAssigner, ROW_TIME_INDEX, DEFAULT_TIMESTAMP_PRECISION, shiftTimeZone);
         return new OneInputStreamOperatorTestHarness<>(operator, INPUT_ROW_SER);
     }
 }

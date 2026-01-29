@@ -67,6 +67,8 @@ abstract class WindowTableFunctionOperatorTestBase {
     protected static final RowDataSerializer INPUT_ROW_SER = new RowDataSerializer(INPUT_ROW_TYPE);
     protected static final int ROW_TIME_INDEX = 2;
 
+    protected static final int DEFAULT_TIMESTAMP_PRECISION = 3;
+
     protected static final LogicalType[] OUTPUT_TYPES =
             new LogicalType[] {
                 new VarCharType(Integer.MAX_VALUE),
