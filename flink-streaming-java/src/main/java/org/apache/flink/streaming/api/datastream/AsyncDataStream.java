@@ -20,13 +20,17 @@ package org.apache.flink.streaming.api.datastream;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
+import org.apache.flink.streaming.api.functions.async.AsyncBatchFunction;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.AsyncRetryStrategy;
+import org.apache.flink.streaming.api.operators.async.AsyncBatchWaitOperatorFactory;
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperator;
 import org.apache.flink.streaming.api.operators.async.AsyncWaitOperatorFactory;
+import org.apache.flink.streaming.api.operators.async.OrderedAsyncBatchWaitOperatorFactory;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.Utils;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.streaming.util.retryable.AsyncRetryStrategies.NO_RETRY_STRATEGY;
@@ -319,4 +323,159 @@ public class AsyncDataStream {
                 OutputMode.ORDERED,
                 asyncRetryStrategy);
     }
+
+    // ================================================================================
+    //  Batch Async Operations
+    // ================================================================================
+
+    /**
+     * Adds an AsyncBatchWaitOperator to process elements in batches. The order of output stream
+     * records may be reordered (unordered mode).
+     *
+     * <p>This method is particularly useful for high-latency inference workloads where batching can
+     * significantly improve throughput, such as machine learning model inference.
+     *
+     * <p>The operator buffers incoming elements and triggers the async batch function when the
+     * buffer reaches {@code maxBatchSize}. Remaining elements are flushed when the input ends.
+     *
+     * @param in Input {@link DataStream}
+     * @param func {@link AsyncBatchFunction} to process batches of elements
+     * @param maxBatchSize Maximum number of elements to batch before triggering async invocation
+     * @param <IN> Type of input record
+     * @param <OUT> Type of output record
+     * @return A new {@link SingleOutputStreamOperator}
+     */
+    public static <IN, OUT> SingleOutputStreamOperator<OUT> unorderedWaitBatch(
+            DataStream<IN> in, AsyncBatchFunction<IN, OUT> func, int maxBatchSize) {
+        return unorderedWaitBatch(in, func, maxBatchSize, 0L);
+    }
+
+    /**
+     * Adds an AsyncBatchWaitOperator to process elements in batches with timeout support. The order
+     * of output stream records may be reordered (unordered mode).
+     *
+     * <p>This method is particularly useful for high-latency inference workloads where batching can
+     * significantly improve throughput, such as machine learning model inference.
+     *
+     * <p>The operator buffers incoming elements and triggers the async batch function when either:
+     *
+     * <ul>
+     *   <li>The buffer reaches {@code maxBatchSize}
+     *   <li>The {@code batchTimeoutMs} has elapsed since the first buffered element (if timeout is
+     *       enabled)
+     * </ul>
+     *
+     * <p>Remaining elements are flushed when the input ends.
+     *
+     * @param in Input {@link DataStream}
+     * @param func {@link AsyncBatchFunction} to process batches of elements
+     * @param maxBatchSize Maximum number of elements to batch before triggering async invocation
+     * @param batchTimeoutMs Batch timeout in milliseconds; <= 0 means timeout is disabled
+     * @param <IN> Type of input record
+     * @param <OUT> Type of output record
+     * @return A new {@link SingleOutputStreamOperator}
+     */
+    public static <IN, OUT> SingleOutputStreamOperator<OUT> unorderedWaitBatch(
+            DataStream<IN> in,
+            AsyncBatchFunction<IN, OUT> func,
+            int maxBatchSize,
+            long batchTimeoutMs) {
+        Preconditions.checkArgument(maxBatchSize > 0, "maxBatchSize must be greater than 0");
+
+        TypeInformation<OUT> outTypeInfo =
+                TypeExtractor.getUnaryOperatorReturnType(
+                        func,
+                        AsyncBatchFunction.class,
+                        0,
+                        1,
+                        new int[] {1, 0},
+                        in.getType(),
+                        Utils.getCallLocationName(),
+                        true);
+
+        // create transform
+        AsyncBatchWaitOperatorFactory<IN, OUT> operatorFactory =
+                new AsyncBatchWaitOperatorFactory<>(
+                        in.getExecutionEnvironment().clean(func), maxBatchSize, batchTimeoutMs);
+
+        return in.transform("async batch wait operator", outTypeInfo, operatorFactory);
+    }
+
+    /**
+     * Adds an AsyncBatchWaitOperator to process elements in batches with ordered output. The order
+     * of output stream records is guaranteed to be the same as input order.
+     *
+     * <p>This method is particularly useful for high-latency inference workloads where batching can
+     * significantly improve throughput while maintaining ordering guarantees, such as machine
+     * learning model inference with order-sensitive downstream processing.
+     *
+     * <p>The operator buffers incoming elements and triggers the async batch function when either:
+     *
+     * <ul>
+     *   <li>The buffer reaches {@code maxBatchSize}
+     *   <li>The {@code maxWaitTime} has elapsed since the first buffered element
+     * </ul>
+     *
+     * <p>Results are buffered and emitted in the original input order, regardless of async
+     * completion order.
+     *
+     * @param in Input {@link DataStream}
+     * @param func {@link AsyncBatchFunction} to process batches of elements
+     * @param maxBatchSize Maximum number of elements to batch before triggering async invocation
+     * @param maxWaitTime Maximum duration to wait before flushing a partial batch; Duration.ZERO or
+     *     negative means timeout is disabled
+     * @param <IN> Type of input record
+     * @param <OUT> Type of output record
+     * @return A new {@link SingleOutputStreamOperator}
+     */
+    public static <IN, OUT> SingleOutputStreamOperator<OUT> orderedWaitBatch(
+            DataStream<IN> in,
+            AsyncBatchFunction<IN, OUT> func,
+            int maxBatchSize,
+            Duration maxWaitTime) {
+        Preconditions.checkArgument(maxBatchSize > 0, "maxBatchSize must be greater than 0");
+        Preconditions.checkNotNull(maxWaitTime, "maxWaitTime must not be null");
+
+        long batchTimeoutMs = maxWaitTime.toMillis();
+
+        TypeInformation<OUT> outTypeInfo =
+                TypeExtractor.getUnaryOperatorReturnType(
+                        func,
+                        AsyncBatchFunction.class,
+                        0,
+                        1,
+                        new int[] {1, 0},
+                        in.getType(),
+                        Utils.getCallLocationName(),
+                        true);
+
+        // create transform
+        OrderedAsyncBatchWaitOperatorFactory<IN, OUT> operatorFactory =
+                new OrderedAsyncBatchWaitOperatorFactory<>(
+                        in.getExecutionEnvironment().clean(func), maxBatchSize, batchTimeoutMs);
+
+        return in.transform("ordered async batch wait operator", outTypeInfo, operatorFactory);
+    }
+
+    /**
+     * Adds an AsyncBatchWaitOperator to process elements in batches with ordered output. The order
+     * of output stream records is guaranteed to be the same as input order.
+     *
+     * <p>This overload disables timeout-based batching. Batches are only flushed when the buffer
+     * reaches {@code maxBatchSize} or when the input ends.
+     *
+     * @param in Input {@link DataStream}
+     * @param func {@link AsyncBatchFunction} to process batches of elements
+     * @param maxBatchSize Maximum number of elements to batch before triggering async invocation
+     * @param <IN> Type of input record
+     * @param <OUT> Type of output record
+     * @return A new {@link SingleOutputStreamOperator}
+     */
+    public static <IN, OUT> SingleOutputStreamOperator<OUT> orderedWaitBatch(
+            DataStream<IN> in, AsyncBatchFunction<IN, OUT> func, int maxBatchSize) {
+        return orderedWaitBatch(in, func, maxBatchSize, Duration.ZERO);
+    }
+
+    // TODO: Add event-time based batching support in follow-up PR
+    // TODO: Add retry strategies for batch operations in follow-up PR
 }
