@@ -385,7 +385,12 @@ class SqlMaterializedTableNodeToOperationConverterTest
     @ParameterizedTest
     @MethodSource("testDataForCreateAlterMaterializedTableFailedCase")
     void createAlterMaterializedTableFailedCase(TestSpec spec) {
-        assertThatThrownBy(() -> parse(spec.sql))
+        assertThatThrownBy(
+                        () -> {
+                            AlterMaterializedTableChangeOperation operation =
+                                    (AlterMaterializedTableChangeOperation) parse(spec.sql);
+                            operation.getMaterializedTableWithAppliedChanges();
+                        })
                 .as(spec.sql)
                 .isInstanceOf(spec.expectedException)
                 .hasMessageContaining(spec.errMessage);
@@ -403,7 +408,8 @@ class SqlMaterializedTableNodeToOperationConverterTest
     void createAlterTableSuccessCase(TestSpec testSpec) {
         AlterMaterializedTableChangeOperation operation =
                 (AlterMaterializedTableChangeOperation) parse(testSpec.sql);
-        CatalogMaterializedTable catalogMaterializedTable = operation.getCatalogMaterializedTable();
+        CatalogMaterializedTable catalogMaterializedTable =
+                operation.getMaterializedTableWithAppliedChanges();
         assertThat(catalogMaterializedTable.getUnresolvedSchema())
                 .hasToString(testSpec.expectedSchema);
     }
@@ -518,6 +524,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         TableChange.add(Column.physical("e", DataTypes.VARCHAR(Integer.MAX_VALUE))),
                         TableChange.add(Column.physical("f", DataTypes.VARCHAR(Integer.MAX_VALUE))),
                         TableChange.modifyDefinitionQuery(
+                                "SELECT `a`, `b`, `c`, `d`, `d` AS `e`, CAST('123' AS STRING) AS `f`\nFROM `t3`",
                                 "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
                                         + "FROM `builtin`.`default`.`t3` AS `t3`"));
         assertThat(operation.asSummaryString())
@@ -530,7 +537,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 (CatalogMaterializedTable)
                         catalog.getTable(
                                 new ObjectPath(catalogManager.getCurrentDatabase(), "base_mtbl"));
-        CatalogMaterializedTable newTable = op.getCatalogMaterializedTable();
+        CatalogMaterializedTable newTable = op.getMaterializedTableWithAppliedChanges();
 
         assertThat(oldTable.getUnresolvedSchema()).isNotEqualTo(newTable.getUnresolvedSchema());
         assertThat(oldTable.getUnresolvedSchema().getPrimaryKey())
@@ -572,6 +579,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 .containsExactly(
                         TableChange.add(Column.physical("a0", DataTypes.INT())),
                         TableChange.modifyDefinitionQuery(
+                                "SELECT `a`, `b`, `c`, `d`, `c` AS `a`\nFROM `t3`",
                                 "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`c` AS `a`\n"
                                         + "FROM `builtin`.`default`.`t3` AS `t3`"));
     }
@@ -658,6 +666,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         TableChange.add(Column.physical("e", DataTypes.VARCHAR(Integer.MAX_VALUE))),
                         TableChange.add(Column.physical("f", DataTypes.VARCHAR(Integer.MAX_VALUE))),
                         TableChange.modifyDefinitionQuery(
+                                "SELECT `a`, `b`, `c`, `d`, `d` AS `e`, CAST('123' AS STRING) AS `f`\nFROM `t3`",
                                 "SELECT `t3`.`a`, `t3`.`b`, `t3`.`c`, `t3`.`d`, `t3`.`d` AS `e`, CAST('123' AS STRING) AS `f`\n"
                                         + "FROM `builtin`.`default`.`t3` AS `t3`"));
         assertThat(operation.asSummaryString())
@@ -670,7 +679,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                 (CatalogMaterializedTable)
                         catalog.getTable(
                                 new ObjectPath(catalogManager.getCurrentDatabase(), "base_mtbl"));
-        CatalogMaterializedTable newTable = op.getCatalogMaterializedTable();
+        CatalogMaterializedTable newTable = op.getMaterializedTableWithAppliedChanges();
 
         assertThat(oldTable.getUnresolvedSchema()).isNotEqualTo(newTable.getUnresolvedSchema());
         assertThat(oldTable.getUnresolvedSchema().getPrimaryKey())
@@ -1065,18 +1074,18 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         "(\n"
                                 + "  `a` BIGINT NOT NULL,\n"
                                 + "  `b` STRING,\n"
-                                + "  `q` AS [CURRENT_TIMESTAMP],\n"
+                                + "  `q` AS CURRENT_TIMESTAMP,\n"
                                 + "  `c` INT,\n"
                                 + "  `d` STRING,\n"
-                                + "  WATERMARK FOR `q` AS [`q` - INTERVAL '1' SECOND],\n"
+                                + "  WATERMARK FOR `q` AS `q` - INTERVAL '1' SECOND,\n"
                                 + "  CONSTRAINT `ct1` PRIMARY KEY (`a`) NOT ENFORCED\n"
                                 + ")"));
         list.add(
                 TestSpec.withExpectedSchema(
                         "ALTER MATERIALIZED TABLE base_mtbl ADD (`q` AS current_timestamp FIRST, `q2` AS current_time FIRST)",
                         "(\n"
-                                + "  `q2` AS [CURRENT_TIME],\n"
-                                + "  `q` AS [CURRENT_TIMESTAMP],\n"
+                                + "  `q2` AS CURRENT_TIME,\n"
+                                + "  `q` AS CURRENT_TIMESTAMP,\n"
                                 + "  `a` BIGINT NOT NULL,\n"
                                 + "  `b` STRING,\n"
                                 + "  `c` INT,\n"
@@ -1091,13 +1100,13 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "    WATERMARK FOR `c1` AS `c1` - INTERVAL '1' SECOND, "
                                 + "    PRIMARY KEY(`a`) NOT ENFORCED)",
                         "(\n"
-                                + "  `c1` AS [CURRENT_TIMESTAMP],\n"
+                                + "  `c1` AS CURRENT_TIMESTAMP,\n"
                                 + "  `a` BIGINT NOT NULL,\n"
                                 + "  `b` STRING,\n"
                                 + "  `topic` STRING METADATA VIRTUAL COMMENT 'kafka topic',\n"
                                 + "  `c` INT,\n"
                                 + "  `d` STRING,\n"
-                                + "  WATERMARK FOR `c1` AS [`c1` - INTERVAL '1' SECOND],\n"
+                                + "  WATERMARK FOR `c1` AS `c1` - INTERVAL '1' SECOND,\n"
                                 + "  CONSTRAINT `PK_a` PRIMARY KEY (`a`) NOT ENFORCED\n"
                                 + ")"));
         return list;
@@ -1117,6 +1126,16 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + ")"));
         list.add(
                 TestSpec.withExpectedSchema(
+                        "ALTER MATERIALIZED TABLE base_mtbl MODIFY (`c` BIGINT AFTER `b`, `d` STRING COMMENT 'new comment' FIRST)",
+                        "(\n"
+                                + "  `d` STRING COMMENT 'new comment',\n"
+                                + "  `a` BIGINT NOT NULL,\n"
+                                + "  `b` STRING,\n"
+                                + "  `c` BIGINT,\n"
+                                + "  CONSTRAINT `ct1` PRIMARY KEY (`a`) NOT ENFORCED\n"
+                                + ")"));
+        list.add(
+                TestSpec.withExpectedSchema(
                         "ALTER MATERIALIZED TABLE base_mtbl_with_metadata MODIFY (WATERMARK FOR t as current_timestamp - INTERVAL '1' SECOND)",
                         "(\n"
                                 + "  `t` AS [CURRENT_TIMESTAMP],\n"
@@ -1126,7 +1145,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                                 + "  `b` STRING,\n"
                                 + "  `c` INT,\n"
                                 + "  `d` STRING,\n"
-                                + "  WATERMARK FOR `t` AS [CURRENT_TIMESTAMP - INTERVAL '1' SECOND],\n"
+                                + "  WATERMARK FOR `t` AS CURRENT_TIMESTAMP - INTERVAL '1' SECOND,\n"
                                 + "  CONSTRAINT `ct1` PRIMARY KEY (`a`) NOT ENFORCED\n"
                                 + ")"));
         return list;
@@ -1188,7 +1207,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         "ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted AS SELECT 1",
                         "(\n"
                                 + "  `m` STRING METADATA VIRTUAL,\n"
-                                + "  `calc` AS 'a' || 'b',\n"
+                                + "  `calc` AS ['a' || 'b'],\n"
                                 + "  `EXPR$0` INT NOT NULL\n"
                                 + ")"));
 
@@ -1197,7 +1216,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         "ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted AS SELECT 2, 'a' AS sec",
                         "(\n"
                                 + "  `m` STRING METADATA VIRTUAL,\n"
-                                + "  `calc` AS 'a' || 'b',\n"
+                                + "  `calc` AS ['a' || 'b'],\n"
                                 + "  `EXPR$0` INT NOT NULL,\n"
                                 + "  `sec` CHAR(1)\n"
                                 + ")"));
@@ -1207,7 +1226,7 @@ class SqlMaterializedTableNodeToOperationConverterTest
                         "CREATE OR ALTER MATERIALIZED TABLE base_mtbl_with_non_persisted AS SELECT 2, 'a' AS sec",
                         "(\n"
                                 + "  `m` STRING METADATA VIRTUAL,\n"
-                                + "  `calc` AS 'a' || 'b',\n"
+                                + "  `calc` AS ['a' || 'b'],\n"
                                 + "  `EXPR$0` INT NOT NULL,\n"
                                 + "  `sec` CHAR(1)\n"
                                 + ")"));

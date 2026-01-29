@@ -19,9 +19,6 @@
 package org.apache.flink.table.planner.operations.converters.materializedtable;
 
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableAsQuery;
-import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.catalog.CatalogMaterializedTable;
-import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -33,7 +30,6 @@ import org.apache.flink.table.planner.utils.MaterializedTableUtils;
 
 import org.apache.calcite.sql.SqlNode;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /** A converter for {@link SqlAlterMaterializedTableAsQuery}. */
@@ -56,35 +52,12 @@ public class SqlAlterMaterializedTableAsQueryConverter
                 new PlannerQueryOperation(
                         context.toRelRoot(validatedQuery).project(), () -> definitionQuery);
         ResolvedSchema oldSchema = oldTable.getResolvedSchema();
-        List<Column> addedColumns =
-                MaterializedTableUtils.validateAndExtractNewColumns(
-                        oldSchema, queryOperation.getResolvedSchema());
+        ResolvedSchema newSchema = queryOperation.getResolvedSchema();
 
-        // Build new materialized table and apply changes
-        CatalogMaterializedTable updatedTable =
-                buildUpdatedMaterializedTable(
-                        oldTable, addedColumns, originalQuery, definitionQuery);
-        List<TableChange> tableChanges = new ArrayList<>();
-        addedColumns.forEach(column -> tableChanges.add(TableChange.add(column)));
-        tableChanges.add(TableChange.modifyDefinitionQuery(definitionQuery));
+        List<TableChange> tableChanges =
+                MaterializedTableUtils.buildSchemaTableChanges(oldSchema, newSchema);
+        tableChanges.add(TableChange.modifyDefinitionQuery(originalQuery, definitionQuery));
 
-        return new AlterMaterializedTableAsQueryOperation(identifier, tableChanges, updatedTable);
-    }
-
-    private CatalogMaterializedTable buildUpdatedMaterializedTable(
-            ResolvedCatalogMaterializedTable oldTable,
-            List<Column> addedColumns,
-            String originalQuery,
-            String expandedQuery) {
-        Schema.Builder newSchemaBuilder =
-                Schema.newBuilder().fromResolvedSchema(oldTable.getResolvedSchema());
-        addedColumns.forEach(col -> newSchemaBuilder.column(col.getName(), col.getDataType()));
-
-        return buildUpdatedMaterializedTable(
-                oldTable,
-                builder -> {
-                    builder.schema(newSchemaBuilder.build());
-                    builder.originalQuery(originalQuery).expandedQuery(expandedQuery);
-                });
+        return new AlterMaterializedTableAsQueryOperation(identifier, tableChanges, oldTable);
     }
 }

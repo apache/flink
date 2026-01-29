@@ -104,14 +104,11 @@ public class SqlCreateOrAlterMaterializedTableConverter
             final ResolvedCatalogMaterializedTable oldTable,
             final ConvertContext context,
             final ObjectIdentifier identifier) {
-        final CatalogMaterializedTable newTable =
-                buildNewCatalogMaterializedTableFromOldTable(
-                        oldTable, sqlCreateOrAlterTable, context);
+        final MergeContext mergeContext = getMergeContext(sqlCreateOrAlterTable, context);
 
-        List<TableChange> tableChanges =
-                buildTableChanges(sqlCreateOrAlterTable, oldTable, context);
+        final List<TableChange> tableChanges = buildTableChanges(oldTable, mergeContext);
 
-        return new AlterMaterializedTableAsQueryOperation(identifier, tableChanges, newTable);
+        return new AlterMaterializedTableAsQueryOperation(identifier, tableChanges, oldTable);
     }
 
     private Operation handleCreate(
@@ -125,11 +122,8 @@ public class SqlCreateOrAlterMaterializedTableConverter
     }
 
     private List<TableChange> buildTableChanges(
-            final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterTable,
-            final ResolvedCatalogMaterializedTable oldTable,
-            final ConvertContext context) {
-        List<TableChange> changes = new ArrayList<>();
-        final MergeContext mergeContext = getMergeContext(sqlCreateOrAlterTable, context);
+            final ResolvedCatalogMaterializedTable oldTable, final MergeContext mergeContext) {
+        final List<TableChange> changes = new ArrayList<>();
 
         final ResolvedSchema oldSchema = oldTable.getResolvedSchema();
         final List<Column> newColumns =
@@ -137,7 +131,10 @@ public class SqlCreateOrAlterMaterializedTableConverter
                         oldSchema, mergeContext.getMergedQuerySchema());
 
         newColumns.forEach(column -> changes.add(TableChange.add(column)));
-        changes.add(TableChange.modifyDefinitionQuery(mergeContext.getMergedExpandedQuery()));
+        changes.add(
+                TableChange.modifyDefinitionQuery(
+                        mergeContext.getMergedOriginalQuery(),
+                        mergeContext.getMergedExpandedQuery()));
 
         return changes;
     }
@@ -145,13 +142,12 @@ public class SqlCreateOrAlterMaterializedTableConverter
     private CatalogMaterializedTable buildNewCatalogMaterializedTableFromOldTable(
             final ResolvedCatalogMaterializedTable oldTable,
             final SqlCreateOrAlterMaterializedTable sqlCreateOrAlterTable,
-            final ConvertContext context) {
+            final MergeContext mergeContext) {
         final Schema.Builder schemaBuilder =
                 Schema.newBuilder().fromResolvedSchema(oldTable.getResolvedSchema());
 
         // Add new columns if this is an alter operation
         final ResolvedSchema oldSchema = oldTable.getResolvedSchema();
-        final MergeContext mergeContext = getMergeContext(sqlCreateOrAlterTable, context);
         final List<Column> newColumns =
                 MaterializedTableUtils.validateAndExtractNewColumns(
                         oldSchema, mergeContext.getMergedQuerySchema());

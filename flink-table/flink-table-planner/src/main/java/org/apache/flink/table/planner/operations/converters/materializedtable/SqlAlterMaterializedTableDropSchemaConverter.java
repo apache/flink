@@ -23,16 +23,13 @@ import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTab
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableSchema.SqlAlterMaterializedTableDropPrimaryKey;
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableSchema.SqlAlterMaterializedTableDropSchema;
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableSchema.SqlAlterMaterializedTableDropWatermark;
-import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.materializedtable.AlterMaterializedTableChangeOperation;
-import org.apache.flink.table.planner.operations.converters.SchemaReferencesManager;
 import org.apache.flink.table.planner.utils.MaterializedTableUtils;
 import org.apache.flink.table.planner.utils.OperationConverterUtils;
 
@@ -56,17 +53,9 @@ public abstract class SqlAlterMaterializedTableDropSchemaConverter<
         Set<String> columnsToDrop = getColumnsToDrop(alterTableSchema);
         List<TableChange> tableChanges =
                 validateAndGatherDropChanges(alterTableSchema, oldTable, columnsToDrop, context);
-        Schema schema =
-                SchemaReferencesManager.buildSchemaForAlterSchemaDrop(
-                        oldTable, tableChanges, columnsToDrop);
-
-        CatalogMaterializedTable mtWithUpdatedSchemaAndQuery =
-                buildUpdatedMaterializedTable(oldTable, builder -> builder.schema(schema));
 
         return new AlterMaterializedTableChangeOperation(
-                resolveIdentifier(alterTableSchema, context),
-                tableChanges,
-                mtWithUpdatedSchemaAndQuery);
+                resolveIdentifier(alterTableSchema, context), tableChanges, oldTable);
     }
 
     protected abstract List<TableChange> validateAndGatherDropChanges(

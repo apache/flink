@@ -25,8 +25,8 @@ import org.apache.flink.sql.parser.ddl.position.SqlTableColumnPosition;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogBaseTable.TableKind;
-import org.apache.flink.table.catalog.ResolvedCatalogBaseTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.TableChange;
 import org.apache.flink.table.expressions.SqlCallExpression;
@@ -75,7 +75,7 @@ public abstract class SchemaConverter {
     protected List<TableChange> changesCollector;
     protected List<Function<ResolvedSchema, List<TableChange>>> changeBuilders = new ArrayList<>();
 
-    SchemaConverter(ResolvedCatalogBaseTable<?> oldTable, ConvertContext context) {
+    SchemaConverter(CatalogBaseTable oldTable, ConvertContext context) {
         this.changesCollector = new ArrayList<>();
         final TableKind tableKind = oldTable.getTableKind();
         this.tableKindStr = tableKind.toString().toLowerCase(Locale.ROOT).replace('_', ' ');

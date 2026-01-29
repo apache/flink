@@ -386,8 +386,9 @@ public interface TableChange {
      * @param definitionQuery the modified definition query.
      * @return a TableChange represents the modification.
      */
-    static ModifyDefinitionQuery modifyDefinitionQuery(String definitionQuery) {
-        return new ModifyDefinitionQuery(definitionQuery);
+    static ModifyDefinitionQuery modifyDefinitionQuery(
+            String originalQuery, String definitionQuery) {
+        return new ModifyDefinitionQuery(originalQuery, definitionQuery);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -1423,9 +1424,11 @@ public interface TableChange {
     @PublicEvolving
     class ModifyDefinitionQuery implements MaterializedTableChange {
 
+        private final String originalQuery;
         private final String definitionQuery;
 
-        public ModifyDefinitionQuery(String definitionQuery) {
+        public ModifyDefinitionQuery(String originalQuery, String definitionQuery) {
+            this.originalQuery = originalQuery;
             this.definitionQuery = definitionQuery;
         }
 
@@ -1433,9 +1436,20 @@ public interface TableChange {
             return definitionQuery;
         }
 
+        public String getOriginalQuery() {
+            return originalQuery;
+        }
+
         @Override
         public String toString() {
-            return "ModifyDefinitionQuery{" + "definitionQuery='" + definitionQuery + '\'' + '}';
+            return "ModifyDefinitionQuery{"
+                    + "originalQuery='"
+                    + originalQuery
+                    + "', "
+                    + "definitionQuery='"
+                    + definitionQuery
+                    + '\''
+                    + '}';
         }
 
         @Override
@@ -1447,12 +1461,13 @@ public interface TableChange {
                 return false;
             }
             ModifyDefinitionQuery that = (ModifyDefinitionQuery) o;
-            return Objects.equals(definitionQuery, that.definitionQuery);
+            return Objects.equals(definitionQuery, that.definitionQuery)
+                    && Objects.equals(originalQuery, that.originalQuery);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(definitionQuery);
+            return Objects.hash(definitionQuery, originalQuery);
         }
     }
 }

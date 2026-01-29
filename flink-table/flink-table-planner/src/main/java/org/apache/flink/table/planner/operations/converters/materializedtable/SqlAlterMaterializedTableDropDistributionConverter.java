@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.operations.converters.materializedtable;
 
 import org.apache.flink.sql.parser.ddl.materializedtable.SqlAlterMaterializedTableDropDistribution;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogMaterializedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogMaterializedTable;
 import org.apache.flink.table.catalog.TableChange;
@@ -45,11 +44,7 @@ public class SqlAlterMaterializedTableDropDistributionConverter
                             identifier));
         }
 
-        // Build new materialized table and apply changes
-        CatalogMaterializedTable updatedTable =
-                buildUpdatedMaterializedTable(oldTable, builder -> builder.distribution(null));
-
         return new AlterMaterializedTableChangeOperation(
-                identifier, List.of(TableChange.dropDistribution()), updatedTable);
+                identifier, List.of(TableChange.dropDistribution()), oldTable);
     }
 }
