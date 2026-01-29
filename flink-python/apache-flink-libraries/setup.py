@@ -26,7 +26,6 @@ import sys
 from shutil import copytree, copy, rmtree
 
 from setuptools import setup
-from xml.etree import ElementTree as ET
 
 
 def remove_if_exists(file_path):
@@ -98,15 +97,16 @@ try:
             print("Temp path for symlink to parent already exists {0}".format(TEMP_PATH),
                   file=sys.stderr)
             sys.exit(-1)
-        flink_version = ET.parse("../../pom.xml").getroot().find(
-            'POM:version',
-            namespaces={
-                'POM': 'http://maven.apache.org/POM/4.0.0'
-            }).text
-        if not flink_version:
-            print("Not able to get flink version", file=sys.stderr)
-            sys.exit(-1)
-        print("Detected flink version: {0}".format(flink_version))
+        flink_version = VERSION.replace(
+            ".dev0",
+            "-SNAPSHOT"
+        ).replace(
+            "+",
+            "-"
+        ).replace(
+            ".post",  # Necessary after switching to .post for version numbering
+            "-lyft"
+        )
         FLINK_HOME = os.path.abspath(
             "../../flink-dist/target/flink-%s-bin/flink-%s" % (flink_version, flink_version))
 

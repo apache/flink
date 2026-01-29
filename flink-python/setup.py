@@ -263,14 +263,7 @@ try:
                   "is complete, or do this in the flink-python directory of the flink source "
                   "directory.")
             sys.exit(-1)
-    if re.search('dev.*$', VERSION) is not None:
-        apache_flink_libraries_dependency = 'apache-flink-libraries==%s' % VERSION
-    else:
-        split_versions = VERSION.split('.')
-        split_versions[-1] = str(int(split_versions[-1]) + 1)
-        NEXT_VERSION = '.'.join(split_versions)
-        apache_flink_libraries_dependency = 'apache-flink-libraries>=%s,<%s' % \
-                                            (VERSION, NEXT_VERSION)
+    apache_flink_libraries_dependency = 'apache-flink-libraries==%s' % VERSION
 
     script_names = ["pyflink-shell.sh", "find-flink-home.sh"]
     scripts = [os.path.join(SCRIPTS_TEMP_PATH, script) for script in script_names]
