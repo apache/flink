@@ -82,6 +82,10 @@ public abstract class AbstractHadoopRecoverableWriterExceptionITCase {
         basePathForTest = new Path(basePath, StringUtils.getRandomString(RND, 16, 16, 'a', 'z'));
 
         final String defaultTmpDir = getLocalTmpDir();
+        if (defaultTmpDir == null) {
+            // The suite does not use local storage. No need to create directory.
+            return;
+        }
         final java.nio.file.Path path = Paths.get(defaultTmpDir);
 
         if (!Files.exists(path)) {
