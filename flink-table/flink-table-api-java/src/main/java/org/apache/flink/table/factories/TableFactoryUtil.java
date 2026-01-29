@@ -39,6 +39,8 @@ import org.apache.flink.table.legacy.factories.TableSinkFactory;
 import org.apache.flink.table.legacy.factories.TableSourceFactory;
 import org.apache.flink.table.legacy.sinks.TableSink;
 import org.apache.flink.table.legacy.sources.TableSource;
+import org.apache.flink.table.secret.CommonSecretOptions;
+import org.apache.flink.table.secret.SecretStoreFactory;
 
 import java.util.Collections;
 import java.util.List;
@@ -217,6 +219,40 @@ public class TableFactoryUtil {
                 new DelegatingConfiguration(configuration, catalogStoreOptionPrefix).toMap();
         CatalogStoreFactory.Context context =
                 new FactoryUtil.DefaultCatalogStoreContext(options, configuration, classLoader);
+
+        return context;
+    }
+
+    public static SecretStoreFactory findAndCreateSecretStoreFactory(
+            Configuration configuration, ClassLoader classLoader) {
+        String identifier = configuration.get(CommonSecretOptions.TABLE_SECRET_STORE_KIND);
+
+        SecretStoreFactory secretStoreFactory =
+                FactoryUtil.discoverFactory(classLoader, SecretStoreFactory.class, identifier);
+
+        return secretStoreFactory;
+    }
+
+    /**
+     * Build a {@link SecretStoreFactory.Context} for opening the {@link SecretStoreFactory}.
+     *
+     * <p>The configuration format should be as follows:
+     *
+     * <pre>{@code
+     * table.secret-store.kind: {identifier}
+     * table.secret-store.{identifier}.{param1}: xxx
+     * table.secret-store.{identifier}.{param2}: xxx
+     * }</pre>
+     */
+    public static SecretStoreFactory.Context buildSecretStoreFactoryContext(
+            Configuration configuration, ClassLoader classLoader) {
+        String identifier = configuration.get(CommonSecretOptions.TABLE_SECRET_STORE_KIND);
+        String secretStoreOptionPrefix =
+                CommonSecretOptions.TABLE_SECRET_STORE_OPTION_PREFIX + identifier + ".";
+        Map<String, String> options =
+                new DelegatingConfiguration(configuration, secretStoreOptionPrefix).toMap();
+        SecretStoreFactory.Context context =
+                new FactoryUtil.DefaultSecretStoreContext(options, configuration, classLoader);
 
         return context;
     }
