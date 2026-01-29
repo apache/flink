@@ -277,7 +277,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 TableFactoryUtil.buildSecretStoreFactoryContext(
                         settings.getConfiguration(), userClassLoader);
         secretStoreFactory.open(secretStoreContext);
-        // TODO: pass secret store to catalog manager for encryption/decryption
+        // TODO (FLINK-38261): pass secret store to catalog manager for encryption/decryption
         final SecretStore secretStore =
                 settings.getSecretStore() != null
                         ? settings.getSecretStore()

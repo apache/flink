@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.catalog.exceptions.CatalogException;
 
-import java.util.Collections;
 import java.util.Set;
 
 /**
@@ -34,7 +33,6 @@ import java.util.Set;
 @Internal
 public class GenericInMemorySecretStoreFactory implements SecretStoreFactory {
 
-    private GenericInMemorySecretStore secretStore;
     public static final String IDENTIFIER = "generic_in_memory";
 
     @Override
@@ -44,12 +42,12 @@ public class GenericInMemorySecretStoreFactory implements SecretStoreFactory {
 
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
-        return Collections.emptySet();
+        return Set.of();
     }
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        return Collections.emptySet();
+        return Set.of();
     }
 
     @Override

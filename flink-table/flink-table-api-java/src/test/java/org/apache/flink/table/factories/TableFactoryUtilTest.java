@@ -28,47 +28,32 @@ import org.apache.flink.table.secret.SecretStoreFactory;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.File;
+import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TableFactoryUtil}. */
 class TableFactoryUtilTest {
 
-    @Test
-    void testFindAndCreateCatalogStoreFactoryWithGenericInMemory() {
+    @ParameterizedTest(name = "kind={0}, expectedFactory={1}")
+    @MethodSource("catalogStoreFactoryTestParameters")
+    void testFindAndCreateCatalogStoreFactory(String kind, Class<?> expectedFactoryClass) {
         Configuration configuration = new Configuration();
-        configuration.set(CommonCatalogOptions.TABLE_CATALOG_STORE_KIND, "generic_in_memory");
+        if (kind != null) {
+            configuration.set(CommonCatalogOptions.TABLE_CATALOG_STORE_KIND, kind);
+        }
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
         CatalogStoreFactory factory =
                 TableFactoryUtil.findAndCreateCatalogStoreFactory(configuration, classLoader);
 
-        assertThat(factory).isInstanceOf(GenericInMemoryCatalogStoreFactory.class);
-    }
-
-    @Test
-    void testFindAndCreateCatalogStoreFactoryWithFile() {
-        Configuration configuration = new Configuration();
-        configuration.set(CommonCatalogOptions.TABLE_CATALOG_STORE_KIND, "file");
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-
-        CatalogStoreFactory factory =
-                TableFactoryUtil.findAndCreateCatalogStoreFactory(configuration, classLoader);
-
-        assertThat(factory).isInstanceOf(FileCatalogStoreFactory.class);
-    }
-
-    @Test
-    void testFindAndCreateCatalogStoreFactoryWithDefaultKind() {
-        Configuration configuration = new Configuration();
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-
-        CatalogStoreFactory factory =
-                TableFactoryUtil.findAndCreateCatalogStoreFactory(configuration, classLoader);
-
-        assertThat(factory).isInstanceOf(GenericInMemoryCatalogStoreFactory.class);
+        assertThat(factory).isInstanceOf(expectedFactoryClass);
     }
 
     @Test
@@ -84,9 +69,12 @@ class TableFactoryUtilTest {
                 TableFactoryUtil.buildCatalogStoreFactoryContext(configuration, classLoader);
 
         assertThat(context).isNotNull();
-        assertThat(context.getOptions()).containsEntry("path", tempFolder.getAbsolutePath());
-        assertThat(context.getOptions()).containsEntry("option1", "value1");
-        assertThat(context.getOptions()).containsEntry("option2", "value2");
+        assertThat(context.getOptions())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of(
+                                "path", tempFolder.getAbsolutePath(),
+                                "option1", "value1",
+                                "option2", "value2"));
         assertThat(context.getConfiguration()).isEqualTo(configuration);
         assertThat(context.getClassLoader()).isEqualTo(classLoader);
     }
@@ -102,7 +90,8 @@ class TableFactoryUtilTest {
                 TableFactoryUtil.buildCatalogStoreFactoryContext(configuration, classLoader);
 
         assertThat(context).isNotNull();
-        assertThat(context.getOptions()).containsEntry("option1", "value1");
+        assertThat(context.getOptions())
+                .containsExactlyInAnyOrderEntriesOf(Map.of("option1", "value1"));
         assertThat(context.getConfiguration()).isEqualTo(configuration);
         assertThat(context.getClassLoader()).isEqualTo(classLoader);
     }
@@ -136,34 +125,24 @@ class TableFactoryUtilTest {
                 TableFactoryUtil.buildCatalogStoreFactoryContext(configuration, classLoader);
 
         assertThat(context).isNotNull();
-        assertThat(context.getOptions()).containsEntry("path", "/test/path");
-        assertThat(context.getOptions()).containsEntry("option1", "value1");
-        assertThat(context.getOptions()).doesNotContainKey("irrelevant");
-        assertThat(context.getOptions()).doesNotContainKey("other.config.key");
-        assertThat(context.getOptions()).hasSize(2);
+        assertThat(context.getOptions())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of("path", "/test/path", "option1", "value1"));
     }
 
-    @Test
-    void testFindAndCreateSecretStoreFactoryWithGenericInMemory() {
+    @ParameterizedTest(name = "kind={0}, expectedFactory={1}")
+    @MethodSource("secretStoreFactoryTestParameters")
+    void testFindAndCreateSecretStoreFactory(String kind, Class<?> expectedFactoryClass) {
         Configuration configuration = new Configuration();
-        configuration.set(CommonSecretOptions.TABLE_SECRET_STORE_KIND, "generic_in_memory");
+        if (kind != null) {
+            configuration.set(CommonSecretOptions.TABLE_SECRET_STORE_KIND, kind);
+        }
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
         SecretStoreFactory factory =
                 TableFactoryUtil.findAndCreateSecretStoreFactory(configuration, classLoader);
 
-        assertThat(factory).isInstanceOf(GenericInMemorySecretStoreFactory.class);
-    }
-
-    @Test
-    void testFindAndCreateSecretStoreFactoryWithDefaultKind() {
-        Configuration configuration = new Configuration();
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-
-        SecretStoreFactory factory =
-                TableFactoryUtil.findAndCreateSecretStoreFactory(configuration, classLoader);
-
-        assertThat(factory).isInstanceOf(GenericInMemorySecretStoreFactory.class);
+        assertThat(factory).isInstanceOf(expectedFactoryClass);
     }
 
     @Test
@@ -178,8 +157,9 @@ class TableFactoryUtilTest {
                 TableFactoryUtil.buildSecretStoreFactoryContext(configuration, classLoader);
 
         assertThat(context).isNotNull();
-        assertThat(context.getOptions()).containsEntry("option1", "value1");
-        assertThat(context.getOptions()).containsEntry("option2", "value2");
+        assertThat(context.getOptions())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of("option1", "value1", "option2", "value2"));
         assertThat(context.getConfiguration()).isEqualTo(configuration);
         assertThat(context.getClassLoader()).isEqualTo(classLoader);
     }
@@ -213,10 +193,21 @@ class TableFactoryUtilTest {
                 TableFactoryUtil.buildSecretStoreFactoryContext(configuration, classLoader);
 
         assertThat(context).isNotNull();
-        assertThat(context.getOptions()).containsEntry("option1", "value1");
-        assertThat(context.getOptions()).containsEntry("option2", "value2");
-        assertThat(context.getOptions()).doesNotContainKey("irrelevant");
-        assertThat(context.getOptions()).doesNotContainKey("other.config.key");
-        assertThat(context.getOptions()).hasSize(2);
+        assertThat(context.getOptions())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of("option1", "value1", "option2", "value2"));
+    }
+
+    private static Stream<Arguments> catalogStoreFactoryTestParameters() {
+        return Stream.of(
+                Arguments.of("generic_in_memory", GenericInMemoryCatalogStoreFactory.class),
+                Arguments.of("file", FileCatalogStoreFactory.class),
+                Arguments.of(null, GenericInMemoryCatalogStoreFactory.class));
+    }
+
+    private static Stream<Arguments> secretStoreFactoryTestParameters() {
+        return Stream.of(
+                Arguments.of("generic_in_memory", GenericInMemorySecretStoreFactory.class),
+                Arguments.of(null, GenericInMemorySecretStoreFactory.class));
     }
 }

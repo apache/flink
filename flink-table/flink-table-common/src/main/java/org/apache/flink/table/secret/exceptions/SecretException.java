@@ -21,9 +21,9 @@ package org.apache.flink.table.secret.exceptions;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
- * Base exception for all secret-related errors in the secret store.
+ * Base exception for all secret-related errors.
  *
- * <p>This exception serves as the parent class for all secret store related exceptions, providing a
+ * <p>This exception serves as the parent class for all secret related exceptions, providing a
  * common type for handling errors that occur during secret management operations.
  */
 @PublicEvolving

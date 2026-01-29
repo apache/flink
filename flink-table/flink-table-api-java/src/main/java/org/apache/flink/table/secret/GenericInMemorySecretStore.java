@@ -43,12 +43,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class GenericInMemorySecretStore implements ReadableSecretStore, WritableSecretStore {
 
+    private static final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<String, String> secrets;
-    private final ObjectMapper objectMapper;
 
     public GenericInMemorySecretStore() {
         this.secrets = new HashMap<>();
-        this.objectMapper = new ObjectMapper();
     }
 
     @Override
