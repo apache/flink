@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.runtime.dataview.PerKeyStateDataViewStore;
+import org.apache.flink.table.runtime.functions.KeyedProcessFunctionWithCleanupState;
 import org.apache.flink.table.runtime.generated.AggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedAggsHandleFunction;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
@@ -97,7 +98,7 @@ import static org.apache.flink.table.runtime.util.StateConfigUtil.createTtlConfi
  * recalculated, which could be inefficient for large windows
  */
 public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
-        extends KeyedProcessFunction<K, RowData, RowData> {
+        extends KeyedProcessFunctionWithCleanupState<K, RowData, RowData> {
     private static final long serialVersionUID = 1L;
 
     private static final Logger LOG =
@@ -170,6 +171,7 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
             LogicalType[] sortKeyTypes,
             RowDataKeySelector sortKeySelector,
             InternalTypeInfo<RowData> accKeyRowTypeInfo) {
+        super(stateRetentionTime, stateRetentionTime);
         this.stateRetentionTime = stateRetentionTime;
         this.generatedAggsHandler = genAggsHandler;
         this.generatedRecordEqualiser = genRecordEqualiser;
@@ -208,9 +210,6 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
 
         // Initialize state to maintain id counter
         idStateDescriptor = new ValueStateDescriptor<Long>("idState", Long.class);
-        if (ttlConfig.isEnabled()) {
-            idStateDescriptor.enableTimeToLive(ttlConfig);
-        }
         idState = getRuntimeContext().getState(idStateDescriptor);
 
         // Input elements are all binary rows as they came from network
@@ -224,18 +223,12 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
         sortedListStateDescriptor =
                 new ValueStateDescriptor<List<Tuple2<RowData, List<Long>>>>(
                         "sortedListState", listTypeInfo);
-        if (ttlConfig.isEnabled()) {
-            sortedListStateDescriptor.enableTimeToLive(ttlConfig);
-        }
         sortedListState = getRuntimeContext().getState(sortedListStateDescriptor);
 
         // Initialize state which maintains the actual row
         valueStateDescriptor =
                 new MapStateDescriptor<Long, RowData>(
                         "valueMapState", Types.LONG, inputRowTypeInfo);
-        if (ttlConfig.isEnabled()) {
-            valueStateDescriptor.enableTimeToLive(ttlConfig);
-        }
         valueMapState = getRuntimeContext().getMapState(valueStateDescriptor);
 
         // Initialize accumulator state per row
@@ -243,10 +236,10 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
         accStateDescriptor =
                 new MapStateDescriptor<RowData, RowData>(
                         "accMapState", accKeyRowTypeInfo, accTypeInfo);
-        if (ttlConfig.isEnabled()) {
-            accStateDescriptor.enableTimeToLive(ttlConfig);
-        }
+
         accMapState = getRuntimeContext().getMapState(accStateDescriptor);
+
+        initCleanupTimeState("NonTimeUnboundedPrecedingOverCleanupTime");
 
         // metrics
         this.numOfIdsNotFound =
@@ -273,6 +266,9 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
             KeyedProcessFunction<K, RowData, RowData>.Context ctx,
             Collector<RowData> out)
             throws Exception {
+        // register state-cleanup timer
+        registerProcessingCleanupTimer(ctx, ctx.timerService().currentProcessingTime());
+
         RowKind rowKind = input.getRowKind();
 
         switch (rowKind) {
@@ -288,6 +284,19 @@ public abstract class AbstractNonTimeUnboundedPrecedingOver<K>
         }
 
         // Reset acc state since we can have out of order inserts in the ordered list
+        resetAndCleanupAggFuncs();
+    }
+
+    @Override
+    public void onTimer(long timestamp, OnTimerContext ctx, Collector<RowData> out)
+            throws Exception {
+        if (stateCleaningEnabled) {
+            cleanupState(idState, valueMapState, accMapState, sortedListState);
+            resetAndCleanupAggFuncs();
+        }
+    }
+
+    private void resetAndCleanupAggFuncs() throws Exception {
         aggFuncs.resetAccumulators();
         aggFuncs.cleanup();
     }
