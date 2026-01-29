@@ -23,14 +23,13 @@ import org.apache.flink.table.secret.exceptions.SecretNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.HashMap;
 import java.util.Map;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link GenericInMemorySecretStore}. */
-public class GenericInMemorySecretStoreTest {
+class GenericInMemorySecretStoreTest {
 
     private GenericInMemorySecretStore secretStore;
 
@@ -41,9 +40,7 @@ public class GenericInMemorySecretStoreTest {
 
     @Test
     void testStoreAndGetSecret() throws SecretNotFoundException {
-        Map<String, String> secretData = new HashMap<>();
-        secretData.put("username", "testuser");
-        secretData.put("password", "testpass");
+        Map<String, String> secretData = Map.of("username", "testuser", "password", "testpass");
 
         String secretId = secretStore.storeSecret(secretData);
         assertThat(secretId).isNotNull();
@@ -77,8 +74,7 @@ public class GenericInMemorySecretStoreTest {
 
     @Test
     void testRemoveSecret() throws SecretNotFoundException {
-        Map<String, String> secretData = new HashMap<>();
-        secretData.put("key", "value");
+        Map<String, String> secretData = Map.of("key", "value");
 
         String secretId = secretStore.storeSecret(secretData);
         assertThat(secretStore.getSecret(secretId)).isNotNull();
@@ -104,15 +100,11 @@ public class GenericInMemorySecretStoreTest {
 
     @Test
     void testUpdateSecret() throws SecretNotFoundException {
-        Map<String, String> originalData = new HashMap<>();
-        originalData.put("username", "olduser");
-        originalData.put("password", "oldpass");
+        Map<String, String> originalData = Map.of("username", "olduser", "password", "oldpass");
 
         String secretId = secretStore.storeSecret(originalData);
 
-        Map<String, String> updatedData = new HashMap<>();
-        updatedData.put("username", "newuser");
-        updatedData.put("password", "newpass");
+        Map<String, String> updatedData = Map.of("username", "newuser", "password", "newpass");
 
         secretStore.updateSecret(secretId, updatedData);
 
@@ -123,8 +115,7 @@ public class GenericInMemorySecretStoreTest {
 
     @Test
     void testUpdateNonExistentSecret() {
-        Map<String, String> secretData = new HashMap<>();
-        secretData.put("key", "value");
+        Map<String, String> secretData = Map.of("key", "value");
 
         assertThatThrownBy(() -> secretStore.updateSecret("non-existent-id", secretData))
                 .isInstanceOf(SecretNotFoundException.class)
@@ -133,8 +124,7 @@ public class GenericInMemorySecretStoreTest {
 
     @Test
     void testUpdateSecretWithNullId() {
-        Map<String, String> secretData = new HashMap<>();
-        secretData.put("key", "value");
+        Map<String, String> secretData = Map.of("key", "value");
 
         assertThatThrownBy(() -> secretStore.updateSecret(null, secretData))
                 .isInstanceOf(NullPointerException.class)
@@ -143,8 +133,7 @@ public class GenericInMemorySecretStoreTest {
 
     @Test
     void testUpdateSecretWithNullData() {
-        Map<String, String> originalData = new HashMap<>();
-        originalData.put("key", "value");
+        Map<String, String> originalData = Map.of("key", "value");
         String secretId = secretStore.storeSecret(originalData);
 
         assertThatThrownBy(() -> secretStore.updateSecret(secretId, null))
@@ -154,12 +143,10 @@ public class GenericInMemorySecretStoreTest {
 
     @Test
     void testClear() {
-        Map<String, String> secretData1 = new HashMap<>();
-        secretData1.put("key1", "value1");
+        Map<String, String> secretData1 = Map.of("key1", "value1");
         String secretId1 = secretStore.storeSecret(secretData1);
 
-        Map<String, String> secretData2 = new HashMap<>();
-        secretData2.put("key2", "value2");
+        Map<String, String> secretData2 = Map.of("key2", "value2");
         String secretId2 = secretStore.storeSecret(secretData2);
 
         secretStore.clear();
@@ -172,21 +159,19 @@ public class GenericInMemorySecretStoreTest {
 
     @Test
     void testStoreEmptySecret() throws SecretNotFoundException {
-        Map<String, String> emptyData = new HashMap<>();
+        Map<String, String> emptyData = Map.of();
         String secretId = secretStore.storeSecret(emptyData);
 
         Map<String, String> retrievedSecret = secretStore.getSecret(secretId);
         assertThat(retrievedSecret).isNotNull();
-        assertThat(retrievedSecret.isEmpty()).isTrue();
+        assertThat(retrievedSecret).isEmpty();
     }
 
     @Test
     void testStoreMultipleSecrets() throws SecretNotFoundException {
-        Map<String, String> secret1 = new HashMap<>();
-        secret1.put("user1", "pass1");
+        Map<String, String> secret1 = Map.of("user1", "pass1");
 
-        Map<String, String> secret2 = new HashMap<>();
-        secret2.put("user2", "pass2");
+        Map<String, String> secret2 = Map.of("user2", "pass2");
 
         String secretId1 = secretStore.storeSecret(secret1);
         String secretId2 = secretStore.storeSecret(secret2);

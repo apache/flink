@@ -26,10 +26,10 @@ import org.junit.jupiter.api.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link GenericInMemorySecretStoreFactory}. */
-public class GenericInMemorySecretStoreFactoryTest {
+class GenericInMemorySecretStoreFactoryTest {
 
     @Test
     void testSecretStoreInit() {
@@ -41,12 +41,15 @@ public class GenericInMemorySecretStoreFactoryTest {
         final SecretStoreFactory factory =
                 FactoryUtil.discoverFactory(
                         classLoader, SecretStoreFactory.class, factoryIdentifier);
-        factory.open(discoveryContext);
-
-        SecretStore secretStore = factory.createSecretStore();
-        assertThat(secretStore instanceof GenericInMemorySecretStore).isTrue();
-
-        factory.close();
+        try {
+            factory.open(discoveryContext);
+            SecretStore secretStore = factory.createSecretStore();
+            assertThat(secretStore instanceof GenericInMemorySecretStore).isTrue();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            factory.close();
+        }
     }
 
     @Test
@@ -58,7 +61,7 @@ public class GenericInMemorySecretStoreFactoryTest {
     @Test
     void testRequiredAndOptionalOptions() {
         GenericInMemorySecretStoreFactory factory = new GenericInMemorySecretStoreFactory();
-        assertThat(factory.requiredOptions().isEmpty()).isTrue();
-        assertThat(factory.optionalOptions().isEmpty()).isTrue();
+        assertThat(factory.requiredOptions()).isEmpty();
+        assertThat(factory.optionalOptions()).isEmpty();
     }
 }
