@@ -84,6 +84,10 @@ public class TypeCheckUtils {
         return type.getTypeRoot().getFamilies().contains(LogicalTypeFamily.BINARY_STRING);
     }
 
+    public static boolean isIntegerNumeric(LogicalType type) {
+        return type.getTypeRoot().getFamilies().contains(LogicalTypeFamily.INTEGER_NUMERIC);
+    }
+
     public static boolean isTimestamp(LogicalType type) {
         return type.getTypeRoot() == TIMESTAMP_WITHOUT_TIME_ZONE;
     }
