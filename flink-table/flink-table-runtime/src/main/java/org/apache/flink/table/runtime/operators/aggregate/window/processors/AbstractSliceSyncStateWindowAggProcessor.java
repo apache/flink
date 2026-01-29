@@ -32,7 +32,7 @@ import org.apache.flink.table.runtime.operators.window.tvf.slicing.SlicingWindow
 
 import java.time.ZoneId;
 
-import static org.apache.flink.table.runtime.util.TimeWindowUtil.getNextTriggerWatermark;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.getNextTriggerWatermarkWithOffset;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /** A base implementation of {@link SlicingSyncStateWindowProcessor} for window aggregate. */
@@ -146,8 +146,12 @@ public abstract class AbstractSliceSyncStateWindowAggProcessor
                 // they will register small timers and normal watermark will flush the buffer
                 windowBuffer.advanceProgress(currentProgress);
                 nextTriggerProgress =
-                        getNextTriggerWatermark(
-                                currentProgress, windowInterval, shiftTimeZone, useDayLightSaving);
+                        getNextTriggerWatermarkWithOffset(
+                                currentProgress,
+                                windowInterval,
+                                sliceAssigner.getWindowOffset(),
+                                shiftTimeZone,
+                                useDayLightSaving);
             }
         }
     }
