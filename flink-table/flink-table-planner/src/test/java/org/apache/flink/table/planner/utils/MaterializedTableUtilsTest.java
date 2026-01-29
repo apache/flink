@@ -94,7 +94,13 @@ class MaterializedTableUtilsTest {
                                         physical("b", DataTypes.BOOLEAN()), ColumnPosition.first()),
                                 TableChange.modifyColumnPosition(
                                         physical("a", DataTypes.INT()),
-                                        ColumnPosition.after("b")))));
+                                        ColumnPosition.after("b")))),
+                TestSpec.of(
+                        schema(physical("a", DataTypes.INT())),
+                        schema(physical("a", DataTypes.BIGINT())),
+                        List.of(
+                                TableChange.modifyPhysicalColumnType(
+                                        physical("a", DataTypes.INT()), DataTypes.BIGINT()))));
     }
 
     private static ResolvedSchema schema(Column... columns) {

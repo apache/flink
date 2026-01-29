@@ -47,6 +47,7 @@ import org.apache.flink.table.catalog.TableChange.DropConstraint;
 import org.apache.flink.table.catalog.TableChange.DropDistribution;
 import org.apache.flink.table.catalog.TableChange.DropWatermark;
 import org.apache.flink.table.catalog.TableChange.ModifyColumn;
+import org.apache.flink.table.catalog.TableChange.ModifyColumnComment;
 import org.apache.flink.table.catalog.TableChange.ModifyColumnPosition;
 import org.apache.flink.table.catalog.TableChange.ModifyDefinitionQuery;
 import org.apache.flink.table.catalog.TableChange.ModifyDistribution;
@@ -64,11 +65,14 @@ import org.apache.flink.table.types.DataType;
 
 import javax.annotation.Nullable;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 /**
@@ -81,6 +85,10 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
     private final CatalogMaterializedTable oldTable;
     private CatalogMaterializedTable materializedTableWithAppliedChanges;
 
+    /**
+     * The original order of table changes should be kept as is in some situations different order
+     * might lead to different results.
+     */
     public AlterMaterializedTableChangeOperation(
             ObjectIdentifier tableIdentifier,
             List<TableChange> tableChanges,
@@ -115,24 +123,24 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
             return materializedTableWithAppliedChanges;
         }
 
-        ChangeContext mtContext = new ChangeContext(oldTable);
-        mtContext.applyTableChanges(tableChanges);
+        ChangeContext changeContext = new ChangeContext(oldTable);
+        changeContext.applyTableChanges(tableChanges);
 
         materializedTableWithAppliedChanges =
                 CatalogMaterializedTable.newBuilder()
-                        .schema(mtContext.retrieveSchema())
+                        .schema(changeContext.retrieveSchema())
                         .comment(oldTable.getComment())
                         .partitionKeys(oldTable.getPartitionKeys())
                         .options(oldTable.getOptions())
-                        .originalQuery(mtContext.originalQuery)
-                        .expandedQuery(mtContext.expandedQuery)
-                        .distribution(mtContext.distribution)
+                        .originalQuery(changeContext.originalQuery)
+                        .expandedQuery(changeContext.expandedQuery)
+                        .distribution(changeContext.distribution)
                         .freshness(oldTable.getDefinitionFreshness())
                         .logicalRefreshMode(oldTable.getLogicalRefreshMode())
                         .refreshMode(oldTable.getRefreshMode())
-                        .refreshStatus(mtContext.refreshStatus)
-                        .refreshHandlerDescription(mtContext.refreshHandlerDesc)
-                        .serializedRefreshHandler(mtContext.refreshHandlerBytes)
+                        .refreshStatus(changeContext.refreshStatus)
+                        .refreshHandlerDescription(changeContext.refreshHandlerDesc)
+                        .serializedRefreshHandler(changeContext.refreshHandlerBytes)
                         .build();
 
         return materializedTableWithAppliedChanges;
@@ -179,19 +187,23 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
     }
 
     private static class ChangeContext {
+        private static final Map<
+                        Class<? extends TableChange>, BiConsumer<ChangeContext, TableChange>>
+                HANDLERS_MAP = getHandlersMap();
+
+        private final List<UnresolvedColumn> columns;
+        private final CatalogMaterializedTable oldTable;
         private boolean isQueryChange;
         private @Nullable TableDistribution distribution;
         private RefreshStatus refreshStatus;
         private @Nullable String refreshHandlerDesc;
         private byte[] refreshHandlerBytes;
-        private List<UnresolvedColumn> columns;
         private List<UnresolvedWatermarkSpec> watermarkSpecs;
         private String primaryKeyName = null;
         private List<String> primaryKeyColumns = null;
         private int droppedPersistedCnt = 0;
         private String originalQuery;
         private String expandedQuery;
-        private CatalogMaterializedTable oldTable;
 
         public ChangeContext(CatalogMaterializedTable oldTable) {
             this.distribution = oldTable.getDistribution().orElse(null);
@@ -211,26 +223,61 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
             this.oldTable = oldTable;
         }
 
-        private void setColumnAtPosition(UnresolvedColumn column, ColumnPosition position) {
-            if (position == null) {
-                columns.add(column);
-            } else if (position == ColumnPosition.first()) {
-                columns.add(0, column);
-            } else {
-                String after = ((After) position).column();
-                int index = getColumnIndex(after);
+        private static Map<Class<? extends TableChange>, BiConsumer<ChangeContext, TableChange>>
+                getHandlersMap() {
+            final Map<Class<? extends TableChange>, BiConsumer<ChangeContext, TableChange>> map =
+                    new IdentityHashMap<>();
 
-                columns.add(index + 1, column);
-            }
-        }
+            // Column
+            map.put(AddColumn.class, (c, t) -> c.addColumn((AddColumn) t));
+            map.put(ModifyColumn.class, (c, t) -> c.modifyColumn((ModifyColumn) t));
+            map.put(
+                    ModifyColumnPosition.class,
+                    (c, t) -> c.modifyColumnPosition((ModifyColumnPosition) t));
+            map.put(
+                    ModifyPhysicalColumnType.class,
+                    (c, t) -> c.modifyPhysicalColumnType((ModifyPhysicalColumnType) t));
+            map.put(
+                    ModifyColumnComment.class,
+                    (c, t) -> c.modifyColumnComment((ModifyColumnComment) t));
+            map.put(DropColumn.class, (c, t) -> c.dropColumn((DropColumn) t));
 
-        private int getColumnIndex(String name) {
-            for (int i = 0; i < columns.size(); i++) {
-                if (Objects.equals(name, columns.get(i).getName())) {
-                    return i;
-                }
-            }
-            return -1;
+            // Watermark
+            map.put(AddWatermark.class, (c, t) -> c.addWatermark((AddWatermark) t));
+            map.put(ModifyWatermark.class, (c, t) -> c.modifyWatermark((ModifyWatermark) t));
+            map.put(DropWatermark.class, (c, t) -> c.dropWatermark((DropWatermark) t));
+
+            // Constraint
+            map.put(
+                    AddUniqueConstraint.class,
+                    (c, t) -> c.addUniqueConstraint((AddUniqueConstraint) t));
+            map.put(
+                    ModifyUniqueConstraint.class,
+                    (c, t) -> c.modifyUniqueConstraint((ModifyUniqueConstraint) t));
+            map.put(DropConstraint.class, (c, t) -> c.dropConstraint((DropConstraint) t));
+
+            // Distribution
+            map.put(AddDistribution.class, (c, t) -> c.addDistribution((AddDistribution) t));
+            map.put(
+                    ModifyDistribution.class,
+                    (c, t) -> c.modifyDistribution((ModifyDistribution) t));
+            map.put(DropDistribution.class, (c, t) -> c.dropDistribution((DropDistribution) t));
+
+            // RefreshStatus
+            map.put(
+                    ModifyRefreshStatus.class,
+                    (c, t) -> c.modifyRefreshStatus((ModifyRefreshStatus) t));
+
+            // RefreshHandler
+            map.put(
+                    ModifyRefreshHandler.class,
+                    (c, t) -> c.modifyRefreshHandler((ModifyRefreshHandler) t));
+
+            // DefinitionQuery
+            map.put(
+                    ModifyDefinitionQuery.class,
+                    (c, t) -> c.modifyDefinitionQuery((ModifyDefinitionQuery) t));
+            return Collections.unmodifiableMap(map);
         }
 
         private void applyTableChanges(List<TableChange> tableChanges) {
@@ -241,13 +288,13 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
             }
 
             for (TableChange tableChange : tableChanges) {
-                handleColumns(tableChange);
-                handleDistribution(tableChange);
-                handleWatermark(tableChange);
-                handleUniqueConstraint(tableChange);
-                handleRefreshStatus(tableChange);
-                handleRefreshHandler(tableChange);
-                handleModifyDefinitionQuery(tableChange);
+                BiConsumer<ChangeContext, TableChange> handler =
+                        HANDLERS_MAP.get(tableChange.getClass());
+                if (handler == null) {
+                    throw new ValidationException("Unknown table change " + tableChange.getClass());
+                } else {
+                    handler.accept(this, tableChange);
+                }
             }
 
             if (droppedPersistedCnt > 0 && isQueryChange) {
@@ -277,58 +324,66 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
             return schemaToApply.build();
         }
 
-        private void handleColumns(TableChange tableChange) {
-            if (tableChange instanceof AddColumn) {
-                AddColumn addColumn = (AddColumn) tableChange;
-                Column column = addColumn.getColumn();
-                ColumnPosition position = addColumn.getPosition();
-                UnresolvedColumn columnToAdd = toUnresolvedColumn(column);
-                setColumnAtPosition(columnToAdd, position);
-            } else if (tableChange instanceof ModifyColumnPosition) {
-                // ModifyColumnPosition extends ModifyColumn so it should be before ModifyColumn
-                ModifyColumnPosition columnWithChangedPosition = (ModifyColumnPosition) tableChange;
-                Column column = columnWithChangedPosition.getOldColumn();
-                int oldPosition = getColumnIndex(column.getName());
-                if (isQueryChange) {
-                    throw new ValidationException(
-                            String.format(
-                                    "When modifying the query of a materialized table, "
-                                            + "currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
-                                            + "Column mismatch at position %d: Original column is [%s], but new column is [%s].",
-                                    oldPosition, column, column));
-                }
+        private void addColumn(AddColumn addColumn) {
+            Column column = addColumn.getColumn();
+            ColumnPosition position = addColumn.getPosition();
+            UnresolvedColumn columnToAdd = toUnresolvedColumn(column);
+            setColumnAtPosition(columnToAdd, position);
+        }
 
-                ColumnPosition position = columnWithChangedPosition.getNewPosition();
-                UnresolvedColumn changedPositionColumn = columns.get(oldPosition);
-                columns.remove(oldPosition);
-                setColumnAtPosition(changedPositionColumn, position);
-            } else if (tableChange instanceof DropColumn) {
-                DropColumn dropColumn = (DropColumn) tableChange;
-                String droppedColumnName = dropColumn.getColumnName();
-                int index = getColumnIndex(droppedColumnName);
-                UnresolvedColumn column = columns.get(index);
-                if (isQueryChange && isNonPersistedColumn(column)) {
-                    // noop
-                } else {
-                    columns.remove(index);
-                    droppedPersistedCnt++;
-                }
-            } else if (tableChange instanceof ModifyColumn) {
-                ModifyColumn type = (ModifyColumn) tableChange;
-                Column column = type.getOldColumn();
-                Column newColumn = type.getNewColumn();
-                int index = getColumnIndex(column.getName());
-                UnresolvedColumn newColumn1 = toUnresolvedColumn(newColumn);
-                columns.set(index, newColumn1);
+        private void modifyColumn(ModifyColumn modifyColumn) {
+            Column column = modifyColumn.getOldColumn();
+            Column newColumn = modifyColumn.getNewColumn();
+            int index = getColumnIndex(column.getName());
+            UnresolvedColumn newColumn1 = toUnresolvedColumn(newColumn);
+            columns.set(index, newColumn1);
+        }
+
+        private void dropColumn(DropColumn dropColumn) {
+            String droppedColumnName = dropColumn.getColumnName();
+            int index = getColumnIndex(droppedColumnName);
+            UnresolvedColumn column = columns.get(index);
+            if (isQueryChange && isNonPersistedColumn(column)) {
+                // noop
+            } else {
+                columns.remove(index);
+                droppedPersistedCnt++;
             }
         }
 
-        private void handleModifyDefinitionQuery(TableChange tableChange) {
-            if (tableChange instanceof ModifyDefinitionQuery) {
-                ModifyDefinitionQuery queryChange = (ModifyDefinitionQuery) tableChange;
-                expandedQuery = queryChange.getDefinitionQuery();
-                originalQuery = queryChange.getOriginalQuery();
+        private void modifyPhysicalColumnType(ModifyPhysicalColumnType modifyPhysicalColumnType) {
+            Column column = modifyPhysicalColumnType.getOldColumn();
+            int position = getColumnIndex(column.getName());
+            columns.set(position, toUnresolvedColumn(modifyPhysicalColumnType.getNewColumn()));
+        }
+
+        private void modifyColumnComment(ModifyColumnComment modifyColumnComment) {
+            Column column = modifyColumnComment.getOldColumn();
+            int position = getColumnIndex(column.getName());
+            columns.set(position, toUnresolvedColumn(modifyColumnComment.getNewColumn()));
+        }
+
+        private void modifyColumnPosition(ModifyColumnPosition columnWithChangedPosition) {
+            Column column = columnWithChangedPosition.getOldColumn();
+            int oldPosition = getColumnIndex(column.getName());
+            if (isQueryChange) {
+                throw new ValidationException(
+                        String.format(
+                                "When modifying the query of a materialized table, "
+                                        + "currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
+                                        + "Column mismatch at position %d: Original column is [%s], but new column is [%s].",
+                                oldPosition, column, column));
             }
+
+            ColumnPosition position = columnWithChangedPosition.getNewPosition();
+            UnresolvedColumn changedPositionColumn = columns.get(oldPosition);
+            columns.remove(oldPosition);
+            setColumnAtPosition(changedPositionColumn, position);
+        }
+
+        private void modifyDefinitionQuery(ModifyDefinitionQuery queryChange) {
+            expandedQuery = queryChange.getDefinitionQuery();
+            originalQuery = queryChange.getOriginalQuery();
         }
 
         private boolean isNonPersistedColumn(UnresolvedColumn column) {
@@ -337,62 +392,60 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
                             && ((UnresolvedMetadataColumn) column).isVirtual();
         }
 
-        private void handleUniqueConstraint(TableChange tableChange) {
-            if (tableChange instanceof DropConstraint) {
-                primaryKeyName = null;
-                primaryKeyColumns = null;
-            } else if (tableChange instanceof AddUniqueConstraint
-                    || tableChange instanceof ModifyUniqueConstraint) {
-                final UniqueConstraint constraint;
-                if (tableChange instanceof AddUniqueConstraint) {
-                    constraint = ((AddUniqueConstraint) tableChange).getConstraint();
-                } else {
-                    constraint = ((ModifyUniqueConstraint) tableChange).getNewConstraint();
-                }
-                primaryKeyName = constraint.getName();
-                primaryKeyColumns = constraint.getColumns();
-            }
+        private void addUniqueConstraint(AddUniqueConstraint addUniqueConstraint) {
+            final UniqueConstraint constraint = addUniqueConstraint.getConstraint();
+            primaryKeyName = constraint.getName();
+            primaryKeyColumns = constraint.getColumns();
         }
 
-        private void handleWatermark(TableChange tableChange) {
-            if (tableChange instanceof DropWatermark) {
-                watermarkSpecs = List.of();
-            } else if (tableChange instanceof AddWatermark
-                    || tableChange instanceof ModifyWatermark) {
-                final WatermarkSpec spec;
-                if (tableChange instanceof AddWatermark) {
-                    spec = ((AddWatermark) tableChange).getWatermark();
-                } else {
-                    spec = ((ModifyWatermark) tableChange).getNewWatermark();
-                }
-                String rowTimeAttribute = spec.getRowtimeAttribute();
-                ResolvedExpression expression = spec.getWatermarkExpression();
-                watermarkSpecs = List.of(new UnresolvedWatermarkSpec(rowTimeAttribute, expression));
-            }
+        private void modifyUniqueConstraint(ModifyUniqueConstraint modifyUniqueConstraint) {
+            final UniqueConstraint constraint = modifyUniqueConstraint.getNewConstraint();
+            primaryKeyName = constraint.getName();
+            primaryKeyColumns = constraint.getColumns();
         }
 
-        private void handleRefreshHandler(TableChange tableChange) {
-            if (tableChange instanceof ModifyRefreshHandler) {
-                ModifyRefreshHandler refreshHandler = (ModifyRefreshHandler) tableChange;
-                refreshHandlerDesc = refreshHandler.getRefreshHandlerDesc();
-                refreshHandlerBytes = refreshHandler.getRefreshHandlerBytes();
-            }
+        private void dropConstraint(DropConstraint dropConstraint) {
+            primaryKeyName = null;
+            primaryKeyColumns = null;
         }
 
-        private void handleRefreshStatus(TableChange tableChange) {
-            if (tableChange instanceof ModifyRefreshStatus) {
-                refreshStatus = ((ModifyRefreshStatus) tableChange).getRefreshStatus();
-            }
+        private void addWatermark(AddWatermark addWatermark) {
+            final WatermarkSpec spec = addWatermark.getWatermark();
+            String rowTimeAttribute = spec.getRowtimeAttribute();
+            ResolvedExpression expression = spec.getWatermarkExpression();
+            watermarkSpecs = List.of(new UnresolvedWatermarkSpec(rowTimeAttribute, expression));
         }
 
-        private void handleDistribution(TableChange tableChange) {
-            if (tableChange instanceof AddDistribution) {
-                distribution = ((AddDistribution) tableChange).getDistribution();
-            } else if (tableChange instanceof DropDistribution) {
-                distribution = null;
-            } else if (tableChange instanceof ModifyDistribution) {
-                distribution = ((ModifyDistribution) tableChange).getDistribution();
-            }
+        private void modifyWatermark(ModifyWatermark modifyWatermark) {
+            final WatermarkSpec spec = modifyWatermark.getNewWatermark();
+            String rowTimeAttribute = spec.getRowtimeAttribute();
+            ResolvedExpression expression = spec.getWatermarkExpression();
+            watermarkSpecs = List.of(new UnresolvedWatermarkSpec(rowTimeAttribute, expression));
+        }
+
+        private void dropWatermark(DropWatermark dropWatermark) {
+            watermarkSpecs = List.of();
+        }
+
+        private void modifyRefreshHandler(ModifyRefreshHandler refreshHandler) {
+            refreshHandlerDesc = refreshHandler.getRefreshHandlerDesc();
+            refreshHandlerBytes = refreshHandler.getRefreshHandlerBytes();
+        }
+
+        private void modifyRefreshStatus(ModifyRefreshStatus modifyRefreshStatus) {
+            refreshStatus = modifyRefreshStatus.getRefreshStatus();
+        }
+
+        private void addDistribution(AddDistribution addDistribution) {
+            distribution = addDistribution.getDistribution();
+        }
+
+        private void modifyDistribution(ModifyDistribution modifyDistribution) {
+            distribution = modifyDistribution.getDistribution();
+        }
+
+        private void dropDistribution(DropDistribution dropDistribution) {
+            distribution = null;
         }
 
         private UnresolvedColumn toUnresolvedColumn(Column column) {
@@ -497,6 +550,28 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
                                     + "currently only support appending columns at the end of original schema, dropping, renaming, and reordering columns are not supported.\n"
                                     + "Column mismatch at position %d: Original column is [%s], but new column is [%s].",
                             position, oldColumn, newColumn));
+        }
+
+        private void setColumnAtPosition(UnresolvedColumn column, ColumnPosition position) {
+            if (position == null) {
+                columns.add(column);
+            } else if (position == ColumnPosition.first()) {
+                columns.add(0, column);
+            } else {
+                String after = ((After) position).column();
+                int index = getColumnIndex(after);
+
+                columns.add(index + 1, column);
+            }
+        }
+
+        private int getColumnIndex(String name) {
+            for (int i = 0; i < columns.size(); i++) {
+                if (Objects.equals(name, columns.get(i).getName())) {
+                    return i;
+                }
+            }
+            return -1;
         }
     }
 }
