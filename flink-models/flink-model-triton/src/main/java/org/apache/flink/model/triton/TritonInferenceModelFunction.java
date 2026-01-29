@@ -46,11 +46,14 @@ import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * {@link AsyncPredictFunction} for Triton Inference Server generic inference task.
@@ -121,10 +124,23 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             String url =
                     TritonUtils.buildInferenceUrl(getEndpoint(), getModelName(), getModelVersion());
 
-            Request.Builder requestBuilder =
-                    new Request.Builder()
-                            .url(url)
-                            .post(RequestBody.create(requestBody, JSON_MEDIA_TYPE));
+            Request.Builder requestBuilder = new Request.Builder().url(url);
+
+            // Handle compression and request body
+            if (getCompression() != null && "gzip".equalsIgnoreCase(getCompression())) {
+                // Compress request body with gzip
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                try (GZIPOutputStream gzos = new GZIPOutputStream(baos)) {
+                    gzos.write(requestBody.getBytes(StandardCharsets.UTF_8));
+                }
+                byte[] compressedData = baos.toByteArray();
+
+                requestBuilder.addHeader("Content-Encoding", "gzip");
+                requestBuilder.post(
+                        RequestBody.create(compressedData, MediaType.parse("application/json")));
+            } else {
+                requestBuilder.post(RequestBody.create(requestBody, JSON_MEDIA_TYPE));
+            }
 
             // Add authentication header if provided
             if (getAuthToken() != null) {
@@ -144,11 +160,6 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                 } catch (JsonProcessingException e) {
                     LOG.warn("Failed to parse custom headers: {}", getCustomHeaders(), e);
                 }
-            }
-
-            // Add compression header if specified
-            if (getCompression() != null) {
-                requestBuilder.addHeader("Content-Encoding", getCompression());
             }
 
             Request request = requestBuilder.build();
