@@ -44,6 +44,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.SchemaTranslator;
+import org.apache.flink.table.catalog.TableWritePrivilege;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
@@ -60,11 +61,14 @@ import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils.CategorizedExpressions;
 import org.apache.flink.table.operations.utils.OperationTreeBuilder;
 
+import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -428,8 +432,9 @@ public class TableImpl implements Table {
                 tableEnvironment.getParser().parseIdentifier(tablePath);
         ObjectIdentifier objectIdentifier =
                 tableEnvironment.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
+        Set<TableWritePrivilege> privileges = Sets.newHashSet(TableWritePrivilege.INSERT);
         ContextResolvedTable contextResolvedTable =
-                tableEnvironment.getCatalogManager().getTableOrError(objectIdentifier);
+                tableEnvironment.getCatalogManager().getTableOrError(objectIdentifier, privileges);
         return insertInto(contextResolvedTable, overwrite);
     }
 
