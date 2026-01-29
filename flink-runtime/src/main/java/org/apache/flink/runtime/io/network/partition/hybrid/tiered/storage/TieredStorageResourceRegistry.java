@@ -20,10 +20,9 @@ package org.apache.flink.runtime.io.network.partition.hybrid.tiered.storage;
 
 import org.apache.flink.runtime.io.network.partition.hybrid.tiered.common.TieredStorageDataIdentifier;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * A registry that maintains local or remote resources that correspond to a certain set of data in
@@ -31,8 +30,9 @@ import java.util.Map;
  */
 public class TieredStorageResourceRegistry {
 
-    private final Map<TieredStorageDataIdentifier, List<TieredStorageResource>>
-            registeredResources = new HashMap<>();
+    private final ConcurrentHashMap<
+                    TieredStorageDataIdentifier, CopyOnWriteArrayList<TieredStorageResource>>
+            registeredResources = new ConcurrentHashMap<>();
 
     /**
      * Register a new resource for the given owner.
@@ -43,7 +43,7 @@ public class TieredStorageResourceRegistry {
     public void registerResource(
             TieredStorageDataIdentifier owner, TieredStorageResource tieredStorageResource) {
         registeredResources
-                .computeIfAbsent(owner, (ignore) -> new ArrayList<>())
+                .computeIfAbsent(owner, (ignore) -> new CopyOnWriteArrayList<>())
                 .add(tieredStorageResource);
     }
 
