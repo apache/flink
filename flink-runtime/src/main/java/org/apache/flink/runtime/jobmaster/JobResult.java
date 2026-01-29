@@ -56,6 +56,8 @@ public class JobResult implements Serializable {
 
     private final JobID jobId;
 
+    private final String jobName;
+
     /** Stores the job status, null if unknown. */
     @Nullable private final JobStatus jobStatus;
 
@@ -68,6 +70,7 @@ public class JobResult implements Serializable {
 
     private JobResult(
             final JobID jobId,
+            final String jobName,
             @Nullable final JobStatus jobStatus,
             final Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults,
             final long netRuntime,
@@ -79,6 +82,7 @@ public class JobResult implements Serializable {
                 "jobStatus must be globally terminal or unknow(null)");
 
         this.jobId = requireNonNull(jobId);
+        this.jobName = requireNonNull(jobName);
         this.jobStatus = jobStatus;
         this.accumulatorResults = requireNonNull(accumulatorResults);
         this.netRuntime = netRuntime;
@@ -93,6 +97,10 @@ public class JobResult implements Serializable {
 
     public JobID getJobId() {
         return jobId;
+    }
+
+    public String getJobName() {
+        return jobName;
     }
 
     public Optional<JobStatus> getJobStatus() {
@@ -165,6 +173,8 @@ public class JobResult implements Serializable {
 
         private JobID jobId;
 
+        private String jobName = "unknown";
+
         private JobStatus jobStatus;
 
         private Map<String, SerializedValue<OptionalFailure<Object>>> accumulatorResults;
@@ -175,6 +185,11 @@ public class JobResult implements Serializable {
 
         public Builder jobId(final JobID jobId) {
             this.jobId = jobId;
+            return this;
+        }
+
+        public Builder jobName(final String jobName) {
+            this.jobName = jobName;
             return this;
         }
 
@@ -202,6 +217,7 @@ public class JobResult implements Serializable {
         public JobResult build() {
             return new JobResult(
                     jobId,
+                    jobName,
                     jobStatus,
                     accumulatorResults == null ? Collections.emptyMap() : accumulatorResults,
                     netRuntime,
@@ -233,6 +249,7 @@ public class JobResult implements Serializable {
 
         final JobResult.Builder builder = new JobResult.Builder();
         builder.jobId(jobId);
+        builder.jobName(accessExecutionGraph.getJobName());
 
         builder.jobStatus(jobStatus.isGloballyTerminalState() ? jobStatus : null);
 
