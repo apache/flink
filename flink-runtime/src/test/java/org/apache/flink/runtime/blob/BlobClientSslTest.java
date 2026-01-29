@@ -54,7 +54,7 @@ class BlobClientSslTest extends BlobClientTest {
                         SecurityOptions.SSL_PROVIDER.defaultValue());
         config.set(
                 SecurityOptions.SSL_ALGORITHMS,
-                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256");
+                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256");
 
         blobSslServer = TestingBlobUtils.createServer(tempDir.resolve("ssl"), config);
         blobSslServer.start();

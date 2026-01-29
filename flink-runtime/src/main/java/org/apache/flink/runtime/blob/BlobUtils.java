@@ -60,7 +60,7 @@ import java.util.stream.Collectors;
 public class BlobUtils {
 
     /** Algorithm to be used for calculating the BLOB keys. */
-    private static final String HASHING_ALGORITHM = "SHA-256";
+    private static final String HASHING_ALGORITHM = "SHA-1";
 
     /** The prefix of all BLOB files stored by the BLOB server. */
     private static final String BLOB_FILE_PREFIX = "blob_";

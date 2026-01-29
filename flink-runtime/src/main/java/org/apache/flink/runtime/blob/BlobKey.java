@@ -41,7 +41,7 @@ public abstract class BlobKey implements Serializable, Comparable<BlobKey> {
     private static final long serialVersionUID = 3847117712521785209L;
 
     /** Size of the internal BLOB key in bytes. */
-    public static final int SIZE = 32;
+    public static final int SIZE = 20;
 
     /** The byte buffer storing the actual key data. */
     private final byte[] key;
