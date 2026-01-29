@@ -633,7 +633,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[city_name, cu
       +- LogicalTableScan(table=[[default_catalog, default_database, source_city]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[city_name, customer_cnt], upsertMaterialize=[true], changelogMode=[NONE])
+Sink(table=[default_catalog.default_database.sink], fields=[city_name, customer_cnt], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE], changelogMode=[NONE])
 +- Calc(select=[city_name, customer_cnt], changelogMode=[I,UB,UA,D])
    +- Join(joinType=[InnerJoin], where=[=(city_id, id)], select=[city_id, customer_cnt, id, city_name], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UB,UA,D])
       :- Exchange(distribution=[hash[city_id]], changelogMode=[I,UB,UA,D])
@@ -649,7 +649,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[city_name, customer_
                +- TableSourceScan(table=[[default_catalog, default_database, source_city]], fields=[id, city_name], changelogMode=[I,UA,D])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[city_name, customer_cnt], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink], fields=[city_name, customer_cnt], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[city_name, customer_cnt])
    +- Join(joinType=[InnerJoin], where=[(city_id = id)], select=[city_id, customer_cnt, id, city_name], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
       :- Exchange(distribution=[hash[city_id]])
@@ -723,7 +723,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[city_id, city
       +- LogicalTableScan(table=[[default_catalog, default_database, source_city]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[city_id, city_name, customer_cnt], upsertMaterialize=[true], changelogMode=[NONE])
+Sink(table=[default_catalog.default_database.sink], fields=[city_id, city_name, customer_cnt], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE], changelogMode=[NONE])
 +- Calc(select=[city_id, city_name, customer_cnt], changelogMode=[I,UB,UA,D])
    +- Join(joinType=[InnerJoin], where=[=(city_id, id)], select=[city_id, customer_cnt, id, city_name], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey], changelogMode=[I,UB,UA,D])
       :- Exchange(distribution=[hash[city_id]], changelogMode=[I,UB,UA,D])
@@ -739,7 +739,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[city_id, city_name, 
                +- TableSourceScan(table=[[default_catalog, default_database, source_city]], fields=[id, city_name], changelogMode=[I,UA,D])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[city_id, city_name, customer_cnt], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink], fields=[city_id, city_name, customer_cnt], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[city_id, city_name, customer_cnt])
    +- Join(joinType=[InnerJoin], where=[(city_id = id)], select=[city_id, customer_cnt, id, city_name], leftInputSpec=[JoinKeyContainsUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
       :- Exchange(distribution=[hash[city_id]])

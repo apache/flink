@@ -131,7 +131,7 @@ on conflict do deduplicate]]>
     </Resource>
     <Resource name="optimized rel plan with advice">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, cnt, day], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, cnt, day], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, cnt, day])
    +- GroupAggregate(advice=[1], groupBy=[day, a], select=[day, a, COUNT_RETRACT(*) AS cnt])
       +- Exchange(distribution=[hash[day, a]])
@@ -194,7 +194,7 @@ on conflict do deduplicate]]>
     </Resource>
     <Resource name="optimized rel plan with advice">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, day], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_with_pk], fields=[a, b, day], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a, b, DATE_FORMAT(CURRENT_TIMESTAMP(), 'yyMMdd') AS day], where=[>(b, 100)])
    +- TableSourceScan(table=[[default_catalog, default_database, cdc_with_computed_col, filter=[], project=[a, b], metadata=[]]], fields=[a, b])
 
