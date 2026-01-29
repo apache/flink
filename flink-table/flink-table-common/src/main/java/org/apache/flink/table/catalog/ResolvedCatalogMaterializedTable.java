@@ -205,15 +205,6 @@ public class ResolvedCatalogMaterializedTable
 
     /** Convert this object to a {@link ResolvedCatalogTable} object for planner optimize query. */
     public ResolvedCatalogTable toResolvedCatalogTable() {
-        return new ResolvedCatalogTable(
-                CatalogTable.newBuilder()
-                        .schema(getUnresolvedSchema())
-                        .comment(getComment())
-                        .distribution(getDistribution().orElse(null))
-                        .partitionKeys(getPartitionKeys())
-                        .options(getOptions())
-                        .snapshot(getSnapshot().orElse(null))
-                        .build(),
-                getResolvedSchema());
+        return new ResolvedCatalogTable(origin.toCatalogTable(), getResolvedSchema());
     }
 }
