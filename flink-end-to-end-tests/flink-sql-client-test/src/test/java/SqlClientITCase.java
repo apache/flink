@@ -42,11 +42,11 @@ import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.kafka.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.io.File;
@@ -80,7 +80,9 @@ public class SqlClientITCase {
 
     @Container
     public static final KafkaContainer KAFKA =
-            new KafkaContainer(DockerImageName.parse(DockerImageVersions.KAFKA))
+            new KafkaContainer(
+                            DockerImageName.parse(DockerImageVersions.KAFKA)
+                                    .asCompatibleSubstituteFor("apache/kafka"))
                     .withNetwork(NETWORK)
                     .withNetworkAliases(INTER_CONTAINER_KAFKA_ALIAS)
                     .withLogConsumer(LOG_CONSUMER);
