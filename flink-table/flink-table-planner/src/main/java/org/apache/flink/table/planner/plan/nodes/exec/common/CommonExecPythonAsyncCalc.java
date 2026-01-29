@@ -145,6 +145,14 @@ public abstract class CommonExecPythonAsyncCalc extends ExecNodeBase<RowData>
             Configuration pythonConfig,
             InternalTypeInfo<RowData> inputTypeInfo,
             InternalTypeInfo<RowData> outputTypeInfo) {
+        boolean isInProcessMode =
+                CommonPythonUtil.isPythonWorkerInProcessMode(pythonConfig, classLoader);
+
+        if (!isInProcessMode) {
+            throw new UnsupportedOperationException(
+                    "Python async scalar function is still not supported for 'thread' mode.");
+        }
+
         // Separate async function calls from forwarded fields
         List<RexCall> asyncRexCalls = new ArrayList<>();
         List<Integer> forwardedFields = new ArrayList<>();

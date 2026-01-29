@@ -104,9 +104,15 @@ class StreamRecordQueueEntry(StreamElementQueueEntry):
         return self._completed_results is not None
 
     def emit_result(self, output_processor):
-        output_processor.process_outputs(
-            self._windowed_value,
-            _emit_results(self._timestamp, self._watermark, self._completed_results, False))
+        if self._windowed_value is not None:
+            # for datastream
+            output_processor.process_outputs(
+                self._windowed_value,
+                _emit_results(self._timestamp, self._watermark, self._completed_results, False))
+        else:
+            # for table
+            if len(self._completed_results) > 0:
+                output_processor.process_outputs(None, self._completed_results)
         return 1
 
     def on_complete(self, handler):
