@@ -34,7 +34,7 @@ import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigner
 import java.time.ZoneId;
 import java.util.TimeZone;
 
-import static org.apache.flink.table.runtime.util.TimeWindowUtil.getNextTriggerWatermark;
+import static org.apache.flink.table.runtime.util.TimeWindowUtil.getNextTriggerWatermarkWithOffset;
 
 /**
  * The operator used for local window aggregation.
@@ -122,8 +122,12 @@ public class LocalSlicingWindowAggOperator extends AbstractStreamOperator<RowDat
                 // we only need to call advanceProgress() when current watermark may trigger window
                 windowBuffer.advanceProgress(currentWatermark);
                 nextTriggerWatermark =
-                        getNextTriggerWatermark(
-                                currentWatermark, windowInterval, shiftTimezone, useDayLightSaving);
+                        getNextTriggerWatermarkWithOffset(
+                                currentWatermark,
+                                windowInterval,
+                                sliceAssigner.getWindowOffset(),
+                                shiftTimezone,
+                                useDayLightSaving);
             }
         }
         super.processWatermark(mark);
