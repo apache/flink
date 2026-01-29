@@ -259,6 +259,15 @@ public class SinkTransformationTranslator<Input, Output>
 
         private <CommT, WriteResultT> void addCommittingTopology(
                 Sink<T> sink, DataStream<T> inputStream) {
+
+            // Default to co-location for sinks without pre-commit topology ensuring
+            // writer and committer run on the same TaskManager.
+            if (!(sink instanceof SupportsPreCommitTopology)
+                    && transformation.getCoLocationGroupKey() == null) {
+                transformation.setCoLocationGroupKey(
+                        "sink-writer-committer-" + transformation.getId());
+            }
+
             SupportsCommitter<CommT> committingSink = (SupportsCommitter<CommT>) sink;
             TypeInformation<CommittableMessage<CommT>> committableTypeInformation =
                     CommittableMessageTypeInfo.of(committingSink::getCommittableSerializer);
