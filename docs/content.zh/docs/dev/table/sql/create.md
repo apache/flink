@@ -968,4 +968,19 @@ WITH (
 );
 ```
 
+```sql
+CREATE MODEL triton_text_classifier
+INPUT (input STRING COMMENT '用于分类的输入文本')
+OUTPUT (output STRING COMMENT '分类结果')
+COMMENT '基于 Triton 的文本分类模型'
+WITH (
+    'provider' = 'triton',
+    'endpoint' = 'http://localhost:8000/v2/models',
+    'model-name' = 'text-classification',
+    'model-version' = '1',
+    'timeout' = '10000',
+    'max-retries' = '3'
+);
+```
+
 {{< top >}}
