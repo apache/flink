@@ -824,4 +824,9 @@ public class LocalBufferPool implements BufferPool {
             }
         }
     }
+
+    @Override
+    public int getBuffersCountUnsafe(int targetChannel) {
+        return subpartitionBuffersCount[targetChannel];
+    }
 }
