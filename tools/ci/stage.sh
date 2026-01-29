@@ -121,6 +121,7 @@ flink-metrics/flink-metrics-slf4j,\
 flink-metrics/flink-metrics-otel,\
 flink-connectors/flink-connector-base,\
 flink-models/flink-model-openai,\
+flink-models/flink-model-triton,\
 "
 
 MODULES_TESTS="\
