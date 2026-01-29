@@ -298,7 +298,8 @@ public class EmbeddedRocksDBStateBackendTest
             rocksDBStateUploader =
                     spy(
                             new RocksDBStateUploader(
-                                    RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue()));
+                                    RocksDBOptions.CHECKPOINT_TRANSFER_THREAD_NUM.defaultValue(),
+                                    RocksDBOptions.CHECKPOINT_UPLOAD_JITTER.defaultValue()));
             keyedStateBackendBuilder.setRocksDBStateUploader(rocksDBStateUploader);
         }
 
