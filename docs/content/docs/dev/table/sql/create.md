@@ -951,19 +951,4 @@ WITH (
 );
 ```
 
-```sql
-CREATE MODEL triton_text_classifier
-INPUT (input STRING COMMENT 'Input text for classification')
-OUTPUT (output STRING COMMENT 'Classification result')
-COMMENT 'A Triton-based text classification model'
-WITH (
-    'provider' = 'triton',
-    'endpoint' = 'http://localhost:8000/v2/models',
-    'model-name' = 'text-classification',
-    'model-version' = '1',
-    'timeout' = '10000',
-    'max-retries' = '3'
-);
-```
-
 {{< top >}}
