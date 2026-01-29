@@ -528,6 +528,28 @@ public class CheckpointingOptions {
                                     .build());
 
     /**
+     * The initial delay before the first checkpoint is triggered after the job starts.
+     *
+     * <p>This is useful for jobs that need time to warm up or catch up with backlogs before
+     * performing the first checkpoint.
+     */
+    @PublicEvolving
+    public static final ConfigOption<Duration> CHECKPOINTING_INITIAL_DELAY =
+            ConfigOptions.key("execution.checkpointing.initial-delay")
+                    .durationType()
+                    .defaultValue(Duration.ZERO)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The initial delay before the first checkpoint is triggered after the job starts. "
+                                                    + "This is useful for jobs that need time to warm up or catch up with backlogs. "
+                                                    + "If set to 0 (default), the initial delay will be randomly chosen between "
+                                                    + "%s and %s.",
+                                            TextElement.code(MIN_PAUSE_BETWEEN_CHECKPOINTS.key()),
+                                            TextElement.code(CHECKPOINTING_INTERVAL.key()))
+                                    .build());
+
+    /**
      * Enables unaligned checkpoints, which greatly reduce checkpointing times under backpressure.
      *
      * <p><strong>Note:</strong> Instead of accessing this configuration option directly with {@code

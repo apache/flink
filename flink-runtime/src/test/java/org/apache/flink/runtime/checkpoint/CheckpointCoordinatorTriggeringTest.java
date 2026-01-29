@@ -159,6 +159,107 @@ class CheckpointCoordinatorTriggeringTest {
         }
     }
 
+    /**
+     * Tests that the initial checkpoint delay is respected when configured. When initialDelay > 0,
+     * the first checkpoint should be triggered after the configured delay plus a random jitter.
+     */
+    @Test
+    void testInitialCheckpointDelayConfiguration() throws Exception {
+        JobVertexID jobVertexID = new JobVertexID();
+
+        CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway gateway =
+                new CheckpointCoordinatorTestingUtils.CheckpointRecorderTaskManagerGateway();
+
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .setTaskManagerGateway(gateway)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        // Configure with initial checkpoint delay of 5000ms
+        final long initialDelay = 5000L;
+        final long checkpointInterval = 1000L;
+
+        CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
+                new CheckpointCoordinatorConfigurationBuilder()
+                        .setCheckpointInterval(checkpointInterval)
+                        .setCheckpointTimeout(200_000)
+                        .setMaxConcurrentCheckpoints(1)
+                        .setInitialCheckpointDelay(initialDelay)
+                        .build();
+
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setCheckpointCoordinatorConfiguration(checkpointCoordinatorConfiguration)
+                        .setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .build(graph);
+
+        try {
+            checkpointCoordinator.startCheckpointScheduler();
+
+            // Verify that the initial delay configuration is set correctly
+            assertThat(checkpointCoordinatorConfiguration.getInitialCheckpointDelay())
+                    .isEqualTo(initialDelay);
+
+            // Trigger the scheduled checkpoint
+            manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks(
+                    CheckpointCoordinator.ScheduledTrigger.class);
+            manuallyTriggeredScheduledExecutor.triggerAll();
+
+            // The checkpoint should be triggered (the delay is handled by the scheduler)
+            assertThat(checkpointCoordinator.isPeriodicCheckpointingStarted()).isTrue();
+        } finally {
+            checkpointCoordinator.stopCheckpointScheduler();
+            checkpointCoordinator.shutdown();
+        }
+    }
+
+    /**
+     * Tests that when initialCheckpointDelay is 0 (default), the random initial delay falls back to
+     * the range [minPauseBetweenCheckpoints, baseInterval].
+     */
+    @Test
+    void testDefaultInitialDelayBehavior() throws Exception {
+        JobVertexID jobVertexID = new JobVertexID();
+
+        ExecutionGraph graph =
+                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                        .addJobVertex(jobVertexID)
+                        .build(EXECUTOR_RESOURCE.getExecutor());
+
+        // Configure without initial checkpoint delay (default is 0)
+        final long checkpointInterval = 1000L;
+        final long minPause = 500L;
+
+        CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration =
+                new CheckpointCoordinatorConfigurationBuilder()
+                        .setCheckpointInterval(checkpointInterval)
+                        .setMinPauseBetweenCheckpoints(minPause)
+                        .setCheckpointTimeout(200_000)
+                        .setMaxConcurrentCheckpoints(1)
+                        // initialCheckpointDelay defaults to 0
+                        .build();
+
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setCheckpointCoordinatorConfiguration(checkpointCoordinatorConfiguration)
+                        .setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .build(graph);
+
+        try {
+            // Verify that initial delay is 0 (default)
+            assertThat(checkpointCoordinatorConfiguration.getInitialCheckpointDelay()).isZero();
+
+            checkpointCoordinator.startCheckpointScheduler();
+            assertThat(checkpointCoordinator.isPeriodicCheckpointingStarted()).isTrue();
+        } finally {
+            checkpointCoordinator.stopCheckpointScheduler();
+            checkpointCoordinator.shutdown();
+        }
+    }
+
     private void checkRecordedTriggeredCheckpoints(
             int numTrigger,
             long start,

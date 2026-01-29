@@ -510,6 +510,40 @@ public class CheckpointConfig implements java.io.Serializable {
     }
 
     /**
+     * Gets the initial delay before the first checkpoint is triggered after the job starts.
+     *
+     * <p>This is useful for jobs that need time to warm up or catch up with backlogs before
+     * performing the first checkpoint.
+     *
+     * @return The initial delay before the first checkpoint, in milliseconds. Returns 0 if not
+     *     configured.
+     */
+    @PublicEvolving
+    public long getInitialCheckpointDelay() {
+        return configuration
+                .getOptional(CheckpointingOptions.CHECKPOINTING_INITIAL_DELAY)
+                .map(Duration::toMillis)
+                .orElse(0L);
+    }
+
+    /**
+     * Sets the initial delay before the first checkpoint is triggered after the job starts.
+     *
+     * <p>This is useful for jobs that need time to warm up or catch up with backlogs before
+     * performing the first checkpoint.
+     *
+     * @param initialDelay The initial delay before the first checkpoint, in milliseconds.
+     */
+    @PublicEvolving
+    public void setInitialCheckpointDelay(long initialDelay) {
+        if (initialDelay < 0) {
+            throw new IllegalArgumentException("Initial checkpoint delay must be non-negative");
+        }
+        configuration.set(
+                CheckpointingOptions.CHECKPOINTING_INITIAL_DELAY, Duration.ofMillis(initialDelay));
+    }
+
+    /**
      * The number of subtasks to share the same channel state file. If {@link
      * CheckpointingOptions#UNALIGNED_MAX_SUBTASKS_PER_CHANNEL_STATE_FILE} has value equal to <code>
      * 1</code>, each subtask will create a new channel state file.
@@ -640,6 +674,9 @@ public class CheckpointConfig implements java.io.Serializable {
         configuration
                 .getOptional(CheckpointingOptions.CHECKPOINTS_DIRECTORY)
                 .ifPresent(this::setCheckpointDirectory);
+        configuration
+                .getOptional(CheckpointingOptions.CHECKPOINTING_INITIAL_DELAY)
+                .ifPresent(d -> this.setInitialCheckpointDelay(d.toMillis()));
     }
 
     private void setCheckpointDirectory(String checkpointDirectory) {
