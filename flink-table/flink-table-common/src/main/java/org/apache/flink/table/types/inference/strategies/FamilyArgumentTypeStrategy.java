@@ -50,20 +50,21 @@ public final class FamilyArgumentTypeStrategy implements ArgumentTypeStrategy {
 
     private final @Nullable Boolean expectedNullability;
 
-    private static final Map<LogicalTypeFamily, LogicalTypeRoot> familyToRoot = new HashMap<>();
+    public static final Map<LogicalTypeFamily, LogicalTypeRoot> FAMILY_TO_ROOT = new HashMap<>();
 
     static {
         // "fallback" root for a NULL literals,
         // they receive the smallest precision possible for having little impact when finding a
         // common type.
-        familyToRoot.put(LogicalTypeFamily.NUMERIC, LogicalTypeRoot.TINYINT);
-        familyToRoot.put(LogicalTypeFamily.INTEGER_NUMERIC, LogicalTypeRoot.TINYINT);
-        familyToRoot.put(LogicalTypeFamily.EXACT_NUMERIC, LogicalTypeRoot.TINYINT);
-        familyToRoot.put(LogicalTypeFamily.CHARACTER_STRING, LogicalTypeRoot.VARCHAR);
-        familyToRoot.put(LogicalTypeFamily.BINARY_STRING, LogicalTypeRoot.VARBINARY);
-        familyToRoot.put(LogicalTypeFamily.APPROXIMATE_NUMERIC, LogicalTypeRoot.DOUBLE);
-        familyToRoot.put(LogicalTypeFamily.TIMESTAMP, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE);
-        familyToRoot.put(LogicalTypeFamily.TIME, LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE);
+        FAMILY_TO_ROOT.put(LogicalTypeFamily.NUMERIC, LogicalTypeRoot.TINYINT);
+        FAMILY_TO_ROOT.put(LogicalTypeFamily.INTEGER_NUMERIC, LogicalTypeRoot.TINYINT);
+        FAMILY_TO_ROOT.put(LogicalTypeFamily.EXACT_NUMERIC, LogicalTypeRoot.TINYINT);
+        FAMILY_TO_ROOT.put(LogicalTypeFamily.CHARACTER_STRING, LogicalTypeRoot.VARCHAR);
+        FAMILY_TO_ROOT.put(LogicalTypeFamily.BINARY_STRING, LogicalTypeRoot.VARBINARY);
+        FAMILY_TO_ROOT.put(LogicalTypeFamily.APPROXIMATE_NUMERIC, LogicalTypeRoot.DOUBLE);
+        FAMILY_TO_ROOT.put(
+                LogicalTypeFamily.TIMESTAMP, LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE);
+        FAMILY_TO_ROOT.put(LogicalTypeFamily.TIME, LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE);
     }
 
     public FamilyArgumentTypeStrategy(
@@ -86,18 +87,21 @@ public final class FamilyArgumentTypeStrategy implements ArgumentTypeStrategy {
         if (Objects.equals(expectedNullability, Boolean.FALSE) && actualType.isNullable()) {
             return callContext.fail(
                     throwOnFailure,
-                    "Unsupported argument type. Expected nullable type of family '%s' but actual type was '%s'.",
+                    "Unsupported argument type. Expected NOT NULL type of family '%s' but actual type was '%s'.",
                     expectedFamily,
                     actualType);
         }
 
         // type is part of the family
         if (actualType.getTypeRoot().getFamilies().contains(expectedFamily)) {
+            if (Objects.equals(expectedNullability, Boolean.TRUE) && !actualType.isNullable()) {
+                return Optional.of(actualDataType.nullable());
+            }
             return Optional.of(actualDataType);
         }
 
         // find a type for the family
-        final LogicalTypeRoot expectedRoot = familyToRoot.get(expectedFamily);
+        final LogicalTypeRoot expectedRoot = FAMILY_TO_ROOT.get(expectedFamily);
         final Optional<DataType> inferredDataType;
         if (expectedRoot == null) {
             inferredDataType = Optional.empty();

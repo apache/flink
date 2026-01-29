@@ -23,6 +23,8 @@ import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.AndArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.AnyArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.ArrayOfFamilyArgumentTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.ArrayOfRootArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonArrayInputTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.CommonInputTypeStrategy;
@@ -287,6 +289,47 @@ public final class InputTypeStrategies {
     public static FamilyArgumentTypeStrategy logical(
             LogicalTypeFamily expectedFamily, boolean expectedNullability) {
         return new FamilyArgumentTypeStrategy(expectedFamily, expectedNullability);
+    }
+
+    /**
+     * Strategy for an argument that corresponds to an {@code ARRAY} with specified element {@link
+     * LogicalTypeRoot}. Implicit casts for element will be inserted if possible.
+     */
+    public static ArrayOfRootArgumentTypeStrategy arrayOf(LogicalTypeRoot expectedElementRoot) {
+        return new ArrayOfRootArgumentTypeStrategy(expectedElementRoot, null, null);
+    }
+
+    /**
+     * Strategy for an argument that corresponds to an {@code ARRAY} with specified element {@link
+     * LogicalTypeRoot} and nullability. Implicit casts for element will be inserted if possible.
+     */
+    public static ArrayOfRootArgumentTypeStrategy arrayOf(
+            LogicalTypeRoot expectedElementRoot,
+            Boolean expectedArrayNullability,
+            Boolean expectedElementNullability) {
+        return new ArrayOfRootArgumentTypeStrategy(
+                expectedElementRoot, expectedArrayNullability, expectedElementNullability);
+    }
+
+    /**
+     * Strategy for an argument that corresponds to an {@code ARRAY} with specified element {@link
+     * LogicalTypeFamily}. Implicit casts for element will be inserted if possible.
+     */
+    public static ArrayOfFamilyArgumentTypeStrategy arrayOf(
+            LogicalTypeFamily expectedElementFamily) {
+        return new ArrayOfFamilyArgumentTypeStrategy(expectedElementFamily, null, null);
+    }
+
+    /**
+     * Strategy for an argument that corresponds to an {@code ARRAY} with specified element {@link
+     * LogicalTypeFamily} and nullability. Implicit casts for element will be inserted if possible.
+     */
+    public static ArrayOfFamilyArgumentTypeStrategy arrayOf(
+            LogicalTypeFamily expectedElementFamily,
+            Boolean expectedArrayNullability,
+            Boolean expectedElementNullability) {
+        return new ArrayOfFamilyArgumentTypeStrategy(
+                expectedElementFamily, expectedArrayNullability, expectedElementNullability);
     }
 
     /** Strategy for an argument that must fulfill a given constraint. */
