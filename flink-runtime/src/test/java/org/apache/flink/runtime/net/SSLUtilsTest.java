@@ -485,6 +485,9 @@ public class SSLUtilsTest {
     public static Configuration createInternalSslConfigWithKeyAndTrustStores(String sslProvider) {
         final Configuration config = new Configuration();
         config.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        config.set(
+                SecurityOptions.SSL_ALGORITHMS,
+                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
         addSslProviderConfig(config, sslProvider);
         addInternalKeyStoreConfig(config);
         addInternalTrustStoreConfig(config);

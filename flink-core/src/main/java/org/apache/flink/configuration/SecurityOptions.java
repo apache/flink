@@ -504,8 +504,7 @@ public class SecurityOptions {
     public static final ConfigOption<String> SSL_ALGORITHMS =
             key("security.ssl.algorithms")
                     .stringType()
-                    .defaultValue(
-                            "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
+                    .defaultValue("TLS_RSA_WITH_AES_128_CBC_SHA")
                     .withDescription(
                             Description.builder()
                                     .text(
