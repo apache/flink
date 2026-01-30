@@ -25,6 +25,7 @@ tmp
 *.zip
 *.log
 *.pyc
+.metals
 .DS_Store
 build-target
 **/dependency-reduced-pom.xml

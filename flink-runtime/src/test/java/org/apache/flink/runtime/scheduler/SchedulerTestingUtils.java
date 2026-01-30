@@ -39,6 +39,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.executiongraph.IOMetrics;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.ResultPartitionBytes;
 import org.apache.flink.runtime.executiongraph.failover.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.io.network.partition.JobMasterPartitionTracker;
@@ -105,6 +106,18 @@ public class SchedulerTestingUtils {
             final ScheduledExecutorService executorService)
             throws Exception {
         return new DefaultSchedulerBuilder(jobGraph, mainThreadExecutor, executorService).build();
+    }
+
+    public static DefaultScheduler createScheduler(
+            final JobGraph jobGraph,
+            final ComponentMainThreadExecutor mainThreadExecutor,
+            final ScheduledExecutorService executorService,
+            JobStatusListener jobStatusListener)
+            throws Exception {
+        DefaultSchedulerBuilder builder =
+                new DefaultSchedulerBuilder(jobGraph, mainThreadExecutor, executorService);
+        builder.setJobStatusListener(jobStatusListener);
+        return builder.build();
     }
 
     public static void enableCheckpointing(final JobGraph jobGraph) {
