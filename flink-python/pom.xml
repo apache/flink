@@ -419,7 +419,11 @@ under the License.
 				<scope>runtime</scope>
 			</dependency>
 
-			<!-- Netty dependency is fixed to 4.1 here as Arrow expects this. It should be removed or updated once Apache Arrow version is upgraded. -->
+			<!-- Netty dependency is fixed to 4.1 here as Arrow 13.0.0 expects this version. It
+				should be removed or updated once Apache Arrow version is upgraded to a version
+				that supports Netty 4.2.x.
+			 	https://github.com/apache/arrow-java/commit/7d4cf21bd6502fc650dfad4a6e9fbe0ae5cf4360
+			 -->
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-bom</artifactId>
