@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SlowTaskDetectorOptions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
@@ -458,15 +457,6 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
     private ExecutionGraph createExecutionGraph(JobVertex... jobVertices) throws Exception {
         final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(jobVertices);
 
-        // Calculate total number of vertices
-        int totalVertices = 0;
-        for (JobVertex jobVertex : jobVertices) {
-            totalVertices += jobVertex.getParallelism();
-        }
-        final int expectedVertexCount = totalVertices;
-
-        CompletableFuture<Void> allVerticesRunningFuture = new CompletableFuture<>();
-
         final SchedulerBase scheduler =
                 SchedulerTestingUtils.createScheduler(
                         jobGraph,
@@ -475,32 +465,8 @@ class ExecutionTimeBasedSlowTaskDetectorTest {
 
         final ExecutionGraph executionGraph = scheduler.getExecutionGraph();
 
-        // Create job status listener that checks when all vertices are running
-        JobStatusListener jobStatusListener =
-                (jobId, newJobStatus, timestamp) -> {
-                    if (newJobStatus == JobStatus.RUNNING) {
-                        // Only complete the future when all vertices are in RUNNING state
-                        long runningCount =
-                                executionGraph.getAllExecutionVertices().stream()
-                                        .filter(
-                                                v ->
-                                                        v.getCurrentExecutionAttempt().getState()
-                                                                == ExecutionState.RUNNING)
-                                        .count();
-                        if (runningCount >= expectedVertexCount) {
-                            allVerticesRunningFuture.complete(null);
-                        }
-                    }
-                };
-
-        // Register the listener
-        executionGraph.registerJobStatusListener(jobStatusListener);
-
         scheduler.startScheduling();
         ExecutionGraphTestUtils.switchAllVerticesToRunning(executionGraph);
-
-        // Wait for all vertices to be in RUNNING state
-        allVerticesRunningFuture.join();
 
         return executionGraph;
     }
