@@ -204,4 +204,25 @@ Default is true. Setting this to false will raise the CPU usage.
  - `state.backend.forst.executor.inline-coordinator`: Whether to let task thread be the coordinator thread.
 Default is true. Setting this to false will raise the CPU usage.
 
+{{< hint info >}}
+`ForStStateBackend` utilizes [ForSt](https://github.com/ververica/ForSt/) as its underlying database core.
+The current version of ForSt is forked from [frocksdb](https://github.com/ververica/frocksdb),
+architected as an embedded database core specifically for Flink local state management.
+
+While transitioning the db toward a disaggregated architecture, we encountered significant
+architectural and engineering constraints within the existing framework.
+To address these challenges, community members are now working on a next-generation,
+cloud-native ForSt DB written in Rust.
+
+#### Key Advantages of the New ForSt DB:
+- Architectural Simplicity: A streamlined codebase designed for high extensibility.
+- Stream-Native Design: Optimized specifically for the unique demands of large-scale stream processing.
+- Cloud-Native: Built from the ground up to support disaggregation.
+
+#### Roadmap & Maintenance:
+- Release Schedule: The first stable open-source version is projected for later 2026 (August, optimistically)
+- Deprecation Notice: As we shift our focus to the new Rust-based implementation, the frocksdb-based version of ForSt is no longer under active development and will be phased out (deprecated) following the new release.
+
+{{< /hint >}}
+
 {{< top >}}
