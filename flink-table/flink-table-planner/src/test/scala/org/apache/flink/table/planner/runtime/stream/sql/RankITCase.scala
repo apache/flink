@@ -168,7 +168,7 @@ class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
       ChangelogMode.upsert(),
       List(0, 3).map(fieldNames)
     )
-    table.executeInsert("MySink").await()
+    table.executeInsert("MySink", InsertConflictStrategy.deduplicate()).await()
 
     val expected =
       List("book,4,11,1", "book,1,12,2", "fruit,5,22,1", "fruit,4,33,2")
@@ -235,7 +235,7 @@ class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
       ChangelogMode.upsert(),
       List(0, 3).map(fieldNames)
     )
-    table.executeInsert("MySink").await()
+    table.executeInsert("MySink", InsertConflictStrategy.deduplicate()).await()
 
     val updatedExpected = List("book,5,800,1", "book,12,900,2", "book,4,910,3")
 
@@ -302,7 +302,7 @@ class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
       ChangelogMode.upsert(),
       List(0, 3).map(fieldNames)
     )
-    table.executeInsert("MySink").await()
+    table.executeInsert("MySink", InsertConflictStrategy.deduplicate()).await()
 
     val updatedExpected = List("book,3,110,1", "book,8,200,2", "book,12,600,3")
 
@@ -352,7 +352,7 @@ class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
       ChangelogMode.upsert(),
       List(0, 3).map(fieldNames)
     )
-    table.executeInsert("MySink").await()
+    table.executeInsert("MySink", InsertConflictStrategy.deduplicate()).await()
 
     // Fix the RowKind in FLINK-36998
     val updatedExpected =
@@ -413,7 +413,7 @@ class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
       ChangelogMode.upsert(),
       List(0, 3).map(fieldNames)
     )
-    table.executeInsert("MySink").await()
+    table.executeInsert("MySink", InsertConflictStrategy.deduplicate()).await()
 
     val updatedExpected = List("book,10,1300.0,1", "book,12,900.0,2")
 
@@ -463,7 +463,7 @@ class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
       ChangelogMode.upsert(),
       List(0, 3).map(fieldNames)
     )
-    table.executeInsert("MySink").await()
+    table.executeInsert("MySink", InsertConflictStrategy.deduplicate()).await()
 
     val updatedExpected = List("book,2,19,2", "fruit,5,34,2")
 
@@ -598,7 +598,7 @@ class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
       ChangelogMode.upsert(),
       List(0, 1).map(fieldNames)
     )
-    table.executeInsert("MySink").await()
+    table.executeInsert("MySink", InsertConflictStrategy.deduplicate()).await()
 
     val expected = List(
       "book,1,5,4",
@@ -676,7 +676,7 @@ class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
       ChangelogMode.upsert(),
       List(0, 1).map(fieldNames)
     )
-    table.executeInsert("MySink").await()
+    table.executeInsert("MySink", InsertConflictStrategy.deduplicate()).await()
 
     assertThat(
       TestValuesTableFactory
@@ -740,7 +740,7 @@ class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
       ChangelogMode.upsert(),
       List(0).map(fieldNames)
     )
-    table.executeInsert("MySink").await()
+    table.executeInsert("MySink", InsertConflictStrategy.deduplicate()).await()
 
     val expected = List(
       "+I(1,book,a,1,1)",
@@ -827,7 +827,7 @@ class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
       List(0).map(fieldNames)
     )
 
-    table.executeInsert("MySink").await()
+    table.executeInsert("MySink", InsertConflictStrategy.deduplicate()).await()
 
     val expected = List(
       "+I(1,book,a,1,1)",
@@ -916,7 +916,7 @@ class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
       ChangelogMode.upsert(),
       List(0, 1).map(fieldNames)
     )
-    table.executeInsert("MySink").await()
+    table.executeInsert("MySink", InsertConflictStrategy.deduplicate()).await()
 
     val expected =
       List("book,1,5,4", "book,2,4,1", "book,3,2,2", "book,4,1,3", "fruit,1,3,5", "fruit,2,2,4")
@@ -982,7 +982,7 @@ class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
       ChangelogMode.upsert(),
       List(0, 3).map(fieldNames)
     )
-    table.executeInsert("MySink").await()
+    table.executeInsert("MySink", InsertConflictStrategy.deduplicate()).await()
 
     val expected = List(
       "(true,book,1,11,1)",
@@ -1063,7 +1063,7 @@ class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
       ChangelogMode.upsert(),
       List(0, 1).map(fieldNames)
     )
-    table.executeInsert("MySink").await()
+    table.executeInsert("MySink", InsertConflictStrategy.deduplicate()).await()
 
     val expected = List(
       "+I(book,1,100)",
@@ -1156,7 +1156,7 @@ class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
       ChangelogMode.upsert(),
       List(0, 1).map(fieldNames)
     )
-    table.executeInsert("MySink").await()
+    table.executeInsert("MySink", InsertConflictStrategy.deduplicate()).await()
 
     val expected = List(
       "+I(book,1,1)",
@@ -1365,7 +1365,7 @@ class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
       ChangelogMode.upsert(),
       List(0, 3).map(fieldNames1)
     )
-    table1.executeInsert("MySink1").await()
+    table1.executeInsert("MySink1", InsertConflictStrategy.deduplicate()).await()
 
     val table2 = tEnv.sqlQuery(
       s"""
@@ -1386,7 +1386,7 @@ class RankITCase(mode: StateBackendMode, enableAsyncState: Boolean)
       ChangelogMode.upsert(),
       List(0, 3).map(fieldNames2)
     )
-    table2.executeInsert("MySink2").await()
+    table2.executeInsert("MySink2", InsertConflictStrategy.deduplicate()).await()
 
     val expected1 = List("book,1,25,1", "book,2,19,2", "fruit,3,44,1", "fruit,4,33,2")
     assertThat(

@@ -258,7 +258,7 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
       List(DataTypes.INT, DataTypes.BIGINT, DataTypes.BIGINT),
       ChangelogMode.upsert(),
       List("a", "b"))
-    t.executeInsert("upsertSink").await()
+    t.executeInsert("upsertSink", InsertConflictStrategy.deduplicate()).await()
 
     val expected = Seq(
       "+I[0, 1, 1]",
@@ -1242,7 +1242,7 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
       ChangelogMode.upsert(),
       List(0, 2).map(fieldNames)
     )
-    t.executeInsert("MySink").await()
+    t.executeInsert("MySink", InsertConflictStrategy.deduplicate()).await()
 
     val expected = Seq("+I[1, 5, 1, 2]")
     assertThat(
@@ -1523,7 +1523,7 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
       java.util.Arrays.asList(schema.getFieldDataTypes: _*).toList,
       ChangelogMode.upsert(),
       List(0, 1).map(fieldNames))
-    t.executeInsert("MySink").await()
+    t.executeInsert("MySink", InsertConflictStrategy.deduplicate()).await()
 
     val expected = Seq(
       "+I[0, 1, 1]",
@@ -1836,7 +1836,7 @@ class JoinITCase(miniBatch: MiniBatchMode, mode: StateBackendMode, enableAsyncSt
       java.util.Arrays.asList(schema.getFieldDataTypes: _*).toList,
       ChangelogMode.upsert(),
       List(0, 1, 2).map(fieldNames))
-    t.executeInsert("sinkTests").await()
+    t.executeInsert("sinkTests", InsertConflictStrategy.deduplicate()).await()
 
     val expected = Seq("+I[4, 1, 1, 1]")
     assertThat(

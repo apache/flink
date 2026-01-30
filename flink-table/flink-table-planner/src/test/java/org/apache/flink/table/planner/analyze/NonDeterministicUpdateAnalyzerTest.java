@@ -218,7 +218,8 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
                 "insert into sink_with_pk\n"
                         + "select a, b, `day`\n"
                         + "from cdc_with_computed_col\n"
-                        + "where b > 100",
+                        + "where b > 100\n"
+                        + "on conflict do deduplicate",
                 new ExplainDetail[] {ExplainDetail.PLAN_ADVICE},
                 false,
                 new Enumeration.Value[] {PlanKind.OPT_REL_WITH_ADVICE()});
@@ -259,7 +260,8 @@ class NonDeterministicUpdateAnalyzerTest extends TableTestBase {
                         + "from (\n"
                         + "  select *, DATE_FORMAT(CURRENT_TIMESTAMP, 'yyMMdd') `day` from cdc\n"
                         + ") t\n"
-                        + "group by `day`, a",
+                        + "group by `day`, a\n"
+                        + "on conflict do deduplicate",
                 new ExplainDetail[] {ExplainDetail.PLAN_ADVICE},
                 false,
                 new Enumeration.Value[] {PlanKind.OPT_REL_WITH_ADVICE()});

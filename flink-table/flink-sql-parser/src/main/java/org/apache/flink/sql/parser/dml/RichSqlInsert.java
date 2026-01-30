@@ -30,8 +30,11 @@ import org.apache.calcite.sql.SqlTableRef;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
+import javax.annotation.Nullable;
+
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Optional;
 
 /** A {@link SqlInsert} that have some extension functions like partition, overwrite. * */
 public class RichSqlInsert extends SqlInsert {
@@ -43,6 +46,11 @@ public class RichSqlInsert extends SqlInsert {
 
     private final SqlNodeList tableHints;
 
+    /**
+     * The conflict resolution strategy specified via ON CONFLICT clause, or null if not specified.
+     */
+    @Nullable private final SqlLiteral conflictAction;
+
     public RichSqlInsert(
             SqlParserPos pos,
             SqlNodeList keywords,
@@ -51,9 +59,30 @@ public class RichSqlInsert extends SqlInsert {
             SqlNode source,
             SqlNodeList columnList,
             SqlNodeList staticPartitions) {
+        this(
+                pos,
+                keywords,
+                extendedKeywords,
+                targetTable,
+                source,
+                columnList,
+                staticPartitions,
+                null);
+    }
+
+    public RichSqlInsert(
+            SqlParserPos pos,
+            SqlNodeList keywords,
+            SqlNodeList extendedKeywords,
+            SqlNode targetTable,
+            SqlNode source,
+            SqlNodeList columnList,
+            SqlNodeList staticPartitions,
+            @Nullable SqlLiteral conflictAction) {
         super(pos, keywords, targetTable, source, columnList);
         this.extendedKeywords = extendedKeywords;
         this.staticPartitions = staticPartitions;
+        this.conflictAction = conflictAction;
         if (targetTable instanceof SqlTableRef) {
             SqlTableRef tableRef = (SqlTableRef) targetTable;
             this.targetTableID = tableRef.operand(0);
@@ -105,6 +134,18 @@ public class RichSqlInsert extends SqlInsert {
         return this.tableHints;
     }
 
+    /**
+     * Returns the conflict resolution strategy if specified via ON CONFLICT clause.
+     *
+     * @return the conflict strategy, or empty if not specified
+     */
+    public Optional<SqlInsertConflictBehavior> getConflictStrategy() {
+        if (conflictAction == null) {
+            return Optional.empty();
+        }
+        return Optional.of(conflictAction.symbolValue(SqlInsertConflictBehavior.class));
+    }
+
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
         writer.startList(SqlWriter.FrameTypeEnum.SELECT);
@@ -128,6 +169,13 @@ public class RichSqlInsert extends SqlInsert {
         }
         writer.newlineAndIndent();
         getSource().unparse(writer, 0, 0);
+        if (conflictAction != null) {
+            writer.newlineAndIndent();
+            writer.keyword("ON CONFLICT DO");
+            SqlInsertConflictBehavior strategy =
+                    conflictAction.symbolValue(SqlInsertConflictBehavior.class);
+            writer.keyword(strategy.name());
+        }
     }
 
     // ~ Tools ------------------------------------------------------------------

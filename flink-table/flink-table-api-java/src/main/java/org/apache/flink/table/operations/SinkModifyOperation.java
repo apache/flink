@@ -19,6 +19,7 @@
 package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -28,6 +29,7 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * DML operation that tells to write to a sink.
@@ -47,6 +49,7 @@ public class SinkModifyOperation implements ModifyOperation {
     private final Map<String, String> dynamicOptions;
     private final ModifyType modifyType;
     @Nullable private final int[][] targetColumns;
+    @Nullable private final InsertConflictStrategy conflictStrategy;
 
     public SinkModifyOperation(ContextResolvedTable contextResolvedTable, QueryOperation child) {
         this(
@@ -98,6 +101,26 @@ public class SinkModifyOperation implements ModifyOperation {
             boolean overwrite,
             Map<String, String> dynamicOptions,
             ModifyType modifyType) {
+        this(
+                contextResolvedTable,
+                child,
+                staticPartitions,
+                targetColumns,
+                overwrite,
+                dynamicOptions,
+                modifyType,
+                null);
+    }
+
+    public SinkModifyOperation(
+            ContextResolvedTable contextResolvedTable,
+            QueryOperation child,
+            Map<String, String> staticPartitions,
+            @Nullable int[][] targetColumns,
+            boolean overwrite,
+            Map<String, String> dynamicOptions,
+            ModifyType modifyType,
+            @Nullable InsertConflictStrategy conflictStrategy) {
         this.contextResolvedTable = contextResolvedTable;
         this.child = child;
         this.staticPartitions = staticPartitions;
@@ -105,6 +128,7 @@ public class SinkModifyOperation implements ModifyOperation {
         this.overwrite = overwrite;
         this.dynamicOptions = dynamicOptions;
         this.modifyType = modifyType;
+        this.conflictStrategy = conflictStrategy;
     }
 
     public ContextResolvedTable getContextResolvedTable() {
@@ -142,6 +166,15 @@ public class SinkModifyOperation implements ModifyOperation {
         return targetColumns;
     }
 
+    /**
+     * Returns the conflict resolution strategy if specified via ON CONFLICT clause.
+     *
+     * @return the conflict strategy, or empty if not specified
+     */
+    public Optional<InsertConflictStrategy> getConflictStrategy() {
+        return Optional.ofNullable(conflictStrategy);
+    }
+
     @Override
     public <T> T accept(ModifyOperationVisitor<T> visitor) {
         return visitor.visit(this);
@@ -156,6 +189,9 @@ public class SinkModifyOperation implements ModifyOperation {
         params.put("targetColumns", targetColumns);
         params.put("overwrite", overwrite);
         params.put("dynamicOptions", dynamicOptions);
+        if (conflictStrategy != null) {
+            params.put("conflictStrategy", conflictStrategy);
+        }
 
         return OperationUtils.formatWithChildren(
                 "CatalogSink",

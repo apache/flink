@@ -42,7 +42,7 @@ Sink(table=[default_catalog.default_database.append_snk], fields=[a0, a1, a2, a3
   </TestCase>
   <TestCase name="testComputeIndexKeyOnJoinCondition">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = TRIM(src2.b2)]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = TRIM(src2.b2) on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -57,7 +57,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a0, a1, a2, a3, b0, b2, b1])
    +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, $f3))], select=[a0, a1, a2, a3, b0, b2, b1, $f3], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a1, a2]])
@@ -70,7 +70,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testConstantConditionInIndex">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = 1.1 and src1.a2 = src2.b2]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = 1.1 and src1.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -83,7 +83,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a0, 1.1000000000000000888E0 AS a1, a2, a3, b0, b2, b1])
    +- Join(joinType=[InnerJoin], where=[=(a2, b2)], select=[a0, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a2]])
@@ -96,7 +96,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testDeltaJoinStrategyWithForce">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -109,7 +109,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
@@ -142,12 +142,12 @@ Exchange(distribution=[hash[a1, a2]])(reuse_id=[1])
 Exchange(distribution=[hash[b1, b2]])(reuse_id=[2])
 +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
 
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- DeltaJoin(joinType=[InnerJoin], where=[((a1 = b1) AND (a2 = b2))], select=[a0, a1, a2, a3, b0, b2, b1])
    :- Reused(reference_id=[1])
    +- Reused(reference_id=[2])
 
-Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Join(joinType=[InnerJoin], where=[((a1 = b1) AND (a2 = b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Reused(reference_id=[1])
    +- Reused(reference_id=[2])
@@ -156,7 +156,7 @@ Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, 
   </TestCase>
   <TestCase name="testDeltaJoinStrategyWithForce4">
     <Resource name="sql">
-      <![CDATA[insert into tmp_snk select a0, a1 from src1]]>
+      <![CDATA[insert into tmp_snk select a0, a1 from src1 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -167,14 +167,14 @@ LogicalSink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1])
+Sink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1], conflictStrategy=[DEDUPLICATE])
 +- TableSourceScan(table=[[default_catalog, default_database, src1, project=[a0, a1], metadata=[]]], fields=[a0, a1])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testDeltaJoinStrategyWithNone">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -187,7 +187,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
@@ -206,7 +206,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 
 == Optimized Physical Plan With Advice ==
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
@@ -216,7 +216,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
 No available advice...
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- DeltaJoin(joinType=[InnerJoin], where=[((a1 = b1) AND (a2 = b2))], select=[a0, a1, a2, a3, b0, b2, b1])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
@@ -227,7 +227,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testFilterFieldsAfterJoin">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 where a3 > b0]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 where a3 > b0 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -241,7 +241,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2), >(a3, b0))], select=[a0, a1, a2, a3, b0, b2, b1])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
@@ -252,7 +252,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testFilterFieldsBeforeJoin">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from (    select * from src1 where a1 > 1.1 ) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2]]>
+      <![CDATA[insert into snk select * from (    select * from src1 where a1 > 1.1 ) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -267,7 +267,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- Calc(select=[a0, a1, a2, a3], where=[>(a1, 1.1)])
@@ -289,6 +289,7 @@ insert into snk(l0, l1, r0, r2, r1)
   on a1 = b1
   and a2 = b2
   and b0 <> 0
+  on conflict do deduplicate
 ]]>
     </Resource>
     <Resource name="ast">
@@ -306,7 +307,7 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a0, a1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, b2, b1])
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a2, a1, b1, b2, b0])
       :- Exchange(distribution=[hash[a1, a2]])
@@ -505,7 +506,7 @@ Sink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1, a2, a3, b
   </TestCase>
   <TestCase name="testJoinKeysContainIndexOnBothSide">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -518,7 +519,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
@@ -529,7 +530,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testJoinKeysContainIndexOnBothSide2">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src1.a3 = src2.b0]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src1.a3 = src2.b0 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -542,7 +543,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2), =(a3, b0))], select=[a0, a1, a2, a3, b0, b2, b1])
    :- Exchange(distribution=[hash[a1, a2, a3]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
@@ -553,7 +554,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testJoinKeysNotContainIndexOnOneSide">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a2 = src2.b2]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -566,7 +567,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Join(joinType=[InnerJoin], where=[=(a2, b2)], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
@@ -585,7 +586,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
       +- LogicalTableScan(table=[[default_catalog, default_database, src2]])
 
 == Optimized Physical Plan With Advice ==
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
@@ -595,7 +596,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
 No available advice...
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- DeltaJoin(joinType=[InnerJoin], where=[((a1 = b1) AND (a2 = b2))], select=[a0, a1, a2, a3, b0, b2, b1])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
@@ -622,7 +623,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Union(all=[true], union=[a0, a1, a2, a3, b0, b2, b1])
    :- DeltaJoin(joinType=[InnerJoin], where=[=(a2, b2)], select=[a0, a1, a2, a3, b0, b2, b1])
    :  :- Exchange(distribution=[hash[a2]])
@@ -661,10 +662,10 @@ DeltaJoin(joinType=[InnerJoin], where=[((a1 = b1) AND (a2 = b2))], select=[a0, a
 +- Exchange(distribution=[hash[b1, b2]])
    +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
 
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Reused(reference_id=[1])
 
-Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -695,10 +696,10 @@ DeltaJoin(joinType=[InnerJoin], where=[((a1 = b1) AND (a2 = b2))], select=[a0, a
 +- Exchange(distribution=[hash[b1, b2]])
    +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
 
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Reused(reference_id=[1])
 
-Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -729,10 +730,10 @@ Join(joinType=[InnerJoin], where=[((a1 = b1) AND (a2 = b2))], select=[a0, a1, a2
 +- Exchange(distribution=[hash[b1, b2]])
    +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
 
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Reused(reference_id=[1])
 
-Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -761,12 +762,12 @@ Exchange(distribution=[hash[a1, a2]])(reuse_id=[1])
 Exchange(distribution=[hash[b1, b2]])(reuse_id=[2])
 +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
 
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- DeltaJoin(joinType=[InnerJoin], where=[((a1 = b1) AND (a2 = b2))], select=[a0, a1, a2, a3, b0, b2, b1])
    :- Reused(reference_id=[1])
    +- Reused(reference_id=[2])
 
-Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Join(joinType=[InnerJoin], where=[((a1 = b1) AND (a2 = b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Reused(reference_id=[1])
    +- Reused(reference_id=[2])
@@ -797,12 +798,12 @@ Exchange(distribution=[hash[a1, a2]])(reuse_id=[1])
 Exchange(distribution=[hash[b1, b2]])(reuse_id=[2])
 +- TableSourceScan(table=[[default_catalog, default_database, src2]], fields=[b0, b2, b1])
 
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- DeltaJoin(joinType=[InnerJoin], where=[((a1 = b1) AND (a2 = b2))], select=[a0, a1, a2, a3, b0, b2, b1])
    :- Reused(reference_id=[1])
    +- Reused(reference_id=[2])
 
-Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk2], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Join(joinType=[InnerJoin], where=[((a1 = b1) AND (a2 = b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Reused(reference_id=[1])
    +- Reused(reference_id=[2])
@@ -818,6 +819,7 @@ insert into snk(l0, l1, r0, r2, r1)
   ) join src2
   on a1 = b1
   and a2 = b2
+  on conflict do deduplicate
 ]]>
     </Resource>
     <Resource name="ast">
@@ -833,7 +835,7 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a0, a1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, b2, b1])
    +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a2, a1, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a1, a2]])
@@ -854,6 +856,7 @@ insert into snk
   )
   on a1 = b1
   and a2 = b2
+  on conflict do deduplicate
 ]]>
     </Resource>
     <Resource name="ast">
@@ -869,7 +872,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
@@ -888,6 +891,7 @@ insert into snk(l0, l1, r0, r2, r1)
   ) join src2
   on a1 = b1
   and a2 = b2
+  on conflict do deduplicate
 ]]>
     </Resource>
     <Resource name="ast">
@@ -903,7 +907,7 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4],[5],[6]], fields=[a0, a1, EXPR$2, EXPR$3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a0, a1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, b2, b1])
    +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a2, a1, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a1, a2]])
@@ -1027,6 +1031,7 @@ insert into snk(l0, r0, r2)
   ) join src2
   on a1 = b1
   and a2 = b2
+  on conflict do deduplicate
 ]]>
     </Resource>
     <Resource name="ast">
@@ -1042,7 +1047,7 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[a0, EXPR$1, EXPR$2, EXPR$3, b0, b2, EXPR$6])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[a0, EXPR$1, EXPR$2, EXPR$3, b0, b2, EXPR$6], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a0, null:DOUBLE AS EXPR$1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, b2, null:DOUBLE AS EXPR$6])
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a2, a1, b0, b2, b1])
       :- Exchange(distribution=[hash[a1, a2]])
@@ -1054,7 +1059,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], 
   </TestCase>
   <TestCase name="testProjectFieldsAfterJoin">
     <Resource name="sql">
-      <![CDATA[insert into snk select a0, a1 + 1.1, a2, a3, b0, b2, b1 from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2]]>
+      <![CDATA[insert into snk select a0, a1 + 1.1, a2, a3, b0, b2, b1 from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1067,7 +1072,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, a2
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a0, +(a1, 1.1) AS EXPR$1, a2, a3, b0, b2, b1])
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1])
       :- Exchange(distribution=[hash[a1, a2]])
@@ -1079,7 +1084,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, EXPR$1, a2, a3, b
   </TestCase>
   <TestCase name="testProjectFieldsBeforeJoin">
     <Resource name="sql">
-      <![CDATA[insert into snk(l0, l1, l2, r0, r2, r1) select * from (   select a0, a1, a2 from src1) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2]]>
+      <![CDATA[insert into snk(l0, l1, l2, r0, r2, r1) select * from (   select a0, a1, a2 from src1) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1093,7 +1098,7 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a0, a1, a2, null:INTEGER AS EXPR$3, b0, b2, b1])
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, b0, b2, b1])
       :- Exchange(distribution=[hash[a1, a2]])
@@ -1105,7 +1110,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4
   </TestCase>
   <TestCase name="testProjectFieldsBeforeJoinWhileAliasAndReorderOnIndex">
     <Resource name="sql">
-      <![CDATA[insert into snk(l1, l2, l0, r0, r2, r1) select * from (   select a1 as a0, a2 as a1, a0 as a2 from src1) tmp join src2 on tmp.a0 = src2.b1 and tmp.a1 = src2.b2]]>
+      <![CDATA[insert into snk(l1, l2, l0, r0, r2, r1) select * from (   select a1 as a0, a2 as a1, a0 as a2 from src1) tmp join src2 on tmp.a0 = src2.b1 and tmp.a1 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1119,7 +1124,7 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[1],[2]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[1],[2],[0],[4],[5],[6]], fields=[a2, a0, a1, EXPR$3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[1],[2],[0],[4],[5],[6]], fields=[a2, a0, a1, EXPR$3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a0 AS a2, a1 AS a0, a2 AS a1, null:INTEGER AS EXPR$3, b0, b2, b1])
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a1, a2, a0, b0, b2, b1])
       :- Exchange(distribution=[hash[a1, a2]])
@@ -1131,7 +1136,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[1],[2],[0],[4
   </TestCase>
   <TestCase name="testProjectFieldsBeforeJoinWhileModifyingOnIndex">
     <Resource name="sql">
-      <![CDATA[insert into snk(l0, l1, l2, r0, r2, r1) select * from (   select a0, a1, SUBSTRING(a2, 2) as a2 from src1) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2]]>
+      <![CDATA[insert into snk(l0, l1, l2, r0, r2, r1) select * from (   select a0, a1, SUBSTRING(a2, 2) as a2 from src1) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1145,7 +1150,7 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a0, a1, a2, null:INTEGER AS EXPR$3, b0, b2, b1])
    +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a1, a2]])
@@ -1158,7 +1163,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4
   </TestCase>
   <TestCase name="testProjectFieldsBeforeJoinWhileModifyingOnOneIndexButRetainingAnother">
     <Resource name="sql">
-      <![CDATA[insert into snk(l0, l1, l2, r0, r2, r1) select * from (   select a0, a1, SUBSTRING(a2, 2) as a2 from src1WithMultiIndexes) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2]]>
+      <![CDATA[insert into snk(l0, l1, l2, r0, r2, r1) select * from (   select a0, a1, SUBSTRING(a2, 2) as a2 from src1WithMultiIndexes) tmp join src2 on tmp.a1 = src2.b1 and tmp.a2 = src2.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1172,7 +1177,7 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[2],[4],[5],[6]], fields=[a0, a1, a2, EXPR$3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a0, a1, a2, null:INTEGER AS EXPR$3, b0, b2, b1])
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, b0, b2, b1])
       :- Exchange(distribution=[hash[a1, a2]])
@@ -1192,6 +1197,7 @@ insert into snk(l0, r0, r2)
   ) join src2
   on a1 = b1
   and a2 = b2
+  on conflict do deduplicate
 ]]>
     </Resource>
     <Resource name="ast">
@@ -1207,7 +1213,7 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[a0, EXPR$1, EXPR$2, EXPR$3, b0, b2, EXPR$6])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[4],[5]], fields=[a0, EXPR$1, EXPR$2, EXPR$3, b0, b2, EXPR$6], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a0, null:DOUBLE AS EXPR$1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, b2, null:DOUBLE AS EXPR$6])
    +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a2, a1, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a1, a2]])
@@ -1244,7 +1250,7 @@ Sink(table=[default_catalog.default_database.retract_snk], fields=[a0, a1, a2, a
   </TestCase>
   <TestCase name="testSourceDDLContainsComputingCol">
     <Resource name="sql">
-      <![CDATA[insert into snk(l0, l1, r0) select a0, new_a1, b0 from src1WithComputingCol join src2 on a1 = b1 and a2 = b2]]>
+      <![CDATA[insert into snk(l0, l1, r0) select a0, new_a1, b0 from src1WithComputingCol join src2 on a1 = b1 and a2 = b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1258,7 +1264,7 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[a0, new_a1, EXPR$2, EXPR$3, b0, EXPR$5, EXPR$6])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[a0, new_a1, EXPR$2, EXPR$3, b0, EXPR$5, EXPR$6], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a0, new_a1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, null:VARCHAR(2147483647) AS EXPR$5, null:DOUBLE AS EXPR$6])
    +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, new_a1, b0, b2, b1])
       :- Exchange(distribution=[hash[a1, a2]])
@@ -1271,7 +1277,7 @@ Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], 
   </TestCase>
   <TestCase name="testSourceDDLContainsNonDeterministicComputingCol">
     <Resource name="sql">
-      <![CDATA[insert into snk(l0, l1, r0) select a0, new_a1, b0 from src1WithComputingCol join src2 on a1 = b1 and a2 = b2]]>
+      <![CDATA[insert into snk(l0, l1, r0) select a0, new_a1, b0 from src1WithComputingCol join src2 on a1 = b1 and a2 = b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1285,7 +1291,7 @@ LogicalSink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[a0, new_a1, EXPR$2, EXPR$3, b0, EXPR$5, EXPR$6])
+Sink(table=[default_catalog.default_database.snk], targetColumns=[[0],[1],[4]], fields=[a0, new_a1, EXPR$2, EXPR$3, b0, EXPR$5, EXPR$6], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[a0, new_a1, null:VARCHAR(2147483647) AS EXPR$2, null:INTEGER AS EXPR$3, b0, null:VARCHAR(2147483647) AS EXPR$5, null:DOUBLE AS EXPR$6])
    +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, new_a1, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
       :- Exchange(distribution=[hash[a1, a2]])
@@ -1322,7 +1328,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testSourceWithoutIndexes">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join non_index_src on src1.a1 = non_index_src.b1 and src1.a2 = non_index_src.b2]]>
+      <![CDATA[insert into snk select * from src1 join non_index_src on src1.a1 = non_index_src.b1 and src1.a2 = non_index_src.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1335,7 +1341,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
@@ -1405,7 +1411,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testWithAlwaysTrueJoinCondition">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on 1 = 1]]>
+      <![CDATA[insert into snk select * from src1 join src2 on 1 = 1 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1418,7 +1424,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Join(joinType=[InnerJoin], where=[true], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[single])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
@@ -1429,7 +1435,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testWithCascadeJoin">
     <Resource name="sql">
-      <![CDATA[insert into tmp_snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 join src3 on src1.a1 = src3.b1 and src1.a2 = src3.b2]]>
+      <![CDATA[insert into tmp_snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 join src3 on src1.a1 = src3.b1 and src1.a2 = src3.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1444,7 +1450,7 @@ LogicalSink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1, a2
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1, a2, a3, b0, b2, b1, b00, b20, b10])
+Sink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1, a2, a3, b0, b2, b1, b00, b20, b10], conflictStrategy=[DEDUPLICATE])
 +- Join(joinType=[InnerJoin], where=[AND(=(a1, b10), =(a2, b20))], select=[a0, a1, a2, a3, b0, b2, b1, b00, b20, b10], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
@@ -1459,7 +1465,7 @@ Sink(table=[default_catalog.default_database.tmp_snk], fields=[a0, a1, a2, a3, b
   </TestCase>
   <TestCase name="testWithNonDeterministicInNonEquiCondition">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src1.a0 + rand(10) < src2.b0]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src1.a0 + rand(10) < src2.b0 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1472,7 +1478,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2), <(+(a0, RAND(10)), b0))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
@@ -1483,7 +1489,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testWithNonEquiCondition1">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src2.b0 > src1.a0]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src2.b0 > src1.a0 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1496,7 +1502,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2), >(b0, a0))], select=[a0, a1, a2, a3, b0, b2, b1])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])
@@ -1507,7 +1513,7 @@ Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b
   </TestCase>
   <TestCase name="testWithNonEquiCondition2">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src2.b0 > src1.a0 and src2.b2 <> 'Hello' and src1.a0 > 99]]>
+      <![CDATA[insert into snk select * from src1 join src2 on src1.a1 = src2.b1 and src1.a2 = src2.b2 and src2.b0 > src1.a0 and src2.b2 <> 'Hello' and src1.a0 > 99 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1520,7 +1526,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- DeltaJoin(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2), >(b0, a0))], select=[a0, a1, a2, a3, b0, b2, b1])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- Calc(select=[a0, a1, a2, a3], where=[AND(>(a0, 99), <>(a2, 'Hello'))])
@@ -1584,7 +1590,7 @@ Sink(table=[default_catalog.default_database.tmp_sink], fields=[a0, a1, a2, b0, 
   </TestCase>
   <TestCase name="testWithoutLookupTable">
     <Resource name="sql">
-      <![CDATA[insert into snk select * from src1 join non_lookup_src on src1.a1 = non_lookup_src.b1 and src1.a2 = non_lookup_src.b2]]>
+      <![CDATA[insert into snk select * from src1 join non_lookup_src on src1.a1 = non_lookup_src.b1 and src1.a2 = non_lookup_src.b2 on conflict do deduplicate]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1597,7 +1603,7 @@ LogicalSink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1])
+Sink(table=[default_catalog.default_database.snk], fields=[a0, a1, a2, a3, b0, b2, b1], conflictStrategy=[DEDUPLICATE])
 +- Join(joinType=[InnerJoin], where=[AND(=(a1, b1), =(a2, b2))], select=[a0, a1, a2, a3, b0, b2, b1], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[a1, a2]])
    :  +- TableSourceScan(table=[[default_catalog, default_database, src1]], fields=[a0, a1, a2, a3])

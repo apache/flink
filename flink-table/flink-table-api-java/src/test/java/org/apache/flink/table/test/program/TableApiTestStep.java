@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.test.program;
 
+import org.apache.flink.table.api.InsertConflictStrategy;
 import org.apache.flink.table.api.Model;
 import org.apache.flink.table.api.ModelDescriptor;
 import org.apache.flink.table.api.Table;
@@ -33,10 +34,15 @@ import java.util.function.Function;
 public class TableApiTestStep implements TestStep {
     private final Function<TableEnvAccessor, Table> tableQuery;
     private final String sinkName;
+    private final InsertConflictStrategy conflictStrategy;
 
-    TableApiTestStep(Function<TableEnvAccessor, Table> tableQuery, String sinkName) {
+    TableApiTestStep(
+            Function<TableEnvAccessor, Table> tableQuery,
+            String sinkName,
+            InsertConflictStrategy conflictStrategy) {
         this.tableQuery = tableQuery;
         this.sinkName = sinkName;
+        this.conflictStrategy = conflictStrategy;
     }
 
     @Override
@@ -92,14 +98,21 @@ public class TableApiTestStep implements TestStep {
 
     public TableResult apply(TableEnvironment env) {
         final Table table = toTable(env);
-        return table.executeInsert(sinkName);
+        return table.executeInsert(sinkName, conflictStrategy);
     }
 
     public TableResult applyAsSql(TableEnvironment env) {
         final Table table = toTable(env);
         final String query =
                 table.getQueryOperation().asSerializableString(DefaultSqlFactory.INSTANCE);
-        return env.executeSql(String.format("INSERT INTO %s %s", sinkName, query));
+        if (conflictStrategy == null) {
+            return env.executeSql(String.format("INSERT INTO %s %s", sinkName, query));
+        } else {
+            return env.executeSql(
+                    String.format(
+                            "INSERT INTO %s %s ON CONFLICT DO %s",
+                            sinkName, query, conflictStrategy.toString()));
+        }
     }
 
     /**

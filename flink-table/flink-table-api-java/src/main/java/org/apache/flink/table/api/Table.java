@@ -945,6 +945,35 @@ public interface Table extends Explainable<Table>, Executable {
      *
      * <pre>{@code
      * Table table = tableEnv.sqlQuery("SELECT * FROM MyTable");
+     * TablePipeline tablePipeline = table.insertInto("MySinkTable");
+     * TableResult tableResult = tablePipeline.execute();
+     * tableResult.await();
+     * }</pre>
+     *
+     * <p>One can execute the returned {@link TablePipeline} using {@link TablePipeline#execute()},
+     * or compile it to a {@link CompiledPlan} using {@link TablePipeline#compilePlan()}.
+     *
+     * <p>If multiple pipelines should insert data into one or more sink tables as part of a single
+     * execution, use a {@link StatementSet} (see {@link TableEnvironment#createStatementSet()}).
+     *
+     * @param tablePath The path of the registered table (backed by a {@link DynamicTableSink}).
+     * @param conflictStrategy Conflict strategy to use for conflicts when an upsert key differs
+     *     from the primary key of the sink.
+     * @return The complete pipeline from one or more source tables to a sink table.
+     */
+    TablePipeline insertInto(String tablePath, InsertConflictStrategy conflictStrategy);
+
+    /**
+     * Declares that the pipeline defined by the given {@link Table} object should be written to a
+     * table (backed by a {@link DynamicTableSink}) that was registered under the specified path.
+     *
+     * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or {@link
+     * TableEnvironment#useCatalog(String)} for the rules on the path resolution.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * Table table = tableEnv.sqlQuery("SELECT * FROM MyTable");
      * TablePipeline tablePipeline = table.insertInto("MySinkTable", true);
      * TableResult tableResult = tablePipeline.execute();
      * tableResult.await();
@@ -961,6 +990,37 @@ public interface Table extends Explainable<Table>, Executable {
      * @return The complete pipeline from one or more source tables to a sink table.
      */
     TablePipeline insertInto(String tablePath, boolean overwrite);
+
+    /**
+     * Declares that the pipeline defined by the given {@link Table} object should be written to a
+     * table (backed by a {@link DynamicTableSink}) that was registered under the specified path.
+     *
+     * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or {@link
+     * TableEnvironment#useCatalog(String)} for the rules on the path resolution.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * Table table = tableEnv.sqlQuery("SELECT * FROM MyTable");
+     * TablePipeline tablePipeline = table.insertInto("MySinkTable", true);
+     * TableResult tableResult = tablePipeline.execute();
+     * tableResult.await();
+     * }</pre>
+     *
+     * <p>One can execute the returned {@link TablePipeline} using {@link TablePipeline#execute()},
+     * or compile it to a {@link CompiledPlan} using {@link TablePipeline#compilePlan()}.
+     *
+     * <p>If multiple pipelines should insert data into one or more sink tables as part of a single
+     * execution, use a {@link StatementSet} (see {@link TableEnvironment#createStatementSet()}).
+     *
+     * @param tablePath The path of the registered table (backed by a {@link DynamicTableSink}).
+     * @param conflictStrategy Conflict strategy to use for conflicts when an upsert key differs
+     *     from the primary key of the sink.
+     * @param overwrite Indicates whether existing data should be overwritten.
+     * @return The complete pipeline from one or more source tables to a sink table.
+     */
+    TablePipeline insertInto(
+            String tablePath, InsertConflictStrategy conflictStrategy, boolean overwrite);
 
     /**
      * Declares that the pipeline defined by the given {@link Table} object should be written to a
@@ -1016,6 +1076,56 @@ public interface Table extends Explainable<Table>, Executable {
      *
      * <p>The {@link TableDescriptor descriptor} won't be registered in the catalog, but it will be
      * propagated directly in the operation tree. Note that calling this method multiple times, even
+     * with the same descriptor, results in multiple sink tables instances.
+     *
+     * <p>This method allows to declare a {@link Schema} for the sink descriptor. The declaration is
+     * similar to a {@code CREATE TABLE} DDL in SQL and allows to:
+     *
+     * <ul>
+     *   <li>overwrite automatically derived columns with a custom {@link DataType}
+     *   <li>add metadata columns next to the physical columns
+     *   <li>declare a primary key
+     * </ul>
+     *
+     * <p>It is possible to declare a schema without physical/regular columns. In this case, those
+     * columns will be automatically derived and implicitly put at the beginning of the schema
+     * declaration.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * Schema schema = Schema.newBuilder()
+     *   .column("f0", DataTypes.STRING())
+     *   .build();
+     *
+     * Table table = tableEnv.from(TableDescriptor.forConnector("datagen")
+     *   .schema(schema)
+     *   .build());
+     *
+     * table.insertInto(TableDescriptor.forConnector("blackhole")
+     *   .schema(schema)
+     *   .build());
+     * }</pre>
+     *
+     * <p>One can execute the returned {@link TablePipeline} using {@link TablePipeline#execute()},
+     * or compile it to a {@link CompiledPlan} using {@link TablePipeline#compilePlan()}.
+     *
+     * <p>If multiple pipelines should insert data into one or more sink tables as part of a single
+     * execution, use a {@link StatementSet} (see {@link TableEnvironment#createStatementSet()}).
+     *
+     * @param descriptor Descriptor describing the sink table into which data should be inserted.
+     * @param conflictStrategy Conflict strategy to use for conflicts when an upsert key differs
+     *     from the primary key of the sink.
+     * @return The complete pipeline from one or more source tables to a sink table.
+     */
+    TablePipeline insertInto(TableDescriptor descriptor, InsertConflictStrategy conflictStrategy);
+
+    /**
+     * Declares that the pipeline defined by the given {@link Table} object should be written to a
+     * table (backed by a {@link DynamicTableSink}) expressed via the given {@link TableDescriptor}.
+     *
+     * <p>The {@link TableDescriptor descriptor} won't be registered in the catalog, but it will be
+     * propagated directly in the operation tree. Note that calling this method multiple times, even
      * with the same descriptor, results in multiple sink tables being registered.
      *
      * <p>This method allows to declare a {@link Schema} for the sink descriptor. The declaration is
@@ -1060,6 +1170,58 @@ public interface Table extends Explainable<Table>, Executable {
     TablePipeline insertInto(TableDescriptor descriptor, boolean overwrite);
 
     /**
+     * Declares that the pipeline defined by the given {@link Table} object should be written to a
+     * table (backed by a {@link DynamicTableSink}) expressed via the given {@link TableDescriptor}.
+     *
+     * <p>The {@link TableDescriptor descriptor} won't be registered in the catalog, but it will be
+     * propagated directly in the operation tree. Note that calling this method multiple times, even
+     * with the same descriptor, results in multiple sink tables being registered.
+     *
+     * <p>This method allows to declare a {@link Schema} for the sink descriptor. The declaration is
+     * similar to a {@code CREATE TABLE} DDL in SQL and allows to:
+     *
+     * <ul>
+     *   <li>overwrite automatically derived columns with a custom {@link DataType}
+     *   <li>add metadata columns next to the physical columns
+     *   <li>declare a primary key
+     * </ul>
+     *
+     * <p>It is possible to declare a schema without physical/regular columns. In this case, those
+     * columns will be automatically derived and implicitly put at the beginning of the schema
+     * declaration.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * Schema schema = Schema.newBuilder()
+     *   .column("f0", DataTypes.STRING())
+     *   .build();
+     *
+     * Table table = tableEnv.from(TableDescriptor.forConnector("datagen")
+     *   .schema(schema)
+     *   .build());
+     *
+     * table.insertInto(TableDescriptor.forConnector("blackhole")
+     *   .schema(schema)
+     *   .build(), true);
+     * }</pre>
+     *
+     * <p>One can execute the returned {@link TablePipeline} using {@link TablePipeline#execute()},
+     * or compile it to a {@link CompiledPlan} using {@link TablePipeline#compilePlan()}.
+     *
+     * <p>If multiple pipelines should insert data into one or more sink tables as part of a single
+     * execution, use a {@link StatementSet} (see {@link TableEnvironment#createStatementSet()}).
+     *
+     * @param descriptor Descriptor describing the sink table into which data should be inserted.
+     * @param conflictStrategy Conflict strategy to use for conflicts when an upsert key differs
+     *     from the primary key of the sink.
+     * @param overwrite Indicates whether existing data should be overwritten.
+     * @return The complete pipeline from one or more source tables to a sink table.
+     */
+    TablePipeline insertInto(
+            TableDescriptor descriptor, InsertConflictStrategy conflictStrategy, boolean overwrite);
+
+    /**
      * Shorthand for {@code tableEnv.insertInto(tablePath).execute()}.
      *
      * @see #insertInto(String)
@@ -1067,6 +1229,16 @@ public interface Table extends Explainable<Table>, Executable {
      */
     default TableResult executeInsert(String tablePath) {
         return insertInto(tablePath).execute();
+    }
+
+    /**
+     * Shorthand for {@code tableEnv.insertInto(tablePath, conflictStrategy).execute()}.
+     *
+     * @see #insertInto(String, InsertConflictStrategy)
+     * @see TablePipeline#execute()
+     */
+    default TableResult executeInsert(String tablePath, InsertConflictStrategy conflictStrategy) {
+        return insertInto(tablePath, conflictStrategy).execute();
     }
 
     /**
@@ -1080,6 +1252,17 @@ public interface Table extends Explainable<Table>, Executable {
     }
 
     /**
+     * Shorthand for {@code tableEnv.insertInto(tablePath, conflictStrategy, overwrite).execute()}.
+     *
+     * @see #insertInto(String, InsertConflictStrategy, boolean)
+     * @see TablePipeline#execute()
+     */
+    default TableResult executeInsert(
+            String tablePath, InsertConflictStrategy conflictStrategy, boolean overwrite) {
+        return insertInto(tablePath, conflictStrategy, overwrite).execute();
+    }
+
+    /**
      * Shorthand for {@code tableEnv.insertInto(descriptor).execute()}.
      *
      * @see #insertInto(TableDescriptor)
@@ -1090,6 +1273,17 @@ public interface Table extends Explainable<Table>, Executable {
     }
 
     /**
+     * Shorthand for {@code tableEnv.insertInto(descriptor, conflictStrategy).execute()}.
+     *
+     * @see #insertInto(TableDescriptor, InsertConflictStrategy)
+     * @see TablePipeline#execute()
+     */
+    default TableResult executeInsert(
+            TableDescriptor descriptor, InsertConflictStrategy conflictStrategy) {
+        return insertInto(descriptor, conflictStrategy).execute();
+    }
+
+    /**
      * Shorthand for {@code tableEnv.insertInto(descriptor, overwrite).execute()}.
      *
      * @see #insertInto(TableDescriptor, boolean)
@@ -1097,6 +1291,19 @@ public interface Table extends Explainable<Table>, Executable {
      */
     default TableResult executeInsert(TableDescriptor descriptor, boolean overwrite) {
         return insertInto(descriptor, overwrite).execute();
+    }
+
+    /**
+     * Shorthand for {@code tableEnv.insertInto(descriptor, conflictStrategy, overwrite).execute()}.
+     *
+     * @see #insertInto(TableDescriptor, InsertConflictStrategy, boolean)
+     * @see TablePipeline#execute()
+     */
+    default TableResult executeInsert(
+            TableDescriptor descriptor,
+            InsertConflictStrategy conflictStrategy,
+            boolean overwrite) {
+        return insertInto(descriptor, conflictStrategy, overwrite).execute();
     }
 
     /**

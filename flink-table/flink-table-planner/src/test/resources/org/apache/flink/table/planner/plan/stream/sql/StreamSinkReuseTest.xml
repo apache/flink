@@ -296,12 +296,12 @@ Calc(select=[CAST(x AS BIGINT) AS a, CAST(y AS BIGINT) AS b])(reuse_id=[1])
    +- Exchange(distribution=[hash[x]])
       +- TableSourceScan(table=[[default_catalog, default_database, upsertSource]], fields=[x, y])
 
-Sink(table=[default_catalog.default_database.upsertPKSink], fields=[a, b], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.upsertPKSink], fields=[a, b], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Union(all=[true], union=[a, b])
    :- Reused(reference_id=[1])
    +- Reused(reference_id=[1])
 
-Sink(table=[default_catalog.default_database.upsertPKSink], fields=[a, b])
+Sink(table=[default_catalog.default_database.upsertPKSink], fields=[a, b], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[CAST(x AS BIGINT) AS a, CAST(y AS BIGINT) AS b])
    +- TableSourceScan(table=[[default_catalog, default_database, upsertSource2]], fields=[x, y])
 ]]>

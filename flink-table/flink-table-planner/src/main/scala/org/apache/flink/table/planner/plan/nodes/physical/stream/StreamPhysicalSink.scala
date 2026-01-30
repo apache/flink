@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.api.InsertConflictStrategy
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{SinkUpsertMaterializeStrategy, TABLE_EXEC_SINK_UPSERT_MATERIALIZE_STRATEGY}
 import org.apache.flink.table.catalog.ContextResolvedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
@@ -48,7 +49,8 @@ class StreamPhysicalSink(
     tableSink: DynamicTableSink,
     targetColumns: Array[Array[Int]],
     abilitySpecs: Array[SinkAbilitySpec],
-    val upsertMaterialize: Boolean = false)
+    val upsertMaterialize: Boolean = false,
+    val conflictStrategy: InsertConflictStrategy)
   extends Sink(
     cluster,
     traitSet,
@@ -72,7 +74,8 @@ class StreamPhysicalSink(
       tableSink,
       targetColumns,
       abilitySpecs,
-      upsertMaterialize)
+      upsertMaterialize,
+      conflictStrategy)
   }
 
   def copy(newUpsertMaterialize: Boolean): StreamPhysicalSink = {
@@ -85,7 +88,8 @@ class StreamPhysicalSink(
       tableSink,
       targetColumns,
       abilitySpecs,
-      newUpsertMaterialize)
+      newUpsertMaterialize,
+      conflictStrategy)
   }
 
   override def translateToExecNode(): ExecNode[_] = {
@@ -120,6 +124,7 @@ class StreamPhysicalSink(
         .filter(strategy => !strategy.equals(SinkUpsertMaterializeStrategy.LEGACY))
         .orElse(null),
       UpsertKeyUtil.getSmallestKey(inputUpsertKeys),
+      conflictStrategy,
       getRelDetailedDescription)
   }
 
@@ -127,5 +132,6 @@ class StreamPhysicalSink(
     super
       .explainTerms(pw)
       .itemIf("upsertMaterialize", "true", upsertMaterialize)
+      .itemIf("conflictStrategy", conflictStrategy, conflictStrategy != null)
   }
 }

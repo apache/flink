@@ -107,6 +107,7 @@ class ChangelogSourceITCase(
       s"""
          |INSERT INTO user_sink
          |SELECT * FROM users
+         |ON CONFLICT DO DEDUPLICATE
          |""".stripMargin
     tEnv.executeSql(sinkDDL)
     tEnv.executeSql(dml).await()
@@ -167,6 +168,7 @@ class ChangelogSourceITCase(
          |SELECT 'ALL', count(*), sum(balance), max(email)
          |FROM users
          |GROUP BY 'ALL'
+         |ON CONFLICT DO DEDUPLICATE
          |""".stripMargin
     tEnv.executeSql(sinkDDL)
     tEnv.executeSql(dml).await()
@@ -228,6 +230,7 @@ class ChangelogSourceITCase(
       s"""
          |INSERT INTO user_sink
          |SELECT * FROM users WHERE balance > 9
+         |ON CONFLICT DO DEDUPLICATE
          |""".stripMargin
     tEnv.executeSql(sinkDDL)
     tEnv.executeSql(dml).await()

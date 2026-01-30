@@ -441,14 +441,14 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[c, cnt])
       +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[c, cnt], upsertMaterialize=[true], changelogMode=[NONE])
+Sink(table=[default_catalog.default_database.sink], fields=[c, cnt], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE], changelogMode=[NONE])
 +- GroupAggregate(groupBy=[c], select=[c, COUNT(*) AS cnt], changelogMode=[I,UB,UA])
    +- Exchange(distribution=[hash[c]], changelogMode=[I])
       +- Calc(select=[c], changelogMode=[I])
          +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c, d], changelogMode=[I])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[c, cnt], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink], fields=[c, cnt], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- GroupAggregate(groupBy=[c], select=[c, COUNT(*) AS cnt])
    +- Exchange(distribution=[hash[c]])
       +- Calc(select=[c])
@@ -466,7 +466,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[c, cnt])
          +- LogicalTableScan(table=[[default_catalog, default_database, T]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[c, cnt], upsertMaterialize=[true], changelogMode=[NONE])
+Sink(table=[default_catalog.default_database.sink], fields=[c, cnt], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE], changelogMode=[NONE])
 +- Calc(select=[c, cnt], changelogMode=[I,UB,UA])
    +- GroupAggregate(groupBy=[a, c], select=[a, c, COUNT(*) AS cnt], changelogMode=[I,UB,UA])
       +- Exchange(distribution=[hash[a, c]], changelogMode=[I])
@@ -474,7 +474,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[c, cnt], upsertMater
             +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[a, b, c, d], changelogMode=[I])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[c, cnt], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink], fields=[c, cnt], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[c, cnt])
    +- GroupAggregate(groupBy=[a, c], select=[a, c, COUNT(*) AS cnt])
       +- Exchange(distribution=[hash[a, c]])

@@ -86,7 +86,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], where=[<(c, CAST(CAST(NOW() AS INTEGER) AS BIGINT))], duplicateChanges=[ALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
       +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
@@ -122,7 +122,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, CAST(CAST(NOW() AS INTEGER) AS BIGINT) AS EXPR$2], duplicateChanges=[ALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
       +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
@@ -160,7 +160,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], where=[<(c, CAST(NOW() AS BIGINT))], duplicateChanges=[ALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
       +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
@@ -198,7 +198,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], where=[AND(<>(a, 1), <(c, CAST(NOW() AS BIGINT)))], duplicateChanges=[ALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
       +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
@@ -234,7 +234,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, CAST(NOW() AS BIGINT) AS EXPR$2], duplicateChanges=[ALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
       +- TableSourceScan(table=[[default_catalog, default_database, append_src1, project=[a, b, rt], metadata=[]]], fields=[a, b, rt], duplicateChanges=[DISALLOW])
@@ -270,7 +270,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
       +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[ALLOW])
@@ -358,7 +358,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
    +- IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=-59999, leftUpperBound=59999, leftTimeIndex=2, rightTimeIndex=2], where=[AND(=(a, a0), >(rt, -(rt0, 60000:INTERVAL MINUTE)), <(rt, +(rt0, 60000:INTERVAL MINUTE)))], select=[a, c, rt, a0, b, rt0], duplicateChanges=[ALLOW])
       :- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
@@ -412,7 +412,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
    +- Join(joinType=[InnerJoin], where=[=(a, a0)], select=[a, c, a0, b], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey], duplicateChanges=[ALLOW])
       :- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
@@ -459,7 +459,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
    +- Limit(offset=[0], fetch=[10], duplicateChanges=[ALLOW])
       +- Exchange(distribution=[single], duplicateChanges=[DISALLOW])
@@ -509,7 +509,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
    +- LookupJoin(table=[default_catalog.default_database.dim_src], joinType=[InnerJoin], lookup=[a=a], select=[a, b, c, a0], duplicateChanges=[ALLOW])
       +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
@@ -559,13 +559,13 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, 
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, /(c, 2) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
       +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
          +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
 
-Sink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, EXPR$1, EXPR$2], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS EXPR$1, SUM(c) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
       +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
@@ -592,14 +592,14 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, 
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- GroupAggregate(groupBy=[a], select=[a, MAX(b) AS EXPR$1, SUM(c) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
       +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
          +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
             +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
 
-Sink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, b, EXPR$2], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, /(c, 2) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[DISALLOW])
       +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
@@ -625,13 +625,13 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, 
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, EXPR$2], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, /(c, 3) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[ALLOW])
       +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
          +- TableSourceScan(table=[[default_catalog, default_database, append_src1]], fields=[a, b, c, rt], duplicateChanges=[ALLOW])
 
-Sink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, b, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk2], fields=[a, b, EXPR$2], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, /(c, 2) AS EXPR$2], duplicateChanges=[ALLOW])
    +- Calc(select=[a, b, +(c, 1) AS c], duplicateChanges=[ALLOW])
       +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[ALLOW])
@@ -712,7 +712,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, E
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, EXPR$1, EXPR$2], duplicateChanges=[ALLOW])
    +- WindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rt], size=[1 min])], select=[a, MAX(b) AS EXPR$1, MAX(c) AS EXPR$2, start('w$) AS window_start, end('w$) AS window_end], duplicateChanges=[ALLOW])
       +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
@@ -772,7 +772,7 @@ LogicalSink(table=[default_catalog.default_database.another_pk_upsert_snk], fiel
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.another_pk_upsert_snk], fields=[a, b, c], upsertMaterialize=[true], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.another_pk_upsert_snk], fields=[a, b, c], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
    +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
       +- TableSourceScan(table=[[default_catalog, default_database, retract_src]], fields=[a, b, c, rt], duplicateChanges=[DISALLOW])
@@ -827,7 +827,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
    +- TemporalJoin(joinType=[InnerJoin], where=[AND(=(a, a0), __TEMPORAL_JOIN_CONDITION(pt, __TEMPORAL_JOIN_CONDITION_PRIMARY_KEY(a0), __TEMPORAL_JOIN_LEFT_KEY(a), __TEMPORAL_JOIN_RIGHT_KEY(a0)))], select=[a, b, c, pt, a0], duplicateChanges=[ALLOW])
       :- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
@@ -881,7 +881,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, E
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, EXPR$1, EXPR$2], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, EXPR$1, EXPR$2], duplicateChanges=[ALLOW])
    +- GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[1 min])], select=[a, MAX(max$0) AS EXPR$1, MAX(max$1) AS EXPR$2, start('w$) AS window_start, end('w$) AS window_end], duplicateChanges=[ALLOW])
       +- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
@@ -932,7 +932,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Union(all=[true], union=[a, b, c], duplicateChanges=[ALLOW])
    :- Calc(select=[a, b, c], duplicateChanges=[DISALLOW])
    :  +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])
@@ -963,7 +963,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk], fields=[a, b, c], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c], duplicateChanges=[ALLOW])
    +- WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[1 min])], rightWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[1 min])], joinType=[InnerJoin], where=[=(a, a0)], select=[a, c, window_start, window_end, a0, b, window_start0, window_end0], duplicateChanges=[ALLOW])
       :- Exchange(distribution=[hash[a]], duplicateChanges=[DISALLOW])
@@ -1017,7 +1017,7 @@ LogicalSink(table=[default_catalog.default_database.pk_upsert_snk_with_time_col]
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.pk_upsert_snk_with_time_col], fields=[a, b, c, window_start, window_end], duplicateChanges=[NONE])
+Sink(table=[default_catalog.default_database.pk_upsert_snk_with_time_col], fields=[a, b, c, window_start, window_end], conflictStrategy=[DEDUPLICATE], duplicateChanges=[NONE])
 +- Calc(select=[a, b, c, window_start, window_end], duplicateChanges=[ALLOW])
    +- WindowTableFunction(window=[TUMBLE(time_col=[rt], size=[1 min])], duplicateChanges=[ALLOW])
       +- WatermarkAssigner(rowtime=[rt], watermark=[-(rt, 1000:INTERVAL SECOND)], duplicateChanges=[DISALLOW])

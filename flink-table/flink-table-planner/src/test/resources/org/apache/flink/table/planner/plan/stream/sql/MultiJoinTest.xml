@@ -1732,7 +1732,8 @@ SELECT
     u.region_id
 FROM UsersPK u
 INNER JOIN OrdersSimplePK o
-    ON u.user_id = o.user_id]]>
+    ON u.user_id = o.user_id
+ON CONFLICT DO DEDUPLICATE]]>
     </Resource>
     <Resource name="ast">
       <![CDATA[
@@ -1745,7 +1746,7 @@ LogicalSink(table=[default_catalog.default_database.sink_two_way], fields=[user_
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.sink_two_way], fields=[user_id, order_id, product, region_id], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.sink_two_way], fields=[user_id, order_id, product, region_id], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[user_id0 AS user_id, order_id, product, region_id])
    +- MultiJoin(commonJoinKey=[user_id], joinTypes=[INNER], inputUniqueKeys=[(user_id), (order_id)], joinConditions=[=(user_id, user_id0)], select=[user_id,region_id,order_id,user_id0,product], rowType=[RecordType(VARCHAR(2147483647) user_id, INTEGER region_id, VARCHAR(2147483647) order_id, VARCHAR(2147483647) user_id0, VARCHAR(2147483647) product)])
       :- Exchange(distribution=[hash[user_id]])

@@ -40,11 +40,11 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[id, city_name
    +- LogicalTableScan(table=[[default_catalog, default_database, source]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
+Sink(table=[default_catalog.default_database.sink], fields=[id, city_name], conflictStrategy=[DEDUPLICATE])
 +- TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
+Sink(table=[default_catalog.default_database.sink], fields=[id, city_name], conflictStrategy=[DEDUPLICATE])
 +- TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])
 
 == Physical Execution Plan ==
@@ -70,7 +70,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     "id" : ,
     "type" : "Sink: sink[]",
     "pact" : "Data Sink",
-    "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])",
+    "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name], conflictStrategy=[DEDUPLICATE])",
     "parallelism" : 9,
     "predecessors" : [ {
       "id" : ,
@@ -89,11 +89,11 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[id, city_name
    +- LogicalTableScan(table=[[default_catalog, default_database, source]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
+Sink(table=[default_catalog.default_database.sink], fields=[id, city_name], conflictStrategy=[DEDUPLICATE])
 +- TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
+Sink(table=[default_catalog.default_database.sink], fields=[id, city_name], conflictStrategy=[DEDUPLICATE])
 +- TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])
 
 == Physical Execution Plan ==
@@ -119,7 +119,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     "id" : ,
     "type" : "Sink: sink[]",
     "pact" : "Data Sink",
-    "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])",
+    "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name], conflictStrategy=[DEDUPLICATE])",
     "parallelism" : 4,
     "predecessors" : [ {
       "id" : ,
@@ -138,11 +138,11 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[id, city_name
    +- LogicalTableScan(table=[[default_catalog, default_database, source]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
+Sink(table=[default_catalog.default_database.sink], fields=[id, city_name], conflictStrategy=[DEDUPLICATE])
 +- TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
+Sink(table=[default_catalog.default_database.sink], fields=[id, city_name], conflictStrategy=[DEDUPLICATE])
 +- TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])
 
 == Physical Execution Plan ==
@@ -168,7 +168,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     "id" : ,
     "type" : "Sink: sink[]",
     "pact" : "Data Sink",
-    "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])",
+    "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name], conflictStrategy=[DEDUPLICATE])",
     "parallelism" : 9,
     "predecessors" : [ {
       "id" : ,
@@ -488,6 +488,54 @@ Sink(table=[default_catalog.default_database.sink], fields=[a, b])
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testInsertOnConflictDoDeduplicate">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.conflictSink3], fields=[a, b])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.conflictSink3], fields=[a, b], conflictStrategy=[DEDUPLICATE], changelogMode=[NONE])
++- Calc(select=[a, b], changelogMode=[I])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInsertOnConflictDoError">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.conflictSink2], fields=[a, b])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.conflictSink2], fields=[a, b], conflictStrategy=[ERROR], changelogMode=[NONE])
++- Calc(select=[a, b], changelogMode=[I])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testInsertOnConflictDoNothing">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.conflictSink], fields=[a, b])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Sink(table=[default_catalog.default_database.conflictSink], fields=[a, b], conflictStrategy=[NOTHING], changelogMode=[NONE])
++- Calc(select=[a, b], changelogMode=[I])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testInsertPartColumn">
     <Resource name="ast">
       <![CDATA[
@@ -677,11 +725,11 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[id, city_name
    +- LogicalTableScan(table=[[default_catalog, default_database, source]])
 
 == Optimized Physical Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
+Sink(table=[default_catalog.default_database.sink], fields=[id, city_name], conflictStrategy=[DEDUPLICATE])
 +- TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])
 
 == Optimized Execution Plan ==
-Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
+Sink(table=[default_catalog.default_database.sink], fields=[id, city_name], conflictStrategy=[DEDUPLICATE])
 +- TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])
 
 == Physical Execution Plan ==
@@ -707,7 +755,7 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
     "id" : ,
     "type" : "Sink: sink[]",
     "pact" : "Data Sink",
-    "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])",
+    "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name], conflictStrategy=[DEDUPLICATE])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -725,6 +773,8 @@ INSERT INTO SinkJoinChangeLog
 SELECT T.person, T.sum_votes, award.prize FROM
    (SELECT person, SUM(votes) AS sum_votes FROM src GROUP BY person) T, award
    WHERE T.sum_votes = award.votes
+ON CONFLICT
+DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -740,7 +790,7 @@ LogicalSink(table=[default_catalog.default_database.SinkJoinChangeLog], fields=[
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.SinkJoinChangeLog], fields=[person, sum_votes, prize], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.SinkJoinChangeLog], fields=[person, sum_votes, prize], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[person, sum_votes, prize])
    +- Join(joinType=[InnerJoin], where=[(sum_votes = votes)], select=[person, sum_votes, votes, prize], leftInputSpec=[HasUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
       :- Exchange(distribution=[hash[sum_votes]])
@@ -762,6 +812,7 @@ SELECT person, sum_votes FROM
    FROM (SELECT person, SUM(votes) AS sum_votes, SUM(votes) / 2 AS vote_section FROM src
       GROUP BY person))
    WHERE rank_number < 10
+ON CONFLICT DO DEDUPLICATE
 ]]>
     </Resource>
     <Resource name="ast">
@@ -777,7 +828,7 @@ LogicalSink(table=[default_catalog.default_database.SinkRankChangeLog], fields=[
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Sink(table=[default_catalog.default_database.SinkRankChangeLog], fields=[person, sum_votes], upsertMaterialize=[true])
+Sink(table=[default_catalog.default_database.SinkRankChangeLog], fields=[person, sum_votes], upsertMaterialize=[true], conflictStrategy=[DEDUPLICATE])
 +- Calc(select=[person, sum_votes])
    +- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=9], partitionBy=[$2], orderBy=[sum_votes DESC], select=[person, sum_votes, $2])
       +- Exchange(distribution=[hash[$2]])
