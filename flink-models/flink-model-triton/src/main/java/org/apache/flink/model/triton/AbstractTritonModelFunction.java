@@ -18,10 +18,7 @@
 
 package org.apache.flink.model.triton;
 
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.configuration.description.Description;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.factories.ModelProviderFactory;
@@ -37,8 +34,6 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.configuration.description.TextElement.code;
-
 /**
  * Abstract parent class for {@link AsyncPredictFunction}s for Triton Inference Server API.
  *
@@ -47,7 +42,7 @@ import static org.apache.flink.configuration.description.TextElement.code;
  * dynamic batching can aggregate concurrent requests.
  *
  * <p><b>HTTP Client Lifecycle:</b> A shared HTTP client pool is maintained per JVM with reference
- * counting. Multiple function instances with identical timeout/retry settings share the same client
+ * counting. Multiple function instances with identical timeout settings share the same client
  * instance to avoid resource exhaustion in high-parallelism scenarios.
  *
  * <p><b>Current Limitations (v1):</b>
@@ -55,7 +50,6 @@ import static org.apache.flink.configuration.description.TextElement.code;
  * <ul>
  *   <li>Only single input column and single output column are supported
  *   <li>REST API only; gRPC may be introduced in future versions
- *   <li>Binary data mode is declared but not fully implemented
  * </ul>
  *
  * <p><b>Future Roadmap:</b> Support for multi-input/multi-output models using ROW or MAP types, and
@@ -63,109 +57,6 @@ import static org.apache.flink.configuration.description.TextElement.code;
  */
 public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractTritonModelFunction.class);
-
-    public static final ConfigOption<String> ENDPOINT =
-            ConfigOptions.key("endpoint")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Full URL of the Triton Inference Server endpoint, e.g., %s",
-                                            code("http://localhost:8000/v2/models"))
-                                    .build());
-
-    public static final ConfigOption<String> MODEL_NAME =
-            ConfigOptions.key("model-name")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("Name of the model to invoke on Triton server.");
-
-    public static final ConfigOption<String> MODEL_VERSION =
-            ConfigOptions.key("model-version")
-                    .stringType()
-                    .defaultValue("latest")
-                    .withDescription("Version of the model to use. Defaults to 'latest'.");
-
-    public static final ConfigOption<Long> TIMEOUT =
-            ConfigOptions.key("timeout")
-                    .longType()
-                    .defaultValue(30000L)
-                    .withDescription(
-                            "HTTP request timeout in milliseconds (connect + read + write). "
-                                    + "This applies per individual request and is separate from Flink's async timeout. "
-                                    + "Defaults to 30000ms (30 seconds).");
-
-    public static final ConfigOption<Integer> BATCH_SIZE =
-            ConfigOptions.key("batch-size")
-                    .intType()
-                    .defaultValue(1)
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Reserved for future use (v2+). Currently has NO effect in v1. "
-                                                    + "Each Flink record triggers one HTTP request regardless of this setting. "
-                                                    + "Future versions will support Flink-side mini-batch aggregation "
-                                                    + "(buffer N records or T milliseconds before sending). "
-                                                    + "For batching efficiency in v1: "
-                                                    + "1) Configure Triton model's dynamic_batching in config.pbtxt, "
-                                                    + "2) Tune Flink AsyncDataStream capacity for concurrent requests, "
-                                                    + "3) Increase Flink parallelism to create more concurrent requests. "
-                                                    + "Defaults to 1.")
-                                    .build());
-
-    public static final ConfigOption<Boolean> FLATTEN_BATCH_DIM =
-            ConfigOptions.key("flatten-batch-dim")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Whether to flatten the batch dimension for array inputs. "
-                                    + "When true, shape [1,N] becomes [N]. Defaults to false.");
-
-    public static final ConfigOption<Integer> PRIORITY =
-            ConfigOptions.key("priority")
-                    .intType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Request priority level (0-255). Higher values indicate higher priority.");
-
-    public static final ConfigOption<String> SEQUENCE_ID =
-            ConfigOptions.key("sequence-id")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("Sequence ID for stateful models.");
-
-    public static final ConfigOption<Boolean> SEQUENCE_START =
-            ConfigOptions.key("sequence-start")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Whether this is the start of a sequence for stateful models.");
-
-    public static final ConfigOption<Boolean> SEQUENCE_END =
-            ConfigOptions.key("sequence-end")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription("Whether this is the end of a sequence for stateful models.");
-
-    public static final ConfigOption<String> COMPRESSION =
-            ConfigOptions.key("compression")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("Compression algorithm to use (e.g., 'gzip').");
-
-    public static final ConfigOption<String> AUTH_TOKEN =
-            ConfigOptions.key("auth-token")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription("Authentication token for secured Triton servers.");
-
-    public static final ConfigOption<String> CUSTOM_HEADERS =
-            ConfigOptions.key("custom-headers")
-                    .stringType()
-                    .noDefaultValue()
-                    .withDescription(
-                            "Custom HTTP headers in JSON format, e.g., '{\"X-Custom-Header\":\"value\"}'.");
 
     protected transient OkHttpClient httpClient;
 
@@ -185,19 +76,19 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
 
     public AbstractTritonModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
-        this.endpoint = config.get(ENDPOINT);
-        this.modelName = config.get(MODEL_NAME);
-        this.modelVersion = config.get(MODEL_VERSION);
-        this.timeout = config.get(TIMEOUT);
-        this.batchSize = config.get(BATCH_SIZE);
-        this.flattenBatchDim = config.get(FLATTEN_BATCH_DIM);
-        this.priority = config.get(PRIORITY);
-        this.sequenceId = config.get(SEQUENCE_ID);
-        this.sequenceStart = config.get(SEQUENCE_START);
-        this.sequenceEnd = config.get(SEQUENCE_END);
-        this.compression = config.get(COMPRESSION);
-        this.authToken = config.get(AUTH_TOKEN);
-        this.customHeaders = config.get(CUSTOM_HEADERS);
+        this.endpoint = config.get(TritonOptions.ENDPOINT);
+        this.modelName = config.get(TritonOptions.MODEL_NAME);
+        this.modelVersion = config.get(TritonOptions.MODEL_VERSION);
+        this.timeout = config.get(TritonOptions.TIMEOUT);
+        this.batchSize = config.get(TritonOptions.BATCH_SIZE);
+        this.flattenBatchDim = config.get(TritonOptions.FLATTEN_BATCH_DIM);
+        this.priority = config.get(TritonOptions.PRIORITY);
+        this.sequenceId = config.get(TritonOptions.SEQUENCE_ID);
+        this.sequenceStart = config.get(TritonOptions.SEQUENCE_START);
+        this.sequenceEnd = config.get(TritonOptions.SEQUENCE_END);
+        this.compression = config.get(TritonOptions.COMPRESSION);
+        this.authToken = config.get(TritonOptions.AUTH_TOKEN);
+        this.customHeaders = config.get(TritonOptions.CUSTOM_HEADERS);
 
         // Validate input schema - support multiple types
         validateInputSchema(factoryContext.getCatalogModel().getResolvedInputSchema());

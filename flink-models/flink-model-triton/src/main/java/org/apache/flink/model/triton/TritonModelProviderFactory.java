@@ -52,25 +52,25 @@ public class TritonModelProviderFactory implements ModelProviderFactory {
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
         Set<ConfigOption<?>> set = new HashSet<>();
-        set.add(AbstractTritonModelFunction.ENDPOINT);
-        set.add(AbstractTritonModelFunction.MODEL_NAME);
+        set.add(TritonOptions.ENDPOINT);
+        set.add(TritonOptions.MODEL_NAME);
         return set;
     }
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> set = new HashSet<>();
-        set.add(AbstractTritonModelFunction.MODEL_VERSION);
-        set.add(AbstractTritonModelFunction.TIMEOUT);
-        set.add(AbstractTritonModelFunction.BATCH_SIZE);
-        set.add(AbstractTritonModelFunction.FLATTEN_BATCH_DIM);
-        set.add(AbstractTritonModelFunction.PRIORITY);
-        set.add(AbstractTritonModelFunction.SEQUENCE_ID);
-        set.add(AbstractTritonModelFunction.SEQUENCE_START);
-        set.add(AbstractTritonModelFunction.SEQUENCE_END);
-        set.add(AbstractTritonModelFunction.COMPRESSION);
-        set.add(AbstractTritonModelFunction.AUTH_TOKEN);
-        set.add(AbstractTritonModelFunction.CUSTOM_HEADERS);
+        set.add(TritonOptions.MODEL_VERSION);
+        set.add(TritonOptions.TIMEOUT);
+        set.add(TritonOptions.BATCH_SIZE);
+        set.add(TritonOptions.FLATTEN_BATCH_DIM);
+        set.add(TritonOptions.PRIORITY);
+        set.add(TritonOptions.SEQUENCE_ID);
+        set.add(TritonOptions.SEQUENCE_START);
+        set.add(TritonOptions.SEQUENCE_END);
+        set.add(TritonOptions.COMPRESSION);
+        set.add(TritonOptions.AUTH_TOKEN);
+        set.add(TritonOptions.CUSTOM_HEADERS);
         return set;
     }
 
