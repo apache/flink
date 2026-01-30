@@ -258,6 +258,8 @@ public class VariantSemanticTest extends SemanticTestBase {
 
     static final TableTestProgram VARIANT_ARRAY_ACCESS;
 
+    static final TableTestProgram VARIANT_ARRAY_ACCESS_WITH_DIFFERENT_INDEX_TYPES;
+
     static final TableTestProgram VARIANT_OBJECT_ACCESS;
 
     static final TableTestProgram VARIANT_NESTED_ACCESS;
@@ -368,6 +370,24 @@ public class VariantSemanticTest extends SemanticTestBase {
                                 "sink_t")
                         .build();
 
+        VARIANT_ARRAY_ACCESS_WITH_DIFFERENT_INDEX_TYPES =
+                TableTestProgram.of(
+                                "variant-array-access-with-different-index-types",
+                                "validates variant array access with different index types using [] operator in sql and at() in table api")
+                        .setupTableSource(VARIANT_ARRAY_SOURCE)
+                        .setupTableSink(VARIANT_ARRAY_SINK)
+                        .runSql(
+                                "INSERT INTO sink_t SELECT v[cast(1 as tinyint)], v[cast(2 as smallint)], v[cast(4 as bigint)] FROM t")
+                        .runTableApi(
+                                t ->
+                                        t.from("t")
+                                                .select(
+                                                        $("v").at((byte) 1).as("v1"),
+                                                        $("v").at((short) 2).as("v2"),
+                                                        $("v").at((long) 3).as("v3")),
+                                "sink_t")
+                        .build();
+
         VARIANT_OBJECT_ACCESS =
                 TableTestProgram.of(
                                 "variant-object-access",
@@ -398,7 +418,7 @@ public class VariantSemanticTest extends SemanticTestBase {
                                         t.from("t")
                                                 .select(
                                                         $("v").at("users")
-                                                                .at(1L)
+                                                                .at(1)
                                                                 .at("id")
                                                                 .as("user_id"),
                                                         $("v").at("users")
@@ -458,6 +478,7 @@ public class VariantSemanticTest extends SemanticTestBase {
                 VARIANT_AS_UDAF_ARG,
                 VARIANT_AS_AGG_KEY,
                 VARIANT_ARRAY_ACCESS,
+                VARIANT_ARRAY_ACCESS_WITH_DIFFERENT_INDEX_TYPES,
                 VARIANT_OBJECT_ACCESS,
                 VARIANT_NESTED_ACCESS,
                 VARIANT_ARRAY_ERROR_ACCESS,
