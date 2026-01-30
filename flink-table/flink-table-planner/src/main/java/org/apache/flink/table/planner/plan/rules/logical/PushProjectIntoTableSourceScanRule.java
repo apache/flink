@@ -40,6 +40,7 @@ import org.apache.flink.table.planner.plan.utils.NestedProjectionUtil;
 import org.apache.flink.table.planner.plan.utils.NestedSchema;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -85,6 +86,20 @@ import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFacto
 @Value.Enclosing
 public class PushProjectIntoTableSourceScanRule
         extends RelRule<PushProjectIntoTableSourceScanRule.Config> {
+
+    /**
+     * Result of performPushDown containing the new type and metadata keys for
+     * FLINK-23911/FLINK-38569.
+     */
+    private static class PushDownResult {
+        final RowType newProducedType;
+        final List<String> projectedMetadataKeys;
+
+        PushDownResult(RowType newProducedType, List<String> projectedMetadataKeys) {
+            this.newProducedType = newProducedType;
+            this.projectedMetadataKeys = projectedMetadataKeys;
+        }
+    }
 
     public static final PushProjectIntoTableSourceScanRule INSTANCE =
             new PushProjectIntoTableSourceScanRule(
@@ -168,12 +183,22 @@ public class PushProjectIntoTableSourceScanRule
         }
 
         final List<SourceAbilitySpec> abilitySpecs = new ArrayList<>();
-        final RowType newProducedType =
+        final PushDownResult result =
                 performPushDown(sourceTable, projectedSchema, producedType, abilitySpecs);
+        final RowType newProducedType = result.newProducedType;
 
         final DynamicTableSource newTableSource = sourceTable.tableSource().copy();
         final SourceAbilityContext context = SourceAbilityContext.from(scan);
         abilitySpecs.forEach(spec -> spec.apply(newTableSource, context));
+
+        // FLINK-23911: Ensure copied source is told "read zero metadata" even when
+        // no ReadingMetadataSpec was added (FLINK-38569)
+        if (supportsMetadata(sourceTable.tableSource()) && result.projectedMetadataKeys.isEmpty()) {
+            ((SupportsReadingMetadata) newTableSource)
+                    .applyReadableMetadata(
+                            Collections.emptyList(),
+                            TypeConversions.fromLogicalToDataType(newProducedType));
+        }
 
         final RelDataType newRowType = typeFactory.buildRelNodeRowType(newProducedType);
         final TableSourceTable newSource =
@@ -260,7 +285,7 @@ public class PushProjectIntoTableSourceScanRule
                 .collect(Collectors.toList());
     }
 
-    private RowType performPushDown(
+    private PushDownResult performPushDown(
             TableSourceTable source,
             NestedSchema projectedSchema,
             RowType producedType,
@@ -328,9 +353,10 @@ public class PushProjectIntoTableSourceScanRule
         final RowType newProducedType =
                 (RowType) Projection.of(projectedFields).project(producedType);
 
+        List<String> projectedMetadataKeys = Collections.emptyList();
         if (supportsMetadata(source.tableSource())) {
             // Use the projected column name to get the metadata key
-            final List<String> projectedMetadataKeys =
+            projectedMetadataKeys =
                     projectedMetadataColumns.stream()
                             .map(
                                     nestedColumn ->
@@ -348,10 +374,12 @@ public class PushProjectIntoTableSourceScanRule
                             .map(col -> col.getMetadataKey().orElse(col.getName()))
                             .collect(Collectors.toList());
 
-            abilitySpecs.add(new ReadingMetadataSpec(projectedMetadataKeys, newProducedType));
+            if (!projectedMetadataKeys.isEmpty()) {
+                abilitySpecs.add(new ReadingMetadataSpec(projectedMetadataKeys, newProducedType));
+            }
         }
 
-        return newProducedType;
+        return new PushDownResult(newProducedType, projectedMetadataKeys);
     }
 
     private List<RexNode> rewriteProjections(

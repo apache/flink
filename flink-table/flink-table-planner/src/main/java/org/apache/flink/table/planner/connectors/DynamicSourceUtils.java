@@ -498,9 +498,16 @@ public final class DynamicSourceUtils {
                         .collect(Collectors.toList());
         final DataType producedDataType =
                 TypeConversions.fromLogicalToDataType(createProducedType(schema, source));
-        sourceAbilities.add(
-                new ReadingMetadataSpec(metadataKeys, (RowType) producedDataType.getLogicalType()));
+
+        // Apply metadata setting to source (FLINK-23911)
         metadataSource.applyReadableMetadata(metadataKeys, producedDataType);
+
+        // Only add ReadingMetadataSpec if non-empty
+        if (!metadataKeys.isEmpty()) {
+            sourceAbilities.add(
+                    new ReadingMetadataSpec(
+                            metadataKeys, (RowType) producedDataType.getLogicalType()));
+        }
     }
 
     private static void validateScanSource(

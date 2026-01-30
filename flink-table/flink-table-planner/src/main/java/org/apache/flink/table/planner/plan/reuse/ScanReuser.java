@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalT
 import org.apache.flink.table.planner.plan.rules.logical.PushProjectIntoTableSourceScanRule;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rex.RexBuilder;
@@ -42,6 +43,7 @@ import org.apache.calcite.rex.RexProgramBuilder;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -212,6 +214,15 @@ public class ScanReuser {
             ScanTableSource newTableSource =
                     tableSourceSpec.getScanTableSource(flinkContext, flinkTypeFactory);
 
+            // FLINK-23911: Ensure source is told "read zero metadata" even when
+            // no ReadingMetadataSpec was added (FLINK-38569)
+            if (newTableSource instanceof SupportsReadingMetadata && allMetaKeys.isEmpty()) {
+                ((SupportsReadingMetadata) newTableSource)
+                        .applyReadableMetadata(
+                                Collections.emptyList(),
+                                TypeConversions.fromLogicalToDataType(newSourceType));
+            }
+
             TableSourceTable newSourceTable =
                     pickTable.replace(
                             newTableSource,
@@ -278,7 +289,8 @@ public class ScanReuser {
             sourceAbilitySpecs.add(
                     new ProjectPushDownSpec(projectedPhysicalFields, newProducedType));
         }
-        if (supportsReadingMeta) {
+
+        if (supportsReadingMeta && !usedMetadataNames.isEmpty()) {
             sourceAbilitySpecs.add(new ReadingMetadataSpec(usedMetadataNames, newProducedType));
         }
         return newProducedType;
