@@ -54,22 +54,20 @@ public class TritonModelProviderFactory implements ModelProviderFactory {
         Set<ConfigOption<?>> set = new HashSet<>();
         set.add(AbstractTritonModelFunction.ENDPOINT);
         set.add(AbstractTritonModelFunction.MODEL_NAME);
-        set.add(AbstractTritonModelFunction.MODEL_VERSION);
         return set;
     }
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         Set<ConfigOption<?>> set = new HashSet<>();
+        set.add(AbstractTritonModelFunction.MODEL_VERSION);
         set.add(AbstractTritonModelFunction.TIMEOUT);
-        set.add(AbstractTritonModelFunction.MAX_RETRIES);
         set.add(AbstractTritonModelFunction.BATCH_SIZE);
         set.add(AbstractTritonModelFunction.FLATTEN_BATCH_DIM);
         set.add(AbstractTritonModelFunction.PRIORITY);
         set.add(AbstractTritonModelFunction.SEQUENCE_ID);
         set.add(AbstractTritonModelFunction.SEQUENCE_START);
         set.add(AbstractTritonModelFunction.SEQUENCE_END);
-        set.add(AbstractTritonModelFunction.BINARY_DATA);
         set.add(AbstractTritonModelFunction.COMPRESSION);
         set.add(AbstractTritonModelFunction.AUTH_TOKEN);
         set.add(AbstractTritonModelFunction.CUSTOM_HEADERS);

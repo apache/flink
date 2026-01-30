@@ -96,16 +96,6 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                                     + "This applies per individual request and is separate from Flink's async timeout. "
                                     + "Defaults to 30000ms (30 seconds).");
 
-    public static final ConfigOption<Integer> MAX_RETRIES =
-            ConfigOptions.key("max-retries")
-                    .intType()
-                    .defaultValue(3)
-                    .withDescription(
-                            "Maximum number of retry attempts for failed HTTP requests. "
-                                    + "Retries are triggered on connection failures (IOException). "
-                                    + "HTTP errors (4xx/5xx) are NOT automatically retried. "
-                                    + "Defaults to 3 retries.");
-
     public static final ConfigOption<Integer> BATCH_SIZE =
             ConfigOptions.key("batch-size")
                     .intType()
@@ -158,13 +148,6 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                     .defaultValue(false)
                     .withDescription("Whether this is the end of a sequence for stateful models.");
 
-    public static final ConfigOption<Boolean> BINARY_DATA =
-            ConfigOptions.key("binary-data")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Whether to use binary data transfer. Defaults to false (JSON).");
-
     public static final ConfigOption<String> COMPRESSION =
             ConfigOptions.key("compression")
                     .stringType()
@@ -190,14 +173,12 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     private final String modelName;
     private final String modelVersion;
     private final long timeout;
-    private final int maxRetries;
     private final int batchSize;
     private final boolean flattenBatchDim;
     private final Integer priority;
     private final String sequenceId;
     private final boolean sequenceStart;
     private final boolean sequenceEnd;
-    private final boolean binaryData;
     private final String compression;
     private final String authToken;
     private final String customHeaders;
@@ -208,14 +189,12 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         this.modelName = config.get(MODEL_NAME);
         this.modelVersion = config.get(MODEL_VERSION);
         this.timeout = config.get(TIMEOUT);
-        this.maxRetries = config.get(MAX_RETRIES);
         this.batchSize = config.get(BATCH_SIZE);
         this.flattenBatchDim = config.get(FLATTEN_BATCH_DIM);
         this.priority = config.get(PRIORITY);
         this.sequenceId = config.get(SEQUENCE_ID);
         this.sequenceStart = config.get(SEQUENCE_START);
         this.sequenceEnd = config.get(SEQUENCE_END);
-        this.binaryData = config.get(BINARY_DATA);
         this.compression = config.get(COMPRESSION);
         this.authToken = config.get(AUTH_TOKEN);
         this.customHeaders = config.get(CUSTOM_HEADERS);
@@ -228,7 +207,7 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     public void open(FunctionContext context) throws Exception {
         super.open(context);
         LOG.debug("Creating Triton HTTP client.");
-        this.httpClient = TritonUtils.createHttpClient(timeout, maxRetries);
+        this.httpClient = TritonUtils.createHttpClient(timeout);
     }
 
     @Override
@@ -356,15 +335,6 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
                                         + "  • Wait for v2+ which will support ROW<...> types",
                                 inputOrOutput, columnName, type));
             }
-
-            // Additional check: ensure element type is supported
-            if (elementType instanceof ArrayType) {
-                // This should have been caught above, but double-check
-                throw new IllegalArgumentException(
-                        String.format(
-                                "%s column '%s' has unsupported element type: %s",
-                                inputOrOutput, columnName, elementType));
-            }
         }
 
         // Log info about STRING to BYTES mapping
@@ -420,10 +390,6 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         return timeout;
     }
 
-    protected int getMaxRetries() {
-        return maxRetries;
-    }
-
     protected int getBatchSize() {
         return batchSize;
     }
@@ -446,10 +412,6 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
 
     protected boolean isSequenceEnd() {
         return sequenceEnd;
-    }
-
-    protected boolean isBinaryData() {
-        return binaryData;
     }
 
     protected String getCompression() {

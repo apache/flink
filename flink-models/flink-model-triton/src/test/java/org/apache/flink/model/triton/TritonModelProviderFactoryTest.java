@@ -34,24 +34,24 @@ public class TritonModelProviderFactoryTest {
     @Test
     public void testRequiredOptions() {
         TritonModelProviderFactory factory = new TritonModelProviderFactory();
-        assertEquals(3, factory.requiredOptions().size());
+        assertEquals(2, factory.requiredOptions().size());
         assertTrue(factory.requiredOptions().contains(AbstractTritonModelFunction.ENDPOINT));
         assertTrue(factory.requiredOptions().contains(AbstractTritonModelFunction.MODEL_NAME));
-        assertTrue(factory.requiredOptions().contains(AbstractTritonModelFunction.MODEL_VERSION));
     }
 
     @Test
     public void testOptionalOptions() {
         TritonModelProviderFactory factory = new TritonModelProviderFactory();
-        assertEquals(11, factory.optionalOptions().size());
+        assertEquals(12, factory.optionalOptions().size());
+        assertTrue(factory.optionalOptions().contains(AbstractTritonModelFunction.MODEL_VERSION));
         assertTrue(factory.optionalOptions().contains(AbstractTritonModelFunction.TIMEOUT));
-        assertTrue(factory.optionalOptions().contains(AbstractTritonModelFunction.MAX_RETRIES));
         assertTrue(factory.optionalOptions().contains(AbstractTritonModelFunction.BATCH_SIZE));
+        assertTrue(
+                factory.optionalOptions().contains(AbstractTritonModelFunction.FLATTEN_BATCH_DIM));
         assertTrue(factory.optionalOptions().contains(AbstractTritonModelFunction.PRIORITY));
         assertTrue(factory.optionalOptions().contains(AbstractTritonModelFunction.SEQUENCE_ID));
         assertTrue(factory.optionalOptions().contains(AbstractTritonModelFunction.SEQUENCE_START));
         assertTrue(factory.optionalOptions().contains(AbstractTritonModelFunction.SEQUENCE_END));
-        assertTrue(factory.optionalOptions().contains(AbstractTritonModelFunction.BINARY_DATA));
         assertTrue(factory.optionalOptions().contains(AbstractTritonModelFunction.COMPRESSION));
         assertTrue(factory.optionalOptions().contains(AbstractTritonModelFunction.AUTH_TOKEN));
         assertTrue(factory.optionalOptions().contains(AbstractTritonModelFunction.CUSTOM_HEADERS));

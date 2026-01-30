@@ -18,15 +18,12 @@
 
 package org.apache.flink.model.triton;
 
-import org.apache.flink.annotation.VisibleForTesting;
-
 import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -34,13 +31,13 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Utility class for Triton Inference Server HTTP client management.
  *
  * <p>This class implements a reference-counted singleton pattern for OkHttpClient instances.
- * Multiple function instances sharing the same timeout and retry configuration will reuse the same
- * client, reducing resource consumption in high-parallelism scenarios.
+ * Multiple function instances sharing the same timeout configuration will reuse the same client,
+ * reducing resource consumption in high-parallelism scenarios.
  *
  * <p><b>Resource Management:</b>
  *
  * <ul>
- *   <li>Clients are cached by (timeout, maxRetries) key
+ *   <li>Clients are cached by timeout key
  *   <li>Reference count tracks active users
  *   <li>Client is closed when reference count reaches zero
  *   <li>Thread-safe via synchronized blocks
@@ -54,23 +51,20 @@ public class TritonUtils {
 
     private static final Object LOCK = new Object();
 
-    private static final Map<ClientKey, ClientValue> cache = new HashMap<>();
+    private static final Map<Long, ClientValue> cache = new HashMap<>();
 
     /**
      * Creates or retrieves a cached HTTP client with the specified configuration.
      *
      * <p>This method implements reference-counted client pooling. Clients with identical timeout
-     * and retry settings are shared across multiple callers.
+     * settings are shared across multiple callers.
      *
      * @param timeoutMs Timeout in milliseconds for connect, read, and write operations
-     * @param maxRetries Maximum retry attempts (note: OkHttp retries are automatic for connection
-     *     failures only, not for HTTP errors)
      * @return A shared or new OkHttpClient instance
      */
-    public static OkHttpClient createHttpClient(long timeoutMs, int maxRetries) {
+    public static OkHttpClient createHttpClient(long timeoutMs) {
         synchronized (LOCK) {
-            ClientKey key = new ClientKey(timeoutMs, maxRetries);
-            ClientValue value = cache.get(key);
+            ClientValue value = cache.get(timeoutMs);
             if (value != null) {
                 LOG.debug("Returning an existing Triton HTTP client.");
                 value.referenceCount.incrementAndGet();
@@ -86,7 +80,7 @@ public class TritonUtils {
                             .retryOnConnectionFailure(true)
                             .build();
 
-            cache.put(key, new ClientValue(client));
+            cache.put(timeoutMs, new ClientValue(client));
             return client;
         }
     }
@@ -99,10 +93,10 @@ public class TritonUtils {
      */
     public static void releaseHttpClient(OkHttpClient client) {
         synchronized (LOCK) {
-            ClientKey keyToRemove = null;
+            Long keyToRemove = null;
             ClientValue valueToRemove = null;
 
-            for (Map.Entry<ClientKey, ClientValue> entry : cache.entrySet()) {
+            for (Map.Entry<Long, ClientValue> entry : cache.entrySet()) {
                 if (entry.getValue().client == client) {
                     keyToRemove = entry.getKey();
                     valueToRemove = entry.getValue();
@@ -151,20 +145,6 @@ public class TritonUtils {
         return String.format("%s/%s/versions/%s/infer", baseUrl, modelName, modelVersion);
     }
 
-    /** Builds the model metadata URL for a specific model and version. */
-    public static String buildModelMetadataUrl(
-            String endpoint, String modelName, String modelVersion) {
-        String baseUrl = endpoint.replaceAll("/*$", "");
-        if (!baseUrl.endsWith("/v2/models")) {
-            if (baseUrl.endsWith("/v2")) {
-                baseUrl += "/models";
-            } else {
-                baseUrl += "/v2/models";
-            }
-        }
-        return String.format("%s/%s/versions/%s", baseUrl, modelName, modelVersion);
-    }
-
     private static class ClientValue {
         private final OkHttpClient client;
         private final AtomicInteger referenceCount;
@@ -173,32 +153,5 @@ public class TritonUtils {
             this.client = client;
             this.referenceCount = new AtomicInteger(1);
         }
-    }
-
-    private static class ClientKey {
-        private final long timeoutMs;
-        private final int maxRetries;
-
-        private ClientKey(long timeoutMs, int maxRetries) {
-            this.timeoutMs = timeoutMs;
-            this.maxRetries = maxRetries;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(timeoutMs, maxRetries);
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            return obj instanceof ClientKey
-                    && timeoutMs == ((ClientKey) obj).timeoutMs
-                    && maxRetries == ((ClientKey) obj).maxRetries;
-        }
-    }
-
-    @VisibleForTesting
-    static Map<ClientKey, ClientValue> getCache() {
-        return cache;
     }
 }

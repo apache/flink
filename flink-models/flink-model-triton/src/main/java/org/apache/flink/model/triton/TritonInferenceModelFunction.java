@@ -127,17 +127,23 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             Request.Builder requestBuilder = new Request.Builder().url(url);
 
             // Handle compression and request body
-            if (getCompression() != null && "gzip".equalsIgnoreCase(getCompression())) {
-                // Compress request body with gzip
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                try (GZIPOutputStream gzos = new GZIPOutputStream(baos)) {
-                    gzos.write(requestBody.getBytes(StandardCharsets.UTF_8));
-                }
-                byte[] compressedData = baos.toByteArray();
+            if (getCompression() != null) {
+                if ("gzip".equalsIgnoreCase(getCompression())) {
+                    // Compress request body with gzip
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    try (GZIPOutputStream gzos = new GZIPOutputStream(baos)) {
+                        gzos.write(requestBody.getBytes(StandardCharsets.UTF_8));
+                    }
+                    byte[] compressedData = baos.toByteArray();
 
-                requestBuilder.addHeader("Content-Encoding", "gzip");
-                requestBuilder.post(
-                        RequestBody.create(compressedData, MediaType.parse("application/json")));
+                    requestBuilder.addHeader("Content-Encoding", "gzip");
+                    requestBuilder.post(RequestBody.create(compressedData, JSON_MEDIA_TYPE));
+                } else {
+                    throw new IllegalArgumentException(
+                            String.format(
+                                    "Unsupported compression algorithm: '%s'. Currently only 'gzip' is supported.",
+                                    getCompression()));
+                }
             } else {
                 requestBuilder.post(RequestBody.create(requestBody, JSON_MEDIA_TYPE));
             }
