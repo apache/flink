@@ -88,6 +88,10 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             MediaType.get("application/json; charset=utf-8");
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
+    /** Thread-local ByteArrayOutputStream for gzip compression to avoid repeated allocations. */
+    private static final ThreadLocal<ByteArrayOutputStream> BAOS_HOLDER =
+            ThreadLocal.withInitial(() -> new ByteArrayOutputStream(1024));
+
     private final LogicalType inputType;
     private final LogicalType outputType;
     private final String inputName;
@@ -129,8 +133,9 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             // Handle compression and request body
             if (getCompression() != null) {
                 if ("gzip".equalsIgnoreCase(getCompression())) {
-                    // Compress request body with gzip
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    // Compress request body with gzip using thread-local buffer
+                    ByteArrayOutputStream baos = BAOS_HOLDER.get();
+                    baos.reset();
                     try (GZIPOutputStream gzos = new GZIPOutputStream(baos)) {
                         gzos.write(requestBody.getBytes(StandardCharsets.UTF_8));
                     }
@@ -455,7 +460,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
         if (results.isEmpty()) {
             Object defaultValue;
             if (outputType instanceof VarCharType) {
-                defaultValue = BinaryStringData.fromString("");
+                defaultValue = BinaryStringData.EMPTY_UTF8;
             } else {
                 defaultValue = null;
             }
