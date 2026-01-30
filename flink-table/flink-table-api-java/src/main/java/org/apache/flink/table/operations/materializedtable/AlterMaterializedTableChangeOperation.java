@@ -65,7 +65,6 @@ import org.apache.flink.table.types.DataType;
 
 import javax.annotation.Nullable;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedList;
@@ -187,9 +186,7 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
     }
 
     private static class ChangeContext {
-        private static final Map<
-                        Class<? extends TableChange>, BiConsumer<ChangeContext, TableChange>>
-                HANDLERS_MAP = getHandlersMap();
+        private static final HandlerRegistry HANDLER_REGISTRY = createHandlerRegistry();
 
         private final List<UnresolvedColumn> columns;
         private final CatalogMaterializedTable oldTable;
@@ -223,61 +220,71 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
             this.oldTable = oldTable;
         }
 
-        private static Map<Class<? extends TableChange>, BiConsumer<ChangeContext, TableChange>>
-                getHandlersMap() {
-            final Map<Class<? extends TableChange>, BiConsumer<ChangeContext, TableChange>> map =
+        private static final class HandlerRegistry {
+            private static final Map<Class<? extends TableChange>, HandlerWrapper<?>> HANDLERS =
                     new IdentityHashMap<>();
 
-            // Column
-            map.put(AddColumn.class, (c, t) -> c.addColumn((AddColumn) t));
-            map.put(ModifyColumn.class, (c, t) -> c.modifyColumn((ModifyColumn) t));
-            map.put(
-                    ModifyColumnPosition.class,
-                    (c, t) -> c.modifyColumnPosition((ModifyColumnPosition) t));
-            map.put(
-                    ModifyPhysicalColumnType.class,
-                    (c, t) -> c.modifyPhysicalColumnType((ModifyPhysicalColumnType) t));
-            map.put(
-                    ModifyColumnComment.class,
-                    (c, t) -> c.modifyColumnComment((ModifyColumnComment) t));
-            map.put(DropColumn.class, (c, t) -> c.dropColumn((DropColumn) t));
+            private <T extends TableChange> void register(
+                    Class<T> type, BiConsumer<ChangeContext, T> handler) {
+                HANDLERS.put(type, new HandlerWrapper<>(handler));
+            }
 
-            // Watermark
-            map.put(AddWatermark.class, (c, t) -> c.addWatermark((AddWatermark) t));
-            map.put(ModifyWatermark.class, (c, t) -> c.modifyWatermark((ModifyWatermark) t));
-            map.put(DropWatermark.class, (c, t) -> c.dropWatermark((DropWatermark) t));
+            private void apply(ChangeContext context, TableChange change) {
+                HandlerWrapper<?> wrapper = HANDLERS.get(change.getClass());
+                if (wrapper == null) {
+                    throw new ValidationException("Unknown table change " + change.getClass());
+                }
+                wrapper.accept(context, change);
+            }
 
-            // Constraint
-            map.put(
-                    AddUniqueConstraint.class,
-                    (c, t) -> c.addUniqueConstraint((AddUniqueConstraint) t));
-            map.put(
-                    ModifyUniqueConstraint.class,
-                    (c, t) -> c.modifyUniqueConstraint((ModifyUniqueConstraint) t));
-            map.put(DropConstraint.class, (c, t) -> c.dropConstraint((DropConstraint) t));
+            private static final class HandlerWrapper<T extends TableChange> {
+                private final BiConsumer<ChangeContext, T> handler;
 
-            // Distribution
-            map.put(AddDistribution.class, (c, t) -> c.addDistribution((AddDistribution) t));
-            map.put(
-                    ModifyDistribution.class,
-                    (c, t) -> c.modifyDistribution((ModifyDistribution) t));
-            map.put(DropDistribution.class, (c, t) -> c.dropDistribution((DropDistribution) t));
+                private HandlerWrapper(BiConsumer<ChangeContext, T> handler) {
+                    this.handler = handler;
+                }
 
-            // RefreshStatus
-            map.put(
-                    ModifyRefreshStatus.class,
-                    (c, t) -> c.modifyRefreshStatus((ModifyRefreshStatus) t));
+                private void accept(ChangeContext context, TableChange change) {
+                    handler.accept(context, (T) change);
+                }
+            }
+        }
 
-            // RefreshHandler
-            map.put(
-                    ModifyRefreshHandler.class,
-                    (c, t) -> c.modifyRefreshHandler((ModifyRefreshHandler) t));
+        private static HandlerRegistry createHandlerRegistry() {
+            HandlerRegistry registry = new HandlerRegistry();
 
-            // DefinitionQuery
-            map.put(
-                    ModifyDefinitionQuery.class,
-                    (c, t) -> c.modifyDefinitionQuery((ModifyDefinitionQuery) t));
-            return Collections.unmodifiableMap(map);
+            // Column operations
+            registry.register(AddColumn.class, ChangeContext::addColumn);
+            registry.register(ModifyColumn.class, ChangeContext::modifyColumn);
+            registry.register(DropColumn.class, ChangeContext::dropColumn);
+            registry.register(
+                    ModifyPhysicalColumnType.class, ChangeContext::modifyPhysicalColumnType);
+            registry.register(ModifyColumnComment.class, ChangeContext::modifyColumnComment);
+            registry.register(ModifyColumnPosition.class, ChangeContext::modifyColumnPosition);
+
+            // Query operations
+            registry.register(ModifyDefinitionQuery.class, ChangeContext::modifyDefinitionQuery);
+
+            // Constraint operations
+            registry.register(AddUniqueConstraint.class, ChangeContext::addUniqueConstraint);
+            registry.register(ModifyUniqueConstraint.class, ChangeContext::modifyUniqueConstraint);
+            registry.register(DropConstraint.class, ChangeContext::dropConstraint);
+
+            // Watermark operations
+            registry.register(AddWatermark.class, ChangeContext::addWatermark);
+            registry.register(ModifyWatermark.class, ChangeContext::modifyWatermark);
+            registry.register(DropWatermark.class, ChangeContext::dropWatermark);
+
+            // Refresh operations
+            registry.register(ModifyRefreshHandler.class, ChangeContext::modifyRefreshHandler);
+            registry.register(ModifyRefreshStatus.class, ChangeContext::modifyRefreshStatus);
+
+            // Distribution operations
+            registry.register(AddDistribution.class, ChangeContext::addDistribution);
+            registry.register(ModifyDistribution.class, ChangeContext::modifyDistribution);
+            registry.register(DropDistribution.class, ChangeContext::dropDistribution);
+
+            return registry;
         }
 
         private void applyTableChanges(List<TableChange> tableChanges) {
@@ -288,13 +295,7 @@ public class AlterMaterializedTableChangeOperation extends AlterMaterializedTabl
             }
 
             for (TableChange tableChange : tableChanges) {
-                BiConsumer<ChangeContext, TableChange> handler =
-                        HANDLERS_MAP.get(tableChange.getClass());
-                if (handler == null) {
-                    throw new ValidationException("Unknown table change " + tableChange.getClass());
-                } else {
-                    handler.accept(this, tableChange);
-                }
+                HANDLER_REGISTRY.apply(this, tableChange);
             }
 
             if (droppedPersistedCnt > 0 && isQueryChange) {
