@@ -26,15 +26,21 @@ import org.apache.flink.table.catalog.TableChange;
 
 import java.util.List;
 
-/** Operation to describe an ALTER MATERIALIZED TABLE AS query operation. */
+/**
+ * Operation to describe an ALTER MATERIALIZED TABLE AS query operation. The operation is not
+ * executable and only serves as a wrapper.
+ *
+ * <p>As an example see {@link MaterializedTableManager} where it is transformed to {@link
+ * AlterMaterializedTableChangeOperation} before execution.
+ */
 @Internal
 public class AlterMaterializedTableAsQueryOperation extends AlterMaterializedTableChangeOperation {
 
     public AlterMaterializedTableAsQueryOperation(
             ObjectIdentifier tableIdentifier,
             List<TableChange> tableChanges,
-            CatalogMaterializedTable catalogMaterializedTable) {
-        super(tableIdentifier, tableChanges, catalogMaterializedTable);
+            CatalogMaterializedTable oldTable) {
+        super(tableIdentifier, tableChanges, oldTable);
     }
 
     @Override
@@ -48,6 +54,6 @@ public class AlterMaterializedTableAsQueryOperation extends AlterMaterializedTab
         return String.format(
                 "ALTER MATERIALIZED TABLE %s AS %s",
                 tableIdentifier.asSummaryString(),
-                getCatalogMaterializedTable().getExpandedQuery());
+                getMaterializedTableWithAppliedChanges().getExpandedQuery());
     }
 }
