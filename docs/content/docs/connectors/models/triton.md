@@ -22,24 +22,24 @@ under the License.
 
 # Triton
 
-Triton 模型函数允许 Flink SQL 调用 [NVIDIA Triton 推理服务器](https://github.com/triton-inference-server/server) 进行实时模型推理任务。
+The Triton Model Function allows Flink SQL to call [NVIDIA Triton Inference Server](https://github.com/triton-inference-server/server) for real-time model inference tasks.
 
-## 概述
+## Overview
 
-该函数支持通过 Flink SQL 调用远程 Triton 推理服务器进行预测/推理任务。Triton 推理服务器是一个高性能的推理服务解决方案，支持多种机器学习框架，包括 TensorFlow、PyTorch、ONNX 等。
+The function supports calling remote Triton Inference Server via Flink SQL for prediction/inference tasks. Triton Inference Server is a high-performance inference serving solution that supports multiple machine learning frameworks including TensorFlow, PyTorch, ONNX, and more.
 
-主要特性：
-* **高性能**：针对低延迟和高吞吐量推理进行优化
-* **多框架支持**：支持来自各种机器学习框架的模型
-* **异步处理**：非阻塞推理请求，提高资源利用率
-* **灵活配置**：为不同用例提供全面的配置选项
-* **资源管理**：高效的 HTTP 客户端池化和自动资源清理
+Key features:
+* **High Performance**: Optimized for low-latency and high-throughput inference
+* **Multi-Framework Support**: Works with models from various ML frameworks
+* **Asynchronous Processing**: Non-blocking inference requests for better resource utilization
+* **Flexible Configuration**: Comprehensive configuration options for different use cases
+* **Resource Management**: Efficient HTTP client pooling and automatic resource cleanup
 
-## 使用示例
+## Usage Examples
 
-以下示例创建了一个用于文本分类的 Triton 模型，并使用它来分析电影评论中的情感。
+The following example creates a Triton model for text classification and uses it to analyze sentiment in movie reviews.
 
-首先，使用以下 SQL 语句创建 Triton 模型：
+First, create the Triton model with the following SQL statement:
 
 ```sql
 CREATE MODEL triton_sentiment_classifier
@@ -55,14 +55,14 @@ WITH (
 );
 ```
 
-假设以下数据存储在名为 `movie_reviews` 的表中，预测结果将存储在名为 `classified_reviews` 的表中：
+Suppose the following data is stored in a table named `movie_reviews`, and the prediction result is to be stored in a table named `classified_reviews`:
 
 ```sql
 CREATE TEMPORARY VIEW movie_reviews(id, movie_name, user_review, actual_sentiment)
 AS VALUES
-  (1, '好电影', '这部电影绝对精彩！演技和故事情节都很棒。', 'positive'),
-  (2, '无聊的电影', '我看到一半就睡着了。非常失望。', 'negative'),
-  (3, '一般的电影', '还可以，没什么特别的，但也不算糟糕。', 'neutral');
+  (1, 'Great Movie', 'This movie was absolutely fantastic! Great acting and storyline.', 'positive'),
+  (2, 'Boring Film', 'I fell asleep halfway through. Very disappointing.', 'negative'),
+  (3, 'Average Show', 'It was okay, nothing special but not terrible either.', 'neutral');
 
 CREATE TEMPORARY TABLE classified_reviews(
   id BIGINT,
@@ -74,7 +74,7 @@ CREATE TEMPORARY TABLE classified_reviews(
 );
 ```
 
-然后可以使用以下 SQL 语句对电影评论进行情感分类：
+Then the following SQL statement can be used to classify sentiment for movie reviews:
 
 ```sql
 INSERT INTO classified_reviews
@@ -86,9 +86,9 @@ FROM ML_PREDICT(
 );
 ```
 
-### 高级配置示例
+### Advanced Configuration Example
 
-对于需要身份验证和自定义头部的生产环境：
+For production environments with authentication and custom headers:
 
 ```sql
 CREATE MODEL triton_advanced_model
@@ -109,12 +109,12 @@ WITH (
 );
 ```
 
-### 数组类型推理示例
+### Array Type Inference Example
 
-对于接受数组输入的模型（例如向量嵌入、图像特征等）：
+For models that accept array inputs (e.g., vector embeddings, image features):
 
 ```sql
--- 创建数组输入的模型
+-- Create model with array input
 CREATE MODEL triton_vector_model
 INPUT (input_vector ARRAY<FLOAT>)
 OUTPUT (output_vector ARRAY<FLOAT>)
@@ -123,16 +123,16 @@ WITH (
     'endpoint' = 'http://localhost:8000/v2/models',
     'model-name' = 'vector-transform',
     'model-version' = '1',
-    'flatten-batch-dim' = 'true'  -- 如果模型不期望批次维度
+    'flatten-batch-dim' = 'true'  -- If model doesn't expect batch dimension
 );
 
--- 使用模型进行推理
+-- Use the model for inference
 CREATE TEMPORARY TABLE vector_input (
     id BIGINT,
     features ARRAY<FLOAT>
 ) WITH (
     'connector' = 'datagen',
-    'fields.features.length' = '128'  -- 128维向量
+    'fields.features.length' = '128'  -- 128-dimensional vector
 );
 
 SELECT id, output_vector
@@ -143,9 +143,9 @@ FROM ML_PREDICT(
 );
 ```
 
-### 有状态模型示例
+### Stateful Model Example
 
-对于需要序列处理的有状态模型：
+For stateful models that require sequence processing:
 
 ```sql
 CREATE MODEL triton_sequence_model
@@ -162,18 +162,18 @@ WITH (
 );
 ```
 
-## 模型选项
+## Model Options
 
-### 必需选项
+### Required Options
 
 <table class="table table-bordered">
     <thead>
         <tr>
-            <th class="text-left" style="width: 25%">选项</th>
-            <th class="text-center" style="width: 8%">是否必需</th>
-            <th class="text-center" style="width: 7%">默认值</th>
-            <th class="text-center" style="width: 10%">类型</th>
-            <th class="text-center" style="width: 50%">描述</th>
+            <th class="text-left" style="width: 25%">Option</th>
+            <th class="text-center" style="width: 8%">Required</th>
+            <th class="text-center" style="width: 7%">Default</th>
+            <th class="text-center" style="width: 10%">Type</th>
+            <th class="text-center" style="width: 50%">Description</th>
         </tr>
     </thead>
     <tbody>
@@ -181,51 +181,51 @@ WITH (
             <td>
                 <h5>provider</h5>
             </td>
-            <td>必需</td>
-            <td style="word-wrap: break-word;">(无)</td>
+            <td>required</td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>指定要使用的模型函数提供者，必须为 'triton'。</td>
+            <td>Specifies the model function provider to use, must be 'triton'.</td>
         </tr>
         <tr>
             <td>
                 <h5>endpoint</h5>
             </td>
-            <td>必需</td>
-            <td style="word-wrap: break-word;">(无)</td>
+            <td>required</td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>Triton 推理服务器端点的完整 URL，例如 <code>http://localhost:8000/v2/models</code>。</td>
+            <td>Full URL of the Triton Inference Server endpoint, e.g. <code>http://localhost:8000/v2/models</code>.</td>
         </tr>
         <tr>
             <td>
                 <h5>model-name</h5>
             </td>
-            <td>必需</td>
-            <td style="word-wrap: break-word;">(无)</td>
+            <td>required</td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>要在 Triton 服务器上调用的模型名称。</td>
+            <td>Name of the model to invoke on Triton server.</td>
         </tr>
         <tr>
             <td>
                 <h5>model-version</h5>
             </td>
-            <td>必需</td>
+            <td>required</td>
             <td style="word-wrap: break-word;">latest</td>
             <td>String</td>
-            <td>要使用的模型版本。默认为 'latest'。</td>
+            <td>Version of the model to use. Defaults to 'latest'.</td>
         </tr>
     </tbody>
 </table>
 
-### 可选选项
+### Optional Options
 
 <table class="table table-bordered">
     <thead>
         <tr>
-            <th class="text-left" style="width: 25%">选项</th>
-            <th class="text-center" style="width: 8%">是否必需</th>
-            <th class="text-center" style="width: 7%">默认值</th>
-            <th class="text-center" style="width: 10%">类型</th>
-            <th class="text-center" style="width: 50%">描述</th>
+            <th class="text-left" style="width: 25%">Option</th>
+            <th class="text-center" style="width: 8%">Required</th>
+            <th class="text-center" style="width: 7%">Default</th>
+            <th class="text-center" style="width: 10%">Type</th>
+            <th class="text-center" style="width: 50%">Description</th>
         </tr>
     </thead>
     <tbody>
@@ -233,185 +233,185 @@ WITH (
             <td>
                 <h5>timeout</h5>
             </td>
-            <td>可选</td>
+            <td>optional</td>
             <td style="word-wrap: break-word;">30000</td>
             <td>Long</td>
-            <td>请求超时时间（毫秒）。</td>
+            <td>Request timeout in milliseconds.</td>
         </tr>
         <tr>
             <td>
                 <h5>max-retries</h5>
             </td>
-            <td>可选</td>
+            <td>optional</td>
             <td style="word-wrap: break-word;">3</td>
             <td>Integer</td>
-            <td>失败请求的最大重试次数。</td>
+            <td>Maximum number of retries for failed requests.</td>
         </tr>
         <tr>
             <td>
                 <h5>batch-size</h5>
             </td>
-            <td>可选</td>
+            <td>optional</td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
-            <td>推理请求的批处理大小。</td>
+            <td>Batch size for inference requests.</td>
         </tr>
         <tr>
             <td>
                 <h5>flatten-batch-dim</h5>
             </td>
-            <td>可选</td>
+            <td>optional</td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>是否扁平化数组输入的批次维度。当设置为 true 时，形状 [1,N] 会被转换为 [N]。默认为 false。适用于某些 Triton 模型不期望批次维度的情况。</td>
+            <td>Whether to flatten the batch dimension for array inputs. When true, shape [1,N] becomes [N]. Defaults to false. Useful for Triton models that do not expect a batch dimension.</td>
         </tr>
         <tr>
             <td>
                 <h5>priority</h5>
             </td>
-            <td>可选</td>
-            <td style="word-wrap: break-word;">(无)</td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>Integer</td>
-            <td>请求优先级（0-255）。数值越高表示优先级越高。</td>
+            <td>Request priority level (0-255). Higher values indicate higher priority.</td>
         </tr>
         <tr>
             <td>
                 <h5>sequence-id</h5>
             </td>
-            <td>可选</td>
-            <td style="word-wrap: break-word;">(无)</td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>有状态模型的序列 ID。</td>
+            <td>Sequence ID for stateful models.</td>
         </tr>
         <tr>
             <td>
                 <h5>sequence-start</h5>
             </td>
-            <td>可选</td>
+            <td>optional</td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>对于有状态模型，是否为序列的开始。</td>
+            <td>Whether this is the start of a sequence for stateful models.</td>
         </tr>
         <tr>
             <td>
                 <h5>sequence-end</h5>
             </td>
-            <td>可选</td>
+            <td>optional</td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>对于有状态模型，是否为序列的结束。</td>
+            <td>Whether this is the end of a sequence for stateful models.</td>
         </tr>
         <tr>
             <td>
                 <h5>binary-data</h5>
             </td>
-            <td>可选</td>
+            <td>optional</td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
-            <td>是否使用二进制数据传输。默认为 false（JSON）。</td>
+            <td>Whether to use binary data transfer. Defaults to false (JSON).</td>
         </tr>
         <tr>
             <td>
                 <h5>compression</h5>
             </td>
-            <td>可选</td>
-            <td style="word-wrap: break-word;">(无)</td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>要使用的压缩算法（例如 'gzip'）。</td>
+            <td>Compression algorithm to use (e.g., 'gzip').</td>
         </tr>
         <tr>
             <td>
                 <h5>auth-token</h5>
             </td>
-            <td>可选</td>
-            <td style="word-wrap: break-word;">(无)</td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>安全 Triton 服务器的身份验证令牌。</td>
+            <td>Authentication token for secured Triton servers.</td>
         </tr>
         <tr>
             <td>
                 <h5>custom-headers</h5>
             </td>
-            <td>可选</td>
-            <td style="word-wrap: break-word;">(无)</td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>JSON 格式的自定义 HTTP 头部，例如 <code>{"X-Custom-Header":"value"}</code>。</td>
+            <td>Custom HTTP headers in JSON format, e.g., <code>{"X-Custom-Header":"value"}</code>.</td>
         </tr>
     </tbody>
 </table>
 
-## 模式要求
+## Schema Requirement
 
 <table class="table table-bordered">
     <thead>
         <tr>
-            <th class="text-center">输入类型</th>
-            <th class="text-center">输出类型</th>
-            <th class="text-left">描述</th>
+            <th class="text-center">Input Type</th>
+            <th class="text-center">Output Type</th>
+            <th class="text-left">Description</th>
         </tr>
     </thead>
     <tbody>
         <tr>
             <td>BOOLEAN, TINYINT, SMALLINT, INT, BIGINT</td>
             <td>BOOLEAN, TINYINT, SMALLINT, INT, BIGINT</td>
-            <td>整数类型推理</td>
+            <td>Integer type inference</td>
         </tr>
         <tr>
             <td>FLOAT, DOUBLE</td>
             <td>FLOAT, DOUBLE</td>
-            <td>浮点数类型推理</td>
+            <td>Floating-point type inference</td>
         </tr>
         <tr>
             <td>STRING</td>
             <td>STRING</td>
-            <td>文本到文本推理（分类、生成等）</td>
+            <td>Text-to-text inference (classification, generation, etc.)</td>
         </tr>
         <tr>
-            <td>ARRAY&lt;数值类型&gt;</td>
-            <td>ARRAY&lt;数值类型&gt;</td>
-            <td>数组推理（向量、张量等）。支持数值类型数组。</td>
+            <td>ARRAY&lt;numeric types&gt;</td>
+            <td>ARRAY&lt;numeric types&gt;</td>
+            <td>Array inference (vectors, tensors, etc.). Supports arrays of numeric types.</td>
         </tr>
     </tbody>
 </table>
 
-**注意**：输入和输出类型必须与 Triton 模型配置中定义的类型匹配。
+**Note**: Input and output types must match the types defined in your Triton model configuration.
 
-## Triton 服务器设置
+## Triton Server Setup
 
-要使用此集成，您需要运行 Triton 推理服务器。以下是基本设置指南：
+To use this integration, you need a running Triton Inference Server. Here's a basic setup guide:
 
-### 使用 Docker
+### Using Docker
 
 ```bash
-# 拉取 Triton 服务器镜像
+# Pull Triton server image
 docker pull nvcr.io/nvidia/tritonserver:23.10-py3
 
-# 使用您的模型仓库运行 Triton 服务器
+# Run Triton server with your model repository
 docker run --rm -p 8000:8000 -p 8001:8001 -p 8002:8002 \
   -v /path/to/your/model/repository:/models \
   nvcr.io/nvidia/tritonserver:23.10-py3 \
   tritonserver --model-repository=/models
 ```
 
-### 模型仓库结构
+### Model Repository Structure
 
-您的模型仓库应遵循以下结构：
+Your model repository should follow this structure:
 
 ```
 model_repository/
 ├── text-classification/
 │   ├── config.pbtxt
 │   └── 1/
-│       └── model.py  # 或 model.onnx, model.plan 等
+│       └── model.py  # or model.onnx, model.plan, etc.
 └── other-model/
     ├── config.pbtxt
     └── 1/
         └── model.savedmodel/
 ```
 
-### 示例模型配置
+### Example Model Configuration
 
-以下是文本分类模型的示例 `config.pbtxt`：
+Here's an example `config.pbtxt` for a text classification model:
 
 ```protobuf
 name: "text-classification"
@@ -433,43 +433,43 @@ output [
 ]
 ```
 
-## 性能考虑
+## Performance Considerations
 
-1. **连接池**：HTTP 客户端被池化和重用以提高效率
-2. **异步处理**：非阻塞请求防止线程饥饿
-3. **批处理**：配置批处理大小以获得最佳吞吐量
-4. **资源管理**：HTTP 资源的自动清理
-5. **超时配置**：根据模型复杂性设置适当的超时值
-6. **重试策略**：配置重试次数以处理瞬态故障
+1. **Connection Pooling**: HTTP clients are pooled and reused for efficiency
+2. **Asynchronous Processing**: Non-blocking requests prevent thread starvation
+3. **Batch Processing**: Configure batch size for optimal throughput
+4. **Resource Management**: Automatic cleanup of HTTP resources
+5. **Timeout Configuration**: Set appropriate timeout values based on model complexity
+6. **Retry Strategy**: Configure retry attempts for handling transient failures
 
-## 错误处理
+## Error Handling
 
-集成包括全面的错误处理：
+The integration includes comprehensive error handling:
 
-- **连接错误**：使用指数退避的自动重试
-- **超时处理**：可配置的请求超时
-- **HTTP 错误**：来自 Triton 服务器的详细错误消息
-- **序列化错误**：JSON 解析和验证错误
+- **Connection Errors**: Automatic retry with exponential backoff
+- **Timeout Handling**: Configurable request timeouts
+- **HTTP Errors**: Detailed error messages from Triton server
+- **Serialization Errors**: JSON parsing and validation errors
 
-## 监控和调试
+## Monitoring and Debugging
 
-启用调试日志以监控集成：
+Enable debug logging to monitor the integration:
 
 ```properties
-# 在 log4j2.properties 中
+# In log4j2.properties
 logger.triton.name = org.apache.flink.model.triton
 logger.triton.level = DEBUG
 ```
 
-这将提供以下详细日志：
-- HTTP 请求/响应详情
-- 客户端连接管理
-- 错误条件和重试
-- 性能指标
+This will provide detailed logs about:
+- HTTP request/response details
+- Client connection management
+- Error conditions and retries
+- Performance metrics
 
-## 依赖项
+## Dependencies
 
-要使用 Triton 模型函数，您需要在 Flink 应用程序中包含以下依赖项：
+To use the Triton model function, you need to include the following dependency in your Flink application:
 
 ```xml
 <dependency>

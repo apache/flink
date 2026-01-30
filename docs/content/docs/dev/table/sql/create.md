@@ -960,6 +960,7 @@ WITH (
     'provider' = 'triton',
     'endpoint' = 'http://localhost:8000/v2/models',
     'model-name' = 'text-classification',
+    'headers.Authorization' = 'Bearer ${TRITON_TOKEN}',
     'model-version' = '1',
     'timeout' = '10000',
     'max-retries' = '3'
