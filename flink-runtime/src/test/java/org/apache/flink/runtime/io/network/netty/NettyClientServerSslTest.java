@@ -273,7 +273,7 @@ class NettyClientServerSslTest {
 
         config.set(
                 SSL_ALGORITHMS,
-                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256");
+                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
         // pin the certificate based on internal cert
         config.set(
                 SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT,
