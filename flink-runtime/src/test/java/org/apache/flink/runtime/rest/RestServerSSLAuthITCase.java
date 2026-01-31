@@ -143,7 +143,7 @@ public class RestServerSSLAuthITCase {
         baseConfig.set(RestOptions.ADDRESS, "localhost");
         baseConfig.set(SecurityOptions.SSL_REST_ENABLED, true);
         baseConfig.set(SecurityOptions.SSL_REST_AUTHENTICATION_ENABLED, true);
-        baseConfig.set(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA");
+        baseConfig.set(SecurityOptions.SSL_ALGORITHMS, "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
 
         Configuration serverConfig = new Configuration(baseConfig);
         serverConfig.set(SecurityOptions.SSL_REST_TRUSTSTORE, TRUST_STORE_FILE);
