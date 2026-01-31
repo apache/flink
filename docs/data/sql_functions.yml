@@ -1171,7 +1171,7 @@ variant:
       `allowDuplicateKeys` is false.
   - sql: JSON_STRING(variant)
     description: |
-      Generate a json string from Variant.
+      Generate a json string from a Variant.
   - sql: variant '[' INT ']'
     table: VARIANT.at(INT)
     description: |
