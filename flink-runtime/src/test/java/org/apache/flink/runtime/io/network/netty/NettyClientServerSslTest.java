@@ -45,6 +45,7 @@ import java.net.InetAddress;
 import java.time.Duration;
 import java.util.List;
 
+import static org.apache.flink.configuration.SecurityOptions.SSL_ALGORITHMS;
 import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_CLOSE_NOTIFY_FLUSH_TIMEOUT;
 import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_HANDSHAKE_TIMEOUT;
 import static org.apache.flink.configuration.SecurityOptions.SSL_INTERNAL_SESSION_CACHE_SIZE;
@@ -74,6 +75,9 @@ class NettyClientServerSslTest {
     void testValidSslConnectionAdvanced() throws Exception {
         Configuration sslConfig = createSslConfig();
         sslConfig.set(SSL_INTERNAL_SESSION_CACHE_SIZE, 1);
+        sslConfig.set(
+                SSL_ALGORITHMS,
+                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
 
         // using different timeouts for each of the configuration parameters ensures that the right
         // config value is used in the right place
@@ -267,6 +271,9 @@ class NettyClientServerSslTest {
 
         Configuration config = createSslConfig();
 
+        config.set(
+                SSL_ALGORITHMS,
+                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
         // pin the certificate based on internal cert
         config.set(
                 SecurityOptions.SSL_INTERNAL_CERT_FINGERPRINT,
