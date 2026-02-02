@@ -2455,7 +2455,8 @@ public final class BuiltInFunctionDefinitions {
                             sequence(
                                     or(
                                             logical(LogicalTypeRoot.ARRAY),
-                                            logical(LogicalTypeRoot.MAP)),
+                                            logical(LogicalTypeRoot.MAP),
+                                            logical(LogicalTypeRoot.VARIANT)),
                                     InputTypeStrategies.ITEM_AT_INDEX))
                     .outputTypeStrategy(SpecificTypeStrategies.ITEM_AT)
                     .build();
