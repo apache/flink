@@ -45,12 +45,13 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.utils.HandwrittenSelectorUtil;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 import org.apache.flink.types.RowKind;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
@@ -66,16 +67,15 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.rowOfKind;
 
 /** Rescaling and migration unit tests for {@link SinkUpsertMaterializer}. */
-@RunWith(Parameterized.class)
-public class SinkUpsertMaterializerRescalingTest {
+@ExtendWith(ParameterizedTestExtension.class)
+class SinkUpsertMaterializerRescalingTest {
 
-    @Parameter(0)
-    public SinkUpsertMaterializerVersion sumVersion;
+    @Parameter public SinkUpsertMaterializerVersion sumVersion;
 
     @Parameter(1)
-    public SinkUpsertMaterializerStateBackend backend;
+    SinkUpsertMaterializerStateBackend backend;
 
-    @Parameterized.Parameters(name = "sumVersion={0}, stateBackend={1}")
+    @Parameters(name = "sumVersion={0}, stateBackend={1}")
     public static Object[][] generateTestParameters() {
         List<Object[]> result = new ArrayList<>();
         for (SinkUpsertMaterializerVersion sumVersion : SinkUpsertMaterializerVersion.values()) {
@@ -87,32 +87,32 @@ public class SinkUpsertMaterializerRescalingTest {
         return result.toArray(new Object[0][]);
     }
 
-    @Test
+    @TestTemplate
     public void testScaleUpThenDown() throws Exception {
         testRescaleFromToFrom(10, 2, 3, backend, backend, sumVersion);
     }
 
-    @Test
+    @TestTemplate
     public void testScaleDownThenUp() throws Exception {
         testRescaleFromToFrom(10, 3, 2, backend, backend, sumVersion);
     }
 
-    @Test
+    @TestTemplate
     public void testRecovery() throws Exception {
         testRescaleFromToFrom(1, 1, 1, backend, backend, sumVersion);
     }
 
-    @Test
+    @TestTemplate
     public void testForwardAndBackwardMigration() throws Exception {
         testRescaleFromToFrom(7, 3, 3, backend, getOtherBackend(backend), sumVersion);
     }
 
-    @Test
+    @TestTemplate
     public void testScaleUpThenDownWithMigration() throws Exception {
         testRescaleFromToFrom(7, 1, 5, backend, getOtherBackend(backend), sumVersion);
     }
 
-    @Test
+    @TestTemplate
     public void testScaleDownThenUpWithMigration() throws Exception {
         testRescaleFromToFrom(
                 7,
