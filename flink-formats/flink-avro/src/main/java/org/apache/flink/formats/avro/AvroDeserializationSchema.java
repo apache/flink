@@ -37,7 +37,6 @@ import org.apache.avro.io.JsonDecoder;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecord;
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,9 +44,6 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Objects;
-
-import static org.apache.avro.generic.GenericData.FAST_READER_PROP;
-import static org.apache.flink.formats.avro.AvroFormatOptions.AVRO_FAST_READ;
 
 /**
  * Deserialization schema that deserializes from Avro binary format.
@@ -248,17 +244,6 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
         if (datumReader != null) {
             return;
         }
-        synchronized (this) {
-            if (isFastReaderEnabled()) {
-                String openFlag = System.getProperty(FAST_READER_PROP);
-                if (StringUtils.isEmpty(openFlag)) {
-                    System.setProperty(FAST_READER_PROP, "true");
-                    LOG.info(
-                            "{} are enabled, but FAST_READER_PROP is empty. We just change it to true.",
-                            AVRO_FAST_READ.key());
-                }
-            }
-        }
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
             @SuppressWarnings("unchecked")
@@ -270,6 +255,7 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
         } else {
             this.reader = new Schema.Parser().parse(schemaString);
             GenericData genericData = new GenericData(cl);
+            genericData.setFastReaderEnabled(isFastReaderEnabled());
             this.datumReader = new GenericDatumReader<>(null, this.reader, genericData);
         }
 
