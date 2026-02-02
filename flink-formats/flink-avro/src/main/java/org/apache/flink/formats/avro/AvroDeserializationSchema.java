@@ -37,8 +37,6 @@ import org.apache.avro.io.JsonDecoder;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecord;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -51,8 +49,6 @@ import java.util.Objects;
  * @param <T> type of record it produces
  */
 public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
-    private static final Logger LOG = LoggerFactory.getLogger(AvroDeserializationSchema.class);
-
     /**
      * Creates {@link AvroDeserializationSchema} that produces {@link GenericRecord} using provided
      * schema.
@@ -140,8 +136,8 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
     /** Avro schema for the reader. */
     private transient Schema reader;
 
-    /** Avro schema for the reader. */
-    private transient boolean openFastReader;
+    /** Whether to open fast read feature. */
+    private final boolean openFastReader;
 
     /**
      * Creates a Avro deserialization schema.
@@ -240,16 +236,17 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
         return datumReader.read(null, decoder);
     }
 
+    @SuppressWarnings("unchecked")
     void checkAvroInitialized() throws IOException {
         if (datumReader != null) {
             return;
         }
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
-            @SuppressWarnings("unchecked")
             SpecificData specificData =
                     AvroFactory.getSpecificDataForClass(
                             (Class<? extends SpecificData>) recordClazz, cl);
+            specificData.setFastReaderEnabled(isFastReaderEnabled());
             this.datumReader = new SpecificDatumReader<>(specificData);
             this.reader = AvroFactory.extractAvroSpecificSchema(recordClazz, specificData);
         } else {
@@ -269,7 +266,7 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
     }
 
     private boolean isFastReaderEnabled() {
-        return openFastReader && !SpecificRecord.class.isAssignableFrom(recordClazz);
+        return openFastReader;
     }
 
     @Override

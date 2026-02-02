@@ -87,7 +87,10 @@ public class AvroFormatOptions {
             ConfigOptions.key("open.fastread")
                     .booleanType()
                     .defaultValue(false)
-                    .withDescription("Whether to open fast read feature.");
+                    .withDescription(
+                            "Whether to open fast read feature. After AVRO 1.9.2 version it is supported fast read. "
+                                    + "please look https://issues.apache.org/jira/browse/AVRO-2247 "
+                                    + "get more information.");
 
     private AvroFormatOptions() {}
 }
