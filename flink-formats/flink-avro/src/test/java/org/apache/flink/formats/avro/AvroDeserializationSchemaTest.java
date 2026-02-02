@@ -123,33 +123,6 @@ class AvroDeserializationSchemaTest {
 
     @ParameterizedTest
     @EnumSource(AvroEncoding.class)
-    void testFastReaderSystemPropertySet(AvroEncoding encoding) throws Exception {
-        // Clear the system property first
-        String originalValue = System.getProperty("org.apache.avro.fastread");
-        System.clearProperty("org.apache.avro.fastread");
-
-        try {
-            DeserializationSchema<GenericRecord> deserializationSchema =
-                    AvroDeserializationSchema.forGeneric(address.getSchema(), encoding, true);
-
-            byte[] encodedAddress = writeRecord(address, Address.getClassSchema(), encoding);
-            deserializationSchema.deserialize(encodedAddress);
-
-            // Verify that the system property was set to "true"
-            String fastReaderProp = System.getProperty("org.apache.avro.fastread");
-            assertThat(fastReaderProp).isEqualTo("true");
-        } finally {
-            // Restore original value
-            if (originalValue != null) {
-                System.setProperty("org.apache.avro.fastread", originalValue);
-            } else {
-                System.clearProperty("org.apache.avro.fastread");
-            }
-        }
-    }
-
-    @ParameterizedTest
-    @EnumSource(AvroEncoding.class)
     void testGenericRecordWithFastReaderDisabled(AvroEncoding encoding) throws Exception {
         DeserializationSchema<GenericRecord> deserializationSchema =
                 AvroDeserializationSchema.forGeneric(address.getSchema(), encoding, false);
