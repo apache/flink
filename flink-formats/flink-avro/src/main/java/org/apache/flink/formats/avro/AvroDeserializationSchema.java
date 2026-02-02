@@ -157,6 +157,30 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
      * @param encoding encoding approach to use. Identifies the Avro decoder class to use.
      */
     AvroDeserializationSchema(
+            Class<T> recordClazz, @Nullable Schema reader, AvroEncoding encoding) {
+        Preconditions.checkNotNull(recordClazz, "Avro record class must not be null.");
+        this.recordClazz = recordClazz;
+        this.reader = reader;
+        if (reader != null) {
+            this.schemaString = reader.toString();
+        } else {
+            this.schemaString = null;
+        }
+        this.encoding = encoding;
+        this.openFastReader = false;
+    }
+
+    /**
+     * Creates a Avro deserialization schema.
+     *
+     * @param recordClazz class to which deserialize. Should be one of: {@link
+     *     org.apache.avro.specific.SpecificRecord}, {@link org.apache.avro.generic.GenericRecord}.
+     * @param reader reader's Avro schema. Should be provided if recordClazz is {@link
+     *     GenericRecord}
+     * @param encoding encoding approach to use. Identifies the Avro decoder class to use.
+     * @param openFastReader Whether to open fast read feature.
+     */
+    AvroDeserializationSchema(
             Class<T> recordClazz,
             @Nullable Schema reader,
             AvroEncoding encoding,
