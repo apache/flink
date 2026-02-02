@@ -83,5 +83,11 @@ public class AvroFormatOptions {
                                     + "you can obtain the correct mapping by disable using this legacy mapping."
                                     + " Use legacy behavior by default for compatibility consideration.");
 
+    public static final ConfigOption<Boolean> AVRO_FAST_READ =
+            ConfigOptions.key("open.fastread")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription("Whether to open fast read feature.");
+
     private AvroFormatOptions() {}
 }

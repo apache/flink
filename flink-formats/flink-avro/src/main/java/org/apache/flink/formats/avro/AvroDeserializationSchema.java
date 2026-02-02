@@ -37,11 +37,17 @@ import org.apache.avro.io.JsonDecoder;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecord;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Objects;
+
+import static org.apache.avro.generic.GenericData.FAST_READER_PROP;
+import static org.apache.flink.formats.avro.AvroFormatOptions.AVRO_FAST_READ;
 
 /**
  * Deserialization schema that deserializes from Avro binary format.
@@ -49,6 +55,7 @@ import java.util.Objects;
  * @param <T> type of record it produces
  */
 public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
+    private static final Logger LOG = LoggerFactory.getLogger(AvroDeserializationSchema.class);
 
     /**
      * Creates {@link AvroDeserializationSchema} that produces {@link GenericRecord} using provided
@@ -71,7 +78,22 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
      */
     public static AvroDeserializationSchema<GenericRecord> forGeneric(
             Schema schema, AvroEncoding encoding) {
-        return new AvroDeserializationSchema<>(GenericRecord.class, schema, encoding);
+        return forGeneric(schema, encoding, false);
+    }
+
+    /**
+     * Creates {@link AvroDeserializationSchema} that produces {@link GenericRecord} using provided
+     * schema.
+     *
+     * @param schema schema of produced records
+     * @param encoding Avro serialization approach to use for decoding
+     * @param openFastReader flag optional avro fastread feature
+     * @return deserialized record in form of {@link GenericRecord}
+     */
+    public static AvroDeserializationSchema<GenericRecord> forGeneric(
+            Schema schema, AvroEncoding encoding, boolean openFastReader) {
+        return new AvroDeserializationSchema<>(
+                GenericRecord.class, schema, encoding, openFastReader);
     }
 
     /**
@@ -96,7 +118,7 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
      */
     public static <T extends SpecificRecord> AvroDeserializationSchema<T> forSpecific(
             Class<T> tClass, AvroEncoding encoding) {
-        return new AvroDeserializationSchema<>(tClass, null, encoding);
+        return new AvroDeserializationSchema<>(tClass, null, encoding, false);
     }
 
     private static final long serialVersionUID = -6766681879020862312L;
@@ -122,6 +144,9 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
     /** Avro schema for the reader. */
     private transient Schema reader;
 
+    /** Avro schema for the reader. */
+    private transient boolean openFastReader;
+
     /**
      * Creates a Avro deserialization schema.
      *
@@ -132,7 +157,10 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
      * @param encoding encoding approach to use. Identifies the Avro decoder class to use.
      */
     AvroDeserializationSchema(
-            Class<T> recordClazz, @Nullable Schema reader, AvroEncoding encoding) {
+            Class<T> recordClazz,
+            @Nullable Schema reader,
+            AvroEncoding encoding,
+            boolean openFastReader) {
         Preconditions.checkNotNull(recordClazz, "Avro record class must not be null.");
         this.recordClazz = recordClazz;
         this.reader = reader;
@@ -142,6 +170,7 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
             this.schemaString = null;
         }
         this.encoding = encoding;
+        this.openFastReader = openFastReader;
     }
 
     GenericDatumReader<T> getDatumReader() {
@@ -174,8 +203,15 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
         inputStream.setBuffer(message);
         Schema readerSchema = getReaderSchema();
         GenericDatumReader<T> datumReader = getDatumReader();
-
-        datumReader.setSchema(readerSchema);
+        if (isFastReaderEnabled()) {
+            // open fast read
+            Schema schema = datumReader.getSchema();
+            if (schema == null) {
+                datumReader.setSchema(readerSchema);
+            }
+        } else {
+            datumReader.setSchema(readerSchema);
+        }
 
         if (encoding == AvroEncoding.JSON) {
             ((JsonDecoder) this.decoder).configure(inputStream);
@@ -188,7 +224,17 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
         if (datumReader != null) {
             return;
         }
-
+        synchronized (this) {
+            if (isFastReaderEnabled()) {
+                String openFlag = System.getProperty(FAST_READER_PROP);
+                if (StringUtils.isEmpty(openFlag)) {
+                    System.setProperty(FAST_READER_PROP, "true");
+                    LOG.info(
+                            "{} are enabled, but FAST_READER_PROP is empty. We just change it to true.",
+                            AVRO_FAST_READ.key());
+                }
+            }
+        }
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
             @SuppressWarnings("unchecked")
@@ -210,6 +256,10 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
         } else {
             this.decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
         }
+    }
+
+    private boolean isFastReaderEnabled() {
+        return openFastReader && !SpecificRecord.class.isAssignableFrom(recordClazz);
     }
 
     @Override
