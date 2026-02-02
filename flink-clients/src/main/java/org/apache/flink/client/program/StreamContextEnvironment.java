@@ -147,6 +147,9 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
     private JobIdManager createJobIdManager(
             Configuration configuration, Collection<JobInfo> allRecoveredJobInfos) {
+        // optionalBaseJobId is present only when the user explicitly specifies a job ID or system
+        // generates a fixed baseJobId in HA mode. In either case, deterministic job IDs must be
+        // generated for all jobs.
         Optional<String> optionalBaseJobId =
                 configuration.getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID);
         if (optionalBaseJobId.isEmpty()) {

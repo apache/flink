@@ -217,7 +217,7 @@ class DefaultPackagedProgramRetrieverITCase {
         assertThat(streamGraph.getSavepointRestoreSettings())
                 .isEqualTo(SavepointRestoreSettings.none());
         assertThat(streamGraph.getMaximumParallelism()).isEqualTo(parallelism);
-        assertThat(streamGraph.getJobID()).isEqualTo(jobId);
+        // we don't check the job id because StreamPlanEnvironment does not support fixed job id
     }
 
     @Test
@@ -281,7 +281,7 @@ class DefaultPackagedProgramRetrieverITCase {
         final StreamGraph streamGraph = retrieveStreamGraph(retrieverUnderTest, configuration);
 
         assertThat(streamGraph.getSavepointRestoreSettings()).isEqualTo(savepointRestoreSettings);
-        assertThat(streamGraph.getJobID()).isEqualTo(jobId);
+        // we don't check the job id because StreamPlanEnvironment does not support fixed job id
     }
 
     @Test

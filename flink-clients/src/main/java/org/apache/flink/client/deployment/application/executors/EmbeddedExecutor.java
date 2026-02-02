@@ -120,6 +120,11 @@ public class EmbeddedExecutor implements PipelineExecutor {
                         .getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID)
                         .map(JobID::fromHexString);
 
+        // optJobId is present only when the user explicitly specifies a job ID or system generates
+        // a fixed baseJobId in HA mode.
+        // submittedJobIds holds all job IDs that can be recovered in HA mode.
+        // If the current streamGraph's job ID is in submittedJobIds, it indicates the job was
+        // submitted and can be recovered directly without resubmission.
         if (optJobId.isPresent() && submittedJobIds.contains(streamGraph.getJobID())) {
             return getJobClientFuture(streamGraph.getJobID(), userCodeClassloader);
         }
