@@ -147,11 +147,12 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
     private JobIdManager createJobIdManager(
             Configuration configuration, Collection<JobInfo> allRecoveredJobInfos) {
-        // optionalBaseJobId is present only when the user explicitly specifies a job ID or system
-        // generates a fixed baseJobId in HA mode. In either case, deterministic job IDs must be
-        // generated for all jobs.
         Optional<String> optionalBaseJobId =
                 configuration.getOptional(PipelineOptionsInternal.PIPELINE_FIXED_JOB_ID);
+        // If optionalBaseJobId is empty, it means the user does not explicitly specify a job ID
+        // and HA mode is not enabled. In this case, deterministic job IDs are unnecessary since
+        // the user is not expecting a predefined job ID and no job matching is required for HA
+        // recovery. So we can use the NO_OP JobIdManager and keep the randomly generated job IDs.
         if (optionalBaseJobId.isEmpty()) {
             return JobIdManager.NO_OP;
         }
