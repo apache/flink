@@ -367,7 +367,7 @@ public class SSLUtilsTest {
         serverConfig.set(SecurityOptions.SSL_PROTOCOL, "TLSv1.1");
         serverConfig.set(
                 SecurityOptions.SSL_ALGORITHMS,
-                "TLS_RSA_WITH_AES_128_CBC_SHA,TLS_RSA_WITH_AES_128_CBC_SHA256");
+                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
 
         try (ServerSocket socket =
                 SSLUtils.createSSLServerSocketFactory(serverConfig).createServerSocket(0)) {
@@ -381,7 +381,9 @@ public class SSLUtilsTest {
             assertThat(protocols[0]).isEqualTo("TLSv1.1");
             assertThat(algorithms).hasSize(2);
             assertThat(algorithms)
-                    .contains("TLS_RSA_WITH_AES_128_CBC_SHA", "TLS_RSA_WITH_AES_128_CBC_SHA256");
+                    .contains(
+                            "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+                            "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
         }
     }
 
@@ -483,6 +485,9 @@ public class SSLUtilsTest {
     public static Configuration createInternalSslConfigWithKeyAndTrustStores(String sslProvider) {
         final Configuration config = new Configuration();
         config.set(SecurityOptions.SSL_INTERNAL_ENABLED, true);
+        config.set(
+                SecurityOptions.SSL_ALGORITHMS,
+                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
         addSslProviderConfig(config, sslProvider);
         addInternalKeyStoreConfig(config);
         addInternalTrustStoreConfig(config);
