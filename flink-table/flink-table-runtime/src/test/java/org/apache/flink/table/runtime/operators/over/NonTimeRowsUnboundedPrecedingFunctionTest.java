@@ -27,7 +27,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.types.RowKind;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -39,7 +39,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBefore
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link NonTimeRowsUnboundedPrecedingFunction}. */
-public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBase {
+class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindowTestBase {
 
     private NonTimeRowsUnboundedPrecedingFunction<RowData> getNonTimeRowsUnboundedPrecedingFunction(
             long retentionTime, GeneratedRecordComparator generatedSortKeyComparator) {
@@ -56,7 +56,7 @@ public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindow
     }
 
     @Test
-    public void testInsertOnlyRecordsWithCustomSortKey() throws Exception {
+    void testInsertOnlyRecordsWithCustomSortKey() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
                         getNonTimeRowsUnboundedPrecedingFunction(
@@ -97,7 +97,7 @@ public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindow
     }
 
     @Test
-    public void testInsertOnlyRecordsWithCustomSortKeyAndLongSumAgg() throws Exception {
+    void testInsertOnlyRecordsWithCustomSortKeyAndLongSumAgg() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
                         new NonTimeRowsUnboundedPrecedingFunction<RowData>(
@@ -146,7 +146,7 @@ public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindow
     }
 
     @Test
-    public void testInsertOnlyRecordsWithDuplicateSortKeys() throws Exception {
+    void testInsertOnlyRecordsWithDuplicateSortKeys() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
                         getNonTimeRowsUnboundedPrecedingFunction(
@@ -214,7 +214,7 @@ public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindow
     }
 
     @Test
-    public void testRetractingRecordsWithCustomSortKey() throws Exception {
+    void testRetractingRecordsWithCustomSortKey() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
                         getNonTimeRowsUnboundedPrecedingFunction(
@@ -282,7 +282,7 @@ public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindow
     }
 
     @Test
-    public void testRetractWithFirstDuplicateSortKey() throws Exception {
+    void testRetractWithFirstDuplicateSortKey() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
                         getNonTimeRowsUnboundedPrecedingFunction(
@@ -324,7 +324,7 @@ public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindow
     }
 
     @Test
-    public void testRetractWithMiddleDuplicateSortKey() throws Exception {
+    void testRetractWithMiddleDuplicateSortKey() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
                         getNonTimeRowsUnboundedPrecedingFunction(
@@ -364,7 +364,7 @@ public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindow
     }
 
     @Test
-    public void testRetractWithLastDuplicateSortKey() throws Exception {
+    void testRetractWithLastDuplicateSortKey() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
                         getNonTimeRowsUnboundedPrecedingFunction(
@@ -402,7 +402,7 @@ public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindow
     }
 
     @Test
-    public void testRetractWithDescendingSort() throws Exception {
+    void testRetractWithDescendingSort() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
                         getNonTimeRowsUnboundedPrecedingFunction(
@@ -456,7 +456,7 @@ public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindow
     }
 
     @Test
-    public void testRetractWithEarlyOut() throws Exception {
+    void testRetractWithEarlyOut() throws Exception {
         KeyedProcessOperator<RowData, RowData, RowData> operator =
                 new KeyedProcessOperator<>(
                         getNonTimeRowsUnboundedPrecedingFunction(
@@ -498,7 +498,7 @@ public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindow
     }
 
     @Test
-    public void testInsertAndRetractAllWithStateValidation() throws Exception {
+    void testInsertAndRetractAllWithStateValidation() throws Exception {
         NonTimeRowsUnboundedPrecedingFunction<RowData> function =
                 getNonTimeRowsUnboundedPrecedingFunction(0L, GENERATED_SORT_KEY_COMPARATOR_ASC);
         KeyedProcessOperator<RowData, RowData, RowData> operator =
@@ -559,13 +559,13 @@ public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindow
         validateState(function, firstRecord, 0, 0, -1, 0, 0, 0, false);
 
         List<RowData> actualRows = testHarness.extractOutputValues();
-        assertThat(actualRows.size()).isEqualTo(28);
-        assertThat(function.getNumOfSortKeysNotFound().getCount()).isEqualTo(0L);
-        assertThat(function.getNumOfIdsNotFound().getCount()).isEqualTo(0L);
+        assertThat(actualRows).hasSize(28);
+        assertThat(function.getNumOfSortKeysNotFound().getCount()).isZero();
+        assertThat(function.getNumOfIdsNotFound().getCount()).isZero();
     }
 
     @Test
-    public void testInsertWithStateTTLExpiration() throws Exception {
+    void testInsertWithStateTTLExpiration() throws Exception {
         Duration stateTtlTime = Duration.ofMillis(10);
         NonTimeRowsUnboundedPrecedingFunction<RowData> function =
                 getNonTimeRowsUnboundedPrecedingFunction(
@@ -592,7 +592,7 @@ public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindow
 
         // Output should contain 3 records till now
         List<RowData> actualRows = testHarness.extractOutputValues();
-        assertThat(actualRows.size()).isEqualTo(3);
+        assertThat(actualRows).hasSize(3);
 
         // expire the state
         testHarness.setProcessingTime(stateTtlTime.toMillis() + 1);
@@ -605,19 +605,19 @@ public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindow
 
         // Verify only one new output record (i.e. 4th record) is emitted after state TTL expiry
         actualRows = testHarness.extractOutputValues();
-        assertThat(actualRows.size()).isEqualTo(4);
+        assertThat(actualRows).hasSize(4);
 
         // Aggregated value should be based on only the last inserted record
         // The inserted record after ttl should be treated as the first record for that key
         RowData expectedRowAfterStateTTLExpiry = outputRecord(RowKind.INSERT, "key1", 5L, 500L, 5L);
         assertThat(actualRows.get(actualRows.size() - 1)).isEqualTo(expectedRowAfterStateTTLExpiry);
 
-        assertThat(function.getNumOfSortKeysNotFound().getCount()).isEqualTo(0L);
-        assertThat(function.getNumOfIdsNotFound().getCount()).isEqualTo(0L);
+        assertThat(function.getNumOfSortKeysNotFound().getCount()).isZero();
+        assertThat(function.getNumOfIdsNotFound().getCount()).isZero();
     }
 
     @Test
-    public void testInsertAndRetractWithStateTTLExpiration() throws Exception {
+    void testInsertAndRetractWithStateTTLExpiration() throws Exception {
         Duration stateTtlTime = Duration.ofMillis(10);
         NonTimeRowsUnboundedPrecedingFunction<RowData> function =
                 getNonTimeRowsUnboundedPrecedingFunction(
@@ -652,10 +652,10 @@ public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindow
 
         // Output should contain 5 records till now
         List<RowData> actualRows = testHarness.extractOutputValues();
-        assertThat(actualRows.size()).isEqualTo(5);
+        assertThat(actualRows).hasSize(5);
 
-        assertThat(function.getNumOfSortKeysNotFound().getCount()).isEqualTo(0L);
-        assertThat(function.getNumOfIdsNotFound().getCount()).isEqualTo(0L);
+        assertThat(function.getNumOfSortKeysNotFound().getCount()).isZero();
+        assertThat(function.getNumOfIdsNotFound().getCount()).isZero();
 
         // expire the state
         testHarness.setProcessingTime(stateTtlTime.toMillis() + 1);
@@ -678,10 +678,10 @@ public class NonTimeRowsUnboundedPrecedingFunctionTest extends NonTimeOverWindow
 
         // No new records should be emitted after retraction of non-existent record
         actualRows = testHarness.extractOutputValues();
-        assertThat(actualRows.size()).isEqualTo(5);
+        assertThat(actualRows).hasSize(5);
 
-        assertThat(function.getNumOfSortKeysNotFound().getCount()).isEqualTo(1L);
-        assertThat(function.getNumOfIdsNotFound().getCount()).isEqualTo(0L);
+        assertThat(function.getNumOfSortKeysNotFound().getCount()).isOne();
+        assertThat(function.getNumOfIdsNotFound().getCount()).isZero();
     }
 
     void validateNumAccRows(int numAccRows, int expectedNumAccRows, int totalRows) {

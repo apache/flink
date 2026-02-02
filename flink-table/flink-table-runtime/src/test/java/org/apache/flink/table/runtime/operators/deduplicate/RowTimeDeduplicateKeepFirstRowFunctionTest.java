@@ -25,7 +25,7 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.types.RowKind;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,10 +35,10 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.record;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Harness tests for {@link RowTimeDeduplicateKeepFirstRowFunction}. */
-public class RowTimeDeduplicateKeepFirstRowFunctionTest extends RowTimeDeduplicateFunctionTestBase {
+class RowTimeDeduplicateKeepFirstRowFunctionTest extends RowTimeDeduplicateFunctionTestBase {
 
     @Test
-    public void testRowTimeDeduplicateKeepFirstRow() throws Exception {
+    void testRowTimeDeduplicateKeepFirstRow() throws Exception {
         List<Object> expectedOutput = new ArrayList<>();
         RowTimeDeduplicateKeepFirstRowFunction deduplicateFunction =
                 new RowTimeDeduplicateKeepFirstRowFunction(
@@ -51,10 +51,10 @@ public class RowTimeDeduplicateKeepFirstRowFunctionTest extends RowTimeDeduplica
 
         testHarness.processWatermark(new Watermark(50));
         // ignore late records
-        assertThat(deduplicateFunction.getNumLateRecordsDropped().getCount()).isEqualTo(0);
+        assertThat(deduplicateFunction.getNumLateRecordsDropped().getCount()).isZero();
         testHarness.processElement(insertRecord("key1", 0, 1L));
         expectedOutput.add(new Watermark(50));
-        assertThat(deduplicateFunction.getNumLateRecordsDropped().getCount()).isEqualTo(1);
+        assertThat(deduplicateFunction.getNumLateRecordsDropped().getCount()).isOne();
 
         testHarness.processElement(insertRecord("key1", 14, 101L));
         testHarness.processElement(insertRecord("key1", 13, 99L));
@@ -68,7 +68,7 @@ public class RowTimeDeduplicateKeepFirstRowFunctionTest extends RowTimeDeduplica
         expectedOutput.add(record(RowKind.INSERT, "key1", 13, 99L));
         expectedOutput.add(record(RowKind.INSERT, "key2", 11, 101L));
         expectedOutput.add(new Watermark(102));
-        assertThat(deduplicateFunction.getNumLateRecordsDropped().getCount()).isEqualTo(1);
+        assertThat(deduplicateFunction.getNumLateRecordsDropped().getCount()).isOne();
 
         // do a snapshot, close and restore again
         OperatorSubtaskState snapshot = testHarness.snapshot(0L, 0);
