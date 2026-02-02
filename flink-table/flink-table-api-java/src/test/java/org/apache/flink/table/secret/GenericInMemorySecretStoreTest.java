@@ -27,6 +27,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 /** Test for {@link GenericInMemorySecretStore}. */
 class GenericInMemorySecretStoreTest {
@@ -95,7 +96,7 @@ class GenericInMemorySecretStoreTest {
     @Test
     void testRemoveNonExistentSecret() {
         // Should not throw exception, just silently remove nothing
-        secretStore.removeSecret("non-existent-id");
+        assertDoesNotThrow(() -> secretStore.removeSecret("non-existent-id"));
     }
 
     @Test
