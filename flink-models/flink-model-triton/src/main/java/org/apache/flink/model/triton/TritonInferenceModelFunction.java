@@ -195,7 +195,6 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                         }
 
                                         String responseBody = response.body().string();
-                                        LOG.info("Triton inference response: {}", responseBody);
                                         Collection<RowData> result =
                                                 parseInferenceResponse(responseBody);
                                         future.complete(result);
