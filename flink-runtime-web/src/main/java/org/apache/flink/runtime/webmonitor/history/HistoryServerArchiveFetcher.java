@@ -53,6 +53,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -70,14 +71,19 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Removes existing archives from these directories and the cache according to {@link
  * ArchiveRetainedStrategy} and {@link HistoryServerOptions#HISTORY_SERVER_CLEANUP_EXPIRED_JOBS}.
  */
-class HistoryServerArchiveFetcher {
+public class HistoryServerArchiveFetcher {
 
     /** Possible archive operations in history-server. */
     public enum ArchiveEventType {
         /** Archive was found in one refresh location and created in history server. */
         CREATED,
         /** Archive was deleted from one of refresh locations and deleted from history server. */
-        DELETED
+        DELETED,
+        /**
+         * Archive was actively deleted from remote storage due to retention policy (FLIP-490) or
+         * cache limits (FLIP-505).
+         */
+        DELETED_FROM_REMOTE
     }
 
     /** Representation of archive event. */
@@ -99,6 +105,21 @@ class HistoryServerArchiveFetcher {
         }
     }
 
+    /** Maintains a LRU cache of a given capacity. */
+    public class MostRecentlyViewedCache extends LinkedHashMap<String, String> {
+        private int maxSize;
+
+        public MostRecentlyViewedCache(int capacity) {
+            super(capacity, 0.75f, true);
+            this.maxSize = capacity;
+        }
+
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
+            return this.size() > maxSize;
+        }
+    }
+
     private static final Logger LOG = LoggerFactory.getLogger(HistoryServerArchiveFetcher.class);
 
     protected static final String JSON_FILE_ENDING = ".json";
@@ -116,21 +137,51 @@ class HistoryServerArchiveFetcher {
     /** Cache of all available archives identified by their id. */
     protected final Map<Path, Set<String>> cachedArchivesPerRefreshDirectory;
 
+    // FLIP-505: Caching fields
+    /** Cache of all available archives by id (for quick lookup). */
+    protected final Set<String> cachedArchives;
+
+    /**
+     * Number of retained jobs in the local cache based on the asynchronous fetch, which is based on
+     * most recently run jobs.
+     */
+    protected final int generalCachedJobSize;
+
+    protected final boolean remoteFetchEnabled;
+    protected final boolean processBeyondLimitLocalCacheDeletion;
+    protected final MostRecentlyViewedCache mostRecentlyViewedCache;
+
     protected final File webDir;
     protected final File webJobDir;
     protected final File webOverviewDir;
 
-    HistoryServerArchiveFetcher(
+    public HistoryServerArchiveFetcher(
             List<HistoryServer.RefreshLocation> refreshDirs,
             File webDir,
             Consumer<ArchiveEvent> archiveEventListener,
             boolean cleanupExpiredArchives,
-            ArchiveRetainedStrategy retainedStrategy)
+            ArchiveRetainedStrategy retainedStrategy,
+            int generalCachedJobSize,
+            boolean remoteFetchEnabled,
+            int numCachedMostRecentlyViewedJobs)
             throws IOException {
         this.refreshDirs = checkNotNull(refreshDirs);
         this.archiveEventListener = archiveEventListener;
         this.processExpiredArchiveDeletion = cleanupExpiredArchives;
         this.retainedStrategy = checkNotNull(retainedStrategy);
+
+        // FLIP-505: Initialize caching fields
+        this.generalCachedJobSize = generalCachedJobSize;
+        this.remoteFetchEnabled = remoteFetchEnabled;
+        this.processBeyondLimitLocalCacheDeletion = generalCachedJobSize > 0;
+        if (this.remoteFetchEnabled) {
+            this.mostRecentlyViewedCache =
+                    new MostRecentlyViewedCache(numCachedMostRecentlyViewedJobs);
+        } else {
+            this.mostRecentlyViewedCache = null;
+        }
+        this.cachedArchives = new HashSet<>();
+
         this.cachedArchivesPerRefreshDirectory = new HashMap<>();
         for (HistoryServer.RefreshLocation refreshDir : refreshDirs) {
             cachedArchivesPerRefreshDirectory.put(refreshDir.getPath(), new HashSet<>());
@@ -149,6 +200,48 @@ class HistoryServerArchiveFetcher {
         }
     }
 
+    // FLIP-505: On-demand fetching for remote archives
+    void fetchArchiveByJobId(String jobID) throws IOException {
+        if (remoteFetchEnabled) {
+            boolean jobIdFound = false;
+            if (cachedArchives.contains(jobID)) {
+                mostRecentlyViewedCache.put(jobID, jobID);
+            } else {
+                for (HistoryServer.RefreshLocation refreshLocation : refreshDirs) {
+                    Path refreshDir = refreshLocation.getPath();
+                    Path jobArchivePath = new Path(refreshDir, jobID);
+                    LOG.info(
+                            String.format(
+                                    "Fetching JobId archive %s from %s.", jobID, jobArchivePath));
+                    if (jobArchivePath.getFileSystem().exists(jobArchivePath)) {
+                        LOG.info("Processing archive {}.", jobArchivePath);
+                        try {
+                            processArchive(jobID, jobArchivePath, refreshDir);
+                            cachedArchives.add(jobID);
+                            cachedArchivesPerRefreshDirectory.get(refreshDir).add(jobID);
+                            LOG.info("Processing archive {} finished.", jobArchivePath);
+                        } catch (IOException e) {
+                            LOG.error(
+                                    "Failure while fetching/processing job archive for job {}.",
+                                    jobID,
+                                    e);
+                            deleteJobFiles(jobID);
+                            throw e;
+                        }
+                        jobIdFound = true;
+                        mostRecentlyViewedCache.put(jobID, jobID);
+                        break;
+                    }
+                }
+                if (!jobIdFound) {
+                    LOG.warn("Unable to find archive in remote job archives for job {}.", jobID);
+                }
+            }
+        } else {
+            LOG.warn("Unable to fetch jobs from remote archives as this feature is not enabled");
+        }
+    }
+
     void fetchArchives() {
         try {
             LOG.debug("Starting archive fetching.");
@@ -157,6 +250,11 @@ class HistoryServerArchiveFetcher {
             cachedArchivesPerRefreshDirectory.forEach(
                     (path, archives) -> archivesToRemove.put(path, new HashSet<>(archives)));
             Map<Path, Set<Path>> archivesBeyondRetainedLimit = new HashMap<>();
+            Map<Path, Set<String>> archivesBeyondCacheLimit = new HashMap<>();
+
+            // FLIP-505: Track general cache count (excluding mostRecentlyViewed)
+            int generalCachedCount = 0;
+
             for (HistoryServer.RefreshLocation refreshLocation : refreshDirs) {
                 Path refreshDir = refreshLocation.getPath();
                 LOG.debug("Checking archive directory {}.", refreshDir);
@@ -188,19 +286,49 @@ class HistoryServerArchiveFetcher {
                         continue;
                     }
 
-                    if (cachedArchivesPerRefreshDirectory.get(refreshDir).contains(archiveId)) {
-                        LOG.trace(
-                                "Ignoring archive {} because it was already fetched.", archivePath);
-                    } else {
-                        LOG.info("Processing archive {}.", archivePath);
-                        try {
-                            events.addAll(processArchive(archiveId, archivePath, refreshDir));
-                            cachedArchivesPerRefreshDirectory.get(refreshDir).add(archiveId);
-                            LOG.info("Processing archive {} finished.", archivePath);
-                        } catch (IOException e) {
-                            LOG.error(
-                                    "Failure while fetching/processing archive {}.", archiveId, e);
-                            deleteCachedArchives(archiveId, refreshDir);
+                    // FLIP-505: Track if this archive would be in general cache
+                    if (!remoteFetchEnabled || !mostRecentlyViewedCache.containsKey(archiveId)) {
+                        generalCachedCount++;
+                    }
+
+                    boolean processArchive = true;
+                    boolean localCacheDeletion =
+                            generalCachedCount > generalCachedJobSize
+                                    && processBeyondLimitLocalCacheDeletion;
+
+                    // FLIP-505: If beyond cache limit, mark already-cached archives for cleanup
+                    // and skip processing new archives
+                    if (localCacheDeletion) {
+                        // Only add to cleanup list if this archive is already cached
+                        if ((!remoteFetchEnabled || !mostRecentlyViewedCache.containsKey(archiveId))
+                                && cachedArchives.contains(archiveId)) {
+                            archivesBeyondCacheLimit
+                                    .computeIfAbsent(refreshDir, ignored -> new HashSet<>())
+                                    .add(archiveId);
+                        }
+                        processArchive = false;
+                    }
+
+                    if (processArchive) {
+                        if (cachedArchivesPerRefreshDirectory.get(refreshDir).contains(archiveId)) {
+                            LOG.trace(
+                                    "Ignoring archive {} because it was already fetched.",
+                                    archivePath);
+                        } else {
+                            LOG.info("Processing archive {}.", archivePath);
+                            try {
+                                events.addAll(processArchive(archiveId, archivePath, refreshDir));
+                                cachedArchivesPerRefreshDirectory.get(refreshDir).add(archiveId);
+                                // FLIP-505: Track in global cache
+                                cachedArchives.add(archiveId);
+                                LOG.info("Processing archive {} finished.", archivePath);
+                            } catch (IOException e) {
+                                LOG.error(
+                                        "Failure while fetching/processing archive {}.",
+                                        archiveId,
+                                        e);
+                                deleteCachedArchives(archiveId, refreshDir);
+                            }
                         }
                     }
                 }
@@ -213,6 +341,21 @@ class HistoryServerArchiveFetcher {
             if (!archivesBeyondRetainedLimit.isEmpty()) {
                 events.addAll(cleanupArchivesBeyondRetainedLimit(archivesBeyondRetainedLimit));
             }
+
+            // FLIP-505: Double-check if we actually need to cleanup cache
+            int numCurrentCachedMostRecentlyViewedJobs =
+                    remoteFetchEnabled ? mostRecentlyViewedCache.size() : 0;
+
+            boolean localCacheDeletion =
+                    !archivesBeyondCacheLimit.isEmpty()
+                            && cachedArchives.size() - numCurrentCachedMostRecentlyViewedJobs
+                                    > generalCachedJobSize
+                            && processBeyondLimitLocalCacheDeletion;
+
+            if (localCacheDeletion) {
+                events.addAll(cleanupArchivesBeyondCacheLimit(archivesBeyondCacheLimit));
+            }
+
             if (!events.isEmpty()) {
                 updateOverview();
             }
@@ -314,27 +457,63 @@ class HistoryServerArchiveFetcher {
     }
 
     List<ArchiveEvent> cleanupArchivesBeyondRetainedLimit(Map<Path, Set<Path>> archivesToRemove) {
-        Map<Path, Set<String>> allArchiveIdsToRemove = new HashMap<>();
+        List<ArchiveEvent> deleteLog = new ArrayList<>();
 
         for (Map.Entry<Path, Set<Path>> pathSetEntry : archivesToRemove.entrySet()) {
-            HashSet<String> archiveIdsToRemove = new HashSet<>();
+            Path refreshDir = pathSetEntry.getKey();
+            Set<String> archiveIdsToRemove = new HashSet<>();
 
             for (Path archive : pathSetEntry.getValue()) {
-                archiveIdsToRemove.add(archive.getName());
+                String archiveId = archive.getName();
+                archiveIdsToRemove.add(archiveId);
                 try {
                     deleteFromRemote(archive);
                 } catch (IOException ioe) {
                     LOG.warn("Could not delete old archive {}", archive, ioe);
                 }
             }
-            allArchiveIdsToRemove.put(pathSetEntry.getKey(), archiveIdsToRemove);
+
+            // Remove from local cache using deleteCachedArchives which properly handles
+            // both job and application archives
+            cachedArchivesPerRefreshDirectory.get(refreshDir).removeAll(archiveIdsToRemove);
+            archiveIdsToRemove.forEach(
+                    archiveId -> {
+                        cachedArchives.remove(archiveId);
+                        // Use deleteCachedArchives to properly handle subclass overrides
+                        List<ArchiveEvent> events = deleteCachedArchives(archiveId, refreshDir);
+                        // Convert DELETED events to DELETED_FROM_REMOTE since these are retention
+                        // limit deletions
+                        events.forEach(
+                                event ->
+                                        deleteLog.add(
+                                                new ArchiveEvent(
+                                                        event.getId(),
+                                                        ArchiveEventType.DELETED_FROM_REMOTE)));
+                    });
         }
 
-        return cleanupExpiredArchives(allArchiveIdsToRemove);
+        return deleteLog;
     }
 
     void deleteFromRemote(Path archive) throws IOException {
         archive.getFileSystem().delete(archive, false);
+    }
+
+    // FLIP-505: Cleanup archives that exceeded local cache limit
+    List<ArchiveEvent> cleanupArchivesBeyondCacheLimit(Map<Path, Set<String>> archivesToRemove) {
+        List<ArchiveEvent> deleteLog = new ArrayList<>();
+
+        archivesToRemove.forEach(
+                (refreshDir, archives) -> {
+                    cachedArchivesPerRefreshDirectory.get(refreshDir).removeAll(archives);
+                    archives.forEach(
+                            archiveId -> {
+                                cachedArchives.remove(archiveId);
+                                deleteLog.addAll(deleteCachedArchives(archiveId, refreshDir));
+                            });
+                });
+
+        return deleteLog;
     }
 
     List<ArchiveEvent> cleanupExpiredArchives(Map<Path, Set<String>> archivesToRemove) {
@@ -353,6 +532,8 @@ class HistoryServerArchiveFetcher {
 
     List<ArchiveEvent> deleteCachedArchives(String archiveId, Path refreshDir) {
         LOG.info("Archive directories for job {} is deleted", archiveId);
+        // FLIP-505: Also remove from global cache
+        cachedArchives.remove(archiveId);
         return Collections.singletonList(deleteJobFiles(archiveId));
     }
 
