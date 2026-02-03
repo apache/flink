@@ -780,8 +780,6 @@ def udf(f: Union[Callable, ScalarFunction, AsyncScalarFunction, Type] = None,
     :param name: the function name.
     :param func_type: the type of the python function, available value: general, pandas,
                      (default: general)
-    :param udf_type: the type of the python function, available value: general, pandas,
-                    (default: general)
     :return: UserDefinedScalarFunctionWrapper, UserDefinedAsyncScalarFunctionWrapper, or function.
 
     .. versionadded:: 1.10.0

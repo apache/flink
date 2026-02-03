@@ -73,7 +73,7 @@ class AsyncScalarFunctionOperation(Operation, AsyncOperationMixin):
         self._output_processor = None
 
         # Job parameters
-        self.job_parameters = {p.key: p.value for p in serialized_fn.job_parameters}
+        self._job_parameters = {p.key: p.value for p in serialized_fn.job_parameters}
 
     def set_output_processor(self, output_processor):
         """Set the output processor for emitting results.
@@ -87,7 +87,7 @@ class AsyncScalarFunctionOperation(Operation, AsyncOperationMixin):
         for user_defined_func in self.user_defined_funcs:
             if hasattr(user_defined_func, 'open'):
                 user_defined_func.open(
-                    FunctionContext(self.base_metric_group, self.job_parameters))
+                    FunctionContext(self.base_metric_group, self._job_parameters))
 
         # Start emitter thread to collect async results
         self._emitter = Emitter(self._mark_exception, self._output_processor, self._queue)
@@ -129,7 +129,7 @@ class AsyncScalarFunctionOperation(Operation, AsyncOperationMixin):
 
         entry = self._queue.put(None, 0, 0, value)
 
-        async def execute_async(result_handler):
+        async def execute_async(rh):
             try:
                 # Call the eval function
                 result = self._eval_func(value)
@@ -141,9 +141,9 @@ class AsyncScalarFunctionOperation(Operation, AsyncOperationMixin):
                     final_result = result
 
                 # Complete with results (list format)
-                result_handler.complete([final_result])
+                rh.complete([final_result])
             except Exception as e:
-                result_handler.complete_exceptionally(e)
+                rh.complete_exceptionally(e)
 
         # Create result handler
         result_handler = ResultHandler(
