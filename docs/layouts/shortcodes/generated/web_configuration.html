@@ -27,6 +27,12 @@
             <td>Number of checkpoints to remember for recent history.</td>
         </tr>
         <tr>
+            <td><h5>web.execution-graph.cache-ttl</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Duration</td>
+            <td>Time-to-live for cached ExecutionGraph. If not set, defaults to the value of '<code class="highlighter-rouge">web.refresh-interval</code>'. Setting this to 0 means the cache will always fetch fresh data, which is useful for real-time state synchronization scenarios.</td>
+        </tr>
+        <tr>
             <td><h5>web.exception-history-size</h5></td>
             <td style="word-wrap: break-word;">16</td>
             <td>Integer</td>
