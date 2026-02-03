@@ -293,3 +293,12 @@ class TestNonDeterministicUdaf extends AggregateFunction[JLong, CountAccumulator
 
   override def isDeterministic: Boolean = false
 }
+
+/** A UDF that takes an array of Rows as a parameter. */
+@SerialVersionUID(1L)
+class ArrayOfRowsUdf extends ScalarFunction {
+  @DataTypeHint("INT")
+  def eval(@DataTypeHint("ARRAY<ROW<f0 INT, f1 STRING>>") rows: Array[Row]): Int = {
+    if (rows == null) 0 else rows.length
+  }
+}

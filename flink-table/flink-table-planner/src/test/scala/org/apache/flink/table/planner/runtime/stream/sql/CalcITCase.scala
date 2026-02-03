@@ -948,4 +948,27 @@ class CalcITCase extends StreamingTestBase {
     val expected = List("1,2")
     assertThat(result).isEqualTo(expected)
   }
+
+  @Test
+  def testUdfWithArrayOfRowsParameter(): Unit = {
+    import org.apache.flink.table.planner.expressions.utils.ArrayOfRowsUdf
+
+    tEnv.createTemporaryFunction("ArrayOfRowsUdf", new ArrayOfRowsUdf())
+
+    val sql =
+      """
+        |SELECT ArrayOfRowsUdf(ARRAY[ROW(1, 'a'), ROW(2, 'b'), ROW(3, 'c')])
+        |""".stripMargin
+
+    val result = tEnv
+      .executeSql(sql)
+      .collect()
+      .asScala
+      .toList
+      .map(_.toString)
+
+    // The UDF returns the length of the array
+    val expected = List("3")
+    assertThat(result).isEqualTo(expected)
+  }
 }
