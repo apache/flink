@@ -718,7 +718,7 @@ public final class ExtractionUtils {
                 continue;
             }
             final List<String> parameterNames =
-                    extractConstructorParameterNames(constructor, fields);
+                    extractConstructorParameterNames(clazz, constructor, fields);
             if (parameterNames != null) {
                 if (foundConstructor != null) {
                     throw extractionError(
@@ -741,13 +741,18 @@ public final class ExtractionUtils {
      * matching (possibly primitive and lenient) type and name.
      */
     private static @Nullable List<String> extractConstructorParameterNames(
-            Constructor<?> constructor, List<Field> fields) {
-        final Type[] parameterTypes = constructor.getGenericParameterTypes();
-
-        List<String> parameterNames = extractExecutableNames(constructor);
+            Class<?> clazz, Constructor<?> constructor, List<Field> fields) {
+        // Java Records are preferred as they have perfect field order and naming
+        List<String> parameterNames = extractRecordComponentNames(clazz);
         if (parameterNames == null) {
-            return null;
+            // Fallback to inspecting an all-arg constructor
+            parameterNames = extractExecutableNames(constructor);
+            if (parameterNames == null) {
+                return null;
+            }
         }
+
+        final Type[] parameterTypes = constructor.getGenericParameterTypes();
 
         final Map<String, Field> fieldMap =
                 fields.stream()
@@ -775,6 +780,64 @@ public final class ExtractionUtils {
         }
 
         return fieldNames;
+    }
+
+    // We check Java record methods reflectively
+    // so the code compiles on Java 11
+    private static @Nullable Method isRecordMethod;
+    private static @Nullable Method getRecordComponentsMethod;
+    private static @Nullable Method getRecordComponentNameMethod;
+
+    static {
+        try {
+            isRecordMethod = Class.class.getMethod("isRecord");
+            getRecordComponentsMethod = Class.class.getMethod("getRecordComponents");
+            getRecordComponentNameMethod =
+                    Class.forName("java.lang.reflect.RecordComponent").getMethod("getName");
+        } catch (Throwable t) {
+            // For older Java version or to catch any kind of reflective issues
+            isRecordMethod = null;
+            getRecordComponentsMethod = null;
+            getRecordComponentNameMethod = null;
+        }
+    }
+
+    /**
+     * Returns the record component names for the given class if the current JDK supports records
+     * and the given class is actually a record.
+     */
+    static @Nullable List<String> extractRecordComponentNames(Class<?> type) {
+        if (isRecordMethod == null
+                || getRecordComponentsMethod == null
+                || getRecordComponentNameMethod == null) {
+            return null;
+        }
+        try {
+            final boolean isRecord = (Boolean) isRecordMethod.invoke(type);
+            if (!isRecord) {
+                return null;
+            }
+            final Object componentsArray = getRecordComponentsMethod.invoke(type);
+            if (componentsArray == null) {
+                return null;
+            }
+
+            final int length = Array.getLength(componentsArray);
+            final List<String> names = new ArrayList<>(length);
+            for (int i = 0; i < length; i++) {
+                final Object component = Array.get(componentsArray, i);
+                if (component == null) {
+                    continue;
+                }
+                final String name = (String) getRecordComponentNameMethod.invoke(component);
+                names.add(name);
+            }
+
+            return names;
+        } catch (Throwable t) {
+            // Catch any kind of reflective issues
+            return null;
+        }
     }
 
     @VisibleForTesting
