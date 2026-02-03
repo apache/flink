@@ -157,8 +157,7 @@ public class ReloadableSslContext extends SslContext implements LocalFSWatchServ
      * Set hostname verification. By default, Netty will enable hostname verification since 4.2.x
      * for client-mode connections.
      */
-    static void setHostnameVerification(
-            SslContextBuilder sslContextBuilder, Configuration config) {
+    static void setHostnameVerification(SslContextBuilder sslContextBuilder, Configuration config) {
         sslContextBuilder.endpointIdentificationAlgorithm(
                 config.get(SecurityOptions.SSL_VERIFY_HOSTNAME) ? "HTTPS" : null);
     }
