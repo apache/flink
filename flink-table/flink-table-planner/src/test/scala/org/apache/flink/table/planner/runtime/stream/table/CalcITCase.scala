@@ -731,6 +731,48 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
     env.execute()
     assertThat(sink2.getAppendResults.sorted).isEqualTo(List(tEnv.getCurrentDatabase))
   }
+
+  /** Test that a non-deterministic UDF in both WHERE and SELECT is evaluated only once per row. */
+  @TestTemplate
+  def testNonDeterministicUdfInWhereAndSelect(): Unit = {
+    import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.CountingNonDeterministicUdf
+
+    // Reset the counter before the test
+    CountingNonDeterministicUdf.resetCounter()
+
+    // Register the counting UDF
+    tEnv.createTemporarySystemFunction("counting_udf", classOf[CountingNonDeterministicUdf])
+
+    // Create a simple table with 3 rows
+    val data = Seq((1, "a"), (2, "b"), (3, "c"))
+    val ds = StreamingEnvUtil.fromCollection(env, data).toTable(tEnv, 'a, 'b)
+    tEnv.createTemporaryView("T", ds)
+
+    // Query where the UDF appears in both WHERE and SELECT
+    // Without the fix, counting_udf would be called twice per row (once for filter, once for projection)
+    // With the fix, it should only be called once per row
+    val result = tEnv.sqlQuery(
+      "SELECT counting_udf(a) as cnt FROM T WHERE counting_udf(a) > 0"
+    )
+
+    val sink = new TestingAppendSink
+    result.toDataStream.addSink(sink)
+    env.execute()
+
+    // All 3 rows should pass the filter (counter values 1, 2, 3 are all > 0)
+    // The output should contain the same values used in the filter
+    val results = sink.getAppendResults.sorted
+    assertThat(results.size).isEqualTo(3)
+
+    // With the fix: counter should be 3 (called once per row)
+    // Without the fix: counter would be 6 (called twice per row)
+    // But since we're checking the output values, we verify that each row got a unique value
+    // and the values match what was used in the filter (1, 2, 3)
+    assertThat(results).isEqualTo(List("1", "2", "3"))
+
+    // Additional verification: the counter should be exactly 3
+    assertThat(CountingNonDeterministicUdf.getCounter).isEqualTo(3)
+  }
 }
 
 @SerialVersionUID(1L)

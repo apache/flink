@@ -353,4 +353,30 @@ public class JavaUserDefinedScalarFunctions {
             return new PythonEnv(PythonEnv.ExecType.PROCESS);
         }
     }
+
+    /**
+     * A non-deterministic UDF that returns an incrementing counter. When this UDF appears in both
+     * WHERE and SELECT, it should only be evaluated once per row (the counter should increment by 1
+     * per row, not 2).
+     */
+    public static class CountingNonDeterministicUdf extends ScalarFunction {
+        private static int counter = 0;
+
+        public static void resetCounter() {
+            counter = 0;
+        }
+
+        public static int getCounter() {
+            return counter;
+        }
+
+        public int eval(Integer ignored) {
+            return ++counter;
+        }
+
+        @Override
+        public boolean isDeterministic() {
+            return false;
+        }
+    }
 }

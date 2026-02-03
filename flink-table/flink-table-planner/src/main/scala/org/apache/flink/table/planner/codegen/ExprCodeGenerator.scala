@@ -127,13 +127,30 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
    * Generates an expression from a RexNode. If objects or variables can be reused, they will be
    * added to reusable code sections internally.
    *
+   * For non-deterministic expressions that have been pre-generated and cached, returns the cached
+   * expression to avoid duplicate evaluation.
+   *
    * @param rex
    *   Calcite row expression
    * @return
    *   instance of GeneratedExpression
    */
   def generateExpression(rex: RexNode): GeneratedExpression = {
-    rex.accept(this)
+    // Check if this expression has been pre-generated and cached
+    // to avoid duplicate evaluation of non-deterministic expressions.
+    ctx.getReusableSubExpr(rex.toString) match {
+      case Some(cachedExpr) =>
+        // Return a new GeneratedExpression that references the cached result
+        // but with no code (already generated)
+        GeneratedExpression(
+          cachedExpr.resultTerm,
+          cachedExpr.nullTerm,
+          GeneratedExpression.NO_CODE,
+          cachedExpr.resultType,
+          cachedExpr.literalValue)
+      case None =>
+        rex.accept(this)
+    }
   }
 
   /**
@@ -490,7 +507,9 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case (operand: RexNode, i) if isSupportedJsonOperand(operand, call, i) =>
         generateJsonCall(operand)
 
-      case (o @ _, _) => o.accept(this)
+      // Use generateExpression to check the cache for pre-generated
+      // non-deterministic subexpressions before processing
+      case (o @ _, _) => generateExpression(o)
     }
 
     generateCallExpression(ctx, call, operands, resultType)

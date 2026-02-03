@@ -116,6 +116,12 @@ class CodeGeneratorContext(
   val reusableInputUnboxingExprs: mutable.Map[(String, Int), GeneratedExpression] =
     mutable.Map[(String, Int), GeneratedExpression]()
 
+  // Cache for non-deterministic subexpressions that are shared between filter and projection.
+  // This prevents duplicate evaluation of UDFs that appear in both places.
+  // RexNode.toString -> GeneratedExpression
+  val reusableSubExprCache: mutable.Map[String, GeneratedExpression] =
+    mutable.Map[String, GeneratedExpression]()
+
   // set of constructor statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
   private val reusableConstructorStatements: mutable.LinkedHashSet[(String, String)] =
@@ -169,6 +175,14 @@ class CodeGeneratorContext(
 
   def getReusableInputUnboxingExprs(inputTerm: String, index: Int): Option[GeneratedExpression] =
     reusableInputUnboxingExprs.get((inputTerm, index))
+
+  /** Gets a cached subexpression if available. Used for non-deterministic expression reuse. */
+  def getReusableSubExpr(rexNode: String): Option[GeneratedExpression] =
+    reusableSubExprCache.get(rexNode)
+
+  /** Caches a subexpression for reuse. Used for non-deterministic expression reuse. */
+  def addReusableSubExpr(rexNode: String, expr: GeneratedExpression): Unit =
+    reusableSubExprCache(rexNode) = expr
 
   /** Prioritize using the nameCounter of the ancestor. */
   def getNameCounter: AtomicLong = if (parentCtx == null) nameCounter else parentCtx.getNameCounter

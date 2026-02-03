@@ -30,6 +30,10 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.RowType
 
 import org.apache.calcite.rex._
+import org.apache.calcite.rex.RexUtil
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 object CalcCodeGenerator {
 
@@ -166,39 +170,122 @@ object CalcCodeGenerator {
          |${if (eagerInputUnboxingCode) ctx.reuseInputUnboxingCode() else ""}
          |$projectionCode
          |""".stripMargin
-    } else {
+    } else if (onlyFilter) {
+      // only filter - no projection
       val filterCondition = exprGenerator.generateExpression(condition.get)
-      // only filter
-      if (onlyFilter) {
-        s"""
-           |${if (eagerInputUnboxingCode) ctx.reuseInputUnboxingCode() else ""}
-           |${filterCondition.code}
-           |if (${filterCondition.resultTerm}) {
-           |  ${produceOutputCode(inputTerm)}
-           |}
-           |""".stripMargin
-      } else { // both filter and projection
-        val filterInputCode = ctx.reuseInputUnboxingCode()
-        val filterInputSet = Set(ctx.reusableInputUnboxingExprs.keySet.toSeq: _*)
+      s"""
+         |${if (eagerInputUnboxingCode) ctx.reuseInputUnboxingCode() else ""}
+         |${filterCondition.code}
+         |if (${filterCondition.resultTerm}) {
+         |  ${produceOutputCode(inputTerm)}
+         |}
+         |""".stripMargin
+    } else {
+      // both filter and projection
+      // Find and pre-generate non-deterministic subexpressions that appear
+      // in both filter and projection to avoid duplicate evaluation.
+      // This MUST be called BEFORE generating filterCondition to populate the cache.
+      val commonNonDetExprsCode =
+        preGenerateCommonNonDeterministicExprs(ctx, exprGenerator, condition.get, projection)
 
-        // if any filter conditions, projection code will enter an new scope
-        val projectionCode = produceProjectionCode
+      // Now generate the filter condition - it will use cached non-det expressions
+      val filterCondition = exprGenerator.generateExpression(condition.get)
 
-        val projectionInputCode = ctx.reusableInputUnboxingExprs
-          .filter(entry => !filterInputSet.contains(entry._1))
-          .values
-          .map(_.code)
-          .mkString("\n")
-        s"""
-           |${if (eagerInputUnboxingCode) filterInputCode else ""}
-           |${filterCondition.code}
-           |if (${filterCondition.resultTerm}) {
-           |  ${if (eagerInputUnboxingCode) projectionInputCode else ""}
-           |  $projectionCode
-           |}
-           |""".stripMargin
+      val filterInputCode = ctx.reuseInputUnboxingCode()
+      val filterInputSet = Set(ctx.reusableInputUnboxingExprs.keySet.toSeq: _*)
+
+      // if any filter conditions, projection code will enter an new scope
+      val projectionCode = produceProjectionCode
+
+      val projectionInputCode = ctx.reusableInputUnboxingExprs
+        .filter(entry => !filterInputSet.contains(entry._1))
+        .values
+        .map(_.code)
+        .mkString("\n")
+      s"""
+         |${if (eagerInputUnboxingCode) filterInputCode else ""}
+         |$commonNonDetExprsCode
+         |${filterCondition.code}
+         |if (${filterCondition.resultTerm}) {
+         |  ${if (eagerInputUnboxingCode) projectionInputCode else ""}
+         |  $projectionCode
+         |}
+         |""".stripMargin
+    }
+  }
+
+  /**
+   * Pre-generates non-deterministic subexpressions that appear in both the filter condition and
+   * projection. This ensures they are evaluated only once per row.
+   *
+   * @param ctx
+   *   The code generator context
+   * @param exprGenerator
+   *   The expression code generator
+   * @param condition
+   *   The filter condition
+   * @param projection
+   *   The projection expressions
+   * @return
+   *   Generated code for the common non-deterministic expressions
+   */
+  private def preGenerateCommonNonDeterministicExprs(
+      ctx: CodeGeneratorContext,
+      exprGenerator: ExprCodeGenerator,
+      condition: RexNode,
+      projection: Seq[RexNode]): String = {
+
+    // Collect all non-deterministic RexCall subexpressions from the condition
+    val conditionNonDetExprs = collectNonDeterministicCalls(condition)
+
+    if (conditionNonDetExprs.isEmpty) {
+      return ""
+    }
+
+    // Collect all non-deterministic RexCall subexpressions from all projection expressions
+    val projectionNonDetExprs = projection.flatMap(collectNonDeterministicCalls).toSet
+
+    // Find common non-deterministic expressions (by their string representation)
+    val commonExprs = conditionNonDetExprs.filter {
+      expr => projectionNonDetExprs.exists(_.toString == expr.toString)
+    }
+
+    if (commonExprs.isEmpty) {
+      return ""
+    }
+
+    // Pre-generate each common non-deterministic expression and cache it
+    val codeBuilder = new StringBuilder
+    for (expr <- commonExprs) {
+      val exprKey = expr.toString
+      if (ctx.getReusableSubExpr(exprKey).isEmpty) {
+        // Generate the expression
+        val generated = exprGenerator.generateExpression(expr)
+        // Cache it for reuse
+        ctx.addReusableSubExpr(exprKey, generated)
+        // Add the code to evaluate the expression
+        codeBuilder.append(generated.code).append("\n")
       }
     }
+
+    codeBuilder.toString()
+  }
+
+  /** Collects all non-deterministic RexCall subexpressions from a RexNode tree. */
+  private def collectNonDeterministicCalls(node: RexNode): Set[RexCall] = {
+    val result = mutable.Set[RexCall]()
+
+    node.accept(new RexVisitorImpl[Unit](true) {
+      override def visitCall(call: RexCall): Unit = {
+        if (!RexUtil.isDeterministic(call)) {
+          result += call
+        }
+        // Continue visiting children
+        super.visitCall(call)
+      }
+    })
+
+    result.toSet
   }
 
   private object ScalarFunctionsValidator extends RexVisitorImpl[Unit](true) {
