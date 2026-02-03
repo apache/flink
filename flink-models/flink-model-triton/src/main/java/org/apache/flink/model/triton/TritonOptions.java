@@ -21,6 +21,10 @@ package org.apache.flink.model.triton;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.LinkElement;
+
+import java.time.Duration;
+import java.util.Map;
 
 import static org.apache.flink.configuration.description.TextElement.code;
 
@@ -38,8 +42,9 @@ public class TritonOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "Full URL of the Triton Inference Server endpoint, e.g., %s",
-                                            code("http://localhost:8000/v2/models"))
+                                            "Full URL of the Triton Inference Server endpoint, e.g., %s. "
+                                                    + "Both HTTP and HTTPS are supported; HTTPS is recommended for production.",
+                                            code("https://triton-server:8000/v2/models"))
                                     .build());
 
     public static final ConfigOption<String> MODEL_NAME =
@@ -54,32 +59,14 @@ public class TritonOptions {
                     .defaultValue("latest")
                     .withDescription("Version of the model to use. Defaults to 'latest'.");
 
-    public static final ConfigOption<Long> TIMEOUT =
+    public static final ConfigOption<Duration> TIMEOUT =
             ConfigOptions.key("timeout")
-                    .longType()
-                    .defaultValue(30000L)
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(30))
                     .withDescription(
-                            "HTTP request timeout in milliseconds (connect + read + write). "
+                            "HTTP request timeout (connect + read + write). "
                                     + "This applies per individual request and is separate from Flink's async timeout. "
-                                    + "Defaults to 30000ms (30 seconds).");
-
-    public static final ConfigOption<Integer> BATCH_SIZE =
-            ConfigOptions.key("batch-size")
-                    .intType()
-                    .defaultValue(1)
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "Reserved for future use (v2+). Currently has NO effect in v1. "
-                                                    + "Each Flink record triggers one HTTP request regardless of this setting. "
-                                                    + "Future versions will support Flink-side mini-batch aggregation "
-                                                    + "(buffer N records or T milliseconds before sending). "
-                                                    + "For batching efficiency in v1: "
-                                                    + "1) Configure Triton model's dynamic_batching in config.pbtxt, "
-                                                    + "2) Tune Flink AsyncDataStream capacity for concurrent requests, "
-                                                    + "3) Increase Flink parallelism to create more concurrent requests. "
-                                                    + "Defaults to 1.")
-                                    .build());
+                                    + "Defaults to 30 seconds.");
 
     public static final ConfigOption<Boolean> FLATTEN_BATCH_DIM =
             ConfigOptions.key("flatten-batch-dim")
@@ -100,26 +87,59 @@ public class TritonOptions {
             ConfigOptions.key("sequence-id")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Sequence ID for stateful models.");
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Sequence ID for stateful models. A sequence represents a series of "
+                                                    + "inference requests that must be routed to the same model instance "
+                                                    + "to maintain state across requests (e.g., for RNN/LSTM models). "
+                                                    + "See %s for more details.",
+                                            LinkElement.link(
+                                                    "https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/architecture.html#stateful-models",
+                                                    "Triton Stateful Models"))
+                                    .build());
 
     public static final ConfigOption<Boolean> SEQUENCE_START =
             ConfigOptions.key("sequence-start")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
-                            "Whether this is the start of a sequence for stateful models.");
+                            Description.builder()
+                                    .text(
+                                            "Whether this request marks the start of a new sequence for stateful models. "
+                                                    + "When true, Triton will initialize the model's state before processing this request. "
+                                                    + "See %s for more details.",
+                                            LinkElement.link(
+                                                    "https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/architecture.html#stateful-models",
+                                                    "Triton Stateful Models"))
+                                    .build());
 
     public static final ConfigOption<Boolean> SEQUENCE_END =
             ConfigOptions.key("sequence-end")
                     .booleanType()
                     .defaultValue(false)
-                    .withDescription("Whether this is the end of a sequence for stateful models.");
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Whether this request marks the end of a sequence for stateful models. "
+                                                    + "When true, Triton will release the model's state after processing this request. "
+                                                    + "See %s for more details.",
+                                            LinkElement.link(
+                                                    "https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/architecture.html#stateful-models",
+                                                    "Triton Stateful Models"))
+                                    .build());
 
     public static final ConfigOption<String> COMPRESSION =
             ConfigOptions.key("compression")
                     .stringType()
                     .noDefaultValue()
-                    .withDescription("Compression algorithm to use (e.g., 'gzip').");
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Compression algorithm for request body. Currently only %s is supported. "
+                                                    + "When enabled, the request body will be compressed to reduce network bandwidth.",
+                                            code("gzip"))
+                                    .build());
 
     public static final ConfigOption<String> AUTH_TOKEN =
             ConfigOptions.key("auth-token")
@@ -127,10 +147,15 @@ public class TritonOptions {
                     .noDefaultValue()
                     .withDescription("Authentication token for secured Triton servers.");
 
-    public static final ConfigOption<String> CUSTOM_HEADERS =
+    public static final ConfigOption<Map<String, String>> CUSTOM_HEADERS =
             ConfigOptions.key("custom-headers")
-                    .stringType()
+                    .mapType()
                     .noDefaultValue()
                     .withDescription(
-                            "Custom HTTP headers in JSON format, e.g., '{\"X-Custom-Header\":\"value\"}'.");
+                            Description.builder()
+                                    .text(
+                                            "Custom HTTP headers as key-value pairs. "
+                                                    + "Example: %s",
+                                            code("'X-Custom-Header:value,X-Another:value2'"))
+                                    .build());
 }

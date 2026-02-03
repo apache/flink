@@ -62,7 +62,6 @@ public class TritonModelProviderFactory implements ModelProviderFactory {
         Set<ConfigOption<?>> set = new HashSet<>();
         set.add(TritonOptions.MODEL_VERSION);
         set.add(TritonOptions.TIMEOUT);
-        set.add(TritonOptions.BATCH_SIZE);
         set.add(TritonOptions.FLATTEN_BATCH_DIM);
         set.add(TritonOptions.PRIORITY);
         set.add(TritonOptions.SEQUENCE_ID);

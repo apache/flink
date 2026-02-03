@@ -42,10 +42,9 @@ public class TritonModelProviderFactoryTest {
     @Test
     public void testOptionalOptions() {
         TritonModelProviderFactory factory = new TritonModelProviderFactory();
-        assertEquals(11, factory.optionalOptions().size());
+        assertEquals(10, factory.optionalOptions().size());
         assertTrue(factory.optionalOptions().contains(TritonOptions.MODEL_VERSION));
         assertTrue(factory.optionalOptions().contains(TritonOptions.TIMEOUT));
-        assertTrue(factory.optionalOptions().contains(TritonOptions.BATCH_SIZE));
         assertTrue(factory.optionalOptions().contains(TritonOptions.FLATTEN_BATCH_DIM));
         assertTrue(factory.optionalOptions().contains(TritonOptions.PRIORITY));
         assertTrue(factory.optionalOptions().contains(TritonOptions.SEQUENCE_ID));

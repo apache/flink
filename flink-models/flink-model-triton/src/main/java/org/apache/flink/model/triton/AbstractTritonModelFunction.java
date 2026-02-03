@@ -31,7 +31,9 @@ import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -63,8 +65,7 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     private final String endpoint;
     private final String modelName;
     private final String modelVersion;
-    private final long timeout;
-    private final int batchSize;
+    private final Duration timeout;
     private final boolean flattenBatchDim;
     private final Integer priority;
     private final String sequenceId;
@@ -72,7 +73,7 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     private final boolean sequenceEnd;
     private final String compression;
     private final String authToken;
-    private final String customHeaders;
+    private final Map<String, String> customHeaders;
 
     public AbstractTritonModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
@@ -80,7 +81,6 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         this.modelName = config.get(TritonOptions.MODEL_NAME);
         this.modelVersion = config.get(TritonOptions.MODEL_VERSION);
         this.timeout = config.get(TritonOptions.TIMEOUT);
-        this.batchSize = config.get(TritonOptions.BATCH_SIZE);
         this.flattenBatchDim = config.get(TritonOptions.FLATTEN_BATCH_DIM);
         this.priority = config.get(TritonOptions.PRIORITY);
         this.sequenceId = config.get(TritonOptions.SEQUENCE_ID);
@@ -98,7 +98,7 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     public void open(FunctionContext context) throws Exception {
         super.open(context);
         LOG.debug("Creating Triton HTTP client.");
-        this.httpClient = TritonUtils.createHttpClient(timeout);
+        this.httpClient = TritonUtils.createHttpClient(timeout.toMillis());
     }
 
     @Override
@@ -277,12 +277,8 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         return modelVersion;
     }
 
-    protected long getTimeout() {
+    protected Duration getTimeout() {
         return timeout;
-    }
-
-    protected int getBatchSize() {
-        return batchSize;
     }
 
     protected boolean isFlattenBatchDim() {
@@ -313,7 +309,7 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         return authToken;
     }
 
-    protected String getCustomHeaders() {
+    protected Map<String, String> getCustomHeaders() {
         return customHeaders;
     }
 }

@@ -159,18 +159,8 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             }
 
             // Add custom headers if provided
-            if (getCustomHeaders() != null) {
-                try {
-                    JsonNode headersNode = objectMapper.readTree(getCustomHeaders());
-                    headersNode
-                            .fields()
-                            .forEachRemaining(
-                                    entry ->
-                                            requestBuilder.addHeader(
-                                                    entry.getKey(), entry.getValue().asText()));
-                } catch (JsonProcessingException e) {
-                    LOG.warn("Failed to parse custom headers: {}", getCustomHeaders(), e);
-                }
+            if (getCustomHeaders() != null && !getCustomHeaders().isEmpty()) {
+                getCustomHeaders().forEach((key, value) -> requestBuilder.addHeader(key, value));
             }
 
             Request request = requestBuilder.build();
