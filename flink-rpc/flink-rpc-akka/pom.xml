@@ -92,8 +92,12 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>io.netty</groupId>
-			<artifactId>netty-all</artifactId>
-			<scope>test</scope>
+			<artifactId>netty-handler</artifactId>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+		<dependency>
+			<groupId>io.netty</groupId>
+			<artifactId>netty-transport</artifactId>
 			<optional>${flink.markBundledAsOptional}</optional>
 		</dependency>
 

@@ -33,7 +33,8 @@ import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFutureListener;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelOption;
 import org.apache.flink.shaded.netty4.io.netty.channel.EventLoopGroup;
-import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.MultiThreadIoEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioIoHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.LengthFieldBasedFrameDecoder;
@@ -110,7 +111,10 @@ public class Client<REQ extends MessageBody, RESP extends MessageBody> {
                         .setNameFormat("Flink " + clientName + " Event Loop Thread %d")
                         .build();
 
-        final EventLoopGroup nioGroup = new NioEventLoopGroup(numEventLoopThreads, threadFactory);
+        final MultiThreadIoEventLoopGroup nioGroup =
+                new MultiThreadIoEventLoopGroup(
+                        numEventLoopThreads, threadFactory, NioIoHandler.newFactory());
+
         final ByteBufAllocator bufferPool = new NettyBufferPool(numEventLoopThreads);
 
         this.bootstrap =

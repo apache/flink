@@ -36,7 +36,8 @@ import org.apache.flink.shaded.netty4.io.netty.channel.Channel;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelFuture;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.ChannelInitializer;
-import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.MultiThreadIoEventLoopGroup;
+import org.apache.flink.shaded.netty4.io.netty.channel.nio.NioIoHandler;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.SocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.channel.socket.nio.NioServerSocketChannel;
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpServerCodec;
@@ -147,8 +148,10 @@ public class WebFrontendBootstrap {
                     }
                 };
 
-        NioEventLoopGroup bossGroup = new NioEventLoopGroup(1);
-        NioEventLoopGroup workerGroup = new NioEventLoopGroup();
+        MultiThreadIoEventLoopGroup bossGroup =
+                new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory());
+        MultiThreadIoEventLoopGroup workerGroup =
+                new MultiThreadIoEventLoopGroup(NioIoHandler.newFactory());
 
         this.bootstrap = new ServerBootstrap();
         this.bootstrap
