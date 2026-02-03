@@ -32,6 +32,8 @@ public class RestHandlerConfiguration {
 
     private final long refreshInterval;
 
+    private final Duration executionGraphCacheTTL;
+
     private final int checkpointHistorySize;
 
     private final Duration checkpointCacheExpireAfterWrite;
@@ -50,6 +52,7 @@ public class RestHandlerConfiguration {
 
     public RestHandlerConfiguration(
             long refreshInterval,
+            Duration executionGraphCacheTTL,
             int checkpointHistorySize,
             Duration checkpointCacheExpireAfterWrite,
             int checkpointCacheSize,
@@ -61,6 +64,11 @@ public class RestHandlerConfiguration {
         Preconditions.checkArgument(
                 refreshInterval > 0L, "The refresh interval (ms) should be larger than 0.");
         this.refreshInterval = refreshInterval;
+
+        this.executionGraphCacheTTL = Preconditions.checkNotNull(executionGraphCacheTTL);
+        Preconditions.checkArgument(
+                !executionGraphCacheTTL.isNegative(),
+                "ExecutionGraph cache TTL should not be negative.");
 
         this.checkpointHistorySize = checkpointHistorySize;
         this.checkpointCacheExpireAfterWrite = checkpointCacheExpireAfterWrite;
@@ -75,6 +83,10 @@ public class RestHandlerConfiguration {
 
     public long getRefreshInterval() {
         return refreshInterval;
+    }
+
+    public Duration getExecutionGraphCacheTTL() {
+        return executionGraphCacheTTL;
     }
 
     public int getCheckpointHistorySize() {
@@ -112,6 +124,12 @@ public class RestHandlerConfiguration {
     public static RestHandlerConfiguration fromConfiguration(Configuration configuration) {
         final long refreshInterval = configuration.get(WebOptions.REFRESH_INTERVAL).toMillis();
 
+        // If EXECUTION_GRAPH_CACHE_TTL is not set, fall back to REFRESH_INTERVAL
+        final Duration executionGraphCacheTTL =
+                configuration
+                        .getOptional(WebOptions.EXECUTION_GRAPH_CACHE_TTL)
+                        .orElse(Duration.ofMillis(refreshInterval));
+
         final int checkpointHistorySize = configuration.get(WebOptions.CHECKPOINTS_HISTORY_SIZE);
         final Duration checkpointStatsSnapshotCacheExpireAfterWrite =
                 configuration.get(RestOptions.CACHE_CHECKPOINT_STATISTICS_TIMEOUT);
@@ -133,6 +151,7 @@ public class RestHandlerConfiguration {
 
         return new RestHandlerConfiguration(
                 refreshInterval,
+                executionGraphCacheTTL,
                 checkpointHistorySize,
                 checkpointStatsSnapshotCacheExpireAfterWrite,
                 checkpointStatsSnapshotCacheSize,

@@ -31,6 +31,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link RestHandlerConfiguration}. */
 class RestHandlerConfigurationTest {
@@ -141,5 +142,65 @@ class RestHandlerConfigurationTest {
         RestHandlerConfiguration restHandlerConfiguration =
                 RestHandlerConfiguration.fromConfiguration(config);
         assertThat(restHandlerConfiguration.getCheckpointCacheSize()).isEqualTo(testCacheSize);
+    }
+
+    /** Tests that ExecutionGraph cache TTL defaults to refresh interval when not set. */
+    @Test
+    void testExecutionGraphCacheTTLDefault() {
+        final Duration refreshInterval = Duration.ofMillis(5000L);
+        final Configuration config = new Configuration();
+        config.set(WebOptions.REFRESH_INTERVAL, refreshInterval);
+
+        RestHandlerConfiguration restHandlerConfiguration =
+                RestHandlerConfiguration.fromConfiguration(config);
+
+        // When EXECUTION_GRAPH_CACHE_TTL is not set, it should default to REFRESH_INTERVAL
+        assertThat(restHandlerConfiguration.getExecutionGraphCacheTTL()).isEqualTo(refreshInterval);
+    }
+
+    /** Tests that ExecutionGraph cache TTL can be configured independently. */
+    @Test
+    void testExecutionGraphCacheTTLCustomValue() {
+        final Duration refreshInterval = Duration.ofMillis(5000L);
+        final Duration cacheTTL = Duration.ofMillis(10000L);
+        final Configuration config = new Configuration();
+        config.set(WebOptions.REFRESH_INTERVAL, refreshInterval);
+        config.set(WebOptions.EXECUTION_GRAPH_CACHE_TTL, cacheTTL);
+
+        RestHandlerConfiguration restHandlerConfiguration =
+                RestHandlerConfiguration.fromConfiguration(config);
+
+        // EXECUTION_GRAPH_CACHE_TTL should be independent of REFRESH_INTERVAL
+        assertThat(restHandlerConfiguration.getRefreshInterval())
+                .isEqualTo(refreshInterval.toMillis());
+        assertThat(restHandlerConfiguration.getExecutionGraphCacheTTL()).isEqualTo(cacheTTL);
+    }
+
+    /**
+     * Tests that ExecutionGraph cache TTL can be set to zero for real-time state synchronization.
+     */
+    @Test
+    void testExecutionGraphCacheTTLZeroValue() {
+        final Duration zeroCacheTTL = Duration.ZERO;
+        final Configuration config = new Configuration();
+        config.set(WebOptions.EXECUTION_GRAPH_CACHE_TTL, zeroCacheTTL);
+
+        RestHandlerConfiguration restHandlerConfiguration =
+                RestHandlerConfiguration.fromConfiguration(config);
+
+        // Setting to zero should disable caching
+        assertThat(restHandlerConfiguration.getExecutionGraphCacheTTL()).isEqualTo(zeroCacheTTL);
+    }
+
+    /** Tests that negative ExecutionGraph cache TTL throws IllegalArgumentException. */
+    @Test
+    void testExecutionGraphCacheTTLNegativeValue() {
+        final Duration negativeCacheTTL = Duration.ofMillis(-1000L);
+        final Configuration config = new Configuration();
+        config.set(WebOptions.EXECUTION_GRAPH_CACHE_TTL, negativeCacheTTL);
+
+        assertThatThrownBy(() -> RestHandlerConfiguration.fromConfiguration(config))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("ExecutionGraph cache TTL should not be negative");
     }
 }

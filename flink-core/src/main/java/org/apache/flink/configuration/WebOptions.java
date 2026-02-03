@@ -148,6 +148,26 @@ public class WebOptions {
                     .defaultValue(Duration.ofMillis(10L * 60L * 1000L))
                     .withDescription("Timeout for asynchronous operations by the web monitor.");
 
+    /**
+     * Time-to-live for cached ExecutionGraph. If not set, defaults to the value of {@link
+     * #REFRESH_INTERVAL}.
+     *
+     * <p>Setting this to 0 (or a very small value) means the cache will always fetch fresh data,
+     * which is useful for real-time state synchronization scenarios where stale state information
+     * should be avoided.
+     */
+    public static final ConfigOption<Duration> EXECUTION_GRAPH_CACHE_TTL =
+            key("web.execution-graph.cache-ttl")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "Time-to-live for cached ExecutionGraph. "
+                                    + "If not set, defaults to the value of '"
+                                    + REFRESH_INTERVAL.key()
+                                    + "'. "
+                                    + "Setting this to 0 means the cache will always fetch fresh data, "
+                                    + "which is useful for real-time state synchronization scenarios.");
+
     // ------------------------------------------------------------------------
 
     /** Not meant to be instantiated. */
