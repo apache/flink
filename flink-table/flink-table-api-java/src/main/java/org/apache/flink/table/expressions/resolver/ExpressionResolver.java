@@ -94,8 +94,9 @@ public class ExpressionResolver {
                 ResolverRules.LOOKUP_CALL_BY_NAME,
                 ResolverRules.FLATTEN_STAR_REFERENCE,
                 ResolverRules.EXPAND_COLUMN_FUNCTIONS,
+                ResolverRules.RESOLVE_TYPE,
                 ResolverRules.OVER_WINDOWS,
-                ResolverRules.FIELD_RESOLVE,
+                ResolverRules.RESOLVE_FIELD,
                 ResolverRules.QUALIFY_BUILT_IN_FUNCTIONS,
                 ResolverRules.RESOLVE_SQL_CALL,
                 ResolverRules.RESOLVE_CALL_BY_ARGUMENTS);
@@ -264,7 +265,7 @@ public class ExpressionResolver {
 
     private Expression resolveFieldsInSingleExpression(Expression expression) {
         List<Expression> expressions =
-                ResolverRules.FIELD_RESOLVE.apply(
+                ResolverRules.RESOLVE_FIELD.apply(
                         Collections.singletonList(expression), new ExpressionResolverContext());
 
         if (expressions.size() != 1) {

@@ -19,40 +19,45 @@
 package org.apache.flink.table.expressions;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.util.Preconditions;
+import org.apache.flink.table.catalog.DataTypeFactory;
+import org.apache.flink.table.types.UnresolvedDataType;
 
-import java.io.Serializable;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
+
 /**
- * An unresolved reference to a field, table, or local reference.
+ * Unresolved type literal for a given {@link UnresolvedDataType}.
  *
- * <p>This is a purely API-facing expression that will be resolved into {@link
- * FieldReferenceExpression}, {@link LocalReferenceExpression}, or {@link TableReferenceExpression}.
+ * <p>This is purely an API-facing expression with unvalidated arguments and unknown output data
+ * type.
  */
 @PublicEvolving
-public final class UnresolvedReferenceExpression implements Expression, Serializable {
+public class UnresolvedTypeLiteralExpression implements Expression {
 
-    private final String name;
+    private final UnresolvedDataType unresolvedDataType;
 
-    UnresolvedReferenceExpression(String name) {
-        this.name = Preconditions.checkNotNull(name);
+    UnresolvedTypeLiteralExpression(UnresolvedDataType unresolvedDataType) {
+        this.unresolvedDataType = unresolvedDataType;
     }
 
-    public String getName() {
-        return name;
+    public UnresolvedDataType getUnresolvedDataType() {
+        return unresolvedDataType;
+    }
+
+    public TypeLiteralExpression resolve(DataTypeFactory dataTypeFactory) {
+        return typeLiteral(unresolvedDataType.toDataType(dataTypeFactory));
     }
 
     @Override
     public String asSummaryString() {
-        return name;
+        return unresolvedDataType.toString();
     }
 
     @Override
     public List<Expression> getChildren() {
-        return Collections.emptyList();
+        return List.of();
     }
 
     @Override
@@ -68,13 +73,13 @@ public final class UnresolvedReferenceExpression implements Expression, Serializ
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        UnresolvedReferenceExpression that = (UnresolvedReferenceExpression) o;
-        return Objects.equals(name, that.name);
+        final UnresolvedTypeLiteralExpression that = (UnresolvedTypeLiteralExpression) o;
+        return unresolvedDataType.equals(that.unresolvedDataType);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name);
+        return Objects.hash(unresolvedDataType);
     }
 
     @Override

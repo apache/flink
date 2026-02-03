@@ -33,6 +33,7 @@ import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
+import org.apache.flink.table.expressions.UnresolvedTypeLiteralExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 
 /**
@@ -99,6 +100,11 @@ public abstract class ApiExpressionDefaultVisitor<T> extends ApiExpressionVisito
     @Override
     public T visit(UnresolvedReferenceExpression unresolvedReference) {
         return defaultMethod(unresolvedReference);
+    }
+
+    @Override
+    public T visit(UnresolvedTypeLiteralExpression unresolvedTypeExpression) {
+        return defaultMethod(unresolvedTypeExpression);
     }
 
     @Override

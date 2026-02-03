@@ -23,6 +23,7 @@ import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.LocalReferenceExpression;
+import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.expressions.UnresolvedReferenceExpression;
 
@@ -30,13 +31,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.lang.String.format;
-import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
 
 /**
- * Resolves {@link UnresolvedReferenceExpression} to either {@link
- * org.apache.flink.table.expressions.FieldReferenceExpression}, {@link
- * org.apache.flink.table.expressions.TableReferenceExpression}, or {@link LocalReferenceExpression}
- * in this order.
+ * Resolves {@link UnresolvedReferenceExpression} to either {@link FieldReferenceExpression}, {@link
+ * TableReferenceExpression}, or {@link LocalReferenceExpression} in this order.
  */
 @Internal
 final class ReferenceResolverRule implements ResolverRule {
