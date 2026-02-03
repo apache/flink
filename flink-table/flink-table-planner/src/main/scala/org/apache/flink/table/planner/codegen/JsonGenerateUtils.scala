@@ -120,10 +120,7 @@ object JsonGenerateUtils {
         createNodeTerm(ctx, valueTerm, valueType.asInstanceOf[DistinctType].getSourceType)
 
       case VARIANT =>
-        s"""
-           |$nodeFactoryTerm.rawValueNode(
-           |    new ${typeTerm(classOf[RawValue])}($valueTerm.toJson()))
-           |""".stripMargin
+        s"$nodeFactoryTerm.rawValueNode(new ${typeTerm(classOf[RawValue])}($valueTerm.toJson()))"
 
       case _ =>
         throw new CodeGenException(

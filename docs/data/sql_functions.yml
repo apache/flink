@@ -1181,7 +1181,7 @@ variant:
     table: VARIANT.at(STRING)
     description: |
       If the VARIANT is a MAP value that has an element with this key, a VARIANT holding
-      the associated value is returned. Otherwise, NULL is returned. 
+      the associated value is returned. Otherwise, NULL is returned.
 
 valueconstruction:
   - sql: |
