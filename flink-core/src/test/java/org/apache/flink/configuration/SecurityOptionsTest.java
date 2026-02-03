@@ -61,7 +61,7 @@ class SecurityOptionsTest {
 
     @Test
     void checkDefaultCipherSuite() {
-        assertThat(SecurityOptions.SSL_ALGORITHMS)
+        assertThat(SecurityOptions.SSL_ALGORITHMS.defaultValue())
                 .isEqualTo(
                         "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
     }
