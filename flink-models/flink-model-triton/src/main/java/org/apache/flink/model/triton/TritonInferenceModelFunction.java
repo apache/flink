@@ -88,8 +88,8 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             MediaType.get("application/json; charset=utf-8");
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    /** Reusable ByteArrayOutputStream for gzip compression to avoid repeated allocations. */
-    private final ByteArrayOutputStream baos = new ByteArrayOutputStream(1024);
+    /** Reusable buffer for gzip compression to avoid repeated allocations. */
+    private final ByteArrayOutputStream compressionBuffer = new ByteArrayOutputStream(1024);
 
     private final LogicalType inputType;
     private final LogicalType outputType;
@@ -133,11 +133,11 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             if (getCompression() != null) {
                 if ("gzip".equalsIgnoreCase(getCompression())) {
                     // Compress request body with gzip using reusable buffer
-                    baos.reset();
-                    try (GZIPOutputStream gzos = new GZIPOutputStream(baos)) {
+                    compressionBuffer.reset();
+                    try (GZIPOutputStream gzos = new GZIPOutputStream(compressionBuffer)) {
                         gzos.write(requestBody.getBytes(StandardCharsets.UTF_8));
                     }
-                    byte[] compressedData = baos.toByteArray();
+                    byte[] compressedData = compressionBuffer.toByteArray();
 
                     requestBuilder.addHeader("Content-Encoding", "gzip");
                     requestBuilder.post(RequestBody.create(compressedData, JSON_MEDIA_TYPE));
