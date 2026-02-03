@@ -26,6 +26,7 @@ import org.apache.flink.table.functions.AsyncPredictFunction;
 import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.VarCharType;
 
 import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
@@ -68,7 +69,16 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     private final Duration timeout;
     private final boolean flattenBatchDim;
     private final Integer priority;
+
+    /**
+     * Sequence ID used by Triton to correlate multiple inference requests that belong to the same
+     * stateful sequence (e.g. RNN or streaming models).
+     *
+     * <p>See Triton Inference Server sequence batching documentation:
+     * https://github.com/triton-inference-server/server/blob/main/docs/sequence_batcher.md
+     */
     private final String sequenceId;
+
     private final boolean sequenceStart;
     private final boolean sequenceEnd;
     private final String compression;
@@ -229,7 +239,7 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         }
 
         // Log info about STRING to BYTES mapping
-        if (type instanceof org.apache.flink.table.types.logical.VarCharType) {
+        if (type instanceof VarCharType) {
             LOG.info(
                     "{} column '{}' uses STRING type, which will be mapped to Triton BYTES dtype. "
                             + "Ensure your Triton model expects string/text inputs.",

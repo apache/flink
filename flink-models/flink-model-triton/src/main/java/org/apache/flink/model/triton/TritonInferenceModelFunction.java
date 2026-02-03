@@ -428,9 +428,6 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                         if (!(outputType instanceof ArrayType) && dataNode.isArray()) {
                             // Scalar type - extract first element from array
                             nodeToDeserialize = dataNode.get(0);
-                            if (LOG.isDebugEnabled()) {
-                                LOG.debug("Extracting scalar value from array[0]");
-                            }
                         }
 
                         Object deserializedData =
