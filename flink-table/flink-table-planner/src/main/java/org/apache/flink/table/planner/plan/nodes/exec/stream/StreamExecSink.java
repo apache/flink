@@ -26,6 +26,7 @@ import org.apache.flink.streaming.api.TimeDomain;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.InsertConflictStrategy;
+import org.apache.flink.table.api.InsertConflictStrategy.ConflictBehavior;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.ExecutionConfigOptions.RowtimeInserter;
@@ -357,10 +358,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
         // This assigns the current watermark as the timestamp to each record,
         // which is required for the WatermarkCompactingSinkMaterializer to work correctly
         Transformation<RowData> transformForMaterializer = inputTransform;
-        if (conflictStrategy != null
-                && (conflictStrategy.getBehavior() == InsertConflictStrategy.ConflictBehavior.ERROR
-                        || conflictStrategy.getBehavior()
-                                == InsertConflictStrategy.ConflictBehavior.NOTHING)) {
+        if (isErrorOrNothingConflictStrategy()) {
             // Use input parallelism to preserve watermark semantics
             transformForMaterializer =
                     ExecNodeUtil.createOneInputTransformation(
@@ -409,10 +407,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
             GeneratedHashFunction rowHashFunction) {
 
         // Check if we should use the watermark-compacting materializer for ERROR/NOTHING strategies
-        if (conflictStrategy != null
-                && (conflictStrategy.getBehavior() == InsertConflictStrategy.ConflictBehavior.ERROR
-                        || conflictStrategy.getBehavior()
-                                == InsertConflictStrategy.ConflictBehavior.NOTHING)) {
+        if (isErrorOrNothingConflictStrategy()) {
             return WatermarkCompactingSinkMaterializer.create(
                     conflictStrategy,
                     physicalRowType,
@@ -445,6 +440,12 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                                 TimeDomain.EVENT_TIME,
                                 ttlConfig,
                                 config));
+    }
+
+    private boolean isErrorOrNothingConflictStrategy() {
+        return conflictStrategy != null
+                && (conflictStrategy.getBehavior() == ConflictBehavior.ERROR
+                        || conflictStrategy.getBehavior() == ConflictBehavior.NOTHING);
     }
 
     private static SequencedMultiSetStateConfig createStateConfig(

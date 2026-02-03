@@ -75,8 +75,8 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
             LoggerFactory.getLogger(WatermarkCompactingSinkMaterializer.class);
 
     private static final String STATE_CLEARED_WARN_MSG =
-            "The state is cleared because of state ttl. This will result in incorrect result. "
-                    + "You can increase the state ttl to avoid this.";
+            "The state is cleared because of state TTL. This will result in incorrect result. "
+                    + "You can increase the state TTL to avoid this.";
     private static final Set<String> ORDERED_STATE_BACKENDS = Set.of("rocksdb", "forst");
 
     private final InsertConflictStrategy conflictStrategy;

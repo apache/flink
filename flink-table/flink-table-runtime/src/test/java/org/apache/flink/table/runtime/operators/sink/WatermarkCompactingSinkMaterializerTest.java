@@ -43,10 +43,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.delete;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.deleteRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.insert;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.rowOfKind;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfter;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBefore;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -89,7 +93,7 @@ class WatermarkCompactingSinkMaterializerTest {
 
             // Advance watermark to trigger compaction
             harness.processWatermark(100L);
-            assertEmits(harness, rowOfKind(RowKind.INSERT, 1L, 1, "a1"));
+            assertEmits(harness, insert(1L, 1, "a1"));
 
             // Update with same upsert key (this is the expected pattern for single-source updates)
             harness.processElement(updateAfterRecord(1L, 1, "a2"));
@@ -97,7 +101,7 @@ class WatermarkCompactingSinkMaterializerTest {
 
             // Advance watermark again
             harness.processWatermark(200L);
-            assertEmits(harness, rowOfKind(RowKind.UPDATE_AFTER, 1L, 1, "a2"));
+            assertEmits(harness, updateAfter(1L, 1, "a2"));
         }
     }
 
@@ -113,12 +117,12 @@ class WatermarkCompactingSinkMaterializerTest {
             // Insert and compact
             harness.processElement(insertRecord(1L, 1, "a1"));
             harness.processWatermark(100L);
-            assertEmits(harness, rowOfKind(RowKind.INSERT, 1L, 1, "a1"));
+            assertEmits(harness, insert(1L, 1, "a1"));
 
             // Delete and compact
             harness.processElement(deleteRecord(1L, 1, "a1"));
             harness.processWatermark(200L);
-            assertEmits(harness, rowOfKind(RowKind.DELETE, 1L, 1, "a1"));
+            assertEmits(harness, delete(1L, 1, "a1"));
         }
     }
 
@@ -153,7 +157,7 @@ class WatermarkCompactingSinkMaterializerTest {
 
             // Compact - should keep the first record
             harness.processWatermark(100L);
-            assertEmits(harness, rowOfKind(RowKind.INSERT, 1L, 1, "first"));
+            assertEmits(harness, insert(1L, 1, "first"));
         }
     }
 
@@ -186,7 +190,7 @@ class WatermarkCompactingSinkMaterializerTest {
 
             // Compact - should not throw, just keep the latest
             harness.processWatermark(100L);
-            assertEmits(harness, rowOfKind(RowKind.INSERT, 1L, 1, "v2"));
+            assertEmits(harness, insert(1L, 1, "v2"));
         }
     }
 
@@ -212,7 +216,7 @@ class WatermarkCompactingSinkMaterializerTest {
 
             // Net result: only (2L, 1, "b1") remains after cancellation, no conflict
             harness.processWatermark(100L);
-            assertEmits(harness, rowOfKind(RowKind.INSERT, 2L, 1, "b1"));
+            assertEmits(harness, insert(2L, 1, "b1"));
         }
     }
 
@@ -228,7 +232,7 @@ class WatermarkCompactingSinkMaterializerTest {
             // Insert and compact
             harness.processElement(insertRecord(1L, 1, "value"));
             harness.processWatermark(100L);
-            assertEmits(harness, rowOfKind(RowKind.INSERT, 1L, 1, "value"));
+            assertEmits(harness, insert(1L, 1, "value"));
 
             // Insert same value again (same upsert key)
             harness.processElement(updateAfterRecord(1L, 1, "value"));
@@ -271,7 +275,7 @@ class WatermarkCompactingSinkMaterializerTest {
 
             // watermark=3: compacts records with t<=3, emits INSERT(t=2)
             harness.processWatermark(3L);
-            assertEmits(harness, rowOfKind(RowKind.INSERT, 1L, 1, "v1"));
+            assertEmits(harness, insert(1L, 1, "v1"));
 
             // UPDATE_BEFORE from input 1 with timestamp 4
             harness.processElement(recordWithTimestamp(RowKind.UPDATE_BEFORE, 1L, 1, "v1", 4L));
@@ -289,7 +293,7 @@ class WatermarkCompactingSinkMaterializerTest {
             // Buffered: UPDATE_BEFORE(1L, t=4) and UPDATE_AFTER(2L, t=4) cancel out for input 1,
             // UPDATE_AFTER(2L, t=4) is emitted
             harness.processWatermark(5L);
-            assertEmits(harness, rowOfKind(RowKind.UPDATE_AFTER, 2L, 1, "v3"));
+            assertEmits(harness, updateAfter(2L, 1, "v3"));
 
             // UPDATE_BEFORE from input 2 with timestamp 6
             harness.processElement(recordWithTimestamp(RowKind.UPDATE_BEFORE, 2L, 1, "v3", 6L));
@@ -299,7 +303,7 @@ class WatermarkCompactingSinkMaterializerTest {
             // Buffered: UPDATE_AFTER(1L, t=6) and UPDATE_BEFORE(2L, t=6)
             // After compaction: UPDATE_AFTER(1L, "v4") remains as final value
             harness.processWatermark(10L);
-            assertEmits(harness, rowOfKind(RowKind.UPDATE_AFTER, 1L, 1, "v4"));
+            assertEmits(harness, updateAfter(1L, 1, "v4"));
         }
     }
 
@@ -320,7 +324,7 @@ class WatermarkCompactingSinkMaterializerTest {
 
             // Advance watermark to trigger compaction
             harness.processWatermark(100L);
-            assertEmits(harness, rowOfKind(RowKind.INSERT, 1L, 1, "a1"));
+            assertEmits(harness, insert(1L, 1, "a1"));
         }
     }
 
@@ -334,7 +338,7 @@ class WatermarkCompactingSinkMaterializerTest {
 
             harness.processElement(insertRecord(1L, 1, "a1"));
             harness.processWatermark(100L);
-            assertEmits(harness, rowOfKind(RowKind.INSERT, 1L, 1, "a1"));
+            assertEmits(harness, insert(1L, 1, "a1"));
 
             // UPDATE_AFTER with different value - creates conflict, NOTHING keeps first
             harness.processElement(updateAfterRecord(2L, 1, "a2"));
@@ -354,7 +358,7 @@ class WatermarkCompactingSinkMaterializerTest {
 
             harness.processElement(insertRecord(1L, 1, "a1"));
             harness.processWatermark(100L);
-            assertEmits(harness, rowOfKind(RowKind.INSERT, 1L, 1, "a1"));
+            assertEmits(harness, insert(1L, 1, "a1"));
 
             // UPDATE_AFTER with different value - creates conflict, ERROR throws
             harness.processElement(updateAfterRecord(2L, 1, "a2"));
@@ -376,12 +380,12 @@ class WatermarkCompactingSinkMaterializerTest {
             // Insert and compact
             harness.processElement(insertRecord(1L, 1, "a1"));
             harness.processWatermark(100L);
-            assertEmits(harness, rowOfKind(RowKind.INSERT, 1L, 1, "a1"));
+            assertEmits(harness, insert(1L, 1, "a1"));
 
             // Delete with exact same row and compact
             harness.processElement(deleteRecord(1L, 1, "a1"));
             harness.processWatermark(200L);
-            assertEmits(harness, rowOfKind(RowKind.DELETE, 1L, 1, "a1"));
+            assertEmits(harness, delete(1L, 1, "a1"));
         }
     }
 
@@ -419,7 +423,7 @@ class WatermarkCompactingSinkMaterializerTest {
 
             // Compact - NOTHING keeps first record
             harness.processWatermark(100L);
-            assertEmits(harness, rowOfKind(RowKind.INSERT, 1L, 1, "same"));
+            assertEmits(harness, insert(1L, 1, "same"));
         }
     }
 
@@ -454,19 +458,18 @@ class WatermarkCompactingSinkMaterializerTest {
             // Insert, then update_before + update_after sequence
             harness.processElement(insertRecord(1L, 1, "v1"));
             harness.processWatermark(100L);
-            assertEmits(harness, rowOfKind(RowKind.INSERT, 1L, 1, "v1"));
+            assertEmits(harness, insert(1L, 1, "v1"));
 
             // Update: retract old value, insert new value
-            harness.processElement(
-                    new StreamRecord<>(rowOfKind(RowKind.UPDATE_BEFORE, 1L, 1, "v1")));
+            harness.processElement(new StreamRecord<>(updateBefore(1L, 1, "v1")));
             harness.processElement(updateAfterRecord(2L, 1, "v2"));
             harness.processWatermark(200L);
-            assertEmits(harness, rowOfKind(RowKind.UPDATE_AFTER, 2L, 1, "v2"));
+            assertEmits(harness, updateAfter(2L, 1, "v2"));
 
             // Delete the current value
             harness.processElement(deleteRecord(2L, 1, "v2"));
             harness.processWatermark(300L);
-            assertEmits(harness, rowOfKind(RowKind.DELETE, 2L, 1, "v2"));
+            assertEmits(harness, delete(2L, 1, "v2"));
         }
     }
 

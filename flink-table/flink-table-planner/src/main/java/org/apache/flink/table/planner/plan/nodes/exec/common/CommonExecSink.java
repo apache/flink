@@ -187,8 +187,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         Optional<LineageVertex> lineageVertexOpt =
                 TableLineageUtils.extractLineageDataset(outputObject);
 
-        final boolean needMaterialization = upsertMaterialize;
-
         Transformation<RowData> sinkTransform =
                 applyConstraintValidations(inputTransform, config, persistedRowType);
 
@@ -201,10 +199,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                             primaryKeys,
                             sinkParallelism,
                             inputParallelism,
-                            needMaterialization);
+                            upsertMaterialize);
         }
 
-        if (needMaterialization) {
+        if (upsertMaterialize) {
             sinkTransform =
                     applyUpsertMaterialize(
                             sinkTransform,
