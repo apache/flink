@@ -10,6 +10,7 @@ scalastyle-output.xml
 .metals
 .bloop
 .cursor
+.claude
 .metadata
 .settings
 .project
