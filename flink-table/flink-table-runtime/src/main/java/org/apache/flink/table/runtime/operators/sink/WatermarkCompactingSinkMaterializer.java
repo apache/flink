@@ -24,7 +24,6 @@ import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
-import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
@@ -157,7 +156,7 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
         this.bufferDescriptor =
                 new MapStateDescriptor<>(
                         "watermark-buffer",
-                        LongSerializer.INSTANCE,
+                        SortedLongSerializer.INSTANCE,
                         new ListSerializer<>(serializer));
         this.buffer = getRuntimeContext().getMapState(bufferDescriptor);
 
