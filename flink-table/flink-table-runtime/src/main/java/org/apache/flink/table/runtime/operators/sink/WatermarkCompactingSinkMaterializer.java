@@ -25,6 +25,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
+import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
@@ -97,6 +98,9 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
     private transient ProjectedRowData upsertKeyProjectedRow1;
     private transient ProjectedRowData upsertKeyProjectedRow2;
 
+    // Tracks the current watermark. Used to detect in-flight records after restore.
+    private transient long currentWatermark = Long.MIN_VALUE;
+
     public WatermarkCompactingSinkMaterializer(
             InsertConflictStrategy conflictStrategy,
             TypeSerializer<RowData> serializer,
@@ -121,11 +125,72 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
     }
 
     @Override
+    public void initializeState(StateInitializationContext context) throws Exception {
+        super.initializeState(context);
+
+        // Initialize state descriptors and handles
+        this.bufferDescriptor =
+                new MapStateDescriptor<>(
+                        "watermark-buffer",
+                        SortedLongSerializer.INSTANCE,
+                        new ListSerializer<>(serializer));
+        this.buffer = context.getKeyedStateStore().getMapState(bufferDescriptor);
+
+        ValueStateDescriptor<RowData> currentValueDescriptor =
+                new ValueStateDescriptor<>("current-value", serializer);
+        this.currentValue = context.getKeyedStateStore().getState(currentValueDescriptor);
+
+        if (context.isRestored()) {
+            // Detect ordered state backend before consolidation
+            detectOrderedStateBackend();
+
+            // Consolidate all buffered records to MIN_VALUE for each key.
+            // This ensures they are compacted on the first watermark after restore.
+            getKeyedStateBackend()
+                    .applyToAllKeys(
+                            VoidNamespace.INSTANCE,
+                            VoidNamespaceSerializer.INSTANCE,
+                            bufferDescriptor,
+                            (key, state) -> consolidateBufferToMinValue());
+        }
+    }
+
+    private void consolidateBufferToMinValue() throws Exception {
+        List<RowData> consolidated = new ArrayList<>();
+
+        if (isOrderedStateBackend) {
+            // RocksDB/ForSt: entries are already sorted by timestamp
+            Iterator<Map.Entry<Long, List<RowData>>> iterator = buffer.entries().iterator();
+            while (iterator.hasNext()) {
+                consolidated.addAll(iterator.next().getValue());
+                iterator.remove();
+            }
+        } else {
+            // Other backends: collect, sort by timestamp, then consolidate
+            List<Map.Entry<Long, List<RowData>>> entries = new ArrayList<>();
+            Iterator<Map.Entry<Long, List<RowData>>> iterator = buffer.entries().iterator();
+            while (iterator.hasNext()) {
+                entries.add(iterator.next());
+                iterator.remove();
+            }
+
+            entries.sort(Map.Entry.comparingByKey());
+
+            for (Map.Entry<Long, List<RowData>> entry : entries) {
+                consolidated.addAll(entry.getValue());
+            }
+        }
+
+        if (!consolidated.isEmpty()) {
+            buffer.put(Long.MIN_VALUE, consolidated);
+        }
+    }
+
+    @Override
     public void open() throws Exception {
         super.open();
         initializeEqualisers();
         detectOrderedStateBackend();
-        initializeState();
         this.collector = new TimestampedCollector<>(output);
     }
 
@@ -152,23 +217,18 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
         }
     }
 
-    private void initializeState() {
-        this.bufferDescriptor =
-                new MapStateDescriptor<>(
-                        "watermark-buffer",
-                        SortedLongSerializer.INSTANCE,
-                        new ListSerializer<>(serializer));
-        this.buffer = getRuntimeContext().getMapState(bufferDescriptor);
-
-        ValueStateDescriptor<RowData> currentValueDescriptor =
-                new ValueStateDescriptor<>("current-value", serializer);
-        this.currentValue = getRuntimeContext().getState(currentValueDescriptor);
-    }
-
     @Override
     public void processElement(StreamRecord<RowData> element) throws Exception {
         RowData row = element.getValue();
         long assignedTimestamp = element.getTimestamp();
+
+        // If we haven't received any watermark yet (still at MIN_VALUE after restore)
+        // and the timestamp is beyond MIN_VALUE, it's from in-flight data that was
+        // checkpointed before restore. Assign to MIN_VALUE.
+        if (currentWatermark == Long.MIN_VALUE && assignedTimestamp > Long.MIN_VALUE) {
+            assignedTimestamp = Long.MIN_VALUE;
+        }
+
         bufferRecord(assignedTimestamp, row);
     }
 
@@ -199,6 +259,7 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
     @Override
     public void processWatermark(Watermark mark) throws Exception {
         final long watermarkTimestamp = mark.getTimestamp();
+        this.currentWatermark = watermarkTimestamp;
 
         // Iterate over all keys and compact their buffered records
         this.<RowData>getKeyedStateBackend()

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.runtime.operators.sink;
 
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.InsertConflictStrategy;
@@ -470,6 +471,149 @@ class WatermarkCompactingSinkMaterializerTest {
             harness.processElement(deleteRecord(2L, 1, "v2"));
             harness.processWatermark(300L);
             assertEmits(harness, delete(2L, 1, "v2"));
+        }
+    }
+
+    // --- Restore Tests ---
+
+    /**
+     * Tests that buffered records at different timestamps before checkpoint are consolidated to
+     * MIN_VALUE on restore and compacted on the first watermark.
+     */
+    @ParameterizedTest
+    @EnumSource(
+            value = ConflictBehavior.class,
+            names = {"ERROR", "NOTHING"})
+    void testBufferedRecordsConsolidatedOnRestore(ConflictBehavior behavior) throws Exception {
+        OperatorSubtaskState snapshot;
+
+        // First harness: buffer records at different timestamps, then take snapshot
+        try (KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> harness =
+                createHarness(behavior)) {
+            harness.open();
+
+            // Buffer records at different timestamps (simulating records before checkpoint)
+            harness.processElement(recordWithTimestamp(RowKind.INSERT, 1L, 1, "v1", 1000L));
+            harness.processElement(recordWithTimestamp(RowKind.UPDATE_AFTER, 1L, 1, "v2", 2000L));
+            harness.processElement(recordWithTimestamp(RowKind.UPDATE_AFTER, 1L, 1, "v3", 3000L));
+
+            // No watermark yet, so nothing emitted
+            assertEmitsNothing(harness);
+
+            // Take snapshot with buffered records
+            snapshot = harness.snapshot(1L, 1L);
+        }
+
+        // Second harness: restore from snapshot
+        try (KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> harness =
+                createHarness(behavior)) {
+            harness.initializeState(snapshot);
+            harness.open();
+
+            // After restore, watermarks restart from MIN_VALUE.
+            // The buffered records should have been consolidated to MIN_VALUE.
+            // First watermark (even a small one) should trigger compaction of all consolidated
+            // records.
+            harness.processWatermark(100L);
+
+            // All records were from same upsert key, so only final value is emitted
+            assertEmits(harness, insert(1L, 1, "v3"));
+        }
+    }
+
+    /**
+     * Tests that in-flight records from unaligned checkpoints (records with timestamps > MIN_VALUE
+     * arriving before first watermark after restore) are correctly handled.
+     */
+    @ParameterizedTest
+    @EnumSource(
+            value = ConflictBehavior.class,
+            names = {"ERROR", "NOTHING"})
+    void testInFlightRecordsAfterRestore(ConflictBehavior behavior) throws Exception {
+        OperatorSubtaskState snapshot;
+
+        // First harness: take empty snapshot
+        try (KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> harness =
+                createHarness(behavior)) {
+            harness.open();
+            snapshot = harness.snapshot(1L, 1L);
+        }
+
+        // Second harness: restore and simulate in-flight records
+        try (KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> harness =
+                createHarness(behavior)) {
+            harness.initializeState(snapshot);
+            harness.open();
+
+            // Simulate in-flight records that were checkpointed with their old timestamps.
+            // These arrive after restore but before any watermark is received.
+            // They have timestamps > MIN_VALUE from before the checkpoint.
+            harness.processElement(recordWithTimestamp(RowKind.INSERT, 1L, 1, "v1", 5000L));
+            harness.processElement(recordWithTimestamp(RowKind.UPDATE_AFTER, 1L, 1, "v2", 5100L));
+
+            // No watermark yet, nothing emitted
+            assertEmitsNothing(harness);
+
+            // First watermark after restore. Since currentWatermark was MIN_VALUE,
+            // in-flight records should have been assigned to MIN_VALUE and will be compacted.
+            harness.processWatermark(100L);
+
+            // Both records had same upsert key, so only final value is emitted
+            assertEmits(harness, insert(1L, 1, "v2"));
+        }
+    }
+
+    /**
+     * Tests restore with multiple keys having buffered records at different timestamps. Verifies
+     * that each key's records are correctly consolidated and compacted.
+     */
+    @Test
+    void testRestoreWithMultipleKeys() throws Exception {
+        OperatorSubtaskState snapshot;
+
+        // First harness: buffer records for multiple keys
+        try (KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> harness =
+                createHarness(ConflictBehavior.NOTHING)) {
+            harness.open();
+
+            // Key 1: multiple updates
+            harness.processElement(recordWithTimestamp(RowKind.INSERT, 1L, 1, "k1v1", 1000L));
+            harness.processElement(recordWithTimestamp(RowKind.UPDATE_AFTER, 1L, 1, "k1v2", 2000L));
+
+            // Key 2: single insert
+            harness.processElement(recordWithTimestamp(RowKind.INSERT, 2L, 2, "k2v1", 1500L));
+
+            // Key 3: insert then delete (should result in nothing)
+            harness.processElement(recordWithTimestamp(RowKind.INSERT, 3L, 3, "k3v1", 1000L));
+            harness.processElement(recordWithTimestamp(RowKind.DELETE, 3L, 3, "k3v1", 2500L));
+
+            snapshot = harness.snapshot(1L, 1L);
+        }
+
+        // Second harness: restore and verify
+        try (KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> harness =
+                createHarness(ConflictBehavior.NOTHING)) {
+            harness.initializeState(snapshot);
+            harness.open();
+
+            // First watermark compacts all consolidated records
+            harness.processWatermark(100L);
+
+            // Extract and verify results (order depends on key processing order)
+            List<RowData> emitted = extractRecords(harness);
+            assertThat(emitted).hasSize(2);
+            // Key 1 should have final value "k1v2", Key 2 should have "k2v1", Key 3 cancelled out
+            assertThat(emitted)
+                    .anySatisfy(
+                            row -> {
+                                assertThat(row.getInt(1)).isEqualTo(1);
+                                assertThat(row.getString(2).toString()).isEqualTo("k1v2");
+                            })
+                    .anySatisfy(
+                            row -> {
+                                assertThat(row.getInt(1)).isEqualTo(2);
+                                assertThat(row.getString(2).toString()).isEqualTo("k2v1");
+                            });
         }
     }
 
