@@ -30,6 +30,11 @@ under the License.
 
 	<properties>
 		<fs.oss.sdk.version>3.17.4</fs.oss.sdk.version>
+		<aliyun.credentials.version>0.3.2</aliyun.credentials.version>
+		<aliyun.tea.version>1.2.1</aliyun.tea.version>
+		<junit-pioneer.version>2.3.0</junit-pioneer.version>
+		<!-- JUnit Pioneer @SetEnvironmentVariable/@ClearEnvironmentVariable -->
+		<surefire.module.config>--add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED</surefire.module.config>
 	</properties>
 
 	<dependencies>
@@ -102,6 +107,20 @@ under the License.
 		</dependency>
 
 		<dependency>
+			<groupId>com.aliyun</groupId>
+			<artifactId>credentials-java</artifactId>
+			<version>${aliyun.credentials.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+
+		<dependency>
+			<groupId>com.aliyun</groupId>
+			<artifactId>tea</artifactId>
+			<version>${aliyun.tea.version}</version>
+			<optional>${flink.markBundledAsOptional}</optional>
+		</dependency>
+
+		<dependency>
 			<!-- Hadoop requires jaxb-api for javax.xml.bind.JAXBException -->
 			<groupId>javax.xml.bind</groupId>
 			<artifactId>jaxb-api</artifactId>
@@ -134,11 +153,18 @@ under the License.
 			<scope>test</scope>
 			<type>test-jar</type>
 		</dependency>
+
+		<!-- for environment variable testing in RRSA tests -->
+		<dependency>
+			<groupId>org.junit-pioneer</groupId>
+			<artifactId>junit-pioneer</artifactId>
+			<version>${junit-pioneer.version}</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
-
 			<!-- Relocate all OSS related classes -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

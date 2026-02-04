@@ -138,6 +138,46 @@ public class OSSFileSystemFactory implements FileSystemFactory {
                 }
             }
         }
+
+        // Configure RRSA credentials provider if environment is available
+        if (RRSACredentialsProvider.isRrsaEnvironmentAvailable()) {
+            configureRRSACredentialsProvider(conf);
+        }
+
         return conf;
+    }
+
+    /**
+     * Configures RRSA credentials provider in the Hadoop configuration.
+     *
+     * <p>The RRSA provider is prepended to the existing credential provider chain, allowing it to
+     * be tried first. If RRSA credentials are not available or fail, the chain will fall back to
+     * other configured providers.
+     *
+     * @param conf Hadoop configuration to update
+     */
+    private void configureRRSACredentialsProvider(org.apache.hadoop.conf.Configuration conf) {
+        LOG.info("Configuring RRSA credentials provider for OSS");
+
+        String rrsaProviderClass = RRSACredentialsProvider.class.getName();
+        String existingProviders = conf.get("fs.oss.credentials.provider", "");
+
+        String newProviders;
+        if (existingProviders.isEmpty()) {
+            newProviders = rrsaProviderClass;
+            LOG.debug("Setting RRSA as the only credentials provider");
+        } else if (!existingProviders.contains(rrsaProviderClass)) {
+            // Prepend RRSA provider to try it first
+            newProviders = rrsaProviderClass + "," + existingProviders;
+            LOG.debug(
+                    "Prepending RRSA credentials provider to existing chain: {}",
+                    existingProviders);
+        } else {
+            LOG.debug("RRSA credentials provider already in chain");
+            return;
+        }
+
+        conf.set("fs.oss.credentials.provider", newProviders);
+        LOG.info("RRSA credentials provider configured successfully");
     }
 }
