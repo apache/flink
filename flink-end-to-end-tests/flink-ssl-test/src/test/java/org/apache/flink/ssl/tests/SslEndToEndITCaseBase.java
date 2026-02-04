@@ -83,7 +83,7 @@ public abstract class SslEndToEndITCaseBase extends TestLogger {
                             "pkill -f 'TaskManagerRunner' || true; pkill -f 'StandaloneSessionClusterEntrypoint' || true");
             Process p = pb.start();
             p.waitFor();
-            Thread.sleep(2000); // Wait for processes to fully terminate
+            Thread.sleep(5000); // Wait for processes to fully terminate
             LOG.info("Cleaned up stale Flink processes");
         } catch (Exception e) {
             LOG.warn("Could not clean up stale processes, but continuing with test", e);
