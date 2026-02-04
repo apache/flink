@@ -392,22 +392,10 @@ public class SSLUtilsTest {
     @MethodSource("parameters")
     void testCreateSSLEngineFactory(String sslProvider) throws Exception {
         Configuration serverConfig = createInternalSslConfigWithKeyAndTrustStores(sslProvider);
-        final String[] sslAlgorithms;
-        final String[] expectedSslProtocols;
-        if (sslProvider.equalsIgnoreCase("OPENSSL")) {
-            // openSSL does not support the same set of cipher algorithms!
-            sslAlgorithms =
-                    new String[] {
-                        "TLS_RSA_WITH_AES_128_GCM_SHA256", "TLS_RSA_WITH_AES_256_GCM_SHA384"
-                    };
-            expectedSslProtocols = new String[] {"SSLv2Hello", "TLSv1"};
-        } else {
-            sslAlgorithms =
-                    new String[] {
-                        "TLS_DHE_RSA_WITH_AES_128_CBC_SHA", "TLS_DHE_RSA_WITH_AES_128_CBC_SHA256"
-                    };
-            expectedSslProtocols = new String[] {"TLSv1"};
-        }
+        final String[] sslAlgorithms = {
+            "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+        };
+        final String[] expectedSslProtocols = {"TLSv1"};
 
         // set custom protocol and cipher suites
         serverConfig.set(SecurityOptions.SSL_PROTOCOL, "TLSv1");
@@ -523,11 +511,6 @@ public class SSLUtilsTest {
     private static void addSslProviderConfig(Configuration config, String sslProvider) {
         if (sslProvider.equalsIgnoreCase("OPENSSL")) {
             OpenSsl.ensureAvailability();
-
-            // Flink's default algorithm set is not available for openSSL - choose a different one:
-            config.set(
-                    SecurityOptions.SSL_ALGORITHMS,
-                    "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
         }
         config.set(SecurityOptions.SSL_PROVIDER, sslProvider);
     }
