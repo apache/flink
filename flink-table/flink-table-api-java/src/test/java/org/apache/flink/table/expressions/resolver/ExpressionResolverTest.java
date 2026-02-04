@@ -34,6 +34,7 @@ import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
+import org.apache.flink.table.expressions.TypeLiteralExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -61,6 +62,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.col;
+import static org.apache.flink.table.api.Expressions.lit;
 import static org.apache.flink.table.api.Expressions.range;
 import static org.apache.flink.table.api.Expressions.withColumns;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
@@ -284,8 +286,19 @@ class ExpressionResolverTest {
                                 .inputSchemas(
                                         TableSchema.builder().field("i", DataTypes.INT()).build())
                                 .select(col("i"))
+                                .equalTo(new FieldReferenceExpression("i", DataTypes.INT(), 0, 0))),
+                Arguments.of(
+                        TestSpec.test("Test type resolution with cast(UnresolvedDataType)")
+                                .inputSchemas(TableSchema.builder().build())
+                                .select(lit(1).cast(DataTypes.of("BIGINT")))
                                 .equalTo(
-                                        new FieldReferenceExpression("i", DataTypes.INT(), 0, 0))));
+                                        CallExpression.permanent(
+                                                BuiltInFunctionDefinitions.CAST,
+                                                List.of(
+                                                        new ValueLiteralExpression(1),
+                                                        new TypeLiteralExpression(
+                                                                DataTypes.BIGINT())),
+                                                DataTypes.BIGINT().notNull()))));
     }
 
     @ParameterizedTest(name = "{0}")

@@ -34,6 +34,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.UnresolvedDataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
@@ -263,6 +264,11 @@ public final class ApiExpressionUtils {
 
     public static TypeLiteralExpression typeLiteral(DataType dataType) {
         return new TypeLiteralExpression(dataType);
+    }
+
+    public static UnresolvedTypeLiteralExpression unresolvedType(
+            UnresolvedDataType unresolvedDataType) {
+        return new UnresolvedTypeLiteralExpression(unresolvedDataType);
     }
 
     public static UnresolvedReferenceExpression unresolvedRef(String name) {

@@ -28,12 +28,12 @@ import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.UnresolvedDataType;
 
 import java.util.Arrays;
 import java.util.stream.Stream;
@@ -48,6 +48,7 @@ import static org.apache.flink.table.expressions.ApiExpressionUtils.toMilliInter
 import static org.apache.flink.table.expressions.ApiExpressionUtils.toMonthInterval;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedCall;
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedType;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ABS;
 import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.ACOS;
@@ -618,32 +619,59 @@ public abstract class BaseExpressions<InType, OutType> {
     }
 
     /**
-     * Returns a new value being cast to {@code toType}. A cast error throws an exception and fails
-     * the job. When performing a cast operation that may fail, like {@link DataTypes#STRING()} to
-     * {@link DataTypes#INT()}, one should rather use {@link #tryCast(DataType)}, in order to handle
-     * errors. If {@link ExecutionConfigOptions#TABLE_EXEC_LEGACY_CAST_BEHAVIOUR} is enabled, this
-     * function behaves like {@link #tryCast(DataType)}.
+     * Returns a new value being cast to {@code toType}.
      *
-     * <p>E.g. {@code "42".cast(DataTypes.INT())} returns {@code 42}; {@code
-     * null.cast(DataTypes.STRING())} returns {@code null} of type {@link DataTypes#STRING()};
-     * {@code "non-number".cast(DataTypes.INT())} throws an exception and fails the job.
+     * <p>A cast error throws an exception and fails the job. When performing a cast operation that
+     * may fail, like {@link DataTypes#STRING()} to {@link DataTypes#INT()}, one should rather use
+     * {@link #tryCast(DataType)}, to handle errors.
+     *
+     * <p>E.g. {@code lit("42").cast(DataTypes.INT())} returns {@code 42}; {@code
+     * lit(null).cast(DataTypes.STRING())} returns {@code null} of type {@link DataTypes#STRING()};
+     * {@code lit("non-number").cast(DataTypes.INT())} throws an exception and fails the job.
      */
     public OutType cast(DataType toType) {
         return toApiSpecificExpression(unresolvedCall(CAST, toExpr(), typeLiteral(toType)));
     }
 
     /**
+     * Returns a new value being cast to {@code toType}.
+     *
+     * <p>This method takes {@link UnresolvedDataType} that, for example, originates from {@link
+     * DataTypes#of(Class)} or {@link DataTypes#of(String)}. The data type will be resolved to a
+     * fully qualified {@link DataType}.
+     *
+     * @see #cast(DataType)
+     */
+    public OutType cast(UnresolvedDataType toType) {
+        return toApiSpecificExpression(unresolvedCall(CAST, toExpr(), unresolvedType(toType)));
+    }
+
+    /**
      * Like {@link #cast(DataType)}, but in case of error, returns {@code null} rather than failing
      * the job.
      *
-     * <p>E.g. {@code "42".tryCast(DataTypes.INT())} returns {@code 42}; {@code
-     * null.tryCast(DataTypes.STRING())} returns {@code null} of type {@link DataTypes#STRING()};
-     * {@code "non-number".tryCast(DataTypes.INT())} returns {@code null} of type {@link
-     * DataTypes#INT()}; {@code coalesce("non-number".tryCast(DataTypes.INT()), 0)} returns {@code
-     * 0} of type {@link DataTypes#INT()}.
+     * <p>E.g. {@code lit("42").tryCast(DataTypes.INT())} returns {@code 42}; {@code
+     * lit(null).tryCast(DataTypes.STRING())} returns {@code null} of type {@link
+     * DataTypes#STRING()}; {@code lit("non-number").tryCast(DataTypes.INT())} returns {@code null}
+     * of type {@link DataTypes#INT()}; {@code coalesce(lit("non-number").tryCast(DataTypes.INT()),
+     * 0)} returns {@code 0} of type {@link DataTypes#INT()}.
      */
     public OutType tryCast(DataType toType) {
         return toApiSpecificExpression(unresolvedCall(TRY_CAST, toExpr(), typeLiteral(toType)));
+    }
+
+    /**
+     * Like {@link #cast(DataType)}, but in case of error, returns {@code null} rather than failing
+     * the job.
+     *
+     * <p>This method takes {@link UnresolvedDataType} that, for example, originates from {@link
+     * DataTypes#of(Class)} or {@link DataTypes#of(String)}. The data type will be resolved to a
+     * fully qualified {@link DataType}.
+     *
+     * @see #tryCast(DataType)
+     */
+    public OutType tryCast(UnresolvedDataType toType) {
+        return toApiSpecificExpression(unresolvedCall(TRY_CAST, toExpr(), unresolvedType(toType)));
     }
 
     /** Specifies ascending order of an expression i.e. a field for orderBy unresolvedCall. */
