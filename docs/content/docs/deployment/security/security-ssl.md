@@ -165,6 +165,11 @@ If these cipher suites are not supported on your setup, you will see that Flink 
 
 {{< /hint >}}
 
+The JDK update [JDK-8245545](https://bugs.openjdk.org/browse/JDK-8245545) (affecting JDK 11.0.30+, 17.0.18+, 21.0.10+, and 24+) disabled `TLS_RSA_*` cipher suites to support forward-secrecy (RFC 9325) and comply with the IETF Draft *Deprecating Obsolete Key Exchange Methods in TLS*.
+
+To support these and future JDK versions, the default value for the Flink configuration option `security.ssl.algorithms` has been changed to a modern, widely available cipher suite:
+`TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384`
+
 ### Complete List of SSL Options
 
 {{< generated/security_configuration >}}
