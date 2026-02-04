@@ -205,4 +205,26 @@ public abstract class AbstractKubernetesParameters implements KubernetesParamete
     public boolean isHostNetworkEnabled() {
         return flinkConfig.get(KubernetesConfigOptions.KUBERNETES_HOSTNETWORK_ENABLED);
     }
+
+    /**
+     * Gets the map of PVC names to their mount paths.
+     *
+     * @return a map where keys are PVC names and values are mount paths; empty map if not
+     *     configured
+     */
+    public Map<String, String> getPersistentVolumeClaimsToMountPaths() {
+        return flinkConfig
+                .getOptional(KubernetesConfigOptions.KUBERNETES_PERSISTENT_VOLUME_CLAIMS)
+                .orElse(Collections.emptyMap());
+    }
+
+    /**
+     * Checks whether PVCs should be mounted as read-only.
+     *
+     * @return true if PVCs should be mounted as read-only, false otherwise
+     */
+    public boolean isPersistentVolumeClaimReadOnly() {
+        return flinkConfig.get(
+                KubernetesConfigOptions.KUBERNETES_PERSISTENT_VOLUME_CLAIM_READ_ONLY);
+    }
 }
