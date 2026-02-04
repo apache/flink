@@ -76,6 +76,9 @@ class SqlClientSSLTest extends SqlClientTestBase {
 
     private static void withSSL(Configuration configuration) {
         configuration.set(SecurityOptions.SSL_REST_ENABLED, true);
+        configuration.set(
+                SecurityOptions.SSL_ALGORITHMS,
+                "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
         configuration.set(SecurityOptions.SSL_REST_TRUSTSTORE, truststorePath);
         configuration.set(SecurityOptions.SSL_REST_TRUSTSTORE_PASSWORD, "password");
         configuration.set(SecurityOptions.SSL_REST_KEYSTORE, keystorePath);
