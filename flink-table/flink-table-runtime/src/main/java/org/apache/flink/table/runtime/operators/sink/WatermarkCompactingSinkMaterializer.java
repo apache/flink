@@ -178,7 +178,22 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
         if (records == null) {
             records = new ArrayList<>();
         }
-        records.add(row);
+        switch (row.getRowKind()) {
+            case INSERT:
+            case UPDATE_AFTER:
+                // Try to cancel out a pending retraction; if none, just append
+                if (!tryCancelRetraction(records, row)) {
+                    records.add(row);
+                }
+                break;
+            case UPDATE_BEFORE:
+            case DELETE:
+                // Try to cancel out an existing addition; if none, keep for cross-bucket
+                if (!tryCancelAddition(records, row)) {
+                    records.add(row);
+                }
+                break;
+        }
         buffer.put(timestamp, records);
     }
 
@@ -282,6 +297,45 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
             // Remove first found row
             values.remove(index);
         }
+    }
+
+    /**
+     * Attempts to cancel out a retraction by finding a matching retractive record
+     * (DELETE/UPDATE_BEFORE) with identical content.
+     *
+     * @return true if a matching retraction was found and removed, false otherwise
+     */
+    private boolean tryCancelRetraction(List<RowData> values, RowData addition) {
+        final Iterator<RowData> iterator = values.iterator();
+        while (iterator.hasNext()) {
+            RowData candidate = iterator.next();
+            RowKind kind = candidate.getRowKind();
+            if ((kind == DELETE || kind == RowKind.UPDATE_BEFORE)
+                    && recordEquals(addition, candidate)) {
+                iterator.remove();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Attempts to cancel out an addition by finding a matching additive record
+     * (INSERT/UPDATE_AFTER) with identical content.
+     *
+     * @return true if a matching addition was found and removed, false otherwise
+     */
+    private boolean tryCancelAddition(List<RowData> values, RowData retraction) {
+        final Iterator<RowData> iterator = values.iterator();
+        while (iterator.hasNext()) {
+            RowData candidate = iterator.next();
+            RowKind kind = candidate.getRowKind();
+            if ((kind == INSERT || kind == UPDATE_AFTER) && recordEquals(retraction, candidate)) {
+                iterator.remove();
+                return true;
+            }
+        }
+        return false;
     }
 
     private int findFirst(List<RowData> values, RowData target) {
