@@ -225,15 +225,19 @@ public class OperatorStateRestoreOperation implements RestoreOperation<Void> {
             OperatorStateHandle.StateMetaInfo metaInfo)
             throws IOException {
 
-        if (null != metaInfo) {
+        if (metaInfo != null) {
             long[] offsets = metaInfo.getOffsets();
-            if (null != offsets) {
+            if (offsets != null) {
                 DataInputView div = new DataInputViewStreamWrapper(in);
                 TypeSerializer<S> serializer =
                         stateListForName.getStateMetaInfo().getPartitionStateSerializer();
+                long currentPos = in.getPos();
                 for (long offset : offsets) {
-                    in.seek(offset);
+                    if (currentPos != offset) {
+                        in.seek(offset);
+                    }
                     stateListForName.add(serializer.deserialize(div));
+                    currentPos = in.getPos();
                 }
             }
         }
