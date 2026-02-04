@@ -20,11 +20,13 @@ package org.apache.flink.state.rocksdb;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.internal.InternalAppendingState;
+import org.apache.flink.util.FlinkRuntimeException;
 
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 abstract class AbstractRocksDBAppendingState<K, N, IN, SV, OUT>
         extends AbstractRocksDBState<K, N, SV>
@@ -68,7 +70,17 @@ abstract class AbstractRocksDBAppendingState<K, N, IN, SV, OUT>
     }
 
     void updateInternal(byte[] key, SV valueToStore) throws RocksDBException {
-        // write the new value to RocksDB
-        backend.db.put(columnFamily, writeOptions, key, getValueBytes(valueToStore));
+        try {
+            // Serialize value and write to RocksDB using ByteBuffer to avoid copy
+            dataOutputView.clear();
+            valueSerializer.serialize(valueToStore, dataOutputView);
+            backend.db.put(
+                    columnFamily,
+                    writeOptions,
+                    ByteBuffer.wrap(key),
+                    ByteBuffer.wrap(dataOutputView.getSharedBuffer(), 0, dataOutputView.length()));
+        } catch (IOException e) {
+            throw new FlinkRuntimeException("Error while serializing value", e);
+        }
     }
 }
