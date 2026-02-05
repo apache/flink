@@ -32,7 +32,7 @@ import org.apache.flink.table.utils.LegacyRowExtension
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.{Row, RowKind}
 
-import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
 import org.junit.jupiter.api.{BeforeEach, TestTemplate}
 import org.junit.jupiter.api.extension.{ExtendWith, RegisterExtension}
 
@@ -435,6 +435,189 @@ class ChangelogSourceITCase(
             ret
         }
     }
+  }
+
+  @TestTemplate
+  def testFilterPushedDownOnNonUpsertKey(): Unit = {
+    // FLINK-38579: Filter pushed down to source on non-upsert key should require UPDATE_BEFORE
+
+    val testDataId = TestValuesTableFactory.registerData(
+      Seq(
+        changelogRow("+I", Int.box(1), "tom", Int.box(1)),
+        changelogRow("-U", Int.box(1), "tom", Int.box(1)),
+        changelogRow("+U", Int.box(1), "tom", Int.box(2))
+      ))
+    tEnv.executeSql(s"""
+                       |CREATE TABLE t (
+                       |  a int primary key not enforced,
+                       |  b varchar,
+                       |  c int
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$testDataId',
+                       |  'changelog-mode' = 'I,UA,UB,D',
+                       |  'filterable-fields' = 'c'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""
+                       |CREATE TABLE s (
+                       |  a int primary key not enforced,
+                       |  b varchar,
+                       |  c int
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'sink-insert-only' = 'false',
+                       |  'sink-changelog-mode-enforced' = 'I,UA,D'
+                       |)
+                       |""".stripMargin)
+
+    // CDC duplicate + MiniBatch is incompatible: ChangelogNormalize (needed for CDC deduplication)
+    // requires ONLY_UPDATE_AFTER at the source level, but filter on non-upsert key requires UPDATE_BEFORE
+    if (sourceMode == CHANGELOG_SOURCE_WITH_EVENTS_DUPLICATE && miniBatch == MiniBatchOn) {
+      assertThatThrownBy(() => tEnv.executeSql("insert into s select * from t where c < 2"))
+        .isInstanceOf(classOf[org.apache.flink.table.api.TableException])
+        .hasMessageContaining("Can't generate a valid execution plan")
+      return
+    }
+
+    tEnv.executeSql("insert into s select * from t where c < 2").await()
+
+    // The result should be empty because:
+    // - Filter c < 2 matches only c=1
+    // - The record (1,tom,1) was inserted (+I) then deleted (-U)
+    // - With the fix, UPDATE_BEFORE is preserved and correctly deletes the record
+    // - Without the fix, UPDATE_BEFORE would be dropped, leaving (1,tom,1) in the result
+    val expected = List[String]()
+    assertThat(TestValuesTableFactory.getResultsAsStrings("s").sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testJoinWithNonEquivConditionOnNonUpsertKey(): Unit = {
+    // FLINK-38579: Join with non-equiv condition on non-upsert key should require UPDATE_BEFORE
+
+    val t1DataId = TestValuesTableFactory.registerData(
+      Seq(
+        changelogRow("+I", Int.box(1), Int.box(10)),
+        changelogRow("-U", Int.box(1), Int.box(10)),
+        changelogRow("+U", Int.box(1), Int.box(20))
+      ))
+    val t2DataId = TestValuesTableFactory.registerData(
+      Seq(
+        changelogRow("+I", Int.box(1), Int.box(100))
+      ))
+
+    tEnv.executeSql(s"""
+                       |CREATE TABLE t1 (
+                       |  pk int primary key not enforced,
+                       |  val int
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$t1DataId',
+                       |  'changelog-mode' = 'I,UA,UB,D'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""
+                       |CREATE TABLE t2 (
+                       |  pk int primary key not enforced,
+                       |  val int
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$t2DataId',
+                       |  'changelog-mode' = 'I'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""
+                       |CREATE TABLE s (
+                       |  pk1 int,
+                       |  val1 int,
+                       |  pk2 int,
+                       |  val2 int
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'sink-insert-only' = 'false',
+                       |  'sink-changelog-mode-enforced' = 'I,UA,D'
+                       |)
+                       |""".stripMargin)
+
+    tEnv
+      .executeSql("insert into s select * from t1 join t2 on t1.pk = t2.pk and t1.val < 15")
+      .await()
+
+    // The result should be empty because:
+    // - Non-equiv condition t1.val < 15 matched (1, 10)
+    // - But (1, 10) was deleted by -U
+    // - With the fix, UPDATE_BEFORE is preserved and correctly deletes the joined record
+    // - Without the fix, UPDATE_BEFORE would be dropped, leaving (1,10,1,100) in result
+    val expected = List[String]()
+    assertThat(TestValuesTableFactory.getResultsAsStrings("s").sorted).isEqualTo(expected.sorted)
+  }
+
+  @TestTemplate
+  def testJoinWithNonEquivConditionOnRightNonUpsertKey(): Unit = {
+    // FLINK-38579: Test that non-equi condition on RIGHT side non-upsert key is correctly detected
+    // This validates the left/right split logic in hasNonUpsertKeyNonEquiCondition
+
+    val t1DataId = TestValuesTableFactory.registerData(
+      Seq(
+        changelogRow("+I", Int.box(1), Int.box(10))
+      ))
+    val t2DataId = TestValuesTableFactory.registerData(
+      Seq(
+        changelogRow("+I", Int.box(1), Int.box(100)),
+        changelogRow("-U", Int.box(1), Int.box(100)),
+        changelogRow("+U", Int.box(1), Int.box(200))
+      ))
+
+    tEnv.executeSql(s"""
+                       |CREATE TABLE t1 (
+                       |  pk int primary key not enforced,
+                       |  val int
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$t1DataId',
+                       |  'changelog-mode' = 'I'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""
+                       |CREATE TABLE t2 (
+                       |  pk int primary key not enforced,
+                       |  val int
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'data-id' = '$t2DataId',
+                       |  'changelog-mode' = 'I,UA,UB'
+                       |)
+                       |""".stripMargin)
+
+    tEnv.executeSql(s"""
+                       |CREATE TABLE s (
+                       |  pk1 int,
+                       |  val1 int,
+                       |  pk2 int,
+                       |  val2 int
+                       |) WITH (
+                       |  'connector' = 'values',
+                       |  'sink-insert-only' = 'false',
+                       |  'sink-changelog-mode-enforced' = 'I,UA,D'
+                       |)
+                       |""".stripMargin)
+
+    tEnv
+      .executeSql("insert into s select * from t1 join t2 on t1.pk = t2.pk and t2.val < 150")
+      .await()
+
+    // The result should be empty because:
+    // - Non-equiv condition t2.val < 150 matched (1, 100)
+    // - But t2 row was updated from val=100 to val=200
+    // - The (1, 100) was deleted by -U, then (1, 200) was inserted by +U
+    // - With the fix, UPDATE_BEFORE is preserved and correctly removes the joined record
+    // - Without the fix, UPDATE_BEFORE would be dropped, leaving (1,10,1,100) in result
+    val expected = List[String]()
+    assertThat(TestValuesTableFactory.getResultsAsStrings("s").sorted).isEqualTo(expected.sorted)
   }
 
 }
