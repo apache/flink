@@ -27,16 +27,21 @@ import org.apache.calcite.sql.SqlOperator;
 /**
  * SqlCumulateTableFunction implements an operator for cumulative.
  *
- * <p>It allows four parameters:
+ * <p>It allows six parameters:
  *
  * <ol>
  *   <li>a table
  *   <li>a descriptor to provide a time attribute column name from the input table
- *   <li>an interval parameter to specify the window size to increase.
- *   <li>an interval parameter to specify the max length of window size
+ *   <li>an interval parameter to specify the window size to increase (step).
+ *   <li>an interval parameter to specify the max length of window size (maxSize)
+ *   <li>(optional) an interval parameter to specify the offset of the window
+ *   <li>(optional) a boolean parameter to enable emit-only-on-update mode
  * </ol>
  */
 public class SqlCumulateTableFunction extends SqlWindowTableFunction {
+
+    /** The emitOnlyOnUpdate parameter name for CUMULATE window. */
+    protected static final String PARAM_EMIT_ONLY_ON_UPDATE = "EMIT_ONLY_ON_UPDATE";
 
     public SqlCumulateTableFunction() {
         super("CUMULATE", new OperandMetadataImpl());
@@ -47,7 +52,12 @@ public class SqlCumulateTableFunction extends SqlWindowTableFunction {
         OperandMetadataImpl() {
             super(
                     ImmutableList.of(
-                            PARAM_DATA, PARAM_TIMECOL, PARAM_STEP, PARAM_SIZE, PARAM_OFFSET),
+                            PARAM_DATA,
+                            PARAM_TIMECOL,
+                            PARAM_STEP,
+                            PARAM_SIZE,
+                            PARAM_OFFSET,
+                            PARAM_EMIT_ONLY_ON_UPDATE),
                     4);
         }
 
@@ -61,6 +71,13 @@ public class SqlCumulateTableFunction extends SqlWindowTableFunction {
                 return SqlValidatorUtils.throwValidationSignatureErrorOrReturnFalse(
                         callBinding, throwOnFailure);
             }
+            // check emit_only_on_update parameter if present (6th parameter)
+            if (callBinding.getOperandCount() == 6) {
+                if (!checkBooleanOperands(callBinding, 5)) {
+                    return SqlValidatorUtils.throwValidationSignatureErrorOrReturnFalse(
+                            callBinding, throwOnFailure);
+                }
+            }
             // check time attribute
             return SqlValidatorUtils.throwExceptionOrReturnFalse(
                     checkTimeColumnDescriptorOperand(callBinding, 1), throwOnFailure);
@@ -70,7 +87,7 @@ public class SqlCumulateTableFunction extends SqlWindowTableFunction {
         public String getAllowedSignatures(SqlOperator op, String opName) {
             return opName
                     + "(TABLE table_name, DESCRIPTOR(timecol), "
-                    + "datetime interval, datetime interval[, datetime interval])";
+                    + "datetime interval, datetime interval[, datetime interval[, emit_only_on_update]])";
         }
     }
 }
