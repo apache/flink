@@ -37,8 +37,6 @@ import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.types.StringValue;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -46,6 +44,12 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Random;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Test {@link ExternalSorter} on a large set of {@link StringValue}. */
 public class MassiveStringValueSorting {
@@ -128,8 +132,8 @@ public class MassiveStringValueSorting {
                 while ((nextVerify = verifyReader.readLine()) != null) {
                     nextFromFlinkSort = sortedData.next(nextFromFlinkSort);
 
-                    Assert.assertNotNull(nextFromFlinkSort);
-                    Assert.assertEquals(nextVerify, nextFromFlinkSort.getValue());
+                    assertNotNull(nextFromFlinkSort);
+                    assertEquals(nextVerify, nextFromFlinkSort.getValue());
                 }
             } finally {
                 if (reader != null) {
@@ -148,7 +152,7 @@ public class MassiveStringValueSorting {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         } finally {
             if (input != null) {
                 //noinspection ResultOfMethodCallIgnored
@@ -275,14 +279,14 @@ public class MassiveStringValueSorting {
                     num++;
 
                     nextFromFlinkSort = sortedData.next(nextFromFlinkSort);
-                    Assert.assertNotNull(nextFromFlinkSort);
+                    assertNotNull(nextFromFlinkSort);
 
-                    Assert.assertEquals(nextVerify.f0, nextFromFlinkSort.f0);
-                    Assert.assertArrayEquals(nextVerify.f1, nextFromFlinkSort.f1);
+                    assertEquals(nextVerify.f0, nextFromFlinkSort.f0);
+                    assertArrayEquals(nextVerify.f1, nextFromFlinkSort.f1);
                 }
 
-                Assert.assertNull(sortedData.next(nextFromFlinkSort));
-                Assert.assertEquals(numStrings, num);
+                assertNull(sortedData.next(nextFromFlinkSort));
+                assertEquals(numStrings, num);
 
             } finally {
                 if (reader != null) {
@@ -301,7 +305,7 @@ public class MassiveStringValueSorting {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             e.printStackTrace();
-            Assert.fail(e.getMessage());
+            fail(e.getMessage());
         } finally {
             if (input != null) {
                 //noinspection ResultOfMethodCallIgnored

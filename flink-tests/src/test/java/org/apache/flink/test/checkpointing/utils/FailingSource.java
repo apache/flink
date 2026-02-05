@@ -33,7 +33,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Source for window checkpointing IT cases that can introduce artificial failures. */
 public class FailingSource extends RichSourceFunction<Tuple2<Long, IntType>>

@@ -47,7 +47,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPunctuatedWatermarks;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.test.util.source.AbstractTestSource;
 import org.apache.flink.test.util.source.SingleSplitEnumerator;
 import org.apache.flink.test.util.source.TestSourceReader;
@@ -55,9 +55,7 @@ import org.apache.flink.test.util.source.TestSplit;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
@@ -68,12 +66,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Integration test for streaming programs using side outputs. */
-public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializable {
-
-    @Rule public transient ExpectedException expectedException = ExpectedException.none();
+public class SideOutputITCase extends AbstractTestBase implements Serializable {
 
     static List<Integer> elements = new ArrayList<>();
 
@@ -373,8 +370,12 @@ public class SideOutputITCase extends AbstractTestBaseJUnit4 implements Serializ
 
         passThroughtStream.getSideOutput(sideOutputTag1).addSink(sideOutputResultSink1);
 
-        expectedException.expect(UnsupportedOperationException.class);
-        passThroughtStream.getSideOutput(sideOutputTag2).addSink(sideOutputResultSink2);
+        assertThatThrownBy(
+                        () ->
+                                passThroughtStream
+                                        .getSideOutput(sideOutputTag2)
+                                        .addSink(sideOutputResultSink2))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     /** Test ProcessFunction side output. */

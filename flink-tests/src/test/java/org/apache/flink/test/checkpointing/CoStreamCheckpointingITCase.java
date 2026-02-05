@@ -34,7 +34,7 @@ import org.apache.flink.test.util.AbstractTestBaseJUnit4;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.Collector;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -42,8 +42,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * A simple test that runs a streaming topology with checkpointing enabled. This differs from {@link
@@ -56,7 +56,7 @@ import static org.junit.Assert.assertTrue;
  * <p>The test triggers a failure after a while and verifies that, after completion, the state
  * reflects the "exactly once" semantics.
  */
-@SuppressWarnings({"serial", "deprecation"})
+@SuppressWarnings("deprecation")
 public class CoStreamCheckpointingITCase extends AbstractTestBaseJUnit4 {
 
     private static final long NUM_STRINGS = 10_000L;
@@ -71,7 +71,7 @@ public class CoStreamCheckpointingITCase extends AbstractTestBaseJUnit4 {
      */
     @Test
     public void testCoStreamCheckpointingProgram() throws Exception {
-        assertTrue("Broken test setup", NUM_STRINGS % 40 == 0);
+        assertThat(NUM_STRINGS % 40).as("Broken test setup").isEqualTo(0);
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);

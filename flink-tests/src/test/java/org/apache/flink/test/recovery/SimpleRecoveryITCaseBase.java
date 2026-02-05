@@ -25,34 +25,36 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestartStrategyOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * A series of tests (reusing one MiniCluster) where tasks fail (one or more time) and the recovery
  * should restart them to verify job completion.
  */
-@SuppressWarnings("serial")
-public abstract class SimpleRecoveryITCaseBase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public abstract class SimpleRecoveryITCaseBase {
 
     private static final int PARALLELISM = 4;
     private static final int DATA_FROM = 1;
     private static final int DATA_TO = PARALLELISM * PARALLELISM;
     private static final int EXPECTED_SUM = (DATA_FROM + DATA_TO) * (DATA_TO - DATA_FROM + 1) / 2;
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_WITH_CLIENT_RESOURCE =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(4)
                             .setNumberSlotsPerTaskManager(1)
@@ -169,7 +171,7 @@ public abstract class SimpleRecoveryITCaseBase extends TestLogger {
             for (long l : resultCollection) {
                 sum += l;
             }
-            assertEquals(EXPECTED_SUM, sum);
+            assertThat(sum).isEqualTo(EXPECTED_SUM);
         } finally {
             FailingMapper3.failuresBeforeSuccess = 3;
         }

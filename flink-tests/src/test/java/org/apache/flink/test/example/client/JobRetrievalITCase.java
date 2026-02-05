@@ -30,49 +30,54 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests retrieval of a job from a running Flink cluster. */
-public class JobRetrievalITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class JobRetrievalITCase {
 
     private static final Semaphore lock = new Semaphore(1);
 
-    @ClassRule
-    public static final MiniClusterResource CLUSTER =
-            new MiniClusterResource(
-                    new MiniClusterResourceConfiguration.Builder()
-                            .setNumberTaskManagers(1)
-                            .setNumberSlotsPerTaskManager(4)
-                            .build());
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
+                    () ->
+                            new MiniClusterResourceConfiguration.Builder()
+                                    .setNumberTaskManagers(1)
+                                    .setNumberSlotsPerTaskManager(4)
+                                    .build());
 
     private RestClusterClient<StandaloneClusterId> client;
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeEach
+    public void setUp(@InjectClusterClient RestClusterClient<?> restClusterClient)
+            throws Exception {
         final Configuration clientConfig = new Configuration();
+        clientConfig.addAll(restClusterClient.getFlinkConfiguration());
         clientConfig.set(RestOptions.RETRY_MAX_ATTEMPTS, 0);
         clientConfig.set(RestOptions.RETRY_DELAY, Duration.ofMillis(0L));
-        clientConfig.addAll(CLUSTER.getClientConfiguration());
 
         client = new RestClusterClient<>(clientConfig, StandaloneClusterId.getInstance());
     }
 
-    @After
+    @AfterEach
     public void tearDown() {
         if (client != null) {
             client.close();
@@ -137,7 +142,7 @@ public class JobRetrievalITCase extends TestLogger {
                                             && candidate
                                                     .getMessage()
                                                     .contains("Could not find Flink job"));
-            if (!expectedCause.isPresent()) {
+            if (expectedCause.isEmpty()) {
                 throw exception;
             }
         }

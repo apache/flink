@@ -33,10 +33,6 @@ import static org.apache.flink.test.state.operator.restore.unkeyed.NonKeyedJob.c
 /** Verifies that the state of all operators is restored if a topology change breaks up a chain. */
 public class ChainBreakTest extends AbstractNonKeyedOperatorRestoreTestBase {
 
-    public ChainBreakTest(FlinkVersion flinkVersion) {
-        super(flinkVersion);
-    }
-
     @SnapshotsGenerator
     public void generateSnapshots(FlinkVersion targetVersion) throws Exception {
         internalGenerateSnapshots(targetVersion);

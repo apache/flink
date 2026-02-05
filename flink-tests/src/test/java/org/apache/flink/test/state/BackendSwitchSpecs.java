@@ -43,8 +43,7 @@ import org.apache.flink.state.rocksdb.RocksDBKeyedStateBackend;
 import org.apache.flink.state.rocksdb.RocksDBKeyedStateBackendBuilder;
 import org.apache.flink.state.rocksdb.RocksDBPriorityQueueConfig;
 import org.apache.flink.state.rocksdb.RocksDBResourceContainer;
-
-import org.junit.rules.TemporaryFolder;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
 import java.util.Collection;
 
@@ -80,7 +79,6 @@ public final class BackendSwitchSpecs {
 
     private static final class RocksSpec implements BackendSwitchSpec {
 
-        private final TemporaryFolder temporaryFolder = new TemporaryFolder();
         private final PriorityQueueStateType queueStateType;
 
         public RocksSpec(PriorityQueueStateType queueStateType) {
@@ -95,11 +93,10 @@ public final class BackendSwitchSpecs {
                 throws Exception {
             final RocksDBResourceContainer optionsContainer = new RocksDBResourceContainer();
 
-            temporaryFolder.create();
             return new RocksDBKeyedStateBackendBuilder<>(
                             "no-op",
                             ClassLoader.getSystemClassLoader(),
-                            temporaryFolder.newFolder(),
+                            TempDirUtils.newFolder(null),
                             optionsContainer,
                             stateName -> optionsContainer.getColumnOptions(),
                             new KvStateRegistry()
@@ -122,9 +119,7 @@ public final class BackendSwitchSpecs {
         }
 
         @Override
-        public void close() throws Exception {
-            temporaryFolder.delete();
-        }
+        public void close() {}
 
         @Override
         public String toString() {

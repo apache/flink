@@ -53,22 +53,26 @@ import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.testutils.executor.TestExecutorExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Collector;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.FixedRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -86,33 +90,27 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test savepoint rescaling. */
-@RunWith(Parameterized.class)
-public class RescalingITCase extends TestLogger {
+@ExtendWith({TestLoggerExtension.class, ParameterizedTestExtension.class})
+public class RescalingITCase {
 
-    @ClassRule
-    public static final TestExecutorResource<ScheduledExecutorService> EXECUTOR_RESOURCE =
-            TestingUtils.defaultExecutorResource();
+    @RegisterExtension
+    public static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_RESOURCE =
+            TestingUtils.defaultExecutorExtension();
 
     private static final int numTaskManagers = 2;
     private static final int slotsPerTaskManager = 2;
     private static final int numSlots = numTaskManagers * slotsPerTaskManager;
 
-    @Parameterized.Parameters(name = "backend = {0}")
+    @Parameter private String backend;
+
+    @Parameters(name = "backend = {0}")
     public static Collection<Object[]> data() {
         return Arrays.asList(new Object[][] {{"hashmap"}, {"rocksdb"}});
     }
-
-    public RescalingITCase(String backend) {
-        this.backend = backend;
-    }
-
-    private final String backend;
-
-    private String currentBackend = null;
 
     enum OperatorCheckpointMethod {
         NON_PARTITIONED,
@@ -123,38 +121,30 @@ public class RescalingITCase extends TestLogger {
 
     private static MiniClusterWithClientResource cluster;
 
-    @ClassRule public static TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private static Path temporaryFolder;
 
-    @Before
+    @BeforeEach
     public void setup() throws Exception {
-        // detect parameter change
-        if (currentBackend != backend) {
-            shutDownExistingCluster();
+        Configuration config = new Configuration();
 
-            currentBackend = backend;
+        final File checkpointDir = TempDirUtils.newFolder(temporaryFolder);
+        final File savepointDir = TempDirUtils.newFolder(temporaryFolder);
 
-            Configuration config = new Configuration();
+        config.set(StateBackendOptions.STATE_BACKEND, backend);
+        config.set(CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
+        config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
 
-            final File checkpointDir = temporaryFolder.newFolder();
-            final File savepointDir = temporaryFolder.newFolder();
-
-            config.set(StateBackendOptions.STATE_BACKEND, currentBackend);
-            config.set(
-                    CheckpointingOptions.CHECKPOINTS_DIRECTORY, checkpointDir.toURI().toString());
-            config.set(CheckpointingOptions.SAVEPOINT_DIRECTORY, savepointDir.toURI().toString());
-
-            cluster =
-                    new MiniClusterWithClientResource(
-                            new MiniClusterResourceConfiguration.Builder()
-                                    .setConfiguration(config)
-                                    .setNumberTaskManagers(numTaskManagers)
-                                    .setNumberSlotsPerTaskManager(numSlots)
-                                    .build());
-            cluster.before();
-        }
+        cluster =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(config)
+                                .setNumberTaskManagers(numTaskManagers)
+                                .setNumberSlotsPerTaskManager(numSlots)
+                                .build());
+        cluster.before();
     }
 
-    @AfterClass
+    @AfterAll
     public static void shutDownExistingCluster() {
         if (cluster != null) {
             cluster.after();
@@ -162,22 +152,22 @@ public class RescalingITCase extends TestLogger {
         }
     }
 
-    @Test
+    @TestTemplate
     public void testSavepointRescalingInKeyedState() throws Exception {
         testSavepointRescalingKeyedState(false, false);
     }
 
-    @Test
+    @TestTemplate
     public void testSavepointRescalingOutKeyedState() throws Exception {
         testSavepointRescalingKeyedState(true, false);
     }
 
-    @Test
+    @TestTemplate
     public void testSavepointRescalingInKeyedStateDerivedMaxParallelism() throws Exception {
         testSavepointRescalingKeyedState(false, true);
     }
 
-    @Test
+    @TestTemplate
     public void testSavepointRescalingOutKeyedStateDerivedMaxParallelism() throws Exception {
         testSavepointRescalingKeyedState(true, true);
     }
@@ -293,7 +283,7 @@ public class RescalingITCase extends TestLogger {
      *
      * @throws Exception
      */
-    @Test
+    @TestTemplate
     public void testSavepointRescalingNonPartitionedStateCausesException() throws Exception {
         final int parallelism = numSlots / 2;
         final int parallelism2 = numSlots;
@@ -359,7 +349,7 @@ public class RescalingITCase extends TestLogger {
      *
      * @throws Exception
      */
-    @Test
+    @TestTemplate
     public void testSavepointRescalingWithKeyedAndNonPartitionedState() throws Exception {
         int numberKeys = 42;
         int numberElements = 1000;
@@ -469,37 +459,37 @@ public class RescalingITCase extends TestLogger {
         }
     }
 
-    @Test
+    @TestTemplate
     public void testSavepointRescalingInPartitionedOperatorState() throws Exception {
         testSavepointRescalingPartitionedOperatorState(
                 false, OperatorCheckpointMethod.CHECKPOINTED_FUNCTION);
     }
 
-    @Test
+    @TestTemplate
     public void testSavepointRescalingOutPartitionedOperatorState() throws Exception {
         testSavepointRescalingPartitionedOperatorState(
                 true, OperatorCheckpointMethod.CHECKPOINTED_FUNCTION);
     }
 
-    @Test
+    @TestTemplate
     public void testSavepointRescalingInBroadcastOperatorState() throws Exception {
         testSavepointRescalingPartitionedOperatorState(
                 false, OperatorCheckpointMethod.CHECKPOINTED_FUNCTION_BROADCAST);
     }
 
-    @Test
+    @TestTemplate
     public void testSavepointRescalingOutBroadcastOperatorState() throws Exception {
         testSavepointRescalingPartitionedOperatorState(
                 true, OperatorCheckpointMethod.CHECKPOINTED_FUNCTION_BROADCAST);
     }
 
-    @Test
+    @TestTemplate
     public void testSavepointRescalingInPartitionedOperatorStateList() throws Exception {
         testSavepointRescalingPartitionedOperatorState(
                 false, OperatorCheckpointMethod.LIST_CHECKPOINTED);
     }
 
-    @Test
+    @TestTemplate
     public void testSavepointRescalingOutPartitionedOperatorStateList() throws Exception {
         testSavepointRescalingPartitionedOperatorState(
                 true, OperatorCheckpointMethod.LIST_CHECKPOINTED);

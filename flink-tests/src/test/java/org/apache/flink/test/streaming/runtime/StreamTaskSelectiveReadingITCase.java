@@ -27,13 +27,13 @@ import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSource
 import org.apache.flink.streaming.util.TestSequentialReadingStreamOperator;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for selective reading of {@code TwoInputStreamTask}. */
 public class StreamTaskSelectiveReadingITCase {

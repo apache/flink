@@ -36,11 +36,10 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPunctuatedWatermarks;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -48,9 +47,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 /** Integration tests for windowed join / coGroup operators. */
-@SuppressWarnings("serial")
-public class CoGroupJoinITCase extends AbstractTestBaseJUnit4 {
+public class CoGroupJoinITCase extends AbstractTestBase {
 
     private static List<String> testResults;
 
@@ -127,7 +127,7 @@ public class CoGroupJoinITCase extends AbstractTestBaseJUnit4 {
         Collections.sort(expectedResult);
         Collections.sort(testResults);
 
-        Assert.assertEquals(expectedResult, testResults);
+        assertEquals(expectedResult, testResults);
     }
 
     @Test
@@ -203,7 +203,7 @@ public class CoGroupJoinITCase extends AbstractTestBaseJUnit4 {
         Collections.sort(expectedResult);
         Collections.sort(testResults);
 
-        Assert.assertEquals(expectedResult, testResults);
+        assertEquals(expectedResult, testResults);
     }
 
     @Test
@@ -275,7 +275,7 @@ public class CoGroupJoinITCase extends AbstractTestBaseJUnit4 {
         Collections.sort(expectedResult);
         Collections.sort(testResults);
 
-        Assert.assertEquals(expectedResult, testResults);
+        assertEquals(expectedResult, testResults);
     }
 
     /**

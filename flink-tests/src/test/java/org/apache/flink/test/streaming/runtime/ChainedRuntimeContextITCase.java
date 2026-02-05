@@ -23,15 +23,14 @@ import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.legacy.RichParallelSourceFunction;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /** Test creation of context for chained streaming operators. */
-@SuppressWarnings("serial")
-public class ChainedRuntimeContextITCase extends AbstractTestBaseJUnit4 {
+public class ChainedRuntimeContextITCase extends AbstractTestBase {
     private static RuntimeContext srcContext;
     private static RuntimeContext mapContext;
 

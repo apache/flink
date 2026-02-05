@@ -39,16 +39,17 @@ import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.util.SuccessException;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,18 +65,16 @@ import scala.concurrent.duration.FiniteDuration;
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.BASE_PATH;
 import static org.apache.flink.changelog.fs.FsStateChangelogStorageFactory.IDENTIFIER;
 import static org.apache.flink.configuration.StateChangelogOptions.STATE_CHANGE_LOG_STORAGE;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test job classloader. */
-public class ClassLoaderITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class ClassLoaderITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(ClassLoaderITCase.class);
-
-    private static final String INPUT_SPLITS_PROG_JAR_FILE = "target/customsplit-test-jar.jar";
 
     private static final String STREAMING_INPUT_SPLITS_PROG_JAR_FILE =
             "target/streaming-customsplit-test-jar.jar";
@@ -85,8 +84,6 @@ public class ClassLoaderITCase extends TestLogger {
 
     private static final String STREAMING_CHECKPOINTED_PROG_JAR_FILE =
             "target/streaming-checkpointed-classloader-test-jar.jar";
-
-    private static final String KMEANS_JAR_PATH = "target/kmeans-test-jar.jar";
 
     private static final String USERCODETYPE_JAR_PATH = "target/usercodetype-test-jar.jar";
 
@@ -98,13 +95,13 @@ public class ClassLoaderITCase extends TestLogger {
     private static final String CLASSLOADING_POLICY_JAR_PATH =
             "target/classloading_policy-test-jar.jar";
 
-    @ClassRule public static final TemporaryFolder FOLDER = new TemporaryFolder();
+    @TempDir static java.nio.file.Path folder;
 
     private static MiniClusterResource miniClusterResource = null;
 
     private static final int parallelism = 4;
 
-    @BeforeClass
+    @BeforeAll
     public static void setUp() throws Exception {
 
         Configuration config = new Configuration();
@@ -114,13 +111,12 @@ public class ClassLoaderITCase extends TestLogger {
         config.set(StateBackendOptions.STATE_BACKEND, "hashmap");
         config.set(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
-                FOLDER.newFolder().getAbsoluteFile().toURI().toString());
+                new Path(TempDirUtils.newFolder(folder).toURI()).toString());
 
         // Savepoint path
         config.set(
                 CheckpointingOptions.SAVEPOINT_DIRECTORY,
-                FOLDER.newFolder().getAbsoluteFile().toURI().toString());
-
+                new Path(TempDirUtils.newFolder(folder).toURI()).toString());
         // required as we otherwise run out of memory
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("80m"));
 
@@ -129,7 +125,7 @@ public class ClassLoaderITCase extends TestLogger {
         // The randomization currently happens on the job level (environment); while this factory
         // can only be set on the cluster level; so we do it unconditionally here.
         config.set(STATE_CHANGE_LOG_STORAGE, IDENTIFIER);
-        config.set(BASE_PATH, FOLDER.newFolder().getAbsolutePath());
+        config.set(BASE_PATH, new Path(TempDirUtils.newFolder(folder).toURI()).toString());
 
         // some tests check for serialization problems related to class-loading
         // this requires all RPCs to actually go through serialization
@@ -146,14 +142,14 @@ public class ClassLoaderITCase extends TestLogger {
         miniClusterResource.before();
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDownClass() {
         if (miniClusterResource != null) {
             miniClusterResource.after();
         }
     }
 
-    @After
+    @AfterEach
     public void tearDown() {
         TestStreamEnvironment.unsetAsContext();
     }
@@ -218,7 +214,7 @@ public class ClassLoaderITCase extends TestLogger {
         // Program should terminate with a 'SuccessException'
         // the exception should be contained in a SerializedThrowable, which failed to deserialize
         // the original exception because it is only contained in the user-jar
-        assertThatThrownBy(() -> streamingCheckpointedProg.invokeInteractiveModeForExecution())
+        assertThatThrownBy(streamingCheckpointedProg::invokeInteractiveModeForExecution)
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
                                 SerializedThrowable.class,
@@ -242,8 +238,8 @@ public class ClassLoaderITCase extends TestLogger {
     @Test
     public void testCheckpointingCustomKvStateJobWithCustomClassLoader()
             throws IOException, ProgramInvocationException {
-        File checkpointDir = FOLDER.newFolder();
-        File outputDir = FOLDER.newFolder();
+        File checkpointDir = TempDirUtils.newFolder(folder);
+        File outputDir = TempDirUtils.newFolder(folder);
 
         final PackagedProgram program =
                 PackagedProgram.newBuilder()
@@ -276,8 +272,8 @@ public class ClassLoaderITCase extends TestLogger {
 
         Deadline deadline = new FiniteDuration(100, TimeUnit.SECONDS).fromNow();
 
-        File checkpointDir = FOLDER.newFolder();
-        File outputDir = FOLDER.newFolder();
+        File checkpointDir = TempDirUtils.newFolder(folder);
+        File outputDir = TempDirUtils.newFolder(folder);
 
         final PackagedProgram program =
                 PackagedProgram.newBuilder()
@@ -358,7 +354,7 @@ public class ClassLoaderITCase extends TestLogger {
             }
         }
 
-        assertNotNull("Failed to trigger savepoint", savepointPath);
+        assertThat(savepointPath).as("Failed to trigger savepoint").isNotNull();
 
         clusterClient.disposeSavepoint(savepointPath).get();
 
@@ -366,7 +362,7 @@ public class ClassLoaderITCase extends TestLogger {
 
         // make sure, the execution is finished to not influence other test methods
         invokeThread.join(deadline.timeLeft().toMillis());
-        assertFalse("Program invoke thread still running", invokeThread.isAlive());
+        assertThat(invokeThread.isAlive()).as("Program invoke thread still running").isFalse();
     }
 
     @Test
@@ -376,7 +372,7 @@ public class ClassLoaderITCase extends TestLogger {
         // tmp folders (child classloader classpath) respectively.
         String childResourceDirName = "child0";
         String testResourceName = "test-resource";
-        File childResourceDir = FOLDER.newFolder(childResourceDirName);
+        File childResourceDir = TempDirUtils.newFolder(folder, childResourceDirName);
         File childResource = new File(childResourceDir, testResourceName);
         assertTrue(childResource.createNewFile());
 
@@ -415,7 +411,7 @@ public class ClassLoaderITCase extends TestLogger {
         // tmp folders (child classloader classpath) respectively.
         String childResourceDirName = "child1";
         String testResourceName = "test-resource";
-        File childResourceDir = FOLDER.newFolder(childResourceDirName);
+        File childResourceDir = TempDirUtils.newFolder(folder, childResourceDirName);
         File childResource = new File(childResourceDir, testResourceName);
         assertTrue(childResource.createNewFile());
 

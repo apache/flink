@@ -41,8 +41,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * A simple test that runs a streaming topology with checkpointing enabled.
@@ -55,7 +55,6 @@ import static org.junit.Assert.assertTrue;
  * the recovery does not fall back to "square one" (which would naturally lead to correct results
  * without testing the checkpointing).
  */
-@SuppressWarnings("serial")
 public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(StateCheckpointedITCase.class);
@@ -71,7 +70,7 @@ public class StateCheckpointedITCase extends StreamFaultToleranceTestBase {
      */
     @Override
     public void testProgram(StreamExecutionEnvironment env) {
-        assertTrue("Broken test setup", NUM_STRINGS % 40 == 0);
+        assertThat(NUM_STRINGS % 40).as("Broken test setup").isEqualTo(0);
 
         final long failurePosMin = (long) (0.4 * NUM_STRINGS / PARALLELISM);
         final long failurePosMax = (long) (0.7 * NUM_STRINGS / PARALLELISM);

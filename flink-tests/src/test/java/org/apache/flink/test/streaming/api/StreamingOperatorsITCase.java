@@ -36,11 +36,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.async.AsyncFunction;
 import org.apache.flink.streaming.api.functions.async.ResultFuture;
 import org.apache.flink.streaming.api.functions.async.RichAsyncFunction;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -54,8 +53,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 /** Integration tests for streaming operators. */
-public class StreamingOperatorsITCase extends AbstractTestBaseJUnit4 {
+public class StreamingOperatorsITCase extends AbstractTestBase {
 
     /**
      * Tests the basic functionality of the AsyncWaitOperator: Processing a limited stream of
@@ -148,10 +149,10 @@ public class StreamingOperatorsITCase extends AbstractTestBaseJUnit4 {
 
         env.execute();
 
-        Assert.assertEquals(expected, actualResult1);
+        assertEquals(expected, actualResult1);
 
         Collections.sort(actualResult2);
-        Assert.assertEquals(expected, actualResult2);
+        assertEquals(expected, actualResult2);
 
         MemorySinkFunction.clear();
     }

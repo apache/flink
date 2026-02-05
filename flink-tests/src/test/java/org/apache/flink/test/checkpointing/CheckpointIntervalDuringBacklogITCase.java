@@ -39,14 +39,14 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.NumberSequenceSourceWithWaitForCheckpoint;
 import org.apache.flink.util.CloseableIterator;
 
-import org.junit.After;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import javax.annotation.Nullable;
 
@@ -73,9 +73,9 @@ public class CheckpointIntervalDuringBacklogITCase {
     private static final List<Long> EXPECTED_RESULT =
             LongStream.rangeClosed(0, NUM_RECORDS - 1).boxed().collect(Collectors.toList());
 
-    @Rule
-    public MiniClusterWithClientResource cluster =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    public static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             // allocate more, independent resources to speed up both sources startup
                             // to minimize the chances of hitting NOT_ALL_REQUIRED_TASKS_RUNNING
@@ -84,7 +84,7 @@ public class CheckpointIntervalDuringBacklogITCase {
                             .setNumberSlotsPerTaskManager(1)
                             .build());
 
-    @After
+    @AfterEach
     public void tearDown() {
         CheckpointRecordingOperator.reset();
     }
@@ -140,7 +140,7 @@ public class CheckpointIntervalDuringBacklogITCase {
     }
 
     @Test
-    @Ignore // FLINK-39108
+    @Disabled("FLINK-39018") // FLINK-39108
     public void testNoCheckpointDuringBacklog() throws Exception {
         final int recordsBeforeSwitch = NUM_RECORDS / 2;
         Duration expectedSwitchTime = Duration.ofMillis(recordsBeforeSwitch * SLEEP_MS_PER_RECORD);

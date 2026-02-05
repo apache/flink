@@ -25,22 +25,23 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
-import org.apache.flink.test.util.MultipleProgramsTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** These check whether the object-reuse execution mode does really reuse objects. */
-@SuppressWarnings("serial")
-@RunWith(Parameterized.class)
-public class ObjectReuseITCase extends MultipleProgramsTestBaseJUnit4 {
+@ExtendWith(ParameterizedTestExtension.class)
+public class ObjectReuseITCase extends AbstractTestBase {
 
     private static final List<Tuple2<String, Integer>> REDUCE_DATA =
             Arrays.asList(
@@ -58,14 +59,9 @@ public class ObjectReuseITCase extends MultipleProgramsTestBaseJUnit4 {
                     new Tuple2<>("a", 4),
                     new Tuple2<>("a", 5));
 
-    private final boolean objectReuse;
+    @Parameter private boolean objectReuse;
 
-    public ObjectReuseITCase(boolean objectReuse) {
-        super(TestExecutionMode.CLUSTER);
-        this.objectReuse = objectReuse;
-    }
-
-    @Test
+    @TestTemplate
     public void testKeyedReduce() throws Exception {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -95,7 +91,7 @@ public class ObjectReuseITCase extends MultipleProgramsTestBaseJUnit4 {
         assertEquals(new Tuple2<>("a", 60), res);
     }
 
-    @Test
+    @TestTemplate
     public void testGlobalReduce() throws Exception {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -132,8 +128,8 @@ public class ObjectReuseITCase extends MultipleProgramsTestBaseJUnit4 {
         assertEquals(new Tuple2<>("a", 60), res);
     }
 
-    @Parameterized.Parameters(name = "Execution mode = CLUSTER, Reuse = {0}")
-    public static Collection<Object[]> executionModes() {
+    @Parameters(name = "Execution mode = CLUSTER, Reuse = {0}")
+    public static Collection<Object[]> parameters() {
         return Arrays.asList(
                 new Object[] {
                     false,

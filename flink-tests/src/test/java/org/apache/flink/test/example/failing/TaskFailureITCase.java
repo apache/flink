@@ -32,7 +32,7 @@ import java.util.List;
 
 import static org.apache.flink.test.util.TestBaseUtils.compareResultAsText;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests that both jobs, the failing and the working one, are handled correctly. The first (failing)
@@ -50,7 +50,7 @@ public class TaskFailureITCase extends JavaProgramTestBaseJUnit4 {
             executeTask(new FailingTestMapper(), 1);
         } catch (RuntimeException e) { // expected for cluster execution
             // for cluster execution, one restart. So, exception should be appended with 1.
-            assertTrue(findThrowableWithMessage(e, EXCEPTION_STRING + ":1").isPresent());
+            assertThat(findThrowableWithMessage(e, EXCEPTION_STRING + ":1")).isPresent();
         }
         // test correct version
         executeTask(new TestMapper(), 0);

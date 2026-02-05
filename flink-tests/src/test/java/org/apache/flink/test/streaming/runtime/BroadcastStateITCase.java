@@ -30,24 +30,20 @@ import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction
 import org.apache.flink.streaming.api.functions.sink.legacy.RichSinkFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.util.WatermarkStrategyWithPunctuatedWatermarks;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.Collector;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import javax.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** ITCase for the {@link org.apache.flink.api.common.state.BroadcastState}. */
-public class BroadcastStateITCase extends AbstractTestBaseJUnit4 {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
+public class BroadcastStateITCase extends AbstractTestBase {
 
     @Test
     public void testKeyedWithBroadcastTranslation() throws Exception {

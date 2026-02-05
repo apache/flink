@@ -41,13 +41,15 @@ import org.apache.flink.streaming.runtime.tasks.OneInputStreamTask;
 import org.apache.flink.streaming.runtime.tasks.OneInputStreamTaskTestHarness;
 import org.apache.flink.streaming.runtime.tasks.StreamMockEnvironment;
 import org.apache.flink.streaming.util.TestHarnessUtil;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Optional;
@@ -58,19 +60,17 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
 import static org.apache.flink.configuration.CheckpointingOptions.INCREMENTAL_CHECKPOINTS;
 import static org.apache.flink.configuration.StateBackendOptions.STATE_BACKEND;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Test for StatefulOperatorChainedTaskTest. */
 public class StatefulOperatorChainedTaskTest {
 
     private static final Set<OperatorID> RESTORED_OPERATORS = ConcurrentHashMap.newKeySet();
-    private TemporaryFolder temporaryFolder;
+    @TempDir private Path temporaryFolder;
 
-    @Before
+    @BeforeEach
     public void setup() throws IOException {
         RESTORED_OPERATORS.clear();
-        temporaryFolder = new TemporaryFolder();
-        temporaryFolder.create();
     }
 
     @Test
@@ -99,7 +99,7 @@ public class StatefulOperatorChainedTaskTest {
                 Optional.of(restore));
 
         assertEquals(
-                new HashSet<>(Arrays.asList(headOperatorID, tailOperatorID)), RESTORED_OPERATORS);
+                RESTORED_OPERATORS, new HashSet<>(Arrays.asList(headOperatorID, tailOperatorID)));
     }
 
     private JobManagerTaskRestore createRunAndCheckpointOperatorChain(
@@ -110,7 +110,7 @@ public class StatefulOperatorChainedTaskTest {
             Optional<JobManagerTaskRestore> restore)
             throws Exception {
 
-        File localRootDir = temporaryFolder.newFolder();
+        File localRootDir = TempDirUtils.newFolder(temporaryFolder);
         final OneInputStreamTaskTestHarness<String, String> testHarness =
                 new OneInputStreamTaskTestHarness<>(
                         OneInputStreamTask::new,
@@ -143,7 +143,7 @@ public class StatefulOperatorChainedTaskTest {
 
         Configuration configuration = new Configuration();
         configuration.setString(STATE_BACKEND.key(), "rocksdb");
-        File file = temporaryFolder.newFolder();
+        File file = TempDirUtils.newFolder(temporaryFolder);
         configuration.setString(CHECKPOINTS_DIRECTORY.key(), file.toURI().toString());
         configuration.setString(INCREMENTAL_CHECKPOINTS.key(), "true");
         environment.setTaskManagerInfo(

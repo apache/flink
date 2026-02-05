@@ -27,10 +27,6 @@ import org.apache.flink.test.state.operator.restore.ExecutionMode;
 /** Test state restoration for a keyed operator restore tests. */
 public class KeyedComplexChainTest extends AbstractKeyedOperatorRestoreTestBase {
 
-    public KeyedComplexChainTest(FlinkVersion flinkVersion) {
-        super(flinkVersion);
-    }
-
     @SnapshotsGenerator
     public void generateSnapshots(FlinkVersion targetVersion) throws Exception {
         internalGenerateSnapshots(targetVersion);

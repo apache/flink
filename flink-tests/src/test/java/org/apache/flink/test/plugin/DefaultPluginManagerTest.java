@@ -28,10 +28,9 @@ import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava33.com.google.common.collect.Lists;
 
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -52,11 +51,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** Test for {@link DefaultPluginManager}. */
 public class DefaultPluginManagerTest extends PluginTestBase {
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir private File temporaryFolder;
 
     private Collection<PluginDescriptor> descriptors;
 
-    @Before
+    @BeforeEach
     public void setup() throws Exception {
         /*
          * We setup a plugin directory hierarchy and utilize DirectoryBasedPluginFinder to create the
@@ -71,10 +70,9 @@ public class DefaultPluginManagerTest extends PluginTestBase {
          *                        |-plugin-b.jar
          * </pre>
          */
-        final File pluginRootFolder = temporaryFolder.newFolder();
-        final Path pluginRootFolderPath = pluginRootFolder.toPath();
-        final File pluginAFolder = new File(pluginRootFolder, "A");
-        final File pluginBFolder = new File(pluginRootFolder, "B");
+        final Path pluginRootFolderPath = temporaryFolder.toPath();
+        final File pluginAFolder = new File(temporaryFolder, "A");
+        final File pluginBFolder = new File(temporaryFolder, "B");
         Preconditions.checkState(pluginAFolder.mkdirs());
         Preconditions.checkState(pluginBFolder.mkdirs());
         Files.copy(locateJarFile(PLUGIN_A).toPath(), Paths.get(pluginAFolder.toString(), PLUGIN_A));

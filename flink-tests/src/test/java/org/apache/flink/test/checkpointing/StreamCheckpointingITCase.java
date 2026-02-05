@@ -37,7 +37,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * A simple test that runs a streaming topology with checkpointing enabled.
@@ -45,7 +45,6 @@ import static org.junit.Assert.assertEquals;
  * <p>The test triggers a failure after a while and verifies that, after completion, the state
  * defined with the {@link ListCheckpointed} interface reflects the "exactly once" semantics.
  */
-@SuppressWarnings("serial")
 public class StreamCheckpointingITCase extends StreamFaultToleranceTestBase {
 
     static final long NUM_STRINGS = 10_000_000L;

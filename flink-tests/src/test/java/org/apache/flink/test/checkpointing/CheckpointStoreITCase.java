@@ -37,29 +37,31 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.source.AbstractTestSource;
 import org.apache.flink.test.util.source.TestSourceReader;
 import org.apache.flink.test.util.source.TestSplit;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.function.SerializableSupplier;
 
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Test that failure on recovery leads to job restart if configured, so that transient recovery
  * failures can are mitigated.
  */
-public class CheckpointStoreITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class CheckpointStoreITCase {
 
     private static final Configuration CONFIGURATION =
             new Configuration()
@@ -67,14 +69,14 @@ public class CheckpointStoreITCase extends TestLogger {
                             HighAvailabilityOptions.HA_MODE,
                             BlockingHighAvailabilityServiceFactory.class.getName());
 
-    @ClassRule
-    public static final MiniClusterWithClientResource CLUSTER =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(CONFIGURATION)
                             .build());
 
-    @Before
+    @BeforeEach
     public void setUp() {
         BlockingHighAvailabilityServiceFactory.reset();
         FailingMapper.reset();

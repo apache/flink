@@ -27,6 +27,7 @@ import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.source.util.ratelimit.RateLimiterStrategy;
+import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
@@ -41,18 +42,23 @@ import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameter;
+import org.apache.flink.testutils.junit.extensions.parameterized.ParameterizedTestExtension;
+import org.apache.flink.testutils.junit.extensions.parameterized.Parameters;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.types.Either;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -68,10 +74,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Integration test for checkpointing and restoring a job with a {@link MapState} that contains null
  * user values.
  */
-@RunWith(Parameterized.class)
-public class MapStateNullValueCheckpointingITCase extends TestLogger {
+@ExtendWith({TestLoggerExtension.class, ParameterizedTestExtension.class})
+public class MapStateNullValueCheckpointingITCase {
 
-    @Parameterized.Parameters(name = "stateBackend : {0}, snapshotType : {1}")
+    @Parameters(name = "stateBackend : {0}, snapshotType : {1}")
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
@@ -89,53 +95,50 @@ public class MapStateNullValueCheckpointingITCase extends TestLogger {
                 });
     }
 
-    @Parameterized.Parameter public String stateBackend;
+    @Parameter public String stateBackend;
 
-    @Parameterized.Parameter(1)
+    @Parameter(1)
     public Either<CheckpointType, SavepointFormatType> snapshotType;
 
-    @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
+    @TempDir private Path tmpFolder;
 
-    private static MiniClusterWithClientResource cluster;
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(new Configuration())
+                            .setNumberTaskManagers(10)
+                            .setNumberSlotsPerTaskManager(1)
+                            .build());
 
-    @Before
+    @BeforeEach
     public void before() throws Exception {
-        cluster =
-                new MiniClusterWithClientResource(
-                        new MiniClusterResourceConfiguration.Builder()
-                                .setConfiguration(new Configuration())
-                                .setNumberTaskManagers(10)
-                                .setNumberSlotsPerTaskManager(1)
-                                .build());
-        cluster.before();
-
         StatefulMapper.firstRunFuture = new CompletableFuture<>();
         StatefulMapper.secondRunFuture = new CompletableFuture<>();
     }
 
-    @After
-    public void after() {
-        if (cluster != null) {
-            cluster.after();
-            cluster = null;
-        }
-    }
-
-    @Test
-    public void testMapStateWithNullValueCheckpointingAndRestore() throws Exception {
-        final String savepointPath = runJobAndTakeSnapshot();
+    @TestTemplate
+    public void testMapStateWithNullValueCheckpointingAndRestore(
+            @InjectMiniCluster MiniCluster miniCluster,
+            @InjectClusterClient ClusterClient<?> clusterClient)
+            throws Exception {
+        final String savepointPath = runJobAndTakeSnapshot(miniCluster, clusterClient);
         assertThat(savepointPath).isNotEmpty();
-        restoreAndVerify(savepointPath);
+        restoreAndVerify(savepointPath, miniCluster);
     }
 
-    private String runJobAndTakeSnapshot() throws Exception {
+    private String runJobAndTakeSnapshot(
+            @InjectMiniCluster MiniCluster miniCluster,
+            @InjectClusterClient ClusterClient<?> clusterClient)
+            throws Exception {
         Configuration conf = new Configuration();
         conf.set(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
-                tmpFolder.newFolder().toURI().toString());
+                TempDirUtils.newFolder(tmpFolder).toURI().toString());
         conf.set(CheckpointingOptions.EXTERNALIZED_CHECKPOINT_RETENTION, RETAIN_ON_CANCELLATION);
         conf.set(
-                CheckpointingOptions.SAVEPOINT_DIRECTORY, tmpFolder.newFolder().toURI().toString());
+                CheckpointingOptions.SAVEPOINT_DIRECTORY,
+                TempDirUtils.newFolder(tmpFolder).toURI().toString());
         conf.set(StateBackendOptions.STATE_BACKEND, stateBackend);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
 
@@ -147,7 +150,6 @@ public class MapStateNullValueCheckpointingITCase extends TestLogger {
                 .sinkTo(new DiscardingSink<>());
 
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
-        MiniCluster miniCluster = cluster.getMiniCluster();
         miniCluster.submitJob(jobGraph).get();
 
         JobID jobID = jobGraph.getJobID();
@@ -157,21 +159,18 @@ public class MapStateNullValueCheckpointingITCase extends TestLogger {
 
         if (snapshotType.isLeft()) {
             // Trigger a checkpoint
-            cluster.getClusterClient()
-                    .triggerCheckpoint(jobID, snapshotType.left())
-                    .get(2, TimeUnit.MINUTES);
+            clusterClient.triggerCheckpoint(jobID, snapshotType.left()).get(2, TimeUnit.MINUTES);
             String checkpointPath =
                     CommonTestUtils.getLatestCompletedCheckpointPath(jobID, miniCluster)
                             .<NoSuchElementException>orElseThrow(
-                                    () -> {
-                                        throw new NoSuchElementException(
-                                                "No checkpoint was created yet");
-                                    });
-            cluster.getClusterClient().cancel(jobID);
+                                    () ->
+                                            new NoSuchElementException(
+                                                    "No checkpoint was created yet"));
+            clusterClient.cancel(jobID);
             return checkpointPath;
         } else {
             // Trigger a savepoint
-            return cluster.getClusterClient()
+            return clusterClient
                     .stopWithSavepoint(jobID, false, null, snapshotType.right())
                     .get(2, TimeUnit.MINUTES);
         }
@@ -185,13 +184,14 @@ public class MapStateNullValueCheckpointingITCase extends TestLogger {
                 BasicTypeInfo.LONG_TYPE_INFO);
     }
 
-    private void restoreAndVerify(String savepointPath) throws Exception {
+    private void restoreAndVerify(String savepointPath, MiniCluster miniCluster) throws Exception {
         Configuration conf = new Configuration();
         conf.set(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
-                tmpFolder.newFolder().toURI().toString());
+                TempDirUtils.newFolder(tmpFolder).toURI().toString());
         conf.set(
-                CheckpointingOptions.SAVEPOINT_DIRECTORY, tmpFolder.newFolder().toURI().toString());
+                CheckpointingOptions.SAVEPOINT_DIRECTORY,
+                TempDirUtils.newFolder(tmpFolder).toURI().toString());
         conf.set(StateBackendOptions.STATE_BACKEND, stateBackend);
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(conf);
         env.setParallelism(1);
@@ -204,7 +204,6 @@ public class MapStateNullValueCheckpointingITCase extends TestLogger {
         JobGraph jobGraph = env.getStreamGraph().getJobGraph();
         jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath));
 
-        MiniCluster miniCluster = cluster.getMiniCluster();
         miniCluster.submitJob(jobGraph).get();
 
         Map<String, String> restoredState = StatefulMapper.secondRunFuture.get(2, TimeUnit.MINUTES);

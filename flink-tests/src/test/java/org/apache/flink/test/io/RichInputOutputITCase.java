@@ -32,7 +32,7 @@ import org.apache.flink.test.util.JavaProgramTestBaseJUnit4;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Tests for rich DataSource and DataSink input output formats accessing RuntimeContext by checking

@@ -22,13 +22,19 @@ import org.apache.flink.core.plugin.PluginDescriptor;
 import org.apache.flink.core.plugin.PluginLoader;
 import org.apache.flink.test.plugin.jar.plugina.TestServiceA;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Iterator;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Test for {@link PluginLoader}. */
 public class PluginLoaderTest extends PluginTestBase {
@@ -44,43 +50,42 @@ public class PluginLoaderTest extends PluginTestBase {
         URLClassLoader pluginClassLoaderA =
                 PluginLoader.createPluginClassLoader(
                         pluginDescriptorA, PARENT_CLASS_LOADER, new String[0]);
-        Assert.assertNotEquals(PARENT_CLASS_LOADER, pluginClassLoaderA);
+        assertNotEquals(PARENT_CLASS_LOADER, pluginClassLoaderA);
         final PluginLoader pluginLoaderA = new PluginLoader("test-plugin", pluginClassLoaderA);
 
         Iterator<TestSpi> testSpiIteratorA = pluginLoaderA.load(TestSpi.class);
 
-        Assert.assertTrue(testSpiIteratorA.hasNext());
+        assertTrue(testSpiIteratorA.hasNext());
 
         TestSpi testSpiA = testSpiIteratorA.next();
 
-        Assert.assertFalse(testSpiIteratorA.hasNext());
+        assertFalse(testSpiIteratorA.hasNext());
 
-        Assert.assertNotNull(testSpiA.testMethod());
+        assertNotNull(testSpiA.testMethod());
 
-        Assert.assertEquals(
-                TestServiceA.class.getCanonicalName(), testSpiA.getClass().getCanonicalName());
+        assertEquals(TestServiceA.class.getCanonicalName(), testSpiA.getClass().getCanonicalName());
         // The plugin must return the same class loader as the one used to load it.
-        Assert.assertEquals(pluginClassLoaderA, testSpiA.getClassLoader());
-        Assert.assertEquals(pluginClassLoaderA, testSpiA.getClass().getClassLoader());
+        assertEquals(pluginClassLoaderA, testSpiA.getClassLoader());
+        assertEquals(pluginClassLoaderA, testSpiA.getClass().getClassLoader());
 
         // Looks strange, but we want to ensure that those classes are not instance of each other
         // because they were
         // loaded by different classloader instances because the plugin loader uses
         // child-before-parent order.
-        Assert.assertFalse(testSpiA instanceof TestServiceA);
+        assertFalse(testSpiA instanceof TestServiceA);
 
         // In the following we check for isolation of classes between different plugin loaders.
         final PluginLoader secondPluginLoaderA =
                 PluginLoader.create(pluginDescriptorA, PARENT_CLASS_LOADER, new String[0]);
 
         TestSpi secondTestSpiA = secondPluginLoaderA.load(TestSpi.class).next();
-        Assert.assertNotNull(secondTestSpiA.testMethod());
+        assertNotNull(secondTestSpiA.testMethod());
 
         // Again, this looks strange, but we expect classes with the same name, that are not equal.
-        Assert.assertEquals(
+        assertEquals(
                 testSpiA.getClass().getCanonicalName(),
                 secondTestSpiA.getClass().getCanonicalName());
-        Assert.assertNotEquals(testSpiA.getClass(), secondTestSpiA.getClass());
+        assertNotEquals(testSpiA.getClass(), secondTestSpiA.getClass());
     }
 
     @Test
@@ -97,8 +102,7 @@ public class PluginLoaderTest extends PluginTestBase {
         final PluginLoader pluginLoaderA = new PluginLoader("test-plugin", pluginClassLoaderA);
         pluginLoaderA.close();
 
-        Assert.assertThrows(
-                ClassNotFoundException.class,
-                () -> pluginClassLoaderA.loadClass(junit.framework.Test.class.getName()));
+        assertThatThrownBy(() -> pluginClassLoaderA.loadClass(junit.framework.Test.class.getName()))
+                .isInstanceOf(ClassNotFoundException.class);
     }
 }

@@ -28,9 +28,9 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.streaming.runtime.util.NoOpIntMap;
 import org.apache.flink.test.streaming.runtime.util.TestListResultSink;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -43,18 +43,18 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.Collections.sort;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** IT case that tests the different stream partitioning schemes. */
-@SuppressWarnings("serial")
-public class PartitionerITCase extends AbstractTestBaseJUnit4 {
+public class PartitionerITCase extends AbstractTestBase {
 
     private static final int PARALLELISM = 3;
 
     private static final List<String> INPUT = Arrays.asList("a", "b", "c", "d", "e", "f", "g");
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testForwardFailsLowToHighParallelism() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -63,10 +63,10 @@ public class PartitionerITCase extends AbstractTestBaseJUnit4 {
         // this doesn't work because it goes from 1 to 3
         src.forward().map(new NoOpIntMap());
 
-        env.execute();
+        assertThatThrownBy(env::execute).isInstanceOf(UnsupportedOperationException.class);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
+    @Test
     public void testForwardFailsHightToLowParallelism() throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
@@ -76,7 +76,7 @@ public class PartitionerITCase extends AbstractTestBaseJUnit4 {
         // this doesn't work because it goes from 3 to 1
         src.forward().map(new NoOpIntMap()).setParallelism(1);
 
-        env.execute();
+        assertThatThrownBy(env::execute).isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test

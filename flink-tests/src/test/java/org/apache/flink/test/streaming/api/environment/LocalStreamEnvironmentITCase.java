@@ -21,15 +21,16 @@ package org.apache.flink.test.streaming.api.environment;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Tests for {@link LocalStreamEnvironment}. */
-@SuppressWarnings("serial")
-public class LocalStreamEnvironmentITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class LocalStreamEnvironmentITCase {
 
     /**
      * Test test verifies that the execution environment can be used to execute a single job with

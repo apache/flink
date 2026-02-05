@@ -30,6 +30,7 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -41,19 +42,23 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.v2.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.legacy.SourceFunction;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.test.junit5.MiniClusterExtension;
+import org.apache.flink.testutils.junit.utils.TempDirUtils;
 import org.apache.flink.util.Collector;
 
 import org.apache.commons.io.FileUtils;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
+import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -65,7 +70,7 @@ public class TimersSavepointITCase {
 
     private static final OneShotLatch resultLatch = new OneShotLatch();
 
-    @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
+    @TempDir private Path tempDir;
 
     // We use a single past Flink version as we verify heap timers stored in raw state
     // Starting from 1.13 we do not store heap timers in raw state, but we keep them in
@@ -87,24 +92,26 @@ public class TimersSavepointITCase {
     // master.
     private final ExecutionMode executionMode = ExecutionMode.VERIFY_SAVEPOINT;
 
-    @Rule
-    public final MiniClusterWithClientResource miniClusterResource =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    public static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(PARALLELISM)
                             .build());
 
-    @Test(timeout = 60_000)
-    public void testSavepointWithTimers() throws Exception {
-        try (ClusterClient<?> client = miniClusterResource.getClusterClient()) {
-            if (executionMode == ExecutionMode.PERFORM_SAVEPOINT) {
-                takeSavepoint("src/test/resources/" + SAVEPOINT_FILE_NAME, client);
-            } else if (executionMode == ExecutionMode.VERIFY_SAVEPOINT) {
-                verifySavepoint(getResourceFilename(SAVEPOINT_FILE_NAME), client);
-            } else {
-                throw new IllegalStateException("Unknown ExecutionMode " + executionMode);
-            }
+    @Test
+    @Timeout(value = 1, unit = TimeUnit.MINUTES)
+    public void testSavepointWithTimers(
+            @InjectClusterClient ClusterClient<?> client,
+            @InjectMiniCluster MiniCluster miniCluster)
+            throws Exception {
+        if (executionMode == ExecutionMode.PERFORM_SAVEPOINT) {
+            takeSavepoint("src/test/resources/" + SAVEPOINT_FILE_NAME, client, miniCluster);
+        } else if (executionMode == ExecutionMode.VERIFY_SAVEPOINT) {
+            verifySavepoint(getResourceFilename(SAVEPOINT_FILE_NAME), client);
+        } else {
+            throw new IllegalStateException("Unknown ExecutionMode " + executionMode);
         }
     }
 
@@ -118,10 +125,12 @@ public class TimersSavepointITCase {
         resultLatch.await();
     }
 
-    private void takeSavepoint(String savepointPath, ClusterClient<?> client) throws Exception {
+    private void takeSavepoint(
+            String savepointPath, ClusterClient<?> client, MiniCluster miniCluster)
+            throws Exception {
         JobGraph jobGraph = getJobGraph(EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB);
         client.submitJob(jobGraph).get();
-        waitForAllTaskRunning(miniClusterResource.getMiniCluster(), jobGraph.getJobID(), false);
+        waitForAllTaskRunning(miniCluster, jobGraph.getJobID(), false);
         CompletableFuture<String> savepointPathFuture =
                 client.triggerSavepoint(jobGraph.getJobID(), null, SavepointFormatType.CANONICAL);
 
@@ -147,10 +156,10 @@ public class TimersSavepointITCase {
         config.set(StateBackendOptions.STATE_BACKEND, "rocksdb");
         config.set(
                 CheckpointingOptions.CHECKPOINTS_DIRECTORY,
-                TMP_FOLDER.newFolder().toURI().toString());
+                TempDirUtils.newFolder(tempDir).toURI().toString());
         config.set(
                 CheckpointingOptions.SAVEPOINT_DIRECTORY,
-                TMP_FOLDER.newFolder().toURI().toString());
+                TempDirUtils.newFolder(tempDir).toURI().toString());
         config.set(RocksDBOptions.TIMER_SERVICE_FACTORY, priorityQueueStateType);
         env.configure(config, this.getClass().getClassLoader());
         return env.getStreamGraph(false).getJobGraph();

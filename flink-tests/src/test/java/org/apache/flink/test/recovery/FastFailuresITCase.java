@@ -26,15 +26,14 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.legacy.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.legacy.RichSourceFunction;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
-import org.apache.flink.test.util.AbstractTestBaseJUnit4;
+import org.apache.flink.test.util.AbstractTestBase;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** Test program with very fast failure rate. */
-@SuppressWarnings("serial")
-public class FastFailuresITCase extends AbstractTestBaseJUnit4 {
+public class FastFailuresITCase extends AbstractTestBase {
 
     static final AtomicInteger FAILURES_SO_FAR = new AtomicInteger();
     static final int NUM_FAILURES = 200;

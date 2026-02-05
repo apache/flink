@@ -30,6 +30,7 @@ import org.apache.flink.core.execution.JobStatusChangedEvent;
 import org.apache.flink.core.execution.JobStatusChangedListener;
 import org.apache.flink.core.execution.JobStatusChangedListenerFactory;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -46,17 +47,21 @@ import org.apache.flink.streaming.api.lineage.LineageVertexProvider;
 import org.apache.flink.streaming.runtime.execution.DefaultJobCreatedEvent;
 import org.apache.flink.streaming.runtime.execution.JobCreatedEvent;
 import org.apache.flink.streaming.util.RestartStrategyUtils;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.InjectClusterClient;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.CloseableIterator;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.FixMethodOrder;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runners.MethodSorters;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -68,19 +73,20 @@ import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskR
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for job status changed listener. */
-@FixMethodOrder(MethodSorters.NAME_ASCENDING)
-public class JobStatusChangedListenerITCase extends TestLogger {
+@TestMethodOrder(MethodOrderer.MethodName.class)
+@ExtendWith(TestLoggerExtension.class)
+public class JobStatusChangedListenerITCase {
     private static final int PARALLELISM = 4;
     private static final String SOURCE_DATASET_NAME = "LineageSource";
     private static final String SOURCE_DATASET_NAMESPACE = "source://LineageSource";
     private static final String SINK_DATASET_NAME = "LineageSink";
     private static final String SINK_DATASET_NAMESPACE = "sink://LineageSink";
 
-    @ClassRule public static final TemporaryFolder TMP_FOLDER = new TemporaryFolder();
+    @TempDir static Path tempDir;
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER =
-            new MiniClusterWithClientResource(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_EXTENSION =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(createConfiguration())
                             .setNumberTaskManagers(1)
@@ -89,7 +95,7 @@ public class JobStatusChangedListenerITCase extends TestLogger {
 
     private static List<JobStatusChangedEvent> statusChangedEvents = new ArrayList<>();
 
-    @Before
+    @BeforeEach
     public void setup() {
         statusChangedEvents.clear();
     }
@@ -131,7 +137,8 @@ public class JobStatusChangedListenerITCase extends TestLogger {
     }
 
     @Test
-    public void testJobStatusChangedForFailedApplication() throws Exception {
+    public void testJobStatusChangedForFailedApplication(
+            @InjectClusterClient ClusterClient<?> client) {
         Configuration configuration = createConfiguration();
 
         try (StreamExecutionEnvironment env =
@@ -143,7 +150,6 @@ public class JobStatusChangedListenerITCase extends TestLogger {
             StreamGraph streamGraph = env.getStreamGraph();
             JobGraph jobGraph = streamGraph.getJobGraph();
 
-            ClusterClient<?> client = MINI_CLUSTER.getClusterClient();
             JobID jobID = client.submitJob(jobGraph).get();
             while (!client.getJobStatus(jobID).get().equals(JobStatus.FAILED)) {}
         } catch (Exception e) {
@@ -166,7 +172,10 @@ public class JobStatusChangedListenerITCase extends TestLogger {
     }
 
     @Test
-    public void testJobStatusChangedForCancelledApplication() throws Exception {
+    public void testJobStatusChangedForCancelledApplication(
+            @InjectMiniCluster MiniCluster miniCluster,
+            @InjectClusterClient ClusterClient<?> client)
+            throws Exception {
         Configuration configuration = createConfiguration();
 
         try (StreamExecutionEnvironment env =
@@ -178,9 +187,8 @@ public class JobStatusChangedListenerITCase extends TestLogger {
             JobGraph jobGraph = streamGraph.getJobGraph();
 
             verifyLineageGraph(streamGraph.getLineageGraph());
-            ClusterClient<?> client = MINI_CLUSTER.getClusterClient();
             JobID jobID = client.submitJob(jobGraph).get();
-            waitForAllTaskRunning(MINI_CLUSTER.getMiniCluster(), jobID, false);
+            waitForAllTaskRunning(miniCluster, jobID, false);
 
             Thread.sleep(100);
             client.cancel(jobID).get();
