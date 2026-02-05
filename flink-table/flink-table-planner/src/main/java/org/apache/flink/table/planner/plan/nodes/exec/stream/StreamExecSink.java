@@ -408,12 +408,31 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
 
         // Check if we should use the watermark-compacting materializer for ERROR/NOTHING strategies
         if (isErrorOrNothingConflictStrategy()) {
+            // Extract primary key column names and key type
+            int[] primaryKeys =
+                    tableSinkSpec
+                            .getContextResolvedTable()
+                            .getResolvedSchema()
+                            .getPrimaryKey()
+                            .get()
+                            .getColumns()
+                            .stream()
+                            .mapToInt(physicalRowType.getFieldNames()::indexOf)
+                            .toArray();
+            String[] primaryKeyNames =
+                    Arrays.stream(primaryKeys)
+                            .mapToObj(idx -> physicalRowType.getFieldNames().get(idx))
+                            .toArray(String[]::new);
+            RowType keyType = RowTypeUtils.projectRowType(physicalRowType, primaryKeys);
+
             return WatermarkCompactingSinkMaterializer.create(
                     conflictStrategy,
                     physicalRowType,
                     rowEqualiser,
                     upsertKeyEqualiser,
-                    inputUpsertKey);
+                    inputUpsertKey,
+                    keyType,
+                    primaryKeyNames);
         }
 
         // Use existing logic for DEDUPLICATE (legacy behavior)

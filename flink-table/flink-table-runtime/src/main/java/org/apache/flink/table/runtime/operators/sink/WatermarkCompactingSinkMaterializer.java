@@ -41,6 +41,7 @@ import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.generated.RecordEqualiser;
 import org.apache.flink.table.runtime.operators.TableStreamOperator;
 import org.apache.flink.table.runtime.typeutils.InternalSerializers;
+import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 import org.apache.flink.util.Preconditions;
@@ -85,6 +86,8 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
     private final GeneratedRecordEqualiser generatedUpsertKeyEqualiser;
     private final int[] inputUpsertKey;
     private final boolean hasUpsertKey;
+    private final RowType keyType;
+    private final String[] primaryKeyNames;
 
     private transient MapStateDescriptor<Long, List<RowData>> bufferDescriptor;
     private transient MapState<Long, List<RowData>> buffer;
@@ -98,6 +101,9 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
     private transient ProjectedRowData upsertKeyProjectedRow1;
     private transient ProjectedRowData upsertKeyProjectedRow2;
 
+    // Field getters for formatting the primary key in error messages.
+    private transient RowData.FieldGetter[] keyFieldGetters;
+
     // Tracks the current watermark. Used to detect in-flight records after restore.
     private transient long currentWatermark = Long.MIN_VALUE;
 
@@ -106,7 +112,9 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
             TypeSerializer<RowData> serializer,
             GeneratedRecordEqualiser generatedRecordEqualiser,
             @Nullable GeneratedRecordEqualiser generatedUpsertKeyEqualiser,
-            @Nullable int[] inputUpsertKey) {
+            @Nullable int[] inputUpsertKey,
+            RowType keyType,
+            String[] primaryKeyNames) {
         validateConflictStrategy(conflictStrategy);
         this.conflictStrategy = conflictStrategy;
         this.serializer = serializer;
@@ -114,6 +122,8 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
         this.generatedUpsertKeyEqualiser = generatedUpsertKeyEqualiser;
         this.inputUpsertKey = inputUpsertKey;
         this.hasUpsertKey = inputUpsertKey != null && inputUpsertKey.length > 0;
+        this.keyType = keyType;
+        this.primaryKeyNames = primaryKeyNames;
     }
 
     private static void validateConflictStrategy(InsertConflictStrategy strategy) {
@@ -190,8 +200,17 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
     public void open() throws Exception {
         super.open();
         initializeEqualisers();
+        initializeKeyFieldGetters();
         detectOrderedStateBackend();
         this.collector = new TimestampedCollector<>(output);
+    }
+
+    private void initializeKeyFieldGetters() {
+        this.keyFieldGetters = new RowData.FieldGetter[primaryKeyNames.length];
+        for (int i = 0; i < primaryKeyNames.length; i++) {
+            LogicalType fieldType = keyType.getTypeAt(i);
+            keyFieldGetters[i] = RowData.createFieldGetter(fieldType, i);
+        }
     }
 
     private void initializeEqualisers() {
@@ -278,10 +297,12 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
 
         if (pendingRecords.size() > 1) {
             if (conflictStrategy.getBehavior() == ConflictBehavior.ERROR) {
+                RowData key = (RowData) getKeyedStateBackend().getCurrentKey();
                 throw new TableRuntimeException(
                         "Primary key constraint violation: multiple distinct records with "
-                                + "the same primary key detected. Use ON CONFLICT DO NOTHING "
-                                + "to keep the first record.");
+                                + "the same primary key detected. Conflicting key: ["
+                                + formatKey(key)
+                                + "]. Use ON CONFLICT DO NOTHING to keep the first record.");
             } else if (previousValue == null) {
                 final RowData newValue = pendingRecords.get(0);
                 emit(newValue, INSERT);
@@ -438,18 +459,38 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
         return result;
     }
 
+    private String formatKey(RowData key) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < primaryKeyNames.length; i++) {
+            if (i > 0) {
+                sb.append(", ");
+            }
+            sb.append(primaryKeyNames[i]).append("=");
+            if (key.isNullAt(i)) {
+                sb.append("null");
+            } else {
+                sb.append(keyFieldGetters[i].getFieldOrNull(key));
+            }
+        }
+        return sb.toString();
+    }
+
     /** Factory method to create a new instance. */
     public static WatermarkCompactingSinkMaterializer create(
             InsertConflictStrategy conflictStrategy,
             RowType physicalRowType,
             GeneratedRecordEqualiser rowEqualiser,
             @Nullable GeneratedRecordEqualiser upsertKeyEqualiser,
-            @Nullable int[] inputUpsertKey) {
+            @Nullable int[] inputUpsertKey,
+            RowType keyType,
+            String[] primaryKeyNames) {
         return new WatermarkCompactingSinkMaterializer(
                 conflictStrategy,
                 InternalSerializers.create(physicalRowType),
                 rowEqualiser,
                 upsertKeyEqualiser,
-                inputUpsertKey);
+                inputUpsertKey,
+                keyType,
+                primaryKeyNames);
     }
 }

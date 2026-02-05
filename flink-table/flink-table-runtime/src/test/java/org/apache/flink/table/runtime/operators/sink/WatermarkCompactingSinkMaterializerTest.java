@@ -59,6 +59,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class WatermarkCompactingSinkMaterializerTest {
 
     private static final int PRIMARY_KEY_INDEX = 1;
+    private static final String PRIMARY_KEY_NAME = "pk";
 
     private static final LogicalType[] LOGICAL_TYPES =
             new LogicalType[] {new BigIntType(), new IntType(), new VarCharType()};
@@ -172,10 +173,11 @@ class WatermarkCompactingSinkMaterializerTest {
             harness.processElement(insertRecord(1L, 1, "first"));
             harness.processElement(insertRecord(2L, 1, "second"));
 
-            // Compact - should throw exception
+            // Compact - should throw exception with key info
             assertThatThrownBy(() -> harness.processWatermark(100L))
                     .isInstanceOf(TableRuntimeException.class)
-                    .hasMessageContaining("Primary key constraint violation");
+                    .hasMessageContaining("Primary key constraint violation")
+                    .hasMessageContaining("[pk=1]");
         }
     }
 
@@ -361,11 +363,12 @@ class WatermarkCompactingSinkMaterializerTest {
             harness.processWatermark(100L);
             assertEmits(harness, insert(1L, 1, "a1"));
 
-            // UPDATE_AFTER with different value - creates conflict, ERROR throws
+            // UPDATE_AFTER with different value - creates conflict, ERROR throws with key info
             harness.processElement(updateAfterRecord(2L, 1, "a2"));
             assertThatThrownBy(() -> harness.processWatermark(200L))
                     .isInstanceOf(TableRuntimeException.class)
-                    .hasMessageContaining("Primary key constraint violation");
+                    .hasMessageContaining("Primary key constraint violation")
+                    .hasMessageContaining("[pk=1]");
         }
     }
 
@@ -440,10 +443,11 @@ class WatermarkCompactingSinkMaterializerTest {
             harness.processElement(insertRecord(1L, 1, "same"));
             harness.processElement(insertRecord(1L, 1, "same"));
 
-            // Compact - ERROR throws because there are multiple pending records
+            // Compact - ERROR throws because there are multiple pending records, includes key info
             assertThatThrownBy(() -> harness.processWatermark(100L))
                     .isInstanceOf(TableRuntimeException.class)
-                    .hasMessageContaining("Primary key constraint violation");
+                    .hasMessageContaining("Primary key constraint violation")
+                    .hasMessageContaining("[pk=1]");
         }
     }
 
@@ -626,13 +630,16 @@ class WatermarkCompactingSinkMaterializerTest {
 
     private KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> createHarness(
             ConflictBehavior behavior) throws Exception {
+        RowType keyType = RowType.of(new LogicalType[] {LOGICAL_TYPES[PRIMARY_KEY_INDEX]});
         WatermarkCompactingSinkMaterializer operator =
                 WatermarkCompactingSinkMaterializer.create(
                         toStrategy(behavior),
                         RowType.of(LOGICAL_TYPES),
                         RECORD_EQUALISER,
                         UPSERT_KEY_EQUALISER,
-                        new int[] {0}); // upsert key is first column
+                        new int[] {0}, // upsert key is first column
+                        keyType,
+                        new String[] {PRIMARY_KEY_NAME});
 
         return new KeyedOneInputStreamOperatorTestHarness<>(
                 operator,
@@ -645,13 +652,16 @@ class WatermarkCompactingSinkMaterializerTest {
 
     private KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData>
             createHarnessWithoutUpsertKey(ConflictBehavior behavior) throws Exception {
+        RowType keyType = RowType.of(new LogicalType[] {LOGICAL_TYPES[PRIMARY_KEY_INDEX]});
         WatermarkCompactingSinkMaterializer operator =
                 WatermarkCompactingSinkMaterializer.create(
                         toStrategy(behavior),
                         RowType.of(LOGICAL_TYPES),
                         RECORD_EQUALISER,
                         null, // no upsert key equaliser
-                        null); // no upsert key
+                        null, // no upsert key
+                        keyType,
+                        new String[] {PRIMARY_KEY_NAME});
 
         return new KeyedOneInputStreamOperatorTestHarness<>(
                 operator,
