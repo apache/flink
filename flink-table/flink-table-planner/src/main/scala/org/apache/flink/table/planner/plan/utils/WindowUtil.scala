@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.planner.JBigDecimal
+import org.apache.flink.table.planner.{JBigDecimal, JBoolean}
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexTableArgCall}
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlWindowTableFunction}
 import org.apache.flink.table.planner.plan.`trait`.RelWindowProperties
@@ -245,8 +245,13 @@ object WindowUtil {
         new HoppingWindowSpec(Duration.ofMillis(size), Duration.ofMillis(slide), offset)
 
       case FlinkSqlOperatorTable.CUMULATE =>
-        val offset = if (windowCall.operands.size() == 5) {
+        val offset = if (windowCall.operands.size() >= 5) {
           Duration.ofMillis(getOperandAsLong(windowCall.operands(4)))
+        } else {
+          null
+        }
+        val emitOnlyOnUpdate = if (windowCall.operands.size() == 6) {
+          getOperandAsBoolean(windowCall.operands(5))
         } else {
           null
         }
@@ -261,7 +266,11 @@ object WindowUtil {
           throw new ValidationException("CUMULATE table function based aggregate requires maxSize " +
             s"must be an integral multiple of step, but got maxSize $maxSize ms and step $step ms.")
         }
-        new CumulativeWindowSpec(Duration.ofMillis(maxSize), Duration.ofMillis(step), offset)
+        new CumulativeWindowSpec(
+          Duration.ofMillis(maxSize),
+          Duration.ofMillis(step),
+          offset,
+          emitOnlyOnUpdate)
       case FlinkSqlOperatorTable.SESSION =>
         val tableArgCall = windowCall.operands(0).asInstanceOf[RexTableArgCall]
         if (!tableArgCall.getOrderKeys.isEmpty) {
@@ -420,6 +429,15 @@ object WindowUtil {
           "Window aggregate only support SECOND, MINUTE, HOUR, DAY as the time unit. " +
             "MONTH and YEAR time unit are not supported yet.")
       case _ => throw new TableException("Only constant window descriptors are supported.")
+    }
+  }
+
+  private def getOperandAsBoolean(operand: RexNode): JBoolean = {
+    operand match {
+      case v: RexLiteral if v.getTypeName.getFamily == SqlTypeFamily.BOOLEAN =>
+        v.getValue.asInstanceOf[JBoolean]
+      case _ =>
+        throw new TableException("Only constant window descriptors are supported.")
     }
   }
 

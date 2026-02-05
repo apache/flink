@@ -23,6 +23,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedNamespaceAggsHandleFunction;
 import org.apache.flink.table.runtime.operators.aggregate.window.buffers.WindowBuffer;
 import org.apache.flink.table.runtime.operators.window.MergeCallback;
+import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceAssigners;
 import org.apache.flink.table.runtime.operators.window.tvf.slicing.SliceSharedAssigner;
 
 import javax.annotation.Nullable;
@@ -42,6 +43,9 @@ public final class SliceSharedSyncStateWindowAggProcessor
 
     private final SliceSharedAssigner sliceSharedAssigner;
     private final SliceMergeTargetHelper mergeTargetHelper;
+
+    /** Indicates whether there is new data to merge in the current slice. */
+    private boolean hasSliceUpdate;
 
     public SliceSharedSyncStateWindowAggProcessor(
             GeneratedNamespaceAggsHandleFunction<Long> genAggsHandler,
@@ -68,7 +72,11 @@ public final class SliceSharedSyncStateWindowAggProcessor
         RowData aggResult = aggregator.getValue(windowEnd);
         if (!emptySupplier.get()) {
             // if the triggered window is an empty window, we shouldn't emit it
-            collect(aggResult);
+            // Check emit-only-on-update mode: skip output if no new data in current slice
+            boolean shouldEmit = !isEmitOnlyOnUpdate() || hasSliceUpdate;
+            if (shouldEmit) {
+                collect(aggResult);
+            }
         }
 
         // we should register next window timer here,
@@ -103,10 +111,23 @@ public final class SliceSharedSyncStateWindowAggProcessor
         // set base accumulator
         aggregator.setAccumulators(mergeResult, acc);
 
+        // Track whether there's new data to merge for emit-only-on-update mode.
+        // If toBeMerged is empty, this is the first slice and we should emit
+        // (because the first slice itself contains data).
+        // If toBeMerged is not empty, we only emit when there's actual data to merge.
+        if (toBeMerged.iterator().hasNext()) {
+            // There are slices to merge, start with false and set to true if data found
+            hasSliceUpdate = false;
+        } else {
+            // No slices to merge, this is the first slice - always emit
+            hasSliceUpdate = true;
+        }
+
         // merge slice accumulators
         for (Long slice : toBeMerged) {
             RowData sliceAcc = windowState.value(slice);
             if (sliceAcc != null) {
+                hasSliceUpdate = true;
                 aggregator.merge(slice, sliceAcc);
             }
         }
@@ -128,6 +149,33 @@ public final class SliceSharedSyncStateWindowAggProcessor
         } else {
             return sliceToMerge;
         }
+    }
+
+    /**
+     * Returns whether emit-only-on-update mode is enabled for the cumulative window.
+     *
+     * <p>This method checks if the inner assigner is a {@link
+     * SliceAssigners.CumulativeSliceAssigner} and whether it has emit-only-on-update mode enabled.
+     *
+     * @return true if emit-only-on-update mode is enabled for cumulative window
+     */
+    private boolean isEmitOnlyOnUpdate() {
+        // Check if the assigner is a SlicedSharedSliceAssigner wrapping a CumulativeSliceAssigner
+        if (sliceSharedAssigner instanceof SliceAssigners.SlicedSharedSliceAssigner) {
+            SliceSharedAssigner innerAssigner =
+                    ((SliceAssigners.SlicedSharedSliceAssigner) sliceSharedAssigner)
+                            .getInnerSharedAssigner();
+            if (innerAssigner instanceof SliceAssigners.CumulativeSliceAssigner) {
+                return ((SliceAssigners.CumulativeSliceAssigner) innerAssigner)
+                        .isEmitOnlyOnUpdate();
+            }
+        }
+        // Direct CumulativeSliceAssigner case
+        if (sliceSharedAssigner instanceof SliceAssigners.CumulativeSliceAssigner) {
+            return ((SliceAssigners.CumulativeSliceAssigner) sliceSharedAssigner)
+                    .isEmitOnlyOnUpdate();
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------------------------------
