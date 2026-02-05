@@ -169,7 +169,11 @@ public abstract class AbstractAsyncStateSliceWindowAggProcessor
                 advanceFuture = windowBuffer.advanceProgress(currentKey, currentProgress);
                 nextTriggerProgress =
                         getNextTriggerWatermark(
-                                currentProgress, windowInterval, shiftTimeZone, useDayLightSaving);
+                                currentProgress,
+                                windowInterval,
+                                sliceAssigner.getWindowOffset(),
+                                shiftTimeZone,
+                                useDayLightSaving);
             }
         }
         return advanceFuture;

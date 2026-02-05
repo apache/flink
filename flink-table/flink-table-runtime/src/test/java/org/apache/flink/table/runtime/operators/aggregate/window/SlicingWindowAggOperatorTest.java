@@ -721,6 +721,45 @@ class SlicingWindowAggOperatorTest extends WindowAggOperatorTestBase {
     }
 
     @TestTemplate
+    public void testEventTimeTumblingWindowsWithOffset() throws Exception {
+        final SliceAssigner assigner =
+                SliceAssigners.tumbling(2, shiftTimeZone, Duration.ofSeconds(3))
+                        .withOffset(Duration.ofSeconds(1));
+        final SlicingSumAndCountAggsFunction aggsFunction =
+                new SlicingSumAndCountAggsFunction(assigner);
+        OneInputStreamOperator<RowData, RowData> operator =
+                buildWindowOperator(assigner, aggsFunction, null);
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+
+        testHarness.setup(OUT_SERIALIZER);
+        testHarness.open();
+
+        // process elements
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+        testHarness.processElement(insertRecord("key1", 1, fromEpochMillis(2999L)));
+        testHarness.processWatermark(new Watermark(3000));
+        expectedOutput.add(new Watermark(3000));
+        ASSERTER.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        testHarness.processWatermark(new Watermark(4000));
+        expectedOutput.add(insertRecord("key1", 1L, 1L, localMills(1000L), localMills(4000L)));
+        expectedOutput.add(new Watermark(4000));
+        ASSERTER.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        testHarness.processWatermark(new Watermark(20000));
+        expectedOutput.add(new Watermark(20000));
+        ASSERTER.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        testHarness.close();
+    }
+
+    @TestTemplate
     void testProcessingTimeTumblingWindows() throws Exception {
 
         final SliceAssigner assigner =

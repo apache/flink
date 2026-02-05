@@ -81,7 +81,9 @@ class StreamingWithStateTestBase(state: StateBackendMode) extends StreamingTestB
   @AfterEach
   override def after(): Unit = {
     super.after()
-    assertThat(FailingCollectionSource.failedBefore).isTrue
+    if (this.enableFailedBefore) {
+      assertThat(FailingCollectionSource.failedBefore).isTrue
+    }
   }
 
   /** Creates a BinaryRowData DataStream from the given non-empty [[Seq]]. */
