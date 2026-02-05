@@ -158,7 +158,8 @@ To support these secure-by-default JDK versions and align with best practices, F
 
 `TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384`
 
-This default provides strong security and wide compatibility. You can customize the cipher suites using the `security.ssl.algorithms` configuration option if your environment has different requirements. However, ensure that any custom cipher suites you configure are supported by your JDK and align with current security recommendations.
+This default provides strong security and wide compatibility. You can customize the cipher suites using the `security.ssl.algorithms` configuration option if your environment has different requirements.
+If these cipher suites are not supported on your setup, you will see that Flink processes will not be able to connect to each other.
 
 ### Complete List of SSL Options
 
