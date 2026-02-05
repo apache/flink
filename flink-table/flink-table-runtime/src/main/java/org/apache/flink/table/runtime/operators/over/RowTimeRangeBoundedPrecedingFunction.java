@@ -203,7 +203,6 @@ public class RowTimeRangeBoundedPrecedingFunction<K>
         if (cleanupTimestamp != null && cleanupTimestamp <= timestamp) {
             inputState.clear();
             accState.clear();
-            lastTriggeringTsState.clear();
             cleanupTsState.clear();
             function.cleanup();
             return;
