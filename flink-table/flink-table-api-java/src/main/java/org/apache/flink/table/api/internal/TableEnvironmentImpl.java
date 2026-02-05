@@ -83,6 +83,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ModelReferenceExpression;
 import org.apache.flink.table.expressions.TableReferenceExpression;
 import org.apache.flink.table.expressions.utils.ApiExpressionDefaultVisitor;
+import org.apache.flink.table.factories.ApiFactoryUtil;
 import org.apache.flink.table.factories.CatalogStoreFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
@@ -251,17 +252,21 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                         userClassLoader, ExecutorFactory.class, ExecutorFactory.DEFAULT_IDENTIFIER);
         final Executor executor = executorFactory.create(settings.getConfiguration());
 
-        final CatalogStoreFactory catalogStoreFactory =
-                TableFactoryUtil.findAndCreateCatalogStoreFactory(
-                        settings.getConfiguration(), userClassLoader);
-        final CatalogStoreFactory.Context context =
-                TableFactoryUtil.buildCatalogStoreFactoryContext(
-                        settings.getConfiguration(), userClassLoader);
-        catalogStoreFactory.open(context);
-        final CatalogStore catalogStore =
-                settings.getCatalogStore() != null
-                        ? settings.getCatalogStore()
-                        : catalogStoreFactory.createCatalogStore();
+        final CatalogStore catalogStore;
+        final CatalogStoreFactory catalogStoreFactory;
+        if (settings.getCatalogStore().isPresent()) {
+            catalogStore = settings.getCatalogStore().get();
+            catalogStoreFactory = null;
+        } else {
+            catalogStoreFactory =
+                    ApiFactoryUtil.findAndCreateCatalogStoreFactory(
+                            settings.getConfiguration(), userClassLoader);
+            final CatalogStoreFactory.Context context =
+                    ApiFactoryUtil.buildCatalogStoreFactoryContext(
+                            settings.getConfiguration(), userClassLoader);
+            catalogStoreFactory.open(context);
+            catalogStore = catalogStoreFactory.createCatalogStore();
+        }
 
         // use configuration to init table config
         final TableConfig tableConfig = TableConfig.getDefault();
