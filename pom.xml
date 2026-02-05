@@ -165,7 +165,7 @@ under the License.
 		<protoc.version>4.32.1</protoc.version>
 		<okhttp.version>3.14.9</okhttp.version>
 		<testcontainers.version>1.21.4</testcontainers.version>
-		<lz4.version>1.8.0</lz4.version>
+		<lz4.version>1.10.3</lz4.version>
 		<commons.io.version>2.15.1</commons.io.version>
 		<japicmp.skip>false</japicmp.skip>
 		<flink.convergence.phase>validate</flink.convergence.phase>
@@ -581,7 +581,7 @@ under the License.
 			</dependency>
 
 			<dependency>
-				<groupId>org.lz4</groupId>
+				<groupId>at.yawk.lz4</groupId>
 				<artifactId>lz4-java</artifactId>
 				<version>${lz4.version}</version>
 			</dependency>
