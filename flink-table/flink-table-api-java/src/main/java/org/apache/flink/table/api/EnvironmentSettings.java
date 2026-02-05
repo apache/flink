@@ -144,9 +144,8 @@ public class EnvironmentSettings {
     }
 
     @Internal
-    @Nullable
-    public CatalogStore getCatalogStore() {
-        return catalogStore;
+    public Optional<CatalogStore> getCatalogStore() {
+        return Optional.ofNullable(catalogStore);
     }
 
     @Internal
