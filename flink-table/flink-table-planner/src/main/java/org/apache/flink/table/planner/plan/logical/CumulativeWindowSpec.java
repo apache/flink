@@ -37,6 +37,7 @@ public class CumulativeWindowSpec implements WindowSpec {
     public static final String FIELD_NAME_MAX_SIZE = "maxSize";
     public static final String FIELD_NAME_STEP = "step";
     public static final String FIELD_NAME_OFFSET = "offset";
+    public static final String FIELD_NAME_EMIT_ONLY_ON_UPDATE = "emitOnlyOnUpdate";
 
     @JsonProperty(FIELD_NAME_MAX_SIZE)
     private final Duration maxSize;
@@ -49,14 +50,30 @@ public class CumulativeWindowSpec implements WindowSpec {
     @Nullable
     private final Duration offset;
 
+    @JsonProperty(FIELD_NAME_EMIT_ONLY_ON_UPDATE)
+    @JsonInclude(value = JsonInclude.Include.NON_NULL)
+    @Nullable
+    private final Boolean emitOnlyOnUpdate;
+
     @JsonCreator
     public CumulativeWindowSpec(
             @JsonProperty(FIELD_NAME_MAX_SIZE) Duration maxSize,
             @JsonProperty(FIELD_NAME_STEP) Duration step,
-            @JsonProperty(FIELD_NAME_OFFSET) @Nullable Duration offset) {
+            @JsonProperty(FIELD_NAME_OFFSET) @Nullable Duration offset,
+            @JsonProperty(FIELD_NAME_EMIT_ONLY_ON_UPDATE) @Nullable Boolean emitOnlyOnUpdate) {
         this.maxSize = checkNotNull(maxSize);
         this.step = checkNotNull(step);
         this.offset = offset;
+        this.emitOnlyOnUpdate = emitOnlyOnUpdate;
+    }
+
+    /**
+     * Creates a new CumulativeWindowSpec with the given parameters.
+     *
+     * <p>This constructor is provided for backward compatibility.
+     */
+    public CumulativeWindowSpec(Duration maxSize, Duration step, @Nullable Duration offset) {
+        this(maxSize, step, offset, null);
     }
 
     @Override
@@ -66,6 +83,15 @@ public class CumulativeWindowSpec implements WindowSpec {
                     "CUMULATE(%s, max_size=[%s], step=[%s])",
                     windowing, formatWithHighestUnit(maxSize), formatWithHighestUnit(step));
         } else {
+            if (emitOnlyOnUpdate != null) {
+                return String.format(
+                        "CUMULATE(%s, max_size=[%s], step=[%s], offset=[%s], emitOnlyOnUpdate=[%s])",
+                        windowing,
+                        formatWithHighestUnit(maxSize),
+                        formatWithHighestUnit(step),
+                        formatWithHighestUnit(offset),
+                        emitOnlyOnUpdate);
+            }
             return String.format(
                     "CUMULATE(%s, max_size=[%s], step=[%s], offset=[%s])",
                     windowing,
@@ -87,6 +113,20 @@ public class CumulativeWindowSpec implements WindowSpec {
         return offset;
     }
 
+    /**
+     * Returns whether this cumulative window only emits results when new data arrives within the
+     * step interval.
+     *
+     * <p>When enabled, no output is produced for step intervals without new data. This is useful
+     * for reducing unnecessary outputs in scenarios where data arrives sparsely.
+     *
+     * @return true if emit-only-on-update mode is enabled, false or null otherwise
+     */
+    @Nullable
+    public Boolean getEmitOnlyOnUpdate() {
+        return emitOnlyOnUpdate;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -98,12 +138,13 @@ public class CumulativeWindowSpec implements WindowSpec {
         CumulativeWindowSpec that = (CumulativeWindowSpec) o;
         return maxSize.equals(that.maxSize)
                 && step.equals(that.step)
-                && Objects.equals(offset, that.offset);
+                && Objects.equals(offset, that.offset)
+                && Objects.equals(emitOnlyOnUpdate, that.emitOnlyOnUpdate);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(CumulativeWindowSpec.class, maxSize, step, offset);
+        return Objects.hash(CumulativeWindowSpec.class, maxSize, step, offset, emitOnlyOnUpdate);
     }
 
     @Override
@@ -113,6 +154,14 @@ public class CumulativeWindowSpec implements WindowSpec {
                     "CUMULATE(max_size=[%s], step=[%s])",
                     formatWithHighestUnit(maxSize), formatWithHighestUnit(step));
         } else {
+            if (emitOnlyOnUpdate != null) {
+                return String.format(
+                        "CUMULATE(max_size=[%s], step=[%s], offset=[%s], emitOnlyOnUpdate=[%s])",
+                        formatWithHighestUnit(maxSize),
+                        formatWithHighestUnit(step),
+                        formatWithHighestUnit(offset),
+                        emitOnlyOnUpdate);
+            }
             return String.format(
                     "CUMULATE(max_size=[%s], step=[%s], offset=[%s])",
                     formatWithHighestUnit(maxSize),
