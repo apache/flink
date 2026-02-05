@@ -498,7 +498,7 @@ public class SecurityOptions {
      * The standard SSL algorithms to be supported.
      *
      * <p>More options here -
-     * https://docs.oracle.com/en/java/javase/17/docs/specs/security/standard-names.html
+     * https://docs.oracle.com/en/java/javase/11/docs/specs/security/standard-names.html#jsse-cipher-suite-names
      */
     @Documentation.Section(Documentation.Sections.SECURITY_SSL)
     public static final ConfigOption<String> SSL_ALGORITHMS =
@@ -511,7 +511,7 @@ public class SecurityOptions {
                                     .text(
                                             "The comma separated list of standard SSL algorithms to be supported. Read more %s",
                                             link(
-                                                    "https://docs.oracle.com/en/java/javase/17/docs/specs/security/standard-names.html",
+                                                    "https://docs.oracle.com/en/java/javase/11/docs/specs/security/standard-names.html#jsse-cipher-suite-names",
                                                     "here"))
                                     .build());
 
