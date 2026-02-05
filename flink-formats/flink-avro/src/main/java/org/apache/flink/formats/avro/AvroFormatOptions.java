@@ -83,5 +83,23 @@ public class AvroFormatOptions {
                                     + "you can obtain the correct mapping by disable using this legacy mapping."
                                     + " Use legacy behavior by default for compatibility consideration.");
 
+    public static final ConfigOption<Boolean> AVRO_FAST_READ =
+            ConfigOptions.key("avro.fast-read.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Optional for avro fast reader. "
+                                    + "Avro Fastread improves Avro read speeds by constructing a resolution chain. "
+                                    + "get more information about this feature, please visit https://issues.apache.org/jira/browse/AVRO-3230");
+
+    public static final ConfigOption<String> AVRO_WRITER_SCHEMA_STRING =
+            ConfigOptions.key("avro.writer.schemaString")
+                    .stringType()
+                    .defaultValue(null)
+                    .withDescription(
+                            "Optional for Avro deserialization. This string serves as the reader schema "
+                                    + "for the upstream table. Configuring this allows for effective column pruning, "
+                                    + "as only the fields specified in this schema will be read.");
+
     private AvroFormatOptions() {}
 }
