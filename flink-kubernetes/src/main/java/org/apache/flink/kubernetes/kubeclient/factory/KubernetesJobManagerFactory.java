@@ -25,6 +25,7 @@ import org.apache.flink.kubernetes.kubeclient.decorators.CmdJobManagerDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.EnvSecretsDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator;
+import org.apache.flink.kubernetes.kubeclient.decorators.FlinkLogDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.HadoopConfMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.InitJobManagerDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
@@ -53,6 +54,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.KUBERNETES_HADOOP_CONF_MOUNT_DECORATOR_ENABLED;
 import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.KUBERNETES_KERBEROS_MOUNT_DECORATOR_ENABLED;
+import static org.apache.flink.kubernetes.configuration.KubernetesConfigOptions.KUBERNETES_LOG_MOUNT_DECORATOR_ENABLED;
 
 /**
  * Utility class for constructing all the Kubernetes components on the client-side. This can include
@@ -83,6 +85,11 @@ public class KubernetesJobManagerFactory {
         if (configuration.get(KUBERNETES_KERBEROS_MOUNT_DECORATOR_ENABLED)) {
             stepDecorators.add(new KerberosMountDecorator(kubernetesJobManagerParameters));
         }
+
+        if (configuration.get(KUBERNETES_LOG_MOUNT_DECORATOR_ENABLED)) {
+            stepDecorators.add(new FlinkLogDecorator(kubernetesJobManagerParameters));
+        }
+
 
         stepDecorators.addAll(
                 Arrays.asList(
