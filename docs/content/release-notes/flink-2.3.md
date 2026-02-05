@@ -41,4 +41,5 @@ To support these and future JDK versions, the default value for the Flink config
 
 `TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384`
 
-
+This default provides strong security and wide compatibility. You can customize the cipher suites using the `security.ssl.algorithms` configuration option if your environment has different requirements. 
+If these cipher suites are not supported on your setup, you will see that Flink processes will not be able to connect to each other.
