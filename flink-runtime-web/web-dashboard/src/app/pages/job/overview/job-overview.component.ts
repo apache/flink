@@ -82,19 +82,23 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(data => {
-        if (this.jobId !== data.plan.jid || data.plan.nodes.length !== this.nodes.length) {
-          this.jobId = data.plan.jid;
-          this.nodes = data.plan.nodes;
-          this.streamNodes = data.plan.streamNodes;
-          this.streamLinks = data.plan.streamLinks;
-          this.links = data.plan.links;
-          this.updatePendingInfo();
+        const graphNeedsRefresh =
+          this.jobId !== data.plan.jid ||
+          data.plan.nodes.length !== this.nodes.length ||
+          this.hasLinkChanged(this.links, data.plan.links) ||
+          this.hasLinkChanged(this.streamLinks, data.plan.streamLinks);
+
+        this.jobId = data.plan.jid;
+        this.nodes = data.plan.nodes;
+        this.streamNodes = data.plan.streamNodes;
+        this.streamLinks = data.plan.streamLinks;
+        this.links = data.plan.links;
+        this.updatePendingInfo();
+
+        if (graphNeedsRefresh) {
           this.refreshGraph(this.dagreComponent.showPendingOperators);
-          this.refreshNodesWithMetrics();
-        } else {
-          this.nodes = data.plan.nodes;
-          this.refreshNodesWithMetrics();
         }
+        this.refreshNodesWithMetrics();
         this.cdr.markForCheck();
       });
 
@@ -224,5 +228,27 @@ export class JobOverviewComponent implements OnInit, OnDestroy {
         });
       });
     return pendingLinks;
+  }
+
+  private hasLinkChanged(previous: NodesItemLink[], next: NodesItemLink[]): boolean {
+    if (previous.length !== next.length) {
+      return true;
+    }
+    for (let i = 0; i < next.length; i++) {
+      const prev = previous[i];
+      const curr = next[i];
+      if (
+        !prev ||
+        prev.id !== curr.id ||
+        prev.source !== curr.source ||
+        prev.target !== curr.target ||
+        prev.ship_strategy !== curr.ship_strategy ||
+        prev.local_strategy !== curr.local_strategy ||
+        prev.pending !== curr.pending
+      ) {
+        return true;
+      }
+    }
+    return false;
   }
 }
