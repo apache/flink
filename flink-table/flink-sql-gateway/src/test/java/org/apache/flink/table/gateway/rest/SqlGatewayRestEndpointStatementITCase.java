@@ -162,7 +162,7 @@ public class SqlGatewayRestEndpointStatementITCase extends AbstractSqlGatewaySta
                                 .getOperationManager()
                                 .getOperation(operationHandle));
 
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 () ->
                         SQL_GATEWAY_SERVICE_EXTENSION
                                 .getService()

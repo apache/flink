@@ -277,7 +277,7 @@ public abstract class AbstractMaterializedTableStatementITCase {
         awaitOperationTermination(service, sessionHandle, materializedTableHandle);
 
         // verify data exists in materialized table
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 () ->
                         fetchTableData(
                                                 sessionHandle,
@@ -318,7 +318,7 @@ public abstract class AbstractMaterializedTableStatementITCase {
         assertThat(jobDetailsInfo.getJobType()).isEqualTo(JobType.BATCH);
 
         // 3. verify the new job is finished
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 () -> {
                     try {
                         return JobStatus.FINISHED.equals(

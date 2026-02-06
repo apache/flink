@@ -430,7 +430,7 @@ public class FlinkContainers implements BeforeAllCallback, AfterAllCallback {
         checkNotNull(
                 restClusterClient,
                 "REST cluster client should not be null when checking TaskManager status");
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 () -> {
                     final ClusterOverviewWithVersion clusterOverview;
                     try {

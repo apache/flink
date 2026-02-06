@@ -109,7 +109,7 @@ public class SqlGatewayServiceStatementITCase extends AbstractSqlGatewayStatemen
     protected String runSingleStatement(String statement) throws Exception {
         OperationHandle operationHandle =
                 service.executeStatement(sessionHandle, statement, -1, new Configuration());
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 () ->
                         service.getOperationInfo(sessionHandle, operationHandle)
                                 .getStatus()

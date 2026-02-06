@@ -222,7 +222,7 @@ class ResultFetcherTest {
     void testFetchResultInParallel() throws Exception {
         ResultFetcher fetcher =
                 buildResultFetcher(Collections.singletonList(data.iterator()), data.size() / 2);
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 () -> fetcher.getResultStore().getBufferedRecordSize() > 0,
                 Duration.ofSeconds(10),
                 "Failed to wait the buffer has data.");
@@ -328,7 +328,7 @@ class ResultFetcherTest {
                             meetEnd.set(true);
                         });
 
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 meetEnd::get,
                 Duration.ofSeconds(10),
                 "Should get EOS when fetch results from the closed fetcher.");
@@ -399,7 +399,7 @@ class ResultFetcherTest {
     void testFetchBeforeWithDifferentSize() throws Exception {
         ResultFetcher fetcher =
                 buildResultFetcher(Collections.singletonList(data.iterator()), data.size() / 2);
-        CommonTestUtils.waitUtil(
+        CommonTestUtils.waitUntil(
                 () -> fetcher.getResultStore().getBufferedRecordSize() > 1,
                 Duration.ofSeconds(10),
                 "Failed to make cached records num larger than 1.");
