@@ -198,7 +198,7 @@ public class WordCount {
 
             // emit the pairs
             for (String token : tokens) {
-                if (token.length() > 0) {
+                if (!token.isEmpty()) {
                     out.collect(new Tuple2<>(token, 1));
                 }
             }
