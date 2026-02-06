@@ -17,6 +17,7 @@
  */
 package org.apache.flink.table.planner.runtime.harness
 
+import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, OneInputStreamOperatorTestHarness}
 import org.apache.flink.table.api.{EnvironmentSettings, _}
@@ -25,15 +26,15 @@ import org.apache.flink.table.api.bridge.scala.internal.StreamTableEnvironmentIm
 import org.apache.flink.table.api.config.{AggregatePhaseStrategy, ExecutionConfigOptions}
 import org.apache.flink.table.api.config.ExecutionConfigOptions.{TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, TABLE_EXEC_MINIBATCH_ENABLED, TABLE_EXEC_MINIBATCH_SIZE}
 import org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY
-import org.apache.flink.table.data.RowData
+import org.apache.flink.table.data.{GenericArrayData, GenericRowData, RowData, StringData}
 import org.apache.flink.table.planner.runtime.utils.StreamingEnvUtil
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOff, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
 import org.apache.flink.table.planner.runtime.utils.UserDefinedFunctionTestUtils.CountNullNonNull
-import org.apache.flink.table.runtime.typeutils.RowDataSerializer
+import org.apache.flink.table.runtime.typeutils.{ArrayDataSerializer, RowDataSerializer}
 import org.apache.flink.table.runtime.util.RowDataHarnessAssertor
 import org.apache.flink.table.runtime.util.StreamRecordUtils.binaryRecord
-import org.apache.flink.table.types.logical.LogicalType
+import org.apache.flink.table.types.logical.{BigIntType, LogicalType, RowType, VarCharType}
 import org.apache.flink.testutils.junit.extensions.parameterized.{ParameterizedTestExtension, Parameters}
 import org.apache.flink.types.Row
 import org.apache.flink.types.RowKind._
@@ -44,7 +45,7 @@ import org.junit.jupiter.api.extension.ExtendWith
 
 import java.lang.{Long => JLong}
 import java.time.Duration
-import java.util.{Collection => JCollection}
+import java.util.{Collection => JCollection, Arrays => JArrays}
 import java.util.concurrent.ConcurrentLinkedQueue
 
 import scala.collection.JavaConversions._
@@ -350,6 +351,247 @@ class GroupAggregateHarnessTest(
     assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, globalResult)
     localTestHarness.close()
     globalTestHarness.close()
+  }
+
+  @TestTemplate
+  def testAggregateWithLastValue(): Unit = {
+    val rowFieldType = new RowType(
+      JArrays.asList(
+        new RowType.RowField("a", new VarCharType(255)),
+        new RowType.RowField("b", new BigIntType)
+      ))
+    val rowDataSerializer = new RowDataSerializer(rowFieldType)
+    val arrayDataSerializer = new ArrayDataSerializer(DataTypes.STRING().getLogicalType)
+
+    val data =
+      new mutable.MutableList[(String, Long, String, String, String, (String, Long), Array[String])]
+
+    val t = StreamingEnvUtil
+      .fromCollection(env, data)
+      .toTable(tEnv, 'belonged, 'empno, 'name, 'gender, 'city, 'extra_info, 'extra_info1)
+
+    tEnv.createTemporaryView("T", t)
+
+    val sql =
+      s"""
+         |SELECT
+         |  belonged,
+         |  LAST_VALUE(empno) AS last_empno,
+         |  LAST_VALUE(name) AS last_name,
+         |  LAST_VALUE(gender) AS last_gender,
+         |  LAST_VALUE(city) AS last_city,
+         |  LAST_VALUE(extra_info) AS last_extra_info,
+         |  LAST_VALUE(extra_info1) AS last_extra_info1
+         |  FROM (
+         |    SELECT  belonged, empno, name, gender, city, extra_info, extra_info1
+         |    FROM T GROUP BY belonged, empno, name, gender, city, extra_info, extra_info1
+         |  )
+         |GROUP BY belonged
+         |""".stripMargin
+
+    val t1 = tEnv.sqlQuery(sql)
+
+    tEnv.getConfig.setIdleStateRetention(Duration.ofSeconds(2))
+    val testHarness = createHarnessTester(t1.toRetractStream[Row], "GroupAggregate")
+    val assertor = new RowDataHarnessAssertor(
+      Array(
+        DataTypes.STRING().getLogicalType,
+        DataTypes.BIGINT().getLogicalType,
+        DataTypes.STRING().getLogicalType,
+        DataTypes.STRING().getLogicalType,
+        DataTypes.STRING().getLogicalType,
+        DataTypes.ROW(DataTypes.STRING(), DataTypes.BIGINT()).getLogicalType,
+        DataTypes.ARRAY(DataTypes.STRING()).getLogicalType
+      )
+    )
+
+    testHarness.open()
+
+    val expectedOutput = new ConcurrentLinkedQueue[Object]()
+
+    testHarness.setStateTtlProcessingTime(1)
+
+    // prepare input data
+    val rowData = new GenericRowData(2)
+    rowData.setField(0, StringData.fromString("info1"))
+    rowData.setField(1, 123L)
+    val arrayData = new GenericArrayData(
+      Array[Object](
+        StringData.fromString("info1"),
+        StringData.fromString("info2"),
+        StringData.fromString("info3")))
+
+    testHarness.processElement(
+      binaryRecord(
+        INSERT,
+        "A",
+        1L: JLong,
+        "Alice",
+        "Female",
+        "New York",
+        new Tuple2(rowData, rowDataSerializer),
+        new Tuple2(arrayData, arrayDataSerializer))
+    )
+    expectedOutput.add(
+      binaryRecord(
+        INSERT,
+        "A",
+        1L: JLong,
+        "Alice",
+        "Female",
+        "New York",
+        new Tuple2(rowData, rowDataSerializer),
+        new Tuple2(arrayData, arrayDataSerializer))
+    )
+
+    rowData.setField(0, StringData.fromString("info2"))
+    rowData.setField(1, 456L)
+    val arrayData2 = new GenericArrayData(
+      Array[Object](
+        StringData.fromString("info4"),
+        StringData.fromString("info5"),
+        StringData.fromString("info6")))
+
+    testHarness.processElement(
+      binaryRecord(
+        INSERT,
+        "B",
+        2L: JLong,
+        "Bob",
+        "Male",
+        "Chicago",
+        new Tuple2(rowData, rowDataSerializer),
+        new Tuple2(arrayData2, arrayDataSerializer)
+      )
+    )
+    expectedOutput.add(
+      binaryRecord(
+        INSERT,
+        "B",
+        2L: JLong,
+        "Bob",
+        "Male",
+        "Chicago",
+        new Tuple2(rowData, rowDataSerializer),
+        new Tuple2(arrayData2, arrayDataSerializer)
+      )
+    )
+    rowData.setField(0, StringData.fromString("info3"))
+    rowData.setField(1, 789L)
+    val arrayData3 = new GenericArrayData(
+      Array[Object](
+        StringData.fromString("info7"),
+        StringData.fromString("info8"),
+        StringData.fromString("info9")))
+    testHarness.processElement(
+      binaryRecord(
+        INSERT,
+        "A",
+        3L: JLong,
+        "Bob",
+        "Male",
+        "Chicago",
+        new Tuple2(rowData, rowDataSerializer),
+        new Tuple2(arrayData3, arrayDataSerializer)
+      )
+    )
+    rowData.setField(0, StringData.fromString("info1"))
+    rowData.setField(1, 123L)
+    expectedOutput.add(
+      binaryRecord(
+        UPDATE_BEFORE,
+        "A",
+        1L: JLong,
+        "Alice",
+        "Female",
+        "New York",
+        new Tuple2(rowData, rowDataSerializer),
+        new Tuple2(arrayData, arrayDataSerializer)
+      )
+    )
+    rowData.setField(0, StringData.fromString("info3"))
+    rowData.setField(1, 789L)
+    expectedOutput.add(
+      binaryRecord(
+        UPDATE_AFTER,
+        "A",
+        3L: JLong,
+        "Bob",
+        "Male",
+        "Chicago",
+        new Tuple2(rowData, rowDataSerializer),
+        new Tuple2(arrayData3, arrayDataSerializer)
+      )
+    )
+    testHarness.processElement(
+      binaryRecord(
+        DELETE,
+        "A",
+        3L: JLong,
+        "Bob",
+        "Male",
+        "Chicago",
+        new Tuple2(rowData, rowDataSerializer),
+        new Tuple2(arrayData3, arrayDataSerializer)
+      )
+    )
+    expectedOutput.add(
+      binaryRecord(
+        UPDATE_BEFORE,
+        "A",
+        3L: JLong,
+        "Bob",
+        "Male",
+        "Chicago",
+        new Tuple2(rowData, rowDataSerializer),
+        new Tuple2(arrayData3, arrayDataSerializer)
+      )
+    )
+    rowData.setField(0, StringData.fromString("info1"))
+    rowData.setField(1, 123L)
+    expectedOutput.add(
+      binaryRecord(
+        UPDATE_AFTER,
+        "A",
+        1L: JLong,
+        "Alice",
+        "Female",
+        "New York",
+        new Tuple2(rowData, rowDataSerializer),
+        new Tuple2(arrayData, arrayDataSerializer)
+      )
+    )
+    // Processing final delete record
+    testHarness.processElement(
+      binaryRecord(
+        DELETE,
+        "A",
+        1L: JLong,
+        "Alice",
+        "Female",
+        "New York",
+        new Tuple2(rowData, rowDataSerializer),
+        new Tuple2(arrayData, arrayDataSerializer)
+      )
+    )
+    expectedOutput.add(
+      binaryRecord(
+        DELETE,
+        "A",
+        1L: JLong,
+        "Alice",
+        "Female",
+        "New York",
+        new Tuple2(rowData, rowDataSerializer),
+        new Tuple2(arrayData, arrayDataSerializer)
+      )
+    )
+    val result = testHarness.getOutput
+
+    assertor.assertOutputEqualsSorted("result mismatch", expectedOutput, result)
+
+    testHarness.close()
+
   }
 
   private def createAggregation()
