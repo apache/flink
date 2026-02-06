@@ -121,8 +121,6 @@ public final class Documentation {
 
         public static final String MODEL_OPENAI_EMBEDDING = "model_openai_embedding";
 
-        public static final String MODEL_TRITON = "model_triton";
-
         private Sections() {}
     }
 
