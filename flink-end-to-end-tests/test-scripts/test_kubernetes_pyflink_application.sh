@@ -54,13 +54,9 @@ cd "${FLINK_PYTHON_DIR}"
 
 if [[ -d "dist" ]]; then rm -Rf dist; fi
 
-pushd apache-flink-libraries
+uv build apache-flink-libraries --sdist
 
-python setup.py sdist
-
-popd
-
-python setup.py sdist
+uv build
 
 cd dev
 
