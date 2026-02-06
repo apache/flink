@@ -18,6 +18,7 @@
 
 package org.apache.flink.model.triton;
 
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.description.Description;
@@ -35,6 +36,7 @@ public class TritonOptions {
         // Utility class with static options only
     }
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON})
     public static final ConfigOption<String> ENDPOINT =
             ConfigOptions.key("endpoint")
                     .stringType()
@@ -47,18 +49,21 @@ public class TritonOptions {
                                             code("https://triton-server:8000/v2/models"))
                                     .build());
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON})
     public static final ConfigOption<String> MODEL_NAME =
             ConfigOptions.key("model-name")
                     .stringType()
                     .noDefaultValue()
                     .withDescription("Name of the model to invoke on Triton server.");
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON})
     public static final ConfigOption<String> MODEL_VERSION =
             ConfigOptions.key("model-version")
                     .stringType()
                     .defaultValue("latest")
                     .withDescription("Version of the model to use. Defaults to 'latest'.");
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON})
     public static final ConfigOption<Duration> TIMEOUT =
             ConfigOptions.key("timeout")
                     .durationType()
@@ -68,6 +73,7 @@ public class TritonOptions {
                                     + "This applies per individual request and is separate from Flink's async timeout. "
                                     + "Defaults to 30 seconds.");
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON})
     public static final ConfigOption<Boolean> FLATTEN_BATCH_DIM =
             ConfigOptions.key("flatten-batch-dim")
                     .booleanType()
@@ -76,6 +82,7 @@ public class TritonOptions {
                             "Whether to flatten the batch dimension for array inputs. "
                                     + "When true, shape [1,N] becomes [N]. Defaults to false.");
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON})
     public static final ConfigOption<Integer> PRIORITY =
             ConfigOptions.key("priority")
                     .intType()
@@ -83,6 +90,7 @@ public class TritonOptions {
                     .withDescription(
                             "Request priority level (0-255). Higher values indicate higher priority.");
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON})
     public static final ConfigOption<String> SEQUENCE_ID =
             ConfigOptions.key("sequence-id")
                     .stringType()
@@ -99,6 +107,7 @@ public class TritonOptions {
                                                     "Triton Stateful Models"))
                                     .build());
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON})
     public static final ConfigOption<Boolean> SEQUENCE_START =
             ConfigOptions.key("sequence-start")
                     .booleanType()
@@ -114,6 +123,7 @@ public class TritonOptions {
                                                     "Triton Stateful Models"))
                                     .build());
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON})
     public static final ConfigOption<Boolean> SEQUENCE_END =
             ConfigOptions.key("sequence-end")
                     .booleanType()
@@ -129,6 +139,7 @@ public class TritonOptions {
                                                     "Triton Stateful Models"))
                                     .build());
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON})
     public static final ConfigOption<String> COMPRESSION =
             ConfigOptions.key("compression")
                     .stringType()
@@ -141,12 +152,14 @@ public class TritonOptions {
                                             code("gzip"))
                                     .build());
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON})
     public static final ConfigOption<String> AUTH_TOKEN =
             ConfigOptions.key("auth-token")
                     .stringType()
                     .noDefaultValue()
                     .withDescription("Authentication token for secured Triton servers.");
 
+    @Documentation.Section({Documentation.Sections.MODEL_TRITON})
     public static final ConfigOption<Map<String, String>> CUSTOM_HEADERS =
             ConfigOptions.key("custom-headers")
                     .mapType()
