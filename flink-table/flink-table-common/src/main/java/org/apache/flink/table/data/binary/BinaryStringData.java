@@ -356,6 +356,11 @@ public final class BinaryStringData extends LazyBinaryFormat<String> implements 
     /** Copy a new {@code BinaryStringData}. */
     public BinaryStringData copy() {
         ensureMaterialized();
+        if (binarySection.segments.length == 1
+                && binarySection.offset == 0
+                && binarySection.sizeInBytes == binarySection.segments[0].size()) {
+            return this;
+        }
         byte[] copy =
                 BinarySegmentUtils.copyToBytes(
                         binarySection.segments, binarySection.offset, binarySection.sizeInBytes);
