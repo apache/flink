@@ -44,8 +44,8 @@ final class NestedMapConstraint implements Constraint {
             final int[] nestedMapFieldIndices,
             final String[] nestedMapFieldNames,
             final Constraint[][] nestedElementsConstraints,
-            final ArrayData.ElementGetter[] valueGetters,
-            final ArrayData.ElementGetter[] keyGetters) {
+            final ArrayData.ElementGetter[] keyGetters,
+            final ArrayData.ElementGetter[] valueGetters) {
         this.nestedMapFieldIndices = nestedMapFieldIndices;
         this.nestedMapFieldNames = nestedMapFieldNames;
         this.nestedElementsConstraints = nestedElementsConstraints;
