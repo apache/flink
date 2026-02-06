@@ -19,13 +19,9 @@
 package org.apache.flink.table.secret;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.secret.exceptions.SecretException;
 import org.apache.flink.table.secret.exceptions.SecretNotFoundException;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.type.TypeReference;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -36,15 +32,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A generic in-memory implementation of both {@link ReadableSecretStore} and {@link
  * WritableSecretStore}.
  *
- * <p>This implementation stores secrets in memory as plaintext JSON strings. It is suitable for
+ * <p>This implementation stores secrets in memory as immutable Map objects. It is suitable for
  * testing and development purposes but should not be used in production environments as secrets are
  * not encrypted.
  */
 @Internal
 public class GenericInMemorySecretStore implements ReadableSecretStore, WritableSecretStore {
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
-    private final Map<String, String> secrets;
+    private final Map<String, Map<String, String>> secrets;
 
     public GenericInMemorySecretStore() {
         this.secrets = new HashMap<>();
@@ -54,18 +49,13 @@ public class GenericInMemorySecretStore implements ReadableSecretStore, Writable
     public Map<String, String> getSecret(String secretId) throws SecretNotFoundException {
         checkNotNull(secretId, "Secret ID cannot be null");
 
-        String secretJson = secrets.get(secretId);
-        if (secretJson == null) {
+        Map<String, String> secretData = secrets.get(secretId);
+        if (secretData == null) {
             throw new SecretNotFoundException(
                     String.format("Secret with ID '%s' not found", secretId));
         }
 
-        try {
-            return objectMapper.readValue(secretJson, new TypeReference<>() {});
-        } catch (JsonProcessingException e) {
-            throw new SecretException(
-                    String.format("Failed to deserialize secret with ID '%s'", secretId), e);
-        }
+        return secretData;
     }
 
     @Override
@@ -73,13 +63,8 @@ public class GenericInMemorySecretStore implements ReadableSecretStore, Writable
         checkNotNull(secretData, "Secret data cannot be null");
 
         String secretId = UUID.randomUUID().toString();
-        try {
-            String secretJson = objectMapper.writeValueAsString(secretData);
-            secrets.put(secretId, secretJson);
-            return secretId;
-        } catch (JsonProcessingException e) {
-            throw new SecretException("Failed to serialize secret data", e);
-        }
+        secrets.put(secretId, Collections.unmodifiableMap(new HashMap<>(secretData)));
+        return secretId;
     }
 
     @Override
@@ -99,12 +84,7 @@ public class GenericInMemorySecretStore implements ReadableSecretStore, Writable
                     String.format("Secret with ID '%s' not found", secretId));
         }
 
-        try {
-            String secretJson = objectMapper.writeValueAsString(newSecretData);
-            secrets.put(secretId, secretJson);
-        } catch (JsonProcessingException e) {
-            throw new SecretException("Failed to serialize secret data", e);
-        }
+        secrets.put(secretId, Collections.unmodifiableMap(new HashMap<>(newSecretData)));
     }
 
     /** Clears all secrets from the store (for testing purposes). */

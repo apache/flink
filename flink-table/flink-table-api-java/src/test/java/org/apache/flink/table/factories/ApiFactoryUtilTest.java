@@ -22,6 +22,9 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.catalog.FileCatalogStoreFactory;
 import org.apache.flink.table.catalog.GenericInMemoryCatalogStoreFactory;
+import org.apache.flink.table.secret.CommonSecretOptions;
+import org.apache.flink.table.secret.GenericInMemorySecretStoreFactory;
+import org.apache.flink.table.secret.SecretStoreFactory;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -127,10 +130,84 @@ class ApiFactoryUtilTest {
                         Map.of("path", "/test/path", "option1", "value1"));
     }
 
+    @ParameterizedTest(name = "kind={0}, expectedFactory={1}")
+    @MethodSource("secretStoreFactoryTestParameters")
+    void testFindAndCreateSecretStoreFactory(String kind, Class<?> expectedFactoryClass) {
+        Configuration configuration = new Configuration();
+        if (kind != null) {
+            configuration.set(CommonSecretOptions.TABLE_SECRET_STORE_KIND, kind);
+        }
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+
+        SecretStoreFactory factory =
+                ApiFactoryUtil.findAndCreateSecretStoreFactory(configuration, classLoader);
+
+        assertThat(factory).isInstanceOf(expectedFactoryClass);
+    }
+
+    @Test
+    void testBuildSecretStoreFactoryContext() {
+        Configuration configuration = new Configuration();
+        configuration.set(CommonSecretOptions.TABLE_SECRET_STORE_KIND, "generic_in_memory");
+        configuration.setString("table.secret-store.generic_in_memory.option1", "value1");
+        configuration.setString("table.secret-store.generic_in_memory.option2", "value2");
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+
+        SecretStoreFactory.Context context =
+                ApiFactoryUtil.buildSecretStoreFactoryContext(configuration, classLoader);
+
+        assertThat(context).isNotNull();
+        assertThat(context.getOptions())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of("option1", "value1", "option2", "value2"));
+        assertThat(context.getConfiguration()).isEqualTo(configuration);
+        assertThat(context.getClassLoader()).isEqualTo(classLoader);
+    }
+
+    @Test
+    void testBuildSecretStoreFactoryContextWithoutOptions() {
+        Configuration configuration = new Configuration();
+        configuration.set(CommonSecretOptions.TABLE_SECRET_STORE_KIND, "generic_in_memory");
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+
+        SecretStoreFactory.Context context =
+                ApiFactoryUtil.buildSecretStoreFactoryContext(configuration, classLoader);
+
+        assertThat(context).isNotNull();
+        assertThat(context.getOptions()).isEmpty();
+        assertThat(context.getConfiguration()).isEqualTo(configuration);
+        assertThat(context.getClassLoader()).isEqualTo(classLoader);
+    }
+
+    @Test
+    void testBuildSecretStoreFactoryContextOnlyExtractsRelevantOptions() {
+        Configuration configuration = new Configuration();
+        configuration.set(CommonSecretOptions.TABLE_SECRET_STORE_KIND, "generic_in_memory");
+        configuration.setString("table.secret-store.generic_in_memory.option1", "value1");
+        configuration.setString("table.secret-store.generic_in_memory.option2", "value2");
+        configuration.setString("table.secret-store.other.irrelevant", "should-not-appear");
+        configuration.setString("other.config.key", "should-not-appear");
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+
+        SecretStoreFactory.Context context =
+                ApiFactoryUtil.buildSecretStoreFactoryContext(configuration, classLoader);
+
+        assertThat(context).isNotNull();
+        assertThat(context.getOptions())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of("option1", "value1", "option2", "value2"));
+    }
+
     private static Stream<Arguments> catalogStoreFactoryTestParameters() {
         return Stream.of(
                 Arguments.of("generic_in_memory", GenericInMemoryCatalogStoreFactory.class),
                 Arguments.of("file", FileCatalogStoreFactory.class),
                 Arguments.of(null, GenericInMemoryCatalogStoreFactory.class));
+    }
+
+    private static Stream<Arguments> secretStoreFactoryTestParameters() {
+        return Stream.of(
+                Arguments.of("generic_in_memory", GenericInMemorySecretStoreFactory.class),
+                Arguments.of(null, GenericInMemorySecretStoreFactory.class));
     }
 }
