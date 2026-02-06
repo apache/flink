@@ -1,5 +1,5 @@
 ---
-title: 'First steps'
+title: 'First Steps'
 weight: 1
 type: docs
 aliases:

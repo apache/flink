@@ -26,8 +26,9 @@ under the License.
       - alt: Image alt text (optional)
       - width: Image width (optional)
 */}}
+{{- $basePath := (urls.Parse .Site.BaseURL).Path -}}
 <img
-  src="{{ .Get "src" | relURL }}"
+  src="{{ $basePath }}{{ .Get "src" }}"
   alt="{{ .Get "alt" }}"
   width="{{ .Get "width" }}"
   style="display:block;margin-left:auto;margin-right:auto"
