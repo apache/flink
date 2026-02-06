@@ -6,7 +6,7 @@ info:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
-  version: v2/2.0-SNAPSHOT
+  version: v2/2.3-SNAPSHOT
 paths:
   /api_versions:
     get:
@@ -19,7 +19,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetApiVersionResponseBody'
+                $ref: "#/components/schemas/GetApiVersionResponseBody"
   /info:
     get:
       description: Get meta data for this cluster.
@@ -30,7 +30,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetInfoResponseBody'
+                $ref: "#/components/schemas/GetInfoResponseBody"
   /sessions:
     post:
       description: Opens a new session with specific properties. Specific properties
@@ -41,14 +41,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/OpenSessionRequestBody'
+              $ref: "#/components/schemas/OpenSessionRequestBody"
       responses:
         "200":
           description: The request was successful.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OpenSessionResponseBody'
+                $ref: "#/components/schemas/OpenSessionResponseBody"
   /sessions/{session_handle}:
     get:
       description: Get the session configuration.
@@ -59,14 +59,14 @@ paths:
         description: The SessionHandle that identifies a session.
         required: true
         schema:
-          $ref: '#/components/schemas/SessionHandle'
+          $ref: "#/components/schemas/SessionHandle"
       responses:
         "200":
           description: The request was successful.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetSessionConfigResponseBody'
+                $ref: "#/components/schemas/GetSessionConfigResponseBody"
     delete:
       description: Closes the specific session.
       operationId: closeSession
@@ -76,14 +76,14 @@ paths:
         description: The SessionHandle that identifies a session.
         required: true
         schema:
-          $ref: '#/components/schemas/SessionHandle'
+          $ref: "#/components/schemas/SessionHandle"
       responses:
         "200":
           description: The request was successful.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CloseSessionResponseBody'
+                $ref: "#/components/schemas/CloseSessionResponseBody"
   /sessions/{session_handle}/complete-statement:
     get:
       description: Get the completion hints for the given statement at the given position.
@@ -94,19 +94,19 @@ paths:
         description: The SessionHandle that identifies a session.
         required: true
         schema:
-          $ref: '#/components/schemas/SessionHandle'
+          $ref: "#/components/schemas/SessionHandle"
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CompleteStatementRequestBody'
+              $ref: "#/components/schemas/CompleteStatementRequestBody"
       responses:
         "200":
           description: The request was successful.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CompleteStatementResponseBody'
+                $ref: "#/components/schemas/CompleteStatementResponseBody"
   /sessions/{session_handle}/configure-session:
     post:
       description: |-
@@ -119,12 +119,12 @@ paths:
         description: The SessionHandle that identifies a session.
         required: true
         schema:
-          $ref: '#/components/schemas/SessionHandle'
+          $ref: "#/components/schemas/SessionHandle"
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ConfigureSessionRequestBody'
+              $ref: "#/components/schemas/ConfigureSessionRequestBody"
       responses:
         "200":
           description: The request was successful.
@@ -139,7 +139,7 @@ paths:
         description: The SessionHandle that identifies a session.
         required: true
         schema:
-          $ref: '#/components/schemas/SessionHandle'
+          $ref: "#/components/schemas/SessionHandle"
       responses:
         "200":
           description: The request was successful.
@@ -153,20 +153,20 @@ paths:
         description: The SessionHandle that identifies a session.
         required: true
         schema:
-          $ref: '#/components/schemas/SessionHandle'
+          $ref: "#/components/schemas/SessionHandle"
       - name: operation_handle
         in: path
         description: The OperationHandle that identifies a operation.
         required: true
         schema:
-          $ref: '#/components/schemas/OperationHandle'
+          $ref: "#/components/schemas/OperationHandle"
       responses:
         "200":
           description: The request was successful.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OperationStatusResponseBody'
+                $ref: "#/components/schemas/OperationStatusResponseBody"
   /sessions/{session_handle}/operations/{operation_handle}/close:
     delete:
       description: Close the operation.
@@ -177,20 +177,20 @@ paths:
         description: The SessionHandle that identifies a session.
         required: true
         schema:
-          $ref: '#/components/schemas/SessionHandle'
+          $ref: "#/components/schemas/SessionHandle"
       - name: operation_handle
         in: path
         description: The OperationHandle that identifies a operation.
         required: true
         schema:
-          $ref: '#/components/schemas/OperationHandle'
+          $ref: "#/components/schemas/OperationHandle"
       responses:
         "200":
           description: The request was successful.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OperationStatusResponseBody'
+                $ref: "#/components/schemas/OperationStatusResponseBody"
   /sessions/{session_handle}/operations/{operation_handle}/result/{token}:
     get:
       description: Fetch results of Operation.
@@ -201,13 +201,13 @@ paths:
         description: The SessionHandle that identifies a session.
         required: true
         schema:
-          $ref: '#/components/schemas/SessionHandle'
+          $ref: "#/components/schemas/SessionHandle"
       - name: operation_handle
         in: path
         description: The OperationHandle that identifies a operation.
         required: true
         schema:
-          $ref: '#/components/schemas/OperationHandle'
+          $ref: "#/components/schemas/OperationHandle"
       - name: token
         in: path
         description: The token that identifies which batch of data to fetch.
@@ -221,14 +221,14 @@ paths:
         required: true
         style: form
         schema:
-          $ref: '#/components/schemas/RowFormat'
+          $ref: "#/components/schemas/RowFormat"
       responses:
         "200":
           description: The request was successful.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FetchResultsResponseBody'
+                $ref: "#/components/schemas/FetchResultsResponseBody"
   /sessions/{session_handle}/operations/{operation_handle}/status:
     get:
       description: Get the status of operation.
@@ -239,20 +239,20 @@ paths:
         description: The SessionHandle that identifies a session.
         required: true
         schema:
-          $ref: '#/components/schemas/SessionHandle'
+          $ref: "#/components/schemas/SessionHandle"
       - name: operation_handle
         in: path
         description: The OperationHandle that identifies a operation.
         required: true
         schema:
-          $ref: '#/components/schemas/OperationHandle'
+          $ref: "#/components/schemas/OperationHandle"
       responses:
         "200":
           description: The request was successful.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OperationStatusResponseBody'
+                $ref: "#/components/schemas/OperationStatusResponseBody"
   /sessions/{session_handle}/statements:
     post:
       description: Execute a statement.
@@ -263,19 +263,19 @@ paths:
         description: The SessionHandle that identifies a session.
         required: true
         schema:
-          $ref: '#/components/schemas/SessionHandle'
+          $ref: "#/components/schemas/SessionHandle"
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ExecuteStatementRequestBody'
+              $ref: "#/components/schemas/ExecuteStatementRequestBody"
       responses:
         "200":
           description: The request was successful.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ExecuteStatementResponseBody'
+                $ref: "#/components/schemas/ExecuteStatementResponseBody"
 components:
   schemas:
     CloseSessionResponseBody:
@@ -289,7 +289,7 @@ components:
         comment:
           type: string
         dataType:
-          $ref: '#/components/schemas/DataType'
+          $ref: "#/components/schemas/DataType"
         name:
           type: string
         persisted:
@@ -302,7 +302,7 @@ components:
         comment:
           type: string
         logicalType:
-          $ref: '#/components/schemas/LogicalType'
+          $ref: "#/components/schemas/LogicalType"
         name:
           type: string
     CompleteStatementRequestBody:
@@ -339,9 +339,9 @@ components:
         children:
           type: array
           items:
-            $ref: '#/components/schemas/DataType'
+            $ref: "#/components/schemas/DataType"
         logicalType:
-          $ref: '#/components/schemas/LogicalType'
+          $ref: "#/components/schemas/LogicalType"
     ExecuteStatementRequestBody:
       type: object
       properties:
@@ -365,17 +365,17 @@ components:
       type: object
       properties:
         jobID:
-          $ref: '#/components/schemas/JobID'
+          $ref: "#/components/schemas/JobID"
         nextResultUri:
           type: string
         queryResult:
           type: boolean
         resultKind:
-          $ref: '#/components/schemas/ResultKind'
+          $ref: "#/components/schemas/ResultKind"
         resultType:
-          $ref: '#/components/schemas/ResultType'
+          $ref: "#/components/schemas/ResultType"
         results:
-          $ref: '#/components/schemas/ResultInfo'
+          $ref: "#/components/schemas/ResultInfo"
     FieldGetter:
       type: object
     GetApiVersionResponseBody:
@@ -399,6 +399,15 @@ components:
           type: object
           additionalProperties:
             type: string
+    Index:
+      type: object
+      properties:
+        columns:
+          type: array
+          items:
+            type: string
+        name:
+          type: string
     IntermediateDataSetID:
       pattern: "[0-9a-f]{32}"
       type: string
@@ -414,11 +423,11 @@ components:
         children:
           type: array
           items:
-            $ref: '#/components/schemas/LogicalType'
+            $ref: "#/components/schemas/LogicalType"
         nullable:
           type: boolean
         typeRoot:
-          $ref: '#/components/schemas/LogicalTypeRoot'
+          $ref: "#/components/schemas/LogicalTypeRoot"
     LogicalTypeRoot:
       type: string
       enum:
@@ -451,6 +460,8 @@ components:
       - RAW
       - SYMBOL
       - UNRESOLVED
+      - DESCRIPTOR
+      - VARIANT
     OpenSessionRequestBody:
       type: object
       properties:
@@ -482,13 +493,13 @@ components:
         children:
           type: array
           items:
-            $ref: '#/components/schemas/Expression'
+            $ref: "#/components/schemas/Expression"
         outputDataType:
-          $ref: '#/components/schemas/DataType'
+          $ref: "#/components/schemas/DataType"
         resolvedChildren:
           type: array
           items:
-            $ref: '#/components/schemas/ResolvedExpression'
+            $ref: "#/components/schemas/ResolvedExpression"
     ResolvedSchema:
       type: object
       properties:
@@ -498,7 +509,7 @@ components:
         columnDataTypes:
           type: array
           items:
-            $ref: '#/components/schemas/DataType'
+            $ref: "#/components/schemas/DataType"
         columnNames:
           type: array
           items:
@@ -506,9 +517,13 @@ components:
         columns:
           type: array
           items:
-            $ref: '#/components/schemas/Column'
+            $ref: "#/components/schemas/Column"
+        indexes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Index"
         primaryKey:
-          $ref: '#/components/schemas/UniqueConstraint'
+          $ref: "#/components/schemas/UniqueConstraint"
         primaryKeyIndexes:
           type: array
           items:
@@ -517,7 +532,7 @@ components:
         watermarkSpecs:
           type: array
           items:
-            $ref: '#/components/schemas/WatermarkSpec'
+            $ref: "#/components/schemas/WatermarkSpec"
     ResourceID:
       pattern: "[0-9a-f]{32}"
       type: string
@@ -527,19 +542,19 @@ components:
         columnInfos:
           type: array
           items:
-            $ref: '#/components/schemas/ColumnInfo'
+            $ref: "#/components/schemas/ColumnInfo"
         data:
           type: array
           items:
-            $ref: '#/components/schemas/RowData'
+            $ref: "#/components/schemas/RowData"
         fieldGetters:
           type: array
           items:
-            $ref: '#/components/schemas/FieldGetter'
+            $ref: "#/components/schemas/FieldGetter"
         resultSchema:
-          $ref: '#/components/schemas/ResolvedSchema'
+          $ref: "#/components/schemas/ResolvedSchema"
         rowFormat:
-          $ref: '#/components/schemas/RowFormat'
+          $ref: "#/components/schemas/RowFormat"
     ResultKind:
       type: string
       enum:
@@ -558,7 +573,7 @@ components:
           type: integer
           format: int32
         rowKind:
-          $ref: '#/components/schemas/RowKind'
+          $ref: "#/components/schemas/RowKind"
     RowFormat:
       type: string
       enum:
@@ -598,11 +613,11 @@ components:
         name:
           type: string
         type:
-          $ref: '#/components/schemas/ConstraintType'
+          $ref: "#/components/schemas/ConstraintType"
     WatermarkSpec:
       type: object
       properties:
         rowtimeAttribute:
           type: string
         watermarkExpression:
-          $ref: '#/components/schemas/ResolvedExpression'
+          $ref: "#/components/schemas/ResolvedExpression"
