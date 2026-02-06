@@ -21,17 +21,18 @@ import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.catalog.{ObjectIdentifier, UniqueConstraint}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.abilities.source.{FilterPushDownSpec, PartitionPushDownSpec}
 import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalRel
 import org.apache.flink.table.planner.plan.schema.{IntermediateRelTable, LegacyTableSourceTable, TableSourceTable}
-import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, ExpressionFormat, InputRefVisitor, JoinTypeUtil, LookupJoinUtil, RelExplainUtil, TemporalJoinUtil}
+import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, ExpressionFormat, FlinkRexUtil, InputRefVisitor, JoinTypeUtil, LookupJoinUtil, RelExplainUtil, TemporalJoinUtil}
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 import org.apache.flink.table.planner.plan.utils.FunctionCallUtil.{AsyncOptions, Constant, FieldRef, FunctionParam}
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil._
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
-import org.apache.flink.table.runtime.types.PlannerTypeUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.plan.hep.HepRelVertex
@@ -191,6 +192,10 @@ abstract class CommonPhysicalLookupJoin(
       case t: TableSourceTable => t.contextResolvedTable.getIdentifier
       case t: LegacyTableSourceTable[_] => t.tableIdentifier
     }
+    val filterPushdownString: String = temporalTable match {
+      case t: TableSourceTable => getTableFilterString(t)
+      case _: LegacyTableSourceTable[_] => ""
+    }
 
     super
       .explainTerms(pw)
@@ -198,6 +203,7 @@ abstract class CommonPhysicalLookupJoin(
       .item("joinType", JoinTypeUtil.getFlinkJoinType(joinType))
       .item("lookup", lookupKeys)
       .itemIf("where", whereString, whereString.nonEmpty)
+      .itemIf("filterPushDown", filterPushdownString, filterPushdownString.nonEmpty)
       .itemIf(
         "joinCondition",
         joinConditionToString(resultFieldNames, preferExpressionFormat(pw), pw.getDetailLevel),
@@ -208,6 +214,35 @@ abstract class CommonPhysicalLookupJoin(
       .itemIf("async", asyncOptions.getOrElse(""), asyncOptions.isDefined)
       .itemIf("shuffle", "true", enableLookupShuffle)
       .itemIf("retry", retryOptions.getOrElse(""), retryOptions.isDefined)
+  }
+
+  private def getTableFilterString(t: TableSourceTable): String = {
+    val filterOpt = t.abilitySpecs.collectFirst { case spec: FilterPushDownSpec => spec }
+    val partitionOpt = t.abilitySpecs.collectFirst { case spec: PartitionPushDownSpec => spec }
+
+    val filterString = filterOpt match {
+      case Some(filter) if !filter.getPredicates.isEmpty =>
+        val fieldNames = JavaScalaConversionUtil.toScala(t.getRowType.getFieldNames)
+        val predicates = JavaScalaConversionUtil.toScala(filter.getPredicates)
+        predicates
+          .map(FlinkRexUtil.getExpressionString(_, fieldNames))
+          .reduceOption((l, r) => String.format("and(%s, %s)", l, r))
+          .getOrElse("")
+      case _ => ""
+    }
+
+    val partitionString = partitionOpt match {
+      case Some(partition) if !partition.getPartitions.isEmpty =>
+        s"partitions=${partition.getDigests(null)}"
+      case _ => ""
+    }
+
+    (filterString, partitionString) match {
+      case ("", "") => ""
+      case (f, "") => f
+      case ("", p) => p
+      case (f, p) => s"$f, $p"
+    }
   }
 
   private def getInputChangelogMode(rel: RelNode): ChangelogMode = rel match {

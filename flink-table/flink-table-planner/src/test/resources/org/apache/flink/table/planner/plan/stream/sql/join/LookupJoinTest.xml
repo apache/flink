@@ -1658,4 +1658,53 @@ Calc(select=[a, b, c, PROCTIME_MATERIALIZE(proctime) AS proctime, rowtime, id, n
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testJoinFilterableTemporalTableWithUnion">
+  	<Resource name="sql">
+	  <![CDATA[
+SELECT s.a, s.b, s.proctime, d.status
+FROM MyTable AS `s`
+INNER JOIN LookupTableWithFilterableFields FOR SYSTEM_TIME AS OF `s`.proctime AS `d`
+ON `s`.a = `d`.`id`
+WHERE `d`.`status` = 'OK'
+UNION ALL
+SELECT s.a, s.b, s.proctime, d.status
+FROM MyTable AS `s`
+INNER JOIN LookupTableWithFilterableFields FOR SYSTEM_TIME AS OF `s`.proctime AS `d`
+ON `s`.a = `d`.`id`
+WHERE `d`.`status` = 'KO'
+]]>
+	</Resource>
+	<Resource name="ast">
+	  <![CDATA[
+LogicalUnion(all=[true])
+:- LogicalProject(a=[$0], b=[$1], proctime=[$3], status=[$6])
+:  +- LogicalFilter(condition=[=($6, _UTF-16LE'OK')])
+:     +- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{0, 3}])
+:        :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+:        +- LogicalFilter(condition=[=($cor0.a, $0)])
+:           +- LogicalSnapshot(period=[$cor0.proctime])
+:              +- LogicalTableScan(table=[[default_catalog, default_database, LookupTableWithFilterableFields]])
++- LogicalProject(a=[$0], b=[$1], proctime=[$3], status=[$6])
+   +- LogicalFilter(condition=[=($6, _UTF-16LE'KO')])
+      +- LogicalCorrelate(correlation=[$cor1], joinType=[inner], requiredColumns=[{0, 3}])
+         :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+         +- LogicalFilter(condition=[=($cor1.a, $0)])
+            +- LogicalSnapshot(period=[$cor1.proctime])
+               +- LogicalTableScan(table=[[default_catalog, default_database, LookupTableWithFilterableFields]])
+]]>
+	</Resource>
+	<Resource name="optimized exec plan">
+	  <![CDATA[
+Calc(select=[a, b, PROCTIME_MATERIALIZE(proctime) AS proctime, status])
++- Union(all=[true], union=[a, b, proctime, status])
+   :- Calc(select=[a, b, proctime, CAST('OK' AS VARCHAR(2147483647)) AS status])
+   :  +- LookupJoin(table=[default_catalog.default_database.LookupTableWithFilterableFields], joinType=[InnerJoin], lookup=[id=a], filterPushDown=[=(status, _UTF-16LE'OK':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")], select=[a, b, proctime, id])
+   :     +- Calc(select=[a, b, proctime])(reuse_id=[1])
+   :        +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
+   +- Calc(select=[a, b, proctime, CAST('KO' AS VARCHAR(2147483647)) AS status])
+      +- LookupJoin(table=[default_catalog.default_database.LookupTableWithFilterableFields], joinType=[InnerJoin], lookup=[id=a], filterPushDown=[=(status, _UTF-16LE'KO':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")], select=[a, b, proctime, id])
+         +- Reused(reference_id=[1])
+]]>
+	</Resource>
+  </TestCase>
 </Root>
