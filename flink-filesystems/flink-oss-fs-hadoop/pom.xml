@@ -181,6 +181,10 @@ under the License.
 								<includes>
 									<include>*:*</include>
 								</includes>
+								<excludes>
+									<!-- jaxb-api is provided separately and contains GPL license headers -->
+									<exclude>javax.xml.bind:jaxb-api</exclude>
+								</excludes>
 							</artifactSet>
 							<relocations>
 								<!-- shade Flink's Hadoop FS adapter classes, forces plugin classloader for them -->
@@ -201,6 +205,11 @@ under the License.
 										<exclude>.gitkeep</exclude>
 										<exclude>mime.types</exclude>
 										<exclude>mozilla/**</exclude>
+										<!-- Exclude jaxb-api files with GPL license headers -->
+										<exclude>com/sun/xml/bind/**</exclude>
+										<exclude>javax/xml/bind/**</exclude>
+										<!-- Exclude unexpected NOTICE files -->
+										<exclude>okhttp3/internal/publicsuffix/NOTICE</exclude>
 									</excludes>
 								</filter>
 							</filters>
