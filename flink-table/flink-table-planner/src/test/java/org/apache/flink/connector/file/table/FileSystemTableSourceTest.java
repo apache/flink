@@ -19,10 +19,14 @@
 package org.apache.flink.connector.file.table;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
 import org.junit.jupiter.api.BeforeEach;
@@ -91,7 +95,20 @@ class FileSystemTableSourceTest extends TableTestBase {
     @ParameterizedTest(name = "extractFileName({0}) -> {1}")
     @MethodSource("fileNameCases")
     void testFileNameExtraction(String rawPath, String expected) {
-        assertThat(FileSystemTableSource.extractFileName(new Path(rawPath))).isEqualTo(expected);
+        String extractedFileName = FileSystemTableSource.extractFileName(new Path(rawPath));
+        assertThat(extractedFileName).isEqualTo(expected);
+    }
+
+    @ParameterizedTest(name = "file.name accessor for {0}")
+    @MethodSource("fileNameCases")
+    void testFileNameMetadataAccessor(String rawPath, String expected) {
+        FileSourceSplit split = mock(FileSourceSplit.class);
+        when(split.path()).thenReturn(new Path(rawPath));
+
+        Object value =
+                FileSystemTableSource.ReadableFileInfo.FILENAME.getAccessor().getValue(split);
+
+        assertThat(value).isEqualTo(StringData.fromString(expected));
     }
 
     static Stream<Arguments> fileNameCases() {
