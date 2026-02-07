@@ -73,14 +73,8 @@ if [ "$SKIP_INTEGRATE_CONNECTOR_DOCS" = false ]; then
   # Some connector docs use: {{< ref "path/#anchor" >}} or {{<ref "path#anchor">}} which causes Hugo errors
   # We need to fix refs that point to docs/ops/* and docs/dev/* (cross-module references)
   # Note: paths may have trailing slashes before the # which need to be removed
-  echo "Fixing Hugo ref syntax in connector docs..."
   find themes/connectors -name "*.md" -type f -exec sed -i 's|{{< ref "\(docs/ops/[^"/#]*\)/*#\([^"]*\)" >}}|{{< ref "\1" >}}#\2|g' {} +
   find themes/connectors -name "*.md" -type f -exec sed -i 's|{{<ref "\(docs/ops/[^"/#]*\)/*#\([^"]*\)">}}|{{<ref "\1">}}#\2|g' {} +
   find themes/connectors -name "*.md" -type f -exec sed -i 's|{{< ref "\(docs/dev/[^"/#]*\)/*#\([^"]*\)" >}}|{{< ref "\1" >}}#\2|g' {} +
   find themes/connectors -name "*.md" -type f -exec sed -i 's|{{<ref "\(docs/dev/[^"/#]*\)/*#\([^"]*\)">}}|{{<ref "\1">}}#\2|g' {} +
-  echo "Hugo ref syntax fix completed."
-  # Verify the fix
-  if grep -r "production_ready/#" themes/connectors/ 2>/dev/null; then
-    echo "WARNING: Still found incorrect ref syntax with production_ready/#"
-  fi
 fi
