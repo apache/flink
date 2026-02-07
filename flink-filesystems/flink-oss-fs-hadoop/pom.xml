@@ -111,6 +111,17 @@ under the License.
 			<artifactId>credentials-java</artifactId>
 			<version>${aliyun.credentials.version}</version>
 			<optional>${flink.markBundledAsOptional}</optional>
+			<exclusions>
+				<!-- Exclude JAXB implementation JARs with GPL license headers -->
+				<exclusion>
+					<groupId>com.sun.xml.bind</groupId>
+					<artifactId>jaxb-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.sun.xml.bind</groupId>
+					<artifactId>jaxb-impl</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
