@@ -35,8 +35,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /** Test for {@link FileSystemTableSource}. */
 class FileSystemTableSourceTest extends TableTestBase {
@@ -103,8 +101,8 @@ class FileSystemTableSourceTest extends TableTestBase {
     @ParameterizedTest(name = "file.name accessor for {0}")
     @MethodSource("fileNameCases")
     void testFileNameMetadataAccessor(String rawPath, String expected) {
-        FileSourceSplit split = mock(FileSourceSplit.class);
-        when(split.path()).thenReturn(new Path(rawPath));
+        FileSourceSplit split =
+                new FileSourceSplit("test-split", new Path(rawPath), 0L, 1L, 0L, 1L);
 
         Object actual =
                 FileSystemTableSource.ReadableFileInfo.FILENAME.getAccessor().getValue(split);
