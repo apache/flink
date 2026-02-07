@@ -105,10 +105,10 @@ class FileSystemTableSourceTest extends TableTestBase {
         FileSourceSplit split = mock(FileSourceSplit.class);
         when(split.path()).thenReturn(new Path(rawPath));
 
-        Object value =
+        Object actual =
                 FileSystemTableSource.ReadableFileInfo.FILENAME.getAccessor().getValue(split);
 
-        assertThat(value).isEqualTo(StringData.fromString(expected));
+        assertThat(actual).isEqualTo(StringData.fromString(expected));
     }
 
     static Stream<Arguments> fileNameCases() {
