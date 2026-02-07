@@ -63,7 +63,6 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -489,6 +488,12 @@ public class FileSystemTableSource extends AbstractFileSystemTable
         Object getValue(FileSourceSplit split);
     }
 
+    // Extracts the file name in an OS-independent way as
+    // java.nio.file.Paths cannot handle Windows drive-letter URIs (file:/D:/...).
+    static String extractFileName(Path path) {
+        return path.getName();
+    }
+
     enum ReadableFileInfo implements Serializable {
         FILEPATH(
                 "file.path",
@@ -509,8 +514,7 @@ public class FileSystemTableSource extends AbstractFileSystemTable
 
                     @Override
                     public Object getValue(FileSourceSplit split) {
-                        return StringData.fromString(
-                                Paths.get(split.path().getPath()).getFileName().toString());
+                        return StringData.fromString(extractFileName(split.path()));
                     }
                 }),
         SIZE(
