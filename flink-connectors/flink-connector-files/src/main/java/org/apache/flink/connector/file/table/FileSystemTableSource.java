@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.file.table;
 
+import static org.apache.flink.util.CollectionUtil.entry;
+
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.configuration.ReadableConfig;
@@ -56,11 +58,8 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.plan.stats.TableStats;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.PartitionPathUtils;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.time.Duration;
@@ -77,7 +76,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static org.apache.flink.util.CollectionUtil.entry;
+import javax.annotation.Nullable;
 
 /** File system table source. */
 @Internal
@@ -488,8 +487,10 @@ public class FileSystemTableSource extends AbstractFileSystemTable
         Object getValue(FileSourceSplit split);
     }
 
-    // Extracts the file name in an OS-independent way as
-    // java.nio.file.Paths cannot handle Windows drive-letter URIs (file:/D:/...).
+    /**
+     * Extracts the file name in an OS-independent way as {@link java.nio.file.Paths} cannot handle
+     * Windows drive-letter URIs (e.g., file:/D:/...).
+     */
     static String extractFileName(Path path) {
         return path.getName();
     }
