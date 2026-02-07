@@ -419,13 +419,34 @@ public class StickyAllocationAndLocalRecoveryTestJob {
     private static int getJvmPid() throws Exception {
         java.lang.management.RuntimeMXBean runtime =
                 java.lang.management.ManagementFactory.getRuntimeMXBean();
-        java.lang.reflect.Field jvm = runtime.getClass().getDeclaredField("jvm");
-        jvm.setAccessible(true);
-        sun.management.VMManagement mgmt = (sun.management.VMManagement) jvm.get(runtime);
-        java.lang.reflect.Method pidMethod = mgmt.getClass().getDeclaredMethod("getProcessId");
-        pidMethod.setAccessible(true);
 
-        return (int) (Integer) pidMethod.invoke(mgmt);
+        // Try to use reflection to access sun.management.VMManagement
+        // This avoids compile-time dependency on internal JDK classes
+        try {
+            java.lang.reflect.Field jvm = runtime.getClass().getDeclaredField("jvm");
+            jvm.setAccessible(true);
+            Object mgmt = jvm.get(runtime);
+
+            // Check if the class exists (it may not in some JDK distributions like IBM Semeru)
+            if (mgmt != null) {
+                java.lang.reflect.Method pidMethod =
+                        mgmt.getClass().getDeclaredMethod("getProcessId");
+                pidMethod.setAccessible(true);
+                return (int) (Integer) pidMethod.invoke(mgmt);
+            }
+        } catch (NoSuchFieldException | NoSuchMethodException | ClassCastException e) {
+            // Fall through to alternative method
+        }
+
+        // Fallback: parse PID from RuntimeMXBean name (format: "pid@hostname")
+        String jvmName = runtime.getName();
+        int atIndex = jvmName.indexOf('@');
+        if (atIndex > 0) {
+            return Integer.parseInt(jvmName.substring(0, atIndex));
+        }
+
+        throw new UnsupportedOperationException(
+                "Unable to determine JVM PID. This JDK distribution may not support the required internal APIs.");
     }
 
     /** Records the information required to check sticky scheduling after a restart. */
