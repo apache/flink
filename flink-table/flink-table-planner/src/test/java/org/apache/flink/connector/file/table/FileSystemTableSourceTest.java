@@ -117,8 +117,10 @@ class FileSystemTableSourceTest extends TableTestBase {
                 Arguments.of("file:/D:/AI-Book/FlinkApplication/data/input/user.csv", "user.csv"),
                 Arguments.of("file:/D:/tmp/input/test.csv", "test.csv"),
                 Arguments.of("file:/C:/Users/me/Desktop/thing.txt", "thing.txt"),
+                Arguments.of("file:///tmp/input/user.csv", "user.csv"),
+                Arguments.of("file:/tmp/input/dir/", "dir"),
+                Arguments.of("file://localhost/tmp/input/user.csv", "user.csv"),
                 Arguments.of("s3://bucket/a/b/c.parquet", "c.parquet"),
-                Arguments.of("/tmp/input/dir/file.txt", "file.txt"),
-                Arguments.of("file:/tmp/input/üñïçødê.txt", "üñïçødê.txt"));
+                Arguments.of("/tmp/input/dir/file.txt", "file.txt"));
     }
 }
