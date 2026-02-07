@@ -1094,7 +1094,11 @@ public class Task
     }
 
     private void notifyFinalState() {
-        checkState(executionState.isTerminal());
+        checkState(
+                executionState.isTerminal(),
+                "Execution %s is not in terminal state: %s",
+                executionId,
+                executionState);
         taskManagerActions.updateTaskExecutionState(
                 new TaskExecutionState(executionId, executionState, failureCause));
     }
