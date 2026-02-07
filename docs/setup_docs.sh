@@ -67,4 +67,22 @@ if [ "$SKIP_INTEGRATE_CONNECTOR_DOCS" = false ]; then
 
   cd ..
   rm -rf tmp
+
+  # Fix incorrect ref syntax in connector docs
+  # Some external connector repositories contain incorrect Hugo ref shortcode syntax
+  # when referencing main Flink docs with anchors.
+  #
+  # The correct syntax for refs with anchors is: {{< ref "path" >}}#anchor
+  # Incorrect syntax: {{< ref "path/#anchor" >}} or {{< ref "path/.../" >}}#anchor
+  #
+  # This automatic fix detects and corrects these syntax errors in integrated
+  # connector docs, ensuring the documentation builds successfully.
+  #
+  # Note: Connector maintainers should use the correct syntax in their repos.
+  # Related tracking issues:
+  #   - flink-connector-kinesis: https://issues.apache.org/jira/browse/FLINK-39046
+  find themes/connectors -name "*.md" -type f -exec sed -i 's|{{< ref "\(docs/ops/[^"/#]*\)/*#\([^"]*\)" >}}|{{< ref "\1" >}}#\2|g' {} +
+  find themes/connectors -name "*.md" -type f -exec sed -i 's|{{<ref "\(docs/ops/[^"/#]*\)/*#\([^"]*\)">}}|{{<ref "\1">}}#\2|g' {} +
+  find themes/connectors -name "*.md" -type f -exec sed -i 's|{{< ref "\(docs/dev/[^"/#]*\)/*#\([^"]*\)" >}}|{{< ref "\1" >}}#\2|g' {} +
+  find themes/connectors -name "*.md" -type f -exec sed -i 's|{{<ref "\(docs/dev/[^"/#]*\)/*#\([^"]*\)">}}|{{<ref "\1">}}#\2|g' {} +
 fi
