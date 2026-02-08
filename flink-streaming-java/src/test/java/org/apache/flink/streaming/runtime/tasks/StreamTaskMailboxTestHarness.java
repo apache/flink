@@ -195,4 +195,8 @@ public class StreamTaskMailboxTestHarness<OUT> implements AutoCloseable {
     public TestCheckpointResponder getCheckpointResponder() {
         return (TestCheckpointResponder) taskStateManager.getCheckpointResponder();
     }
+
+    public StreamMockEnvironment getStreamMockEnvironment() {
+        return streamMockEnvironment;
+    }
 }
