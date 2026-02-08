@@ -57,7 +57,7 @@ public class ProfilingServiceTest extends TestLogger {
     void setUp(@TempDir Path tempDir) {
         configs.set(RestOptions.MAX_PROFILING_HISTORY_SIZE, HISTORY_SIZE_LIMIT);
         configs.set(RestOptions.PROFILING_RESULT_DIR, tempDir.toString());
-        profilingService = ProfilingService.getInstance(configs);
+        profilingService = ProfilingService.getInstanceForTest(configs);
     }
 
     @AfterEach
