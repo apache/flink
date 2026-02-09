@@ -84,7 +84,7 @@ public class AvroFormatOptions {
                                     + " Use legacy behavior by default for compatibility consideration.");
 
     public static final ConfigOption<Boolean> AVRO_FAST_READ =
-            ConfigOptions.key("avro.fast-read.enabled")
+            ConfigOptions.key("fast-read.enabled")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
@@ -93,7 +93,7 @@ public class AvroFormatOptions {
                                     + "get more information about this feature, please visit https://issues.apache.org/jira/browse/AVRO-3230");
 
     public static final ConfigOption<String> AVRO_WRITER_SCHEMA_STRING =
-            ConfigOptions.key("avro.writer.schemaString")
+            ConfigOptions.key("writer.schemaString")
                     .stringType()
                     .defaultValue(null)
                     .withDescription(

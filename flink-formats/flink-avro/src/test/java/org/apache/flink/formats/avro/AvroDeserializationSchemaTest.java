@@ -259,4 +259,60 @@ class AvroDeserializationSchemaTest {
         assertThat(deserializedRecord.get("id")).isEqualTo(789L);
         assertThat(deserializedRecord.get("score")).isEqualTo(87.3);
     }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testSchemaEvolution(AvroEncoding encoding) throws Exception {
+        // Writer schema (older version)
+        Schema writerSchema =
+                SchemaBuilder.record("EvolutionRecord")
+                        .namespace("org.apache.flink.formats.avro.test")
+                        .fields()
+                        .requiredLong("id")
+                        .requiredString("name")
+                        .endRecord();
+
+        // Reader schema (newer version with reordered fields and a new field with default)
+        Schema readerSchema =
+                SchemaBuilder.record("EvolutionRecord")
+                        .namespace("org.apache.flink.formats.avro.test")
+                        .fields()
+                        .name("name")
+                        .type()
+                        .stringType()
+                        .noDefault()
+                        .name("new_field")
+                        .type()
+                        .stringType()
+                        .stringDefault("default_val")
+                        .name("id")
+                        .type()
+                        .longType()
+                        .noDefault()
+                        .endRecord();
+
+        GenericRecord writerRecord = new GenericData.Record(writerSchema);
+        writerRecord.put("id", 101L);
+        writerRecord.put("name", "Eve");
+
+        // Serialize with writer schema
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(writerSchema);
+        Encoder encoder = createEncoder(encoding, writerSchema, outputStream);
+        datumWriter.write(writerRecord, encoder);
+        encoder.flush();
+        byte[] encodedData = outputStream.toByteArray();
+
+        // Create deserializer with writer and reader schema
+        DeserializationSchema<GenericRecord> deserializer =
+                AvroDeserializationSchema.forGeneric(
+                        writerSchema, readerSchema, encoding, null, false);
+
+        // Deserialize and verify
+        GenericRecord deserializedRecord = deserializer.deserialize(encodedData);
+        assertThat(deserializedRecord).isNotNull();
+        assertThat(deserializedRecord.get("name").toString()).isEqualTo("Eve");
+        assertThat(deserializedRecord.get("id")).isEqualTo(101L);
+        assertThat(deserializedRecord.get("new_field").toString()).isEqualTo("default_val");
+    }
 }

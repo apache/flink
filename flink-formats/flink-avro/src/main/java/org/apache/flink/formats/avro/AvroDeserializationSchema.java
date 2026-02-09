@@ -18,15 +18,6 @@
 
 package org.apache.flink.formats.avro;
 
-import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
-import org.apache.flink.formats.avro.typeutils.AvroFactory;
-import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
-import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
-import org.apache.flink.formats.avro.utils.MutableByteArrayInputStream;
-import org.apache.flink.util.Preconditions;
-
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
@@ -37,11 +28,19 @@ import org.apache.avro.io.JsonDecoder;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecord;
-
-import javax.annotation.Nullable;
+import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
+import org.apache.flink.formats.avro.typeutils.AvroFactory;
+import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
+import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
+import org.apache.flink.formats.avro.utils.MutableByteArrayInputStream;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.Objects;
+
+import javax.annotation.Nullable;
 
 /**
  * Deserialization schema that deserializes from Avro binary format.
@@ -81,6 +80,8 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
      * @param actualSchema schema of upstream actual write
      * @param schema schema of produced records
      * @param encoding Avro serialization approach to use for decoding
+     * @param actualSchemaString Avro writer's Schema.
+     * @param fastRead option to enable or disable fastread.
      * @return deserialized record in form of {@link GenericRecord}
      */
     public static AvroDeserializationSchema<GenericRecord> forGeneric(
@@ -174,6 +175,7 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
      * @param writer writer's Avro schema. Should be provided if user want to column pruning.
      * @param encoding encoding approach to use. Identifies the Avro decoder class to use.
      * @param writeSchemaString Optional for advanced users manually specify.
+     * @param fastRead option to enable or disable fastread.
      */
     AvroDeserializationSchema(
             Class<T> recordClazz,
@@ -207,7 +209,7 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
     }
 
     Schema getReaderSchema() {
-        return reader;
+        return writer != null ? writer : reader;
     }
 
     MutableByteArrayInputStream getInputStream() {
@@ -297,11 +299,23 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
             return false;
         }
         AvroDeserializationSchema<?> that = (AvroDeserializationSchema<?>) o;
-        return recordClazz.equals(that.recordClazz) && Objects.equals(reader, that.reader);
+        return fastRead == that.fastRead
+                && recordClazz.equals(that.recordClazz)
+                && Objects.equals(schemaString, that.schemaString)
+                && Objects.equals(
+                        getEffectiveWriteSchemaString(), that.getEffectiveWriteSchemaString())
+                && encoding == that.encoding;
+    }
+
+    private String getEffectiveWriteSchemaString() {
+        return (writeSchemaString == null || writeSchemaString.isEmpty())
+                ? schemaString
+                : writeSchemaString;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(recordClazz, reader);
+        return Objects.hash(
+                recordClazz, schemaString, getEffectiveWriteSchemaString(), encoding, fastRead);
     }
 }

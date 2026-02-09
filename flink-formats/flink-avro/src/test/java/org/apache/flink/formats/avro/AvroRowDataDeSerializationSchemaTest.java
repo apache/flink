@@ -636,6 +636,54 @@ class AvroRowDataDeSerializationSchemaTest {
         assertThat(rowData.getDouble(1)).isEqualTo(87.3);
     }
 
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testWriterSchemaString(AvroEncoding encoding) throws Exception {
+        // Full schema with 3 fields
+        final DataType fullDataType =
+                ROW(FIELD("id", BIGINT()), FIELD("name", STRING()), FIELD("score", DOUBLE()))
+                        .notNull();
+        final RowType fullRowType = (RowType) fullDataType.getLogicalType();
+        final Schema fullSchema = AvroSchemaConverter.convertToSchema(fullRowType);
+
+        // Projected schema with 2 fields (id, score)
+        final DataType projectedDataType =
+                ROW(FIELD("id", BIGINT()), FIELD("score", DOUBLE())).notNull();
+        final RowType projectedRowType = (RowType) projectedDataType.getLogicalType();
+
+        final GenericRecord record = new GenericData.Record(fullSchema);
+        record.put(0, 101L);
+        record.put(1, "Eve");
+        record.put(2, 99.0);
+
+        final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(projectedRowType);
+        // Use fullSchema.toString() as writerSchemaString
+        AvroRowDataDeserializationSchema deserializationSchema =
+                new AvroRowDataDeserializationSchema(
+                        fullRowType,
+                        projectedRowType,
+                        typeInfo,
+                        encoding,
+                        true,
+                        false,
+                        fullSchema.toString());
+        deserializationSchema.open(null);
+
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(fullSchema);
+        Encoder encoder = createEncoder(encoding, fullSchema, byteArrayOutputStream);
+        datumWriter.write(record, encoder);
+        encoder.flush();
+        byte[] input = byteArrayOutputStream.toByteArray();
+
+        RowData rowData = deserializationSchema.deserialize(input);
+
+        assertThat(rowData).isNotNull();
+        assertThat(rowData.getArity()).isEqualTo(2);
+        assertThat(rowData.getLong(0)).isEqualTo(101L);
+        assertThat(rowData.getDouble(1)).isEqualTo(99.0);
+    }
+
     @Test
     void testSerializability() throws Exception {
         final DataType dataType = ROW(FIELD("name", STRING()), FIELD("age", INT())).notNull();
