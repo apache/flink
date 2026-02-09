@@ -1425,6 +1425,12 @@ aggregate:
       默认情况下或使用关键字 `ALL`，返回跨所有输入行的多组表达式。`NULL` 值将被忽略。使用 `DISTINCT` 则对所有值去重后计算。
   - sql: VARIANCE([ ALL | DISTINCT ] expression)
     description: VAR_SAMP() 的同义方法。
+  - sql: APPROX_COUNT_DISTINCT(expression)
+    description: |
+      使用 HyperLogLog++ 算法返回 expression 的近似去重计数。该函数提供了一种内存高效的基数估算方式，
+      相对标准误差约为 1%。与需要 O(n) 内存的 COUNT(DISTINCT) 不同，APPROX_COUNT_DISTINCT 仅使用 O(1) 内存
+      （约 16KB）。支持批处理和流处理模式（包括窗口 TVF，如 TUMBLE、HOP、CUMULATE）。注意：该函数不支持
+      非窗口流聚合中的撤回操作。NULL 值会被忽略。
   - sql: RANK()
     description: 返回值在一组值中的排名。结果是 1 加上分区顺序中当前行之前或等于当前行的行数。排名在序列中不一定连续。
   - sql: DENSE_RANK()
