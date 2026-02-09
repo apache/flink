@@ -52,7 +52,7 @@ if [ "$SKIP_INTEGRATE_CONNECTOR_DOCS" = false ]; then
   cd tmp
 
   integrate_connector_docs elasticsearch v4.0
-  integrate_connector_docs aws v6.0
+  integrate_connector_docs aws v5.0
   integrate_connector_docs cassandra v3.2
   integrate_connector_docs pulsar v4.0
   integrate_connector_docs jdbc v3.1
@@ -67,14 +67,4 @@ if [ "$SKIP_INTEGRATE_CONNECTOR_DOCS" = false ]; then
 
   cd ..
   rm -rf tmp
-
-  # Fix incorrect ref syntax in connector docs
-  # The correct syntax for refs with anchors is: {{< ref "path" >}}#anchor or {{<ref "path">}}#anchor
-  # Some connector docs use: {{< ref "path/#anchor" >}} or {{<ref "path#anchor">}} which causes Hugo errors
-  # We need to fix refs that point to docs/ops/* and docs/dev/* (cross-module references)
-  # Note: paths may have trailing slashes before the # which need to be removed
-  find themes/connectors -name "*.md" -type f -exec sed -i 's|{{< ref "\(docs/ops/[^"/#]*\)/*#\([^"]*\)" >}}|{{< ref "\1" >}}#\2|g' {} +
-  find themes/connectors -name "*.md" -type f -exec sed -i 's|{{<ref "\(docs/ops/[^"/#]*\)/*#\([^"]*\)">}}|{{<ref "\1">}}#\2|g' {} +
-  find themes/connectors -name "*.md" -type f -exec sed -i 's|{{< ref "\(docs/dev/[^"/#]*\)/*#\([^"]*\)" >}}|{{< ref "\1" >}}#\2|g' {} +
-  find themes/connectors -name "*.md" -type f -exec sed -i 's|{{<ref "\(docs/dev/[^"/#]*\)/*#\([^"]*\)">}}|{{<ref "\1">}}#\2|g' {} +
 fi
