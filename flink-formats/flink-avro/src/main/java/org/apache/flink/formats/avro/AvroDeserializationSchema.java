@@ -18,6 +18,15 @@
 
 package org.apache.flink.formats.avro;
 
+import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
+import org.apache.flink.formats.avro.typeutils.AvroFactory;
+import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
+import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
+import org.apache.flink.formats.avro.utils.MutableByteArrayInputStream;
+import org.apache.flink.util.Preconditions;
+
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
@@ -28,19 +37,11 @@ import org.apache.avro.io.JsonDecoder;
 import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecord;
-import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.formats.avro.AvroFormatOptions.AvroEncoding;
-import org.apache.flink.formats.avro.typeutils.AvroFactory;
-import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
-import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
-import org.apache.flink.formats.avro.utils.MutableByteArrayInputStream;
-import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Objects;
-
-import javax.annotation.Nullable;
 
 /**
  * Deserialization schema that deserializes from Avro binary format.
