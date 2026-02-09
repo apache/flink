@@ -15,6 +15,12 @@
             <td>The number of threads (per stateful operator) used to transfer (download and upload) files in RocksDBStateBackend.If negative, the common (TM) IO thread pool is used (see cluster.io-pool.size)</td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.checkpoint.upload-jitter</h5></td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
+            <td>The jitter time interval determines the amount of random delay introduced before uploading each checkpoint file. This jitter is applied to help stagger the upload times of state files, thereby introducing a small, randomized delay for each upload operation. The purpose of this mechanism is to avoid simultaneous upload bursts, which could otherwise overwhelm the remote storage system. By distributing the upload requests more evenly over time, jitter helps maintain system stability and prevents potential performance degradation during checkpoint completion. It is therefore recommended to configure the jitter interval at the seconds level, ensuring a balanced trade-off between randomness and upload efficiency.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.localdir</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
