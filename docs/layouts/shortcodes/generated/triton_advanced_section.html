@@ -1,0 +1,112 @@
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 25%">Option</th>
+            <th class="text-center" style="width: 8%">Required</th>
+            <th class="text-center" style="width: 7%">Default</th>
+            <th class="text-center" style="width: 10%">Type</th>
+            <th class="text-center" style="width: 50%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+                <h5>max-retries</h5>
+            </td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">3</td>
+            <td>Integer</td>
+            <td>Maximum number of retries for failed requests.</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>batch-size</h5>
+            </td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>Batch size for inference requests.</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>flatten-batch-dim</h5>
+            </td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to flatten the batch dimension for array inputs. When true, shape [1,N] becomes [N]. Defaults to false. Useful for Triton models that do not expect a batch dimension.</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>priority</h5>
+            </td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>Request priority level (0-255). Higher values indicate higher priority.</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>sequence-id</h5>
+            </td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Sequence ID for stateful models.</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>sequence-start</h5>
+            </td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether this is the start of a sequence for stateful models.</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>sequence-end</h5>
+            </td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether this is the end of a sequence for stateful models.</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>binary-data</h5>
+            </td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Whether to use binary data transfer. Defaults to false (JSON).</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>compression</h5>
+            </td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Compression algorithm to use (e.g., 'gzip').</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>auth-token</h5>
+            </td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Authentication token for secured Triton servers.</td>
+        </tr>
+        <tr>
+            <td>
+                <h5>custom-headers</h5>
+            </td>
+            <td>optional</td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Custom HTTP headers in JSON format, e.g., <code>{"X-Custom-Header":"value"}</code>.</td>
+        </tr>
+    </tbody>
+</table>
