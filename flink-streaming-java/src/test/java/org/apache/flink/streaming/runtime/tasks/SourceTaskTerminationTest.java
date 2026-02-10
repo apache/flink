@@ -106,8 +106,8 @@ class SourceTaskTerminationTest {
                             ::isDone);
 
             if (shouldTerminate) {
-                // if we are in TERMINATE mode, we expect the source task
-                // to emit FINISHED status and then MAX_WM before the SYNC_SAVEPOINT barrier.
+                // if we are in TERMINATE mode, we expect the source task to emit FINISHED status
+                // and then MAX_WM before the SYNC_SAVEPOINT barrier.
                 verifyWatermarkStatus(srcTaskTestHarness.getOutput(), WatermarkStatus.FINISHED);
                 verifyWatermark(srcTaskTestHarness.getOutput(), Watermark.MAX_WATERMARK);
             }
