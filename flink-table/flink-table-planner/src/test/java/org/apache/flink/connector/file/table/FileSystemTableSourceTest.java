@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.file.table;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableConfig;
@@ -25,7 +27,6 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
 import org.apache.flink.table.planner.utils.TableTestBase;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -33,8 +34,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link FileSystemTableSource}. */
 class FileSystemTableSourceTest extends TableTestBase {
@@ -112,13 +111,25 @@ class FileSystemTableSourceTest extends TableTestBase {
 
     static Stream<Arguments> fileNameCases() {
         return Stream.of(
-                Arguments.of("file:/D:/AI-Book/FlinkApplication/data/input/user.csv", "user.csv"),
-                Arguments.of("file:/D:/tmp/input/test.csv", "test.csv"),
-                Arguments.of("file:/C:/Users/me/Desktop/thing.txt", "thing.txt"),
+                Arguments.of("file.txt", "file.txt"),
+                Arguments.of("/tmp/input/dir/file.txt", "file.txt"),
+                Arguments.of("tmp/input/dir/file.txt", "file.txt"),
+                Arguments.of("./local/file.txt", "file.txt"),
+                Arguments.of("../input/file.txt", "file.txt"),
+                Arguments.of("../../data/report.csv", "report.csv"),
                 Arguments.of("file:///tmp/input/user.csv", "user.csv"),
-                Arguments.of("file:/tmp/input/dir/", "dir"),
                 Arguments.of("file://localhost/tmp/input/user.csv", "user.csv"),
+                Arguments.of("file:/tmp/input/dir/", "dir"),
+                Arguments.of("file:/C:/Users/me/Desktop/thing.txt", "thing.txt"),
+                Arguments.of("file:/D:/tmp/input/test.csv", "test.csv"),
+                Arguments.of("file:/D:/AI-Book/FlinkApplication/data/input/user.csv", "user.csv"),
                 Arguments.of("s3://bucket/a/b/c.parquet", "c.parquet"),
-                Arguments.of("/tmp/input/dir/file.txt", "file.txt"));
+                Arguments.of("hdfs://node:8020/data/output/result.parquet", "result.parquet"),
+                Arguments.of("gs://my-bucket/path/to/data.json", "data.json"),
+                Arguments.of("/tmp/input/archive.tar.gz", "archive.tar.gz"),
+                Arguments.of("s3://bucket/data/backup.2026.01.01.csv", "backup.2026.01.01.csv"),
+                Arguments.of("/tmp/input/spacing test.txt", "spacing test.txt"),
+                Arguments.of("/tmp/input/report (final).csv", "report (final).csv"),
+                Arguments.of("/tmp/input/file_name-v2.txt", "file_name-v2.txt"));
     }
 }
