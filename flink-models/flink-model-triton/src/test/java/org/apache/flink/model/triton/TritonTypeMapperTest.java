@@ -36,73 +36,78 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 /** Test for {@link TritonTypeMapper}. */
-public class TritonTypeMapperTest {
+class TritonTypeMapperTest {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    public void testToTritonDataType() {
-        assertEquals(TritonDataType.BOOL, TritonTypeMapper.toTritonDataType(new BooleanType()));
-        assertEquals(TritonDataType.INT8, TritonTypeMapper.toTritonDataType(new TinyIntType()));
-        assertEquals(TritonDataType.INT16, TritonTypeMapper.toTritonDataType(new SmallIntType()));
-        assertEquals(TritonDataType.INT32, TritonTypeMapper.toTritonDataType(new IntType()));
-        assertEquals(TritonDataType.INT64, TritonTypeMapper.toTritonDataType(new BigIntType()));
-        assertEquals(TritonDataType.FP32, TritonTypeMapper.toTritonDataType(new FloatType()));
-        assertEquals(TritonDataType.FP64, TritonTypeMapper.toTritonDataType(new DoubleType()));
-        assertEquals(
-                TritonDataType.BYTES,
-                TritonTypeMapper.toTritonDataType(new VarCharType(VarCharType.MAX_LENGTH)));
+    void testToTritonDataType() {
+
+        assertThat(TritonTypeMapper.toTritonDataType(new BooleanType()))
+                .isEqualTo(TritonDataType.BOOL);
+        assertThat(TritonTypeMapper.toTritonDataType(new TinyIntType()))
+                .isEqualTo(TritonDataType.INT8);
+        assertThat(TritonTypeMapper.toTritonDataType(new SmallIntType()))
+                .isEqualTo(TritonDataType.INT16);
+        assertThat(TritonTypeMapper.toTritonDataType(new IntType()))
+                .isEqualTo(TritonDataType.INT32);
+        assertThat(TritonTypeMapper.toTritonDataType(new BigIntType()))
+                .isEqualTo(TritonDataType.INT64);
+        assertThat(TritonTypeMapper.toTritonDataType(new FloatType()))
+                .isEqualTo(TritonDataType.FP32);
+        assertThat(TritonTypeMapper.toTritonDataType(new DoubleType()))
+                .isEqualTo(TritonDataType.FP64);
+        assertThat(TritonTypeMapper.toTritonDataType(new VarCharType(VarCharType.MAX_LENGTH)))
+                .isEqualTo(TritonDataType.BYTES);
     }
 
     @Test
-    public void testToTritonDataTypeForArray() {
+    void testToTritonDataTypeForArray() {
         // For arrays, returns the element type's Triton type
-        assertEquals(
-                TritonDataType.FP32,
-                TritonTypeMapper.toTritonDataType(new ArrayType(new FloatType())));
-        assertEquals(
-                TritonDataType.INT32,
-                TritonTypeMapper.toTritonDataType(new ArrayType(new IntType())));
+        assertThat(TritonTypeMapper.toTritonDataType(new ArrayType(new FloatType())))
+                .isEqualTo(TritonDataType.FP32);
+        assertThat(TritonTypeMapper.toTritonDataType(new ArrayType(new IntType())))
+                .isEqualTo(TritonDataType.INT32);
     }
 
     @Test
-    public void testSerializeScalarTypes() {
+    void testSerializeScalarTypes() {
         // Test boolean
         RowData boolRow = GenericRowData.of(true);
         ArrayNode boolArray = objectMapper.createArrayNode();
         TritonTypeMapper.serializeToJsonArray(boolRow, 0, new BooleanType(), boolArray);
-        assertEquals(1, boolArray.size());
-        assertEquals(true, boolArray.get(0).asBoolean());
+        assertThat(boolArray).hasSize(1);
+        assertThat(boolArray.get(0).asBoolean()).isTrue();
 
         // Test int
         RowData intRow = GenericRowData.of(42);
         ArrayNode intArray = objectMapper.createArrayNode();
         TritonTypeMapper.serializeToJsonArray(intRow, 0, new IntType(), intArray);
-        assertEquals(1, intArray.size());
-        assertEquals(42, intArray.get(0).asInt());
+        assertThat(intArray).hasSize(1);
+        assertThat(intArray.get(0).asInt()).isEqualTo(42);
 
         // Test float
         RowData floatRow = GenericRowData.of(3.14f);
         ArrayNode floatArray = objectMapper.createArrayNode();
         TritonTypeMapper.serializeToJsonArray(floatRow, 0, new FloatType(), floatArray);
-        assertEquals(1, floatArray.size());
-        assertEquals(3.14f, floatArray.get(0).floatValue(), 0.001f);
+        assertThat(floatArray).hasSize(1);
+        assertThat(floatArray.get(0).floatValue()).isCloseTo(3.14f, within(0.001f));
 
         // Test string
         RowData stringRow = GenericRowData.of(BinaryStringData.fromString("hello"));
         ArrayNode stringArray = objectMapper.createArrayNode();
         TritonTypeMapper.serializeToJsonArray(
                 stringRow, 0, new VarCharType(VarCharType.MAX_LENGTH), stringArray);
-        assertEquals(1, stringArray.size());
-        assertEquals("hello", stringArray.get(0).asText());
+        assertThat(stringArray).hasSize(1);
+        assertThat(stringArray.get(0).asText()).isEqualTo("hello");
     }
 
     @Test
-    public void testSerializeArrayType() {
+    void testSerializeArrayType() {
         Float[] floatArray = new Float[] {1.0f, 2.0f, 3.0f};
         ArrayData arrayData = new GenericArrayData(floatArray);
         RowData rowData = GenericRowData.of(arrayData);
@@ -112,70 +117,71 @@ public class TritonTypeMapperTest {
                 rowData, 0, new ArrayType(new FloatType()), jsonArray);
 
         // Array should be flattened
-        assertEquals(3, jsonArray.size());
-        assertEquals(1.0f, jsonArray.get(0).floatValue(), 0.001f);
-        assertEquals(2.0f, jsonArray.get(1).floatValue(), 0.001f);
-        assertEquals(3.0f, jsonArray.get(2).floatValue(), 0.001f);
+        assertThat(jsonArray).hasSize(3);
+        assertThat(jsonArray.get(0).floatValue()).isCloseTo(1.0f, within(0.001f));
+        assertThat(jsonArray.get(1).floatValue()).isCloseTo(2.0f, within(0.001f));
+        assertThat(jsonArray.get(2).floatValue()).isCloseTo(3.0f, within(0.001f));
     }
 
     @Test
-    public void testCalculateShape() {
+    void testCalculateShape() {
         // Scalar type
         int[] scalarShape = TritonTypeMapper.calculateShape(new IntType(), 1);
-        assertArrayEquals(new int[] {1}, scalarShape);
+        assertThat(scalarShape).isEqualTo(new int[] {1});
 
         // Array type
         int[] arrayShape = TritonTypeMapper.calculateShape(new ArrayType(new FloatType()), 1);
-        assertArrayEquals(new int[] {1, -1}, arrayShape);
+        assertThat(arrayShape).isEqualTo(new int[] {1, -1});
 
         // Batch size > 1
         int[] batchShape = TritonTypeMapper.calculateShape(new IntType(), 4);
-        assertArrayEquals(new int[] {4}, batchShape);
+        assertThat(batchShape).isEqualTo(new int[] {4});
     }
 
     @Test
-    public void testDeserializeScalarTypes() {
+    void testDeserializeScalarTypes() {
         // Test int
-        assertEquals(
-                42,
-                TritonTypeMapper.deserializeFromJson(objectMapper.valueToTree(42), new IntType()));
+        assertThat(
+                        TritonTypeMapper.deserializeFromJson(
+                                objectMapper.valueToTree(42), new IntType()))
+                .isEqualTo(42);
 
         // Test float
         Object floatResult =
                 TritonTypeMapper.deserializeFromJson(
                         objectMapper.valueToTree(3.14f), new FloatType());
-        assertEquals(3.14f, (Float) floatResult, 0.001f);
+        assertThat((Float) floatResult).isCloseTo(3.14f, within(0.001f));
 
         // Test string
         Object stringResult =
                 TritonTypeMapper.deserializeFromJson(
                         objectMapper.valueToTree("hello"), new VarCharType(VarCharType.MAX_LENGTH));
-        assertEquals("hello", stringResult.toString());
+        assertThat(stringResult).hasToString("hello");
     }
 
     @Test
-    public void testDeserializeArrayType() {
+    void testDeserializeArrayType() {
         float[] floatArray = new float[] {1.0f, 2.0f, 3.0f};
         Object result =
                 TritonTypeMapper.deserializeFromJson(
                         objectMapper.valueToTree(floatArray), new ArrayType(new FloatType()));
 
         ArrayData arrayData = (ArrayData) result;
-        assertEquals(3, arrayData.size());
-        assertEquals(1.0f, arrayData.getFloat(0), 0.001f);
-        assertEquals(2.0f, arrayData.getFloat(1), 0.001f);
-        assertEquals(3.0f, arrayData.getFloat(2), 0.001f);
+        assertThat(arrayData.size()).isEqualTo(3);
+        assertThat(arrayData.getFloat(0)).isCloseTo(1.0f, within(0.001f));
+        assertThat(arrayData.getFloat(1)).isCloseTo(2.0f, within(0.001f));
+        assertThat(arrayData.getFloat(2)).isCloseTo(3.0f, within(0.001f));
     }
 
     @Test
-    public void testSerializeNull() {
+    void testSerializeNull() {
         GenericRowData nullRow = new GenericRowData(1);
         nullRow.setField(0, null);
 
         ArrayNode jsonArray = objectMapper.createArrayNode();
         TritonTypeMapper.serializeToJsonArray(nullRow, 0, new IntType(), jsonArray);
 
-        assertEquals(1, jsonArray.size());
-        assertEquals(true, jsonArray.get(0).isNull());
+        assertThat(jsonArray).hasSize(1);
+        assertThat(jsonArray.get(0).isNull()).isTrue();
     }
 }
