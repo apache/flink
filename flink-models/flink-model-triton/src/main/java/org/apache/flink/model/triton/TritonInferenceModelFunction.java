@@ -93,14 +93,14 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
     private final ByteArrayOutputStream compressionBuffer = new ByteArrayOutputStream(1024);
 
     /**
-     * Monotonically increasing counter for sequence ID auto-increment strategy.
-     * This counter ensures sequence isolation across Flink job restarts and failovers.
+     * Monotonically increasing counter for sequence ID auto-increment strategy. This counter
+     * ensures sequence isolation across Flink job restarts and failovers.
      */
     private transient AtomicLong sequenceCounter;
 
     /**
-     * Subtask index for this parallel instance. Used to generate unique sequence IDs
-     * in combination with the sequence counter.
+     * Subtask index for this parallel instance. Used to generate unique sequence IDs in combination
+     * with the sequence counter.
      */
     private transient int subtaskIndex;
 
@@ -134,7 +134,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
     @Override
     public void open(org.apache.flink.table.functions.FunctionContext context) throws Exception {
         super.open(context);
-        
+
         // Initialize sequence counter and subtask index for auto-increment strategy
         if (isSequenceIdAutoIncrement()) {
             this.sequenceCounter = new AtomicLong(0);
