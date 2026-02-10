@@ -124,6 +124,9 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
         CompletableFuture<Collection<RowData>> future = new CompletableFuture<>();
 
         try {
+            // Check circuit breaker before making request
+            checkCircuitBreaker();
+
             String requestBody = buildInferenceRequest(rowData);
             String url =
                     TritonUtils.buildInferenceUrl(getEndpoint(), getModelName(), getModelVersion());
@@ -171,6 +174,9 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                             "Triton inference request failed due to network error",
                                             e);
 
+                                    // Record failure with circuit breaker
+                                    recordFailure();
+
                                     // Wrap IOException in TritonNetworkException
                                     TritonNetworkException networkException =
                                             new TritonNetworkException(
@@ -188,6 +194,11 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                         throws IOException {
                                     try {
                                         if (!response.isSuccessful()) {
+                                            // Record failure for 5xx errors (server issues)
+                                            // Don't record 4xx errors as they are client configuration issues
+                                            if (response.code() >= 500) {
+                                                recordFailure();
+                                            }
                                             handleErrorResponse(response, future);
                                             return;
                                         }
@@ -195,9 +206,14 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                         String responseBody = response.body().string();
                                         Collection<RowData> result =
                                                 parseInferenceResponse(responseBody);
+
+                                        // Record success with circuit breaker
+                                        recordSuccess();
+
                                         future.complete(result);
                                     } catch (JsonProcessingException e) {
                                         LOG.error("Failed to parse Triton inference response", e);
+                                        // Don't record as circuit breaker failure - this is a client parsing issue
                                         future.completeExceptionally(
                                                 new TritonClientException(
                                                         "Failed to parse Triton response JSON: "
@@ -206,6 +222,7 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
                                                         400));
                                     } catch (Exception e) {
                                         LOG.error("Failed to process Triton inference response", e);
+                                        // Don't record as circuit breaker failure - processing error
                                         future.completeExceptionally(e);
                                     } finally {
                                         response.close();
