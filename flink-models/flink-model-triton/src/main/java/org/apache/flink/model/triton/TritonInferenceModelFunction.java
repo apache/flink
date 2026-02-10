@@ -53,6 +53,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -91,6 +92,18 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
     /** Reusable buffer for gzip compression to avoid repeated allocations. */
     private final ByteArrayOutputStream compressionBuffer = new ByteArrayOutputStream(1024);
 
+    /**
+     * Monotonically increasing counter for sequence ID auto-increment strategy.
+     * This counter ensures sequence isolation across Flink job restarts and failovers.
+     */
+    private transient AtomicLong sequenceCounter;
+
+    /**
+     * Subtask index for this parallel instance. Used to generate unique sequence IDs
+     * in combination with the sequence counter.
+     */
+    private transient int subtaskIndex;
+
     private final LogicalType inputType;
     private final LogicalType outputType;
     private final String inputName;
@@ -116,6 +129,21 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
         this.outputType = outputColumn.getDataType().getLogicalType();
         this.inputName = inputColumn.getName();
         this.outputName = outputColumn.getName();
+    }
+
+    @Override
+    public void open(org.apache.flink.table.functions.FunctionContext context) throws Exception {
+        super.open(context);
+        
+        // Initialize sequence counter and subtask index for auto-increment strategy
+        if (isSequenceIdAutoIncrement()) {
+            this.sequenceCounter = new AtomicLong(0);
+            this.subtaskIndex = context.getJobParameter("flink.subtask.index", "0").hashCode();
+            LOG.info(
+                    "Initialized sequence ID auto-increment for subtask {}: base={}",
+                    subtaskIndex,
+                    getSequenceId());
+        }
     }
 
     @Override
@@ -328,9 +356,29 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
     private String buildInferenceRequest(RowData rowData) throws JsonProcessingException {
         ObjectNode requestNode = objectMapper.createObjectNode();
 
-        // Add request ID if sequence ID is provided
+        // Generate and add request ID with optional auto-increment strategy
         if (getSequenceId() != null) {
-            requestNode.put("id", getSequenceId());
+            String effectiveSequenceId = getSequenceId();
+
+            // Apply auto-increment strategy if enabled
+            if (isSequenceIdAutoIncrement()) {
+                // Format: {base-sequence-id}-{subtask-index}-{counter}
+                // This ensures unique sequences across parallel instances and failovers
+                long counter = sequenceCounter.getAndIncrement();
+                effectiveSequenceId =
+                        String.format("%s-%d-%d", getSequenceId(), subtaskIndex, counter);
+
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            "Generated auto-increment sequence ID: {} (base: {}, subtask: {}, counter: {})",
+                            effectiveSequenceId,
+                            getSequenceId(),
+                            subtaskIndex,
+                            counter);
+                }
+            }
+
+            requestNode.put("id", effectiveSequenceId);
         }
 
         // Add parameters

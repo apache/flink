@@ -106,6 +106,21 @@ public class TritonOptions {
                                                     "Triton Stateful Models"))
                                     .build());
 
+    public static final ConfigOption<Boolean> SEQUENCE_ID_AUTO_INCREMENT =
+            ConfigOptions.key("sequence-id-auto-increment")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Enable auto-increment strategy for sequence ID. When enabled, a monotonically "
+                                                    + "increasing counter is appended to the sequence-id to ensure sequence isolation "
+                                                    + "across Flink job restarts and failovers. This is particularly useful for non-reentrant "
+                                                    + "models where duplicate inference requests must be avoided after failover. "
+                                                    + "Format: {sequence-id}-{subtask-index}-{counter}. "
+                                                    + "Requires 'sequence-id' to be configured. Defaults to false.")
+                                    .build());
+
     public static final ConfigOption<Boolean> SEQUENCE_START =
             ConfigOptions.key("sequence-start")
                     .booleanType()
