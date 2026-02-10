@@ -43,7 +43,7 @@ if [[ "$(uname)" != "Darwin" ]]; then
     # 4.1 install patchelf
     conda install -c conda-forge patchelf=0.11 -y
     # 4.2 install auditwheel
-    pip install auditwheel==3.2.0
+    pip install auditwheel==6.6.0
     # 4.3 convert Linux wheel
     for wheel_file in dist/*.whl; do
         auditwheel repair ${wheel_file} -w dist
