@@ -101,7 +101,7 @@ class NativeS3FileSystemFactoryTest {
 
         URI fsUri = URI.create("s3://test-bucket/");
         assertThatThrownBy(() -> factory.create(fsUri))
-                .isInstanceOf(IllegalConfigurationException.class)
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("must be at least");
     }
 
@@ -120,7 +120,7 @@ class NativeS3FileSystemFactoryTest {
 
         URI fsUri = URI.create("s3://test-bucket/");
         assertThatThrownBy(() -> factory.create(fsUri))
-                .isInstanceOf(IllegalConfigurationException.class)
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("must not exceed 5GB");
     }
 
@@ -138,8 +138,8 @@ class NativeS3FileSystemFactoryTest {
 
         URI fsUri = URI.create("s3://test-bucket/");
         assertThatThrownBy(() -> factory.create(fsUri))
-                .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("must be > 0");
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must be positive");
     }
 
     @Test
