@@ -1,10 +1,11 @@
 ---
-title: 应用开发 
+title: Flink APIs
 icon: <i class="fa fa-code title maindish" aria-hidden="true"></i>
+aliases:
+  - /zh/docs/dev/
 bold: true
-sectionBreak: true
 bookCollapseSection: true
-weight: 4
+weight: 5
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

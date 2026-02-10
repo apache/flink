@@ -1,7 +1,8 @@
 ---
-title: Hive Compatibility
-bookCollapseSection: true
-weight: 94
+title: "Hive Compatibility"
+layout: redirect
+redirect_to: /docs/sql/hive-compatibility/
+bookHidden: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

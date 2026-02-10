@@ -32,7 +32,7 @@ SQL 是数据分析中使用最广泛的语言。Flink Table API 和 SQL 使用�
 在这一页，我们将介绍一些实用的优化选项以及流式聚合和普通连接的内部原理，它们在某些情况下能带来很大的提升。
 
 {{< hint info >}}
-目前 [分组聚合] ({{< ref "docs/dev/table/sql/queries/group-agg" >}}) 和 [窗口表值函数聚合]({{< ref "docs/dev/table/sql/queries/window-agg" >}}) （会话窗口表值函数聚合除外）都支持本页提到的流式聚合优化。
+目前 [分组聚合] ({{< ref "docs/sql/reference/queries/group-agg" >}}) 和 [窗口表值函数聚合]({{< ref "docs/sql/reference/queries/window-agg" >}}) （会话窗口表值函数聚合除外）都支持本页提到的流式聚合优化。
 {{< /hint >}}
 
 
@@ -49,7 +49,7 @@ MiniBatch 聚合的核心思想是将一组输入的数据缓存在聚合算子�
 默认情况下，对于无界聚合算子来说，mini-batch 优化是被禁用的。开启这项优化，需要设置选项 `table.exec.mini-batch.enabled`、`table.exec.mini-batch.allow-latency` 和 `table.exec.mini-batch.size`。更多详细信息请参见[配置]({{< ref "docs/dev/table/config" >}}#execution-options)页面。
 
 {{< hint info >}}
-MiniBatch optimization is always enabled for [Window TVF Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), regardless of the above configuration.
+MiniBatch optimization is always enabled for [Window TVF Aggregation]({{< ref "docs/sql/reference/queries/window-agg" >}}), regardless of the above configuration.
 Window TVF aggregation buffer records in [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm">}}#managed-memory) instead of JVM Heap, so there is no risk of overloading GC or OOM issues.
 {{< /hint >}}
 

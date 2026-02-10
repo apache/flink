@@ -39,10 +39,9 @@ under the License.
 
 如果你有兴趣使用 Flink，可以尝试以下任意教程：
 
-* [基于 DataStream API 实现欺诈检测]({{< ref "docs/try-flink/datastream" >}})
-* [基于 Table API 实现实时报表]({{< ref "docs/try-flink/table_api" >}})
-* [PyFlink 介绍]({{< ref "docs/dev/python/overview" >}})
-* [Flink 操作场景]({{< ref "docs/try-flink/flink-operations-playground" >}})
+* [基于 DataStream API 实现欺诈检测]({{< ref "docs/getting-started/datastream" >}})
+* [基于 Table API 实现实时报表]({{< ref "docs/getting-started/table_api" >}})
+* [Flink 操作场景]({{< ref "docs/getting-started/flink-operations-playground" >}})
 
 ### 学习 Flink
 

@@ -40,7 +40,7 @@ under the License.
 
 ## File Source
 
-`File Source` 是基于 [Source API]({{< ref "docs/dev/datastream/sources" >}}#the-data-source-api) 同时支持批模式和流模式文件读取的统一 Source。
+`File Source` 是基于 [Source API]({{< ref "docs/internals/sources" >}}#the-data-source-api) 同时支持批模式和流模式文件读取的统一 Source。
 `File Source` 分为以下两个部分：`SplitEnumerator` 和 `SourceReader`。
 
 * `SplitEnumerator` 负责发现和识别需要读取的文件，并将这些文件分配给 `SourceReader` 进行读取。
@@ -262,7 +262,7 @@ new HiveSource<>(
 ### 后记
 {{< hint info >}}
 如果对新设计的 Source API 中的 File Sources 是如何工作的感兴趣，可以阅读本部分作为参考。关于新的 Source API 的更多细节，请参考
-[documentation on data sources]({{< ref "docs/dev/datastream/sources.md" >}}) 和在
+[documentation on data sources]({{< ref "docs/internals/sources" >}}) 和在
 <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-27%3A+Refactor+Source+Interface">FLIP-27</a>
 中获取更加具体的讨论详情。
 {{< /hint >}}

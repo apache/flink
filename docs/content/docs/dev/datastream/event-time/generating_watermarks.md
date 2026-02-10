@@ -244,7 +244,7 @@ WatermarkStrategy \
 {{< /tabs >}}
 
 {{< hint warning >}}
-**Note:** You can enable watermark alignment only for [FLIP-27]({{< ref "docs/dev/datastream/sources" >}}) 
+**Note:** You can enable watermark alignment only for [FLIP-27]({{< ref "docs/internals/sources" >}}) 
 sources. It does not work for legacy or if applied after the source via 
 [DataStream#assignTimestampsAndWatermarks](#using-watermark-strategies).
 {{< /hint >}}
@@ -264,7 +264,7 @@ one.
 {{< hint warning >}}
 **Note:** As of Flink 1.17, split level watermark alignment is supported by the FLIP-27 source framework. 
 Source connectors have to implement an interface to resume and pause splits so that splits/partitions/shards 
-can be aligned in the same task. More detail on the pause and resume interfaces can found in the [Source API]({{< ref "docs/dev/datastream/sources" >}}#split-level-watermark-alignment).
+can be aligned in the same task. More detail on the pause and resume interfaces can found in the [Source API]({{< ref "docs/internals/sources" >}}#split-level-watermark-alignment).
 
 If you are upgrading from a Flink version between 1.15.x and 1.16.x inclusive, you can disable split level alignment by setting
 `pipeline.watermark-alignment.allow-unaligned-source-splits` to true. Moreover, you can tell if your source supports split level alignment

@@ -184,7 +184,7 @@ Every new major-minor Flink version (e.g. `1.12` to `1.13`) might introduce new 
 specialized runtime operators that change the execution plan. However, the community tries to keep patch
 versions state-compatible (e.g. `1.13.1` to `1.13.2`).
 
-See the [table state management section]({{< ref "docs/dev/table/concepts/overview" >}}#state-management)
+See the [table state management section]({{< ref "docs/concepts/sql-table-concepts/overview" >}}#state-management)
 for more information.
 
 ## Upgrading the Flink Framework Version

@@ -31,7 +31,7 @@ SQL is the most widely used language for data analytics. Flink's Table API and S
 In this page, we will introduce some useful optimization options and the internals of streaming aggregation, regular join which will bring great improvement in some cases.
 
 {{< hint info >}}
-The streaming aggregation optimizations mentioned in this page are all supported for [Group Aggregations]({{< ref "docs/dev/table/sql/queries/group-agg" >}}) and [Window TVF Aggregations]({{< ref "docs/dev/table/sql/queries/window-agg" >}}) (except Session Window TVF Aggregation) now.
+The streaming aggregation optimizations mentioned in this page are all supported for [Group Aggregations]({{< ref "docs/sql/reference/queries/group-agg" >}}) and [Window TVF Aggregations]({{< ref "docs/sql/reference/queries/window-agg" >}}) (except Session Window TVF Aggregation) now.
 {{< /hint >}}
 
 
@@ -49,7 +49,7 @@ The following figure explains how the mini-batch aggregation reduces state opera
 MiniBatch optimization is disabled by default for group aggregation. In order to enable this optimization, you should set options `table.exec.mini-batch.enabled`, `table.exec.mini-batch.allow-latency` and `table.exec.mini-batch.size`. Please see [configuration]({{< ref "docs/dev/table/config" >}}#execution-options) page for more details.
 
 {{< hint info >}}
-MiniBatch optimization is always enabled for [Window TVF Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), regardless of the above configuration.
+MiniBatch optimization is always enabled for [Window TVF Aggregation]({{< ref "docs/sql/reference/queries/window-agg" >}}), regardless of the above configuration.
 Window TVF aggregation buffer records in [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm">}}#managed-memory) instead of JVM Heap, so there is no risk of overloading GC or OOM issues.
 {{< /hint >}}
 
@@ -348,7 +348,7 @@ JOIN t2 ON t1.id = t2.id
 JOIN t3 ON t1.id = t3.id;
 ```
 
-The hint approach allows you to selectively apply the MultiJoin optimization to specific query blocks without enabling it globally. For more details on the MULTI_JOIN hint, see [Join Hints]({{< ref "docs/dev/table/sql/queries/hints" >}}#multi_join). The configuration setting takes precedence over the hint.
+The hint approach allows you to selectively apply the MultiJoin optimization to specific query blocks without enabling it globally. For more details on the MULTI_JOIN hint, see [Join Hints]({{< ref "docs/sql/reference/queries/hints" >}}#multi_join). The configuration setting takes precedence over the hint.
 
 Important: This is currently in an experimental state - optimizations and breaking changes might be implemented. We currently support only streaming INNER/LEFT joins. Due to records partitioning, you need at least one key that is shared between the join conditions, see:
 

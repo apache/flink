@@ -37,12 +37,12 @@ under the License.
 
 ### Try Flink
 
-If you’re interested in playing around with Flink, try one of our tutorials:
+If you're interested in playing around with Flink, try one of our tutorials:
 
-* [Fraud Detection with the DataStream API]({{< ref "docs/try-flink/datastream" >}})
-* [Real Time Reporting with the Table API]({{< ref "docs/try-flink/table_api" >}})
-* [Intro to PyFlink]({{< ref "docs/dev/python/overview" >}})
-* [Flink Operations Playground]({{< ref "docs/try-flink/flink-operations-playground" >}})
+* [Flink SQL Tutorial]({{< ref "docs/getting-started/quickstart-sql" >}}) - Interactive queries with the SQL Client
+* [Table API Tutorial]({{< ref "docs/getting-started/table_api" >}}) - Declarative streaming with a relational API
+* [DataStream API Tutorial]({{< ref "docs/getting-started/datastream" >}}) - Imperative, event-driven stream processing
+* [Operations Playground]({{< ref "docs/getting-started/flink-operations-playground" >}}) - Explore Flink in Docker
 
 ### Learn Flink
 
@@ -61,15 +61,15 @@ If you get stuck, check out our [community support resources](https://flink.apac
 The reference documentation covers all the details. Some starting points:
 
 {{< columns >}}
+* [Flink SQL]({{< ref "docs/sql/overview" >}})
+* [Table API]({{< ref "docs/dev/table/overview" >}})
 * [DataStream API]({{< ref "docs/dev/datastream/overview" >}})
 * [DataStream API (V2)]({{< ref "docs/dev/datastream-v2/overview" >}})
-* [Table API & SQL]({{< ref "docs/dev/table/overview" >}})
-* [Stateful Functions](https://nightlies.apache.org/flink/flink-statefun-docs-stable/)
 
 <--->
 
 * [Configuration]({{< ref "docs/deployment/config" >}})
-* [Rest API]({{< ref "docs/ops/rest_api" >}})
+* [REST API]({{< ref "docs/ops/rest_api" >}})
 * [CLI]({{< ref "docs/deployment/cli" >}})
 {{< /columns >}}
 

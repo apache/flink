@@ -1,8 +1,7 @@
 ---
 title: "Queries"
-weight: 3
-type: docs
-bookCollapseSection: true
+layout: redirect
+redirect_to: /docs/sql/reference/queries/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

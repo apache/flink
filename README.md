@@ -162,7 +162,7 @@ The IntelliJ IDE supports Maven out of the box and offers a plugin for Scala dev
 * IntelliJ download: [https://www.jetbrains.com/idea/](https://www.jetbrains.com/idea/)
 * IntelliJ Scala Plugin: [https://plugins.jetbrains.com/plugin/?id=1347](https://plugins.jetbrains.com/plugin/?id=1347)
 
-Check out our [Setting up IntelliJ](https://nightlies.apache.org/flink/flink-docs-master/flinkDev/ide_setup.html#intellij-idea) guide for details.
+Check out our [DEVELOPMENT.md](DEVELOPMENT.md) guide for detailed IDE setup instructions.
 
 ### Eclipse Scala IDE
 

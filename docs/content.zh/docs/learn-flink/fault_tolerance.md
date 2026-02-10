@@ -190,7 +190,7 @@ Barrier 只有在需要提供精确一次的语义保证时需要进行对齐（
 
 ## 实践练习
 
-[Flink Operations Playground]({{< ref "docs/try-flink/flink-operations-playground" >}}) 包括有关 [Observing Failure & Recovery]({{< ref "docs/try-flink/flink-operations-playground" >}}#observing-failure--recovery) 的部分。
+[Flink Operations Playground]({{< ref "docs/getting-started/flink-operations-playground" >}}) 包括有关 [Observing Failure & Recovery]({{< ref "docs/getting-started/flink-operations-playground" >}}#observing-failure--recovery) 的部分。
 
 {{< top >}}
 

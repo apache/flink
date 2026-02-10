@@ -39,7 +39,7 @@ and produces a stream or records.
 
 ## File Source
 
-The `File Source` is based on the [Source API]({{< ref "docs/dev/datastream/sources" >}}#the-data-source-api), 
+The `File Source` is based on the [Source API]({{< ref "docs/internals/sources" >}}#the-data-source-api), 
 a unified data source that reads files - both in batch and in streaming mode. 
 It is divided into the following two parts: `SplitEnumerator` and `SourceReader`. 
 
@@ -258,7 +258,7 @@ There are plans to add a compressed form of tracking already processed files in 
 {{< hint info >}}
 If you are interested in how File Source works through the new data source API design, you may
 want to read this part as a reference. For details about the new data source API, check out the
-[documentation on data sources]({{< ref "docs/dev/datastream/sources.md" >}}) and
+[documentation on data sources]({{< ref "docs/internals/sources" >}}) and
 <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-27%3A+Refactor+Source+Interface">FLIP-27</a>
 for more descriptive discussions.
 {{< /hint >}}

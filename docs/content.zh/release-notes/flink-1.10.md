@@ -332,7 +332,7 @@ The deprecated `ExternalCatalog` API has been dropped. This includes:
 * `ExternalCatalog` (and all dependent classes, e.g., `ExternalTable`)
 * `SchematicDescriptor`, `MetadataDescriptor`, `StatisticsDescriptor`
 
-Users are advised to use the [new Catalog API]({{< ref "docs/dev/table/catalogs" >}}#catalog-api).
+Users are advised to use the [new Catalog API]({{< ref "docs/sql/catalogs" >}}#catalog-api).
 
 
 ### Configuration

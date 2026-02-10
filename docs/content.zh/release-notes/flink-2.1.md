@@ -51,7 +51,7 @@ functions to unlock end-to-end experience for real-time data processing, model t
 inference.
 
 See more details about the capabilities and usages of
-Flink's [Model Inference](https://nightlies.apache.org/flink/flink-docs-release-2.1/docs/dev/table/sql/queries/model-inference/).
+Flink's [Model Inference](https://nightlies.apache.org/flink/flink-docs-release-2.1/docs/sql/reference/queries/model-inference/).
 
 #### Variant Type
 
