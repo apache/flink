@@ -19,39 +19,40 @@ package org.apache.flink.model.triton;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link TritonModelProviderFactory}. */
-public class TritonModelProviderFactoryTest {
+class TritonModelProviderFactoryTest {
 
     @Test
-    public void testFactoryIdentifier() {
+    void testFactoryIdentifier() {
         TritonModelProviderFactory factory = new TritonModelProviderFactory();
-        assertEquals("triton", factory.factoryIdentifier());
+        assertThat(factory.factoryIdentifier()).isEqualTo(TritonModelProviderFactory.IDENTIFIER);
     }
 
     @Test
-    public void testRequiredOptions() {
+    void testRequiredOptions() {
         TritonModelProviderFactory factory = new TritonModelProviderFactory();
-        assertEquals(2, factory.requiredOptions().size());
-        assertTrue(factory.requiredOptions().contains(TritonOptions.ENDPOINT));
-        assertTrue(factory.requiredOptions().contains(TritonOptions.MODEL_NAME));
+        assertThat(factory.requiredOptions())
+                .hasSize(2)
+                .containsExactlyInAnyOrder(TritonOptions.ENDPOINT, TritonOptions.MODEL_NAME);
     }
 
     @Test
-    public void testOptionalOptions() {
+    void testOptionalOptions() {
         TritonModelProviderFactory factory = new TritonModelProviderFactory();
-        assertEquals(10, factory.optionalOptions().size());
-        assertTrue(factory.optionalOptions().contains(TritonOptions.MODEL_VERSION));
-        assertTrue(factory.optionalOptions().contains(TritonOptions.TIMEOUT));
-        assertTrue(factory.optionalOptions().contains(TritonOptions.FLATTEN_BATCH_DIM));
-        assertTrue(factory.optionalOptions().contains(TritonOptions.PRIORITY));
-        assertTrue(factory.optionalOptions().contains(TritonOptions.SEQUENCE_ID));
-        assertTrue(factory.optionalOptions().contains(TritonOptions.SEQUENCE_START));
-        assertTrue(factory.optionalOptions().contains(TritonOptions.SEQUENCE_END));
-        assertTrue(factory.optionalOptions().contains(TritonOptions.COMPRESSION));
-        assertTrue(factory.optionalOptions().contains(TritonOptions.AUTH_TOKEN));
-        assertTrue(factory.optionalOptions().contains(TritonOptions.CUSTOM_HEADERS));
+        assertThat(factory.optionalOptions())
+                .hasSize(10)
+                .containsExactlyInAnyOrder(
+                        TritonOptions.MODEL_VERSION,
+                        TritonOptions.TIMEOUT,
+                        TritonOptions.FLATTEN_BATCH_DIM,
+                        TritonOptions.PRIORITY,
+                        TritonOptions.SEQUENCE_ID,
+                        TritonOptions.SEQUENCE_START,
+                        TritonOptions.SEQUENCE_END,
+                        TritonOptions.COMPRESSION,
+                        TritonOptions.AUTH_TOKEN,
+                        TritonOptions.CUSTOM_HEADERS);
     }
 }
