@@ -25,12 +25,12 @@ OS="Linux"
 
 # Setup Hugo based on OS
 if [ "$OS" = "Mac" ]; then
-    HUGO_ARTIFACT="hugo_extended_0.110.0_darwin-universal.tar.gz"
+    HUGO_ARTIFACT="hugo_extended_0.124.1_darwin-universal.tar.gz"
 else
-    HUGO_ARTIFACT="hugo_extended_0.110.0_Linux-64bit.tar.gz"
+    HUGO_ARTIFACT="hugo_extended_0.124.1_Linux-64bit.tar.gz"
 fi
 
-HUGO_REPO="https://github.com/gohugoio/hugo/releases/download/v0.110.0/${HUGO_ARTIFACT}"
+HUGO_REPO="https://github.com/gohugoio/hugo/releases/download/v0.124.1/${HUGO_ARTIFACT}"
 if ! curl --fail -OL $HUGO_REPO ; then
 	echo "Failed to download Hugo binary"
 	exit 1
