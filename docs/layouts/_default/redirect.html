@@ -20,11 +20,11 @@ under the License.
 <html lang="{{ .Site.Language.Lang }}">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url={{ .Params.redirect_to | relURL }}">
-    <link rel="canonical" href="{{ .Params.redirect_to | relURL }}">
+    <meta http-equiv="refresh" content="0; url={{ strings.TrimPrefix "/" .Params.redirect_to | relURL }}">
+    <link rel="canonical" href="{{ strings.TrimPrefix "/" .Params.redirect_to | relURL }}">
     <title>Redirecting...</title>
 </head>
 <body>
-    <p>This page has moved. If you are not redirected automatically, <a href="{{ .Params.redirect_to | relURL }}">click here</a>.</p>
+    <p>This page has moved. If you are not redirected automatically, <a href="{{ strings.TrimPrefix "/" .Params.redirect_to | relURL }}">click here</a>.</p>
 </body>
 </html>
