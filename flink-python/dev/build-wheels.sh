@@ -43,7 +43,7 @@ if [[ "$(uname)" != "Darwin" ]]; then
     echo "Converting linux_x86_64 wheel to manylinux1"
     source `pwd`/dev/.uv/bin/activate
     # 4.1 install patchelf and auditwheel
-    uv pip install patchelf==0.17.2.1 auditwheel==3.2.0
+    uv pip install patchelf==0.17.2.1 auditwheel==6.6.0
     # 4.2 convert Linux wheel
     for wheel_file in dist/*.whl; do
         auditwheel repair ${wheel_file} -w dist
