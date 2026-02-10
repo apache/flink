@@ -62,6 +62,8 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractTritonModelFunction.class);
 
     protected transient OkHttpClient httpClient;
+    protected transient TritonCircuitBreaker circuitBreaker;
+    protected transient TritonHealthChecker healthChecker;
 
     private final String endpoint;
     private final String modelName;
@@ -85,6 +87,14 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     private final String authToken;
     private final Map<String, String> customHeaders;
 
+    // Health check and circuit breaker configuration
+    private final boolean healthCheckEnabled;
+    private final Duration healthCheckInterval;
+    private final boolean circuitBreakerEnabled;
+    private final double circuitBreakerFailureThreshold;
+    private final Duration circuitBreakerTimeout;
+    private final int circuitBreakerHalfOpenRequests;
+
     public AbstractTritonModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
         this.endpoint = config.get(TritonOptions.ENDPOINT);
@@ -100,6 +110,14 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         this.authToken = config.get(TritonOptions.AUTH_TOKEN);
         this.customHeaders = config.get(TritonOptions.CUSTOM_HEADERS);
 
+        // Health check and circuit breaker configuration
+        this.healthCheckEnabled = config.get(TritonOptions.HEALTH_CHECK_ENABLED);
+        this.healthCheckInterval = config.get(TritonOptions.HEALTH_CHECK_INTERVAL);
+        this.circuitBreakerEnabled = config.get(TritonOptions.CIRCUIT_BREAKER_ENABLED);
+        this.circuitBreakerFailureThreshold = config.get(TritonOptions.CIRCUIT_BREAKER_FAILURE_THRESHOLD);
+        this.circuitBreakerTimeout = config.get(TritonOptions.CIRCUIT_BREAKER_TIMEOUT);
+        this.circuitBreakerHalfOpenRequests = config.get(TritonOptions.CIRCUIT_BREAKER_HALF_OPEN_REQUESTS);
+
         // Validate input schema - support multiple types
         validateInputSchema(factoryContext.getCatalogModel().getResolvedInputSchema());
     }
@@ -109,11 +127,86 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         super.open(context);
         LOG.debug("Creating Triton HTTP client.");
         this.httpClient = TritonUtils.createHttpClient(timeout.toMillis());
+
+        // Initialize circuit breaker if enabled
+        if (circuitBreakerEnabled) {
+            LOG.info(
+                    "Initializing circuit breaker for endpoint {} with threshold={}, timeout={}, halfOpenRequests={}",
+                    endpoint,
+                    circuitBreakerFailureThreshold,
+                    circuitBreakerTimeout,
+                    circuitBreakerHalfOpenRequests);
+
+            this.circuitBreaker =
+                    new TritonCircuitBreaker(
+                            endpoint,
+                            circuitBreakerFailureThreshold,
+                            circuitBreakerTimeout,
+                            circuitBreakerHalfOpenRequests);
+        }
+
+        // Initialize health checker if enabled
+        if (healthCheckEnabled) {
+            if (circuitBreaker == null) {
+                LOG.warn(
+                        "Health check is enabled but circuit breaker is disabled for endpoint {}. "
+                                + "Health check will run but failures will not trigger circuit breaking. "
+                                + "Consider enabling circuit-breaker-enabled for better fault tolerance.",
+                        endpoint);
+
+                // Create a dummy circuit breaker for health checker
+                this.circuitBreaker =
+                        new TritonCircuitBreaker(
+                                endpoint,
+                                circuitBreakerFailureThreshold,
+                                circuitBreakerTimeout,
+                                circuitBreakerHalfOpenRequests);
+            }
+
+            LOG.info(
+                    "Initializing health checker for endpoint {} with interval {}",
+                    endpoint,
+                    healthCheckInterval);
+
+            this.healthChecker =
+                    new TritonHealthChecker(
+                            endpoint, httpClient, circuitBreaker, healthCheckInterval);
+
+            // Perform an immediate health check
+            boolean initialHealth = healthChecker.checkNow();
+            if (initialHealth) {
+                LOG.info("Initial health check passed for endpoint {}", endpoint);
+            } else {
+                LOG.warn(
+                        "Initial health check failed for endpoint {}. "
+                                + "Inference requests may fail until server becomes healthy.",
+                        endpoint);
+            }
+
+            // Start periodic health checking
+            healthChecker.start();
+        }
     }
 
     @Override
     public void close() throws Exception {
         super.close();
+
+        // Stop health checker first
+        if (this.healthChecker != null) {
+            LOG.debug("Stopping health checker for {}", endpoint);
+            try {
+                this.healthChecker.close();
+            } catch (Exception e) {
+                LOG.warn("Error closing health checker for " + endpoint, e);
+            }
+            this.healthChecker = null;
+        }
+
+        // Release circuit breaker
+        this.circuitBreaker = null;
+
+        // Release HTTP client
         if (this.httpClient != null) {
             LOG.debug("Releasing Triton HTTP client.");
             TritonUtils.releaseHttpClient(this.httpClient);
@@ -321,5 +414,80 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
 
     protected Map<String, String> getCustomHeaders() {
         return customHeaders;
+    }
+
+    /**
+     * Checks if a request is allowed through the circuit breaker.
+     *
+     * <p>Subclasses should call this method before making inference requests. If the circuit
+     * breaker is OPEN, this method will throw an exception to fail fast.
+     *
+     * @throws org.apache.flink.model.triton.exception.TritonCircuitBreakerOpenException if circuit
+     *     is OPEN
+     */
+    protected void checkCircuitBreaker() {
+        if (circuitBreaker != null && circuitBreakerEnabled) {
+            circuitBreaker.allowRequest();
+        }
+    }
+
+    /**
+     * Records a successful inference request with the circuit breaker.
+     *
+     * <p>Subclasses should call this method after successful inference requests to update circuit
+     * breaker metrics.
+     */
+    protected void recordSuccess() {
+        if (circuitBreaker != null && circuitBreakerEnabled) {
+            circuitBreaker.recordSuccess();
+        }
+    }
+
+    /**
+     * Records a failed inference request with the circuit breaker.
+     *
+     * <p>Subclasses should call this method after failed inference requests to update circuit
+     * breaker metrics.
+     */
+    protected void recordFailure() {
+        if (circuitBreaker != null && circuitBreakerEnabled) {
+            circuitBreaker.recordFailure();
+        }
+    }
+
+    /**
+     * Gets the current circuit breaker instance.
+     *
+     * @return the circuit breaker, or null if not enabled
+     */
+    protected TritonCircuitBreaker getCircuitBreaker() {
+        return circuitBreaker;
+    }
+
+    /**
+     * Gets the current health checker instance.
+     *
+     * @return the health checker, or null if not enabled
+     */
+    protected TritonHealthChecker getHealthChecker() {
+        return healthChecker;
+    }
+
+    /**
+     * Checks if health checking is enabled.
+     *
+     * @return true if health checking is enabled
+     */
+    protected boolean isHealthCheckEnabled() {
+        return healthCheckEnabled;
+    }
+
+    /**
+     * Checks if circuit breaker is enabled.
+     *
+     * @return true if circuit breaker is enabled
+     */
+    protected boolean isCircuitBreakerEnabled() {
+        return circuitBreakerEnabled;
     }
 }
