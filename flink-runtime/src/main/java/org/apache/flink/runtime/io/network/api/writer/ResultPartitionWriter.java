@@ -60,6 +60,14 @@ public interface ResultPartitionWriter extends AutoCloseable, AvailabilityProvid
     /** Writes the given serialized record to the target subpartition. */
     void emitRecord(ByteBuffer record, int targetSubpartition) throws IOException;
 
+    default long getBytesInQueueUnsafe(int targetSubpartition) {
+        return 0;
+    }
+
+    default int getBuffersCountUnsafe(int targetSubpartition) {
+        return 0;
+    }
+
     /**
      * Writes the given serialized record to all subpartitions. One can also achieve the same effect
      * by emitting the same record to all subpartitions one by one, however, this method can have

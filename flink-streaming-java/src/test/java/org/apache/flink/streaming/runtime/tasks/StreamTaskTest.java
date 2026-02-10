@@ -28,6 +28,8 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FSDataInputStream;
@@ -1883,6 +1885,27 @@ public class StreamTaskTest {
                                     .getChannelSelector())
                     .isInstanceOf(RebalancePartitioner.class);
         }
+    }
+
+    @Test
+    void testGetAndCheckMaxTraverseSize() {
+        Configuration config = new Configuration();
+        assertThat(StreamTask.getAndCheckMaxTraverseSize(config)).isEqualTo(4);
+
+        config.set(NettyShuffleEnvironmentOptions.ADAPTIVE_PARTITIONER_MAX_TRAVERSE_SIZE, 2);
+        assertThat(StreamTask.getAndCheckMaxTraverseSize(config)).isEqualTo(2);
+
+        config.set(NettyShuffleEnvironmentOptions.ADAPTIVE_PARTITIONER_MAX_TRAVERSE_SIZE, -1);
+        assertThatThrownBy(() -> StreamTask.getAndCheckMaxTraverseSize(config))
+                .isInstanceOf(IllegalConfigurationException.class);
+
+        config.set(NettyShuffleEnvironmentOptions.ADAPTIVE_PARTITIONER_MAX_TRAVERSE_SIZE, 0);
+        assertThatThrownBy(() -> StreamTask.getAndCheckMaxTraverseSize(config))
+                .isInstanceOf(IllegalConfigurationException.class);
+
+        config.set(NettyShuffleEnvironmentOptions.ADAPTIVE_PARTITIONER_MAX_TRAVERSE_SIZE, 1);
+        assertThatThrownBy(() -> StreamTask.getAndCheckMaxTraverseSize(config))
+                .isInstanceOf(IllegalConfigurationException.class);
     }
 
     private int getCurrentBufferSize(InputGate inputGate) {
