@@ -31,6 +31,7 @@ import org.apache.flink.table.functions.AsyncPredictFunction;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -131,22 +132,19 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
 
             // Handle compression and request body
             if (getCompression() != null) {
-                if ("gzip".equalsIgnoreCase(getCompression())) {
-                    // Compress request body with gzip using reusable buffer
-                    compressionBuffer.reset();
-                    try (GZIPOutputStream gzos = new GZIPOutputStream(compressionBuffer)) {
-                        gzos.write(requestBody.getBytes(StandardCharsets.UTF_8));
-                    }
-                    byte[] compressedData = compressionBuffer.toByteArray();
-
-                    requestBuilder.addHeader("Content-Encoding", "gzip");
-                    requestBuilder.post(RequestBody.create(compressedData, JSON_MEDIA_TYPE));
-                } else {
-                    throw new IllegalArgumentException(
-                            String.format(
-                                    "Unsupported compression algorithm: '%s'. Currently only 'gzip' is supported.",
-                                    getCompression()));
+                Preconditions.checkArgument(
+                        "gzip".equalsIgnoreCase(getCompression()),
+                        "Unsupported compression algorithm: '%s'. Currently only 'gzip' is supported.",
+                        getCompression());
+                // Only support GZIP: Compress request body with gzip using reusable buffer.
+                compressionBuffer.reset();
+                try (GZIPOutputStream gzos = new GZIPOutputStream(compressionBuffer)) {
+                    gzos.write(requestBody.getBytes(StandardCharsets.UTF_8));
                 }
+                byte[] compressedData = compressionBuffer.toByteArray();
+
+                requestBuilder.addHeader("Content-Encoding", "gzip");
+                requestBuilder.post(RequestBody.create(compressedData, JSON_MEDIA_TYPE));
             } else {
                 requestBuilder.post(RequestBody.create(requestBody, JSON_MEDIA_TYPE));
             }

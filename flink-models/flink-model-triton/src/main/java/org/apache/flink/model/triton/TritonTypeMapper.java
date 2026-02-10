@@ -32,6 +32,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.util.Preconditions;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -202,10 +203,8 @@ public class TritonTypeMapper {
      * @return The deserialized ArrayData
      */
     private static ArrayData deserializeArrayFromJson(JsonNode dataNode, LogicalType elementType) {
-        if (!dataNode.isArray()) {
-            throw new IllegalArgumentException(
-                    "Expected JSON array but got: " + dataNode.getNodeType());
-        }
+        Preconditions.checkArgument(
+                dataNode.isArray(), "Expected JSON array but got: %s", dataNode.getNodeType());
 
         int size = dataNode.size();
 
