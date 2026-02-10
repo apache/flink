@@ -41,7 +41,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/** Utility for dealing with {@link TableFactory} using the {@link TableFactoryService}. */
+/**
+ * Utility for dealing with {@link TableFactory} using the {@link TableFactoryService}.
+ *
+ * @deprecated Use {@link FactoryUtil} instead.
+ */
+@Deprecated
 @Internal
 public class TableFactoryUtil {
 
