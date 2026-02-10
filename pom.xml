@@ -163,7 +163,7 @@ under the License.
 		<py4j.version>0.10.9.7</py4j.version>
 		<beam.version>2.54.0</beam.version>
 		<protoc.version>4.32.1</protoc.version>
-		<okhttp.version>3.14.9</okhttp.version>
+		<okhttp.version>4.10.0.redhat-00002</okhttp.version>
 		<testcontainers.version>1.20.2</testcontainers.version>
 		<lz4.version>1.8.0</lz4.version>
 		<commons.io.version>2.15.1</commons.io.version>
