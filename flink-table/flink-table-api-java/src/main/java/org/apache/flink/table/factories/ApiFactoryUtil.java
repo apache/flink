@@ -21,13 +21,65 @@ package org.apache.flink.table.factories;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
+import org.apache.flink.table.catalog.CatalogStore;
 import org.apache.flink.table.catalog.CommonCatalogOptions;
 
+import javax.annotation.Nullable;
+
 import java.util.Map;
+import java.util.Optional;
 
 /** Utility for dealing with catalog store factories. */
 @Internal
 public class ApiFactoryUtil {
+
+    /** Result holder for catalog store and factory. */
+    public static class CatalogStoreResult {
+        private final CatalogStore catalogStore;
+        @Nullable private final CatalogStoreFactory catalogStoreFactory;
+
+        public CatalogStoreResult(
+                CatalogStore catalogStore, @Nullable CatalogStoreFactory catalogStoreFactory) {
+            this.catalogStore = catalogStore;
+            this.catalogStoreFactory = catalogStoreFactory;
+        }
+
+        public CatalogStore getCatalogStore() {
+            return catalogStore;
+        }
+
+        @Nullable
+        public CatalogStoreFactory getCatalogStoreFactory() {
+            return catalogStoreFactory;
+        }
+    }
+
+    /**
+     * Gets or creates a {@link CatalogStore}. If a catalog store is provided in settings, it will
+     * be used directly. Otherwise, a new catalog store will be created using the factory.
+     *
+     * @param providedCatalogStore the catalog store from settings, if present
+     * @param configuration the configuration
+     * @param classLoader the user classloader
+     * @return a result containing the catalog store and factory (factory is null if store was
+     *     provided)
+     */
+    public static CatalogStoreResult getOrCreateCatalogStore(
+            Optional<CatalogStore> providedCatalogStore,
+            Configuration configuration,
+            ClassLoader classLoader) {
+        if (providedCatalogStore.isPresent()) {
+            return new CatalogStoreResult(providedCatalogStore.get(), null);
+        } else {
+            CatalogStoreFactory catalogStoreFactory =
+                    findAndCreateCatalogStoreFactory(configuration, classLoader);
+            CatalogStoreFactory.Context catalogStoreFactoryContext =
+                    buildCatalogStoreFactoryContext(configuration, classLoader);
+            catalogStoreFactory.open(catalogStoreFactoryContext);
+            CatalogStore catalogStore = catalogStoreFactory.createCatalogStore();
+            return new CatalogStoreResult(catalogStore, catalogStoreFactory);
+        }
+    }
 
     /**
      * Finds and creates a {@link CatalogStoreFactory} using the provided {@link Configuration} and
