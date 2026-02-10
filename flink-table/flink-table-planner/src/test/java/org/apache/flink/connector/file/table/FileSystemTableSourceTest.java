@@ -109,6 +109,18 @@ class FileSystemTableSourceTest extends TableTestBase {
         assertThat(actual).isEqualTo(StringData.fromString(expected));
     }
 
+    @ParameterizedTest(name = "file.path accessor for {0}")
+    @MethodSource("filePathCases")
+    void testFilePathMetadataAccessor(String rawPath, String expected) {
+        FileSourceSplit split =
+                new FileSourceSplit("test-split", new Path(rawPath), 0L, 1L, 0L, 1L);
+
+        Object actual =
+                FileSystemTableSource.ReadableFileInfo.FILEPATH.getAccessor().getValue(split);
+
+        assertThat(actual).isEqualTo(StringData.fromString(expected));
+    }
+
     static Stream<Arguments> fileNameCases() {
         return Stream.of(
                 Arguments.of("file.txt", "file.txt"),
@@ -130,6 +142,40 @@ class FileSystemTableSourceTest extends TableTestBase {
                 Arguments.of("s3://bucket/data/backup.2026.01.01.csv", "backup.2026.01.01.csv"),
                 Arguments.of("/tmp/input/spacing test.txt", "spacing test.txt"),
                 Arguments.of("/tmp/input/report (final).csv", "report (final).csv"),
-                Arguments.of("/tmp/input/file_name-v2.txt", "file_name-v2.txt"));
+                Arguments.of("/tmp/input/file_name-v2.txt", "file_name-v2.txt"),
+                Arguments.of("/tmp/input/it's a file.txt", "it's a file.txt"),
+                Arguments.of("/tmp/input/it's a \"quoted\" name.txt", "it's a \"quoted\" name.txt"),
+                Arguments.of("file:///tmp/input/my%20file.txt", "my%20file.txt"));
+    }
+
+    static Stream<Arguments> filePathCases() {
+        return Stream.of(
+                Arguments.of("file.txt", "file.txt"),
+                Arguments.of("/tmp/input/dir/file.txt", "/tmp/input/dir/file.txt"),
+                Arguments.of("tmp/input/dir/file.txt", "tmp/input/dir/file.txt"),
+                Arguments.of("./local/file.txt", "local/file.txt"),
+                Arguments.of("../input/file.txt", "../input/file.txt"),
+                Arguments.of("../../data/report.csv", "../../data/report.csv"),
+                Arguments.of("file:///tmp/input/user.csv", "/tmp/input/user.csv"),
+                Arguments.of("file://localhost/tmp/input/user.csv", "/tmp/input/user.csv"),
+                Arguments.of(
+                        "file://localhost/tmp/weird \"quoted\" directory/user.csv",
+                        "/tmp/weird \"quoted\" directory/user.csv"),
+                Arguments.of("file:/tmp/input/dir/", "/tmp/input/dir"),
+                Arguments.of(
+                        "file:/C:/Users/me/Desktop/thing.txt", "/C:/Users/me/Desktop/thing.txt"),
+                Arguments.of("file:/D:/tmp/input/test.csv", "/D:/tmp/input/test.csv"),
+                Arguments.of(
+                        "file:/D:/AI-Book/FlinkApplication/data/input/user.csv",
+                        "/D:/AI-Book/FlinkApplication/data/input/user.csv"),
+                Arguments.of("s3://bucket/a/b/c.parquet", "/a/b/c.parquet"),
+                Arguments.of(
+                        "hdfs://node:8020/data/output/result.parquet",
+                        "/data/output/result.parquet"),
+                Arguments.of("gs://my-bucket/path/to/data.json", "/path/to/data.json"),
+                Arguments.of("/tmp/input/archive.tar.gz", "/tmp/input/archive.tar.gz"),
+                Arguments.of(
+                        "s3://bucket/data/backup.2026.01.01.csv", "/data/backup.2026.01.01.csv"),
+                Arguments.of("/tmp/input/file_name-v2.txt", "/tmp/input/file_name-v2.txt"));
     }
 }
