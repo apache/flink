@@ -27,6 +27,7 @@ import org.apache.flink.table.functions.FunctionContext;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.util.Preconditions;
 
 import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
@@ -149,34 +150,30 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     protected void validateSingleColumnSchema(
             ResolvedSchema schema, LogicalType expectedType, String inputOrOutput) {
         List<Column> columns = schema.getColumns();
-        if (columns.size() != 1) {
-            throw new IllegalArgumentException(
-                    String.format(
-                            "Model should have exactly one %s column, but actually has %s columns: %s. "
-                                    + "Current version only supports single input/output. "
-                                    + "For multi-tensor models, consider using JSON STRING encoding or ARRAY<T> packing.",
-                            inputOrOutput,
-                            columns.size(),
-                            columns.stream().map(Column::getName).collect(Collectors.toList())));
-        }
+        Preconditions.checkArgument(
+                columns.size() == 1,
+                "Model should have exactly one %s column, but actually has %s columns: %s. "
+                        + "Current version only supports single input/output. "
+                        + "For multi-tensor models, consider using JSON STRING encoding or ARRAY<T> packing.",
+                inputOrOutput,
+                columns.size(),
+                columns.stream().map(Column::getName).collect(Collectors.toList()));
 
         Column column = columns.get(0);
-        if (!column.isPhysical()) {
-            throw new IllegalArgumentException(
-                    String.format(
-                            "%s column %s should be a physical column, but is a %s.",
-                            inputOrOutput, column.getName(), column.getClass()));
-        }
+        Preconditions.checkArgument(
+                column.isPhysical(),
+                "%s column %s should be a physical column, but is a %s.",
+                inputOrOutput,
+                column.getName(),
+                column.getClass());
 
-        if (expectedType != null && !expectedType.equals(column.getDataType().getLogicalType())) {
-            throw new IllegalArgumentException(
-                    String.format(
-                            "%s column %s should be %s, but is a %s.",
-                            inputOrOutput,
-                            column.getName(),
-                            expectedType,
-                            column.getDataType().getLogicalType()));
-        }
+        Preconditions.checkArgument(
+                expectedType != null && !expectedType.equals(column.getDataType().getLogicalType()),
+                "%s column %s should be %s, but is a %s.",
+                inputOrOutput,
+                column.getName(),
+                expectedType,
+                column.getDataType().getLogicalType());
 
         // Validate that the type is supported by Triton
         try {
@@ -222,20 +219,20 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
             LogicalType elementType = arrayType.getElementType();
 
             // Reject nested arrays
-            if (elementType instanceof ArrayType) {
-                throw new IllegalArgumentException(
-                        String.format(
-                                "%s column '%s' has nested array type: %s\n"
-                                        + "Multi-dimensional tensors (ARRAY<ARRAY<T>>) are not supported in v1.\n"
-                                        + "=== Supported Types ===\n"
-                                        + "  • Scalars: INT, BIGINT, FLOAT, DOUBLE, BOOLEAN, STRING\n"
-                                        + "  • 1-D Arrays: ARRAY<INT>, ARRAY<FLOAT>, ARRAY<DOUBLE>, etc.\n"
-                                        + "=== Workarounds ===\n"
-                                        + "  • Flatten to 1-D array: ARRAY<FLOAT> with size = rows * cols\n"
-                                        + "  • Use JSON STRING encoding for complex structures\n"
-                                        + "  • Wait for v2+ which will support ROW<...> types",
-                                inputOrOutput, columnName, type));
-            }
+            Preconditions.checkArgument(
+                    !(elementType instanceof ArrayType),
+                    "%s column '%s' has nested array type: %s\n"
+                            + "Multi-dimensional tensors (ARRAY<ARRAY<T>>) are not supported in v1.\n"
+                            + "=== Supported Types ===\n"
+                            + "  • Scalars: INT, BIGINT, FLOAT, DOUBLE, BOOLEAN, STRING\n"
+                            + "  • 1-D Arrays: ARRAY<INT>, ARRAY<FLOAT>, ARRAY<DOUBLE>, etc.\n"
+                            + "=== Workarounds ===\n"
+                            + "  • Flatten to 1-D array: ARRAY<FLOAT> with size = rows * cols\n"
+                            + "  • Use JSON STRING encoding for complex structures\n"
+                            + "  • Wait for v2+ which will support ROW<...> types",
+                    inputOrOutput,
+                    columnName,
+                    type);
         }
 
         // Log info about STRING to BYTES mapping
