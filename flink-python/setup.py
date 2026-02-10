@@ -327,6 +327,7 @@ try:
                         'pemja>=0.5.6,<0.5.7;platform_system != "Windows"',
                         'httplib2>=0.19.0',
                         'ruamel.yaml>=0.18.4',
+                        'setuptools>=75.3,<82.0.0',
                         apache_flink_libraries_dependency]
 
     setup(
