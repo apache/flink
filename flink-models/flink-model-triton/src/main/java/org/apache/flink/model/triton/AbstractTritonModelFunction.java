@@ -85,6 +85,14 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     private final String authToken;
     private final Map<String, String> customHeaders;
 
+    // Connection pool configuration
+    private final int connectionPoolMaxIdle;
+    private final long connectionPoolKeepAliveMs;
+    private final int connectionPoolMaxTotal;
+    private final long connectionTimeoutMs;
+    private final boolean connectionReuseEnabled;
+    private final boolean connectionPoolMonitoringEnabled;
+
     public AbstractTritonModelFunction(
             ModelProviderFactory.Context factoryContext, ReadableConfig config) {
         this.endpoint = config.get(TritonOptions.ENDPOINT);
@@ -100,6 +108,14 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
         this.authToken = config.get(TritonOptions.AUTH_TOKEN);
         this.customHeaders = config.get(TritonOptions.CUSTOM_HEADERS);
 
+        // Connection pool configuration
+        this.connectionPoolMaxIdle = config.get(TritonOptions.CONNECTION_POOL_MAX_IDLE);
+        this.connectionPoolKeepAliveMs = config.get(TritonOptions.CONNECTION_POOL_KEEP_ALIVE).toMillis();
+        this.connectionPoolMaxTotal = config.get(TritonOptions.CONNECTION_POOL_MAX_TOTAL);
+        this.connectionTimeoutMs = config.get(TritonOptions.CONNECTION_TIMEOUT).toMillis();
+        this.connectionReuseEnabled = config.get(TritonOptions.CONNECTION_REUSE_ENABLED);
+        this.connectionPoolMonitoringEnabled = config.get(TritonOptions.CONNECTION_POOL_MONITORING_ENABLED);
+
         // Validate input schema - support multiple types
         validateInputSchema(factoryContext.getCatalogModel().getResolvedInputSchema());
     }
@@ -107,8 +123,29 @@ public abstract class AbstractTritonModelFunction extends AsyncPredictFunction {
     @Override
     public void open(FunctionContext context) throws Exception {
         super.open(context);
-        LOG.debug("Creating Triton HTTP client.");
-        this.httpClient = TritonUtils.createHttpClient(timeout.toMillis());
+        LOG.debug("Creating Triton HTTP client with connection pool configuration.");
+
+        TritonUtils.ConnectionPoolConfig poolConfig = new TritonUtils.ConnectionPoolConfig(
+                connectionPoolMaxIdle,
+                connectionPoolKeepAliveMs,
+                connectionPoolMaxTotal,
+                connectionTimeoutMs,
+                connectionReuseEnabled,
+                connectionPoolMonitoringEnabled
+        );
+
+        this.httpClient = TritonUtils.createHttpClient(timeout.toMillis(), poolConfig);
+
+        if (LOG.isInfoEnabled()) {
+            LOG.info(
+                    "Triton HTTP client created - Connection pool: maxIdle={}, keepAlive={}ms, maxTotal={}, timeout={}ms, reuseEnabled={}, monitoringEnabled={}",
+                    connectionPoolMaxIdle,
+                    connectionPoolKeepAliveMs,
+                    connectionPoolMaxTotal,
+                    connectionTimeoutMs,
+                    connectionReuseEnabled,
+                    connectionPoolMonitoringEnabled);
+        }
     }
 
     @Override
