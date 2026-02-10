@@ -97,26 +97,14 @@ class FileSystemTableSourceTest extends TableTestBase {
         assertThat(extractedFileName).isEqualTo(expected);
     }
 
-    @ParameterizedTest(name = "file.name accessor for {0}")
-    @MethodSource("fileNameCases")
-    void testFileNameMetadataAccessor(String rawPath, String expected) {
+    @ParameterizedTest(name = "{0} accessor for {1}")
+    @MethodSource("metadataAccessorCases")
+    void testMetadataAccessor(
+            FileSystemTableSource.ReadableFileInfo fileInfo, String rawPath, String expected) {
         FileSourceSplit split =
                 new FileSourceSplit("test-split", new Path(rawPath), 0L, 1L, 0L, 1L);
 
-        Object actual =
-                FileSystemTableSource.ReadableFileInfo.FILENAME.getAccessor().getValue(split);
-
-        assertThat(actual).isEqualTo(StringData.fromString(expected));
-    }
-
-    @ParameterizedTest(name = "file.path accessor for {0}")
-    @MethodSource("filePathCases")
-    void testFilePathMetadataAccessor(String rawPath, String expected) {
-        FileSourceSplit split =
-                new FileSourceSplit("test-split", new Path(rawPath), 0L, 1L, 0L, 1L);
-
-        Object actual =
-                FileSystemTableSource.ReadableFileInfo.FILEPATH.getAccessor().getValue(split);
+        Object actual = fileInfo.getAccessor().getValue(split);
 
         assertThat(actual).isEqualTo(StringData.fromString(expected));
     }
@@ -177,5 +165,16 @@ class FileSystemTableSourceTest extends TableTestBase {
                 Arguments.of(
                         "s3://bucket/data/backup.2026.01.01.csv", "/data/backup.2026.01.01.csv"),
                 Arguments.of("/tmp/input/file_name-v2.txt", "/tmp/input/file_name-v2.txt"));
+    }
+
+    static Stream<Arguments> metadataAccessorCases() {
+        return Stream.concat(
+                withInfo(FileSystemTableSource.ReadableFileInfo.FILENAME, fileNameCases()),
+                withInfo(FileSystemTableSource.ReadableFileInfo.FILEPATH, filePathCases()));
+    }
+
+    private static Stream<Arguments> withInfo(
+            FileSystemTableSource.ReadableFileInfo info, Stream<Arguments> cases) {
+        return cases.map(args -> Arguments.of(info, args.get()[0], args.get()[1]));
     }
 }
