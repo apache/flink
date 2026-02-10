@@ -428,13 +428,6 @@ public class StreamOperatorStateHandler {
             TypeSerializer<N> namespaceSerializer,
             StateDescriptor<S, ?> stateDescriptor)
             throws Exception {
-
-        /*
-        TODO: NOTE: This method does a lot of work caching / retrieving states just to update the namespace.
-        This method should be removed for the sake of namespaces being lazily fetched from the keyed
-        state backend, or being set on the state directly.
-        */
-
         if (keyedStateBackend != null) {
             return keyedStateBackend.getPartitionedState(
                     namespace, namespaceSerializer, stateDescriptor);
