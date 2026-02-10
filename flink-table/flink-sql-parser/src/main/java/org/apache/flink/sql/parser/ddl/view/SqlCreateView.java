@@ -20,6 +20,7 @@ package org.apache.flink.sql.parser.ddl.view;
 
 import org.apache.flink.sql.parser.SqlUnparseUtils;
 import org.apache.flink.sql.parser.ddl.SqlCreateObject;
+import org.apache.flink.sql.parser.ddl.SqlWatermark;
 
 import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -31,8 +32,11 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static java.util.Objects.requireNonNull;
 
@@ -43,6 +47,7 @@ public class SqlCreateView extends SqlCreateObject {
 
     private final SqlNodeList fieldList;
     private final SqlNode query;
+    private final SqlWatermark watermark;
 
     public SqlCreateView(
             SqlParserPos pos,
@@ -53,10 +58,12 @@ public class SqlCreateView extends SqlCreateObject {
             boolean isTemporary,
             boolean ifNotExists,
             SqlCharStringLiteral comment,
-            SqlNodeList properties) {
+            SqlNodeList properties,
+            @Nullable SqlWatermark watermark) {
         super(OPERATOR, pos, viewName, isTemporary, replace, ifNotExists, properties, comment);
         this.fieldList = requireNonNull(fieldList, "fieldList should not be null");
         this.query = requireNonNull(query, "query should not be null");
+        this.watermark = watermark;
     }
 
     @Override
@@ -66,6 +73,7 @@ public class SqlCreateView extends SqlCreateObject {
         ops.add(fieldList);
         ops.add(query);
         ops.add(SqlLiteral.createBoolean(getReplace(), SqlParserPos.ZERO));
+        ops.add(watermark);
         return ops;
     }
 
@@ -75,6 +83,10 @@ public class SqlCreateView extends SqlCreateObject {
 
     public SqlNode getQuery() {
         return query;
+    }
+
+    public Optional<SqlWatermark> getWatermark() {
+        return Optional.ofNullable(watermark);
     }
 
     @Override
@@ -87,6 +99,10 @@ public class SqlCreateView extends SqlCreateObject {
         unparseCreateIfNotExists(writer, leftPrec, rightPrec);
         unparseFieldList(writer, leftPrec, rightPrec);
         SqlUnparseUtils.unparseComment(comment, true, writer, leftPrec, rightPrec);
+        if (watermark != null) {
+            writer.newlineAndIndent();
+            watermark.unparse(writer, leftPrec, rightPrec);
+        }
         SqlUnparseUtils.unparseAsQuery(query, writer, leftPrec, rightPrec);
     }
 
