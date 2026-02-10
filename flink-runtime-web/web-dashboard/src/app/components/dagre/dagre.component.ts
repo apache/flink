@@ -349,7 +349,6 @@ export class DagreComponent extends NzGraph {
    * @param $event
    */
   onNodeMouseEnter($event: MouseEvent): void {
-    this.graphElement.nativeElement.appendChild($event.target);
     this.layoutLinks.forEach(l => {
       if (l.id.split('-').indexOf(($event.target as HTMLElement).id) !== -1) {
         l.options.focused = true;
@@ -364,20 +363,6 @@ export class DagreComponent extends NzGraph {
   onNodeMouseLeave(): void {
     this.layoutLinks.forEach(l => {
       l.options.focused = this.focusedLinkIds.indexOf(l.id) !== -1;
-    });
-
-    this.graphElement.nativeElement.appendChild(this.overlayElement.nativeElement);
-
-    this.graphElement.nativeElement.querySelectorAll(`.link-group`).forEach((e: Element) => {
-      if (this.focusedLinkIds.indexOf(e.id) !== -1) {
-        this.graphElement.nativeElement.appendChild(e);
-      }
-    });
-
-    this.graphElement.nativeElement.querySelectorAll(`.node-group`).forEach((e: Element) => {
-      if ([this.selectedNodeId, ...this.circleNodeIds].indexOf(e.id) !== -1) {
-        this.graphElement.nativeElement.appendChild(e);
-      }
     });
 
     this.cd.detectChanges();
