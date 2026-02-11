@@ -23,6 +23,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.Metric;
+import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
@@ -43,6 +44,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.ALLOW_LIST;
+import static org.apache.flink.metrics.prometheus.PrometheusReporterFactory.ARG_PORT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -241,6 +244,33 @@ class PrometheusReporterTest {
         String ports = reporter.getPort() + ", " + portRangeProvider.nextRange();
         PortRange portRange = new PortRange(ports);
         new PrometheusReporter(portRange).close();
+    }
+
+    @Test
+    public void testMetricFilter() throws Exception {
+        MetricConfig metricConfig = new MetricConfig();
+        metricConfig.setProperty(ALLOW_LIST.key(), LOGICAL_SCOPE + ".metricName1");
+        metricConfig.setProperty(ARG_PORT, portRangeProvider.nextRange());
+
+        PrometheusReporterFactory prometheusReporterFactory = new PrometheusReporterFactory();
+        PrometheusReporter metricReporter =
+                prometheusReporterFactory.createMetricReporter(metricConfig);
+        metricReporter.open(metricConfig);
+
+        final Map<String, String> variables = new HashMap<>(metricGroup.getAllVariables());
+        final MetricGroup metricGroup2 = TestUtils.createTestMetricGroup(LOGICAL_SCOPE, variables);
+
+        Counter metric1 = new SimpleCounter();
+        metric1.inc(7);
+        Counter metric2 = new SimpleCounter();
+        metric2.inc(2);
+        metricReporter.notifyOfAddedMetric(metric1, "metricName1", metricGroup2);
+        metricReporter.notifyOfAddedMetric(metric2, "metricName2", metricGroup2);
+
+        String response = pollMetrics(metricReporter.getPort()).body();
+
+        assertThat(response).contains("metricName1");
+        assertThat(response).doesNotContain("metricName2");
     }
 
     private String addMetricAndPollResponse(Metric metric, String metricName)
