@@ -234,23 +234,38 @@ public class BlobLibraryCacheManager implements LibraryCacheManager {
                 verifyIsNotReleased();
 
                 if (resolvedClassLoader == null) {
-                    boolean systemClassLoader =
-                            wrapsSystemClassLoader && libraries.isEmpty() && classPaths.isEmpty();
-                    resolvedClassLoader =
-                            new ResolvedClassLoader(
-                                    systemClassLoader
-                                            ? ClassLoader.getSystemClassLoader()
-                                            : createUserCodeClassLoader(
-                                                    jobId, libraries, classPaths),
-                                    libraries,
-                                    classPaths,
-                                    systemClassLoader);
+                    resolvedClassLoader = createResolvedClassLoader(libraries, classPaths);
                 } else {
-                    resolvedClassLoader.verifyClassLoader(libraries, classPaths);
+                    try {
+                        resolvedClassLoader.verifyClassLoader(libraries, classPaths);
+                    } catch (IllegalStateException e) {
+                        LOG.warn(
+                                "Library cache entry for job {} has a classloader resolved with different "
+                                        + "library BLOBs than requested. This can happen during JobManager "
+                                        + "failover. Re-creating the classloader with the new blob keys.",
+                                jobId,
+                                e);
+                        resolvedClassLoader = createResolvedClassLoader(libraries, classPaths);
+                    }
                 }
 
                 return resolvedClassLoader;
             }
+        }
+
+        @GuardedBy("lockObject")
+        private ResolvedClassLoader createResolvedClassLoader(
+                Collection<PermanentBlobKey> libraries, Collection<URL> classPaths)
+                throws IOException {
+            boolean systemClassLoader =
+                    wrapsSystemClassLoader && libraries.isEmpty() && classPaths.isEmpty();
+            return new ResolvedClassLoader(
+                    systemClassLoader
+                            ? ClassLoader.getSystemClassLoader()
+                            : createUserCodeClassLoader(jobId, libraries, classPaths),
+                    libraries,
+                    classPaths,
+                    systemClassLoader);
         }
 
         @GuardedBy("lockObject")
