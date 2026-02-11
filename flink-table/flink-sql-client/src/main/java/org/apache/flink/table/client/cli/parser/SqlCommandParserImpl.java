@@ -138,6 +138,8 @@ public class SqlCommandParserImpl implements SqlCommandParser {
                 return Command.CLEAR;
             case "HELP":
                 return Command.HELP;
+            case "HISTORY":
+                return Command.SHOW_HISTORY;
             default:
                 return Command.OTHER;
         }

@@ -97,6 +97,7 @@ public final class CliStrings {
                     .commandDescription("HELP", "Prints the available commands.")
                     .commandDescription("QUIT/EXIT", "Quits the SQL CLI client.")
                     .commandDescription("CLEAR", "Clears the current terminal.")
+                    .commandDescription("HISTORY", "Shows the SQL execution history.")
                     .commandDescription(
                             "SET",
                             "Sets a session configuration property. Syntax: \"SET '<key>'='<value>';\". Use \"SET;\" for listing all properties.")
