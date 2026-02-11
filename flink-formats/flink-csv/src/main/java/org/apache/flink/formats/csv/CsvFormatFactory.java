@@ -45,13 +45,18 @@ import java.util.Collections;
 import java.util.Set;
 
 import static org.apache.flink.formats.csv.CsvFormatOptions.ALLOW_COMMENTS;
+import static org.apache.flink.formats.csv.CsvFormatOptions.ALLOW_TRAILING_COMMA;
 import static org.apache.flink.formats.csv.CsvFormatOptions.ARRAY_ELEMENT_DELIMITER;
 import static org.apache.flink.formats.csv.CsvFormatOptions.DISABLE_QUOTE_CHARACTER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.EMPTY_STRING_AS_NULL;
 import static org.apache.flink.formats.csv.CsvFormatOptions.ESCAPE_CHARACTER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.FAIL_ON_MISSING_COLUMNS;
 import static org.apache.flink.formats.csv.CsvFormatOptions.FIELD_DELIMITER;
 import static org.apache.flink.formats.csv.CsvFormatOptions.IGNORE_PARSE_ERRORS;
+import static org.apache.flink.formats.csv.CsvFormatOptions.IGNORE_TRAILING_UNMAPPABLE;
 import static org.apache.flink.formats.csv.CsvFormatOptions.NULL_LITERAL;
 import static org.apache.flink.formats.csv.CsvFormatOptions.QUOTE_CHARACTER;
+import static org.apache.flink.formats.csv.CsvFormatOptions.TRIM_SPACES;
 import static org.apache.flink.formats.csv.CsvFormatOptions.WRITE_BIGDECIMAL_IN_SCIENTIFIC_NOTATION;
 
 /**
@@ -179,6 +184,24 @@ public final class CsvFormatFactory
                 .ifPresent(schemaBuilder::setEscapeCharacter);
 
         formatOptions.getOptional(NULL_LITERAL).ifPresent(schemaBuilder::setNullLiteral);
+
+        formatOptions.getOptional(TRIM_SPACES).ifPresent(schemaBuilder::setTrimSpaces);
+
+        formatOptions
+                .getOptional(IGNORE_TRAILING_UNMAPPABLE)
+                .ifPresent(schemaBuilder::setIgnoreTrailingUnmappable);
+
+        formatOptions
+                .getOptional(ALLOW_TRAILING_COMMA)
+                .ifPresent(schemaBuilder::setAllowTrailingComma);
+
+        formatOptions
+                .getOptional(FAIL_ON_MISSING_COLUMNS)
+                .ifPresent(schemaBuilder::setFailOnMissingColumns);
+
+        formatOptions
+                .getOptional(EMPTY_STRING_AS_NULL)
+                .ifPresent(schemaBuilder::setEmptyStringAsNull);
     }
 
     private static void configureSerializationSchema(
