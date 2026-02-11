@@ -1,7 +1,8 @@
 ---
-title: Operators
-bookCollapseSection: true
-weight: 21
+title: "Operators"
+layout: redirect
+redirect_to: /api/python/user_guide/datastream/operators.html
+bookHidden: true
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

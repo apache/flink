@@ -44,6 +44,11 @@ flink-python/pyflink.egg-info/
 flink-python/apache_flink.egg-info/
 flink-python/apache-flink-libraries/apache_flink_libraries.egg-info/
 flink-python/docs/_build
+flink-python/docs/locales/**/*.mo
+flink-python/docs/locales/**/LC_MESSAGES/*.po
+flink-python/docs/locales/**/reference/
+flink-python/docs/locales/**/examples/
+flink-python/docs/reference/pyflink.*/api/
 flink-python/.tox/
 flink-python/dev/download
 flink-python/dev/.conda/

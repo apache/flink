@@ -1,0 +1,180 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-11 10:53+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../user_guide/python_repl.rst:21
+msgid "Python REPL"
+msgstr "Python REPL"
+
+#: ../../user_guide/python_repl.rst:23
+msgid ""
+"Flink comes with an integrated interactive Python Shell. It can be used "
+"in a local setup as well as in a cluster setup. See the "
+":flinkdoc:`standalone resource provider page <docs/deployment/resource-"
+"providers/standalone/overview/>` for more information about how to setup "
+"a local Flink. You can also `build a local setup from source "
+"<https://github.com/apache/flink#building-apache-flink-from-source>`_."
+msgstr ""
+"Flink附带了一个集成的交互式Python Shell。"
+"它既能够运行在本地启动的local模式，也能够运行在集群启动的cluster模式下。"
+"本地安装Flink，请看 "
+":flinkdoc:`本地安装 <docs/deployment/resource-"
+"providers/standalone/overview/>` 页面。"
+"您也可以 `从源码构建 Flink "
+"<https://github.com/apache/flink#building-apache-flink-from-source>`_ 。"
+
+#: ../../user_guide/python_repl.rst:29
+msgid ""
+"The Python Shell will run the command \"python\". Please refer to the "
+":flinkdoc:`First Steps guide <docs/getting-started/local_installation/>` "
+"for PyFlink installation instructions."
+msgstr ""
+"Python Shell会调用\"python\"命令。关于 PyFlink 安装说明，请参考 "
+":flinkdoc:`第一步指南 <docs/getting-started/local_installation/>` 。"
+
+#: ../../user_guide/python_repl.rst:32
+msgid ""
+"To use the shell with an integrated Flink cluster, you can simply install"
+" PyFlink with PyPi and execute the shell directly:"
+msgstr ""
+"你可以通过PyPi安装PyFlink，然后使用Python Shell:"
+
+#: ../../user_guide/python_repl.rst:41
+msgid "To run the shell on a cluster, please see the Setup section below."
+msgstr "关于如何在一个Cluster集群上运行Python shell，可以参考启动章节介绍。"
+
+#: ../../user_guide/python_repl.rst:44
+msgid "Usage"
+msgstr "使用"
+
+#: ../../user_guide/python_repl.rst:46
+msgid ""
+"The shell only supports Table API currently. The Table Environments are "
+"automatically prebound after startup. Use \"bt_env\" and \"st_env\" to "
+"access BatchTableEnvironment and StreamTableEnvironment respectively."
+msgstr ""
+"当前Python shell支持Table API的功能。"
+"在启动之后，Table Environment的相关内容将会被自动加载。"
+"可以通过变量\"bt_env\"来使用BatchTableEnvironment，"
+"通过变量\"st_env\"来使用StreamTableEnvironment。"
+
+#: ../../user_guide/python_repl.rst:51
+msgid "Table API"
+msgstr "Table API"
+
+#: ../../user_guide/python_repl.rst:53
+msgid "The example below is a simple program in the Python shell:"
+msgstr "下面是一个通过Python Shell 运行的简单示例:"
+
+#: ../../user_guide/python_repl.rst:55
+msgid "**Streaming:**"
+msgstr "**Streaming:**"
+
+#: ../../user_guide/python_repl.rst:87
+msgid "**Batch:**"
+msgstr "**Batch:**"
+
+#: ../../user_guide/python_repl.rst:120
+msgid "Setup"
+msgstr "启动"
+
+#: ../../user_guide/python_repl.rst:122
+msgid "To get an overview of what options the Python Shell provides, please use"
+msgstr "查看Python Shell提供的可选参数，可以使用:"
+
+#: ../../user_guide/python_repl.rst:129
+msgid "Local"
+msgstr "Local"
+
+#: ../../user_guide/python_repl.rst:131
+msgid "To use the shell with an integrated Flink cluster just execute:"
+msgstr "Python Shell运行在local模式下，只需要执行:"
+
+#: ../../user_guide/python_repl.rst:138
+msgid "Remote"
+msgstr "Remote"
+
+#: ../../user_guide/python_repl.rst:140
+msgid ""
+"To use it with a running cluster, please start the Python shell with the "
+"keyword ``remote`` and supply the host and port of the JobManager with:"
+msgstr ""
+"Python Shell运行在一个指定的JobManager上，通过关键字 ``remote`` "
+"和对应的JobManager的地址和端口号来进行指定:"
+
+#: ../../user_guide/python_repl.rst:148
+msgid "Yarn Python Shell cluster"
+msgstr "Yarn Python Shell cluster"
+
+#: ../../user_guide/python_repl.rst:150
+msgid ""
+"The shell can deploy a Flink cluster to YARN, which is used exclusively "
+"by the shell. The shell deploys a new Flink cluster on YARN and connects "
+"the cluster. You can also specify options for YARN cluster such as memory"
+" for JobManager, name of YARN application, etc."
+msgstr ""
+"Python Shell可以运行在YARN集群之上。Python shell在Yarn上部署一个新的Flink集群，"
+"并进行连接。除了指定container数量，你也可以指定JobManager的内存，"
+"YARN应用的名字等参数。"
+
+#: ../../user_guide/python_repl.rst:156
+msgid ""
+"For example, to start a Yarn cluster for the Python Shell with two "
+"TaskManagers use the following:"
+msgstr ""
+"例如，在一个部署了两个TaskManager的Yarn集群上运行Python Shell:"
+
+#: ../../user_guide/python_repl.rst:163
+msgid "For all other options, see the full reference at the bottom."
+msgstr "关于所有可选的参数，可以查看本页面底部的完整说明。"
+
+#: ../../user_guide/python_repl.rst:166
+msgid "Yarn Session"
+msgstr "Yarn Session"
+
+#: ../../user_guide/python_repl.rst:168
+msgid ""
+"If you have previously deployed a Flink cluster using the Flink Yarn "
+"Session, the Python shell can connect with it using the following "
+"command:"
+msgstr ""
+"如果你已经通过Flink Yarn Session部署了一个Flink集群，"
+"能够通过以下的命令连接到这个集群:"
+
+#: ../../user_guide/python_repl.rst:176
+msgid "Full Reference"
+msgstr "完整的参考"

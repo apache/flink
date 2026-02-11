@@ -1,0 +1,108 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-11 10:53+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../user_guide/table/pandas_conversion.rst:21
+msgid "Conversions between PyFlink Table and Pandas DataFrame"
+msgstr "PyFlink Table 和 Pandas DataFrame 互转"
+
+#: ../../user_guide/table/pandas_conversion.rst:23
+msgid ""
+"PyFlink Table API supports conversion between PyFlink Table and Pandas "
+"DataFrame."
+msgstr ""
+"PyFlink 支持 PyFlink Table 和 Pandas DataFrame 之间进行互转。"
+
+#: ../../user_guide/table/pandas_conversion.rst:26
+msgid "Convert Pandas DataFrame to PyFlink Table"
+msgstr "将 Pandas DataFrame 转换为 PyFlink Table"
+
+#: ../../user_guide/table/pandas_conversion.rst:28
+msgid ""
+"Pandas DataFrames can be converted into a PyFlink Table. Internally, "
+"PyFlink will serialize the Pandas DataFrame using Arrow columnar format "
+"on the client. The serialized data will be processed and deserialized in "
+"Arrow source during execution. The Arrow source can also be used in "
+"streaming jobs, and is integrated with checkpointing to provide exactly-"
+"once guarantees."
+msgstr ""
+"PyFlink 支持将 Pandas DataFrame 转换成 PyFlink Table。在内部实现上，"
+"会在客户端将 Pandas DataFrame 序列化成 Arrow 列存格式，"
+"序列化后的数据在作业执行期间，在 Arrow 源中会被反序列化，并进行处理。"
+"Arrow 源除了可以用在批作业中外，还可以用于流作业，"
+"它将正确处理检查点并提供恰好一次的保证。"
+
+#: ../../user_guide/table/pandas_conversion.rst:34
+msgid ""
+"The following example shows how to create a PyFlink Table from a Pandas "
+"DataFrame:"
+msgstr ""
+"以下示例显示如何从 Pandas DataFrame 创建 PyFlink Table："
+
+#: ../../user_guide/table/pandas_conversion.rst:61
+msgid "Convert PyFlink Table to Pandas DataFrame"
+msgstr "将 PyFlink Table 转换为 Pandas DataFrame"
+
+#: ../../user_guide/table/pandas_conversion.rst:63
+msgid ""
+"PyFlink Tables can additionally be converted into a Pandas DataFrame. The"
+" resulting rows will be serialized as multiple Arrow batches of Arrow "
+"columnar format on the client. The maximum Arrow batch size is configured"
+" via the option :flinkdoc:`python.fn-execution.arrow.batch.size "
+"<docs/dev/python/python_config/#python-fn-execution-arrow-batch-size>`. "
+"The serialized data will then be converted to a Pandas DataFrame. Because"
+" the contents of the table will be collected on the client, please ensure"
+" that the results of the table can fit in memory before calling this "
+"method. You can limit the number of rows collected to client side via "
+"``Table.limit``."
+msgstr ""
+"除此之外，还支持将 PyFlink Table 转换为 Pandas DataFrame。"
+"在内部实现上，它将执行表的计算逻辑，得到物化之后的表的执行结果，并"
+"在客户端将其序列化为 Arrow 列存格式，最大 Arrow 批处理大小"
+"由配置选项 :flinkdoc:`python.fn-execution.arrow.batch.size "
+"<docs/dev/python/python_config/#python-fn-execution-arrow-batch-size>` 确定。"
+"序列化后的数据将被转换为 Pandas DataFrame。"
+"这意味着需要把表的内容收集到客户端，因此在调用此函数之前，"
+"请确保表的内容可以容纳在内存中。可以通过 "
+"``Table.limit`` 设置收集到客户端的数据的条数。"
+
+#: ../../user_guide/table/pandas_conversion.rst:71
+msgid ""
+"The following example shows how to convert a PyFlink Table to a Pandas "
+"DataFrame:"
+msgstr ""
+"以下示例显示了如何将 PyFlink Table 转换为 Pandas DataFrame："

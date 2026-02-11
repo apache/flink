@@ -1,0 +1,106 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-11 10:53+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../user_guide/datastream/process_function.rst:21
+msgid "Process Function"
+msgstr ""
+
+#: ../../user_guide/datastream/process_function.rst:24
+msgid "ProcessFunction"
+msgstr ""
+
+#: ../../user_guide/datastream/process_function.rst:26
+msgid ""
+"The ``ProcessFunction`` is a low-level stream processing operation, "
+"giving access to the basic building blocks of all (acyclic) streaming "
+"applications:"
+msgstr ""
+
+#: ../../user_guide/datastream/process_function.rst:29
+msgid "events (stream elements)"
+msgstr ""
+
+#: ../../user_guide/datastream/process_function.rst:30
+msgid "state (fault-tolerant, consistent, only on keyed stream)"
+msgstr ""
+
+#: ../../user_guide/datastream/process_function.rst:31
+msgid "timers (event time and processing time, only on keyed stream)"
+msgstr ""
+
+#: ../../user_guide/datastream/process_function.rst:33
+msgid ""
+"The ``ProcessFunction`` can be thought of as a ``FlatMapFunction`` with "
+"access to keyed state and timers. It handles events by being invoked for "
+"each event received in the input stream(s)."
+msgstr ""
+
+#: ../../user_guide/datastream/process_function.rst:36
+msgid ""
+"Please refer to :flinkdoc:`Process Function "
+"<docs/dev/datastream/operators/process_function/>` for more details about"
+" the concept and usage of ``ProcessFunction``."
+msgstr ""
+
+#: ../../user_guide/datastream/process_function.rst:40
+msgid "Execution behavior of timer"
+msgstr ""
+
+#: ../../user_guide/datastream/process_function.rst:42
+msgid ""
+"Python user-defined functions are executed in a separate Python process "
+"from Flink's operators which run in a JVM, the timer registration "
+"requests made in ``ProcessFunction`` will be sent to the Java operator "
+"asynchronously. Once received timer registration requests, the Java "
+"operator will register it into the underlying timer service."
+msgstr ""
+
+#: ../../user_guide/datastream/process_function.rst:46
+msgid ""
+"If the registered timer has already passed the current time (the current "
+"system time for processing time timer, or the current watermark for event"
+" time), it will be triggered immediately."
+msgstr ""
+
+#: ../../user_guide/datastream/process_function.rst:49
+msgid ""
+"Note that, due to the asynchronous processing characteristics, it may "
+"happen that the timer was triggered a little later than the actual time. "
+"For example, a registered processing time timer of ``10:00:00`` may be "
+"actually processed at ``10:00:05``."
+msgstr ""

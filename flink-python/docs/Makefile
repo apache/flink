@@ -54,7 +54,7 @@ PAPEROPT_a4     = -D latex_paper_size=a4
 PAPEROPT_letter = -D latex_paper_size=letter
 ALLSPHINXOPTS   = -j auto -d _build/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 
-.PHONY: help clean html dirhtml pickle json htmlhelp qthelp latex changes linkcheck doctest
+.PHONY: help clean html html-zh zh dirhtml pickle json htmlhelp qthelp latex changes linkcheck doctest gettext
 
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
@@ -76,6 +76,14 @@ html:
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) _build/html
 	@echo
 	@echo "Build finished. The HTML pages are in _build/html."
+
+html-zh: html zh
+
+zh: gettext
+	sphinx-intl update -p _build/gettext -l zh
+	$(SPHINXBUILD) -b html -D language=zh -d _build/doctrees-zh $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) . _build/html/zh
+	@echo
+	@echo "Build finished. The Chinese HTML pages are in _build/html/zh."
 
 dirhtml:
 	$(SPHINXBUILD) -b dirhtml $(ALLSPHINXOPTS) _build/dirhtml
@@ -129,6 +137,11 @@ doctest:
 	$(SPHINXBUILD) -b doctest $(ALLSPHINXOPTS) _build/doctest
 	@echo "Testing of doctests in the sources finished, look at the " \
 	      "results in _build/doctest/output.txt."
+
+gettext:
+	$(SPHINXBUILD) -b gettext -j auto -d _build/doctrees-gettext $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) . _build/gettext
+	@echo
+	@echo "Build finished. The message catalogs are in _build/gettext."
 
 pdf: latex
 	cd _build/latex && make all-pdf

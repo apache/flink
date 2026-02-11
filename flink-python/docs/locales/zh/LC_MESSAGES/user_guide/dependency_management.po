@@ -1,0 +1,366 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-11 10:53+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../user_guide/dependency_management.rst:21
+msgid "Dependency Management"
+msgstr "依赖管理"
+
+#: ../../user_guide/dependency_management.rst:23
+msgid ""
+"There are requirements to use dependencies inside the Python API "
+"programs. For example, users may need to use third-party Python libraries"
+" in Python user-defined functions. In addition, in scenarios such as "
+"machine learning prediction, users may want to load a machine learning "
+"model inside the Python user-defined functions."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:28
+msgid ""
+"When the PyFlink job is executed locally, users could install the third-"
+"party Python libraries into the local Python environment, download the "
+"machine learning model to local, etc. However, this approach doesn't work"
+" well when users want to submit the PyFlink jobs to remote clusters. In "
+"the following sections, we will introduce the options provided in PyFlink"
+" for these requirements."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:34
+msgid ""
+"Both Python DataStream API and Python Table API have provided APIs for "
+"each kind of dependency. If you are mixing use of Python DataStream API "
+"and Python Table API in a single job, you should specify the dependencies"
+" via Python DataStream API to make them work for both the Python "
+"DataStream API and Python Table API."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:40
+msgid "JAR Dependencies"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:42
+msgid ""
+"If third-party JARs are used, you can specify the JARs in the Python "
+"Table API as following:"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:59
+msgid "or in the Python DataStream API as following:"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:76
+msgid ""
+"or through the :flinkdoc:`command line arguments <docs/deployment/cli"
+"/#submitting-pyflink-jobs>` ``--jarfile`` when submitting the job."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:79
+msgid ""
+"It only supports to specify one jar file with the command line argument "
+"``--jarfile`` and so you need to build a fat jar if there are multiple "
+"jar files."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:83
+msgid "Python Dependencies"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:86
+msgid "Python libraries"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:88
+msgid ""
+"You may want to use third-part Python libraries in Python user-defined "
+"functions. There are multiple ways to specify the Python libraries."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:91
+msgid ""
+"You could specify them inside the code using Python Table API as "
+"following:"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:97
+#: ../../user_guide/dependency_management.rst:150
+#: ../../user_guide/dependency_management.rst:195
+#: ../../user_guide/dependency_management.rst:263
+msgid "or using Python DataStream API as following:"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:103
+msgid ""
+"You could also specify the Python libraries using configuration "
+"``python.files`` (see :doc:`configuration`) or via :flinkdoc:`command "
+"line arguments <docs/deployment/cli/#submitting-pyflink-jobs>` ``-pyfs`` "
+"or ``--pyFiles`` when submitting the job."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:109
+msgid ""
+"The Python libraries could be local files or local directories. They will"
+" be added to the PYTHONPATH of the Python UDF worker."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:113
+msgid "requirements.txt"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:115
+msgid ""
+"It also allows to specify a ``requirements.txt`` file which defines the "
+"third-party Python dependencies. These Python dependencies will be "
+"installed into the working directory and added to the PYTHONPATH of the "
+"Python UDF worker."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:119
+msgid "You could prepare the ``requirements.txt`` manually as following:"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:126
+msgid ""
+"or using ``pip freeze`` which lists all the packages installed in the "
+"current Python environment:"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:132
+msgid "The content of the requirements.txt file may look like the following:"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:139
+msgid ""
+"You could manually edit it by removing unnecessary entries or adding "
+"extra entries, etc."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:141
+msgid ""
+"The ``requirements.txt`` file could then be specified inside the code "
+"using Python Table API as following:"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:160
+msgid ""
+"For the dependencies which could not be accessed in the cluster, a "
+"directory which contains the installation packages of these dependencies "
+"could be specified using the parameter ``requirements_cached_dir``. It "
+"will be uploaded to the cluster to support offline installation. You "
+"could prepare the ``requirements_cache_dir`` as following:"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:170
+msgid ""
+"Please make sure that the prepared packages match the platform of the "
+"cluster, and the Python version used."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:173
+msgid ""
+"You could also specify the ``requirements.txt`` file using configuration "
+"``python.requirements`` (see :doc:`configuration`) or via "
+":flinkdoc:`command line arguments <docs/deployment/cli/#submitting-"
+"pyflink-jobs>` ``-pyreq`` or ``--pyRequirements`` when submitting the "
+"job."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:179
+msgid ""
+"It will install the packages specified in the ``requirements.txt`` file "
+"using pip, so please make sure that pip (version >= 20.3) and setuptools "
+"(version >= 37.0.0) are available."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:184
+msgid "Archives"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:186
+msgid ""
+"You may also want to specify archive files. The archive files could be "
+"used to specify custom Python virtual environments, data files, etc."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:189
+msgid ""
+"You could specify the archive files inside the code using Python Table "
+"API as following:"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:202
+msgid ""
+"The parameter ``target_dir`` is optional. If specified, the archive file "
+"will be extracted to a directory with the specified name of "
+"``target_dir`` during execution. Otherwise, the archive file will be "
+"extracted to a directory with the same name as the archive file."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:206
+msgid "Suppose you have specified the archive file as following:"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:212
+msgid ""
+"Then, you could access the content of the archive file in Python user-"
+"defined functions as following:"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:220
+msgid "If you have not specified the parameter ``target_dir``:"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:226
+msgid ""
+"You could then access the content of the archive file in Python user-"
+"defined functions as following:"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:235
+msgid ""
+"The archive file will be extracted to the working directory of Python UDF"
+" worker and so you could access the files inside the archive file using "
+"relative path."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:239
+msgid ""
+"You could also specify the archive files using configuration "
+"``python.archives`` (see :doc:`configuration`) or via :flinkdoc:`command "
+"line arguments <docs/deployment/cli/#submitting-pyflink-jobs>` "
+"``-pyarch`` or ``--pyArchives`` when submitting the job."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:245
+msgid ""
+"If the archive file contains a Python virtual environment, please make "
+"sure that the Python virtual environment matches the platform that the "
+"cluster is running on."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:249
+msgid ""
+"Currently, only zip files (i.e., zip, jar, whl, egg, etc) and tar files "
+"(i.e., tar, tar.gz, tgz) are supported."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:253
+msgid "Python interpreter"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:255
+msgid ""
+"It supports to specify the path of the Python interpreter to execute "
+"Python worker."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:257
+msgid ""
+"You could specify the Python interpreter inside the code using Python "
+"Table API as following:"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:269
+msgid "It also supports to use the Python interpreter inside an archive file."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:281
+msgid ""
+"You could also specify the Python interpreter using configuration "
+"``python.executable`` (see :doc:`configuration`) or via "
+":flinkdoc:`command line arguments <docs/deployment/cli/#submitting-"
+"pyflink-jobs>` ``-pyexec`` or ``--pyExecutable`` when submitting the job."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:287
+msgid ""
+"If the path of the Python interpreter refers to the Python archive file, "
+"relative path should be used instead of absolute path."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:291
+msgid "Python interpreter of client"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:293
+msgid ""
+"Python is needed at the client side to parse the Python user-defined "
+"functions during compiling the job."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:296
+msgid ""
+"You could specify the custom Python interpreter used at the client side "
+"by activating it in the current session."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:303
+msgid ""
+"or specify it using configuration ``python.client.executable`` (see "
+":doc:`configuration`), :flinkdoc:`command line arguments "
+"<docs/deployment/cli/#submitting-pyflink-jobs>` ``-pyclientexec`` or "
+"``--pyClientExecutable``, environment variable "
+"``PYFLINK_CLIENT_EXECUTABLE`` (see :doc:`environment_variables`)."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:309
+msgid "How to specify Python Dependencies in Java/Scala Program"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:311
+msgid ""
+"It also supports to use Python user-defined functions in the Java Table "
+"API programs or pure SQL programs. The following code shows a simple "
+"example on how to use the Python user-defined functions in a Java Table "
+"API program:"
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:333
+msgid ""
+"You can refer to the SQL statement about :flinkdoc:`CREATE FUNCTION "
+"<docs/sql/reference/ddl/create/#create-function>` for more details on how"
+" to create Python user-defined functions using SQL statements."
+msgstr ""
+
+#: ../../user_guide/dependency_management.rst:336
+msgid ""
+"The Python dependencies could then be specified via the Python config "
+"options (see :doc:`configuration`), such as **python.archives**, "
+"**python.files**, **python.requirements**, **python.client.executable**, "
+"**python.executable**, etc or through :flinkdoc:`command line arguments "
+"<docs/deployment/cli/#usage>` when submitting the job."
+msgstr ""
+
