@@ -171,8 +171,16 @@ public class SslTestUtils {
         String nodeName = getNodeName();
         List<String> nodeIps = getNodeIps();
         StringBuilder sanString = new StringBuilder("dns:" + nodeName);
+        // Always include localhost to allow local connections
+        if (!"localhost".equals(nodeName)) {
+            sanString.append(",dns:localhost");
+        }
+        // Always include 127.0.0.1 for loopback connections
+        sanString.append(",ip:127.0.0.1");
         for (String ip : nodeIps) {
-            sanString.append(",ip:").append(ip);
+            if (!"127.0.0.1".equals(ip)) { // Avoid duplicate
+                sanString.append(",ip:").append(ip);
+            }
         }
 
         LOG.info("Using SAN {}", sanString);
