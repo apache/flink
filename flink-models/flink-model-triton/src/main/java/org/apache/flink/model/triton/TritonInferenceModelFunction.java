@@ -269,18 +269,28 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
             // All retries exhausted
             if (getDefaultValue() != null) {
                 LOG.warn(
-                        "All {} retry attempts failed. Returning configured default value. Last error: {}",
+                        "All {} retry attempts failed. Returning configured default value. Original error: {}",
                         getMaxRetries() + 1,
-                        error.getMessage());
+                        error.getMessage(),
+                        error);
 
                 try {
                     Collection<RowData> defaultResult = parseDefaultValue();
                     future.complete(defaultResult);
                 } catch (Exception e) {
                     LOG.error("Failed to parse default value", e);
-                    future.completeExceptionally(
+                    // Chain both the original inference error and the parse error
+                    IllegalArgumentException parseException =
                             new IllegalArgumentException(
-                                    "Failed to parse default-value: " + e.getMessage(), e));
+                                    String.format(
+                                            "Failed to parse default-value after %d retry attempts. "
+                                                    + "Original inference error: %s. Parse error: %s",
+                                            getMaxRetries() + 1,
+                                            error.getMessage(),
+                                            e.getMessage()),
+                                    e);
+                    parseException.addSuppressed(error);
+                    future.completeExceptionally(parseException);
                 }
             } else {
                 LOG.error(
@@ -381,14 +391,25 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
 
             // Client errors are not retryable - fail immediately
             if (getDefaultValue() != null) {
-                LOG.warn("Client error (HTTP {}). Returning default value.", statusCode);
+                LOG.warn(
+                        "Client error (HTTP {}). Returning default value. Original error: {}",
+                        statusCode,
+                        exception.getMessage(),
+                        exception);
                 try {
                     Collection<RowData> defaultResult = parseDefaultValue();
                     future.complete(defaultResult);
                 } catch (Exception e) {
-                    future.completeExceptionally(
+                    LOG.error("Failed to parse default value", e);
+                    IllegalArgumentException parseException =
                             new IllegalArgumentException(
-                                    "Failed to parse default-value: " + e.getMessage(), e));
+                                    String.format(
+                                            "Failed to parse default-value after client error (HTTP %d). "
+                                                    + "Original error: %s. Parse error: %s",
+                                            statusCode, exception.getMessage(), e.getMessage()),
+                                    e);
+                    parseException.addSuppressed(exception);
+                    future.completeExceptionally(parseException);
                 }
             } else {
                 future.completeExceptionally(exception);
@@ -441,12 +462,8 @@ public class TritonInferenceModelFunction extends AbstractTritonModelFunction {
         if (outputType instanceof VarCharType) {
             // String type - use value directly
             deserializedData = BinaryStringData.fromString(defaultValueStr);
-        } else if (outputType instanceof ArrayType) {
-            // Array type - parse JSON array
-            JsonNode jsonNode = objectMapper.readTree(defaultValueStr);
-            deserializedData = TritonTypeMapper.deserializeFromJson(jsonNode, outputType);
         } else {
-            // Numeric or other scalar types
+            // Array and other scalar types - parse JSON
             JsonNode jsonNode = objectMapper.readTree(defaultValueStr);
             deserializedData = TritonTypeMapper.deserializeFromJson(jsonNode, outputType);
         }
