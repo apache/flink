@@ -37,7 +37,8 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                         regexpExtractTestCases(),
                         regexpExtractAllTestCases(),
                         regexpInstrTestCases(),
-                        regexpSubstrTestCases())
+                        regexpSubstrTestCases(),
+                        regexpSplitTestCases())
                 .flatMap(s -> s);
     }
 
@@ -386,5 +387,95 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 "REGEXP_SUBSTR(f0, '1024')",
                                 "Invalid input arguments. Expected signatures are:\n"
                                         + "REGEXP_SUBSTR(str <CHARACTER_STRING>, regex <CHARACTER_STRING>)"));
+    }
+
+    private Stream<TestSetSpec> regexpSplitTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.REGEXP_SPLIT)
+                        .onFieldsWithData(
+                                "Hello123World456",
+                                null,
+                                "a,b;c|d",
+                                "one  two   three",
+                                123,
+                                "12345",
+                                ",123,,,123,")
+                        .andDataTypes(
+                                DataTypes.STRING().notNull(),
+                                DataTypes.STRING(),
+                                DataTypes.STRING().notNull(),
+                                DataTypes.STRING().notNull(),
+                                DataTypes.INT().notNull(),
+                                DataTypes.STRING().notNull(),
+                                DataTypes.STRING().notNull())
+                        // Basic regex split
+                        .testResult(
+                                $("f0").regexpSplit("[0-9]+"),
+                                "REGEXP_SPLIT(f0, '[0-9]+')",
+                                new String[] {"Hello", "World", ""},
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                        // null input test
+                        .testResult(
+                                $("f0").regexpSplit(null),
+                                "REGEXP_SPLIT(f0, NULL)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        // Empty regex - split by character
+                        .testResult(
+                                $("f5").regexpSplit(""),
+                                "REGEXP_SPLIT(f5, '')",
+                                new String[] {"1", "2", "3", "4", "5"},
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                        // null string input
+                        .testResult(
+                                $("f1").regexpSplit("[0-9]+"),
+                                "REGEXP_SPLIT(f1, '[0-9]+')",
+                                null,
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        // null string and null pattern
+                        .testResult(
+                                $("f1").regexpSplit(null),
+                                "REGEXP_SPLIT(f1, null)",
+                                null,
+                                DataTypes.ARRAY(DataTypes.STRING()))
+                        // Multi-character delimiter regex
+                        .testResult(
+                                $("f2").regexpSplit("[,;|]"),
+                                "REGEXP_SPLIT(f2, '[,;|]')",
+                                new String[] {"a", "b", "c", "d"},
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                        // Whitespace regex
+                        .testResult(
+                                $("f3").regexpSplit("\\s+"),
+                                "REGEXP_SPLIT(f3, '\\\\s+')",
+                                new String[] {"one", "two", "three"},
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                        // No match - return original string
+                        .testResult(
+                                $("f5").regexpSplit("[a-z]+"),
+                                "REGEXP_SPLIT(f5, '[a-z]+')",
+                                new String[] {"12345"},
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                        // Invalid regex - return null
+                        .testResult(
+                                $("f0").regexpSplit("("),
+                                "REGEXP_SPLIT(f0, '(')",
+                                null,
+                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                        // Validation error for non-string type input
+                        .testTableApiValidationError(
+                                $("f4").regexpSplit("[0-9]+"),
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "REGEXP_SPLIT(<CHARACTER_STRING>, <CHARACTER_STRING>)")
+                        .testSqlValidationError(
+                                "REGEXP_SPLIT(f4, '[0-9]+')",
+                                "Invalid input arguments. Expected signatures are:\n"
+                                        + "REGEXP_SPLIT(<CHARACTER_STRING>, <CHARACTER_STRING>)")
+                        .testSqlValidationError(
+                                "REGEXP_SPLIT()",
+                                "No match found for function signature REGEXP_SPLIT()")
+                        .testSqlValidationError(
+                                "REGEXP_SPLIT(f1, '1', '2')",
+                                "No match found for function signature REGEXP_SPLIT(<CHARACTER>, <CHARACTER>, <CHARACTER>)"));
     }
 }
