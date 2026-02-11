@@ -81,8 +81,5 @@ if [ "$SKIP_INTEGRATE_CONNECTOR_DOCS" = false ]; then
   # Note: Connector maintainers should use the correct syntax in their repos.
   # Related tracking issues:
   #   - flink-connector-kinesis: https://issues.apache.org/jira/browse/FLINK-39046
-  find themes/connectors -name "*.md" -type f -exec sed -i 's|{{< ref "\(docs/ops/[^"/#]*\)/*#\([^"]*\)" >}}|{{< ref "\1" >}}#\2|g' {} +
-  find themes/connectors -name "*.md" -type f -exec sed -i 's|{{<ref "\(docs/ops/[^"/#]*\)/*#\([^"]*\)">}}|{{<ref "\1">}}#\2|g' {} +
-  find themes/connectors -name "*.md" -type f -exec sed -i 's|{{< ref "\(docs/dev/[^"/#]*\)/*#\([^"]*\)" >}}|{{< ref "\1" >}}#\2|g' {} +
-  find themes/connectors -name "*.md" -type f -exec sed -i 's|{{<ref "\(docs/dev/[^"/#]*\)/*#\([^"]*\)">}}|{{<ref "\1">}}#\2|g' {} +
+  find themes/connectors -name "*.md" -type f -exec sed -i -E 's@\{\{< *ref "(docs/(ops|dev)/[^"/#]*)/*#([^"]*)" *>\}\}@{{< ref "\1" >}}#\3@g' {} +
 fi
