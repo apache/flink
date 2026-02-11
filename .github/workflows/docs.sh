@@ -89,10 +89,21 @@ if [ -f  ./flink-python/dev/lint-python.sh ]; then
     # Just completely ignore sudo in conda.
     unset SUDO_UID SUDO_GID SUDO_USER
 
-    # build python docs
+    # Set base URL for cross-references to main Flink docs (used by sphinx extlinks)
+    export FLINK_DOCS_BASE_URL="https://nightlies.apache.org/flink/flink-docs-${BRANCH}"
+
+    # build English python docs
     # disable the gateway, because otherwise it tries to find FLINK_HOME to access Java classes
     PYFLINK_GATEWAY_DISABLED=1 ./flink-python/dev/lint-python.sh -i "sphinx"
 
-    # move python docs
+    # build Chinese python docs into _build/html/zh/ subdirectory
+    UV_HOME="${FLINK_UV_HOME:-./flink-python/dev/.uv}"
+    pushd flink-python/docs
+    source "$UV_HOME/bin/activate"
+    make zh
+    deactivate
+    popd
+
+    # move python docs (English at root, Chinese at zh/)
     mv flink-python/docs/_build/html docs/target/api/python
 fi

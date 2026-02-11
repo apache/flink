@@ -1,7 +1,8 @@
 ---
-title: Python DataStream API
-bookCollapseSection: true
-weight: 100
+title: "Python DataStream API"
+layout: redirect
+redirect_to: /api/python/user_guide/datastream/
+bookHidden: true
 aliases:
   - /zh/docs/dev/datastream/python/
 ---

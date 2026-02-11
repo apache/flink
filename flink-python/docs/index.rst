@@ -26,5 +26,6 @@ Welcome to Flink Python Docs!
     :maxdepth: 2
     :hidden:
 
+    user_guide/index
     reference/index
     examples/index
