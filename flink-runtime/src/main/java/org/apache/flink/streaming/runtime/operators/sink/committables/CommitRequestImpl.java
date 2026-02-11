@@ -20,7 +20,11 @@ package org.apache.flink.streaming.runtime.operators.sink.committables;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.configuration.CommitFailureStrategy;
 import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 
@@ -32,10 +36,13 @@ import java.util.Objects;
 @Internal
 public class CommitRequestImpl<CommT> implements Committer.CommitRequest<CommT> {
 
+    private static final Logger LOG = LoggerFactory.getLogger(CommitRequestImpl.class);
+
     private CommT committable;
     private int numRetries;
     private CommitRequestState state;
     private SinkCommitterMetricGroup metricGroup;
+    private CommitFailureStrategy failureStrategy = CommitFailureStrategy.FAIL;
 
     protected CommitRequestImpl(CommT committable, SinkCommitterMetricGroup metricGroup) {
         this.committable = committable;
@@ -52,6 +59,10 @@ public class CommitRequestImpl<CommT> implements Committer.CommitRequest<CommT> 
         this.numRetries = numRetries;
         this.state = state;
         this.metricGroup = metricGroup;
+    }
+
+    void setFailureStrategy(CommitFailureStrategy failureStrategy) {
+        this.failureStrategy = failureStrategy;
     }
 
     boolean isFinished() {
@@ -76,15 +87,23 @@ public class CommitRequestImpl<CommT> implements Committer.CommitRequest<CommT> 
     public void signalFailedWithKnownReason(Throwable t) {
         state = CommitRequestState.FAILED;
         metricGroup.getNumCommittablesFailureCounter().inc();
-        // let the user configure a strategy for failing and apply it here
+        // Known failures are always discarded; see CommitFailureStrategy for unknown failures.
+        LOG.warn("Commit failed for committable [{}] with known reason. Discarding.", committable, t);
     }
 
     @Override
     public void signalFailedWithUnknownReason(Throwable t) {
         state = CommitRequestState.FAILED;
         metricGroup.getNumCommittablesFailureCounter().inc();
-        // let the user configure a strategy for failing and apply it here
-        throw new IllegalStateException("Failed to commit " + committable, t);
+        if (failureStrategy == CommitFailureStrategy.WARN) {
+            LOG.warn(
+                    "Commit failed for committable [{}] with unknown reason. "
+                            + "Skipping due to failure strategy WARN.",
+                    committable,
+                    t);
+        } else {
+            throw new IllegalStateException("Failed to commit " + committable, t);
+        }
     }
 
     @Override
@@ -118,7 +137,10 @@ public class CommitRequestImpl<CommT> implements Committer.CommitRequest<CommT> 
     }
 
     CommitRequestImpl<CommT> copy() {
-        return new CommitRequestImpl<>(committable, numRetries, state, metricGroup);
+        CommitRequestImpl<CommT> copied =
+                new CommitRequestImpl<>(committable, numRetries, state, metricGroup);
+        copied.failureStrategy = this.failureStrategy;
+        return copied;
     }
 
     @Override
