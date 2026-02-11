@@ -38,63 +38,64 @@ export class HumanizeWatermarkPipe implements PipeTransform {
 
 @Pipe({
   name: 'humanizeWatermarkToDatetime',
-  standalone: true
+  standalone: true,
+  pure: false
 })
 export class HumanizeWatermarkToDatetimePipe implements PipeTransform {
   constructor(private readonly configService: ConfigService) {}
 
-  public transform(value: number, timezone: string = 'auto'): number | string {
-    console.log('[HumanizeWatermarkToDatetimePipe] Transform called with value:', value, 'timezone:', timezone);
-
+  public transform(value: number, timezone: string = 'UTC'): number | string {
     if (value == null || isNaN(value) || value <= this.configService.LONG_MIN_VALUE) {
-      console.log('[HumanizeWatermarkToDatetimePipe] Invalid value, returning N/A');
       return 'N/A';
-    } else {
-      let timezoneOffsetMinutes: number;
+    }
 
-      // Parse timezone format, e.g. UTC+8, UTC-5, UTC+5:30, etc.
-      const match = timezone.match(/UTC([+-])(\d+)(?::(\d+))?/);
-      if (match) {
-        const sign = match[1] === '+' ? 1 : -1;
-        const hours = parseInt(match[2]);
-        const minutes = match[3] ? parseInt(match[3]) : 0;
-        timezoneOffsetMinutes = sign * (hours * 60 + minutes);
-        console.log('[HumanizeWatermarkToDatetimePipe] Parsed timezone offset:', timezoneOffsetMinutes, 'minutes');
-      } else {
-        // Default to browser timezone if format is not recognized
-        const browserOffset = new Date().getTimezoneOffset();
-        timezoneOffsetMinutes = -browserOffset; // Convert to UTC offset format
-        console.log(
-          '[HumanizeWatermarkToDatetimePipe] Using browser timezone offset:',
-          timezoneOffsetMinutes,
-          'minutes'
-        );
-      }
+    try {
+      const date = new Date(value);
+      
+      // Use Intl.DateTimeFormat for proper timezone handling including DST
+      // This native browser API automatically handles daylight saving time transitions
+      const dateFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        hour12: false,
+        minute: '2-digit',
+        second: '2-digit'
+      });
 
-      // Calculate the datetime in the target timezone
-      // value is timestamp in milliseconds (UTC)
-      const utcDate = new Date(value);
-      const targetDate = new Date(utcDate.getTime() + timezoneOffsetMinutes * 60 * 1000);
-
-      const year = targetDate.getUTCFullYear();
-      const month = (targetDate.getUTCMonth() + 1).toString().padStart(2, '0');
-      const day = targetDate.getUTCDate().toString().padStart(2, '0');
-      const hours = targetDate.getUTCHours().toString().padStart(2, '0');
-      const minutes = targetDate.getUTCMinutes().toString().padStart(2, '0');
-      const seconds = targetDate.getUTCSeconds().toString().padStart(2, '0');
-
-      // Format timezone string
-      const absOffsetMinutes = Math.abs(timezoneOffsetMinutes);
-      const timezoneHours = Math.floor(absOffsetMinutes / 60);
-      const timezoneMinutes = absOffsetMinutes % 60;
-      const timezoneSign = timezoneOffsetMinutes >= 0 ? '+' : '-';
-      const timezoneString = `UTC${timezoneSign}${timezoneHours}${
-        timezoneMinutes > 0 ? `:${timezoneMinutes.toString().padStart(2, '0')}` : ''
-      }`;
-
-      const result = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}(${timezoneString})`;
-      console.log('[HumanizeWatermarkToDatetimePipe] Result:', result);
-      return result;
+      // Get timezone abbreviation (e.g., PST, PDT, EST, EDT)
+      const timezoneFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        timeZoneName: 'short'
+      });
+      
+      // Format the date parts
+      const parts = dateFormatter.formatToParts(date);
+      const year = parts.find(p => p.type === 'year')?.value;
+      const month = parts.find(p => p.type === 'month')?.value;
+      const day = parts.find(p => p.type === 'day')?.value;
+      const hour = parts.find(p => p.type === 'hour')?.value;
+      const minute = parts.find(p => p.type === 'minute')?.value;
+      const second = parts.find(p => p.type === 'second')?.value;
+      
+      // Extract timezone abbreviation
+      const timezoneParts = timezoneFormatter.formatToParts(date);
+      const timezoneAbbr = timezoneParts.find(p => p.type === 'timeZoneName')?.value || timezone;
+      
+      return `${year}-${month}-${day} ${hour}:${minute}:${second} (${timezoneAbbr})`;
+    } catch (error) {
+      // Fallback to UTC if timezone is invalid
+      console.error('[HumanizeWatermarkToDatetimePipe] Error formatting date:', error);
+      const date = new Date(value);
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      const hour = String(date.getUTCHours()).padStart(2, '0');
+      const minute = String(date.getUTCMinutes()).padStart(2, '0');
+      const second = String(date.getUTCSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hour}:${minute}:${second} (UTC)`;
     }
   }
 }
