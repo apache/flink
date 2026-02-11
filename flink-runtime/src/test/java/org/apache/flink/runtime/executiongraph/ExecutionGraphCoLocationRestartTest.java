@@ -86,6 +86,12 @@ class ExecutionGraphCoLocationRestartTest {
         // initiate and schedule job
         final JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(groupVertex, groupVertex2);
 
+        // Create futures for each job status transition
+        final CompletableFuture<Void> runningFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> restartingFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> runningAgainFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> finishedFuture = new CompletableFuture<>();
+
         final ManuallyTriggeredScheduledExecutorService delayExecutor =
                 new ManuallyTriggeredScheduledExecutorService();
         final SchedulerBase scheduler =
@@ -105,6 +111,21 @@ class ExecutionGraphCoLocationRestartTest {
                                 new FixedDelayRestartBackoffTimeStrategy
                                                 .FixedDelayRestartBackoffTimeStrategyFactory(1, 0)
                                         .create())
+                        .setJobStatusListener(
+                                (jobId, newJobStatus, timestamp) -> {
+                                    if (newJobStatus == JobStatus.RUNNING
+                                            && !runningFuture.isDone()) {
+                                        runningFuture.complete(null);
+                                    } else if (newJobStatus == JobStatus.RESTARTING) {
+                                        restartingFuture.complete(null);
+                                    } else if (newJobStatus == JobStatus.RUNNING
+                                            && runningFuture.isDone()
+                                            && !runningAgainFuture.isDone()) {
+                                        runningAgainFuture.complete(null);
+                                    } else if (newJobStatus == JobStatus.FINISHED) {
+                                        finishedFuture.complete(null);
+                                    }
+                                })
                         .build();
 
         final ExecutionGraph eg = scheduler.getExecutionGraph();
@@ -118,6 +139,8 @@ class ExecutionGraphCoLocationRestartTest {
                 ExecutionGraphTestUtils.isInExecutionState(ExecutionState.DEPLOYING);
         ExecutionGraphTestUtils.waitForAllExecutionsPredicate(eg, isDeploying, timeout);
 
+        // Wait for RUNNING status before asserting
+        runningFuture.join();
         assertThat(eg.getState()).isEqualTo(JobStatus.RUNNING);
 
         // sanity checks
@@ -131,6 +154,8 @@ class ExecutionGraphCoLocationRestartTest {
                             .fail(new FlinkException("Test exception"));
                 });
 
+        // Wait for RESTARTING status before asserting
+        restartingFuture.join();
         assertThat(eg.getState()).isEqualTo(JobStatus.RESTARTING);
 
         // trigger registration of restartTasks(...) callback to cancelFuture before completing the
@@ -146,8 +171,8 @@ class ExecutionGraphCoLocationRestartTest {
                     }
                 });
 
-        // wait until we have restarted
-        ExecutionGraphTestUtils.waitUntilJobStatus(eg, JobStatus.RUNNING, timeout);
+        // Wait for RUNNING status again before continuing
+        runningAgainFuture.join();
 
         ExecutionGraphTestUtils.waitForAllExecutionsPredicate(eg, isDeploying, timeout);
 
@@ -159,6 +184,8 @@ class ExecutionGraphCoLocationRestartTest {
                     ExecutionGraphTestUtils.finishAllVertices(eg);
                 });
 
+        // Wait for FINISHED status before asserting
+        finishedFuture.join();
         assertThat(eg.getState()).isEqualTo(FINISHED);
     }
 
