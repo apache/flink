@@ -117,8 +117,13 @@ public abstract class ArchiveFetcher {
         }
     }
 
+    /** Triggers one polling cycle and processes newly discovered archives. */
     abstract void fetchArchives();
 
+    /**
+     * Lists archive entries in a refresh directory sorted by last-modification time in descending
+     * order.
+     */
     static FileStatus[] listArchives(FileSystem refreshFS, Path refreshDir) throws IOException {
         // contents of /:refreshDir
         FileStatus[] jobArchives = refreshFS.listStatus(refreshDir);
@@ -133,6 +138,13 @@ public abstract class ArchiveFetcher {
         return jobArchives;
     }
 
+    /**
+     * Validates that a file/directory name represents a job id.
+     *
+     * @param jobId file or directory name encountered while scanning a refresh directory
+     * @param refreshDir refresh directory used for logging context
+     * @return true if the value can be parsed as a {@link JobID}; false otherwise
+     */
     static boolean isValidJobID(String jobId, Path refreshDir) {
         try {
             JobID.fromHexString(jobId);
@@ -147,8 +159,18 @@ public abstract class ArchiveFetcher {
         }
     }
 
+    /**
+     * Reads a job archive and writes its REST payloads to the backend-specific cache.
+     *
+     * @param jobID parsed job id
+     * @param jobArchivePath archive path to process
+     */
     abstract void processArchive(String jobID, Path jobArchivePath) throws IOException;
 
+    /**
+     * Deletes archives beyond the configured retention count and synchronizes in-memory/cache
+     * state.
+     */
     List<ArchiveFetcher.ArchiveEvent> cleanupJobsBeyondSizeLimit(
             Map<Path, Set<Path>> jobArchivesToRemove) {
         Map<Path, Set<String>> allJobIdsToRemoveFromOverview = new HashMap<>();
@@ -170,6 +192,7 @@ public abstract class ArchiveFetcher {
         return cleanupExpiredJobs(allJobIdsToRemoveFromOverview);
     }
 
+    /** Removes local cache state for jobs that disappeared from configured refresh directories. */
     List<ArchiveFetcher.ArchiveEvent> cleanupExpiredJobs(Map<Path, Set<String>> jobsToRemove) {
 
         List<ArchiveFetcher.ArchiveEvent> deleteLog = new ArrayList<>();
@@ -192,8 +215,21 @@ public abstract class ArchiveFetcher {
         return deleteLog;
     }
 
+    /** Deletes all locally cached artifacts for a single job id. */
     abstract void deleteJobFiles(String jobID);
 
+    /**
+     * Converts pre-1.14 JobOverview payloads to the current {@code /jobs/overview} response shape.
+     *
+     * <p>Legacy history server archives (written before 1.14) used the endpoint {@code
+     * /joboverview} and encoded task states with a single {@code pending} field. Current archives
+     * use {@code /jobs/overview} and split pending tasks into {@code created}, {@code scheduled},
+     * and {@code deploying}. This method rewrites the legacy payload into the modern schema
+     * expected by the Web UI and REST handlers.
+     *
+     * @param legacyOverview JSON payload from a legacy archive entry
+     * @return JSON string compatible with {@code /jobs/overview}
+     */
     static String convertLegacyJobOverview(String legacyOverview) throws IOException {
         JsonNode root = MAPPER.readTree(legacyOverview);
         JsonNode finishedJobs = root.get("finished");

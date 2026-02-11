@@ -103,6 +103,15 @@ historyserver.storage.backend: kvstore
 
 Check out the configuration page for a [complete list of configuration options]({{< ref "docs/deployment/config" >}}#history-server).
 
+### Extending ArchiveFetcher
+
+For contributors adding a new storage backend, the extension point is `ArchiveFetcher`.
+
+- Implement `fetchArchives()` to define one polling cycle for your backend.
+- Implement `processArchive(jobId, archivePath)` to parse one archive and persist all REST payloads into your backend-specific cache.
+- Implement `deleteJobFiles(jobId)` to remove all cached records for a deleted/expired job.
+- Reuse `convertLegacyJobOverview(...)` when handling legacy `/joboverview` archive entries so output remains compatible with current `/jobs/overview` responses.
+
 ## Log Integration
 
 Flink does not provide built-in methods for archiving logs of completed jobs.
