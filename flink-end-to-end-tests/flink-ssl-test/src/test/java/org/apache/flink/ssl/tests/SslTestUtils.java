@@ -171,8 +171,18 @@ public class SslTestUtils {
         String nodeName = getNodeName();
         List<String> nodeIps = getNodeIps();
         StringBuilder sanString = new StringBuilder("dns:" + nodeName);
+        // Always include localhost to allow local connections
+        if (!"localhost".equals(nodeName)) {
+            sanString.append(",dns:localhost");
+        }
+        // Always include both IPv4 and IPv6 loopback addresses
+        sanString.append(",ip:127.0.0.1"); // IPv4 loopback
+        sanString.append(",ip:0:0:0:0:0:0:0:1"); // IPv6 loopback (::1)
         for (String ip : nodeIps) {
-            sanString.append(",ip:").append(ip);
+            // Avoid duplicates
+            if (!"127.0.0.1".equals(ip) && !"0:0:0:0:0:0:0:1".equals(ip) && !"::1".equals(ip)) {
+                sanString.append(",ip:").append(ip);
+            }
         }
 
         LOG.info("Using SAN {}", sanString);
