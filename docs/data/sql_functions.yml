@@ -1350,6 +1350,14 @@ aggregate:
     description: By default or with keyword ALL, returns a multiset of expression across all input rows. NULL values will be ignored. Use DISTINCT for one unique instance of each value.
   - sql: VARIANCE([ ALL | DISTINCT ] expression)
     description: Synonyms for VAR_SAMP().
+  - sql: APPROX_COUNT_DISTINCT(expression)
+    description: |
+      Returns the approximate number of distinct values of expression using the HyperLogLog++ algorithm.
+      This function provides a memory-efficient way to estimate cardinality with a relative standard error
+      of approximately 1%. Unlike COUNT(DISTINCT), which requires O(n) memory, APPROX_COUNT_DISTINCT uses
+      O(1) memory (approximately 16KB). Supported in both batch and streaming modes (including Window TVF
+      such as TUMBLE, HOP, CUMULATE). Note that this function does not support retraction operations in
+      non-windowed streaming aggregations. NULL values are ignored.
   - sql: RANK()
     description: Returns the rank of a value in a group of values. The result is one plus the number of rows preceding or equal to the current row in the ordering of the partition. The values will produce gaps in the sequence.
   - sql: DENSE_RANK()
