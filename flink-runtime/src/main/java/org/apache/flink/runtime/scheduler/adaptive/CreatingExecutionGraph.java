@@ -33,6 +33,8 @@ import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.TerminatedReason;
 import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -42,6 +44,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -97,6 +100,9 @@ public class CreatingExecutionGraph extends StateWithoutExecutionGraph {
                             CreatingExecutionGraph.class.getSimpleName(),
                             Executing.class.getSimpleName(),
                             throwable);
+
+            driveRescaleTimelineByException(throwable);
+
             context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, throwable));
         } else {
             for (ExecutionVertex vertex :
@@ -108,6 +114,8 @@ public class CreatingExecutionGraph extends StateWithoutExecutionGraph {
                     context.tryToAssignSlots(executionGraphWithVertexParallelism);
 
             if (result.isSuccess()) {
+                driveRescaleTimelineByGraphCreation(executionGraphWithVertexParallelism);
+
                 getLogger()
                         .debug(
                                 "Successfully reserved and assigned the required slots for the ExecutionGraph.");
@@ -153,6 +161,31 @@ public class CreatingExecutionGraph extends StateWithoutExecutionGraph {
                 context.goToWaitingForResources(previousExecutionGraph);
             }
         }
+    }
+
+    private void driveRescaleTimelineByGraphCreation(
+            ExecutionGraphWithVertexParallelism executionGraphWithVertexParallelism) {
+        RescaleTimeline rescaleTimeline = context.getRescaleTimeline();
+        rescaleTimeline.updateRescale(
+                rescale ->
+                        rescale.setPostRescaleVertexParallelism(
+                                        rescaleTimeline.getJobInformation(),
+                                        executionGraphWithVertexParallelism.getVertexParallelism())
+                                .setPostRescaleSlots(
+                                        executionGraphWithVertexParallelism.jobSchedulingPlan
+                                                .getSlotAssignments())
+                                .log());
+    }
+
+    private void driveRescaleTimelineByException(Throwable throwable) {
+        final long epochMilli = Instant.now().toEpochMilli();
+        context.getRescaleTimeline()
+                .updateRescale(
+                        rescale ->
+                                rescale.setTerminatedReason(TerminatedReason.EXCEPTION_OCCURRED)
+                                        .setEndTimestamp(epochMilli)
+                                        .addSchedulerState(this, throwable)
+                                        .log());
     }
 
     @Override

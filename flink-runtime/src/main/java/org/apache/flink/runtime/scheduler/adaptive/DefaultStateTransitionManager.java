@@ -20,6 +20,11 @@ package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.scheduler.adaptive.allocator.JobInformation;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.RescaleTimeline;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.TerminalState;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.TerminatedReason;
+import org.apache.flink.runtime.scheduler.adaptive.timeline.TriggerCause;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -29,6 +34,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.temporal.Temporal;
 import java.util.ArrayList;
 import java.util.List;
@@ -108,10 +114,18 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
                         Preconditions.checkNotNull(cooldownTimeout));
     }
 
+    State schedulerState() {
+        return transitionContext.schedulerstate();
+    }
+
+    RescaleTimeline getRescaleTimeline() {
+        return transitionContext.getRescaleTimeline();
+    }
+
     @Override
-    public void onChange() {
+    public void onChange(boolean newResourceDriven) {
         LOG.debug("OnChange event received in phase {} for job {}.", getPhase(), getJobId());
-        phase.onChange();
+        phase.onChange(newResourceDriven);
     }
 
     @Override
@@ -231,7 +245,7 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
             return context.transitionContext.hasSufficientResources();
         }
 
-        void onChange() {}
+        void onChange(boolean newResourceDriven) {}
 
         void onTrigger() {}
 
@@ -266,9 +280,10 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
         }
 
         @Override
-        void onChange() {
+        void onChange(boolean newResourceDriven) {
             if (hasSufficientResources() && firstChangeEventTimestamp == null) {
                 firstChangeEventTimestamp = now();
+                driveRescaleTimelineByNewResourcesAvailable(context(), newResourceDriven);
             }
         }
 
@@ -292,12 +307,28 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
 
         private Idling(Supplier<Temporal> clock, DefaultStateTransitionManager context) {
             super(clock, context);
+            driveRescaleTimelineByNoResourcesOrParallelismChange();
         }
 
         @Override
-        void onChange() {
+        void onChange(boolean newResourceDriven) {
             if (hasSufficientResources()) {
+                driveRescaleTimelineByNewResourcesAvailable(context(), newResourceDriven);
                 context().progressToStabilizing(now());
+            }
+        }
+
+        private void driveRescaleTimelineByNoResourcesOrParallelismChange() {
+            if (context().transitionContext.schedulerstate() instanceof Executing) {
+                context()
+                        .getRescaleTimeline()
+                        .updateRescale(
+                                rescale ->
+                                        rescale.setTerminatedReason(
+                                                        TerminatedReason
+                                                                .NO_RESOURCES_OR_PARALLELISMS_CHANGE)
+                                                .setEndTimestamp(Instant.now().toEpochMilli())
+                                                .addSchedulerState(context().schedulerState()));
             }
         }
     }
@@ -333,7 +364,7 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
         }
 
         @Override
-        void onChange() {
+        void onChange(boolean newResourceDriven) {
             // schedule another desired-resource evaluation in scenarios where the previous change
             // event was already handled by a onTrigger callback with a no-op
             onChangeEventTimestamp = now();
@@ -422,6 +453,29 @@ public class DefaultStateTransitionManager implements StateTransitionManager {
     static final class Transitioning extends Phase {
         private Transitioning(Supplier<Temporal> clock, DefaultStateTransitionManager context) {
             super(clock, context);
+        }
+    }
+
+    static void driveRescaleTimelineByNewResourcesAvailable(
+            DefaultStateTransitionManager context, boolean newResourceDriven) {
+        if (context.transitionContext.schedulerstate() instanceof Executing && newResourceDriven) {
+            RescaleTimeline rescaleTimeline = context.getRescaleTimeline();
+            if (rescaleTimeline.isIdling()) {
+                JobInformation jobInformation = rescaleTimeline.getJobInformation();
+                rescaleTimeline.newRescale(false);
+                rescaleTimeline.updateRescale(
+                        rescale ->
+                                rescale.setDesiredSlots(jobInformation)
+                                        .setDesiredVertexParallelism(jobInformation)
+                                        .setMinimalRequiredSlots(jobInformation)
+                                        .setTriggerCause(TriggerCause.NEW_RESOURCE_AVAILABLE)
+                                        .setStartTimestamp(Instant.now().toEpochMilli())
+                                        .setPreRescaleSlotsAndParallelisms(
+                                                jobInformation,
+                                                rescaleTimeline.latestRescale(
+                                                        TerminalState.COMPLETED))
+                                        .log());
+            }
         }
     }
 }
