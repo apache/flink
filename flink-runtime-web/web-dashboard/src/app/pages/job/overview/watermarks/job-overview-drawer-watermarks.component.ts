@@ -103,16 +103,17 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
   private getBrowserTimezone(): string {
     // Get browser's IANA timezone identifier
     // This will properly handle DST changes
+    // Reference: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat/resolvedOptions
     try {
       const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
       // Check if the browser timezone exists in the options list
       const exists = this.timezoneOptions.some(option => option.value === browserTimezone);
 
-      // If browser timezone exists in the list, use it; otherwise default to UTC
+      // If browser timezone exists in the list, use it; or use UTC if cannot find appropriate browser timezone
       return exists ? browserTimezone : 'UTC';
     } catch (error) {
-      console.error('[getBrowserTimezone] Error getting browser timezone:', error);
+      console.error('[getBrowserTimezone] Error getting browser timezone, falling back to UTC:', error);
       return 'UTC';
     }
   }

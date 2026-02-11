@@ -54,6 +54,7 @@ export class HumanizeWatermarkToDatetimePipe implements PipeTransform {
 
       // Use Intl.DateTimeFormat for proper timezone handling including DST
       // This native browser API automatically handles daylight saving time transitions
+      // Reference: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat
       const dateFormatter = new Intl.DateTimeFormat('en-US', {
         timeZone: timezone,
         year: 'numeric',
@@ -66,6 +67,7 @@ export class HumanizeWatermarkToDatetimePipe implements PipeTransform {
       });
 
       // Get timezone abbreviation (e.g., PST, PDT, EST, EDT)
+      // The abbreviation automatically reflects DST status (e.g., PST vs PDT)
       const timezoneFormatter = new Intl.DateTimeFormat('en-US', {
         timeZone: timezone,
         timeZoneName: 'short'
@@ -80,14 +82,15 @@ export class HumanizeWatermarkToDatetimePipe implements PipeTransform {
       const minute = parts.find(p => p.type === 'minute')?.value;
       const second = parts.find(p => p.type === 'second')?.value;
 
-      // Extract timezone abbreviation
+      // Extract timezone abbreviation which includes DST information
+      // For example: PST (standard) vs PDT (daylight saving)
       const timezoneParts = timezoneFormatter.formatToParts(date);
       const timezoneAbbr = timezoneParts.find(p => p.type === 'timeZoneName')?.value || timezone;
 
       return `${year}-${month}-${day} ${hour}:${minute}:${second} (${timezoneAbbr})`;
     } catch (error) {
-      // Fallback to UTC if timezone is invalid
-      console.error('[HumanizeWatermarkToDatetimePipe] Error formatting date:', error);
+      // Fallback to UTC if timezone is invalid, so using UTC
+      console.error('[HumanizeWatermarkToDatetimePipe] Error formatting date, falling back to UTC:', error);
       const date = new Date(value);
       const year = date.getUTCFullYear();
       const month = String(date.getUTCMonth() + 1).padStart(2, '0');
