@@ -51,7 +51,7 @@ export class HumanizeWatermarkToDatetimePipe implements PipeTransform {
 
     try {
       const date = new Date(value);
-      
+
       // Use Intl.DateTimeFormat for proper timezone handling including DST
       // This native browser API automatically handles daylight saving time transitions
       const dateFormatter = new Intl.DateTimeFormat('en-US', {
@@ -70,7 +70,7 @@ export class HumanizeWatermarkToDatetimePipe implements PipeTransform {
         timeZone: timezone,
         timeZoneName: 'short'
       });
-      
+
       // Format the date parts
       const parts = dateFormatter.formatToParts(date);
       const year = parts.find(p => p.type === 'year')?.value;
@@ -79,11 +79,11 @@ export class HumanizeWatermarkToDatetimePipe implements PipeTransform {
       const hour = parts.find(p => p.type === 'hour')?.value;
       const minute = parts.find(p => p.type === 'minute')?.value;
       const second = parts.find(p => p.type === 'second')?.value;
-      
+
       // Extract timezone abbreviation
       const timezoneParts = timezoneFormatter.formatToParts(date);
       const timezoneAbbr = timezoneParts.find(p => p.type === 'timeZoneName')?.value || timezone;
-      
+
       return `${year}-${month}-${day} ${hour}:${minute}:${second} (${timezoneAbbr})`;
     } catch (error) {
       // Fallback to UTC if timezone is invalid

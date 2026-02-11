@@ -105,10 +105,10 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
     // This will properly handle DST changes
     try {
       const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      
+
       // Check if the browser timezone exists in the options list
       const exists = this.timezoneOptions.some(option => option.value === browserTimezone);
-      
+
       // If browser timezone exists in the list, use it; otherwise default to UTC
       return exists ? browserTimezone : 'UTC';
     } catch (error) {
