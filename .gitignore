@@ -11,6 +11,7 @@ scalastyle-output.xml
 .bloop
 .cursor
 .claude
+.worktrees
 .metadata
 .settings
 .project
