@@ -337,22 +337,23 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                 StateConfigUtil.createTtlConfig(
                         StateMetadata.getStateTtlForOneInputOperator(config, stateMetadataList));
 
+        final String[] pkFieldNames =
+                Arrays.stream(primaryKeys)
+                        .mapToObj(idx -> physicalRowType.getFieldNames().get(idx))
+                        .toArray(String[]::new);
+
         final OneInputStreamOperator<RowData, RowData> operator =
                 createSumOperator(
                         config,
                         physicalRowType,
+                        primaryKeys,
+                        pkFieldNames,
                         inputUpsertKey,
                         upsertKeyEqualiser,
                         upsertKeyHashFunction,
                         ttlConfig,
                         rowEqualiser,
                         rowHashFunction);
-
-        final String[] fieldNames = physicalRowType.getFieldNames().toArray(new String[0]);
-        final List<String> pkFieldNames =
-                Arrays.stream(primaryKeys)
-                        .mapToObj(idx -> fieldNames[idx])
-                        .collect(Collectors.toList());
 
         // For ERROR/NOTHING strategies, apply WatermarkTimestampAssigner first
         // This assigns the current watermark as the timestamp to each record,
@@ -399,6 +400,8 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
     private OneInputStreamOperator<RowData, RowData> createSumOperator(
             ExecNodeConfig config,
             RowType physicalRowType,
+            int[] primaryKeys,
+            String[] pkFieldNames,
             int[] inputUpsertKey,
             GeneratedRecordEqualiser upsertKeyEqualiser,
             GeneratedHashFunction upsertKeyHashFunction,
@@ -408,21 +411,6 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
 
         // Check if we should use the watermark-compacting materializer for ERROR/NOTHING strategies
         if (isErrorOrNothingConflictStrategy()) {
-            // Extract primary key column names and key type
-            int[] primaryKeys =
-                    tableSinkSpec
-                            .getContextResolvedTable()
-                            .getResolvedSchema()
-                            .getPrimaryKey()
-                            .get()
-                            .getColumns()
-                            .stream()
-                            .mapToInt(physicalRowType.getFieldNames()::indexOf)
-                            .toArray();
-            String[] primaryKeyNames =
-                    Arrays.stream(primaryKeys)
-                            .mapToObj(idx -> physicalRowType.getFieldNames().get(idx))
-                            .toArray(String[]::new);
             RowType keyType = RowTypeUtils.projectRowType(physicalRowType, primaryKeys);
 
             return WatermarkCompactingSinkMaterializer.create(
@@ -432,7 +420,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
                     upsertKeyEqualiser,
                     inputUpsertKey,
                     keyType,
-                    primaryKeyNames);
+                    pkFieldNames);
         }
 
         // Use existing logic for DEDUPLICATE (legacy behavior)

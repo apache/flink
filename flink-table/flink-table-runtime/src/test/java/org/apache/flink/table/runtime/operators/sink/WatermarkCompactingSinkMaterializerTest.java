@@ -51,7 +51,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.rowOfKind;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfter;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateAfterRecord;
-import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBefore;
+import static org.apache.flink.table.runtime.util.StreamRecordUtils.updateBeforeRecord;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -215,11 +215,37 @@ class WatermarkCompactingSinkMaterializerTest {
             harness.processElement(updateAfterRecord(2L, 1, "b1"));
             // Then +I and -U from source 1 arrive (upsert key = 1L)
             harness.processElement(insertRecord(1L, 1, "a1"));
-            harness.processElement(deleteRecord(1L, 1, "a1"));
+            harness.processElement(updateBeforeRecord(1L, 1, "a1"));
 
             // Net result: only (2L, 1, "b1") remains after cancellation, no conflict
             harness.processWatermark(100L);
             assertEmits(harness, insert(2L, 1, "b1"));
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = ConflictBehavior.class,
+            names = {"ERROR", "NOTHING"})
+    void testChangelogDisorderUpdateBeforeAfterInsert(ConflictBehavior behavior) throws Exception {
+        try (KeyedOneInputStreamOperatorTestHarness<RowData, RowData, RowData> harness =
+                createHarness(behavior)) {
+            harness.open();
+
+            // Simulate changelog disorder where UPDATE_AFTER arrives before UPDATE_BEFORE:
+            // Ideal order: +I(1,1,a1), -U(1,1,a1), +U(1,1,a2)
+            // Disordered: +I(1,1,a1), +U(1,1,a2), -U(1,1,a1)
+
+            // INSERT the initial value
+            harness.processElement(insertRecord(1L, 1, "a1"));
+            // UPDATE_AFTER arrives before the UPDATE_BEFORE
+            harness.processElement(updateAfterRecord(1L, 1, "a2"));
+            // UPDATE_BEFORE (retraction of the original INSERT) arrives last
+            harness.processElement(updateBeforeRecord(1L, 1, "a1"));
+
+            // Net result: +I and -U cancel out, only +U(1,1,a2) remains
+            harness.processWatermark(100L);
+            assertEmits(harness, insert(1L, 1, "a2"));
         }
     }
 
@@ -466,7 +492,7 @@ class WatermarkCompactingSinkMaterializerTest {
             assertEmits(harness, insert(1L, 1, "v1"));
 
             // Update: retract old value, insert new value
-            harness.processElement(new StreamRecord<>(updateBefore(1L, 1, "v1")));
+            harness.processElement(updateBeforeRecord(1L, 1, "v1"));
             harness.processElement(updateAfterRecord(2L, 1, "v2"));
             harness.processWatermark(200L);
             assertEmits(harness, updateAfter(2L, 1, "v2"));

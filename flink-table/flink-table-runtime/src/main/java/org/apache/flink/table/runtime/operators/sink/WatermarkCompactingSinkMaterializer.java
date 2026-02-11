@@ -76,7 +76,7 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
             LoggerFactory.getLogger(WatermarkCompactingSinkMaterializer.class);
 
     private static final String STATE_CLEARED_WARN_MSG =
-            "The state is cleared because of state TTL. This will result in incorrect result. "
+            "The state is cleared because of state TTL. This will lead to incorrect results. "
                     + "You can increase the state TTL to avoid this.";
     private static final Set<String> ORDERED_STATE_BACKENDS = Set.of("rocksdb", "forst");
 
@@ -90,7 +90,15 @@ public class WatermarkCompactingSinkMaterializer extends TableStreamOperator<Row
     private final String[] primaryKeyNames;
 
     private transient MapStateDescriptor<Long, List<RowData>> bufferDescriptor;
+    // Buffers incoming changelog records (INSERT, UPDATE_BEFORE, UPDATE_AFTER, DELETE) keyed by
+    // their timestamp. Watermarks act as compaction barriers: when a watermark arrives, we know
+    // that UPDATE_BEFORE and its corresponding UPDATE_AFTER have both been received and can be
+    // compacted together. This solves the out-of-order problem where a later UPDATE_AFTER may
+    // arrive before the UPDATE_BEFORE of a previous change.
     private transient MapState<Long, List<RowData>> buffer;
+
+    // Stores the last emitted value for the current primary key. Used to detect duplicates
+    // and determine the correct RowKind (INSERT vs UPDATE_AFTER) on subsequent compactions.
     private transient ValueState<RowData> currentValue;
     private transient RecordEqualiser equaliser;
     private transient RecordEqualiser upsertKeyEqualiser;
