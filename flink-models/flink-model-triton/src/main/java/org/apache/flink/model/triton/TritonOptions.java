@@ -165,4 +165,89 @@ public class TritonOptions {
                                                     + "Example: %s",
                                             code("'X-Custom-Header:value,X-Another:value2'"))
                                     .build());
+
+    // ========== Connection Pool Management Options ==========
+
+    public static final ConfigOption<Integer> CONNECTION_POOL_MAX_IDLE =
+            ConfigOptions.key("connection-pool-max-idle")
+                    .intType()
+                    .defaultValue(20)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Maximum number of idle connections to keep in the pool. "
+                                                    + "Higher values reduce connection setup overhead but consume more memory. "
+                                                    + "Recommended: 10-50 depending on parallelism and QPS. "
+                                                    + "Defaults to 20.")
+                                    .build());
+
+    public static final ConfigOption<Duration> CONNECTION_POOL_KEEP_ALIVE =
+            ConfigOptions.key("connection-pool-keep-alive")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(300))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Duration to keep idle connections alive in the pool before eviction. "
+                                                    + "Longer durations reduce connection setup overhead but may keep stale connections. "
+                                                    + "Recommended: 60s-600s. "
+                                                    + "Defaults to 300s (5 minutes).")
+                                    .build());
+
+    public static final ConfigOption<Integer> CONNECTION_POOL_MAX_TOTAL =
+            ConfigOptions.key("connection-pool-max-total")
+                    .intType()
+                    .defaultValue(100)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Maximum total number of connections across all routes. "
+                                                    + "This limits the overall number of concurrent connections. "
+                                                    + "Should be >= max-concurrent-requests to avoid blocking. "
+                                                    + "Recommended: 50-200 depending on expected load. "
+                                                    + "Defaults to 100.")
+                                    .build());
+
+    public static final ConfigOption<Duration> CONNECTION_TIMEOUT =
+            ConfigOptions.key("connection-timeout")
+                    .durationType()
+                    .defaultValue(Duration.ofSeconds(10))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Timeout for establishing a new connection to Triton server. "
+                                                    + "Shorter timeouts fail fast but may cause false negatives on slow networks. "
+                                                    + "Should be less than overall %s. "
+                                                    + "Recommended: 5s-30s. "
+                                                    + "Defaults to 10s.",
+                                            code("timeout"))
+                                    .build());
+
+    public static final ConfigOption<Boolean> CONNECTION_REUSE_ENABLED =
+            ConfigOptions.key("connection-reuse-enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Enable HTTP connection reuse (keep-alive). "
+                                                    + "When enabled, connections are pooled and reused across requests, "
+                                                    + "significantly reducing TCP handshake overhead. "
+                                                    + "Recommended to keep enabled unless debugging connection issues. "
+                                                    + "Defaults to true.")
+                                    .build());
+
+    public static final ConfigOption<Boolean> CONNECTION_POOL_MONITORING_ENABLED =
+            ConfigOptions.key("connection-pool-monitoring-enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Enable connection pool monitoring and statistics logging. "
+                                                    + "When enabled, periodically logs pool usage metrics "
+                                                    + "(active connections, idle connections, pending requests). "
+                                                    + "Useful for debugging and tuning but adds minor overhead. "
+                                                    + "Defaults to false.")
+                                    .build());
 }
