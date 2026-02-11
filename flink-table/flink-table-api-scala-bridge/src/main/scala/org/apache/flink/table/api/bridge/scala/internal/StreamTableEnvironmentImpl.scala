@@ -28,7 +28,7 @@ import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.delegation.{Executor, Planner}
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.factories.{PlannerFactoryUtil, TableFactoryUtil}
+import org.apache.flink.table.factories.{ApiFactoryUtil, PlannerFactoryUtil, TableFactoryUtil}
 import org.apache.flink.table.functions.{AggregateFunction, TableAggregateFunction, TableFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.legacy.sources.TableSource
 import org.apache.flink.table.module.ModuleManager
@@ -250,14 +250,19 @@ object StreamTableEnvironmentImpl {
     val resourceManager = new ResourceManager(settings.getConfiguration, userClassLoader)
     val moduleManager = new ModuleManager
 
-    val catalogStoreFactory =
-      TableFactoryUtil.findAndCreateCatalogStoreFactory(settings.getConfiguration, userClassLoader)
-    val catalogStoreFactoryContext =
-      TableFactoryUtil.buildCatalogStoreFactoryContext(settings.getConfiguration, userClassLoader)
-    catalogStoreFactory.open(catalogStoreFactoryContext)
-    val catalogStore =
-      if (settings.getCatalogStore != null) settings.getCatalogStore
-      else catalogStoreFactory.createCatalogStore()
+    val (catalogStore, catalogStoreFactory) =
+      if (settings.getCatalogStore.isPresent) {
+        (settings.getCatalogStore.get(), null)
+      } else {
+        val factory =
+          ApiFactoryUtil.findAndCreateCatalogStoreFactory(
+            settings.getConfiguration,
+            userClassLoader)
+        val factoryContext =
+          ApiFactoryUtil.buildCatalogStoreFactoryContext(settings.getConfiguration, userClassLoader)
+        factory.open(factoryContext)
+        (factory.createCatalogStore(), factory)
+      }
 
     val catalogManager = CatalogManager.newBuilder
       .classLoader(userClassLoader)

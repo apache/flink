@@ -46,6 +46,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.Expression;
+import org.apache.flink.table.factories.ApiFactoryUtil;
 import org.apache.flink.table.factories.CatalogStoreFactory;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.factories.TableFactoryUtil;
@@ -112,17 +113,21 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
                 new ResourceManager(settings.getConfiguration(), userClassLoader);
         final ModuleManager moduleManager = new ModuleManager();
 
-        final CatalogStoreFactory catalogStoreFactory =
-                TableFactoryUtil.findAndCreateCatalogStoreFactory(
-                        settings.getConfiguration(), userClassLoader);
-        final CatalogStoreFactory.Context catalogStoreFactoryContext =
-                TableFactoryUtil.buildCatalogStoreFactoryContext(
-                        settings.getConfiguration(), userClassLoader);
-        catalogStoreFactory.open(catalogStoreFactoryContext);
-        final CatalogStore catalogStore =
-                settings.getCatalogStore() != null
-                        ? settings.getCatalogStore()
-                        : catalogStoreFactory.createCatalogStore();
+        final CatalogStore catalogStore;
+        final CatalogStoreFactory catalogStoreFactory;
+        if (settings.getCatalogStore().isPresent()) {
+            catalogStore = settings.getCatalogStore().get();
+            catalogStoreFactory = null;
+        } else {
+            catalogStoreFactory =
+                    ApiFactoryUtil.findAndCreateCatalogStoreFactory(
+                            settings.getConfiguration(), userClassLoader);
+            final CatalogStoreFactory.Context catalogStoreFactoryContext =
+                    ApiFactoryUtil.buildCatalogStoreFactoryContext(
+                            settings.getConfiguration(), userClassLoader);
+            catalogStoreFactory.open(catalogStoreFactoryContext);
+            catalogStore = catalogStoreFactory.createCatalogStore();
+        }
 
         final CatalogManager catalogManager =
                 CatalogManager.newBuilder()
