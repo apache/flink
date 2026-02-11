@@ -46,6 +46,7 @@ class DatadogHttpClientTest {
             tags.stream().collect(Collectors.joining("\",\"", "[\"", "\"]"));
     private static final String HOST = "localhost";
     private static final String METRIC = "testMetric";
+    private static final String DATACENTER_URL = "https://app.datadoghq.com";
 
     private static final ObjectMapper MAPPER;
 
@@ -58,27 +59,27 @@ class DatadogHttpClientTest {
 
     @Test
     void testClientWithEmptyKey() {
-        assertThatThrownBy(() -> new DatadogHttpClient("", null, 123, DataCenter.US, false))
+        assertThatThrownBy(() -> new DatadogHttpClient("", null, 123, DATACENTER_URL, false))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testClientWithNullKey() {
-        assertThatThrownBy(() -> new DatadogHttpClient(null, null, 123, DataCenter.US, false))
+        assertThatThrownBy(() -> new DatadogHttpClient(null, null, 123, DATACENTER_URL, false))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testGetProxyWithNullProxyHost() {
         DatadogHttpClient client =
-                new DatadogHttpClient("anApiKey", null, 123, DataCenter.US, false);
+                new DatadogHttpClient("anApiKey", null, 123, DATACENTER_URL, false);
         assert (client.getProxy() == Proxy.NO_PROXY);
     }
 
     @Test
     void testGetProxy() {
         DatadogHttpClient client =
-                new DatadogHttpClient("anApiKey", "localhost", 123, DataCenter.US, false);
+                new DatadogHttpClient("anApiKey", "localhost", 123, DATACENTER_URL, false);
 
         assertThat(client.getProxy().address()).isInstanceOf(InetSocketAddress.class);
 
