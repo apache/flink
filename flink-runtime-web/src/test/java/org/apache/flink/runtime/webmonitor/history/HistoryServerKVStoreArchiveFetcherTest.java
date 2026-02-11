@@ -66,7 +66,7 @@ public class HistoryServerKVStoreArchiveFetcherTest {
 
         // Initialize refreshDirs with the temporary directory
         refreshDirs = new ArrayList<>();
-        refreshDirs.add(new HistoryServer.RefreshLocation(tempDirFs, refreshFS));
+        refreshDirs.add(HistoryServer.RefreshLocation.of(tempDirFs, refreshFS));
 
         // Initialize a dummy event listener for job archive events
         Consumer<ArchiveFetcher.ArchiveEvent> jobArchiveEventListener = event -> {};

@@ -21,7 +21,7 @@ package org.apache.flink.runtime.webmonitor.history;
 import org.apache.flink.configuration.HistoryServerOptions;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.runtime.history.FsJobArchivist;
+import org.apache.flink.runtime.history.FsJsonArchivist;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.webmonitor.history.kvstore.HistoryServerRocksDBKVStore;
@@ -165,7 +165,7 @@ public class HistoryServerKVStoreArchiveFetcher extends ArchiveFetcher {
         Map<String, String> batchEntries = new HashMap<>();
 
         // Iterate over the archived JSON objects and prepare them for batch write
-        for (ArchivedJson archive : FsJobArchivist.getArchivedJsons(jobArchive)) {
+        for (ArchivedJson archive : FsJsonArchivist.readArchivedJsons(jobArchive)) {
             String path = archive.getPath();
             String json = archive.getJson();
 
