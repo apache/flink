@@ -35,15 +35,29 @@ import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.jupiter.api.Test;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
+
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.security.KeyStore;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.core.testutils.FlinkAssertions.assertThatFuture;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * This test validates that REST SSL endpoint verification works as expected and will fail the
@@ -92,15 +106,19 @@ public class RestSSLEndpointVerificationITCase {
     void testConnectSuccess() throws Exception {
         try (RestServerEndpoint serverEndpoint = getRestServerEndpoint();
                 RestClient restClient = getRestClient("127.0.0.1", serverEndpoint.getRestPort())) {
-            restClient
-                    .sendRequest(
-                            serverEndpoint.getServerAddress().getHostName(),
-                            serverEndpoint.getServerAddress().getPort(),
-                            TEST_MESSAGE_HEADERS,
-                            EmptyMessageParameters.getInstance(),
-                            EmptyRequestBody.getInstance(),
-                            Collections.emptyList())
-                    .get();
+            assertSan(serverEndpoint);
+
+            var result =
+                    restClient
+                            .sendRequest(
+                                    serverEndpoint.getServerAddress().getHostName(),
+                                    serverEndpoint.getServerAddress().getPort(),
+                                    TEST_MESSAGE_HEADERS,
+                                    EmptyMessageParameters.getInstance(),
+                                    EmptyRequestBody.getInstance(),
+                                    Collections.emptyList())
+                            .get();
+            assertThat(result).isNotNull();
         }
     }
 
@@ -109,6 +127,8 @@ public class RestSSLEndpointVerificationITCase {
     void testConnectFailure() throws Exception {
         try (RestServerEndpoint serverEndpoint = getRestServerEndpoint();
                 RestClient restClient = getRestClient("127.0.0.2", serverEndpoint.getRestPort())) {
+            assertSan(serverEndpoint);
+
             assertThatFuture(
                             restClient.sendRequest(
                                     serverEndpoint.getServerAddress().getHostName(),
@@ -119,7 +139,46 @@ public class RestSSLEndpointVerificationITCase {
                                     Collections.emptyList()))
                     .failsWithin(60, TimeUnit.SECONDS)
                     .withThrowableOfType(ExecutionException.class)
-                    .satisfies(anyCauseMatches(CertificateException.class));
+                    .satisfies(anyCauseMatches(CertificateException.class))
+                    .withMessageContaining("No subject alternative names matching IP address");
+        }
+    }
+
+    /** Asserts that the SANs in the certificate are what we expect. */
+    private void assertSan(RestServerEndpoint serverEndpoint) throws Exception {
+        KeyStore ts = KeyStore.getInstance("JKS");
+        try (InputStream in = new FileInputStream(TRUST_STORE_FILE)) {
+            ts.load(in, null);
+        }
+
+        TrustManagerFactory tmf =
+                TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        tmf.init(ts);
+
+        SSLContext ctx = SSLContext.getInstance("TLS");
+        ctx.init(null, tmf.getTrustManagers(), null);
+
+        SSLSocketFactory factory = ctx.getSocketFactory();
+        try (SSLSocket socket =
+                (SSLSocket)
+                        factory.createSocket(
+                                serverEndpoint.getServerAddress().getHostName(),
+                                serverEndpoint.getServerAddress().getPort())) {
+
+            socket.startHandshake();
+            Certificate[] certs = socket.getSession().getPeerCertificates();
+            X509Certificate x509 = (X509Certificate) certs[0];
+
+            // Extract Subject Alternative Names
+            Collection<List<?>> sans = x509.getSubjectAlternativeNames();
+            List<String> ipAddresses =
+                    sans.stream()
+                            .filter(san -> (Integer) san.get(0) == 7) // Type 7 is IP address
+                            .map(san -> (String) san.get(1))
+                            .collect(Collectors.toList());
+
+            // Assert that 127.0.0.1 is in the certificate
+            assertThat(ipAddresses).contains("127.0.0.1");
         }
     }
 
