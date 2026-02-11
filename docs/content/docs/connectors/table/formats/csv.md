@@ -160,6 +160,46 @@ Format Options
       <td>Boolean</td>
       <td>Enables representation of BigDecimal data type in scientific notation (default is true). For example, 100000 is encoded as 1E+5 by default, and will be written as 100000 if set this option to false. Note: Only when the value is not 0 and a multiple of 10 is converted to scientific notation.</td>
     </tr>
+    <tr>
+      <td><h5>csv.trim-spaces</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Optional flag to trim leading/trailing spaces from unquoted field values (disabled by default). Only affects deserialization.</td>
+    </tr>
+    <tr>
+      <td><h5>csv.ignore-trailing-unmappable</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Optional flag to ignore extra trailing fields that cannot be mapped to the schema (disabled by default). Only affects deserialization.</td>
+    </tr>
+    <tr>
+      <td><h5>csv.allow-trailing-comma</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Optional flag to allow a trailing comma after the last field value (disabled by default). Only affects deserialization.</td>
+    </tr>
+    <tr>
+      <td><h5>csv.fail-on-missing-columns</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Optional flag to fail when a row has fewer columns than the schema expects (disabled by default). Only affects deserialization.</td>
+    </tr>
+    <tr>
+      <td><h5>csv.empty-string-as-null</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Optional flag to treat empty string values as null (disabled by default). Only affects deserialization.</td>
+    </tr>
     </tbody>
 </table>
 
