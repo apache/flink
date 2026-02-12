@@ -455,6 +455,92 @@ class DataStream(object):
         return self.process(FilterProcessFunctionAdapter(func), output_type=output_type) \
             .name("Filter")
 
+    def infer(
+        self,
+        model: str,
+        input_col: str,
+        output_col: str,
+        batch_size: int = 32,
+        max_batch_timeout_ms: int = 100,
+        model_warmup: bool = True,
+        device: str = "cpu",
+        num_workers: int = 1,
+        task_type: str = "embedding",
+        **kwargs
+    ) -> 'DataStream':
+        """
+        Applies AI model inference on a DataStream.
+        
+        This method provides an easy-to-use interface for performing machine learning inference
+        on streaming data. It handles model lifecycle management, batching, and resource optimization
+        automatically.
+        
+        Example::
+        
+            >>> # Text embedding
+            >>> embeddings = data_stream.infer(
+            ...     model="sentence-transformers/all-MiniLM-L6-v2",
+            ...     input_col="text",
+            ...     output_col="embedding",
+            ...     device="cuda:0"
+            ... )
+            >>>
+            >>> # Sentiment classification
+            >>> sentiments = data_stream.infer(
+            ...     model="distilbert-base-uncased-finetuned-sst-2-english",
+            ...     input_col="text",
+            ...     output_col="sentiment",
+            ...     task_type="classification"
+            ... )
+        
+        :param model: Model name (HuggingFace) or local path. Examples:
+                      - "sentence-transformers/all-MiniLM-L6-v2"
+                      - "bert-base-uncased"
+                      - "/path/to/local/model"
+        :param input_col: Name of the input column to perform inference on
+        :param output_col: Name of the output column to store inference results
+        :param batch_size: Number of records to batch together for inference (default: 32)
+        :param max_batch_timeout_ms: Maximum time to wait for a batch in milliseconds (default: 100)
+        :param model_warmup: Whether to warm up the model on initialization (default: True)
+        :param device: Device for inference. Options: "cpu", "cuda:0", "cuda:1", etc. (default: "cpu")
+        :param num_workers: Number of Python worker processes (default: 1)
+        :param task_type: Type of inference task: "embedding", "classification", "generation" (default: "embedding")
+        :param kwargs: Additional configuration options
+        :return: A new DataStream containing inference results
+        
+        .. note::
+            This feature requires the following Python packages to be installed:
+            
+            - torch>=2.0.0
+            - transformers>=4.30.0
+            
+            For GPU inference, CUDA must be properly configured.
+            
+        .. versionadded:: 1.20
+        """
+        from pyflink.ml.inference import InferenceConfig, InferenceFunction
+        
+        # Create inference configuration
+        config = InferenceConfig(
+            model=model,
+            input_col=input_col,
+            output_col=output_col,
+            batch_size=batch_size,
+            max_batch_timeout_ms=max_batch_timeout_ms,
+            warmup_enabled=model_warmup,
+            device=device,
+            num_workers=num_workers,
+            task_type=task_type,
+            **kwargs
+        )
+        
+        # Create inference function
+        inference_func = InferenceFunction(config)
+        
+        # Apply inference
+        return self.map(inference_func, output_type=self.get_type()) \
+            .name(f"Inference[{model}]")
+
     def window_all(self, window_assigner: WindowAssigner) -> 'AllWindowedStream':
         """
         Windows this data stream to a AllWindowedStream, which evaluates windows over a non key
