@@ -20,9 +20,12 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
+
+import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -38,6 +41,7 @@ public class ExecutionGraphInfo implements Serializable {
 
     private final ArchivedExecutionGraph executionGraph;
     private final Iterable<RootExceptionHistoryEntry> exceptionHistory;
+    @Nullable private final JobManagerOptions.SchedulerType schedulerType;
 
     public ExecutionGraphInfo(ArchivedExecutionGraph executionGraph) {
         this(
@@ -52,8 +56,16 @@ public class ExecutionGraphInfo implements Serializable {
     public ExecutionGraphInfo(
             ArchivedExecutionGraph executionGraph,
             Iterable<RootExceptionHistoryEntry> exceptionHistory) {
+        this(executionGraph, exceptionHistory, null);
+    }
+
+    public ExecutionGraphInfo(
+            ArchivedExecutionGraph executionGraph,
+            Iterable<RootExceptionHistoryEntry> exceptionHistory,
+            JobManagerOptions.SchedulerType schedulerType) {
         this.executionGraph = executionGraph;
         this.exceptionHistory = exceptionHistory;
+        this.schedulerType = schedulerType;
     }
 
     public JobID getJobId() {
@@ -70,5 +82,16 @@ public class ExecutionGraphInfo implements Serializable {
 
     public Optional<ApplicationID> getApplicationId() {
         return executionGraph.getApplicationId();
+    }
+
+    /**
+     * Returns the scheduler type of the current execution graph info.
+     *
+     * @return The scheduler type of the current execution graph info. Returns null if exceptions
+     *     occurred.
+     */
+    @Nullable
+    public JobManagerOptions.SchedulerType getSchedulerType() {
+        return schedulerType;
     }
 }

@@ -1164,9 +1164,7 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
 
     private Collection<JobDetails> getCompletedJobDetails() {
         return Stream.concat(
-                        getPartialExecutionGraphInfo()
-                                .map(ExecutionGraphInfo::getArchivedExecutionGraph)
-                                .map(JobDetails::createDetailsForJob),
+                        getPartialExecutionGraphInfo().map(JobDetails::createDetailsForJob),
                         archivedApplicationStore.getJobDetails().stream())
                 .collect(Collectors.toList());
     }
@@ -1276,7 +1274,6 @@ public abstract class Dispatcher extends FencedRpcEndpoint<DispatcherId>
                             // is it a completed job?
                             final Optional<JobDetails> optionalJobDetails =
                                     getExecutionGraphInfoFromStore(jobId)
-                                            .map(ExecutionGraphInfo::getArchivedExecutionGraph)
                                             .map(JobDetails::createDetailsForJob);
                             return optionalJobDetails
                                     .map(

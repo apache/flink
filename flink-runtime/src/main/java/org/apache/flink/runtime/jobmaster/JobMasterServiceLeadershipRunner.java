@@ -209,11 +209,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
 
     @Override
     public CompletableFuture<JobDetails> requestJobDetails(Duration timeout) {
-        return requestJob(timeout)
-                .thenApply(
-                        executionGraphInfo ->
-                                JobDetails.createDetailsForJob(
-                                        executionGraphInfo.getArchivedExecutionGraph()));
+        return requestJob(timeout).thenApply(JobDetails::createDetailsForJob);
     }
 
     @Override

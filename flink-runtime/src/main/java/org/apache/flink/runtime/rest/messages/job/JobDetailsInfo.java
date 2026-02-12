@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rest.messages.job;
 import org.apache.flink.api.common.ApplicationID;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.instance.SlotSharingGroupId;
 import org.apache.flink.runtime.jobgraph.JobType;
@@ -66,6 +67,8 @@ public class JobDetailsInfo implements ResponseBody {
 
     public static final String FIELD_NAME_JOB_TYPE = "job-type";
 
+    public static final String FIELD_NAME_JOB_SCHEDULER = "schedulerType";
+
     public static final String FIELD_NAME_START_TIME = "start-time";
 
     public static final String FIELD_NAME_END_TIME = "end-time";
@@ -110,6 +113,10 @@ public class JobDetailsInfo implements ResponseBody {
 
     @JsonProperty(FIELD_NAME_JOB_TYPE)
     private final JobType jobType;
+
+    @Nullable
+    @JsonProperty(FIELD_NAME_JOB_SCHEDULER)
+    private final JobManagerOptions.SchedulerType schedulerType;
 
     @JsonProperty(FIELD_NAME_START_TIME)
     private final long startTime;
@@ -161,6 +168,8 @@ public class JobDetailsInfo implements ResponseBody {
             @JsonProperty(FIELD_NAME_IS_STOPPABLE) boolean isStoppable,
             @JsonProperty(FIELD_NAME_JOB_STATUS) JobStatus jobStatus,
             @JsonProperty(FIELD_NAME_JOB_TYPE) JobType jobType,
+            @Nullable @JsonProperty(FIELD_NAME_JOB_SCHEDULER)
+                    JobManagerOptions.SchedulerType schedulerType,
             @JsonProperty(FIELD_NAME_START_TIME) long startTime,
             @JsonProperty(FIELD_NAME_END_TIME) long endTime,
             @JsonProperty(FIELD_NAME_DURATION) long duration,
@@ -181,6 +190,7 @@ public class JobDetailsInfo implements ResponseBody {
         this.isStoppable = isStoppable;
         this.jobStatus = Preconditions.checkNotNull(jobStatus);
         this.jobType = Preconditions.checkNotNull(jobType);
+        this.schedulerType = schedulerType;
         this.startTime = startTime;
         this.endTime = endTime;
         this.duration = duration;
@@ -213,6 +223,7 @@ public class JobDetailsInfo implements ResponseBody {
                 && Objects.equals(name, that.name)
                 && jobStatus == that.jobStatus
                 && jobType == that.jobType
+                && Objects.equals(schedulerType, that.schedulerType)
                 && Objects.equals(applicationId, that.applicationId)
                 && Objects.equals(timestamps, that.timestamps)
                 && Objects.equals(jobVertexInfos, that.jobVertexInfos)
@@ -230,6 +241,7 @@ public class JobDetailsInfo implements ResponseBody {
                 isStoppable,
                 jobStatus,
                 jobType,
+                schedulerType,
                 startTime,
                 endTime,
                 duration,
@@ -272,6 +284,12 @@ public class JobDetailsInfo implements ResponseBody {
     @JsonIgnore
     public JobType getJobType() {
         return jobType;
+    }
+
+    @Nullable
+    @JsonIgnore
+    public JobManagerOptions.SchedulerType getSchedulerType() {
+        return schedulerType;
     }
 
     @JsonIgnore

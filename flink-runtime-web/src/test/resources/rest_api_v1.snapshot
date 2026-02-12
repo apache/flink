@@ -110,6 +110,14 @@
               "name" : {
                 "type" : "string"
               },
+              "jobType" : {
+                "type" : "string",
+                "enum" : [ "BATCH", "STREAMING" ]
+              },
+              "schedulerType" : {
+                "type" : "string",
+                "enum" : [ "Default", "Adaptive", "AdaptiveBatch" ]
+              },
               "start-time" : {
                 "type" : "integer"
               },
@@ -1196,6 +1204,14 @@
               "name" : {
                 "type" : "string"
               },
+              "jobType" : {
+                "type" : "string",
+                "enum" : [ "BATCH", "STREAMING" ]
+              },
+              "schedulerType" : {
+                "type" : "string",
+                "enum" : [ "Default", "Adaptive", "AdaptiveBatch" ]
+              },
               "start-time" : {
                 "type" : "integer"
               },
@@ -1266,6 +1282,10 @@
         "job-type" : {
           "type" : "string",
           "enum" : [ "BATCH", "STREAMING" ]
+        },
+        "schedulerType" : {
+          "type" : "string",
+          "enum" : [ "Default", "Adaptive", "AdaptiveBatch" ]
         },
         "start-time" : {
           "type" : "integer"

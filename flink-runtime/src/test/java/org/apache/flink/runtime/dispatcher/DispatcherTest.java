@@ -1679,11 +1679,13 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 .setJobDetailsFunction(
                         () ->
                                 JobDetails.createDetailsForJob(
-                                        new ArchivedExecutionGraphBuilder()
-                                                .setJobID(jobId)
-                                                .setState(currentJobStatus)
-                                                .setStateTimestamps(stateTimeStampsForRunningJob)
-                                                .build()))
+                                        new ExecutionGraphInfo(
+                                                new ArchivedExecutionGraphBuilder()
+                                                        .setJobID(jobId)
+                                                        .setState(currentJobStatus)
+                                                        .setStateTimestamps(
+                                                                stateTimeStampsForRunningJob)
+                                                        .build())))
                 .build();
     }
 

@@ -2511,6 +2511,10 @@ components:
           format: int64
         name:
           type: string
+        jobType:
+          $ref: "#/components/schemas/JobType"
+        schedulerType:
+          $ref: "#/components/schemas/SchedulerType"
         pending-operators:
           type: integer
           format: int32
@@ -2541,6 +2545,8 @@ components:
           $ref: "#/components/schemas/JobID"
         job-type:
           $ref: "#/components/schemas/JobType"
+        schedulerType:
+          $ref: "#/components/schemas/SchedulerType"
         maxParallelism:
           type: integer
           format: int64
@@ -3037,6 +3043,12 @@ components:
           type: string
         triggerId:
           $ref: "#/components/schemas/TriggerId"
+    SchedulerType:
+      type: string
+      enum:
+        - Default
+        - Adaptive
+        - AdaptiveBatch
     SerializedThrowable:
       type: object
       properties:

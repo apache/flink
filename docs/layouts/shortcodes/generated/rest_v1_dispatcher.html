@@ -1425,6 +1425,14 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "name" : {
             "type" : "string"
           },
+          "jobType" : {
+            "type" : "string",
+            "enum" : [ "BATCH", "STREAMING" ]
+          },
+          "schedulerType" : {
+            "type" : "string",
+            "enum" : [ "Default", "Adaptive", "AdaptiveBatch" ]
+          },
           "pending-operators" : {
             "type" : "integer"
           },
@@ -1509,6 +1517,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "job-type" : {
       "type" : "string",
       "enum" : [ "BATCH", "STREAMING" ]
+    },
+    "schedulerType" : {
+      "type" : "string",
+      "enum" : [ "Default", "Adaptive", "AdaptiveBatch" ]
     },
     "maxParallelism" : {
       "type" : "integer"
