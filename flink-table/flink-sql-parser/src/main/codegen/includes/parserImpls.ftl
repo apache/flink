@@ -2340,6 +2340,8 @@ void PartitionSpecCommaList(SqlNodeList list) :
 /**
 * Parses a create view or temporary view statement.
 *   CREATE [OR REPLACE] [TEMPORARY] VIEW [IF NOT EXISTS] view_name [ (field1, field2 ...) ]
+*   [COMMENT view_comment]
+*   [WATERMARK FOR column_name AS watermark_expression]
 *   AS select_statement
 * We only support [IF NOT EXISTS] semantic in Flink although the parser supports [OR REPLACE] grammar.
 * See: FLINK-17067
@@ -2350,6 +2352,7 @@ SqlCreate SqlCreateView(Span s, boolean replace, boolean isTemporary) : {
     SqlNode query;
     SqlNodeList fieldList = SqlNodeList.EMPTY;
     boolean ifNotExists = false;
+    SqlWatermark watermark = null;
 }
 {
     <VIEW>
@@ -2364,10 +2367,13 @@ SqlCreate SqlCreateView(Span s, boolean replace, boolean isTemporary) : {
             comment = Comment();
         }
     ]
+    [
+        watermark = SqlWatermark(s)
+    ]
     <AS>
     query = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
     {
-        return new SqlCreateView(s.pos(), viewName, fieldList, query, replace, isTemporary, ifNotExists, comment, null);
+        return new SqlCreateView(s.pos(), viewName, fieldList, query, replace, isTemporary, ifNotExists, comment, null, watermark);
     }
 }
 
