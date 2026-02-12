@@ -100,7 +100,7 @@ public class RegistryAvroDeserializationSchema<T> extends AvroDeserializationSch
         GenericDatumReader<T> datumReader = getDatumReader();
 
         datumReader.setSchema(writerSchema);
-        datumReader.setExpected(readerSchema);
+        datumReader.setExpected(readerSchema != null ? readerSchema : writerSchema);
 
         if (getEncoding() == AvroEncoding.JSON) {
             ((JsonDecoder) getDecoder()).configure(getInputStream());
