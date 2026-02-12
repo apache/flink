@@ -942,6 +942,8 @@ json:
       JSON_STRING('Hello, World!')
       -- '[1,2]'
       JSON_STRING(ARRAY[1, 2])
+      -- '{"k1":"v1"}'
+      JSON_STRING(PARSE_JSON('{"k1":"v1"}'))
       ```
   - sql: JSON_VALUE(jsonValue, path [RETURNING <dataType>] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON EMPTY ] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON ERROR ])
     table: STRING.jsonValue(STRING path [, returnType, onEmpty, defaultOnEmpty, onError, defaultOnError])
@@ -1167,6 +1169,9 @@ variant:
       parser will keep the last occurrence of all fields with the same key, otherwise when 
       `allowDuplicateKeys` is false it will throw an error. The default value of 
       `allowDuplicateKeys` is false.
+  - sql: JSON_STRING(variant)
+    description: |
+      Generate a json string from a Variant object.
   - sql: variant '[' INT ']'
     table: VARIANT.at(INT)
     description: |

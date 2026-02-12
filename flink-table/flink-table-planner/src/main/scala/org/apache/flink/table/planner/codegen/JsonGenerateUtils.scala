@@ -119,6 +119,9 @@ object JsonGenerateUtils {
       case DISTINCT_TYPE =>
         createNodeTerm(ctx, valueTerm, valueType.asInstanceOf[DistinctType].getSourceType)
 
+      case VARIANT =>
+        s"$nodeFactoryTerm.rawValueNode(new ${typeTerm(classOf[RawValue])}($valueTerm.toJson()))"
+
       case _ =>
         throw new CodeGenException(
           s"Type '$valueType' is not scalar or cannot be converted into JSON.")

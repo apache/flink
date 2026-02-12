@@ -1067,6 +1067,8 @@ json:
       JSON_STRING('Hello, World!')
       -- '[1,2]'
       JSON_STRING(ARRAY[1, 2])
+      -- '{"k1":"v1"}'
+      JSON_STRING(PARSE_JSON('{"k1":"v1"}'))
       ```
   - sql: JSON_VALUE(jsonValue, path [RETURNING <dataType>] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON EMPTY ] [ { NULL | ERROR | DEFAULT <defaultExpr> } ON ERROR ])
     table: STRING.jsonValue(STRING path [, returnType, onEmpty, defaultOnEmpty, onError, defaultOnError])
@@ -1249,6 +1251,10 @@ variant:
       如果输入的 JSON 字符串中存在重复的键，当 allowDuplicateKeys 为 true 时，解析器会保留最后一个出现的具有相
       同键的字段，否则当 allowDuplicateKeys 为 false 时，它会抛出一个错误。默认情况下，
       allowDuplicateKeys 的值为 false。
+
+  - sql: JSON_STRING(variant)
+    description: |
+      Generate a json string from a Variant object.
 
   - sql: variant '[' INT ']'
     table: VARIANT.at(INT)
