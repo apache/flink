@@ -65,7 +65,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage<CommT>>
         implements OneInputStreamOperator<CommittableMessage<CommT>, CommittableMessage<CommT>>,
-        BoundedOneInput {
+                BoundedOneInput {
 
     private final SimpleVersionedSerializer<CommT> committableSerializer;
     private final FunctionWithException<CommitterInitContext, Committer<CommT>, IOException>
@@ -141,10 +141,10 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
     }
 
     private int getNumPending(StateSnapshotContext context) {
-        var checkpointCommittables = committableCollector.getCheckpointCommittablesUpTo(context.getCheckpointId());
+        var checkpointCommittables =
+                committableCollector.getCheckpointCommittablesUpTo(context.getCheckpointId());
 
-        return checkpointCommittables
-                .stream()
+        return checkpointCommittables.stream()
                 .mapToInt(c -> c.getSuccessfulCommittables().size())
                 .sum();
     }
