@@ -33,6 +33,9 @@
         <xhtml:div class="detail">{{ operator }}</xhtml:div>
         <xhtml:div class="detail description" *ngIf="!pending">{{ description }}</xhtml:div>
         <xhtml:div class="node-label">Parallelism: {{ parallelism }}</xhtml:div>
+        <xhtml:div class="node-label" *ngIf="slotSharingGroupId && !pending">
+          Slot Sharing Group: {{ slotSharingGroupId }}
+        </xhtml:div>
         <xhtml:div
           class="node-label metric"
           title="Maximum back pressured percentage across all subtasks"
