@@ -72,8 +72,8 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
             jobName = configuredJobName + new AbstractID();
         }
 
-        String username = metricConfig.getString(USERNAME.key(), null);
-        String password = metricConfig.getString(PASSWORD.key(), null);
+        String username = metricConfig.getString(USERNAME.key(), USERNAME.defaultValue());
+        String password = metricConfig.getString(PASSWORD.key(), PASSWORD.defaultValue());
 
         if ((username != null && password == null) || (username == null && password != null)) {
             LOG.warn(

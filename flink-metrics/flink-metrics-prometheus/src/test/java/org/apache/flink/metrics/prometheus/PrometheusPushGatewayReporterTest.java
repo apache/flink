@@ -87,6 +87,7 @@ class PrometheusPushGatewayReporterTest {
         PrometheusPushGatewayReporter reporter = factory.createMetricReporter(metricConfig);
         assertThat(reporter).isNotNull();
         assertThat(reporter.hostUrl.toString()).isEqualTo("http://localhost:9091");
+        assertThat(reporter.basicAuthEnabled).isFalse();
     }
 
     @Test
@@ -98,6 +99,7 @@ class PrometheusPushGatewayReporterTest {
         // Only username configured - should create reporter successfully without Basic Auth
         PrometheusPushGatewayReporter reporter = factory.createMetricReporter(metricConfig);
         assertThat(reporter).isNotNull();
+        assertThat(reporter.basicAuthEnabled).isFalse();
         // Verify warning log is emitted
         assertThat(loggerExtension.getMessages())
                 .anyMatch(
@@ -115,6 +117,7 @@ class PrometheusPushGatewayReporterTest {
         // Only password configured - should create reporter successfully without Basic Auth
         PrometheusPushGatewayReporter reporter = factory.createMetricReporter(metricConfig);
         assertThat(reporter).isNotNull();
+        assertThat(reporter.basicAuthEnabled).isFalse();
         // Verify warning log is emitted
         assertThat(loggerExtension.getMessages())
                 .anyMatch(
@@ -134,5 +137,6 @@ class PrometheusPushGatewayReporterTest {
         PrometheusPushGatewayReporter reporter = factory.createMetricReporter(metricConfig);
         assertThat(reporter).isNotNull();
         assertThat(reporter.hostUrl.toString()).isEqualTo("http://localhost:9091");
+        assertThat(reporter.basicAuthEnabled).isTrue();
     }
 }
