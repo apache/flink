@@ -117,6 +117,7 @@ class JobDetailsInfoTest extends RestResponseMarshallingTestBase<JobDetailsInfo>
         return new JobDetailsInfo.JobVertexDetailsInfo(
                 new JobVertexID(),
                 new SlotSharingGroupId(),
+                "slotSharingGroup" + random.nextLong(),
                 "jobVertex" + random.nextLong(),
                 2 * parallelism,
                 parallelism,

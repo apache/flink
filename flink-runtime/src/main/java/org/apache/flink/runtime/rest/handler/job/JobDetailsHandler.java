@@ -248,9 +248,16 @@ public class JobDetailsHandler
                         counts.getAccumulateIdleTime(),
                         counts.getAccumulateBusyTime());
 
+        // Get slot sharing group name, use slot sharing group ID as fallback if name is not set
+        String slotSharingGroupName = ejv.getSlotSharingGroup().getSlotSharingGroupName();
+        if (slotSharingGroupName == null || slotSharingGroupName.isEmpty()) {
+            slotSharingGroupName = ejv.getSlotSharingGroup().getSlotSharingGroupId().toString();
+        }
+
         return new JobDetailsInfo.JobVertexDetailsInfo(
                 ejv.getJobVertexId(),
                 ejv.getSlotSharingGroup().getSlotSharingGroupId(),
+                slotSharingGroupName,
                 ejv.getName(),
                 ejv.getMaxParallelism(),
                 ejv.getParallelism(),
