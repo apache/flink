@@ -128,15 +128,23 @@ public class MaterializedTableUtils {
     public static List<TableChange> buildSchemaTableChanges(
             ResolvedSchema oldSchema, ResolvedSchema newSchema) {
         final List<Column> oldColumns = oldSchema.getColumns();
-        final List<Column> newColumns = newSchema.getColumns();
-        int persistedColumnOffset = 0;
+        // Schema retrieved from query doesn't count existing non persisted columns
+        final List<Column> newColumns =
+                enrichWithOldNonPersistedColumns(oldSchema, newSchema).getColumns();
+
+        final List<Column> oldPersistedColumns = new ArrayList<>();
         final Map<String, Tuple2<Column, Integer>> oldColumnSet = new HashMap<>();
         for (int i = 0; i < oldColumns.size(); i++) {
             Column column = oldColumns.get(i);
-            if (!column.isPersisted()) {
-                persistedColumnOffset++;
+            if (column.isPersisted()) {
+                oldPersistedColumns.add(oldColumns.get(i));
             }
             oldColumnSet.put(column.getName(), Tuple2.of(oldColumns.get(i), i));
+        }
+
+        if (oldPersistedColumns.equals(newSchema.getColumns())) {
+            // No changes for persisted columns
+            return new ArrayList<>();
         }
 
         List<TableChange> changes = new ArrayList<>();
@@ -150,8 +158,7 @@ public class MaterializedTableUtils {
             }
 
             // Check if position changed
-            applyPositionChanges(
-                    newColumns, oldColumnToPosition, i + persistedColumnOffset, changes);
+            applyPositionChanges(newColumns, oldColumnToPosition, i, changes);
 
             Column oldColumn = oldColumnToPosition.f0;
             // Check if column changed
@@ -206,6 +213,46 @@ public class MaterializedTableUtils {
         }
 
         return changes;
+    }
+
+    private static ResolvedSchema enrichWithOldNonPersistedColumns(
+            ResolvedSchema oldSchema, ResolvedSchema newSchema) {
+        final List<Integer> nonPersistedColumnIndexes = getNonPersistedColumnIndexes(oldSchema);
+        if (nonPersistedColumnIndexes.isEmpty()) {
+            return newSchema;
+        }
+
+        final Column[] newColumns =
+                new Column[newSchema.getColumnCount() + nonPersistedColumnIndexes.size()];
+        int nextFreePosition = 0;
+
+        // Preserve initial positions of non persisted columns
+        // It will allow to not generate extra column position changes
+        for (int index : nonPersistedColumnIndexes) {
+            newColumns[index] = oldSchema.getColumn(index).get();
+            if (index == nextFreePosition) {
+                nextFreePosition++;
+            }
+        }
+
+        for (int i = 0; i < newSchema.getColumnCount(); i++) {
+            newColumns[nextFreePosition] = newSchema.getColumn(i).get();
+            while (nextFreePosition < newColumns.length && newColumns[nextFreePosition] != null) {
+                nextFreePosition++;
+            }
+        }
+
+        return ResolvedSchema.of(newColumns);
+    }
+
+    private static List<Integer> getNonPersistedColumnIndexes(ResolvedSchema schema) {
+        final List<Integer> nonPersistedColumnIndexes = new ArrayList<>();
+        for (int i = 0; i < schema.getColumnCount(); i++) {
+            if (!schema.getColumn(i).get().isPersisted()) {
+                nonPersistedColumnIndexes.add(i);
+            }
+        }
+        return nonPersistedColumnIndexes;
     }
 
     private static void applyPositionChanges(
