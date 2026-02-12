@@ -18,21 +18,48 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.plan.nodes.exec.testutils.SemanticTestBase;
+import org.apache.flink.table.test.program.SinkTestStep;
 import org.apache.flink.table.test.program.TableTestProgram;
+import org.apache.flink.table.test.program.TestStep;
+import org.apache.flink.table.test.program.TestStep.TestKind;
 
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 
 /** Semantic tests for {@link StreamExecSink}. */
 public class SinkSemanticTests extends SemanticTestBase {
+
+    @Override
+    public EnumSet<TestKind> supportedSetupSteps() {
+        EnumSet<TestKind> steps = super.supportedSetupSteps();
+        steps.add(TestKind.SINK_WITHOUT_DATA);
+        return steps;
+    }
+
+    @Override
+    protected void runStep(TestStep testStep, TableEnvironment env) throws Exception {
+        if (testStep.getKind() == TestKind.SINK_WITHOUT_DATA) {
+            final SinkTestStep sinkTestStep = (SinkTestStep) testStep;
+            sinkTestStep.apply(
+                    env,
+                    Map.ofEntries(
+                            Map.entry("connector", "values"),
+                            Map.entry("sink-insert-only", "false")));
+        } else {
+            super.runStep(testStep, env);
+        }
+    }
 
     @Override
     public List<TableTestProgram> programs() {
         return List.of(
                 SinkTestPrograms.INSERT_RETRACT_WITHOUT_PK,
                 SinkTestPrograms.INSERT_RETRACT_WITH_PK,
-                SinkTestPrograms.ON_CONFLICT_DO_NOTHING_NOT_SUPPORTED,
-                SinkTestPrograms.ON_CONFLICT_DO_ERROR_NOT_SUPPORTED,
+                SinkTestPrograms.ON_CONFLICT_DO_NOTHING_KEEPS_FIRST,
+                SinkTestPrograms.ON_CONFLICT_DO_ERROR_NO_CONFLICT,
                 SinkTestPrograms.UPSERT_KEY_DIFFERS_FROM_PK_WITHOUT_ON_CONFLICT,
                 SinkTestPrograms.UPSERT_KEY_DIFFERS_FROM_PK_WITH_ON_CONFLICT,
                 SinkTestPrograms.UPSERT_KEY_MATCHES_PK_WITHOUT_ON_CONFLICT,

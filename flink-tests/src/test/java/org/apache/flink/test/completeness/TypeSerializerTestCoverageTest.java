@@ -73,6 +73,7 @@ import org.apache.flink.table.dataview.ListViewSerializer;
 import org.apache.flink.table.dataview.MapViewSerializer;
 import org.apache.flink.table.dataview.NullAwareMapSerializer;
 import org.apache.flink.table.dataview.NullSerializer;
+import org.apache.flink.table.runtime.operators.sink.SortedLongSerializer;
 import org.apache.flink.table.runtime.operators.window.CountWindow;
 import org.apache.flink.table.runtime.sequencedmultisetstate.linked.MetaSqnInfoSerializer;
 import org.apache.flink.table.runtime.sequencedmultisetstate.linked.NodeSerializer;
@@ -263,7 +264,8 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
                         NodeSerializer.class.getName(),
                         RowSqnInfoSerializer.class.getName(),
                         MetaSqnInfoSerializer.class.getName(),
-                        SetSerializer.class.getName());
+                        SetSerializer.class.getName(),
+                        SortedLongSerializer.class.getName());
 
         // check if a test exists for each type serializer
         for (Class<? extends TypeSerializer> typeSerializer : typeSerializers) {
