@@ -16,18 +16,11 @@
     limitations under the License.
    ################################################################################
 
-=========
-Table API
-=========
+===============
+Developer Guide
+===============
 
-This section contains guides specific to using PyFlink's Table API.
+This section is for developers who want to contribute to the PyFlink project itself.
 
-.. toctree::
-    :maxdepth: 2
-
-    pandas_conversion
-    connectors
-    python_types
-    metrics
-    operations/index
-    udfs
+For information on contributing to Apache Flink, please see the
+`Flink Contributor Guide <https://nightlies.apache.org/flink/flink-docs-stable/docs/contribute/>`_.

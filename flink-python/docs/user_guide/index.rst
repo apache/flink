@@ -22,14 +22,15 @@ User Guide
 
 This section covers Python-specific configuration and reference material for using Flink with Python.
 
-For tutorials on getting started with PyFlink, see:
-
-- :flinkdoc:`Table API Tutorial <docs/getting-started/table_api/>` (select the Python tab)
-- :flinkdoc:`DataStream API Tutorial <docs/getting-started/datastream/>` (select the Python tab)
-
 .. toctree::
     :maxdepth: 2
 
+    overview
+    installation
+    table/index
+    datastream/index
+    table_api_tutorial
+    datastream_tutorial
     dependency_management
     execution_mode
     configuration
@@ -37,6 +38,6 @@ For tutorials on getting started with PyFlink, see:
     debugging
     environment_variables
     python_repl
+    performance_tuning
+    state_fault_tolerance
     faq
-    table/index
-    datastream/index

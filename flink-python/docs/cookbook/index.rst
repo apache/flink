@@ -16,18 +16,14 @@
     limitations under the License.
    ################################################################################
 
-=========
-Table API
-=========
+Cookbook
+========
 
-This section contains guides specific to using PyFlink's Table API.
+This section contains practical recipes for common PyFlink tasks. These recipes provide complete, working
+    examples that you can adapt for your own use cases.
 
 .. toctree::
     :maxdepth: 2
+    :caption: Data Processing
 
-    pandas_conversion
-    connectors
-    python_types
-    metrics
-    operations/index
-    udfs
+    word_count

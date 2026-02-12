@@ -16,18 +16,8 @@
     limitations under the License.
    ################################################################################
 
-=========
-Table API
-=========
+Installation
+============
 
-This section contains guides specific to using PyFlink's Table API.
-
-.. toctree::
-    :maxdepth: 2
-
-    pandas_conversion
-    connectors
-    python_types
-    metrics
-    operations/index
-    udfs
+For installation instructions, including environment requirements and setup, see the
+:doc:`Getting Started Installation Guide </getting_started/installation>`.

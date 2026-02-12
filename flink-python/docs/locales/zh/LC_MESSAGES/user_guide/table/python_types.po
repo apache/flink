@@ -1,0 +1,281 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-12 21:08+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../user_guide/table/python_types.rst:19
+msgid "Data Types"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:21
+msgid "This page describes the data types supported in PyFlink Table API."
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:24
+#: ../../user_guide/table/python_types.rst:53
+msgid "Data Type"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:26
+msgid ""
+"A *data type* describes the logical type of a value in the table "
+"ecosystem. It can be used to declare input and/or output types of Python "
+"user-defined functions. Users of the Python Table API work with instances"
+" of ``pyflink.table.types.DataType`` within the Python Table API or when "
+"defining user-defined functions."
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:32
+msgid ""
+"A ``DataType`` instance declares the **logical type** which does not "
+"imply a concrete physical representation for transmission or storage. All"
+" pre-defined data types are available in ``pyflink.table.types`` and can "
+"be instantiated with the utility methods defined in "
+"``pyflink.table.types.DataTypes``."
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:38
+msgid ""
+"A list of all pre-defined data types can be found in the :flinkdoc:`Flink"
+" Data Types documentation <docs/dev/table/types/#data-types>`."
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:41
+msgid "Data Type and Python Type Mapping"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:43
+msgid ""
+"A *data type* can be used to declare input and/or output types of Python "
+"user-defined functions. The inputs will be converted to Python objects "
+"corresponding to the data type and the type of the user-defined functions"
+" result must also match the defined data type."
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:48
+msgid ""
+"For vectorized Python UDF, the input types and output type are "
+"``pandas.Series``. The element type of the ``pandas.Series`` corresponds "
+"to the specified data type."
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:53
+msgid "Python Type"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:53
+msgid "Pandas Type"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:55
+msgid "``BOOLEAN``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:55
+msgid "``bool``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:55
+msgid "``numpy.bool_``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:57
+msgid "``TINYINT``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:57
+#: ../../user_guide/table/python_types.rst:59
+#: ../../user_guide/table/python_types.rst:61
+#: ../../user_guide/table/python_types.rst:63
+#: ../../user_guide/table/python_types.rst:83
+msgid "``int``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:57
+msgid "``numpy.int8``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:59
+msgid "``SMALLINT``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:59
+msgid "``numpy.int16``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:61
+msgid "``INT``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:61
+msgid "``numpy.int32``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:63
+msgid "``BIGINT``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:63
+msgid "``numpy.int64``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:65
+msgid "``FLOAT``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:65
+#: ../../user_guide/table/python_types.rst:67
+msgid "``float``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:65
+msgid "``numpy.float32``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:67
+msgid "``DOUBLE``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:67
+msgid "``numpy.float64``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:69
+msgid "``VARCHAR``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:69
+msgid "``str``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:71
+msgid "``VARBINARY``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:71
+msgid "``bytes``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:73
+msgid "``DECIMAL``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:73
+msgid "``decimal.Decimal``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:75
+msgid "``DATE``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:75
+msgid "``datetime.date``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:77
+msgid "``TIME``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:77
+msgid "``datetime.time``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:79
+msgid "``TimestampType``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:79
+#: ../../user_guide/table/python_types.rst:81
+msgid "``datetime.datetime``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:81
+msgid "``LocalZonedTimestampType``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:83
+msgid "``INTERVAL YEAR TO MONTH``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:83
+#: ../../user_guide/table/python_types.rst:85
+#: ../../user_guide/table/python_types.rst:89
+#: ../../user_guide/table/python_types.rst:91
+msgid "``Not Supported Yet``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:85
+msgid "``INTERVAL DAY TO SECOND``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:85
+msgid "``datetime.timedelta``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:87
+msgid "``ARRAY``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:87
+#: ../../user_guide/table/python_types.rst:89
+msgid "``list``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:87
+msgid "``numpy.ndarray``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:89
+msgid "``MULTISET``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:91
+msgid "``MAP``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:91
+#: ../../user_guide/table/python_types.rst:93
+msgid "``dict``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:93
+msgid "``ROW``"
+msgstr ""
+
+#: ../../user_guide/table/python_types.rst:93
+msgid "``Row``"
+msgstr ""
+

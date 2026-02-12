@@ -6,17 +6,20 @@
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
 # SOME DESCRIPTIVE TITLE.
 # Copyright (C)
 # This file is distributed under the same license as the PyFlink package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
 #, fuzzy
 msgid ""
 msgstr ""
@@ -33,26 +36,47 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: ../../user_guide/index.rst:21
-msgid "User Guide"
-msgstr "用户指南"
-
-#: ../../user_guide/index.rst:23
-msgid ""
-"This section covers Python-specific configuration and reference material "
-"for using Flink with Python."
+#: ../../user_guide/state_fault_tolerance.rst:20
+msgid "State Management and Fault Tolerance"
 msgstr ""
 
-#~ msgid "For tutorials on getting started with PyFlink, see:"
-#~ msgstr ""
+#: ../../user_guide/state_fault_tolerance.rst:22
+msgid ""
+"This section covers state management and fault tolerance in PyFlink "
+"applications."
+msgstr ""
 
-#~ msgid ""
-#~ ":flinkdoc:`Table API Tutorial <docs/getting-"
-#~ "started/table_api/>` (select the Python tab)"
-#~ msgstr ""
+#: ../../user_guide/state_fault_tolerance.rst:25
+msgid ""
+"This documentation is under development. For now, please refer to the "
+":doc:`DataStream API Reference </reference/pyflink.datastream/index>` for"
+" detailed state management documentation."
+msgstr ""
 
-#~ msgid ""
-#~ ":flinkdoc:`DataStream API Tutorial <docs/getting-"
-#~ "started/datastream/>` (select the Python tab)"
-#~ msgstr ""
+#: ../../user_guide/state_fault_tolerance.rst:29
+msgid "State Types"
+msgstr ""
+
+#: ../../user_guide/state_fault_tolerance.rst:31
+msgid ""
+"State is a fundamental concept in stream processing that allows you to "
+"maintain data across multiple events. PyFlink provides several types of "
+"state:"
+msgstr ""
+
+#: ../../user_guide/state_fault_tolerance.rst:34
+msgid "**Keyed State**: State that is scoped to a specific key"
+msgstr ""
+
+#: ../../user_guide/state_fault_tolerance.rst:35
+msgid "**Operator State**: State that is scoped to an operator instance"
+msgstr ""
+
+#: ../../user_guide/state_fault_tolerance.rst:36
+msgid "**Raw State**: Low-level state access for advanced use cases"
+msgstr ""
+
+#: ../../user_guide/state_fault_tolerance.rst:39
+msgid "Keyed State Example"
+msgstr ""
 

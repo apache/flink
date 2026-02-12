@@ -1,0 +1,198 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C)
+# This file is distributed under the same license as the PyFlink package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PyFlink 2.3.dev0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-02-12 21:08+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh\n"
+"Language-Team: zh <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../user_guide/table_api_tutorial.rst:23
+msgid "Table API Tutorial"
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:25
+msgid ""
+"Apache Flink offers a Table API as a unified, relational API for batch "
+"and stream processing, i.e., queries are executed with the same semantics"
+" on unbounded, real-time streams or bounded, batch data sets and produce "
+"the same results. The Table API in Flink is commonly used to ease the "
+"definition of data analytics, data pipelining, and ETL applications."
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:33
+msgid "What Will You Be Building?"
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:35
+msgid ""
+"In this tutorial, you will learn how to build a pure Python Flink Table "
+"API pipeline. The pipeline will read data from an input csv file, compute"
+" the word frequency and write the results to an output file."
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:40
+msgid "Prerequisites"
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:42
+msgid ""
+"This walkthrough assumes that you have some familiarity with Python, but "
+"you should be able to follow along even if you come from a different "
+"programming language. It also assumes that you are familiar with basic "
+"relational concepts such as ``SELECT`` and ``GROUP BY`` clauses."
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:48
+msgid "Help, I’m Stuck!"
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:50
+msgid ""
+"If you get stuck, check out the `community support resources "
+"<https://flink.apache.org/community.html>`__. In particular, Apache "
+"Flink’s `user mailing list "
+"<https://flink.apache.org/community.html#mailinglists>`__ consistently "
+"ranks as one of the most active of any Apache project and a great way to "
+"get help quickly."
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:58
+msgid "How To Follow Along"
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:60
+msgid "If you want to follow along, you will require a computer with:"
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:62
+msgid "Java 11"
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:63
+msgid "Python 3.9, 3.10, 3.11 or 3.12"
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:65
+msgid ""
+"Using Python Table API requires installing PyFlink, which is available on"
+" `PyPI <https://pypi.org/project/apache-flink/>`__ and can be easily "
+"installed using ``pip``."
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:73
+msgid ""
+"Once PyFlink is installed, you can move on to write a Python Table API "
+"job."
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:77
+msgid "Writing a Flink Python Table API Program"
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:79
+msgid ""
+"Table API applications begin by declaring a table environment. This "
+"serves as the main entry point for interacting with the Flink runtime. It"
+" can be used for setting execution parameters such as restart strategy, "
+"default parallelism, etc. The table config allows setting Table API "
+"specific configurations."
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:90
+msgid "You can now create the source and sink tables:"
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:117
+msgid ""
+"You can also use the TableEnvironment.execute_sql() method to register a "
+"source/sink table defined in DDL:"
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:146
+msgid ""
+"This registers a table named ``source`` and a table named ``sink`` in the"
+" table environment. The table ``source`` has only one column, word, and "
+"it consumes strings read from file specified by ``input_path``. The table"
+" ``sink`` has two columns, word and count, and writes data to the file "
+"specified by ``output_path``."
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:152
+msgid ""
+"You can now create a job which reads input from table ``source``, "
+"performs some transformations, and writes the results to table ``sink``."
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:155
+msgid ""
+"Finally, you must execute the actual Flink Python Table API job. All "
+"operations, such as creating sources, transformations and sinks are lazy."
+" Only when ``execute_insert(sink_name)`` is called, the job will be "
+"submitted for execution."
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:174
+msgid "The complete code so far:"
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:309
+msgid "Executing a Flink Python Table API Program"
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:311
+msgid "You can run this example on the command line:"
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:317
+msgid ""
+"The command builds and runs the Python Table API program in a local mini "
+"cluster. You can also submit the Python Table API program to a remote "
+"cluster, you can refer to the :flinkdoc:`Job Submission Examples "
+"<docs/deployment/cli/#submitting-pyflink-jobs>` for more details."
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:321
+msgid "Finally, you can see the execution results similar to the following:"
+msgstr ""
+
+#: ../../user_guide/table_api_tutorial.rst:331
+msgid ""
+"This should get you started with writing your own Flink Python Table API "
+"programs. You can also refer to `PyFlink Examples "
+"<https://github.com/apache/flink/tree/master/flink-"
+"python/pyflink/examples>`_ for more examples. To learn more about the "
+"Python Table API, you can refer `Flink Python API Docs "
+"<https://nightlies.apache.org/flink/flink-docs-stable/api/python/>`_ for "
+"more details."
+msgstr ""
+

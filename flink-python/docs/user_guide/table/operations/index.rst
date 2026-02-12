@@ -16,18 +16,21 @@
     limitations under the License.
    ################################################################################
 
-=========
-Table API
-=========
+Table Operations
+================
 
-This section contains guides specific to using PyFlink's Table API.
+Table operations provide the core functionality for transforming and processing data in the Table API.
 
 .. toctree::
-    :maxdepth: 2
+   :maxdepth: 2
 
-    pandas_conversion
-    connectors
-    python_types
-    metrics
-    operations/index
-    udfs
+   row_based_operations
+
+For general Table API operations (select, filter, join, etc.), see the
+:flinkdoc:`Table API documentation <docs/dev/table/tableapi/>`.
+
+Row-based Operations
+--------------------
+
+See :doc:`row_based_operations` for row-level transformations including map, flat_map,
+aggregate, and flat_aggregate operations with Python UDFs.
