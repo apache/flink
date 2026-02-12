@@ -516,6 +516,24 @@ public class SqlFunctionUtils {
     }
 
     /**
+     * Returns a compiled Pattern object for the given regular expression string, using a shared
+     * cache for performance optimization.
+     *
+     * @param regex the regular expression pattern string
+     * @return the compiled Pattern, or null if regex is null or invalid
+     */
+    public static @Nullable Pattern getRegexpPattern(@Nullable String regex) {
+        if (regex == null) {
+            return null;
+        }
+        try {
+            return REGEXP_PATTERN_CACHE.get(regex);
+        } catch (PatternSyntaxException e) {
+            return null;
+        }
+    }
+
+    /**
      * Calculate the hash value of a given string.
      *
      * @param algorithm message digest algorithm.
