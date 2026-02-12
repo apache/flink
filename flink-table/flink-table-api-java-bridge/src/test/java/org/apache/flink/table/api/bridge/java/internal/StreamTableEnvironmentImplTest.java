@@ -19,6 +19,8 @@
 package org.apache.flink.table.api.bridge.java.internal;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.core.execution.JobStatusChangedListener;
+import org.apache.flink.core.execution.JobStatusChangedListenerUtils;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.Table;
@@ -84,6 +86,9 @@ class StreamTableEnvironmentImplTest {
                         new URL[0],
                         Thread.currentThread().getContextClassLoader(),
                         tableConfig.getConfiguration());
+        final List<JobStatusChangedListener> jobStatusChangedListeners =
+                JobStatusChangedListenerUtils.createJobStatusChangedListeners(
+                        tableConfig.getConfiguration());
 
         return new StreamTableEnvironmentImpl(
                 catalogManager,
@@ -94,7 +99,8 @@ class StreamTableEnvironmentImplTest {
                 env,
                 new TestPlanner(elements.getTransformation()),
                 new ExecutorMock(),
-                true);
+                true,
+                jobStatusChangedListeners);
     }
 
     private static class TestPlanner extends PlannerMock {

@@ -41,6 +41,7 @@ import org.apache.flink.types.Row
 import org.apache.flink.util.{FlinkUserCodeClassLoaders, MutableURLClassLoader, Preconditions}
 
 import java.net.URL
+import java.util.Collections
 import java.util.Optional
 
 import scala.collection.JavaConverters._
@@ -69,7 +70,8 @@ class StreamTableEnvironmentImpl(
     functionCatalog,
     planner,
     isStreaming,
-    executionEnvironment)
+    executionEnvironment,
+    Collections.emptyList())
   with StreamTableEnvironment {
 
   override def fromDataStream[T](dataStream: DataStream[T]): Table = {
