@@ -1014,5 +1014,24 @@ class RankTest extends TableTestBase {
     util.verifyExplainInsert(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
+  @Test
+  def testRowNumberWithCaseWhenAndWhereClause(): Unit = {
+    val sql =
+      """
+        |SELECT a, b, category FROM (
+        |  SELECT a, b,
+        |    CASE WHEN c > 10 THEN 'big' ELSE 'small' END as category,
+        |    row_num
+        |  FROM (
+        |    SELECT a, b, c,
+        |        ROW_NUMBER() OVER (PARTITION BY a ORDER BY c DESC) as row_num
+        |    FROM MyTable)
+        |  WHERE row_num <= 2
+        |)
+        |WHERE b <> 'z'
+      """.stripMargin
+    util.verifyExecPlan(sql)
+  }
+
   // TODO add tests about multi-sinks and udf
 }
