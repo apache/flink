@@ -86,4 +86,6 @@ public interface CheckpointCommittableManager<CommT> {
      * @return number of failed committables
      */
     int getNumFailed();
+
+    int getNumPending();
 }

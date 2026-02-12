@@ -145,7 +145,7 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
                 committableCollector.getCheckpointCommittablesUpTo(context.getCheckpointId());
 
         return checkpointCommittables.stream()
-                .mapToInt(c -> c.getSuccessfulCommittables().size())
+                .mapToInt(CheckpointCommittableManager::getNumPending)
                 .sum();
     }
 

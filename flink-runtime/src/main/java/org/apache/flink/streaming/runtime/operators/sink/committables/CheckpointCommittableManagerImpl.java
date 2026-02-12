@@ -174,6 +174,11 @@ class CheckpointCommittableManagerImpl<CommT> implements CheckpointCommittableMa
                 .sum();
     }
 
+    @Override
+    public int getNumPending() {
+        return (int) getPendingRequests().count();
+    }
+
     Stream<CommitRequestImpl<CommT>> getPendingRequests() {
         return subtasksCommittableManagers.values().stream()
                 .peek(this::assertReceivedAll)
