@@ -68,27 +68,10 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
   public readonly narrowLogData = typeDefinition<WatermarkData>();
 
   // Timezone related properties
-  // Using IANA timezone names to properly handle Daylight Saving Time (DST)
-  // Reference: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
-  public timezoneOptions = [
-    { label: 'UTC', value: 'UTC' },
-    { label: 'Pacific Time - Los Angeles (PST/PDT)', value: 'America/Los_Angeles' },
-    { label: 'Mountain Time - Denver (MST/MDT)', value: 'America/Denver' },
-    { label: 'Central Time - Chicago (CST/CDT)', value: 'America/Chicago' },
-    { label: 'Eastern Time - New York (EST/EDT)', value: 'America/New_York' },
-    { label: 'London (GMT/BST)', value: 'Europe/London' },
-    { label: 'Berlin/Paris/Rome (CET/CEST)', value: 'Europe/Berlin' },
-    { label: 'Athens (EET/EEST)', value: 'Europe/Athens' },
-    { label: 'Moscow (MSK)', value: 'Europe/Moscow' },
-    { label: 'Dubai (GST)', value: 'Asia/Dubai' },
-    { label: 'India - Mumbai/Delhi (IST)', value: 'Asia/Kolkata' },
-    { label: 'China - Beijing/Shanghai (CST)', value: 'Asia/Shanghai' },
-    { label: 'Singapore (SGT)', value: 'Asia/Singapore' },
-    { label: 'Japan - Tokyo (JST)', value: 'Asia/Tokyo' },
-    { label: 'Korea - Seoul (KST)', value: 'Asia/Seoul' },
-    { label: 'Australia - Sydney (AEDT/AEST)', value: 'Australia/Sydney' },
-    { label: 'New Zealand - Auckland (NZDT/NZST)', value: 'Pacific/Auckland' }
-  ];
+  // Using browser's native Intl API to get all supported timezones
+  // This provides a complete timezone list and properly handles Daylight Saving Time (DST)
+  // Reference: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/supportedValuesOf
+  public timezoneOptions: Array<{ label: string; value: string }> = [];
 
   public selectedTimezone: string = '';
 
@@ -105,20 +88,38 @@ export class JobOverviewDrawerWatermarksComponent implements OnInit, OnDestroy {
     // This will properly handle DST changes
     // Reference: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat/resolvedOptions
     try {
-      const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-      // Check if the browser timezone exists in the options list
-      const exists = this.timezoneOptions.some(option => option.value === browserTimezone);
-
-      // If browser timezone exists in the list, use it; or use UTC if cannot find appropriate browser timezone
-      return exists ? browserTimezone : 'UTC';
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
     } catch (error) {
       console.error('[getBrowserTimezone] Error getting browser timezone, falling back to UTC:', error);
       return 'UTC';
     }
   }
 
+  private initializeTimezoneOptions(): void {
+    // Use modern browser API to get all supported timezones
+    // Reference: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/supportedValuesOf
+    try {
+      if (typeof Intl.supportedValuesOf === 'function') {
+        const timezones = Intl.supportedValuesOf('timeZone');
+        this.timezoneOptions = timezones.map(tz => ({ label: tz, value: tz })).sort((a, b) => a.label.localeCompare(b.label));
+      } else {
+        // Fallback for browsers that don't support Intl.supportedValuesOf
+        console.warn('[initializeTimezoneOptions] Intl.supportedValuesOf not supported, falling back to browser local timezone');
+        const browserTz = this.getBrowserTimezone();
+        this.timezoneOptions = [{ label: browserTz, value: browserTz }];
+      }
+    } catch (error) {
+      console.error('[initializeTimezoneOptions] Error initializing timezone options:', error);
+      // Fallback to browser local timezone on error
+      const browserTz = this.getBrowserTimezone();
+      this.timezoneOptions = [{ label: browserTz, value: browserTz }];
+    }
+  }
+
   public ngOnInit(): void {
+    // Initialize timezone options
+    this.initializeTimezoneOptions();
+
     // Set default timezone to browser's timezone
     this.selectedTimezone = this.getBrowserTimezone();
 
