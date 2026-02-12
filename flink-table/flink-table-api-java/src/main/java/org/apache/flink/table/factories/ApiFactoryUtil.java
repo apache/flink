@@ -34,6 +34,7 @@ import java.util.Optional;
 public class ApiFactoryUtil {
 
     /** Result holder for catalog store and factory. */
+    @Internal
     public static class CatalogStoreResult {
         private final CatalogStore catalogStore;
         @Nullable private final CatalogStoreFactory catalogStoreFactory;
