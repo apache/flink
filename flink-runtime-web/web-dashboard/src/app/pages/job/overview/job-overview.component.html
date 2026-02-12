@@ -22,6 +22,12 @@
   nzType="info"
   nzMessage="Job is not running yet."
 ></nz-alert>
+<flink-top-n-metrics
+  *ngIf="nodes.length > 0"
+  [topCpuConsumers]="topNMetrics.topCpuConsumers"
+  [topBackpressureOperators]="topNMetrics.topBackpressureOperators"
+  [topGcIntensiveTasks]="topNMetrics.topGcIntensiveTasks"
+></flink-top-n-metrics>
 <div class="container" [style.height.px]="top">
   <flink-dagre
     (nodeClick)="onNodeClick($event)"
