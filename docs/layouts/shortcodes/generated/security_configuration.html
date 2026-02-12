@@ -183,6 +183,12 @@
             <td>The SSL engine provider to use for the ssl transport:<ul><li><code class="highlighter-rouge">JDK</code>: default Java-based SSL engine</li><li><code class="highlighter-rouge">OPENSSL</code>: openSSL-based SSL engine using system libraries</li></ul><code class="highlighter-rouge">OPENSSL</code> is based on <a href="http://netty.io/wiki/forked-tomcat-native.html#wiki-h2-4">netty-tcnative</a> and comes in two flavours:<ul><li>dynamically linked: This will use your system's openSSL libraries (if compatible) and requires <code class="highlighter-rouge">opt/flink-shaded-netty-tcnative-dynamic-*.jar</code> to be copied to <code class="highlighter-rouge">lib/</code></li><li>statically linked: Due to potential licensing issues with openSSL (see <a href="https://issues.apache.org/jira/browse/LEGAL-393">LEGAL-393</a>), we cannot ship pre-built libraries. However, you can build the required library yourself and put it into <code class="highlighter-rouge">lib/</code>:<br /><code class="highlighter-rouge">git clone https://github.com/apache/flink-shaded.git &amp;&amp; cd flink-shaded &amp;&amp; mvn clean package -Pinclude-netty-tcnative-static -pl flink-shaded-netty-tcnative-static</code></li></ul></td>
         </tr>
         <tr>
+            <td><h5>security.ssl.reload</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If enabled, the application will monitor the keystore and truststore files for any changes. When a change is detected, internal network components (like Netty, Pekko, or BlobServer) will automatically reload the keystore/truststore certificates.</td>
+        </tr>
+        <tr>
             <td><h5>security.ssl.rest.authentication-enabled</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
