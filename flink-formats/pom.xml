@@ -46,6 +46,7 @@ under the License.
 		<module>flink-compress</module>
 		<module>flink-csv</module>
 		<module>flink-protobuf</module>
+		<module>flink-protobuf-confluent-registry</module>
 		<module>flink-orc</module>
 		<module>flink-orc-nohive</module>
 		<module>flink-hadoop-bulk</module>
