@@ -407,7 +407,7 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.STRING().notNull(),
                                 DataTypes.INT().notNull(),
                                 DataTypes.STRING().notNull(),
-                                DataTypes.STRING().notNull())
+                                DataTypes.STRING())
                         // Basic regex split
                         .testResult(
                                 $("f0").regexpSplit("[0-9]+"),
@@ -447,7 +447,7 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                         // Whitespace regex
                         .testResult(
                                 $("f3").regexpSplit("\\s+"),
-                                "REGEXP_SPLIT(f3, '\\\\s+')",
+                                "REGEXP_SPLIT(f3, '\\s+')",
                                 new String[] {"one", "two", "three"},
                                 DataTypes.ARRAY(DataTypes.STRING()).notNull())
                         // No match - return original string
@@ -458,10 +458,10 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 DataTypes.ARRAY(DataTypes.STRING()).notNull())
                         // Invalid regex - return null
                         .testResult(
-                                $("f0").regexpSplit("("),
-                                "REGEXP_SPLIT(f0, '(')",
+                                $("f6").regexpSplit("("),
+                                "REGEXP_SPLIT(f6, '(')",
                                 null,
-                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                                DataTypes.ARRAY(DataTypes.STRING()))
                         // Validation error for non-string type input
                         .testTableApiValidationError(
                                 $("f4").regexpSplit("[0-9]+"),

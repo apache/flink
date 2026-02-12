@@ -28,7 +28,8 @@ import org.apache.flink.table.functions.SpecializedFunction;
 import javax.annotation.Nullable;
 
 import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
+
+import static org.apache.flink.table.runtime.functions.SqlFunctionUtils.getRegexpPattern;
 
 /**
  * Implementation of {@link BuiltInFunctionDefinitions#REGEXP_SPLIT}.
@@ -45,9 +46,6 @@ import java.util.regex.PatternSyntaxException;
  */
 @Internal
 public class RegexpSplitFunction extends BuiltInScalarFunction {
-
-    private transient Pattern cachedPattern;
-    private transient String cachedRegex;
 
     public RegexpSplitFunction(SpecializedFunction.SpecializedContext context) {
         super(BuiltInFunctionDefinitions.REGEXP_SPLIT, context);
@@ -69,23 +67,18 @@ public class RegexpSplitFunction extends BuiltInScalarFunction {
             return new GenericArrayData(result);
         }
 
-        try {
-            // Cache the compiled pattern to improve performance
-            if (cachedPattern == null || !regexStr.equals(cachedRegex)) {
-                cachedPattern = Pattern.compile(regexStr);
-                cachedRegex = regexStr;
-            }
-
-            // Use -1 as limit to keep all trailing empty strings
-            String[] splitResult = cachedPattern.split(str.toString(), -1);
-            StringData[] result = new StringData[splitResult.length];
-            for (int i = 0; i < splitResult.length; i++) {
-                result[i] = StringData.fromString(splitResult[i]);
-            }
-            return new GenericArrayData(result);
-        } catch (PatternSyntaxException e) {
+        Pattern pattern = getRegexpPattern(regexStr);
+        if (pattern == null) {
             // Return null for invalid regex pattern (consistent with other REGEXP_* functions)
             return null;
         }
+
+        // Use -1 as limit to keep all trailing empty strings
+        String[] splitResult = pattern.split(str.toString(), -1);
+        StringData[] result = new StringData[splitResult.length];
+        for (int i = 0; i < splitResult.length; i++) {
+            result[i] = StringData.fromString(splitResult[i]);
+        }
+        return new GenericArrayData(result);
     }
 }
