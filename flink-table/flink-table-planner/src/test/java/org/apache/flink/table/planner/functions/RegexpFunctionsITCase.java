@@ -461,7 +461,7 @@ class RegexpFunctionsITCase extends BuiltInFunctionTestBase {
                                 $("f0").regexpSplit("("),
                                 "REGEXP_SPLIT(f0, '(')",
                                 null,
-                                DataTypes.ARRAY(DataTypes.STRING()).notNull())
+                                DataTypes.ARRAY(DataTypes.STRING()))
                         // Validation error for non-string type input
                         .testTableApiValidationError(
                                 $("f4").regexpSplit("[0-9]+"),
