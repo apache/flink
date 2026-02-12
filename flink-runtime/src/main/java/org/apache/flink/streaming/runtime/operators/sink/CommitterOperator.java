@@ -65,7 +65,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage<CommT>>
         implements OneInputStreamOperator<CommittableMessage<CommT>, CommittableMessage<CommT>>,
-                BoundedOneInput {
+        BoundedOneInput {
 
     private final SimpleVersionedSerializer<CommT> committableSerializer;
     private final FunctionWithException<CommitterInitContext, Committer<CommT>, IOException>
@@ -140,10 +140,20 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
         }
     }
 
+    private int getNumPending(StateSnapshotContext context) {
+        var checkpointCommittables = committableCollector.getCheckpointCommittablesUpTo(context.getCheckpointId());
+
+        return checkpointCommittables
+                .stream()
+                .mapToInt(c -> c.getSuccessfulCommittables().size())
+                .sum();
+    }
+
     @Override
     public void snapshotState(StateSnapshotContext context) throws Exception {
         super.snapshotState(context);
         // It is important to copy the collector to not mutate the state.
+        metricGroup.setCurrentPendingCommittablesGauge(() -> getNumPending(context));
         committableCollectorState.update(Collections.singletonList(committableCollector.copy()));
     }
 
