@@ -172,7 +172,11 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
         // read record
         checkAvroInitialized();
         inputStream.setBuffer(message);
-        Schema readerSchema = getReaderSchema();
+        Schema readerSchema =
+                Preconditions.checkNotNull(
+                        getReaderSchema(),
+                        "Reader schema is required for non-registry deserialization. "
+                                + "Use RegistryAvroDeserializationSchema for registry-based deserialization.");
         GenericDatumReader<T> datumReader = getDatumReader();
 
         datumReader.setSchema(readerSchema);
@@ -198,16 +202,18 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
             this.datumReader = new SpecificDatumReader<>(specificData);
             this.reader = AvroFactory.extractAvroSpecificSchema(recordClazz, specificData);
         } else {
-            this.reader = new Schema.Parser().parse(schemaString);
+            if (schemaString != null) {
+                this.reader = new Schema.Parser().parse(schemaString);
+            }
             GenericData genericData = new GenericData(cl);
             this.datumReader = new GenericDatumReader<>(null, this.reader, genericData);
         }
 
         this.inputStream = new MutableByteArrayInputStream();
 
-        if (encoding == AvroEncoding.JSON) {
+        if (encoding == AvroEncoding.JSON && getReaderSchema() != null) {
             this.decoder = DecoderFactory.get().jsonDecoder(getReaderSchema(), inputStream);
-        } else {
+        } else if (encoding != AvroEncoding.JSON) {
             this.decoder = DecoderFactory.get().binaryDecoder(inputStream, null);
         }
     }
@@ -223,7 +229,12 @@ public class AvroDeserializationSchema<T> implements DeserializationSchema<T> {
         if (SpecificRecord.class.isAssignableFrom(recordClazz)) {
             return new AvroTypeInfo(recordClazz);
         } else {
-            return (TypeInformation<T>) new GenericRecordAvroTypeInfo(this.reader);
+            return (TypeInformation<T>)
+                    new GenericRecordAvroTypeInfo(
+                            Preconditions.checkNotNull(
+                                    this.reader,
+                                    "Reader schema is required to derive TypeInformation. "
+                                            + "When using RegistryAvroDeserializationSchema, provide TypeInformation explicitly."));
         }
     }
 
