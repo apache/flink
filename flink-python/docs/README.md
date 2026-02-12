@@ -69,7 +69,7 @@ This runs `gettext` → `sphinx-intl update` → Chinese HTML build into `_build
 ### Serving locally
 
 ```bash
-python -m http.server -d _build/html 8080
+make serve
 ```
 
 Then open http://localhost:8080/.

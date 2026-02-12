@@ -93,7 +93,7 @@ gettext_compact = False
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'README.md']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'README.md', '.venv']
 
 # If true, the current module name will be prepended to all description
 # unit titles (such as .. function::).
@@ -133,8 +133,9 @@ html_theme = 'pydata_sphinx_theme'
 # documentation.
 #
 html_theme_options = {
-    "collapse_navigation": True,
-    "navigation_depth": 0,
+    "collapse_navigation": False,
+    "navigation_depth": 4,
+    "show_nav_level": 1,
     "navbar_end": ["lang-switcher.html", "theme-switcher.html", "navbar-icon-links.html"]
 }
 

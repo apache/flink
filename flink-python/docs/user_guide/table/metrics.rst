@@ -16,18 +16,8 @@
     limitations under the License.
    ################################################################################
 
-=========
-Table API
-=========
+Metrics
+=======
 
-This section contains guides specific to using PyFlink's Table API.
-
-.. toctree::
-    :maxdepth: 2
-
-    pandas_conversion
-    connectors
-    python_types
-    metrics
-    operations/index
-    udfs
+For information on using metrics in PyFlink, including Table API metrics, see the
+:doc:`Metrics guide <../metrics>`.

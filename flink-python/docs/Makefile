@@ -54,11 +54,12 @@ PAPEROPT_a4     = -D latex_paper_size=a4
 PAPEROPT_letter = -D latex_paper_size=letter
 ALLSPHINXOPTS   = -j auto -d _build/doctrees $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 
-.PHONY: help clean html html-zh zh dirhtml pickle json htmlhelp qthelp latex changes linkcheck doctest gettext
+.PHONY: help clean html html-zh zh dirhtml pickle json htmlhelp qthelp latex changes linkcheck doctest gettext serve
 
 help:
 	@echo "Please use \`make <target>' where <target> is one of"
 	@echo "  html      to make standalone HTML files"
+	@echo "  serve     to serve the HTML files locally at http://localhost:8080"
 	@echo "  dirhtml   to make HTML files named index.html in directories"
 	@echo "  pickle    to make pickle files"
 	@echo "  json      to make JSON files"
@@ -148,3 +149,7 @@ pdf: latex
 
 pdf-html: pdf html
 	cp _build/latex/pyflinkdoc.pdf _build/html
+
+serve:
+	@echo "Serving docs at http://localhost:8080"
+	python -m http.server -d _build/html 8080
