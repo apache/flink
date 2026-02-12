@@ -45,6 +45,7 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
     private final Map<String, String> groupingKey;
     private final boolean deleteOnShutdown;
     @VisibleForTesting final URL hostUrl;
+    @VisibleForTesting final boolean basicAuthEnabled;
 
     PrometheusPushGatewayReporter(
             URL hostUrl,
@@ -58,6 +59,9 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
         if (username != null && password != null) {
             this.pushGateway.setConnectionFactory(
                     new BasicAuthHttpConnectionFactory(username, password));
+            this.basicAuthEnabled = true;
+        } else {
+            this.basicAuthEnabled = false;
         }
         this.jobName = Preconditions.checkNotNull(jobName);
         this.groupingKey = Preconditions.checkNotNull(groupingKey);
