@@ -38,8 +38,7 @@ export class HumanizeWatermarkPipe implements PipeTransform {
 
 @Pipe({
   name: 'humanizeWatermarkToDatetime',
-  standalone: true,
-  pure: false
+  standalone: true
 })
 export class HumanizeWatermarkToDatetimePipe implements PipeTransform {
   constructor(private readonly configService: ConfigService) {}
