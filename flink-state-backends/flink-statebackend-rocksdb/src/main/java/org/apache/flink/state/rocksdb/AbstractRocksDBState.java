@@ -37,6 +37,7 @@ import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteOptions;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
@@ -185,6 +186,48 @@ public abstract class AbstractRocksDBState<K, N, V> implements InternalKvState<K
     <T> byte[] serializeValue(T value, TypeSerializer<T> serializer) throws IOException {
         dataOutputView.clear();
         return serializeValueInternal(value, serializer);
+    }
+
+    /**
+     * Serializes the value and returns a ByteBuffer view of the serialized data. This avoids the
+     * array copy that getCopyOfBuffer() performs.
+     *
+     * <p>IMPORTANT: The returned ByteBuffer wraps the internal buffer and is only valid until the
+     * next serialization operation on this state instance. The caller must consume the data
+     * synchronously before any other serialize method is called.
+     *
+     * <p>This is safe because:
+     *
+     * <ul>
+     *   <li>Flink uses single-threaded mailbox execution per task
+     *   <li>RocksDB.put() is synchronous and copies to memtable before returning
+     * </ul>
+     *
+     * <p>WARNING: Do NOT use with WriteBatch operations - batch defers writes!
+     *
+     * @param value the value to serialize
+     * @return ByteBuffer view of the serialized value (position=0, limit=length)
+     */
+    ByteBuffer serializeValueToByteBuffer(V value) throws IOException {
+        dataOutputView.clear();
+        valueSerializer.serialize(value, dataOutputView);
+        return ByteBuffer.wrap(dataOutputView.getSharedBuffer(), 0, dataOutputView.length());
+    }
+
+    /**
+     * Serializes the value with null-sensitivity to a ByteBuffer view. Same thread-safety caveats
+     * as {@link #serializeValueToByteBuffer} apply.
+     *
+     * <p>WARNING: Do NOT use with WriteBatch operations!
+     */
+    <T> ByteBuffer serializeValueNullSensitiveToByteBuffer(T value, TypeSerializer<T> serializer)
+            throws IOException {
+        dataOutputView.clear();
+        dataOutputView.writeBoolean(value == null);
+        if (value != null) {
+            serializer.serialize(value, dataOutputView);
+        }
+        return ByteBuffer.wrap(dataOutputView.getSharedBuffer(), 0, dataOutputView.length());
     }
 
     public void migrateSerializedValue(
