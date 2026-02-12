@@ -67,16 +67,18 @@ Format 参数
     <thead>
       <tr>
         <th class="text-left" style="width: 25%">参数</th>
-        <th class="text-center" style="width: 10%">是否必选</th>
-        <th class="text-center" style="width: 10%">默认值</th>
+        <th class="text-center" style="width: 8%">是否必选</th>
+        <th class="text-center" style="width: 8%">是否可转发</th>
+        <th class="text-center" style="width: 7%">默认值</th>
         <th class="text-center" style="width: 10%">类型</th>
-        <th class="text-center" style="width: 45%">描述</th>
+        <th class="text-center" style="width: 42%">描述</th>
       </tr>
     </thead>
     <tbody>
     <tr>
       <td><h5>format</h5></td>
       <td>必选</td>
+      <td>否</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>指定要使用的格式，这里应该是 <code>'csv'</code>。</td>
@@ -84,6 +86,7 @@ Format 参数
     <tr>
       <td><h5>csv.field-delimiter</h5></td>
       <td>可选</td>
+      <td>是</td>
       <td style="word-wrap: break-word;"><code>,</code></td>
       <td>String</td>
       <td>字段分隔符 (默认<code>','</code>)，必须为单字符。你可以使用反斜杠字符指定一些特殊字符，例如 <code>'\t'</code> 代表制表符。
@@ -93,6 +96,7 @@ Format 参数
     <tr>
       <td><h5>csv.disable-quote-character</h5></td>
       <td>可选</td>
+      <td>是</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
       <td>是否禁止对引用的值使用引号 (默认是 false)。 如果禁止，选项 <code>'csv.quote-character'</code> 不能设置。</td>
@@ -100,6 +104,7 @@ Format 参数
     <tr>
       <td><h5>csv.quote-character</h5></td>
       <td>可选</td>
+      <td>是</td>
       <td style="word-wrap: break-word;"><code>"</code></td>
       <td>String</td>
       <td>用于围住字段值的引号字符 (默认<code>"</code>)。</td>
@@ -107,6 +112,7 @@ Format 参数
     <tr>
       <td><h5>csv.allow-comments</h5></td>
       <td>可选</td>
+      <td>是</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
       <td>是否允许忽略注释行（默认不允许），注释行以 <code>'#'</code> 作为起始字符。
@@ -116,13 +122,15 @@ Format 参数
     <tr>
       <td><h5>csv.ignore-parse-errors</h5></td>
       <td>可选</td>
+      <td>否</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-    <td>当解析异常时，是跳过当前字段或行，还是抛出错误失败（默认为 false，即抛出错误失败）。如果忽略字段的解析异常，则会将该字段值设置为<code>null</code>。</td>
+      <td>当解析异常时，是跳过当前字段或行，还是抛出错误失败（默认为 false，即抛出错误失败）。如果忽略字段的解析异常，则会将该字段值设置为<code>null</code>。</td>
     </tr>
     <tr>
       <td><h5>csv.array-element-delimiter</h5></td>
       <td>可选</td>
+      <td>是</td>
       <td style="word-wrap: break-word;"><code>;</code></td>
       <td>String</td>
       <td>分隔数组和行元素的字符串(默认<code>';'</code>)。</td>
@@ -130,6 +138,7 @@ Format 参数
     <tr>
       <td><h5>csv.escape-character</h5></td>
       <td>可选</td>
+      <td>是</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>转义字符(默认关闭)。</td>
@@ -137,6 +146,7 @@ Format 参数
     <tr>
       <td><h5>csv.null-literal</h5></td>
       <td>可选</td>
+      <td>是</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>指定识别成 null 值的字符串（默认禁用）。在输入端会将该字符串转为 null 值，在输出端会将 null 值转成该字符串。</td>
@@ -144,9 +154,50 @@ Format 参数
     <tr>
       <td><h5>csv.write-bigdecimal-in-scientific-notation</h5></td>
       <td>可选</td>
+      <td>是</td>
       <td style="word-wrap: break-word;">true</td>
       <td>Boolean</td>
       <td>设置将 Bigdecimal 类型的数据表示为科学计数法（默认为true，即需要转为科学计数法），例如一个BigDecimal的值为100000，设置true，结果为 '1E+5'；设置为false，结果为 100000。注意：只有当值不等于0且是10的倍数才会转为科学计数法。</td>
+    </tr>
+    <tr>
+      <td><h5>csv.trim-spaces</h5></td>
+      <td>可选</td>
+      <td>是</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>可选标志，用于修剪未加引号字段值的前后空格（默认禁用）。仅影响反序列化。</td>
+    </tr>
+    <tr>
+      <td><h5>csv.ignore-trailing-unmappable</h5></td>
+      <td>可选</td>
+      <td>是</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>可选标志，用于忽略末尾无法映射到 schema 的多余字段（默认禁用）。仅影响反序列化。</td>
+    </tr>
+    <tr>
+      <td><h5>csv.allow-trailing-comma</h5></td>
+      <td>可选</td>
+      <td>是</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>可选标志，用于允许最后一个字段值之后的尾部逗号（默认禁用）。仅影响反序列化。</td>
+    </tr>
+    <tr>
+      <td><h5>csv.fail-on-missing-columns</h5></td>
+      <td>可选</td>
+      <td>是</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>可选标志，当一行数据的列数少于 schema 期望的列数时将报错失败（默认禁用）。仅影响反序列化。</td>
+    </tr>
+    <tr>
+      <td><h5>csv.empty-string-as-null</h5></td>
+      <td>可选</td>
+      <td>是</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>可选标志，用于将空字符串值视为 null（默认禁用）。仅影响反序列化。</td>
     </tr>
     </tbody>
 </table>
