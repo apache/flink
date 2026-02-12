@@ -109,6 +109,7 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.PeriodTimer;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailbox;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FatalExitExceptionHandler;
 import org.apache.flink.util.FlinkException;
@@ -702,6 +703,7 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
     protected void endData(StopMode mode) throws Exception {
 
         if (mode == StopMode.DRAIN) {
+            emitFinishedStatus();
             advanceToEndOfEventTime();
         }
         // finish all operators in a chain effect way
@@ -750,6 +752,41 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
      * <p>For tasks other than the source task, this method does nothing.
      */
     protected void advanceToEndOfEventTime() throws Exception {}
+
+    /**
+     * Emits FINISHED watermark status to indicate this task has permanently completed and should be
+     * excluded from watermark aggregation in downstream operators.
+     *
+     * <p>This method is overridden by source tasks to emit FINISHED status directly to downstream
+     * via network outputs. Processing tasks (e.g., OneInputStreamTask, TwoInputStreamTask) do not
+     * override this method because they rely on StatusWatermarkValve to aggregate FINISHED status
+     * from upstream inputs and propagate it downstream automatically.
+     */
+    protected void emitFinishedStatus() {
+        // Empty by default - only source tasks override this method.
+    }
+
+    /**
+     * Helper method to emit FINISHED watermark status to all stream outputs. Subclasses can call
+     * this from their emitFinishedStatus() override if needed.
+     */
+    protected void emitFinishedStatusToOutputs() {
+        try {
+            if (operatorChain != null) {
+                RecordWriterOutput<?>[] streamOutputs = operatorChain.getStreamOutputs();
+                for (RecordWriterOutput<?> output : streamOutputs) {
+                    output.emitWatermarkStatus(WatermarkStatus.FINISHED);
+                }
+                LOG.debug(
+                        "Successfully emitted FINISHED watermark status via {} outputs",
+                        streamOutputs.length);
+            } else {
+                LOG.warn("Cannot emit FINISHED watermark status: operator chain is null");
+            }
+        } catch (Exception e) {
+            LOG.warn("Failed to emit FINISHED watermark status", e);
+        }
+    }
 
     // ------------------------------------------------------------------------
     //  Core work methods of the Stream Task

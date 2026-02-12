@@ -180,6 +180,11 @@ public class SourceStreamTask<
     }
 
     @Override
+    protected void emitFinishedStatus() {
+        emitFinishedStatusToOutputs();
+    }
+
+    @Override
     protected void advanceToEndOfEventTime() throws Exception {
         operatorChain.getMainOperatorOutput().emitWatermark(Watermark.MAX_WATERMARK);
     }

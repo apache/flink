@@ -430,8 +430,15 @@ class TwoInputStreamTaskTest {
 
             testHarness.processAll();
 
+            // Filter out WatermarkStatus (e.g., FINISHED watermark status when task finishes),
+            // which is a task lifecycle signal (an implementation detail emitted by tasks when they
+            // finish), not part of the feature being tested. This test focuses on checkpoint
+            // barrier handling.
+            ConcurrentLinkedQueue<Object> actualOutput =
+                    TestHarnessUtil.filterOutWatermarkStatus(testHarness.getOutput());
+
             TestHarnessUtil.assertOutputEquals(
-                    "Output was not correct.", expectedOutput, testHarness.getOutput());
+                    "Output was not correct.", expectedOutput, actualOutput);
 
             // Then give the earlier barrier, these should be ignored
             testHarness.processEvent(
@@ -452,8 +459,12 @@ class TwoInputStreamTaskTest {
 
             testHarness.waitForTaskCompletion();
 
+            // Filter again for final comparison
+            ConcurrentLinkedQueue<Object> finalOutput =
+                    TestHarnessUtil.filterOutWatermarkStatus(testHarness.getOutput());
+
             TestHarnessUtil.assertOutputEquals(
-                    "Output was not correct.", expectedOutput, testHarness.getOutput());
+                    "Output was not correct.", expectedOutput, finalOutput);
         }
     }
 
