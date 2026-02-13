@@ -82,18 +82,26 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
                     username != null ? "username" : "password");
         }
 
-        LOG.info(
-                "Configured PrometheusPushGatewayReporter with {hostUrl:{}, jobName:{}, randomJobNameSuffix:{}, deleteOnShutdown:{}, groupingKey:{}, basicAuth:{}}",
-                hostUrl,
-                jobName,
-                randomSuffix,
-                deleteOnShutdown,
-                groupingKey,
-                username != null && password != null);
-
         try {
-            return new PrometheusPushGatewayReporter(
-                    new URL(hostUrl), jobName, groupingKey, deleteOnShutdown, username, password);
+            PrometheusPushGatewayReporter reporter =
+                    new PrometheusPushGatewayReporter(
+                            new URL(hostUrl),
+                            jobName,
+                            groupingKey,
+                            deleteOnShutdown,
+                            username,
+                            password);
+
+            LOG.info(
+                    "Configured PrometheusPushGatewayReporter with {hostUrl:{}, jobName:{}, randomJobNameSuffix:{}, deleteOnShutdown:{}, groupingKey:{}, basicAuth:{}}",
+                    hostUrl,
+                    jobName,
+                    randomSuffix,
+                    deleteOnShutdown,
+                    groupingKey,
+                    reporter.basicAuthEnabled);
+
+            return reporter;
         } catch (MalformedURLException e) {
             throw new RuntimeException(e);
         }
