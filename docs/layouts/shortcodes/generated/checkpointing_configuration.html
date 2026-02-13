@@ -87,6 +87,12 @@
             <td>Option whether to create incremental checkpoints, if possible. For an incremental checkpoint, only a diff from the previous checkpoint is stored, rather than the complete checkpoint state. Once enabled, the state size shown in web UI or fetched from rest API only represents the delta checkpoint size instead of full checkpoint size. Some state backends may not support incremental checkpoints and ignore this option.</td>
         </tr>
         <tr>
+            <td><h5>execution.checkpointing.initial-delay</h5></td>
+            <td style="word-wrap: break-word;">0 ms</td>
+            <td>Duration</td>
+            <td>The initial delay before the first checkpoint is triggered after the job starts. This is useful for jobs that need time to warm up or catch up with backlogs before performing the first checkpoint. If set to 0 (default), the initial delay will be randomly chosen between <code class="highlighter-rouge">execution.checkpointing.min-pause</code> and <code class="highlighter-rouge">execution.checkpointing.interval</code>. A small random jitter will be added to the configured value to avoid synchronized checkpoint triggers across multiple jobs.</td>
+        </tr>
+        <tr>
             <td><h5>execution.checkpointing.interval</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Duration</td>

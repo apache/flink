@@ -173,6 +173,12 @@ public class CheckpointCoordinator {
     private final long minPauseBetweenCheckpoints;
 
     /**
+     * The initial delay before the first checkpoint is triggered. If set to 0, the initial delay
+     * will be randomly chosen between minPauseBetweenCheckpoints and baseInterval.
+     */
+    private final long initialCheckpointDelay;
+
+    /**
      * The timer that handles the checkpoint timeouts and triggers periodic checkpoints. It must be
      * single-threaded. Eventually it will be replaced by main thread executor.
      */
@@ -348,6 +354,7 @@ public class CheckpointCoordinator {
         this.recoverOutputOnDownstreamTask = chkConfig.isRecoverOutputOnDownstreamTask();
         this.alignedCheckpointTimeout = chkConfig.getAlignedCheckpointTimeout();
         this.checkpointIdOfIgnoredInFlightData = chkConfig.getCheckpointIdOfIgnoredInFlightData();
+        this.initialCheckpointDelay = chkConfig.getInitialCheckpointDelay();
 
         this.recentExpiredCheckpoints = new ArrayDeque<>(NUM_GHOST_CHECKPOINT_IDS);
         this.masterHooks = new HashMap<>();
@@ -2118,6 +2125,13 @@ public class CheckpointCoordinator {
     }
 
     private long getRandomInitDelay() {
+        if (initialCheckpointDelay > 0) {
+            // Use configured initial delay with small random jitter to avoid
+            // synchronized checkpoint triggers across multiple jobs
+            long jitter = ThreadLocalRandom.current().nextLong(0, Math.min(baseInterval, 60_000L));
+            return initialCheckpointDelay + jitter;
+        }
+        // Fall back to original random behavior
         return ThreadLocalRandom.current().nextLong(minPauseBetweenCheckpoints, baseInterval + 1L);
     }
 
