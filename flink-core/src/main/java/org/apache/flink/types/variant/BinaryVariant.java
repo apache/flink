@@ -32,8 +32,10 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 import java.util.Objects;
 
 import static org.apache.flink.types.variant.BinaryVariantUtil.BINARY_SEARCH_THRESHOLD;
@@ -243,8 +245,29 @@ public final class BinaryVariant implements Variant {
     }
 
     @Override
+    public int getArraySize() throws VariantTypeException {
+        return handleArray(value, pos, (size, offsetSize, offsetStart, dataStart) -> size);
+    }
+
+    @Override
     public Variant getField(String fieldName) throws VariantTypeException {
         return getFieldByKey(fieldName);
+    }
+
+    @Override
+    public List<String> getFieldNames() throws VariantTypeException {
+        return handleObject(
+                value,
+                pos,
+                (size, idSize, offsetSize, idStart, offsetStart, dataStart) -> {
+                    List<String> fieldNames = new ArrayList<>(size);
+                    for (int i = 0; i < size; i++) {
+                        int id = readUnsigned(value, idStart + idSize * i, idSize);
+                        String fieldName = getMetadataKey(metadata, id);
+                        fieldNames.add(fieldName);
+                    }
+                    return fieldNames;
+                });
     }
 
     @Override
