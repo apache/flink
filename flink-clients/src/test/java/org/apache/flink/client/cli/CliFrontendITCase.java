@@ -21,6 +21,8 @@ package org.apache.flink.client.cli;
 import org.apache.flink.client.deployment.executors.LocalExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.StateRecoveryOptions;
+import org.apache.flink.core.execution.RecoveryClaimMode;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
@@ -84,6 +86,23 @@ class CliFrontendITCase {
     }
 
     @Test
+    void configurationRestoreMode() throws Exception {
+        Configuration config = new Configuration();
+        CustomCommandLine commandLine = new DefaultCLI();
+
+        config.set(StateRecoveryOptions.RESTORE_MODE, RecoveryClaimMode.CLAIM);
+
+        CliFrontend cliFrontend = new CliFrontend(config, Collections.singletonList(commandLine));
+
+        cliFrontend.parseAndRun(
+                new String[] {
+                    "run", "-c", TestingJob.class.getName(), CliFrontendTestUtils.getTestJarPath()
+                });
+
+        assertThat(getStdoutString()).contains("Restore mode is CLAIM");
+    }
+
+    @Test
     void commandlineOverridesConfiguration() throws Exception {
         Configuration config = new Configuration();
 
@@ -138,6 +157,9 @@ class CliFrontendITCase {
             StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
             System.out.println(
                     "Watermark interval is " + env.getConfig().getAutoWatermarkInterval());
+            System.out.println(
+                    "Restore mode is "
+                            + env.getConfiguration().get(StateRecoveryOptions.RESTORE_MODE));
         }
     }
 }
