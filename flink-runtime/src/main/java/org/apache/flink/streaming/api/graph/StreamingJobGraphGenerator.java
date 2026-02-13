@@ -48,6 +48,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroup;
 import org.apache.flink.runtime.jobgraph.forwardgroup.ForwardGroupComputeUtil;
 import org.apache.flink.runtime.jobgraph.forwardgroup.JobVertexForwardGroup;
+import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalPipelinedRegion;
 import org.apache.flink.runtime.jobgraph.topology.DefaultLogicalTopology;
@@ -535,6 +536,18 @@ public class StreamingJobGraphGenerator {
                     }
                 }
             }
+        }
+
+        if (checkpointConfig.isCheckpointingEnabled()
+                && checkpointConfig.getCheckpointIntervalDuringBacklog()
+                        == CheckpointCoordinatorConfiguration.DISABLED_CHECKPOINT_INTERVAL
+                && checkpointConfig.isPauseSourcesUntilFirstCheckpoint()) {
+            throw new IllegalArgumentException(
+                    "Pausing sources until first checkpoint is incompatible with disabling checkpoints during backlog processing. "
+                            + "Please review and choose whether you require "
+                            + CheckpointingOptions.PAUSE_SOURCES_UNTIL_FIRST_CHECKPOINT.key()
+                            + " or "
+                            + CheckpointingOptions.CHECKPOINTING_INTERVAL_DURING_BACKLOG.key());
         }
     }
 

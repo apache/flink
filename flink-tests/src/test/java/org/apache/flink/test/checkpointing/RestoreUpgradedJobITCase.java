@@ -53,6 +53,8 @@ import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava33.com.google.common.collect.Sets;
+
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -62,7 +64,7 @@ import org.junit.runners.Parameterized;
 
 import javax.annotation.Nonnull;
 
-import java.util.Iterator;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -376,18 +378,19 @@ public class RestoreUpgradedJobITCase extends TestLogger {
         @Override
         public void initializeState(FunctionInitializationContext context) throws Exception {
             super.initializeState(context);
-            Iterator<Integer> iterator = valueState.get().iterator();
+            Set<Integer> restoredIds = Sets.newHashSet(valueState.get().iterator());
 
             // id less than 0 represents operators which weren't presented in snapshot.
             if (id > 0) {
-                checkState(iterator.hasNext(), "Value state can not be empty.");
-                Integer state = iterator.next();
+                // use set to eliminate potential duplicates emitted by multiple checkpoints
+                checkState(restoredIds.size() == 1, "Value state can not be empty.");
                 checkState(
-                        id == state,
-                        String.format("Value state(%s) should be equal to id(%s).", state, id));
+                        id == restoredIds.iterator().next(),
+                        String.format(
+                                "Value state(%s) should be equal to id(%s).", restoredIds, id));
+            } else {
+                checkState(restoredIds.isEmpty(), "Value state should be empty.");
             }
-
-            checkState(!iterator.hasNext(), "Value state should be empty.");
         }
     }
 

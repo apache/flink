@@ -72,11 +72,13 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
                 reader,
                 watermarkStrategy,
                 timeService,
+                new Configuration(),
                 new MockOperatorEventGateway(),
                 1,
                 5,
                 emitProgressiveWatermarks,
-                supportsSplitReassignmentOnRecovery);
+                supportsSplitReassignmentOnRecovery,
+                false);
     }
 
     public TestingSourceOperator(
@@ -84,11 +86,13 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
             SourceReader<T, MockSourceSplit> reader,
             WatermarkStrategy<T> watermarkStrategy,
             ProcessingTimeService timeService,
+            Configuration configuration,
             OperatorEventGateway eventGateway,
             int subtaskIndex,
             int parallelism,
             boolean emitProgressiveWatermarks,
-            boolean supportsSplitReassignmentOnRecovery) {
+            boolean supportsSplitReassignmentOnRecovery,
+            boolean pauseSourcesUntilFirstCheckpoint) {
 
         super(
                 parameters,
@@ -97,12 +101,13 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
                 new MockSourceSplitSerializer(),
                 watermarkStrategy,
                 timeService,
-                new Configuration(),
+                configuration,
                 "localhost",
                 emitProgressiveWatermarks,
                 () -> false,
                 Collections.emptyMap(),
-                supportsSplitReassignmentOnRecovery);
+                supportsSplitReassignmentOnRecovery,
+                pauseSourcesUntilFirstCheckpoint);
 
         this.subtaskIndex = subtaskIndex;
         this.parallelism = parallelism;

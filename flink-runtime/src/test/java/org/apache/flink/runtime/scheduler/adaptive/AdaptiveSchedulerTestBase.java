@@ -88,12 +88,16 @@ public class AdaptiveSchedulerTestBase {
     }
 
     protected static JobGraph createJobGraphWithCheckpointing(final JobVertex... jobVertex) {
+        return createJobGraphWithCheckpointing(Duration.ofHours(1).toMillis(), jobVertex);
+    }
+
+    protected static JobGraph createJobGraphWithCheckpointing(
+            long checkpointInterval, final JobVertex... jobVertex) {
         final JobGraph jobGraph =
                 JobGraphBuilder.newStreamingJobGraphBuilder()
                         .addJobVertices(Arrays.asList(jobVertex))
                         .build();
-        SchedulerTestingUtils.enableCheckpointing(
-                jobGraph, null, null, Duration.ofHours(1).toMillis(), true);
+        SchedulerTestingUtils.enableCheckpointing(jobGraph, null, null, checkpointInterval, true);
         return jobGraph;
     }
 

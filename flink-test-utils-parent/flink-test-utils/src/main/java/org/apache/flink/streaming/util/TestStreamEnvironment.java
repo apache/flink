@@ -23,6 +23,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.execution.JobClient;
@@ -170,6 +171,8 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                         .noDefaultValue(),
                 true,
                 false);
+
+        randomize(conf, PipelineOptions.WATERMARK_ALIGNMENT_BUFFER_SIZE, 0, 1, 2);
 
         // randomize ITTests for enabling state change log
         // TODO: remove the file merging check after FLINK-32085
