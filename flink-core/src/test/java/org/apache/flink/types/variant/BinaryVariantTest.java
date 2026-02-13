@@ -113,6 +113,7 @@ class BinaryVariantTest {
         assertThat(variant.isPrimitive()).isFalse();
         assertThat(variant.isObject()).isFalse();
         assertThat(variant.getType()).isEqualTo(Variant.Type.ARRAY);
+        assertThat(variant.getArraySize()).isEqualTo(5);
 
         assertThat(variant.getElement(-1)).isNull();
         assertThat(variant.getElement(0).getInt()).isEqualTo(1);
@@ -144,12 +145,16 @@ class BinaryVariantTest {
         assertThat(variant.isPrimitive()).isFalse();
         assertThat(variant.isObject()).isTrue();
         assertThat(variant.getType()).isEqualTo(Variant.Type.OBJECT);
+        assertThat(variant.getFieldNames()).containsExactlyInAnyOrder("list", "object", "bb");
 
         assertThat(variant.getField("list").isArray()).isTrue();
+        assertThat(variant.getField("list").getArraySize()).isEqualTo(2);
         assertThat(variant.getField("list").getElement(0).getString()).isEqualTo("hello");
         assertThat(variant.getField("list").getElement(1).getInt()).isEqualTo(1);
 
         assertThat(variant.getField("object").isObject()).isTrue();
+        assertThat(variant.getField("object").getFieldNames())
+                .containsExactlyInAnyOrder("ss", "ff");
         assertThat(variant.getField("object").getField("ss").getShort()).isEqualTo((short) 1);
         assertThat(variant.getField("object").getField("ff").getFloat()).isEqualTo((10.0f));
 
