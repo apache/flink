@@ -16,18 +16,26 @@
  * limitations under the License.
  */
 
-package org.apache.flink.tests.util.cache;
+package org.apache.flink.tests.util;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+/**
+ * Resource lifecycle interface for end-to-end tests.
+ *
+ * <p>This interface provides hooks for resource setup and cleanup, allowing resources to
+ * differentiate between successful and failed tests in their cleanup methods.
+ *
+ * <p>This is a JUnit5-compatible version that does not extend TestRule.
+ */
+public interface ExternalResource {
 
-/** A {@link DownloadCacheFactory} for the {@link LolCache}. */
-public final class LolCacheFactory implements DownloadCacheFactory {
+    /** Called before the test execution. */
+    void before() throws Exception;
 
-    @Override
-    public DownloadCache create() throws IOException {
-        final Path tempDirectory = Files.createTempDirectory("flink-lol-cache-");
-        return new LolCache(tempDirectory);
+    /** Called after successful test execution. */
+    void afterTestSuccess();
+
+    /** Called after failed test execution. Defaults to calling {@link #afterTestSuccess()}. */
+    default void afterTestFailure() {
+        afterTestSuccess();
     }
 }

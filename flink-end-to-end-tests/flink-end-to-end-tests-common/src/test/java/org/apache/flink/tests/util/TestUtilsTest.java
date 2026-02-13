@@ -21,23 +21,23 @@ import org.apache.flink.tests.util.activation.OperatingSystemRestriction;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 /** Tests for {@link TestUtils}. */
 public class TestUtilsTest extends TestLogger {
 
-    @Rule public final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir Path temporaryFolder;
 
-    @BeforeClass
+    @BeforeAll
     public static void setupClass() {
         OperatingSystemRestriction.forbid(
                 "Symbolic links usually require special permissions on Windows.",
@@ -50,7 +50,7 @@ public class TestUtilsTest extends TestLogger {
             Paths.get("file1"), Paths.get("dir1", "file2"),
         };
 
-        Path source = temporaryFolder.newFolder("source").toPath();
+        Path source = Files.createDirectory(temporaryFolder.resolve("source"));
         for (Path file : files) {
             Files.createDirectories(source.resolve(file).getParent());
             Files.createFile(source.resolve(file));
@@ -63,7 +63,7 @@ public class TestUtilsTest extends TestLogger {
         TestUtils.copyDirectory(symbolicLink, target);
 
         for (Path file : files) {
-            Assert.assertTrue(Files.exists(target.resolve(file)));
+            assertTrue(Files.exists(target.resolve(file)));
         }
     }
 }
