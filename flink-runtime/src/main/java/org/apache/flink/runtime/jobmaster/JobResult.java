@@ -75,8 +75,8 @@ public class JobResult implements Serializable {
 
         checkArgument(netRuntime >= 0, "netRuntime must be greater than or equals 0");
         checkArgument(
-                jobStatus == null || jobStatus.isGloballyTerminalState(),
-                "jobStatus must be globally terminal or unknow(null)");
+                jobStatus == null || jobStatus.isTerminalState(),
+                "jobStatus must be terminal or null");
 
         this.jobId = requireNonNull(jobId);
         this.jobStatus = jobStatus;
@@ -147,12 +147,27 @@ public class JobResult implements Serializable {
                 exception = new JobExecutionException(jobId, "Job execution failed.", cause);
             } else if (jobStatus == JobStatus.CANCELED) {
                 exception = new JobCancellationException(jobId, "Job was cancelled.", cause);
-            } else {
+            } else if (jobStatus == JobStatus.SUSPENDED) {
                 exception =
                         new JobExecutionException(
                                 jobId,
-                                "Job completed with illegal status: " + jobStatus + '.',
+                                "Job is in state SUSPENDED. This commonly happens when the "
+                                        + "JobManager lost leadership. The job may recover "
+                                        + "automatically if High Availability and a persistent "
+                                        + "job store are configured. If recovery is not possible "
+                                        + "(e.g., non-persistent ExecutionPlanStore), the job "
+                                        + "needs to be resubmitted.",
                                 cause);
+            } else {
+                final String statusMessage =
+                        jobStatus != null
+                                ? "Job completed with unexpected status: " + jobStatus
+                                : "Job completed with unknown status";
+                final String message =
+                        cause != null
+                                ? statusMessage + "."
+                                : statusMessage + " (no cause provided).";
+                exception = new JobExecutionException(jobId, message, cause);
             }
 
             throw exception;
@@ -234,7 +249,8 @@ public class JobResult implements Serializable {
         final JobResult.Builder builder = new JobResult.Builder();
         builder.jobId(jobId);
 
-        builder.jobStatus(jobStatus.isGloballyTerminalState() ? jobStatus : null);
+        // Store the actual terminal status (including locally terminal states like SUSPENDED)
+        builder.jobStatus(jobStatus);
 
         final long netRuntime =
                 accessExecutionGraph.getStatusTimestamp(jobStatus)
@@ -249,6 +265,12 @@ public class JobResult implements Serializable {
             checkNotNull(errorInfo, "No root cause is found for the job failure.");
 
             builder.serializedThrowable(errorInfo.getException());
+        } else if (jobStatus == JobStatus.SUSPENDED) {
+            // SUSPENDED jobs may or may not have a failure cause
+            final ErrorInfo errorInfo = accessExecutionGraph.getFailureInfo();
+            if (errorInfo != null) {
+                builder.serializedThrowable(errorInfo.getException());
+            }
         }
 
         return builder.build();
