@@ -98,6 +98,8 @@ export interface VerticesItem {
   duration: number;
   tasks: TasksStatus;
   metrics: MetricsStatus;
+  slotSharingGroupId?: string | null;
+  slotSharingGroupName?: string | null;
 }
 
 export interface VerticesItemRange extends VerticesItem {
