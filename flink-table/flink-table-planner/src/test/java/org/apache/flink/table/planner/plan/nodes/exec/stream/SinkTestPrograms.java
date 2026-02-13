@@ -89,46 +89,47 @@ public class SinkTestPrograms {
                             "INSERT INTO sink_t SELECT UPPER(name), SUM(score) FROM source_t GROUP BY name")
                     .build();
 
-    // --- ON CONFLICT validation tests ---
+    // --- ON CONFLICT tests ---
 
-    public static final TableTestProgram ON_CONFLICT_DO_NOTHING_NOT_SUPPORTED =
+    public static final TableTestProgram ON_CONFLICT_DO_NOTHING_KEEPS_FIRST =
             TableTestProgram.of(
-                            "sink-on-conflict-do-nothing-not-supported",
-                            "ON CONFLICT DO NOTHING is not yet supported and should throw ValidationException.")
+                            "sink-on-conflict-do-nothing-keeps-first",
+                            "ON CONFLICT DO NOTHING keeps the first record when multiple records have the same PK.")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
                                     .addSchema("a INT", "b BIGINT")
                                     .addOption("changelog-mode", "I")
-                                    .producedValues(Row.ofKind(RowKind.INSERT, 1, 1L))
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 10L),
+                                            Row.ofKind(RowKind.INSERT, 1, 20L),
+                                            Row.ofKind(RowKind.INSERT, 2, 30L))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
                                     .addSchema("a INT PRIMARY KEY NOT ENFORCED", "b BIGINT")
+                                    .consumedValues("+I[1, 10]", "+I[2, 30]")
                                     .build())
-                    .runFailingSql(
-                            "INSERT INTO sink_t SELECT a, b FROM source_t ON CONFLICT DO NOTHING",
-                            ValidationException.class,
-                            "ON CONFLICT DO NOTHING is not yet supported")
+                    .runSql("INSERT INTO sink_t SELECT a, b FROM source_t ON CONFLICT DO NOTHING")
                     .build();
 
-    public static final TableTestProgram ON_CONFLICT_DO_ERROR_NOT_SUPPORTED =
+    public static final TableTestProgram ON_CONFLICT_DO_ERROR_NO_CONFLICT =
             TableTestProgram.of(
-                            "sink-on-conflict-do-error-not-supported",
-                            "ON CONFLICT DO ERROR is not yet supported and should throw ValidationException.")
+                            "sink-on-conflict-do-error-no-conflict",
+                            "ON CONFLICT DO ERROR with no conflicts passes through all records.")
                     .setupTableSource(
                             SourceTestStep.newBuilder("source_t")
                                     .addSchema("a INT", "b BIGINT")
                                     .addOption("changelog-mode", "I")
-                                    .producedValues(Row.ofKind(RowKind.INSERT, 1, 1L))
+                                    .producedValues(
+                                            Row.ofKind(RowKind.INSERT, 1, 10L),
+                                            Row.ofKind(RowKind.INSERT, 2, 20L))
                                     .build())
                     .setupTableSink(
                             SinkTestStep.newBuilder("sink_t")
                                     .addSchema("a INT PRIMARY KEY NOT ENFORCED", "b BIGINT")
+                                    .consumedValues("+I[1, 10]", "+I[2, 20]")
                                     .build())
-                    .runFailingSql(
-                            "INSERT INTO sink_t SELECT a, b FROM source_t ON CONFLICT DO ERROR",
-                            ValidationException.class,
-                            "ON CONFLICT DO ERROR is not yet supported")
+                    .runSql("INSERT INTO sink_t SELECT a, b FROM source_t ON CONFLICT DO ERROR")
                     .build();
 
     public static final TableTestProgram UPSERT_KEY_DIFFERS_FROM_PK_WITHOUT_ON_CONFLICT =

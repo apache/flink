@@ -1076,38 +1076,30 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
         case UpsertMaterialize.FORCE => primaryKeys.nonEmpty && !sinkIsRetract
         case UpsertMaterialize.NONE => false
         case UpsertMaterialize.AUTO =>
-          if (
-            (inputIsAppend && InsertConflictStrategy
-              .deduplicate()
-              .equals(sink.conflictStrategy)) || sinkIsAppend || sinkIsRetract
-          ) {
+          // if the sink is not an UPSERT sink (has no PK, or is an APPEND or RETRACT sink)
+          // we don't need to materialize results
+          if (primaryKeys.isEmpty || sinkIsAppend || sinkIsRetract) {
             return false
           }
-          if (primaryKeys.isEmpty) {
+
+          // For a DEDUPLICATE strategy and INSERT only input, we simply let the inserts be handled
+          // as UPSERT_AFTER and overwrite previous value
+          if (inputIsAppend && sink.isDeduplicateConflictStrategy) {
             return false
           }
-          val pks = ImmutableBitSet.of(primaryKeys: _*)
-          val fmq = FlinkRelMetadataQuery.reuseOrCreate(sink.getCluster.getMetadataQuery)
-          val changeLogUpsertKeys = fmq.getUpsertKeys(sink.getInput)
-          // if input has updates and primary key != upsert key (upsert key can be null) we should
-          // enable upsertMaterialize. An optimize is: do not enable upsertMaterialize when sink
-          // pk(s) contains input changeLogUpsertKeys
-          val upsertKeyDiffersFromPk =
-            changeLogUpsertKeys == null || !changeLogUpsertKeys.exists(pks.contains)
+
+          // if input has updates and primary key != upsert key  we should enable upsertMaterialize.
+          //
+          // An optimize is: do not enable upsertMaterialize when sink pk(s) contains input
+          // changeLogUpsertKeys
+          val upsertKeyDiffersFromPk = !sink.primaryKeysContainsUpsertKey
 
           // Validate that ON CONFLICT is specified when upsert key differs from primary key
           val requireOnConflict =
             tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_SINK_REQUIRE_ON_CONFLICT)
           if (requireOnConflict && upsertKeyDiffersFromPk && sink.conflictStrategy == null) {
-            val fieldNames = sink.contextResolvedTable.getResolvedSchema.getColumnNames
-            val pkNames = primaryKeys.map(fieldNames.get(_)).mkString("[", ", ", "]")
-            val upsertKeyNames = if (changeLogUpsertKeys == null) {
-              "none"
-            } else {
-              changeLogUpsertKeys
-                .map(uk => uk.toArray.map(fieldNames.get(_)).mkString("[", ", ", "]"))
-                .mkString(", ")
-            }
+            val pkNames = sink.getPrimaryKeyNames
+            val upsertKeyNames = sink.getUpsertKeyNames
             throw new ValidationException(
               "The query has an upsert key that differs from the primary key of the sink table " +
                 s"'${sink.contextResolvedTable.getIdentifier.asSummaryString}'. " +
