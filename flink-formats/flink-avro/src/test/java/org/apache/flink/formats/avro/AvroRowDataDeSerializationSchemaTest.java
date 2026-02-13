@@ -425,4 +425,277 @@ class AvroRowDataDeSerializationSchemaTest {
         deserializationSchema.open(null);
         return deserializationSchema;
     }
+
+    private AvroRowDataDeserializationSchema createDeserializationSchemaWithFastRead(
+            DataType dataType, AvroEncoding encoding, boolean legacyTimestampMapping)
+            throws Exception {
+        final RowType rowType = (RowType) dataType.getLogicalType();
+        final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(rowType);
+
+        AvroRowDataDeserializationSchema deserializationSchema =
+                new AvroRowDataDeserializationSchema(
+                        rowType, rowType, typeInfo, encoding, legacyTimestampMapping, true, null);
+        deserializationSchema.open(null);
+        return deserializationSchema;
+    }
+
+    private AvroRowDataDeserializationSchema createDeserializationSchemaWithColumnPruning(
+            RowType actualRowType,
+            RowType projectedRowType,
+            AvroEncoding encoding,
+            boolean legacyTimestampMapping)
+            throws Exception {
+        final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(projectedRowType);
+
+        AvroRowDataDeserializationSchema deserializationSchema =
+                new AvroRowDataDeserializationSchema(
+                        actualRowType,
+                        projectedRowType,
+                        typeInfo,
+                        encoding,
+                        legacyTimestampMapping,
+                        false,
+                        null);
+        deserializationSchema.open(null);
+        return deserializationSchema;
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testFastReadEnabled(AvroEncoding encoding) throws Exception {
+        final DataType dataType =
+                ROW(FIELD("name", STRING()), FIELD("age", INT()), FIELD("score", DOUBLE()))
+                        .notNull();
+        final RowType rowType = (RowType) dataType.getLogicalType();
+
+        final Schema schema = AvroSchemaConverter.convertToSchema(rowType);
+        final GenericRecord record = new GenericData.Record(schema);
+        record.put(0, "Alice");
+        record.put(1, 30);
+        record.put(2, 95.5);
+
+        AvroRowDataDeserializationSchema deserializationSchema =
+                createDeserializationSchemaWithFastRead(dataType, encoding, true);
+
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(schema);
+        Encoder encoder = createEncoder(encoding, schema, byteArrayOutputStream);
+        datumWriter.write(record, encoder);
+        encoder.flush();
+        byte[] input = byteArrayOutputStream.toByteArray();
+
+        RowData rowData = deserializationSchema.deserialize(input);
+
+        assertThat(rowData).isNotNull();
+        assertThat(rowData.getString(0).toString()).isEqualTo("Alice");
+        assertThat(rowData.getInt(1)).isEqualTo(30);
+        assertThat(rowData.getDouble(2)).isEqualTo(95.5);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testColumnPruning(AvroEncoding encoding) throws Exception {
+        // Create a full schema with 5 fields
+        final DataType fullDataType =
+                ROW(
+                                FIELD("id", BIGINT()),
+                                FIELD("name", STRING()),
+                                FIELD("age", INT()),
+                                FIELD("email", STRING()),
+                                FIELD("score", DOUBLE()))
+                        .notNull();
+        final RowType fullRowType = (RowType) fullDataType.getLogicalType();
+
+        // Create a projected schema with only 3 fields (id, name, score)
+        final DataType projectedDataType =
+                ROW(FIELD("id", BIGINT()), FIELD("name", STRING()), FIELD("score", DOUBLE()))
+                        .notNull();
+        final RowType projectedRowType = (RowType) projectedDataType.getLogicalType();
+
+        final Schema fullSchema = AvroSchemaConverter.convertToSchema(fullRowType);
+        final GenericRecord record = new GenericData.Record(fullSchema);
+        record.put(0, 123L);
+        record.put(1, "Bob");
+        record.put(2, 25);
+        record.put(3, "bob@example.com");
+        record.put(4, 88.5);
+
+        AvroRowDataDeserializationSchema deserializationSchema =
+                createDeserializationSchemaWithColumnPruning(
+                        fullRowType, projectedRowType, encoding, true);
+
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(fullSchema);
+        Encoder encoder = createEncoder(encoding, fullSchema, byteArrayOutputStream);
+        datumWriter.write(record, encoder);
+        encoder.flush();
+        byte[] input = byteArrayOutputStream.toByteArray();
+
+        RowData rowData = deserializationSchema.deserialize(input);
+
+        // Verify only the projected fields are present
+        assertThat(rowData).isNotNull();
+        assertThat(rowData.getArity()).isEqualTo(3);
+        assertThat(rowData.getLong(0)).isEqualTo(123L);
+        assertThat(rowData.getString(1).toString()).isEqualTo("Bob");
+        assertThat(rowData.getDouble(2)).isEqualTo(88.5);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testColumnPruningWithNestedTypes(AvroEncoding encoding) throws Exception {
+        // Create a full schema with nested types
+        final DataType fullDataType =
+                ROW(
+                                FIELD("id", BIGINT()),
+                                FIELD("name", STRING()),
+                                FIELD("tags", ARRAY(STRING())),
+                                FIELD("metadata", MAP(STRING(), STRING())),
+                                FIELD("score", DOUBLE()))
+                        .notNull();
+        final RowType fullRowType = (RowType) fullDataType.getLogicalType();
+
+        // Project only id, tags, and score
+        final DataType projectedDataType =
+                ROW(FIELD("id", BIGINT()), FIELD("tags", ARRAY(STRING())), FIELD("score", DOUBLE()))
+                        .notNull();
+        final RowType projectedRowType = (RowType) projectedDataType.getLogicalType();
+
+        final Schema fullSchema = AvroSchemaConverter.convertToSchema(fullRowType);
+        final GenericRecord record = new GenericData.Record(fullSchema);
+        record.put(0, 456L);
+        record.put(1, "Charlie");
+        record.put(2, Arrays.asList("tag1", "tag2", "tag3"));
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("key1", "value1");
+        record.put(3, metadata);
+        record.put(4, 92.0);
+
+        AvroRowDataDeserializationSchema deserializationSchema =
+                createDeserializationSchemaWithColumnPruning(
+                        fullRowType, projectedRowType, encoding, true);
+
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(fullSchema);
+        Encoder encoder = createEncoder(encoding, fullSchema, byteArrayOutputStream);
+        datumWriter.write(record, encoder);
+        encoder.flush();
+        byte[] input = byteArrayOutputStream.toByteArray();
+
+        RowData rowData = deserializationSchema.deserialize(input);
+
+        assertThat(rowData).isNotNull();
+        assertThat(rowData.getArity()).isEqualTo(3);
+        assertThat(rowData.getLong(0)).isEqualTo(456L);
+        assertThat(rowData.getArray(1).size()).isEqualTo(3);
+        assertThat(rowData.getDouble(2)).isEqualTo(92.0);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testFastReadWithColumnPruning(AvroEncoding encoding) throws Exception {
+        // Test both features together
+        final DataType fullDataType =
+                ROW(
+                                FIELD("id", BIGINT()),
+                                FIELD("name", STRING()),
+                                FIELD("age", INT()),
+                                FIELD("score", DOUBLE()))
+                        .notNull();
+        final RowType fullRowType = (RowType) fullDataType.getLogicalType();
+
+        final DataType projectedDataType =
+                ROW(FIELD("id", BIGINT()), FIELD("score", DOUBLE())).notNull();
+        final RowType projectedRowType = (RowType) projectedDataType.getLogicalType();
+
+        final Schema fullSchema = AvroSchemaConverter.convertToSchema(fullRowType);
+        final GenericRecord record = new GenericData.Record(fullSchema);
+        record.put(0, 789L);
+        record.put(1, "David");
+        record.put(2, 35);
+        record.put(3, 87.3);
+
+        final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(projectedRowType);
+        AvroRowDataDeserializationSchema deserializationSchema =
+                new AvroRowDataDeserializationSchema(
+                        fullRowType, projectedRowType, typeInfo, encoding, true, true, null);
+        deserializationSchema.open(null);
+
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(fullSchema);
+        Encoder encoder = createEncoder(encoding, fullSchema, byteArrayOutputStream);
+        datumWriter.write(record, encoder);
+        encoder.flush();
+        byte[] input = byteArrayOutputStream.toByteArray();
+
+        RowData rowData = deserializationSchema.deserialize(input);
+
+        assertThat(rowData).isNotNull();
+        assertThat(rowData.getArity()).isEqualTo(2);
+        assertThat(rowData.getLong(0)).isEqualTo(789L);
+        assertThat(rowData.getDouble(1)).isEqualTo(87.3);
+    }
+
+    @ParameterizedTest
+    @EnumSource(AvroEncoding.class)
+    void testWriterSchemaString(AvroEncoding encoding) throws Exception {
+        // Full schema with 3 fields
+        final DataType fullDataType =
+                ROW(FIELD("id", BIGINT()), FIELD("name", STRING()), FIELD("score", DOUBLE()))
+                        .notNull();
+        final RowType fullRowType = (RowType) fullDataType.getLogicalType();
+        final Schema fullSchema = AvroSchemaConverter.convertToSchema(fullRowType);
+
+        // Projected schema with 2 fields (id, score)
+        final DataType projectedDataType =
+                ROW(FIELD("id", BIGINT()), FIELD("score", DOUBLE())).notNull();
+        final RowType projectedRowType = (RowType) projectedDataType.getLogicalType();
+
+        final GenericRecord record = new GenericData.Record(fullSchema);
+        record.put(0, 101L);
+        record.put(1, "Eve");
+        record.put(2, 99.0);
+
+        final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(projectedRowType);
+        // Use fullSchema.toString() as writerSchemaString
+        AvroRowDataDeserializationSchema deserializationSchema =
+                new AvroRowDataDeserializationSchema(
+                        fullRowType,
+                        projectedRowType,
+                        typeInfo,
+                        encoding,
+                        true,
+                        false,
+                        fullSchema.toString());
+        deserializationSchema.open(null);
+
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        GenericDatumWriter<IndexedRecord> datumWriter = new GenericDatumWriter<>(fullSchema);
+        Encoder encoder = createEncoder(encoding, fullSchema, byteArrayOutputStream);
+        datumWriter.write(record, encoder);
+        encoder.flush();
+        byte[] input = byteArrayOutputStream.toByteArray();
+
+        RowData rowData = deserializationSchema.deserialize(input);
+
+        assertThat(rowData).isNotNull();
+        assertThat(rowData.getArity()).isEqualTo(2);
+        assertThat(rowData.getLong(0)).isEqualTo(101L);
+        assertThat(rowData.getDouble(1)).isEqualTo(99.0);
+    }
+
+    @Test
+    void testSerializability() throws Exception {
+        final DataType dataType = ROW(FIELD("name", STRING()), FIELD("age", INT())).notNull();
+        final RowType rowType = (RowType) dataType.getLogicalType();
+        final TypeInformation<RowData> typeInfo = InternalTypeInfo.of(rowType);
+
+        AvroRowDataDeserializationSchema original =
+                new AvroRowDataDeserializationSchema(
+                        rowType, rowType, typeInfo, AvroEncoding.BINARY, true, true, null);
+
+        AvroRowDataDeserializationSchema deserialized = InstantiationUtil.clone(original);
+
+        assertThat(deserialized).isNotNull();
+    }
 }
