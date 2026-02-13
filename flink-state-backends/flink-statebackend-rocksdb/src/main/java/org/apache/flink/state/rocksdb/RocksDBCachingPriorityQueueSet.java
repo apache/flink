@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.heap.AbstractHeapPriorityQueueElement;
 import org.apache.flink.runtime.state.heap.HeapPriorityQueueElement;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.StringUtils;
 
 import org.apache.flink.shaded.guava33.com.google.common.primitives.UnsignedBytes;
 
@@ -369,10 +370,32 @@ public class RocksDBCachingPriorityQueueSet<E extends HeapPriorityQueueElement>
     private E deserializeElement(@Nonnull byte[] bytes) {
         try {
             final int numPrefixBytes = groupPrefixBytes.length;
-            inputView.setBuffer(bytes, numPrefixBytes, bytes.length - numPrefixBytes);
+            final int payloadLength = bytes.length - numPrefixBytes;
+            if (payloadLength <= 0) {
+                throw new IOException(
+                        String.format(
+                                "No payload bytes to deserialize: total bytes=%d, prefix bytes=%d",
+                                bytes.length, numPrefixBytes));
+            }
+            inputView.setBuffer(bytes, numPrefixBytes, payloadLength);
             return byteOrderProducingSerializer.deserialize(inputView);
         } catch (IOException e) {
-            throw new FlinkRuntimeException("Error while deserializing the element.", e);
+            final int numPrefixBytes = groupPrefixBytes.length;
+            final int payloadLength = bytes.length - numPrefixBytes;
+            final String hexDump =
+                    StringUtils.byteToHexString(bytes, 0, Math.min(bytes.length, 128));
+            throw new FlinkRuntimeException(
+                    String.format(
+                            "Error while deserializing the element. "
+                                    + "Total bytes=%d, prefix bytes=%d, payload bytes=%d, "
+                                    + "hex dump (first 128 bytes)=[%s]. "
+                                    + "This may indicate that data from a different state type "
+                                    + "was incorrectly written to this column family during restore.",
+                            bytes.length,
+                            numPrefixBytes,
+                            payloadLength,
+                            hexDump),
+                    e);
         }
     }
 

@@ -51,6 +51,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /** Encapsulates the process of restoring a RocksDB instance from a full snapshot. */
 public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
@@ -132,7 +133,7 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
         }
 
         try (ThrowingIterator<KeyGroup> keyGroups = savepointRestoreResult.getRestoredKeyGroups()) {
-            restoreKVStateData(keyGroups, columnFamilyHandles);
+            restoreKVStateData(keyGroups, columnFamilyHandles, restoredMetaInfos);
         }
     }
 
@@ -141,7 +142,9 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
      * handle.
      */
     private void restoreKVStateData(
-            ThrowingIterator<KeyGroup> keyGroups, Map<Integer, ColumnFamilyHandle> columnFamilies)
+            ThrowingIterator<KeyGroup> keyGroups,
+            Map<Integer, ColumnFamilyHandle> columnFamilies,
+            List<StateMetaInfoSnapshot> restoredMetaInfos)
             throws IOException, RocksDBException, StateMigrationException {
         // for all key-groups in the current state handle...
         try (RocksDBWriteBatchWrapper writeBatchWrapper =
@@ -160,6 +163,29 @@ public class RocksDBFullRestoreOperation<K> implements RocksDBRestoreOperation {
                         if (kvStateId != oldKvStateId) {
                             oldKvStateId = kvStateId;
                             handle = columnFamilies.get(kvStateId);
+                            if (handle == null) {
+                                String registeredStates =
+                                        restoredMetaInfos.stream()
+                                                .map(
+                                                        meta ->
+                                                                meta.getName()
+                                                                        + "("
+                                                                        + meta
+                                                                                .getBackendStateType()
+                                                                        + ")")
+                                                .collect(Collectors.joining(", "));
+                                throw new IllegalStateException(
+                                        String.format(
+                                                "Could not find column family handle for state id %d "
+                                                        + "during full snapshot restore. Total registered "
+                                                        + "states: %d [%s]. This indicates data corruption "
+                                                        + "in the checkpoint stream -- a kvStateId references "
+                                                        + "a state that was not registered in the snapshot "
+                                                        + "metadata.",
+                                                kvStateId,
+                                                restoredMetaInfos.size(),
+                                                registeredStates));
+                            }
                         }
                         writeBatchWrapper.put(handle, groupEntry.getKey(), groupEntry.getValue());
                     }
