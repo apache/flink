@@ -18,26 +18,22 @@
 
 package org.apache.flink.streaming.runtime.operators.sink.committables;
 
-import org.apache.flink.metrics.groups.SinkCommitterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.MetricsGroupTestUtils;
+import org.apache.flink.runtime.metrics.groups.utils.GaugeSetInvocationTrackingSinkCommitterMetricGroup;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 class CommittableCollectorTest {
-    private static final SinkCommitterMetricGroup METRIC_GROUP =
-            spy(MetricsGroupTestUtils.mockCommitterMetricGroup());
+    private static final GaugeSetInvocationTrackingSinkCommitterMetricGroup METRIC_GROUP =
+            MetricsGroupTestUtils.mockGaugeSetInvocationTrackingCommitterMetricGroup();
 
     @BeforeEach
-    void setUp() {
-        Mockito.reset(METRIC_GROUP);
+    public void setUp() {
+        METRIC_GROUP.resetGaugeCallCount();
     }
 
     @Test
@@ -54,16 +50,14 @@ class CommittableCollectorTest {
     }
 
     @Test
-    void testCopyCommittableCollectorDoesNotTriggerMetricUpdates() {
+    void testSetPendingGaugeNotCalledOnCopy() {
         final CommittableCollector<Integer> committableCollector =
                 new CommittableCollector<>(METRIC_GROUP, true);
 
-        // before
-        verify(METRIC_GROUP, times(1)).setCurrentPendingCommittablesGauge(Mockito.any());
+        assertThat(METRIC_GROUP.getGaugeCallCount()).isEqualTo(1);
 
         committableCollector.copy();
 
-        // after
-        verify(METRIC_GROUP, times(1)).setCurrentPendingCommittablesGauge(Mockito.any());
+        assertThat(METRIC_GROUP.getGaugeCallCount()).isEqualTo(1);
     }
 }

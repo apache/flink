@@ -21,6 +21,7 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
+import org.apache.flink.runtime.metrics.groups.utils.GaugeSetInvocationTrackingSinkCommitterMetricGroup;
 
 /** Util class to create metric groups for SinkV2 tests. */
 public class MetricsGroupTestUtils {
@@ -43,6 +44,13 @@ public class MetricsGroupTestUtils {
 
     public static InternalSinkCommitterMetricGroup mockCommitterMetricGroup() {
         return new InternalSinkCommitterMetricGroup(
+                new UnregisteredMetricsGroup(),
+                UnregisteredMetricsGroup.createOperatorIOMetricGroup());
+    }
+
+    public static GaugeSetInvocationTrackingSinkCommitterMetricGroup
+            mockGaugeSetInvocationTrackingCommitterMetricGroup() {
+        return new GaugeSetInvocationTrackingSinkCommitterMetricGroup(
                 new UnregisteredMetricsGroup(),
                 UnregisteredMetricsGroup.createOperatorIOMetricGroup());
     }
