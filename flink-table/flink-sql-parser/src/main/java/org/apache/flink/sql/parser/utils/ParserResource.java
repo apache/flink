@@ -57,8 +57,9 @@ public interface ParserResource {
             "Columns identifiers without types in the schema are supported on CTAS/RTAS statements only.")
     Resources.ExInst<ParseException> columnsIdentifiersUnsupported();
 
-    @Resources.BaseMessage("CREATE FUNCTION USING JAR syntax is not applicable to {0} language.")
-    Resources.ExInst<ParseException> createFunctionUsingJar(String language);
+    @Resources.BaseMessage(
+            "CREATE FUNCTION USING JAR/ARTIFACT syntax is not applicable to {0} language.")
+    Resources.ExInst<ParseException> createFunctionUsingJarOrArtifact(String language);
 
     @Resources.BaseMessage("WITH DRAIN could only be used after WITH SAVEPOINT.")
     Resources.ExInst<ParseException> withDrainOnlyUsedWithSavepoint();

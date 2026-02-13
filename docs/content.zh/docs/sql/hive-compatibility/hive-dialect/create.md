@@ -212,7 +212,7 @@ CREATE TEMPORARY MACRO simple_add (x int, y int) x + y;
 #### Create Temporary Function
 
 ```sql
-CREATE TEMPORARY FUNCTION function_name AS class_name [USING JAR 'file_uri'];
+CREATE TEMPORARY FUNCTION function_name AS class_name [USING JAR|ARTIFACT 'file_uri'];
 ```
 
 The function exists for the duration of the current session.
@@ -221,12 +221,12 @@ The function exists for the duration of the current session.
 
 ```sql
 CREATE FUNCTION [db_name.]function_name AS class_name
-  [USING JAR 'file_uri'];
+  [USING JAR|ARTIFACT 'file_uri'];
 ```
 The function is registered to metastore and will exist in all session unless the function is dropped.
 
 ### Parameter
-- `[USING JAR 'file_uri']`
+- `[USING JAR|ARTIFACT 'file_uri']`
 
   User can use the clause to add Jar that contains the implementation of the function along with its dependencies while creating the function.
   The `file_uri` can be on local file or distributed file system.
