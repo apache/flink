@@ -20,6 +20,7 @@ package org.apache.flink.table.runtime.operators.join.stream.keyselector;
 
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.runtime.typeutils.RowDataSerializer;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.utils.NoCommonJoinKeyException;
@@ -285,23 +286,27 @@ public class AttributeBasedJoinKeyExtractor implements JoinKeyExtractor, Seriali
         }
 
         final GenericRowData keyRow = new GenericRowData(keyExtractors.size());
+        final LogicalType[] types = new LogicalType[keyExtractors.size()];
         for (int i = 0; i < keyExtractors.size(); i++) {
+            types[i] = keyExtractors.get(i).fieldType;
             keyRow.setField(i, keyExtractors.get(i).getLeftSideKey(joinedRowData));
         }
-        return keyRow;
+        return new RowDataSerializer(types).toBinaryRow(keyRow);
     }
 
-    private GenericRowData buildKeyRowFromSourceRow(
+    private RowData buildKeyRowFromSourceRow(
             final RowData sourceRow, final List<KeyExtractor> keyExtractors) {
         if (keyExtractors.isEmpty()) {
             return null;
         }
 
         final GenericRowData keyRow = new GenericRowData(keyExtractors.size());
+        final LogicalType[] types = new LogicalType[keyExtractors.size()];
         for (int i = 0; i < keyExtractors.size(); i++) {
+            types[i] = keyExtractors.get(i).fieldType;
             keyRow.setField(i, keyExtractors.get(i).getRightSideKey(sourceRow));
         }
-        return keyRow;
+        return new RowDataSerializer(types).toBinaryRow(keyRow);
     }
 
     private RowType buildJoinKeyType(final int inputId, final List<KeyExtractor> keyExtractors) {
