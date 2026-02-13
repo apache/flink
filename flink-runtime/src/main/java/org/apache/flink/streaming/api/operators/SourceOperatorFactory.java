@@ -28,6 +28,7 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SupportsSplitReassignmentOnRecovery;
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -130,7 +131,15 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                         emitProgressiveWatermarks,
                         parameters.getContainingTask().getCanEmitBatchOfRecords(),
                         getSourceWatermarkDeclarations(),
-                        source instanceof SupportsSplitReassignmentOnRecovery);
+                        source instanceof SupportsSplitReassignmentOnRecovery,
+                        CheckpointingOptions.isCheckpointingEnabled(
+                                        parameters.getContainingTask().getJobConfiguration())
+                                && parameters
+                                        .getContainingTask()
+                                        .getJobConfiguration()
+                                        .get(
+                                                CheckpointingOptions
+                                                        .PAUSE_SOURCES_UNTIL_FIRST_CHECKPOINT));
 
         parameters.getOperatorEventDispatcher().registerEventHandler(operatorId, sourceOperator);
 
@@ -202,7 +211,8 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                     boolean emitProgressiveWatermarks,
                     CanEmitBatchOfRecordsChecker canEmitBatchOfRecords,
                     Collection<? extends WatermarkDeclaration> watermarkDeclarations,
-                    boolean supportsSplitReassignmentOnRecovery) {
+                    boolean supportsSplitReassignmentOnRecovery,
+                    boolean pauseSourcesUntilFirstCheckpoint) {
 
         // jumping through generics hoops: cast the generics away to then cast them back more
         // strictly typed
@@ -235,6 +245,7 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
                 emitProgressiveWatermarks,
                 canEmitBatchOfRecords,
                 watermarkIsAlignedMap,
-                supportsSplitReassignmentOnRecovery);
+                supportsSplitReassignmentOnRecovery,
+                pauseSourcesUntilFirstCheckpoint);
     }
 }

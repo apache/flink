@@ -100,6 +100,7 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                         1,
                         5,
                         true,
+                        false,
                         false);
         operator.initializeState(
                 new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));
@@ -549,6 +550,7 @@ class SourceOperatorSplitWatermarkAlignmentTest {
                         1,
                         5,
                         true,
+                        false,
                         false);
         operator.initializeState(
                 new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));

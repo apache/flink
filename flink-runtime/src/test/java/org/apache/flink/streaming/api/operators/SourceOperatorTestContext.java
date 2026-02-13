@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.MockOperatorEventGateway;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
@@ -50,6 +51,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 import static org.apache.flink.util.Preconditions.checkState;
 
@@ -64,18 +66,29 @@ public class SourceOperatorTestContext implements AutoCloseable {
     private MockOperatorEventGateway mockGateway;
     private TestProcessingTimeService timeService;
     private SourceOperator<Integer, MockSourceSplit> operator;
+    public Output<StreamRecord<Integer>> output;
 
     public SourceOperatorTestContext() throws Exception {
-        this(false);
+        this(false, false);
     }
 
-    public SourceOperatorTestContext(boolean idle) throws Exception {
-        this(idle, WatermarkStrategy.noWatermarks());
-    }
-
-    public SourceOperatorTestContext(boolean idle, WatermarkStrategy<Integer> watermarkStrategy)
+    public SourceOperatorTestContext(boolean idle, boolean pauseSourcesUntilFirstCheckpoint)
             throws Exception {
-        this(idle, false, watermarkStrategy, new MockOutput<>(new ArrayList<>()), false);
+        this(idle, WatermarkStrategy.noWatermarks(), pauseSourcesUntilFirstCheckpoint);
+    }
+
+    public SourceOperatorTestContext(
+            boolean idle,
+            WatermarkStrategy<Integer> watermarkStrategy,
+            boolean pauseSourcesUntilFirstCheckpoint)
+            throws Exception {
+        this(
+                idle,
+                false,
+                watermarkStrategy,
+                new MockOutput<>(new ArrayList<>()),
+                false,
+                pauseSourcesUntilFirstCheckpoint);
     }
 
     public SourceOperatorTestContext(
@@ -84,6 +97,43 @@ public class SourceOperatorTestContext implements AutoCloseable {
             WatermarkStrategy<Integer> watermarkStrategy,
             Output<StreamRecord<Integer>> output,
             boolean supportsSplitReassignmentOnRecovery)
+            throws Exception {
+        this(
+                idle,
+                usePerSplitOutputs,
+                watermarkStrategy,
+                output,
+                supportsSplitReassignmentOnRecovery,
+                false,
+                (ign0, ign1) -> {});
+    }
+
+    public SourceOperatorTestContext(
+            boolean idle,
+            boolean usePerSplitOutputs,
+            WatermarkStrategy<Integer> watermarkStrategy,
+            Output<StreamRecord<Integer>> output,
+            boolean supportsSplitReassignmentOnRecovery,
+            boolean pauseSourcesUntilFirstCheckpoint)
+            throws Exception {
+        this(
+                idle,
+                usePerSplitOutputs,
+                watermarkStrategy,
+                output,
+                supportsSplitReassignmentOnRecovery,
+                pauseSourcesUntilFirstCheckpoint,
+                (ign0, ign1) -> {});
+    }
+
+    public SourceOperatorTestContext(
+            boolean idle,
+            boolean usePerSplitOutputs,
+            WatermarkStrategy<Integer> watermarkStrategy,
+            Output<StreamRecord<Integer>> output,
+            boolean supportsSplitReassignmentOnRecovery,
+            boolean pauseSourcesUntilFirstCheckpoint,
+            BiConsumer<TestTaskStateManager, OperatorID> preInit)
             throws Exception {
         mockSourceReader =
                 new MockSourceReader(
@@ -94,6 +144,7 @@ public class SourceOperatorTestContext implements AutoCloseable {
                         usePerSplitOutputs);
         mockGateway = new MockOperatorEventGateway();
         timeService = new TestProcessingTimeService();
+        this.output = output;
         Environment env = getTestingEnvironment();
         operator =
                 new TestingSourceOperator<>(
@@ -111,7 +162,9 @@ public class SourceOperatorTestContext implements AutoCloseable {
                         SUBTASK_INDEX,
                         5,
                         true,
-                        supportsSplitReassignmentOnRecovery);
+                        supportsSplitReassignmentOnRecovery,
+                        pauseSourcesUntilFirstCheckpoint);
+        preInit.accept((TestTaskStateManager) env.getTaskStateManager(), operator.getOperatorID());
         operator.initializeState(
                 new StreamTaskStateInitializerImpl(env, new HashMapStateBackend()));
     }

@@ -43,14 +43,17 @@ import java.util.Queue;
  */
 public class NumberSequenceSourceWithWaitForCheckpoint extends NumberSequenceSource {
     private static final long serialVersionUID = 1L;
+    private final int numCheckpointsToWait;
 
     private final int numSplits;
     private final long numAllowedMessageBeforeCheckpoint;
 
-    public NumberSequenceSourceWithWaitForCheckpoint(long from, long to, int numSplits) {
+    public NumberSequenceSourceWithWaitForCheckpoint(
+            long from, long to, int numSplits, int numCheckpointsToWait) {
         super(from, to);
         this.numSplits = numSplits;
         this.numAllowedMessageBeforeCheckpoint = (to - from) / numSplits;
+        this.numCheckpointsToWait = numCheckpointsToWait;
     }
 
     @Override
@@ -63,7 +66,7 @@ public class NumberSequenceSourceWithWaitForCheckpoint extends NumberSequenceSou
     @Override
     public SourceReader<Long, NumberSequenceSplit> createReader(SourceReaderContext readerContext) {
         return new CheckpointListeningIteratorSourceReader<>(
-                readerContext, numAllowedMessageBeforeCheckpoint);
+                readerContext, numAllowedMessageBeforeCheckpoint, numCheckpointsToWait);
     }
 
     /**
@@ -112,19 +115,24 @@ public class NumberSequenceSourceWithWaitForCheckpoint extends NumberSequenceSou
     private static class CheckpointListeningIteratorSourceReader<
                     E, IterT extends Iterator<E>, SplitT extends IteratorSourceSplit<E, IterT>>
             extends IteratorSourceReader<E, IterT, SplitT> {
-        private boolean checkpointed = false;
+        private int completedCheckpoints = 0;
         private long messagesProduced = 0;
         private final long numAllowedMessageBeforeCheckpoint;
+        private final int numCheckpointsToWait;
 
         public CheckpointListeningIteratorSourceReader(
-                SourceReaderContext context, long waitForCheckpointAfterMessages) {
+                SourceReaderContext context,
+                long waitForCheckpointAfterMessages,
+                int numCheckpointsToWait) {
             super(context);
             this.numAllowedMessageBeforeCheckpoint = waitForCheckpointAfterMessages;
+            this.numCheckpointsToWait = numCheckpointsToWait;
         }
 
         @Override
         public InputStatus pollNext(ReaderOutput<E> output) {
-            if (messagesProduced < numAllowedMessageBeforeCheckpoint || checkpointed) {
+            if (messagesProduced < numAllowedMessageBeforeCheckpoint
+                    || completedCheckpoints >= numCheckpointsToWait) {
                 messagesProduced++;
                 return super.pollNext(output);
             } else {
@@ -134,7 +142,7 @@ public class NumberSequenceSourceWithWaitForCheckpoint extends NumberSequenceSou
 
         @Override
         public void notifyCheckpointComplete(long checkpointId) {
-            checkpointed = true;
+            completedCheckpoints++;
         }
     }
 }

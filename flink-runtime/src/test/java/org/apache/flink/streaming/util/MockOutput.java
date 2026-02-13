@@ -83,4 +83,8 @@ public class MockOutput<T> implements Output<StreamRecord<T>> {
 
     @Override
     public void close() {}
+
+    public Collection<T> getOutputs() {
+        return outputs;
+    }
 }
