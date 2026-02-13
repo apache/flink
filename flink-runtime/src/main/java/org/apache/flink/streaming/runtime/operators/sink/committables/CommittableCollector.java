@@ -55,19 +55,19 @@ public class CommittableCollector<CommT> {
     private final SinkCommitterMetricGroup metricGroup;
 
     public CommittableCollector(
-            SinkCommitterMetricGroup metricGroup, boolean setCurrentPendingCommittablesGauge) {
-        this(new TreeMap<>(), metricGroup, setCurrentPendingCommittablesGauge);
+            SinkCommitterMetricGroup metricGroup, boolean shouldSetPendingCommittablesGauge) {
+        this(new TreeMap<>(), metricGroup, shouldSetPendingCommittablesGauge);
     }
 
     /** For deep-copy. */
     CommittableCollector(
             Map<Long, CheckpointCommittableManagerImpl<CommT>> checkpointCommittables,
             SinkCommitterMetricGroup metricGroup,
-            boolean setCurrentPendingCommittablesGauge) {
+            boolean shouldSetPendingCommittablesGauge) {
         this.checkpointCommittables = new TreeMap<>(checkNotNull(checkpointCommittables));
         this.metricGroup = metricGroup;
 
-        if (setCurrentPendingCommittablesGauge) {
+        if (shouldSetPendingCommittablesGauge) {
             this.metricGroup.setCurrentPendingCommittablesGauge(this::getNumPending);
         }
     }
