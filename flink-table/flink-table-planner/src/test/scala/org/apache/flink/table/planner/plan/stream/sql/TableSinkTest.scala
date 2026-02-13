@@ -947,6 +947,55 @@ class TableSinkTest extends TableTestBase {
     util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
 
+  @Test
+  def testInjectiveCastPreservesUpsertKey(): Unit = {
+    // Aggregation produces upsert stream with key (a).
+    // Sink expects STRING primary key.
+    // CAST(INT AS STRING) is injective, so the upsert key is preserved - no materializer needed.
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE sink_agg_with_string_pk (
+                               |  id STRING NOT NULL,
+                               |  cnt BIGINT,
+                               |  PRIMARY KEY (id) NOT ENFORCED
+                               |) WITH (
+                               |  'connector' = 'values',
+                               |  'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    // GROUP BY a produces upsert key (a), then CAST(a AS STRING) preserves it
+    stmtSet.addInsertSql(
+      "INSERT INTO sink_agg_with_string_pk SELECT CAST(a AS STRING), COUNT(*) FROM MyTable GROUP BY a")
+    // The plan should NOT contain upsertMaterialize=[true] because INT->STRING is injective
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testNonInjectiveCastLosesUpsertKey(): Unit = {
+    // Aggregation produces upsert stream with key (c) which is STRING.
+    // Sink expects INT primary key.
+    // CAST(STRING AS INT) is NOT injective ("1" and "01" both become 1), so key is lost.
+    util.tableEnv.executeSql("""
+                               |CREATE TABLE sink_agg_with_int_pk (
+                               |  id INT NOT NULL,
+                               |  cnt BIGINT,
+                               |  PRIMARY KEY (id) NOT ENFORCED
+                               |) WITH (
+                               |  'connector' = 'values',
+                               |  'sink-insert-only' = 'false'
+                               |)
+                               |""".stripMargin)
+    // GROUP BY c (STRING) produces upsert key (c), then CAST(c AS INT) loses it
+    util.verifyExplainInsert(
+      """
+        |INSERT INTO sink_agg_with_int_pk
+        |SELECT CAST(c AS INT), COUNT(*) FROM MyTable GROUP BY c
+        |ON CONFLICT DO DEDUPLICATE
+        |""".stripMargin,
+      ExplainDetail.CHANGELOG_MODE
+    )
+  }
+
 }
 
 /** tests table factory use ParallelSourceFunction which support parallelism by env */
