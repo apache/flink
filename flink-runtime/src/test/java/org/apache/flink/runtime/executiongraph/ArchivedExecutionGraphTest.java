@@ -217,6 +217,7 @@ public class ArchivedExecutionGraphTest {
                         JobType.STREAMING,
                         null,
                         null,
+                        null,
                         System.currentTimeMillis(),
                         Arrays.asList(jobVertex),
                         initialParallelismStore);

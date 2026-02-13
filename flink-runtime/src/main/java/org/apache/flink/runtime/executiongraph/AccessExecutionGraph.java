@@ -226,4 +226,14 @@ public interface AccessExecutionGraph extends JobStatusProvider {
      * @return ID of the application this job belongs to.
      */
     Optional<ApplicationID> getApplicationId();
+
+    /**
+     * Returns the scheduler of the current execution graph.
+     *
+     * @return The scheduler of the current execution graph.
+     */
+    @Nullable
+    default String getScheduler() {
+        return null;
+    }
 }

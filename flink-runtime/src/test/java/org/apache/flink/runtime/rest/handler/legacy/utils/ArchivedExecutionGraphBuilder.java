@@ -168,6 +168,7 @@ public class ArchivedExecutionGraphBuilder {
                 stateTimestamps != null ? stateTimestamps : new long[JobStatus.values().length],
                 state != null ? state : JobStatus.FINISHED,
                 JobType.STREAMING,
+                null,
                 failureCause,
                 plan != null
                         ? plan

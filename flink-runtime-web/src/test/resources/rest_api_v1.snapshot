@@ -1164,6 +1164,12 @@
               "name" : {
                 "type" : "string"
               },
+              "jobType" : {
+                "enum" : [ "BATCH", "STREAMING" ]
+              },
+              "scheduler" : {
+                "type" : "string"
+              },
               "start-time" : {
                 "type" : "integer"
               },
@@ -1234,6 +1240,9 @@
         "job-type" : {
           "type" : "string",
           "enum" : [ "BATCH", "STREAMING" ]
+        },
+        "scheduler" : {
+          "type" : "string"
         },
         "start-time" : {
           "type" : "integer"
