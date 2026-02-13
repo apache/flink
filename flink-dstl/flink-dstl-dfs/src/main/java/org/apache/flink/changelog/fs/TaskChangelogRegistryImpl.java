@@ -61,6 +61,22 @@ class TaskChangelogRegistryImpl implements TaskChangelogRegistry {
     }
 
     @Override
+    public void retain(StreamStateHandle handle) {
+        PhysicalStateHandleID key = handle.getStreamStateHandleID();
+        LOG.debug("state reference count increased by one, key: {}, state: {}", key, handle);
+
+        entries.compute(
+                key,
+                (handleID, refCount) -> {
+                    if (refCount == null) {
+                        LOG.warn("state is not in tracking, key: {}, state: {}", key, handle);
+                        return null;
+                    }
+                    return refCount + 1;
+                });
+    }
+
+    @Override
     public void release(StreamStateHandle handle) {
         PhysicalStateHandleID key = handle.getStreamStateHandleID();
         LOG.debug("state reference count decreased by one, key: {}, state: {}", key, handle);

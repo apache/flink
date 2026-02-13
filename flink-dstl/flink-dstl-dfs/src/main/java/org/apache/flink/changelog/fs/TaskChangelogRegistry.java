@@ -53,6 +53,12 @@ public interface TaskChangelogRegistry {
     void stopTracking(StreamStateHandle handle);
 
     /**
+     * Increase the reference count of the state by one, e.g. to pin a handle referenced by an
+     * in-flight checkpoint snapshot so that concurrent truncation cannot discard it prematurely.
+     */
+    void retain(StreamStateHandle handle);
+
+    /**
      * Decrease the reference count of the state by one, e.g. if it was pre-emptively uploaded and
      * materialized. Once the reference count reaches zero, it is discarded (unless it was {@link
      * #stopTracking(StreamStateHandle) unregistered} earlier).
@@ -66,6 +72,9 @@ public interface TaskChangelogRegistry {
 
                 @Override
                 public void stopTracking(StreamStateHandle handle) {}
+
+                @Override
+                public void retain(StreamStateHandle handle) {}
 
                 @Override
                 public void release(StreamStateHandle handle) {}
