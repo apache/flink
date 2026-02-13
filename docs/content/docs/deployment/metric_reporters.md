@@ -254,7 +254,7 @@ In contrast to Datadog-provided Histograms the reported aggregations are not com
 
 Parameters:
 
-- `apikey` - the Datadog API key
+- `apikey` - the Datadog API key (or set environment variable `DD_API_KEY` to override)
 - `proxyHost` - (optional) The proxy host to use when sending to Datadog.
 - `proxyPort` - (optional) The proxy port to use when sending to Datadog, defaults to 8080.
 - `dataCenter` - (optional) The data center (`EU`/`US`) to connect to, defaults to `US`.

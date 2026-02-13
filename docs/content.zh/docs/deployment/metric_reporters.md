@@ -270,7 +270,7 @@ metrics.reporter.stsd.interval: 60 SECONDS
 
 参数:
 
-- `apikey` - Datadog 的 API KEY。
+- `apikey` - Datadog 的 API KEY。（或者设置环境变量 `DD_API_KEY` 来覆盖配置）
 - `proxyHost` - （可选的）发送到 Datadog 时使用的代理主机。
 - `proxyPort` - （可选的）发送到 Datadog 时使用的代理端口，默认为 8080。
 - `dataCenter` - （可选的）要连接的数据中心（`EU`/`US`），默认为 `US`。
