@@ -45,6 +45,7 @@ import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguratio
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rest.messages.JobPlanInfo;
+import org.apache.flink.runtime.rest.messages.job.rescales.JobRescaleConfigInfo;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptivebatch.ExecutionPlanSchedulingContext;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
@@ -100,7 +101,8 @@ public class DefaultExecutionGraphBuilder {
             MarkPartitionFinishedStrategy markPartitionFinishedStrategy,
             boolean nonFinishedHybridPartitionShouldBeUnknown,
             JobManagerJobMetricGroup jobManagerJobMetricGroup,
-            ExecutionPlanSchedulingContext executionPlanSchedulingContext)
+            ExecutionPlanSchedulingContext executionPlanSchedulingContext,
+            JobRescaleConfigInfo jobRescaleConfigInfo)
             throws JobExecutionException, JobException {
 
         checkNotNull(jobGraph, "job graph cannot be null");
@@ -172,7 +174,8 @@ public class DefaultExecutionGraphBuilder {
                         markPartitionFinishedStrategy,
                         taskDeploymentDescriptorFactory,
                         jobStatusChangedListeners,
-                        executionPlanSchedulingContext);
+                        executionPlanSchedulingContext,
+                        jobRescaleConfigInfo);
 
         // set the basic properties
 

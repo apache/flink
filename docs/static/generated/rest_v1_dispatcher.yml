@@ -768,6 +768,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/JobPlanInfo'
+  /jobs/{jobid}/rescales/config:
+    get:
+      description: Returns the job rescale configuration.
+      operationId: getJobRescaleConfig
+      parameters:
+        - name: jobid
+          in: path
+          description: 32-character hexadecimal string value that identifies a job.
+          required: true
+          schema:
+            $ref: "#/components/schemas/JobID"
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRescaleConfigInfo"
   /jobs/{jobid}/rescaling:
     patch:
       description: Triggers the rescaling of a job. This async operation would return
@@ -2453,6 +2471,35 @@ components:
       properties:
         plan:
           $ref: '#/components/schemas/Plan'
+    JobRescaleConfigInfo:
+      type: object
+      properties:
+        executingCooldownTimeout:
+          type: integer
+          format: int64
+        executingResourceStabilizationTimeout:
+          type: integer
+          format: int64
+        maximumDelayForTriggeringRescale:
+          type: integer
+          format: int64
+        rescaleHistoryMax:
+          type: integer
+          format: int32
+        rescaleOnFailedCheckpointCount:
+          type: integer
+          format: int32
+        schedulerExecutionMode:
+          $ref: "#/components/schemas/SchedulerExecutionMode"
+        slotIdleTimeout:
+          type: integer
+          format: int64
+        submissionResourceStabilizationTimeout:
+          type: integer
+          format: int64
+        submissionResourceWaitTimeout:
+          type: integer
+          format: int64
     JobResourceRequirementsBody:
       type: object
       additionalProperties:
@@ -2830,6 +2877,10 @@ components:
           type: string
         triggerId:
           $ref: '#/components/schemas/TriggerId'
+    SchedulerExecutionMode:
+      type: string
+      enum:
+      - REACTIVE
     SerializedThrowable:
       type: object
       properties:
